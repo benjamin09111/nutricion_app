@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("NUTRITIONIST")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  foodPreferences FoodPreference[]
+  customFoods     Food[]
+
+  @@map("users")
+}
+
+model Food {
+  id          String   @id @default(uuid())
+  name        String
+  brand       String?
+  category    String
+  calories    Float
+  proteins    Float
+  carbs       Float
+  fats        Float
+  tags        String[]
+  ingredients String?
+  micros      Json?
+  serving     Json?
+  isPublic       Boolean  @default(false)
+  nutritionistId String?
+  nutritionist   User?    @relation(fields: [nutritionistId], references: [id])
+  createdAt   DateTime @default(now())
+  preferences FoodPreference[]
+  
+  @@index([name])
+  @@index([category])
+  @@map("foods")
+}
+
+model FoodPreference {
+  id             String  @id @default(uuid())
+  nutritionistId String
+  nutritionist   User    @relation(fields: [nutritionistId], references: [id])
+  foodId         String
+  isFavorite     Boolean @default(false)
+  isHidden       Boolean @default(false)
+  food           Food    @relation(fields: [foodId], references: [id])
+  @@unique([nutritionistId, foodId])
+  @@map("food_preferences")
+}
+
+model FoodPriceRecord {
+  id                String   @id @default(uuid())
+  anio              String
+  mes               String
+  semana            String
+  fechaInicio       String   @map("fecha_inicio")
+  fechaTermino      String   @map("fecha_termino")
+  idRegion          String   @map("id_region")
+  region            String
+  sector            String
+  tipoPuntoMonitoreo String   @map("tipo_punto_monitoreo")
+  grupo             String
+  producto          String
+  unidad            String
+  precioMin         Float    @map("precio_minimo")
+  precioMax         Float    @map("precio_maximo")
+  precioPromedio    Float    @map("precio_promedio")
+  createdAt         DateTime @default(now())
+
+  @@index([producto])
+  @@index([region])
+  @@index([grupo])
+  @@map("food_price_records")
+}

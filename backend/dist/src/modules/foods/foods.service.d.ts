@@ -1,0 +1,98 @@
+import { CreateFoodDto } from './dto/create-food.dto';
+import { UpdateFoodDto } from './dto/update-food.dto';
+import { PrismaService } from '../../prisma/prisma.service';
+export declare class FoodsService {
+    private readonly prisma;
+    constructor(prisma: PrismaService);
+    create(createFoodDto: CreateFoodDto, nutritionistId?: string): Promise<{
+        micros: import("@prisma/client/runtime/library").JsonValue | null;
+        id: string;
+        name: string;
+        brand: string | null;
+        category: string;
+        calories: number;
+        proteins: number;
+        carbs: number;
+        fats: number;
+        tags: string[];
+        ingredients: string | null;
+        serving: import("@prisma/client/runtime/library").JsonValue | null;
+        isPublic: boolean;
+        nutritionistId: string | null;
+        createdAt: Date;
+    }>;
+    findAll(params: {
+        nutritionistId?: string;
+        search?: string;
+        category?: string;
+        page?: number;
+        limit?: number;
+    }): Promise<{
+        micros: import("@prisma/client/runtime/library").JsonValue | null;
+        id: string;
+        name: string;
+        brand: string | null;
+        category: string;
+        calories: number;
+        proteins: number;
+        carbs: number;
+        fats: number;
+        tags: string[];
+        ingredients: string | null;
+        serving: import("@prisma/client/runtime/library").JsonValue | null;
+        isPublic: boolean;
+        nutritionistId: string | null;
+        createdAt: Date;
+    }[]>;
+    findOne(id: string): Promise<{
+        micros: import("@prisma/client/runtime/library").JsonValue | null;
+        id: string;
+        name: string;
+        brand: string | null;
+        category: string;
+        calories: number;
+        proteins: number;
+        carbs: number;
+        fats: number;
+        tags: string[];
+        ingredients: string | null;
+        serving: import("@prisma/client/runtime/library").JsonValue | null;
+        isPublic: boolean;
+        nutritionistId: string | null;
+        createdAt: Date;
+    } | null>;
+    update(id: string, updateFoodDto: UpdateFoodDto): import(".prisma/client").Prisma.Prisma__FoodClient<{
+        micros: import("@prisma/client/runtime/library").JsonValue | null;
+        id: string;
+        name: string;
+        brand: string | null;
+        category: string;
+        calories: number;
+        proteins: number;
+        carbs: number;
+        fats: number;
+        tags: string[];
+        ingredients: string | null;
+        serving: import("@prisma/client/runtime/library").JsonValue | null;
+        isPublic: boolean;
+        nutritionistId: string | null;
+        createdAt: Date;
+    }, never, import("@prisma/client/runtime/library").DefaultArgs>;
+    remove(id: string): import(".prisma/client").Prisma.Prisma__FoodClient<{
+        micros: import("@prisma/client/runtime/library").JsonValue | null;
+        id: string;
+        name: string;
+        brand: string | null;
+        category: string;
+        calories: number;
+        proteins: number;
+        carbs: number;
+        fats: number;
+        tags: string[];
+        ingredients: string | null;
+        serving: import("@prisma/client/runtime/library").JsonValue | null;
+        isPublic: boolean;
+        nutritionistId: string | null;
+        createdAt: Date;
+    }, never, import("@prisma/client/runtime/library").DefaultArgs>;
+}

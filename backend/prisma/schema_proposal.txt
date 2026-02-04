@@ -1,0 +1,20 @@
+
+model Creation {
+  id             String      @id @default(uuid())
+  nutritionistId String
+  name           String
+  type           String     // "Dieta", "Lista de Compras", "Receta"
+  status         String     @default("draft") // "draft", "completed"
+  
+  // This is the key: Store the entire React state/configuration here
+  content        Json       
+  
+  // Metadata for querying
+  tags           String[]
+  metadata       Json?      // extra info like "calories", "patientId"
+
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@map("creations")
+}
