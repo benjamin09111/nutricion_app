@@ -1,9 +1,76 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("@prisma/client");
+const bcrypt = __importStar(require("bcrypt"));
 const prisma = new client_1.PrismaClient();
 async function main() {
-    console.log('🌱 Start seeding Chilean Foods...');
+    console.log('🌱 Start seeding...');
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    const adminAccount = await prisma.account.upsert({
+        where: { email: 'admin@nutrisaas.com' },
+        update: {},
+        create: {
+            email: 'admin@nutrisaas.com',
+            password: hashedPassword,
+            role: 'ADMIN',
+            status: 'ACTIVE',
+        },
+    });
+    console.log('✅ Created Admin Account');
+    const nutriAccount = await prisma.account.upsert({
+        where: { email: 'nutri@test.com' },
+        update: {},
+        create: {
+            email: 'nutri@test.com',
+            password: hashedPassword,
+            role: 'NUTRITIONIST',
+            status: 'ACTIVE',
+        },
+    });
+    const nutritionist = await prisma.nutritionist.upsert({
+        where: { accountId: nutriAccount.id },
+        update: {},
+        create: {
+            accountId: nutriAccount.id,
+            fullName: 'Dr. Test Nutritionist',
+            professionalId: '123456-7',
+            specialty: 'Clinical Nutrition',
+        },
+    });
+    console.log('✅ Created Nutritionist Account and Profile');
     const foods = [
         {
             name: 'Marraqueta (Unidad)',
@@ -45,46 +112,6 @@ async function main() {
             serving: { unit: 'pote', g_per_serving: 155, price_estimate: 650 },
             isPublic: true,
             micros: { calcium: 180 },
-        },
-        {
-            name: 'Atún al Agua',
-            brand: 'San José',
-            category: 'Despensa',
-            calories: 116.0,
-            proteins: 26.0,
-            carbs: 0.0,
-            fats: 0.8,
-            tags: ['ALTO_PROTEINA', 'KETO', 'PESCATARIANO', 'LIBRE_DE_GLUTEN'],
-            ingredients: 'Atún, agua, sal.',
-            serving: { unit: 'lata', g_per_serving: 104, price_estimate: 1400 },
-            isPublic: true,
-            micros: { omega3: 0.5 },
-        },
-        {
-            name: 'Avena Instantánea',
-            brand: 'Quaker',
-            category: 'Despensa',
-            calories: 370.0,
-            proteins: 14.0,
-            carbs: 66.0,
-            fats: 7.0,
-            tags: ['VEGAN', 'ALTO_FIBRA', 'INTEGRAL'],
-            ingredients: 'Avena laminada precocida.',
-            serving: { unit: 'taza', g_per_serving: 40, price_estimate: 100 },
-            isPublic: true,
-        },
-        {
-            name: 'Cochayuyo',
-            brand: 'Pacífico Sur',
-            category: 'Frutas y Verduras',
-            calories: 85.0,
-            proteins: 12.0,
-            carbs: 48.0,
-            fats: 0.3,
-            tags: ['VEGAN', 'ALTO_YODO', 'SUPERFOOD', 'LIBRE_DE_GLUTEN'],
-            ingredients: 'Alga cochayuyo seca.',
-            serving: { unit: 'paquete', g_per_serving: 50, price_estimate: 2000 },
-            isPublic: true,
         },
     ];
     for (const food of foods) {

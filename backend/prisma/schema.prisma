@@ -5,21 +5,85 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String
-  password  String
-  role      String   @default("NUTRITIONIST")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum UserRole {
+  ADMIN
+  NUTRITIONIST
+}
 
-  foodPreferences FoodPreference[]
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+model Account {
+  id                 String           @id @default(uuid())
+  email              String           @unique
+  password           String?          // Opcional si solo se usa Supabase Auth OIDC
+  role               UserRole         @default(NUTRITIONIST)
+  status             AccountStatus    @default(ACTIVE)
+  plan               SubscriptionPlan @default(FREE)
+  subscriptionEndsAt DateTime?        @map("subscription_ends_at")
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  nutritionist Nutritionist?
+
+  @@map("accounts")
+}
+
+model Nutritionist {
+  id              String   @id @default(uuid())
+  accountId       String   @unique
+  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  
+  fullName        String   @map("full_name")
+  professionalId  String?  @map("professional_id")
+  specialty       String?
+  phone           String?
+  avatarUrl       String?  @map("avatar_url")
+  
+  settings        Json?    @default("{}")
+
+  patients        Patient[]
   customFoods     Food[]
+  foodPreferences FoodPreference[]
 
-  @@map("users")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("nutritionists")
+}
+
+model Patient {
+  id             String       @id @default(uuid())
+  nutritionistId String       @map("nutritionist_id")
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
+  
+  fullName       String       @map("full_name")
+  email          String?
+  phone          String?
+  documentId     String?      @map("document_id") // RUT o DNI
+  birthDate      DateTime?    @map("birth_date")
+  gender         String?
+  
+  // Anthropometry
+  height         Float?
+  weight         Float?
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("patients")
 }
 
 model Food {
@@ -35,9 +99,11 @@ model Food {
   ingredients String?
   micros      Json?
   serving     Json?
-  isPublic       Boolean  @default(false)
-  nutritionistId String?
-  nutritionist   User?    @relation(fields: [nutritionistId], references: [id])
+  isPublic    Boolean  @default(false) @map("is_public")
+  
+  nutritionistId String? @map("nutritionist_id")
+  nutritionist   Nutritionist? @relation(fields: [nutritionistId], references: [id])
+  
   createdAt   DateTime @default(now())
   preferences FoodPreference[]
   
@@ -47,38 +113,64 @@ model Food {
 }
 
 model FoodPreference {
-  id             String  @id @default(uuid())
-  nutritionistId String
-  nutritionist   User    @relation(fields: [nutritionistId], references: [id])
-  foodId         String
-  isFavorite     Boolean @default(false)
-  isHidden       Boolean @default(false)
-  food           Food    @relation(fields: [foodId], references: [id])
+  id             String       @id @default(uuid())
+  nutritionistId String       @map("nutritionist_id")
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
+  foodId         String       @map("food_id")
+  food           Food         @relation(fields: [foodId], references: [id])
+  
+  isFavorite     Boolean      @default(false) @map("is_favorite")
+  isHidden       Boolean      @default(false) @map("is_hidden")
+  
   @@unique([nutritionistId, foodId])
   @@map("food_preferences")
 }
 
 model FoodPriceRecord {
-  id                String   @id @default(uuid())
-  anio              String
-  mes               String
-  semana            String
-  fechaInicio       String   @map("fecha_inicio")
-  fechaTermino      String   @map("fecha_termino")
-  idRegion          String   @map("id_region")
-  region            String
-  sector            String
+  id                 String   @id @default(uuid())
+  anio               String
+  mes                String
+  semana             String
+  fechaInicio        String   @map("fecha_inicio")
+  fechaTermino       String   @map("fecha_termino")
+  idRegion           String   @map("id_region")
+  region             String
+  sector             String
   tipoPuntoMonitoreo String   @map("tipo_punto_monitoreo")
-  grupo             String
-  producto          String
-  unidad            String
-  precioMin         Float    @map("precio_minimo")
-  precioMax         Float    @map("precio_maximo")
-  precioPromedio    Float    @map("precio_promedio")
-  createdAt         DateTime @default(now())
+  grupo              String
+  producto           String
+  unidad             String
+  precioMin          Float    @map("precio_minimo")
+  precioMax          Float    @map("precio_maximo")
+  precioPromedio     Float    @map("precio_promedio")
+  createdAt          DateTime @default(now())
 
   @@index([producto])
   @@index([region])
   @@index([grupo])
   @@map("food_price_records")
+}
+
+enum SupportRequestType {
+  PASSWORD_RESET
+  CONTACT
+  OTHER
+}
+
+enum SupportRequestStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+}
+
+model SupportRequest {
+  id        String               @id @default(uuid())
+  email     String
+  message   String?
+  type      SupportRequestType
+  status    SupportRequestStatus @default(PENDING)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@map("support_requests")
 }

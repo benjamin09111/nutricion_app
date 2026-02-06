@@ -1,16 +1,57 @@
 import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Start seeding Chilean Foods...');
+  console.log('🌱 Start seeding...');
+
+  // Create Users
+  const hashedPassword = await bcrypt.hash('admin123', 10);
+
+  // Create Admin
+  const adminAccount = await prisma.account.upsert({
+    where: { email: 'admin@nutrisaas.com' },
+    update: {},
+    create: {
+      email: 'admin@nutrisaas.com',
+      password: hashedPassword,
+      role: 'ADMIN',
+      status: 'ACTIVE',
+    },
+  });
+  console.log('✅ Created Admin Account');
+
+  // Create Nutritionist
+  const nutriAccount = await prisma.account.upsert({
+    where: { email: 'nutri@test.com' },
+    update: {},
+    create: {
+      email: 'nutri@test.com',
+      password: hashedPassword,
+      role: 'NUTRITIONIST',
+      status: 'ACTIVE',
+    },
+  });
+
+  const nutritionist = await prisma.nutritionist.upsert({
+    where: { accountId: nutriAccount.id },
+    update: {},
+    create: {
+      accountId: nutriAccount.id,
+      fullName: 'Dr. Test Nutritionist',
+      professionalId: '123456-7',
+      specialty: 'Clinical Nutrition',
+    },
+  });
+  console.log('✅ Created Nutritionist Account and Profile');
 
   const foods = [
     {
       name: 'Marraqueta (Unidad)',
       brand: 'Panadería Local',
       category: 'Panadería',
-      calories: 267.0, // aprox por 100g
+      calories: 267.0,
       proteins: 8.5,
       carbs: 58.0,
       fats: 1.2,
@@ -29,7 +70,7 @@ async function main() {
       fats: 14.7,
       tags: ['VEGAN', 'KETO', 'SALUDABLE', 'LIBRE_DE_GLUTEN'],
       ingredients: 'Palta natural 100%',
-      serving: { unit: 'g', g_per_serving: 100, price_estimate: 4900 }, // precio kilo
+      serving: { unit: 'g', g_per_serving: 100, price_estimate: 4900 },
       isPublic: true,
       micros: { potassium: 485, fiber: 6.7 },
     },
@@ -47,50 +88,9 @@ async function main() {
       isPublic: true,
       micros: { calcium: 180 },
     },
-    {
-      name: 'Atún al Agua',
-      brand: 'San José',
-      category: 'Despensa',
-      calories: 116.0, // Escurrido
-      proteins: 26.0,
-      carbs: 0.0,
-      fats: 0.8,
-      tags: ['ALTO_PROTEINA', 'KETO', 'PESCATARIANO', 'LIBRE_DE_GLUTEN'],
-      ingredients: 'Atún, agua, sal.',
-      serving: { unit: 'lata', g_per_serving: 104, price_estimate: 1400 },
-      isPublic: true,
-      micros: { omega3: 0.5 },
-    },
-    {
-      name: 'Avena Instantánea',
-      brand: 'Quaker',
-      category: 'Despensa',
-      calories: 370.0,
-      proteins: 14.0,
-      carbs: 66.0,
-      fats: 7.0,
-      tags: ['VEGAN', 'ALTO_FIBRA', 'INTEGRAL'],
-      ingredients: 'Avena laminada precocida.',
-      serving: { unit: 'taza', g_per_serving: 40, price_estimate: 100 },
-      isPublic: true,
-    },
-    {
-      name: 'Cochayuyo',
-      brand: 'Pacífico Sur',
-      category: 'Frutas y Verduras',
-      calories: 85.0,
-      proteins: 12.0,
-      carbs: 48.0,
-      fats: 0.3,
-      tags: ['VEGAN', 'ALTO_YODO', 'SUPERFOOD', 'LIBRE_DE_GLUTEN'],
-      ingredients: 'Alga cochayuyo seca.',
-      serving: { unit: 'paquete', g_per_serving: 50, price_estimate: 2000 },
-      isPublic: true,
-    },
   ];
 
   for (const food of foods) {
-    // Upsert by name to avoid duplicates if re-run
     const existing = await prisma.food.findFirst({ where: { name: food.name } });
     if (!existing) {
       await prisma.food.create({ data: food });

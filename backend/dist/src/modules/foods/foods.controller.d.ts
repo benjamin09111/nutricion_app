@@ -6,7 +6,9 @@ export declare class FoodsController {
     constructor(foodsService: FoodsService);
     create(createFoodDto: CreateFoodDto): Promise<{
         id: string;
+        createdAt: Date;
         name: string;
+        micros: import("@prisma/client/runtime/library").JsonValue | null;
         brand: string | null;
         category: string;
         calories: number;
@@ -15,15 +17,15 @@ export declare class FoodsController {
         fats: number;
         tags: string[];
         ingredients: string | null;
-        micros: import("@prisma/client/runtime/library").JsonValue | null;
         serving: import("@prisma/client/runtime/library").JsonValue | null;
         isPublic: boolean;
-        createdAt: Date;
         nutritionistId: string | null;
     }>;
     findAll(search?: string, category?: string, page?: string, limit?: string): Promise<{
         id: string;
+        createdAt: Date;
         name: string;
+        micros: import("@prisma/client/runtime/library").JsonValue | null;
         brand: string | null;
         category: string;
         calories: number;
@@ -32,15 +34,16 @@ export declare class FoodsController {
         fats: number;
         tags: string[];
         ingredients: string | null;
-        micros: import("@prisma/client/runtime/library").JsonValue | null;
         serving: import("@prisma/client/runtime/library").JsonValue | null;
         isPublic: boolean;
-        createdAt: Date;
         nutritionistId: string | null;
     }[]>;
+    getMarketPrices(limit?: string): Promise<import("./dto/market-price.dto").MarketPriceDto[]>;
     findOne(id: string): Promise<{
         id: string;
+        createdAt: Date;
         name: string;
+        micros: import("@prisma/client/runtime/library").JsonValue | null;
         brand: string | null;
         category: string;
         calories: number;
@@ -49,15 +52,15 @@ export declare class FoodsController {
         fats: number;
         tags: string[];
         ingredients: string | null;
-        micros: import("@prisma/client/runtime/library").JsonValue | null;
         serving: import("@prisma/client/runtime/library").JsonValue | null;
         isPublic: boolean;
-        createdAt: Date;
         nutritionistId: string | null;
     } | null>;
     update(id: string, updateFoodDto: UpdateFoodDto): import(".prisma/client").Prisma.Prisma__FoodClient<{
         id: string;
+        createdAt: Date;
         name: string;
+        micros: import("@prisma/client/runtime/library").JsonValue | null;
         brand: string | null;
         category: string;
         calories: number;
@@ -66,15 +69,15 @@ export declare class FoodsController {
         fats: number;
         tags: string[];
         ingredients: string | null;
-        micros: import("@prisma/client/runtime/library").JsonValue | null;
         serving: import("@prisma/client/runtime/library").JsonValue | null;
         isPublic: boolean;
-        createdAt: Date;
         nutritionistId: string | null;
     }, never, import("@prisma/client/runtime/library").DefaultArgs>;
     remove(id: string): import(".prisma/client").Prisma.Prisma__FoodClient<{
         id: string;
+        createdAt: Date;
         name: string;
+        micros: import("@prisma/client/runtime/library").JsonValue | null;
         brand: string | null;
         category: string;
         calories: number;
@@ -83,10 +86,8 @@ export declare class FoodsController {
         fats: number;
         tags: string[];
         ingredients: string | null;
-        micros: import("@prisma/client/runtime/library").JsonValue | null;
         serving: import("@prisma/client/runtime/library").JsonValue | null;
         isPublic: boolean;
-        createdAt: Date;
         nutritionistId: string | null;
     }, never, import("@prisma/client/runtime/library").DefaultArgs>;
 }

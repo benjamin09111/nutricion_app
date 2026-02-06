@@ -1,92 +1,182 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { LoginDto } from './dto/login.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private jwtService: JwtService,
+        private mailService: MailService,
+    ) { }
 
-    async createNutritionist(email: string) {
-        // Check if user exists
-        const existingUser = await this.prisma.user.findUnique({
+    async createAccount(email: string, role: 'ADMIN' | 'NUTRITIONIST', fullName: string = 'Usuario') {
+        const existingAccount = await this.prisma.account.findUnique({
             where: { email },
         });
 
-        if (existingUser) {
-            throw new BadRequestException('Usuario ya existe con este correo');
+        if (existingAccount) {
+            throw new BadRequestException('La cuenta ya existe con este correo');
         }
 
-        // Generate secure random password
-        // 8 bytes = 16 hex chars
         const password = crypto.randomBytes(8).toString('hex');
-
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create user
         try {
-            await this.prisma.user.create({
-                data: {
-                    email,
-                    name: 'Nutricionista', // Default name
-                    password: hashedPassword,
-                    role: 'NUTRITIONIST',
-                },
+            await this.prisma.$transaction(async (tx) => {
+                const newAccount = await tx.account.create({
+                    data: {
+                        email,
+                        password: hashedPassword,
+                        role: role,
+                    },
+                });
+
+                if (role === 'NUTRITIONIST') {
+                    await tx.nutritionist.create({
+                        data: {
+                            accountId: newAccount.id,
+                            fullName: fullName,
+                        },
+                    });
+                }
             });
 
-            // MOCK EMAIL SERVICE
-            // According to user request: "luego podremos enviarle correo a ese mismo correo"
-            // We log it here so the developer can actually see it in this dev environment.
-            console.log('=====================================================');
-            console.log(`[EMAIL SERVICE MOCK] Credentials for ${email}`);
-            console.log(`Password: ${password}`);
-            console.log('=====================================================');
+            // SEND REAL EMAIL
+            await this.mailService.sendWelcomeEmail(email, fullName, password);
 
             return {
                 success: true,
                 message: 'Cuenta creada. Las credenciales han sido enviadas al correo especificado.',
             };
         } catch (error) {
-            throw new BadRequestException('Error al crear el usuario. Inténtalo de nuevo.');
+            console.error('CRITICAL ERROR creating account:', error);
+            if (error instanceof BadRequestException) {
+                throw error;
+            }
+            throw new BadRequestException(`Error interno al crear cuenta: ${error.message}`);
         }
     }
 
-    async resetNutritionistPassword(email: string) {
-        // Check if user exists
-        const user = await this.prisma.user.findUnique({
+    async login(loginDto: LoginDto) {
+        const { email, password } = loginDto;
+
+        const account = await this.prisma.account.findUnique({
             where: { email },
+            include: { nutritionist: true },
         });
 
-        if (!user) {
+        if (!account || !account.password) {
+            throw new UnauthorizedException('Credenciales inválidas');
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, account.password);
+
+        if (!isPasswordValid) {
+            throw new UnauthorizedException('Credenciales inválidas');
+        }
+
+        const payload = {
+            email: account.email,
+            sub: account.id,
+            role: account.role,
+            nutritionistId: account.nutritionist?.id
+        };
+
+        const signOptions: any = {
+            expiresIn: loginDto.rememberMe ? '30d' : '24h'
+        };
+
+        return {
+            access_token: this.jwtService.sign(payload, signOptions),
+            user: {
+                id: account.id,
+                email: account.email,
+                role: account.role,
+                nutritionist: account.nutritionist,
+            },
+        };
+    }
+
+    async validateUser(payload: any) {
+        return this.prisma.account.findUnique({
+            where: { id: payload.sub },
+            include: { nutritionist: true },
+        });
+    }
+
+    async resetAccountPassword(email: string) {
+        const account = await this.prisma.account.findUnique({
+            where: { email },
+            include: { nutritionist: true },
+        });
+
+        if (!account) {
             throw new BadRequestException('Usuario no encontrado');
         }
 
-        // Generate secure random password
         const password = crypto.randomBytes(8).toString('hex');
-
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Update user
         try {
-            await this.prisma.user.update({
+            await this.prisma.account.update({
                 where: { email },
                 data: { password: hashedPassword },
             });
 
-            // MOCK EMAIL SERVICE
-            console.log('=====================================================');
-            console.log(`[EMAIL SERVICE MOCK] PASSWORD RESET for ${email}`);
-            console.log(`New Password: ${password}`);
-            console.log('=====================================================');
+            // Determine greeting name
+            let greetingName = 'Usuario';
+            if (account.nutritionist?.fullName) {
+                greetingName = account.nutritionist.fullName;
+            } else if (account.role === 'ADMIN') {
+                greetingName = 'Administrador';
+            }
+
+            // Reuse welcome email or create a specific reset one later
+            await this.mailService.sendWelcomeEmail(email, greetingName, password);
 
             return {
                 success: true,
                 message: 'Contraseña restablecida. Las nuevas credenciales han sido enviadas al correo especificado.',
             };
         } catch (error) {
+            console.error('Error resetting password:', error);
             throw new BadRequestException('Error al restablecer la contraseña.');
         }
+    }
+
+    async updatePassword(userId: string, updatePasswordDto: UpdatePasswordDto) {
+        const { currentPassword, newPassword } = updatePasswordDto;
+
+        const account = await this.prisma.account.findUnique({
+            where: { id: userId },
+        });
+
+        if (!account || !account.password) {
+            throw new UnauthorizedException('Usuario no encontrado');
+        }
+
+        const isPasswordValid = await bcrypt.compare(currentPassword, account.password);
+
+        if (!isPasswordValid) {
+            throw new BadRequestException('La contraseña actual es incorrecta');
+        }
+
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+        await this.prisma.account.update({
+            where: { id: userId },
+            data: { password: hashedNewPassword },
+        });
+
+        return {
+            success: true,
+            message: 'Contraseña actualizada correctamente',
+        };
     }
 }
