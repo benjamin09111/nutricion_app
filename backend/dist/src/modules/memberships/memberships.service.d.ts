@@ -5,6 +5,8 @@ export declare class MembershipsService {
     findAll(): Promise<{
         price: number;
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         slug: string;
         description: string | null;
@@ -16,12 +18,12 @@ export declare class MembershipsService {
         isPopular: boolean;
         isActive: boolean;
         displayOrder: number;
-        createdAt: Date;
-        updatedAt: Date;
     }[]>;
     findActive(): Promise<{
         price: number;
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         slug: string;
         description: string | null;
@@ -33,12 +35,12 @@ export declare class MembershipsService {
         isPopular: boolean;
         isActive: boolean;
         displayOrder: number;
-        createdAt: Date;
-        updatedAt: Date;
     }[]>;
     findOne(id: string): Promise<{
         price: number;
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         slug: string;
         description: string | null;
@@ -50,8 +52,6 @@ export declare class MembershipsService {
         isPopular: boolean;
         isActive: boolean;
         displayOrder: number;
-        createdAt: Date;
-        updatedAt: Date;
     } | null>;
     create(data: {
         name: string;
@@ -68,6 +68,8 @@ export declare class MembershipsService {
         displayOrder?: number;
     }): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         slug: string;
         description: string | null;
@@ -80,8 +82,6 @@ export declare class MembershipsService {
         isPopular: boolean;
         isActive: boolean;
         displayOrder: number;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     update(id: string, data: {
         name?: string;
@@ -98,6 +98,8 @@ export declare class MembershipsService {
         displayOrder?: number;
     }): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         slug: string;
         description: string | null;
@@ -110,11 +112,11 @@ export declare class MembershipsService {
         isPopular: boolean;
         isActive: boolean;
         displayOrder: number;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     remove(id: string): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         slug: string;
         description: string | null;
@@ -127,11 +129,11 @@ export declare class MembershipsService {
         isPopular: boolean;
         isActive: boolean;
         displayOrder: number;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     toggleActive(id: string): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         slug: string;
         description: string | null;
@@ -144,7 +146,5 @@ export declare class MembershipsService {
         isPopular: boolean;
         isActive: boolean;
         displayOrder: number;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
 }

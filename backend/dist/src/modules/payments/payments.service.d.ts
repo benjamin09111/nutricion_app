@@ -12,17 +12,17 @@ export declare class PaymentsService {
         };
     } & {
         id: string;
-        accountId: string;
-        amount: import("@prisma/client/runtime/library").Decimal;
-        currency: string;
         status: import(".prisma/client").$Enums.PaymentStatus;
+        createdAt: Date;
+        updatedAt: Date;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        accountId: string;
+        currency: string;
         method: import(".prisma/client").$Enums.PaymentMethod;
         transactionId: string | null;
         idempotencyKey: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         paidAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     })[]>;
     findRecent(limit?: number): Promise<({
         account: {
@@ -32,17 +32,17 @@ export declare class PaymentsService {
         };
     } & {
         id: string;
-        accountId: string;
-        amount: import("@prisma/client/runtime/library").Decimal;
-        currency: string;
         status: import(".prisma/client").$Enums.PaymentStatus;
+        createdAt: Date;
+        updatedAt: Date;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        accountId: string;
+        currency: string;
         method: import(".prisma/client").$Enums.PaymentMethod;
         transactionId: string | null;
         idempotencyKey: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         paidAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     })[]>;
     createPayment(data: {
         accountId: string;
@@ -53,17 +53,17 @@ export declare class PaymentsService {
         metadata?: any;
     }): Promise<{
         id: string;
-        accountId: string;
-        amount: import("@prisma/client/runtime/library").Decimal;
-        currency: string;
         status: import(".prisma/client").$Enums.PaymentStatus;
+        createdAt: Date;
+        updatedAt: Date;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        accountId: string;
+        currency: string;
         method: import(".prisma/client").$Enums.PaymentMethod;
         transactionId: string | null;
         idempotencyKey: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         paidAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     getRevenueStats(): Promise<{
         totalLifetime: number | import("@prisma/client/runtime/library").Decimal;
@@ -78,24 +78,24 @@ export declare class PaymentsService {
     }): Promise<{
         payment: {
             id: string;
-            accountId: string;
-            amount: import("@prisma/client/runtime/library").Decimal;
-            currency: string;
             status: import(".prisma/client").$Enums.PaymentStatus;
+            createdAt: Date;
+            updatedAt: Date;
+            amount: import("@prisma/client/runtime/library").Decimal;
+            accountId: string;
+            currency: string;
             method: import(".prisma/client").$Enums.PaymentMethod;
             transactionId: string | null;
             idempotencyKey: string | null;
             metadata: import("@prisma/client/runtime/library").JsonValue | null;
             paidAt: Date | null;
-            createdAt: Date;
-            updatedAt: Date;
         };
         subscription: {
             id: string;
-            accountId: string;
             status: import(".prisma/client").$Enums.SubscriptionStatus;
             createdAt: Date;
             updatedAt: Date;
+            accountId: string;
             planId: string;
             startDate: Date;
             endDate: Date | null;
