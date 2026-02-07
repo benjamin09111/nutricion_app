@@ -1,0 +1,61 @@
+import { Patient } from './types';
+
+export const MOCK_PATIENTS: Patient[] = [
+    {
+        id: '1',
+        name: 'Ana Silva',
+        email: 'ana.silva@email.com',
+        birthDate: '1990-05-15',
+        gender: 'F',
+        contactInfo: '+56 9 1234 5678',
+        status: 'Active',
+        lastVisit: '2025-01-15',
+        weight: 65,
+        height: 165,
+        age: 34,
+        targetCalories: 1800,
+        targetProtein: 120,
+        wakeUpTime: '07:00',
+        sleepTime: '22:30',
+        tastes: ['Arroz', 'Pollo', 'Frutas'],
+        dislikes: ['Cebolla', 'Lentejas'],
+        fitnessGoals: ['Bajar 5kg de grasa', 'Correr 10k']
+    },
+    {
+        id: '2',
+        name: 'Carlos Ruiz',
+        email: 'carlos.ruiz@email.com',
+        birthDate: '1985-08-20',
+        gender: 'M',
+        contactInfo: '+56 9 8765 4321',
+        status: 'Active',
+        lastVisit: '2025-01-10',
+        weight: 85,
+        height: 180,
+        age: 39,
+        targetCalories: 2400,
+        targetProtein: 160,
+        wakeUpTime: '06:00',
+        sleepTime: '23:00',
+        tastes: ['Carne', 'Papas', 'Ensaladas'],
+        dislikes: ['Pescado'],
+        fitnessGoals: ['Ganar 3kg de músculo', 'Sentadilla 100kg']
+    },
+    {
+        id: '3',
+        name: 'Maria Gonzalez',
+        email: 'maria.gonzalez@email.com',
+        birthDate: '1992-02-28',
+        gender: 'F',
+        contactInfo: '+56 9 5555 6666',
+        status: 'Inactive',
+        lastVisit: '2024-11-20',
+        weight: 70,
+        height: 170,
+        age: 32,
+        targetCalories: 2000,
+        targetProtein: 130,
+        wakeUpTime: '08:00',
+        sleepTime: '00:00'
+    }
+];

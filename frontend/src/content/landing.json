@@ -1,0 +1,49 @@
+{
+  "hero": {
+    "badge": "El futuro de la consulta nutricional",
+    "titleLine1": "Multiplica tu tiempo,",
+    "titleLine2": "potencia tus resultados.",
+    "description": "El software inteligente que automatiza lo tedioso para que te enfoques en el paciente. Diseñado para nutricionistas chilenos que buscan excelencia y eficiencia.",
+    "ctaButton": "Solicitar Registro Profesional",
+    "trustText": "nutris ya confían"
+  },
+  "features": [
+    {
+      "icon": "Zap",
+      "color": "amber",
+      "title": "Automatización con IA",
+      "description": "Genera dietas personalizadas y listas de compras automáticas en segundos basándote en la evidencia clínica."
+    },
+    {
+      "icon": "Monitor",
+      "color": "indigo",
+      "title": "Dashboard Profesional",
+      "description": "Gestiona pacientes, antropometría e historia clínica en un solo lugar seguro y privado."
+    },
+    {
+      "icon": "ShieldCheck",
+      "color": "emerald",
+      "title": "Máxima Seguridad",
+      "description": "Protocolos de encriptado bancario para proteger la información sensible de tus pacientes."
+    }
+  ],
+  "pricing": {
+    "title": "Planes diseñados para tu crecimiento",
+    "subtitle": "Elige el plan que mejor se adapte a tu volumen de pacientes. Cambia de plan en cualquier momento."
+  },
+  "registration": {
+    "titleLine1": "¿Eres Nutricionista?",
+    "titleLine2": "Únete a la elite.",
+    "description": "Validamos a cada profesional manualmente para garantizar la calidad clínica de nuestra red. Completa el formulario y nos contactaremos contigo para activar tu acceso.",
+    "benefits": [
+      "Acceso total al generador de dietas",
+      "Soporte prioritario via WhatsApp",
+      "Precios especiales por lanzamiento"
+    ]
+  },
+  "footer": {
+    "brand": "NutriSaaS",
+    "quote": "Diseñado profesionalmente en Chile para el mundo.",
+    "copyright": "2024 NutriSaaS. Todos los derechos reservados."
+  }
+}
