@@ -8,58 +8,38 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum UserRole {
-  ADMIN
-  NUTRITIONIST
-}
-
-enum AccountStatus {
-  ACTIVE
-  SUSPENDED
-  PENDING
-}
-
-enum SubscriptionPlan {
-  FREE
-  PRO
-  ENTERPRISE
-}
-
 model Account {
   id                 String           @id @default(uuid())
   email              String           @unique
-  password           String?          // Opcional si solo se usa Supabase Auth OIDC
+  password           String?
   role               UserRole         @default(NUTRITIONIST)
   status             AccountStatus    @default(ACTIVE)
-  plan               SubscriptionPlan @default(FREE)
-  subscriptionEndsAt DateTime?        @map("subscription_ends_at")
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
-
-  nutritionist Nutritionist?
+  plan               SubscriptionPlan @default(FREE)
+  subscriptionEndsAt DateTime?        @map("subscription_ends_at")
+  nutritionist       Nutritionist?
+  payments           Payment[]
+  subscription       Subscription?
 
   @@map("accounts")
 }
 
 model Nutritionist {
-  id              String   @id @default(uuid())
-  accountId       String   @unique
-  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  
-  fullName        String   @map("full_name")
-  professionalId  String?  @map("professional_id")
+  id              String           @id @default(uuid())
+  accountId       String           @unique
+  fullName        String           @map("full_name")
+  professionalId  String?          @map("professional_id")
   specialty       String?
   phone           String?
-  avatarUrl       String?  @map("avatar_url")
-  
-  settings        Json?    @default("{}")
-
-  patients        Patient[]
-  customFoods     Food[]
+  avatarUrl       String?          @map("avatar_url")
+  settings        Json?            @default("{}")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   foodPreferences FoodPreference[]
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  customFoods     Food[]
+  account         Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  patients        Patient[]
 
   @@map("nutritionists")
 }
@@ -67,46 +47,40 @@ model Nutritionist {
 model Patient {
   id             String       @id @default(uuid())
   nutritionistId String       @map("nutritionist_id")
-  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
-  
   fullName       String       @map("full_name")
   email          String?
   phone          String?
-  documentId     String?      @map("document_id") // RUT o DNI
+  documentId     String?      @map("document_id")
   birthDate      DateTime?    @map("birth_date")
   gender         String?
-  
-  // Anthropometry
   height         Float?
   weight         Float?
-  
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
 
   @@map("patients")
 }
 
 model Food {
-  id          String   @id @default(uuid())
-  name        String
-  brand       String?
-  category    String
-  calories    Float
-  proteins    Float
-  carbs       Float
-  fats        Float
-  tags        String[]
-  ingredients String?
-  micros      Json?
-  serving     Json?
-  isPublic    Boolean  @default(false) @map("is_public")
-  
-  nutritionistId String? @map("nutritionist_id")
-  nutritionist   Nutritionist? @relation(fields: [nutritionistId], references: [id])
-  
-  createdAt   DateTime @default(now())
-  preferences FoodPreference[]
-  
+  id             String           @id @default(uuid())
+  name           String
+  brand          String?
+  category       String
+  calories       Float
+  proteins       Float
+  carbs          Float
+  fats           Float
+  tags           String[]
+  ingredients    String?
+  micros         Json?
+  serving        Json?
+  isPublic       Boolean          @default(false) @map("is_public")
+  nutritionistId String?          @map("nutritionist_id")
+  createdAt      DateTime         @default(now())
+  preferences    FoodPreference[]
+  nutritionist   Nutritionist?    @relation(fields: [nutritionistId], references: [id])
+
   @@index([name])
   @@index([category])
   @@map("foods")
@@ -115,13 +89,12 @@ model Food {
 model FoodPreference {
   id             String       @id @default(uuid())
   nutritionistId String       @map("nutritionist_id")
-  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
   foodId         String       @map("food_id")
-  food           Food         @relation(fields: [foodId], references: [id])
-  
   isFavorite     Boolean      @default(false) @map("is_favorite")
   isHidden       Boolean      @default(false) @map("is_hidden")
-  
+  food           Food         @relation(fields: [foodId], references: [id])
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
+
   @@unique([nutritionistId, foodId])
   @@map("food_preferences")
 }
@@ -151,6 +124,148 @@ model FoodPriceRecord {
   @@map("food_price_records")
 }
 
+model SupportRequest {
+  id        String               @id @default(uuid())
+  email     String
+  message   String?
+  type      SupportRequestType
+  status    SupportRequestStatus @default(PENDING)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@map("support_requests")
+}
+
+model RegistrationRequest {
+  id             String        @id @default(uuid())
+  fullName       String        @map("full_name")
+  email          String
+  phone          String?
+  professionalId String?       @map("professional_id")
+  specialty      String?
+  message        String?
+  status         RequestStatus @default(PENDING)
+  adminNotes     String?       @map("admin_notes")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@map("registration_requests")
+}
+
+model MembershipPlan {
+  id                    String              @id @default(uuid())
+  name                  String
+  slug                  String              @unique
+  description           String?
+  price                 Decimal             @db.Decimal(10, 2)
+  currency              String              @default("CLP")
+  billingPeriod         String              @default("monthly")
+  features              Json
+  maxPatients           Int?
+  maxStorage            Int?
+  isPopular             Boolean             @default(false)
+  isActive              Boolean             @default(true)
+  displayOrder          Int                 @default(0)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  newSubscriptionEvents SubscriptionEvent[] @relation("NewPlan")
+  oldSubscriptionEvents SubscriptionEvent[] @relation("OldPlan")
+  subscriptions         Subscription[]
+
+  @@map("membership_plans")
+}
+
+model Payment {
+  id                 String              @id @default(uuid())
+  accountId          String              @map("account_id")
+  amount             Decimal             @db.Decimal(10, 2)
+  currency           String              @default("CLP")
+  status             PaymentStatus       @default(PENDING)
+  method             PaymentMethod
+  transactionId      String?             @unique @map("transaction_id")
+  idempotencyKey     String?             @unique @map("idempotency_key")
+  metadata           Json?               @default("{}")
+  paidAt             DateTime?           @map("paid_at")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  account            Account             @relation(fields: [accountId], references: [id])
+  subscriptionEvents SubscriptionEvent[]
+
+  @@map("payments")
+}
+
+model Subscription {
+  id                String              @id @default(uuid())
+  accountId         String              @unique @map("account_id")
+  planId            String              @map("plan_id")
+  status            SubscriptionStatus  @default(TRIALING)
+  startDate         DateTime            @default(now()) @map("start_date")
+  endDate           DateTime?           @map("end_date")
+  cancelAtPeriodEnd Boolean             @default(false) @map("cancel_at_period_end")
+  canceledAt        DateTime?           @map("canceled_at")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  events            SubscriptionEvent[]
+  account           Account             @relation(fields: [accountId], references: [id])
+  plan              MembershipPlan      @relation(fields: [planId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model SubscriptionEvent {
+  id             String          @id @default(uuid())
+  subscriptionId String          @map("subscription_id")
+  eventType      String          @map("event_type")
+  paymentId      String?         @map("payment_id")
+  oldPlanId      String?         @map("old_plan_id")
+  newPlanId      String?         @map("new_plan_id")
+  metadata       Json?           @default("{}")
+  createdAt      DateTime        @default(now())
+  newPlan        MembershipPlan? @relation("NewPlan", fields: [newPlanId], references: [id])
+  oldPlan        MembershipPlan? @relation("OldPlan", fields: [oldPlanId], references: [id])
+  payment        Payment?        @relation(fields: [paymentId], references: [id])
+  subscription   Subscription    @relation(fields: [subscriptionId], references: [id])
+
+  @@map("subscription_events")
+}
+
+model DailyMetric {
+  id                  String   @id @default(uuid())
+  date                DateTime @unique
+  totalRevenue        Decimal  @default(0) @map("total_revenue") @db.Decimal(10, 2)
+  revenueGrowth       Float    @default(0) @map("revenue_growth")
+  totalUsers          Int      @default(0) @map("total_users")
+  activeUsers         Int      @default(0) @map("active_users")
+  newUsers            Int      @default(0) @map("new_users")
+  activeSubscriptions Int      @default(0) @map("active_subscriptions")
+  churnRate           Float    @default(0) @map("churn_rate")
+  createdAt           DateTime @default(now())
+
+  @@map("daily_metrics")
+}
+
+enum UserRole {
+  ADMIN
+  NUTRITIONIST
+  ORGANIZATION
+  SUPPLEMENT_STORE
+  SUPERMARKET
+  ADMIN_MASTER
+  ADMIN_GENERAL
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
 enum SupportRequestType {
   PASSWORD_RESET
   CONTACT
@@ -163,14 +278,33 @@ enum SupportRequestStatus {
   RESOLVED
 }
 
-model SupportRequest {
-  id        String               @id @default(uuid())
-  email     String
-  message   String?
-  type      SupportRequestType
-  status    SupportRequestStatus @default(PENDING)
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ACCEPTED
+}
 
-  @@map("support_requests")
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  TRANSBANK
+  WEBPAY
+  MERCADOPAGO
+  STRIPE
+  BANK_TRANSFER
+  MANUAL
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
 }

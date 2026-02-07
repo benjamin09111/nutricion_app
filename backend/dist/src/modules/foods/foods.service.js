@@ -78,7 +78,17 @@ let FoodsService = class FoodsService {
             whereClause.category = category;
         }
         const foods = await this.prisma.food.findMany({
-            where: whereClause,
+            where: {
+                ...whereClause,
+                ...(nutritionistId ? {
+                    preferences: {
+                        none: {
+                            nutritionistId,
+                            isHidden: true
+                        }
+                    }
+                } : {})
+            },
             include: nutritionistId
                 ? {
                     preferences: {
@@ -90,9 +100,6 @@ let FoodsService = class FoodsService {
             take: limit,
             orderBy: { name: 'asc' },
         });
-        if (nutritionistId) {
-            return foods.filter((f) => !f.preferences?.[0]?.isHidden);
-        }
         return foods;
     }
     async findOne(id) {

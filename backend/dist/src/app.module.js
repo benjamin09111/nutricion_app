@@ -17,7 +17,20 @@ const auth_module_1 = require("./modules/auth/auth.module");
 const mail_module_1 = require("./modules/mail/mail.module");
 const users_module_1 = require("./modules/users/users.module");
 const support_module_1 = require("./modules/support/support.module");
+const requests_module_1 = require("./modules/requests/requests.module");
+const patients_module_1 = require("./modules/patients/patients.module");
+const memberships_module_1 = require("./modules/memberships/memberships.module");
+const payments_module_1 = require("./modules/payments/payments.module");
+const metrics_module_1 = require("./modules/metrics/metrics.module");
+const schedule_1 = require("@nestjs/schedule");
+const cache_manager_1 = require("@nestjs/cache-manager");
+const http_logger_middleware_1 = require("./common/middleware/http-logger.middleware");
 let AppModule = class AppModule {
+    configure(consumer) {
+        consumer
+            .apply(http_logger_middleware_1.HttpLoggerMiddleware)
+            .forRoutes('*');
+    }
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
@@ -32,6 +45,16 @@ exports.AppModule = AppModule = __decorate([
             mail_module_1.MailModule,
             users_module_1.UsersModule,
             support_module_1.SupportModule,
+            requests_module_1.RequestsModule,
+            patients_module_1.PatientsModule,
+            memberships_module_1.MembershipsModule,
+            payments_module_1.PaymentsModule,
+            metrics_module_1.MetricsModule,
+            schedule_1.ScheduleModule.forRoot(),
+            cache_manager_1.CacheModule.register({
+                isGlobal: true,
+                ttl: 300000,
+            }),
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

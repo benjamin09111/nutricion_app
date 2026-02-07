@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f5; padding: 20px; }
+        .card { background: white; padding: 30px; border-radius: 12px; max-width: 500px; margin: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .header { color: #111827; font-size: 20px; font-weight: bold; margin-bottom: 20px; }
+        .field { margin-bottom: 10px; }
+        .label { font-weight: bold; color: #6b7280; margin-right: 5px; }
+        .value { color: #111827; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">🔔 Nueva Solicitud de Profesional</div>
+        <div class="field"><span class="label">Nombre:</span><span class="value">{{fullName}}</span></div>
+        <div class="field"><span class="label">Email:</span><span class="value">{{email}}</span></div>
+        <div class="field"><span class="label">Teléfono:</span><span class="value">{{phone}}</span></div>
+        <div class="field"><span class="label">N° SIS/Título:</span><span class="value">{{professionalId}}</span></div>
+        <div class="field"><span class="label">Especialidad:</span><span class="value">{{specialty}}</span></div>
+        <div class="field"><span class="label">Mensaje:</span><div class="value">{{message}}</div></div>
+    </div>
+</body>
+</html>

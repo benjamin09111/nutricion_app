@@ -16,7 +16,7 @@ async function main() {
     create: {
       email: 'admin@nutrisaas.com',
       password: hashedPassword,
-      role: 'ADMIN',
+      role: 'ADMIN_GENERAL',
       status: 'ACTIVE',
     },
   });
@@ -98,6 +98,65 @@ async function main() {
     } else {
       console.log(`🔹 Skipped ${food.name} (already exists)`);
     }
+  }
+
+  // Create Membership Plans
+  const plans = [
+    {
+      name: 'Plan Gratuito',
+      slug: 'free',
+      description: 'Ideal para nutricionistas que están comenzando su consulta.',
+      price: 0,
+      currency: 'CLP',
+      billingPeriod: 'monthly',
+      features: ['Hasta 10 pacientes', 'Cálculos nutricionales básicos', 'Exportación a PDF con marca de agua', 'Soporte vía email'],
+      maxPatients: 10,
+      isPopular: false,
+      displayOrder: 1
+    },
+    {
+      name: 'Plan Profesional',
+      slug: 'pro',
+      description: 'Todo lo que necesitas para escalar tu consulta al siguiente nivel.',
+      price: 19990,
+      currency: 'CLP',
+      billingPeriod: 'monthly',
+      features: ['Pacientes ilimitados', 'IA Generadora de Dietas', 'Lista de compras inteligente', 'Perfil de paciente CRM completo', 'Sin marcas de agua', 'Soporte prioritario'],
+      maxPatients: null,
+      isPopular: true,
+      displayOrder: 2
+    },
+    {
+      name: 'Plan Enterprise',
+      slug: 'enterprise',
+      description: 'Para clínicas y centros de salud con múltiples profesionales.',
+      price: 49990,
+      currency: 'CLP',
+      billingPeriod: 'monthly',
+      features: ['Múltiples cuentas de nutricionista', 'Gestión de inventario de suplementos', 'Integración con laboratorios', 'Panel de administración avanzado', 'Capacitación personalizada'],
+      maxPatients: null,
+      isPopular: false,
+      displayOrder: 3
+    }
+  ];
+
+  for (const plan of plans) {
+    await prisma.membershipPlan.upsert({
+      where: { slug: plan.slug },
+      update: {
+        name: plan.name,
+        description: plan.description,
+        price: plan.price,
+        features: plan.features,
+        isPopular: plan.isPopular,
+        displayOrder: plan.displayOrder
+      },
+      create: {
+        ...plan,
+        features: plan.features as any // Prisma JSON field
+      },
+    });
+    console.log(`✅ Upserted Membership Plan: ${plan.name}`);
   }
 
   console.log('🏁 Seeding finished.');

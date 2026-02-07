@@ -59,8 +59,9 @@ let AuthService = class AuthService {
         this.mailService = mailService;
     }
     async createAccount(email, role, fullName = 'Usuario') {
+        const normalizedEmail = email.toLowerCase().trim();
         const existingAccount = await this.prisma.account.findUnique({
-            where: { email },
+            where: { email: normalizedEmail },
         });
         if (existingAccount) {
             throw new common_1.BadRequestException('La cuenta ya existe con este correo');
@@ -71,7 +72,7 @@ let AuthService = class AuthService {
             await this.prisma.$transaction(async (tx) => {
                 const newAccount = await tx.account.create({
                     data: {
-                        email,
+                        email: normalizedEmail,
                         password: hashedPassword,
                         role: role,
                     },
@@ -101,8 +102,9 @@ let AuthService = class AuthService {
     }
     async login(loginDto) {
         const { email, password } = loginDto;
+        const normalizedEmail = email.toLowerCase().trim();
         const account = await this.prisma.account.findUnique({
-            where: { email },
+            where: { email: normalizedEmail },
             include: { nutritionist: true },
         });
         if (!account || !account.password) {
@@ -138,26 +140,33 @@ let AuthService = class AuthService {
         });
     }
     async resetAccountPassword(email) {
+        const normalizedEmail = email.toLowerCase().trim();
+        console.log(`[AuthService] Attempting to reset password for email: "${normalizedEmail}"`);
         const account = await this.prisma.account.findUnique({
-            where: { email },
+            where: { email: normalizedEmail },
             include: { nutritionist: true },
         });
         if (!account) {
+            console.error(`[AuthService] Reset failed: User not found for email "${email}"`);
             throw new common_1.BadRequestException('Usuario no encontrado');
         }
+        console.log(`[AuthService] User found: ${account.id}, role: ${account.role}`);
         const password = crypto.randomBytes(8).toString('hex');
         const hashedPassword = await bcrypt.hash(password, 10);
         try {
             await this.prisma.account.update({
-                where: { email },
+                where: { email: normalizedEmail },
                 data: { password: hashedPassword },
             });
             let greetingName = 'Usuario';
             if (account.nutritionist?.fullName) {
                 greetingName = account.nutritionist.fullName;
             }
-            else if (account.role === 'ADMIN') {
-                greetingName = 'Administrador';
+            else if (account.role === 'ADMIN_MASTER') {
+                greetingName = 'Admin Master';
+            }
+            else if (['ADMIN', 'ADMIN_GENERAL'].includes(account.role)) {
+                greetingName = 'Admin General';
             }
             await this.mailService.sendWelcomeEmail(email, greetingName, password);
             return {

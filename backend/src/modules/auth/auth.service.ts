@@ -7,6 +7,8 @@ import { LoginDto } from './dto/login.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { MailService } from '../mail/mail.service';
 
+import { UserRole } from '@prisma/client';
+
 @Injectable()
 export class AuthService {
     constructor(
@@ -15,9 +17,10 @@ export class AuthService {
         private mailService: MailService,
     ) { }
 
-    async createAccount(email: string, role: 'ADMIN' | 'NUTRITIONIST', fullName: string = 'Usuario') {
+    async createAccount(email: string, role: UserRole, fullName: string = 'Usuario') {
+        const normalizedEmail = email.toLowerCase().trim();
         const existingAccount = await this.prisma.account.findUnique({
-            where: { email },
+            where: { email: normalizedEmail },
         });
 
         if (existingAccount) {
@@ -31,7 +34,7 @@ export class AuthService {
             await this.prisma.$transaction(async (tx) => {
                 const newAccount = await tx.account.create({
                     data: {
-                        email,
+                        email: normalizedEmail,
                         password: hashedPassword,
                         role: role,
                     },
@@ -65,9 +68,9 @@ export class AuthService {
 
     async login(loginDto: LoginDto) {
         const { email, password } = loginDto;
-
+        const normalizedEmail = email.toLowerCase().trim();
         const account = await this.prisma.account.findUnique({
-            where: { email },
+            where: { email: normalizedEmail },
             include: { nutritionist: true },
         });
 
@@ -111,21 +114,25 @@ export class AuthService {
     }
 
     async resetAccountPassword(email: string) {
+        const normalizedEmail = email.toLowerCase().trim();
+        console.log(`[AuthService] Attempting to reset password for email: "${normalizedEmail}"`);
         const account = await this.prisma.account.findUnique({
-            where: { email },
+            where: { email: normalizedEmail },
             include: { nutritionist: true },
         });
 
         if (!account) {
+            console.error(`[AuthService] Reset failed: User not found for email "${email}"`);
             throw new BadRequestException('Usuario no encontrado');
         }
+        console.log(`[AuthService] User found: ${account.id}, role: ${account.role}`);
 
         const password = crypto.randomBytes(8).toString('hex');
         const hashedPassword = await bcrypt.hash(password, 10);
 
         try {
             await this.prisma.account.update({
-                where: { email },
+                where: { email: normalizedEmail },
                 data: { password: hashedPassword },
             });
 
@@ -133,8 +140,10 @@ export class AuthService {
             let greetingName = 'Usuario';
             if (account.nutritionist?.fullName) {
                 greetingName = account.nutritionist.fullName;
-            } else if (account.role === 'ADMIN') {
-                greetingName = 'Administrador';
+            } else if (account.role === 'ADMIN_MASTER') {
+                greetingName = 'Admin Master';
+            } else if (['ADMIN', 'ADMIN_GENERAL'].includes(account.role)) {
+                greetingName = 'Admin General';
             }
 
             // Reuse welcome email or create a specific reset one later

@@ -50,7 +50,17 @@ export class FoodsService {
         }
 
         const foods = await this.prisma.food.findMany({
-            where: whereClause,
+            where: {
+                ...whereClause,
+                ...(nutritionistId ? {
+                    preferences: {
+                        none: {
+                            nutritionistId,
+                            isHidden: true
+                        }
+                    }
+                } : {})
+            },
             include: nutritionistId
                 ? {
                     preferences: {
@@ -62,11 +72,6 @@ export class FoodsService {
             take: limit,
             orderBy: { name: 'asc' },
         });
-
-        // Client-side filtering for 'Hidden' if nutritionistId is active
-        if (nutritionistId) {
-            return foods.filter((f: any) => !f.preferences?.[0]?.isHidden);
-        }
 
         return foods;
     }

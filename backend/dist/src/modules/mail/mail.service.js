@@ -18,18 +18,83 @@ let MailService = class MailService {
         this.mailerService = mailerService;
     }
     async sendWelcomeEmail(email, fullName, password) {
-        await this.mailerService.sendMail({
-            to: email,
-            subject: '🌿 ¡Bienvenido a NutriSaaS! Tus credenciales de acceso',
-            template: 'welcome',
-            context: {
-                name: fullName,
-                email: email,
-                password: password,
-                loginUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
-                year: new Date().getFullYear(),
-            },
-        });
+        try {
+            await this.mailerService.sendMail({
+                to: email,
+                subject: '🌿 ¡Bienvenido a NutriSaaS! Tus credenciales de acceso',
+                template: 'welcome',
+                context: {
+                    name: fullName,
+                    email: email,
+                    password: password,
+                    loginUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+                    year: new Date().getFullYear(),
+                },
+            });
+            console.log(`✅ Correo de bienvenida enviado a: ${email}`);
+        }
+        catch (error) {
+            console.error('❌ Error enviando correo:', error);
+            if (process.env.NODE_ENV === 'production') {
+                throw error;
+            }
+            else {
+                console.log('⚠️ Continuando ejecución pese al error de correo (Modo Desarrollo)');
+                console.log('-----------------------------------------------------------');
+                console.log(`🔑 DATOS DEL USUARIO: ${email} / ${password}`);
+                console.log('-----------------------------------------------------------');
+            }
+        }
+    }
+    async sendAdminNotification(requestData) {
+        try {
+            await this.mailerService.sendMail({
+                to: process.env.MAIL_USER,
+                subject: '🔔 Nueva Solicitud de Registro Profesional',
+                template: 'admin-notification',
+                context: {
+                    ...requestData,
+                    year: new Date().getFullYear(),
+                },
+            });
+        }
+        catch (error) {
+            console.error('❌ Error enviando notificación al admin:', error);
+        }
+    }
+    async sendRegistrationConfirmation(email, fullName) {
+        try {
+            await this.mailerService.sendMail({
+                to: email,
+                subject: '📥 Hemos recibido tu solicitud - NutriSaaS',
+                template: 'request-confirmation',
+                context: {
+                    name: fullName,
+                    year: new Date().getFullYear(),
+                },
+            });
+        }
+        catch (error) {
+            console.error('❌ Error enviando confirmación al usuario:', error);
+        }
+    }
+    async sendRegistrationApproved(email, fullName, tempPass) {
+        try {
+            await this.mailerService.sendMail({
+                to: email,
+                subject: '✅ ¡Bienvenido a NutriSaaS!',
+                template: 'registration-approved',
+                context: {
+                    name: fullName,
+                    password: tempPass,
+                    loginUrl: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/login` : 'http://localhost:3000/login',
+                    year: new Date().getFullYear(),
+                },
+            });
+        }
+        catch (error) {
+            console.error('❌ Error enviando credenciales:', error);
+        }
     }
 };
 exports.MailService = MailService;

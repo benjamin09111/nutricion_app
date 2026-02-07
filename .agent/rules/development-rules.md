@@ -38,7 +38,8 @@ description: General development rules for the project
 
 ## Performance & Optimization
 - **Big O Optimization**: Always optimize algorithms and functions for the best time complexity (Big O).
-- **Query Optimization**: Optimize database queries and backend logic. Never accept slow performance; aim for the most efficient execution path.
+- **Backend-Driven Data**: The **backend must handle all heavy logic, filtering, and calculations**. The frontend should be a "shallow" consumer, receiving data that is already processed and ready for immediate display. Never perform filtering or mapping of large datasets in the frontend if it can be done in the database.
+- **Query Optimization**: Optimize database queries and backend logic. Never accept slow performance; aim for the most efficient execution path. Strictly avoid N+1 query patterns.
 - **Clean Code**: Keep code clean and concise (minimal lines of code without sacrificing readability). Avoid spaghetti code.
 
 ## Backend & Services
@@ -61,3 +62,7 @@ description: General development rules for the project
 
 ## Maintenance & Documentation
 - **Update Workflows**: If any critical logic or process is modified or added, **always** remind the user to update or create the corresponding workflow file (in `.agent/workflows`) to keep documentation up to date.
+
+## Content Management (JSON First)
+- **Static Content**: For landing pages, static sections, or any large block of repetitive content (features, pricing cards, FAQs), **ALWAYS** extract the text and structure into a JSON file (e.g., `src/content/landing.json`).
+- **Modifiability**: This ensures the content can be easily modified by non-developers or via scripts without touching the React code logic.

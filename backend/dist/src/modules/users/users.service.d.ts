@@ -1,24 +1,20 @@
 import { PrismaService } from '../../prisma/prisma.service';
-import { AccountStatus, SubscriptionPlan } from '@prisma/client';
+import { AccountStatus, SubscriptionPlan, UserRole } from '@prisma/client';
 export declare class UsersService {
     private prisma;
     constructor(prisma: PrismaService);
-    findAll(): Promise<({
-        nutritionist: {
-            fullName: string;
-            phone: string | null;
-        } | null;
-    } & {
+    findAll(role?: any, search?: string): Promise<{
         id: string;
         email: string;
-        password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
         status: import(".prisma/client").$Enums.AccountStatus;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
         createdAt: Date;
-        updatedAt: Date;
-    })[]>;
+        lastLogin: Date;
+        fullName: string;
+        patientCount: number;
+    }[]>;
     findOne(id: string): Promise<({
         nutritionist: {
             id: string;
@@ -38,24 +34,41 @@ export declare class UsersService {
         password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
         status: import(".prisma/client").$Enums.AccountStatus;
-        plan: import(".prisma/client").$Enums.SubscriptionPlan;
-        subscriptionEndsAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
+        plan: import(".prisma/client").$Enums.SubscriptionPlan;
+        subscriptionEndsAt: Date | null;
     }) | null>;
     update(id: string, data: {
         status?: AccountStatus;
         plan?: SubscriptionPlan;
         subscriptionEndsAt?: Date;
+        role?: UserRole;
     }): Promise<{
         id: string;
         email: string;
         password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
         status: import(".prisma/client").$Enums.AccountStatus;
-        plan: import(".prisma/client").$Enums.SubscriptionPlan;
-        subscriptionEndsAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
+        plan: import(".prisma/client").$Enums.SubscriptionPlan;
+        subscriptionEndsAt: Date | null;
     }>;
+    updatePlan(userId: string, plan: SubscriptionPlan, days?: number): Promise<{
+        id: string;
+        email: string;
+        password: string | null;
+        role: import(".prisma/client").$Enums.UserRole;
+        status: import(".prisma/client").$Enums.AccountStatus;
+        createdAt: Date;
+        updatedAt: Date;
+        plan: import(".prisma/client").$Enums.SubscriptionPlan;
+        subscriptionEndsAt: Date | null;
+    }>;
+    resetUnpaidPlans(): Promise<{
+        updatedCount: number;
+        message: string;
+    }>;
+    countNutritionists(): Promise<number>;
 }

@@ -25,11 +25,11 @@ export declare class AuthController {
             } | null;
         };
     }>;
-    createAccount(createAccountDto: CreateAccountDto): Promise<{
+    createAccount(createAccountDto: CreateAccountDto, req: any): Promise<{
         success: boolean;
         message: string;
     }>;
-    resetPassword(createAccountDto: CreateAccountDto): Promise<{
+    resetPassword(body: any): Promise<{
         success: boolean;
         message: string;
     }>;

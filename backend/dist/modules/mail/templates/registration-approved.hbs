@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: sans-serif;
+            color: #374151;
+            line-height: 1.6;
+            max-width: 600px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        .header {
+            font-size: 24px;
+            font-weight: bold;
+            color: #059669;
+            margin-bottom: 20px;
+        }
+
+        .box {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #059669;
+        }
+
+        .label {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #6b7280;
+            font-weight: bold;
+        }
+
+        .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #111827;
+            margin-bottom: 10px;
+            font-family: monospace;
+        }
+
+        .btn {
+            display: inline-block;
+            background-color: #059669;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .footer {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 40px;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">¡Bienvenido a NutriSaaS! 🎉</div>
+    <p>Hola <strong>{{name}}</strong>,</p>
+    <p>¡Buenas noticias! Tu solicitud de registro profesional ha sido aprobada. Ya eres parte de la comunidad exclusiva
+        de nutricionistas de NutriSaaS.</p>
+    <p>Hemos creado tu cuenta profesional. Aquí tienes tus credenciales de acceso temporal:</p>
+
+    <div class="box">
+        <div class="label">Tu Usuario (Email)</div>
+        <div class="value">{{email}}</div> (...espera, el email lo tiene el usuario)
+
+        <div class="label">Tu Contraseña Temporal</div>
+        <div class="value">{{password}}</div>
+    </div>
+
+    <p>Por favor, inicia sesión y cambia tu contraseña inmediatamente en la sección de Perfil.</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{{loginUrl}}" class="btn">Iniciar Sesión Ahora</a>
+    </div>
+
+    <p>Si tienes alguna duda, estamos aquí para ayudarte.</p>
+    <p>Saludos,<br>El equipo de NutriSaaS</p>
+
+    <div class="footer">
+        &copy; {{year}} NutriSaaS.
+    </div>
+</body>
+
+</html>

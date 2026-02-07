@@ -27,12 +27,29 @@ let AuthController = class AuthController {
     login(loginDto) {
         return this.authService.login(loginDto);
     }
-    createAccount(createAccountDto) {
-        const role = createAccountDto.role || 'NUTRITIONIST';
-        return this.authService.createAccount(createAccountDto.email, role, createAccountDto.fullName);
+    createAccount(createAccountDto, req) {
+        const requesterRole = req.user.role;
+        const targetRole = createAccountDto.role || 'NUTRITIONIST';
+        if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(requesterRole)) {
+            throw new common_1.UnauthorizedException('No tienes permisos para crear cuentas');
+        }
+        const isTargetAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(targetRole);
+        if (isTargetAdmin && requesterRole !== 'ADMIN_MASTER') {
+            throw new common_1.UnauthorizedException('Solo un Admin Master puede crear otras cuentas administrativas');
+        }
+        return this.authService.createAccount(createAccountDto.email, targetRole, createAccountDto.fullName);
     }
-    resetPassword(createAccountDto) {
-        return this.authService.resetAccountPassword(createAccountDto.email);
+    async resetPassword(body) {
+        try {
+            if (!body.email) {
+                throw new common_1.BadRequestException('El correo es requerido');
+            }
+            return await this.authService.resetAccountPassword(body.email);
+        }
+        catch (error) {
+            console.error('Error in reset-password controller:', error);
+            throw error;
+        }
     }
     updatePassword(req, updatePasswordDto) {
         return this.authService.updatePassword(req.user.id, updatePasswordDto);
@@ -48,11 +65,13 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "login", null);
 __decorate([
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Post)('create-account'),
     (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_account_dto_1.CreateAccountDto]),
+    __metadata("design:paramtypes", [create_account_dto_1.CreateAccountDto, Object]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "createAccount", null);
 __decorate([
@@ -60,8 +79,8 @@ __decorate([
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_account_dto_1.CreateAccountDto]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
 ], AuthController.prototype, "resetPassword", null);
 __decorate([
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),

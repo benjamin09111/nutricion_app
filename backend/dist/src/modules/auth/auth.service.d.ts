@@ -3,12 +3,13 @@ import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dto/login.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { MailService } from '../mail/mail.service';
+import { UserRole } from '@prisma/client';
 export declare class AuthService {
     private prisma;
     private jwtService;
     private mailService;
     constructor(prisma: PrismaService, jwtService: JwtService, mailService: MailService);
-    createAccount(email: string, role: 'ADMIN' | 'NUTRITIONIST', fullName?: string): Promise<{
+    createAccount(email: string, role: UserRole, fullName?: string): Promise<{
         success: boolean;
         message: string;
     }>;
@@ -51,10 +52,10 @@ export declare class AuthService {
         password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
         status: import(".prisma/client").$Enums.AccountStatus;
-        plan: import(".prisma/client").$Enums.SubscriptionPlan;
-        subscriptionEndsAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
+        plan: import(".prisma/client").$Enums.SubscriptionPlan;
+        subscriptionEndsAt: Date | null;
     }) | null>;
     resetAccountPassword(email: string): Promise<{
         success: boolean;
