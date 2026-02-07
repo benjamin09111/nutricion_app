@@ -21,13 +21,25 @@ let SupportService = class SupportService {
         this.mailService = mailService;
     }
     async create(data) {
+        let dbType = 'OTHER';
+        if (data.type === 'PASSWORD_RESET')
+            dbType = 'PASSWORD_RESET';
+        if (data.type === 'CONTACT')
+            dbType = 'CONTACT';
+        const fullMessage = data.subject ? `[${data.subject}] ${data.message}` : data.message;
         const request = await this.prisma.supportRequest.create({
             data: {
                 email: data.email,
-                message: data.message,
-                type: data.type,
+                message: fullMessage,
+                type: dbType,
                 status: 'PENDING'
             }
+        });
+        await this.mailService.sendFeedback({
+            type: data.type,
+            subject: data.subject || (data.message ? data.message.substring(0, 30) + '...' : 'Sin asunto'),
+            message: data.message || 'Sin mensaje',
+            fromEmail: data.email
         });
         return request;
     }

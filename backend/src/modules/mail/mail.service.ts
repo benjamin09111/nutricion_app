@@ -81,4 +81,34 @@ export class MailService {
             console.error('❌ Error enviando credenciales:', error);
         }
     }
+
+
+    async sendFeedback(data: { type: string; subject: string; message: string; fromEmail?: string }) {
+        const adminEmail = process.env.MAIL_USER;
+        try {
+            await this.mailerService.sendMail({
+                to: adminEmail,
+                subject: `📢 Nuevo Feedback: [${data.type.toUpperCase()}] - ${data.subject}`,
+                template: 'feedback',
+                context: {
+                    type: data.type.toUpperCase(),
+                    subject: data.subject,
+                    message: data.message,
+                    fromEmail: data.fromEmail || 'Anónimo',
+                    year: new Date().getFullYear(),
+                },
+                html: `
+                    <h1>Nuevo Feedback Recibido</h1>
+                    <p><strong>Tipo:</strong> ${data.type}</p>
+                    <p><strong>Asunto:</strong> ${data.subject}</p>
+                    <p><strong>De:</strong> ${data.fromEmail || 'Anónimo'}</p>
+                    <hr />
+                    <p>${data.message}</p>
+                `
+            });
+            console.log(`✅ Feedback enviado al admin (${adminEmail})`);
+        } catch (error) {
+            console.error('❌ Error enviando feedback:', error);
+        }
+    }
 }

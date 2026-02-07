@@ -8,6 +8,10 @@ export class CreateSupportRequestDto {
     @IsOptional()
     message?: string;
 
-    @IsEnum(['PASSWORD_RESET', 'CONTACT', 'OTHER'])
-    type: 'PASSWORD_RESET' | 'CONTACT' | 'OTHER';
+    @IsEnum(['PASSWORD_RESET', 'CONTACT', 'OTHER', 'FEEDBACK', 'COMPLAINT', 'IDEA'])
+    type: 'PASSWORD_RESET' | 'CONTACT' | 'OTHER' | 'FEEDBACK' | 'COMPLAINT' | 'IDEA';
+
+    @IsString()
+    @IsOptional()
+    subject?: string;
 }

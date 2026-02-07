@@ -6,4 +6,10 @@ export declare class MailService {
     sendAdminNotification(requestData: any): Promise<void>;
     sendRegistrationConfirmation(email: string, fullName: string): Promise<void>;
     sendRegistrationApproved(email: string, fullName: string, tempPass: string): Promise<void>;
+    sendFeedback(data: {
+        type: string;
+        subject: string;
+        message: string;
+        fromEmail?: string;
+    }): Promise<void>;
 }

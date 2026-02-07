@@ -15,6 +15,7 @@ class CreateSupportRequestDto {
     email;
     message;
     type;
+    subject;
 }
 exports.CreateSupportRequestDto = CreateSupportRequestDto;
 __decorate([
@@ -27,7 +28,12 @@ __decorate([
     __metadata("design:type", String)
 ], CreateSupportRequestDto.prototype, "message", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(['PASSWORD_RESET', 'CONTACT', 'OTHER']),
+    (0, class_validator_1.IsEnum)(['PASSWORD_RESET', 'CONTACT', 'OTHER', 'FEEDBACK', 'COMPLAINT', 'IDEA']),
     __metadata("design:type", String)
 ], CreateSupportRequestDto.prototype, "type", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateSupportRequestDto.prototype, "subject", void 0);
 //# sourceMappingURL=create-support-request.dto.js.map

@@ -8,8 +8,9 @@ export declare class RequestsController {
         message: string;
     }>;
     findAll(req: any): Promise<{
-        id: string;
         email: string;
+        message: string | null;
+        id: string;
         status: import(".prisma/client").$Enums.RequestStatus;
         createdAt: Date;
         updatedAt: Date;
@@ -17,7 +18,6 @@ export declare class RequestsController {
         professionalId: string | null;
         specialty: string | null;
         phone: string | null;
-        message: string | null;
         adminNotes: string | null;
     }[]>;
     getPendingCount(req: any): Promise<number>;
@@ -25,8 +25,9 @@ export declare class RequestsController {
         status: 'PENDING' | 'ACCEPTED' | 'APPROVED' | 'REJECTED';
         adminNotes?: string;
     }, req: any): Promise<{
-        id: string;
         email: string;
+        message: string | null;
+        id: string;
         status: import(".prisma/client").$Enums.RequestStatus;
         createdAt: Date;
         updatedAt: Date;
@@ -34,7 +35,6 @@ export declare class RequestsController {
         professionalId: string | null;
         specialty: string | null;
         phone: string | null;
-        message: string | null;
         adminNotes: string | null;
     } | {
         success: boolean;
