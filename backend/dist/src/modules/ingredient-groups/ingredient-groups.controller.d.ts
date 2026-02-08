@@ -55,48 +55,53 @@ export declare class IngredientGroupsController {
     })[]>;
     findOne(req: any, id: string): Promise<{
         ingredients: {
+            ingredient: {
+                tags: {
+                    id: string;
+                    name: string;
+                }[];
+                preferences: {
+                    id: string;
+                    nutritionistId: string;
+                    ingredientId: string;
+                    isFavorite: boolean;
+                    isNotRecommended: boolean;
+                    isHidden: boolean;
+                }[];
+                brand: {
+                    id: string;
+                    name: string;
+                } | null;
+                category: {
+                    id: string;
+                    name: string;
+                };
+            } & {
+                id: string;
+                name: string;
+                createdAt: Date;
+                updatedAt: Date;
+                nutritionistId: string | null;
+                ingredients: string | null;
+                amount: number;
+                unit: string;
+                brandId: string | null;
+                price: number;
+                calories: number;
+                proteins: number;
+                lipids: number;
+                carbs: number;
+                sugars: number | null;
+                fiber: number | null;
+                sodium: number | null;
+                categoryId: string;
+                isPublic: boolean;
+                verified: boolean;
+            };
             brandSuggestion: string | null;
             amount: number | null;
             unit: string | null;
             entryId: string;
-            tags: {
-                id: string;
-                name: string;
-            }[];
-            preferences: {
-                id: string;
-                nutritionistId: string;
-                ingredientId: string;
-                isFavorite: boolean;
-                isNotRecommended: boolean;
-                isHidden: boolean;
-            }[];
-            brand: {
-                id: string;
-                name: string;
-            } | null;
-            category: {
-                id: string;
-                name: string;
-            };
-            id: string;
-            name: string;
-            createdAt: Date;
-            updatedAt: Date;
-            nutritionistId: string | null;
-            ingredients: string | null;
-            brandId: string | null;
-            price: number;
-            calories: number;
-            proteins: number;
-            lipids: number;
-            carbs: number;
-            sugars: number | null;
-            fiber: number | null;
-            sodium: number | null;
-            categoryId: string;
-            isPublic: boolean;
-            verified: boolean;
         }[];
         nutritionist: {
             id: string;

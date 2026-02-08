@@ -4,15 +4,7 @@ import { UpdateGroupIngredientsDto } from './dto/update-group-ingredients.dto';
 export declare class IngredientGroupsService {
     private prisma;
     constructor(prisma: PrismaService);
-    private getNutritionistId;
-    create(accountId: string, createDto: CreateIngredientGroupDto): Promise<{
-        _count: {
-            entries: number;
-        };
-        tags: {
-            id: string;
-            name: string;
-        }[];
+    create(nutritionistId: string, createDto: CreateIngredientGroupDto): Promise<{
         entries: ({
             ingredient: {
                 id: string;
@@ -24,90 +16,58 @@ export declare class IngredientGroupsService {
             };
         } & {
             id: string;
+            brandSuggestion: string | null;
             amount: number | null;
             unit: string | null;
-            brandSuggestion: string | null;
             ingredientId: string;
             groupId: string;
         })[];
-    } & {
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        name: string;
-        nutritionistId: string;
-        description: string | null;
-    }>;
-    findAll(accountId: string): Promise<({
+        tags: {
+            id: string;
+            name: string;
+        }[];
         _count: {
             entries: number;
         };
-        tags: {
-            id: string;
-            name: string;
-        }[];
     } & {
         id: string;
+        name: string;
+        description: string | null;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         nutritionistId: string;
-        description: string | null;
-    })[]>;
-    findOne(id: string, accountId: string): Promise<{
-        ingredients: {
-            brandSuggestion: string | null;
-            amount: number | null;
-            unit: string | null;
-            entryId: string;
-            brand: {
-                id: string;
-                name: string;
-            } | null;
-            category: {
-                id: string;
-                name: string;
-            };
-            tags: {
-                id: string;
-                name: string;
-            }[];
-            preferences: {
-                id: string;
-                nutritionistId: string;
-                isFavorite: boolean;
-                isNotRecommended: boolean;
-                isHidden: boolean;
-                ingredientId: string;
-            }[];
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            name: string;
-            verified: boolean;
-            price: number;
-            calories: number;
-            proteins: number;
-            lipids: number;
-            carbs: number;
-            ingredients: string | null;
-            brandId: string | null;
-            sugars: number | null;
-            fiber: number | null;
-            sodium: number | null;
-            categoryId: string;
-            isPublic: boolean;
-            nutritionistId: string | null;
-        }[];
-        nutritionist: {
-            id: string;
-        };
+    }>;
+    findAll(nutritionistId: string): Promise<({
         tags: {
             id: string;
             name: string;
         }[];
-        entries: ({
+        _count: {
+            entries: number;
+        };
+    } & {
+        id: string;
+        name: string;
+        description: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        nutritionistId: string;
+    })[]>;
+    findOne(id: string, nutritionistId: string): Promise<{
+        ingredients: {
             ingredient: {
+                tags: {
+                    id: string;
+                    name: string;
+                }[];
+                preferences: {
+                    id: string;
+                    nutritionistId: string;
+                    ingredientId: string;
+                    isFavorite: boolean;
+                    isNotRecommended: boolean;
+                    isHidden: boolean;
+                }[];
                 brand: {
                     id: string;
                     name: string;
@@ -116,6 +76,38 @@ export declare class IngredientGroupsService {
                     id: string;
                     name: string;
                 };
+            } & {
+                id: string;
+                name: string;
+                createdAt: Date;
+                updatedAt: Date;
+                nutritionistId: string | null;
+                ingredients: string | null;
+                amount: number;
+                unit: string;
+                brandId: string | null;
+                price: number;
+                calories: number;
+                proteins: number;
+                lipids: number;
+                carbs: number;
+                sugars: number | null;
+                fiber: number | null;
+                sodium: number | null;
+                categoryId: string;
+                isPublic: boolean;
+                verified: boolean;
+            };
+            brandSuggestion: string | null;
+            amount: number | null;
+            unit: string | null;
+            entryId: string;
+        }[];
+        nutritionist: {
+            id: string;
+        };
+        entries: ({
+            ingredient: {
                 tags: {
                     id: string;
                     name: string;
@@ -123,92 +115,105 @@ export declare class IngredientGroupsService {
                 preferences: {
                     id: string;
                     nutritionistId: string;
+                    ingredientId: string;
                     isFavorite: boolean;
                     isNotRecommended: boolean;
                     isHidden: boolean;
-                    ingredientId: string;
                 }[];
+                brand: {
+                    id: string;
+                    name: string;
+                } | null;
+                category: {
+                    id: string;
+                    name: string;
+                };
             } & {
                 id: string;
+                name: string;
                 createdAt: Date;
                 updatedAt: Date;
+                nutritionistId: string | null;
+                ingredients: string | null;
                 amount: number;
-                name: string;
-                verified: boolean;
-                price: number;
                 unit: string;
+                brandId: string | null;
+                price: number;
                 calories: number;
                 proteins: number;
                 lipids: number;
                 carbs: number;
-                ingredients: string | null;
-                brandId: string | null;
                 sugars: number | null;
                 fiber: number | null;
                 sodium: number | null;
                 categoryId: string;
                 isPublic: boolean;
-                nutritionistId: string | null;
+                verified: boolean;
             };
         } & {
             id: string;
+            brandSuggestion: string | null;
             amount: number | null;
             unit: string | null;
-            brandSuggestion: string | null;
             ingredientId: string;
             groupId: string;
         })[];
+        tags: {
+            id: string;
+            name: string;
+        }[];
         id: string;
+        name: string;
+        description: string | null;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         nutritionistId: string;
-        description: string | null;
     }>;
-    update(id: string, accountId: string, updateDto: CreateIngredientGroupDto): Promise<{
+    private validateGroupOwnership;
+    update(id: string, nutritionistId: string, updateDto: CreateIngredientGroupDto): Promise<{
         tags: {
             id: string;
             name: string;
         }[];
     } & {
         id: string;
+        name: string;
+        description: string | null;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         nutritionistId: string;
-        description: string | null;
     }>;
-    remove(id: string, accountId: string): Promise<{
+    remove(id: string, nutritionistId: string): Promise<{
         id: string;
+        name: string;
+        description: string | null;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         nutritionistId: string;
-        description: string | null;
     }>;
-    addIngredients(id: string, accountId: string, dto: UpdateGroupIngredientsDto): Promise<{
+    addIngredients(id: string, nutritionistId: string, dto: UpdateGroupIngredientsDto): Promise<{
         _count: {
             entries: number;
         };
     } & {
         id: string;
+        name: string;
+        description: string | null;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         nutritionistId: string;
-        description: string | null;
     }>;
-    removeIngredients(id: string, accountId: string, dto: UpdateGroupIngredientsDto): Promise<{
+    removeIngredients(id: string, nutritionistId: string, dto: UpdateGroupIngredientsDto): Promise<{
         _count: {
             entries: number;
         };
     } & {
         id: string;
+        name: string;
+        description: string | null;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         nutritionistId: string;
-        description: string | null;
     }>;
     private getOrCreateTag;
 }

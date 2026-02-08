@@ -24,25 +24,25 @@ let IngredientGroupsController = class IngredientGroupsController {
         this.ingredientGroupsService = ingredientGroupsService;
     }
     create(req, createDto) {
-        return this.ingredientGroupsService.create(req.user.id, createDto);
+        return this.ingredientGroupsService.create(req.user.nutritionistId, createDto);
     }
     findAll(req) {
-        return this.ingredientGroupsService.findAll(req.user.id);
+        return this.ingredientGroupsService.findAll(req.user.nutritionistId);
     }
     findOne(req, id) {
-        return this.ingredientGroupsService.findOne(id, req.user.id);
+        return this.ingredientGroupsService.findOne(id, req.user.nutritionistId);
     }
     update(req, id, updateDto) {
-        return this.ingredientGroupsService.update(id, req.user.id, updateDto);
+        return this.ingredientGroupsService.update(id, req.user.nutritionistId, updateDto);
     }
     remove(req, id) {
-        return this.ingredientGroupsService.remove(id, req.user.id);
+        return this.ingredientGroupsService.remove(id, req.user.nutritionistId);
     }
     addIngredients(req, id, dto) {
-        return this.ingredientGroupsService.addIngredients(id, req.user.id, dto);
+        return this.ingredientGroupsService.addIngredients(id, req.user.nutritionistId, dto);
     }
     removeIngredients(req, id, dto) {
-        return this.ingredientGroupsService.removeIngredients(id, req.user.id, dto);
+        return this.ingredientGroupsService.removeIngredients(id, req.user.nutritionistId, dto);
     }
 };
 exports.IngredientGroupsController = IngredientGroupsController;

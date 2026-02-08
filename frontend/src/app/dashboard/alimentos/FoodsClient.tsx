@@ -531,23 +531,23 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                                     <tbody className="bg-white divide-y divide-slate-100">
                                         {selectedGroup.ingredients && selectedGroup.ingredients.length > 0 ? (
                                             selectedGroup.ingredients.map((relation: any) => (
-                                                <tr key={relation.ingredient.id} className="hover:bg-slate-50/50 transition-colors">
+                                                <tr key={relation.ingredient?.id || Math.random()} className="hover:bg-slate-50/50 transition-colors">
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className="font-medium text-slate-900">{relation.ingredient.name}</span>
-                                                        <span className="text-slate-400 text-xs ml-2">{relation.ingredient.brand?.name}</span>
+                                                        <span className="font-medium text-slate-900">{relation.ingredient?.name || 'Ingrediente desconocido'}</span>
+                                                        <span className="text-slate-400 text-xs ml-2">{relation.ingredient?.brand?.name || relation.brandSuggestion}</span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-slate-500 text-sm">
-                                                        {relation.ingredient.category?.name || '-'}
+                                                        {relation.ingredient?.category?.name || '-'}
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-slate-600">
-                                                        {relation.amount} {relation.ingredient.unit}
+                                                        {relation.amount} {relation.ingredient?.unit || relation.unit}
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-right">
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
                                                             className="text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                                            onClick={() => handleRemoveIngredientFromGroup(selectedGroup.id, relation.ingredient.id)}
+                                                            onClick={() => handleRemoveIngredientFromGroup(selectedGroup.id, relation.ingredient?.id)}
                                                         >
                                                             <X size={16} />
                                                         </Button>

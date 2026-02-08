@@ -7,25 +7,25 @@ export declare class RecipesController {
         ingredients: ({
             ingredient: {
                 id: string;
-                name: string;
-                calories: number;
-                proteins: number;
-                carbs: number;
-                lipids: number;
-                fiber: number | null;
-                sodium: number | null;
-                isPublic: boolean;
                 createdAt: Date;
                 updatedAt: Date;
-                ingredients: string | null;
-                nutritionistId: string | null;
                 amount: number;
-                unit: string;
-                brandId: string | null;
-                price: number;
-                sugars: number | null;
-                categoryId: string;
+                name: string;
                 verified: boolean;
+                price: number;
+                unit: string;
+                calories: number;
+                proteins: number;
+                lipids: number;
+                carbs: number;
+                ingredients: string | null;
+                brandId: string | null;
+                sugars: number | null;
+                fiber: number | null;
+                sodium: number | null;
+                categoryId: string;
+                isPublic: boolean;
+                nutritionistId: string | null;
             };
         } & {
             id: string;
@@ -37,21 +37,21 @@ export declare class RecipesController {
         })[];
     } & {
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
-        description: string | null;
-        preparation: string | null;
-        portionSize: number;
-        portions: number;
         calories: number;
         proteins: number;
-        carbs: number;
         lipids: number;
+        carbs: number;
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         nutritionistId: string | null;
+        description: string | null;
+        preparation: string | null;
+        portions: number;
+        portionSize: number;
     }>;
     findAll(req: any): Promise<({
         nutritionist: {
@@ -62,21 +62,21 @@ export declare class RecipesController {
         };
     } & {
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
-        description: string | null;
-        preparation: string | null;
-        portionSize: number;
-        portions: number;
         calories: number;
         proteins: number;
-        carbs: number;
         lipids: number;
+        carbs: number;
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         nutritionistId: string | null;
+        description: string | null;
+        preparation: string | null;
+        portions: number;
+        portionSize: number;
     })[]>;
     findOne(req: any, id: string): Promise<{
         nutritionist: {
@@ -94,25 +94,25 @@ export declare class RecipesController {
         ingredients: ({
             ingredient: {
                 id: string;
-                name: string;
-                calories: number;
-                proteins: number;
-                carbs: number;
-                lipids: number;
-                fiber: number | null;
-                sodium: number | null;
-                isPublic: boolean;
                 createdAt: Date;
                 updatedAt: Date;
-                ingredients: string | null;
-                nutritionistId: string | null;
                 amount: number;
-                unit: string;
-                brandId: string | null;
-                price: number;
-                sugars: number | null;
-                categoryId: string;
+                name: string;
                 verified: boolean;
+                price: number;
+                unit: string;
+                calories: number;
+                proteins: number;
+                lipids: number;
+                carbs: number;
+                ingredients: string | null;
+                brandId: string | null;
+                sugars: number | null;
+                fiber: number | null;
+                sodium: number | null;
+                categoryId: string;
+                isPublic: boolean;
+                nutritionistId: string | null;
             };
         } & {
             id: string;
@@ -124,21 +124,21 @@ export declare class RecipesController {
         })[];
     } & {
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
-        description: string | null;
-        preparation: string | null;
-        portionSize: number;
-        portions: number;
         calories: number;
         proteins: number;
-        carbs: number;
         lipids: number;
+        carbs: number;
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         nutritionistId: string | null;
+        description: string | null;
+        preparation: string | null;
+        portions: number;
+        portionSize: number;
     }>;
     update(req: any, id: string, updateRecipeDto: CreateRecipeDto): Promise<{
         ingredients: {
@@ -151,38 +151,38 @@ export declare class RecipesController {
         }[];
     } & {
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
-        description: string | null;
-        preparation: string | null;
-        portionSize: number;
-        portions: number;
         calories: number;
         proteins: number;
-        carbs: number;
         lipids: number;
+        carbs: number;
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         nutritionistId: string | null;
+        description: string | null;
+        preparation: string | null;
+        portions: number;
+        portionSize: number;
     }>;
     remove(req: any, id: string): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
-        description: string | null;
-        preparation: string | null;
-        portionSize: number;
-        portions: number;
         calories: number;
         proteins: number;
-        carbs: number;
         lipids: number;
+        carbs: number;
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         nutritionistId: string | null;
+        description: string | null;
+        preparation: string | null;
+        portions: number;
+        portionSize: number;
     }>;
 }

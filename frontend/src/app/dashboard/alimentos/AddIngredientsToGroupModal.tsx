@@ -30,13 +30,27 @@ export default function AddIngredientsToGroupModal({
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const currentIdsSet = useMemo(() => new Set(currentIngredientIds), [currentIngredientIds]);
+
     const filteredIngredients = useMemo(() => {
-        return allIngredients.filter(ing =>
-            !currentIngredientIds.includes(ing.id) &&
-            (ing.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                ing.brand?.name?.toLowerCase().includes(searchTerm.toLowerCase()))
-        ).slice(0, 50); // Limit to 50 for performance in modal
-    }, [allIngredients, currentIngredientIds, searchTerm]);
+        if (!searchTerm && allIngredients.length > 200) {
+            // If no search and many items, just show the first 50 to avoid heavy filter
+            return allIngredients
+                .filter(ing => !currentIdsSet.has(ing.id))
+                .slice(0, 50);
+        }
+
+        const term = searchTerm.toLowerCase();
+        return allIngredients.filter(ing => {
+            const isAlreadyInGroup = currentIdsSet.has(ing.id);
+            if (isAlreadyInGroup) return false;
+
+            const nameMatch = ing.name.toLowerCase().includes(term);
+            const brandMatch = ing.brand?.name?.toLowerCase().includes(term);
+
+            return nameMatch || brandMatch;
+        }).slice(0, 50);
+    }, [allIngredients, currentIdsSet, searchTerm]);
 
     const handleToggleSelect = (id: string) => {
         const newSelected = new Set(selectedIds);

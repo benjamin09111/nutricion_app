@@ -8,17 +8,9 @@ import { UpdateGroupIngredientsDto } from './dto/update-group-ingredients.dto';
 export class IngredientGroupsService {
     constructor(private prisma: PrismaService) { }
 
-    private async getNutritionistId(accountId: string): Promise<string> {
-        const nutritionist = await this.prisma.nutritionist.findUnique({
-            where: { accountId },
-            select: { id: true }
-        });
-        if (!nutritionist) throw new NotFoundException('Nutritionist profile not found');
-        return nutritionist.id;
-    }
 
-    async create(accountId: string, createDto: CreateIngredientGroupDto) {
-        const nutritionistId = await this.getNutritionistId(accountId);
+
+    async create(nutritionistId: string, createDto: CreateIngredientGroupDto) {
         const { tags, ingredients, ...data } = createDto;
 
         // Resolve tags (create if not exists)
@@ -54,8 +46,7 @@ export class IngredientGroupsService {
         });
     }
 
-    async findAll(accountId: string) {
-        const nutritionistId = await this.getNutritionistId(accountId);
+    async findAll(nutritionistId: string) {
         return this.prisma.ingredientGroup.findMany({
             where: {
                 nutritionistId
@@ -68,8 +59,7 @@ export class IngredientGroupsService {
         });
     }
 
-    async findOne(id: string, accountId: string) {
-        const nutritionistId = await this.getNutritionistId(accountId);
+    async findOne(id: string, nutritionistId: string) {
         const group = await this.prisma.ingredientGroup.findUnique({
             where: { id },
             include: {
@@ -99,29 +89,39 @@ export class IngredientGroupsService {
         // For now, returning raw structure but mapping entries to ingredients might be cleaner for frontend
         return {
             ...group,
-            ingredients: group.entries.map(entry => ({
-                ...entry.ingredient,
-                brandSuggestion: entry.brandSuggestion,
-                amount: entry.amount,
-                unit: entry.unit,
-                entryId: entry.id // Useful for specific removal
-            }))
+            ingredients: (group.entries || [])
+                .filter(entry => entry.ingredient)
+                .map(entry => ({
+                    ingredient: entry.ingredient,
+                    brandSuggestion: entry.brandSuggestion,
+                    amount: entry.amount,
+                    unit: entry.unit,
+                    entryId: entry.id // Useful for specific removal
+                }))
         };
     }
 
-    async update(id: string, accountId: string, updateDto: CreateIngredientGroupDto) {
-        const nutritionistId = await this.getNutritionistId(accountId);
-        await this.findOne(id, accountId); // Check ownership via findOne
+    private async validateGroupOwnership(id: string, nutritionistId: string): Promise<void> {
+        if (!nutritionistId) throw new ForbiddenException('Nutritionist profile not found');
+
+        const group = await this.prisma.ingredientGroup.findUnique({
+            where: { id },
+            select: { nutritionistId: true }
+        });
+
+        if (!group) throw new NotFoundException('Group not found');
+        if (group.nutritionistId !== nutritionistId) throw new ForbiddenException('Access denied');
+
+    }
+
+    async update(id: string, nutritionistId: string, updateDto: CreateIngredientGroupDto) {
+        await this.validateGroupOwnership(id, nutritionistId);
 
         const { tags, ingredients, ...data } = updateDto;
 
         const tagRecords = tags
             ? await Promise.all(tags.map(name => this.getOrCreateTag(name)))
             : undefined;
-
-        // If ingredients are provided, we replace all entries (common pattern for full update)
-        // Or we could implement specific add/remove logic. For strict update, let's assume replacement or diff.
-        // Given the DTO structure, if ingredients array is passed, it likely implies the new state.
 
         const updateData: any = { ...data };
 
@@ -150,19 +150,13 @@ export class IngredientGroupsService {
         });
     }
 
-    async remove(id: string, accountId: string) {
-        const nutritionistId = await this.getNutritionistId(accountId);
-        await this.findOne(id, accountId); // Check ownership
+    async remove(id: string, nutritionistId: string) {
+        await this.validateGroupOwnership(id, nutritionistId);
         return this.prisma.ingredientGroup.delete({ where: { id } });
     }
 
-    async addIngredients(id: string, accountId: string, dto: UpdateGroupIngredientsDto) {
-        const nutritionistId = await this.getNutritionistId(accountId);
-        await this.findOne(id, accountId);
-
-        // This simplistic add assumes no extra data (brand/amount) for now as UpdateGroupIngredientsDto implies just IDs
-        // If we want to support brand suggestions here, we'd need to update that DTO too.
-        // For compatibility, we'll just add them with defaults.
+    async addIngredients(id: string, nutritionistId: string, dto: UpdateGroupIngredientsDto) {
+        await this.validateGroupOwnership(id, nutritionistId);
 
         return this.prisma.ingredientGroup.update({
             where: { id },
@@ -177,9 +171,8 @@ export class IngredientGroupsService {
         });
     }
 
-    async removeIngredients(id: string, accountId: string, dto: UpdateGroupIngredientsDto) {
-        const nutritionistId = await this.getNutritionistId(accountId);
-        await this.findOne(id, accountId);
+    async removeIngredients(id: string, nutritionistId: string, dto: UpdateGroupIngredientsDto) {
+        await this.validateGroupOwnership(id, nutritionistId);
 
         return this.prisma.ingredientGroup.update({
             where: { id },

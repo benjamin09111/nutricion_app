@@ -17,17 +17,7 @@ let IngredientGroupsService = class IngredientGroupsService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    async getNutritionistId(accountId) {
-        const nutritionist = await this.prisma.nutritionist.findUnique({
-            where: { accountId },
-            select: { id: true }
-        });
-        if (!nutritionist)
-            throw new common_1.NotFoundException('Nutritionist profile not found');
-        return nutritionist.id;
-    }
-    async create(accountId, createDto) {
-        const nutritionistId = await this.getNutritionistId(accountId);
+    async create(nutritionistId, createDto) {
         const { tags, ingredients, ...data } = createDto;
         const tagRecords = tags && tags.length > 0
             ? await Promise.all(tags.map((name) => this.getOrCreateTag(name)))
@@ -59,8 +49,7 @@ let IngredientGroupsService = class IngredientGroupsService {
             }
         });
     }
-    async findAll(accountId) {
-        const nutritionistId = await this.getNutritionistId(accountId);
+    async findAll(nutritionistId) {
         return this.prisma.ingredientGroup.findMany({
             where: {
                 nutritionistId
@@ -72,8 +61,7 @@ let IngredientGroupsService = class IngredientGroupsService {
             orderBy: { updatedAt: 'desc' }
         });
     }
-    async findOne(id, accountId) {
-        const nutritionistId = await this.getNutritionistId(accountId);
+    async findOne(id, nutritionistId) {
         const group = await this.prisma.ingredientGroup.findUnique({
             where: { id },
             include: {
@@ -101,8 +89,10 @@ let IngredientGroupsService = class IngredientGroupsService {
             throw new common_1.ForbiddenException('Access denied');
         return {
             ...group,
-            ingredients: group.entries.map(entry => ({
-                ...entry.ingredient,
+            ingredients: (group.entries || [])
+                .filter(entry => entry.ingredient)
+                .map(entry => ({
+                ingredient: entry.ingredient,
                 brandSuggestion: entry.brandSuggestion,
                 amount: entry.amount,
                 unit: entry.unit,
@@ -110,9 +100,20 @@ let IngredientGroupsService = class IngredientGroupsService {
             }))
         };
     }
-    async update(id, accountId, updateDto) {
-        const nutritionistId = await this.getNutritionistId(accountId);
-        await this.findOne(id, accountId);
+    async validateGroupOwnership(id, nutritionistId) {
+        if (!nutritionistId)
+            throw new common_1.ForbiddenException('Nutritionist profile not found');
+        const group = await this.prisma.ingredientGroup.findUnique({
+            where: { id },
+            select: { nutritionistId: true }
+        });
+        if (!group)
+            throw new common_1.NotFoundException('Group not found');
+        if (group.nutritionistId !== nutritionistId)
+            throw new common_1.ForbiddenException('Access denied');
+    }
+    async update(id, nutritionistId, updateDto) {
+        await this.validateGroupOwnership(id, nutritionistId);
         const { tags, ingredients, ...data } = updateDto;
         const tagRecords = tags
             ? await Promise.all(tags.map(name => this.getOrCreateTag(name)))
@@ -140,14 +141,12 @@ let IngredientGroupsService = class IngredientGroupsService {
             include: { tags: true }
         });
     }
-    async remove(id, accountId) {
-        const nutritionistId = await this.getNutritionistId(accountId);
-        await this.findOne(id, accountId);
+    async remove(id, nutritionistId) {
+        await this.validateGroupOwnership(id, nutritionistId);
         return this.prisma.ingredientGroup.delete({ where: { id } });
     }
-    async addIngredients(id, accountId, dto) {
-        const nutritionistId = await this.getNutritionistId(accountId);
-        await this.findOne(id, accountId);
+    async addIngredients(id, nutritionistId, dto) {
+        await this.validateGroupOwnership(id, nutritionistId);
         return this.prisma.ingredientGroup.update({
             where: { id },
             data: {
@@ -160,9 +159,8 @@ let IngredientGroupsService = class IngredientGroupsService {
             include: { _count: { select: { entries: true } } }
         });
     }
-    async removeIngredients(id, accountId, dto) {
-        const nutritionistId = await this.getNutritionistId(accountId);
-        await this.findOne(id, accountId);
+    async removeIngredients(id, nutritionistId, dto) {
+        await this.validateGroupOwnership(id, nutritionistId);
         return this.prisma.ingredientGroup.update({
             where: { id },
             data: {
