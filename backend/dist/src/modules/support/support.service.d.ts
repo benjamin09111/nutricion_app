@@ -12,28 +12,28 @@ export declare class SupportService {
     }): Promise<{
         id: string;
         email: string;
-        message: string | null;
-        type: import(".prisma/client").$Enums.SupportRequestType;
         status: import(".prisma/client").$Enums.SupportRequestStatus;
         createdAt: Date;
         updatedAt: Date;
+        message: string | null;
+        type: import(".prisma/client").$Enums.SupportRequestType;
     }>;
     findAll(): Promise<{
         id: string;
         email: string;
-        message: string | null;
-        type: import(".prisma/client").$Enums.SupportRequestType;
         status: import(".prisma/client").$Enums.SupportRequestStatus;
         createdAt: Date;
         updatedAt: Date;
+        message: string | null;
+        type: import(".prisma/client").$Enums.SupportRequestType;
     }[]>;
     resolve(id: string): Promise<{
         id: string;
         email: string;
-        message: string | null;
-        type: import(".prisma/client").$Enums.SupportRequestType;
         status: import(".prisma/client").$Enums.SupportRequestStatus;
         createdAt: Date;
         updatedAt: Date;
+        message: string | null;
+        type: import(".prisma/client").$Enums.SupportRequestType;
     }>;
 }

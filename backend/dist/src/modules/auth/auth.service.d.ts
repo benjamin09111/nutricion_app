@@ -47,9 +47,9 @@ export declare class AuthService {
             settings: import("@prisma/client/runtime/library").JsonValue | null;
         } | null;
     } & {
+        id: string;
         email: string;
         password: string | null;
-        id: string;
         role: import(".prisma/client").$Enums.UserRole;
         status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;

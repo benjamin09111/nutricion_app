@@ -53,14 +53,31 @@ let FoodsService = class FoodsService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    async create(createFoodDto, nutritionistId) {
-        const isPublic = createFoodDto.isPublic ?? false;
-        return this.prisma.food.create({
-            data: {
-                ...createFoodDto,
-                nutritionistId: isPublic ? null : nutritionistId,
-                isPublic: isPublic,
-            },
+    async create(createFoodDto, userId) {
+        const nutritionist = await this.prisma.nutritionist.findUnique({
+            where: { accountId: userId },
+        });
+        if (!nutritionist) {
+            throw new Error("Nutritionist profile required to create ingredients. Please ensure you are logged in as a Nutritionist.");
+        }
+        return this.prisma.$transaction(async (tx) => {
+            const ingredient = await tx.ingredient.create({
+                data: {
+                    ...createFoodDto,
+                    isPublic: true,
+                    verified: false,
+                    nutritionist: { connect: { id: nutritionist.id } },
+                },
+            });
+            await tx.ingredientPreference.create({
+                data: {
+                    nutritionist: { connect: { id: nutritionist.id } },
+                    ingredient: { connect: { id: ingredient.id } },
+                    isFavorite: true,
+                    isHidden: false,
+                },
+            });
+            return ingredient;
         });
     }
     async findAll(params) {
@@ -77,7 +94,7 @@ let FoodsService = class FoodsService {
         if (category) {
             whereClause.category = category;
         }
-        const foods = await this.prisma.food.findMany({
+        const ingredients = await this.prisma.ingredient.findMany({
             where: {
                 ...whereClause,
                 ...(nutritionistId ? {
@@ -100,21 +117,21 @@ let FoodsService = class FoodsService {
             take: limit,
             orderBy: { name: 'asc' },
         });
-        return foods;
+        return ingredients;
     }
     async findOne(id) {
-        return this.prisma.food.findUnique({
+        return this.prisma.ingredient.findUnique({
             where: { id },
         });
     }
     update(id, updateFoodDto) {
-        return this.prisma.food.update({
+        return this.prisma.ingredient.update({
             where: { id },
             data: updateFoodDto,
         });
     }
     remove(id) {
-        return this.prisma.food.delete({
+        return this.prisma.ingredient.delete({
             where: { id },
         });
     }

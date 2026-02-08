@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 import { X, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { TagInput } from '@/components/ui/TagInput';
-import { MarketPrice } from '@/features/foods';
+import { Ingredient } from '@/features/foods';
 
 interface EditFoodModalProps {
     isOpen: boolean;
     onClose: () => void;
-    food: MarketPrice | null;
+    food: Ingredient | null;
     currentTags: string[];
-    onSave: (food: MarketPrice, tags: string[]) => Promise<void>;
+    onSave: (food: Ingredient, tags: string[]) => Promise<void>;
     allAvailableTags: string[]; // For suggestions
 }
 
@@ -53,8 +53,8 @@ export default function EditFoodModal({
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
                     <div>
-                        <h3 className="text-lg font-black text-slate-800">Editar Alimento</h3>
-                        <p className="text-sm text-slate-500 font-medium">{food.producto}</p>
+                        <h3 className="text-lg font-black text-slate-800">Editar Ingrediente</h3>
+                        <p className="text-sm text-slate-500 font-medium">{food.name}</p>
                     </div>
                     <button
                         onClick={onClose}
@@ -69,12 +69,12 @@ export default function EditFoodModal({
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                                <span className="block text-xs font-bold text-slate-400 uppercase">Grupo</span>
-                                <span className="font-bold text-slate-700">{food.grupo}</span>
+                                <span className="block text-xs font-bold text-slate-400 uppercase">Categoría</span>
+                                <span className="font-bold text-slate-700">{food.category}</span>
                             </div>
                             <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
                                 <span className="block text-xs font-bold text-slate-400 uppercase">Calorías</span>
-                                <span className="font-bold text-slate-700">{food.calorias || '-'}</span>
+                                <span className="font-bold text-slate-700">{food.calories || '-'}</span>
                             </div>
                         </div>
 

@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { FoodsService } from './foods.service';
 import { CreateFoodDto } from './dto/create-food.dto';
 import { UpdateFoodDto } from './dto/update-food.dto';
@@ -8,9 +9,9 @@ export class FoodsController {
     constructor(private readonly foodsService: FoodsService) { }
 
     @Post()
-    create(@Body() createFoodDto: CreateFoodDto) {
-        // TODO: Get nutritionistId from Request (AuthGuard)
-        return this.foodsService.create(createFoodDto, undefined);
+    @UseGuards(AuthGuard('jwt'))
+    create(@Body() createFoodDto: CreateFoodDto, @Request() req) {
+        return this.foodsService.create(createFoodDto, req.user.id);
     }
 
     @Get()

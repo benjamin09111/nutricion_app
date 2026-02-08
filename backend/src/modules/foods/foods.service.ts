@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { CreateFoodDto } from './dto/create-food.dto';
 import { UpdateFoodDto } from './dto/update-food.dto';
@@ -11,16 +12,36 @@ import { MarketPriceDto } from './dto/market-price.dto';
 export class FoodsService {
     constructor(private readonly prisma: PrismaService) { }
 
-    async create(createFoodDto: CreateFoodDto, nutritionistId?: string) {
-        // If nutritionistId is present, it's a custom food
-        const isPublic = createFoodDto.isPublic ?? false;
+    async create(createFoodDto: CreateFoodDto, userId: string) {
+        // Find nutritionist profile from Account ID
+        const nutritionist = await this.prisma.nutritionist.findUnique({
+            where: { accountId: userId },
+        });
 
-        return this.prisma.food.create({
-            data: {
-                ...createFoodDto,
-                nutritionistId: isPublic ? null : nutritionistId,
-                isPublic: isPublic,
-            },
+        if (!nutritionist) {
+            throw new Error("Nutritionist profile required to create ingredients. Please ensure you are logged in as a Nutritionist.");
+        }
+
+        return this.prisma.$transaction(async (tx) => {
+            const ingredient = await tx.ingredient.create({
+                data: {
+                    ...createFoodDto,
+                    isPublic: true, // Always public per requirement
+                    verified: false,
+                    nutritionist: { connect: { id: nutritionist.id } },
+                },
+            });
+
+            await tx.ingredientPreference.create({
+                data: {
+                    nutritionist: { connect: { id: nutritionist.id } },
+                    ingredient: { connect: { id: ingredient.id } },
+                    isFavorite: true,
+                    isHidden: false,
+                },
+            });
+
+            return ingredient;
         });
     }
 
@@ -49,7 +70,7 @@ export class FoodsService {
             whereClause.category = category;
         }
 
-        const foods = await this.prisma.food.findMany({
+        const ingredients = await this.prisma.ingredient.findMany({
             where: {
                 ...whereClause,
                 ...(nutritionistId ? {
@@ -73,24 +94,24 @@ export class FoodsService {
             orderBy: { name: 'asc' },
         });
 
-        return foods;
+        return ingredients;
     }
 
     async findOne(id: string) {
-        return this.prisma.food.findUnique({
+        return this.prisma.ingredient.findUnique({
             where: { id },
         });
     }
 
     update(id: string, updateFoodDto: UpdateFoodDto) {
-        return this.prisma.food.update({
+        return this.prisma.ingredient.update({
             where: { id },
             data: updateFoodDto,
         });
     }
 
     remove(id: string) {
-        return this.prisma.food.delete({
+        return this.prisma.ingredient.delete({
             where: { id },
         });
     }
@@ -108,14 +129,12 @@ export class FoodsService {
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
 
-            // Read first rows (+1 for header)
             const jsonData = XLSX.utils.sheet_to_json(worksheet, {
                 range: 0,
-                header: 1, // Use first row as header is handled manually or let XLSX handle it
+                header: 1,
                 defval: ''
             });
 
-            // jsonData[0] is header
             const headers = jsonData[0] as string[];
             const rows = jsonData.slice(1, limit + 1) as any[][];
 
@@ -126,7 +145,6 @@ export class FoodsService {
                     record[header] = value;
                 });
 
-                // Mapping to DTO
                 return {
                     anio: record['Anio'],
                     mes: record['Mes'],
