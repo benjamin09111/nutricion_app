@@ -1,57 +1,85 @@
 
-export enum FoodUnit {
-    KILO = '$/kilo',
-    UNIDAD = '$/unidad',
-    MALLA = '$/malla',
-    ATADO = '$/atado',
-    OTRO = 'otro'
-}
-
-export enum FoodGroup {
-    BOVINA = 'Carne bovina',
-    CERDO_AVE_CORDERO = 'Carne de Cerdo - Ave - Cordero',
-    ABARROTES = 'Abarrotes y otros',
-    FRUTAS = 'Frutas',
-    HORTALIZAS = 'Hortalizas',
-    LACTEOS_HUEVOS = 'Lácteos - Huevos - Margarinas',
-    PAN = 'Pan'
-}
-
-export interface Food {
+export interface Ingredient {
     id: string;
     name: string;
-    brand?: string;
-    category: string;
+    brand?: {
+        id: string;
+        name: string;
+    };
+    category: {
+        id: string;
+        name: string;
+    };
+    price: number;
+
+    // Units
+    unit: string;
+    amount: number;
+
+    // Nutrition
     calories: number;
     proteins: number;
+    lipids: number;
     carbs: number;
-    fats: number;
-    tags?: string[];
+    sugars?: number;
+    fiber?: number;
+    sodium?: number;
+
+    // Meta
+    tags: {
+        id: string;
+        name: string;
+    }[];
+    ingredients?: string;
+
+    // Origin
     isPublic: boolean;
+    verified: boolean;
+    nutritionistId?: string | null;
+
+    // Personalization
+    preferences?: {
+        isFavorite: boolean;
+        isNotRecommended: boolean;
+        tags: { id: string, name: string }[];
+    }[];
+
+    createdAt?: string;
+    updatedAt?: string;
 }
 
-export interface MarketPrice {
-    id?: string; // Optional because CSV records don't have UUIDs initially
-    producto: string;
-    grupo: FoodGroup | string;
-    unidad: FoodUnit | string;
-    precioPromedio: number;
-    isUserCreated?: boolean;
+// For backward compatibility or specific UI needs
+export type IngredientGroup = string;
 
-    // Optional legacy fields (from old dataset or manual entry)
+// Optional: if we need specific types for form creation
+export interface CreateIngredientDto extends Omit<Ingredient, 'id' | 'createdAt' | 'updatedAt'> { }
+
+export interface MarketPrice {
+    id: string;
+    producto: string;
+    precioPromedio: number;
+    precioMinimo?: number;
+    precioMaximo?: number;
+    unidad: string;
+    grupo: string;
+    region?: string;
+    sector?: string;
+    tipoPuntoMonitoreo?: string;
     anio?: string;
     mes?: string;
     semana?: string;
     fechaInicio?: string;
     fechaTermino?: string;
-    region?: string;
-    sector?: string;
-    tipoPuntoMonitoreo?: string;
-    precioMinimo?: number;
-    precioMaximo?: number;
-
     calorias?: number;
     proteinas?: number;
     tags?: string[];
-    status?: 'base' | 'favorite' | 'removed';
+}
+
+export enum FoodGroup {
+    BOVINA = 'Carne Bovina',
+    CERDO_AVE_CORDERO = 'Cerdo, Ave y Cordero',
+    VEGETALES = 'Vegetales',
+    FRUTAS = 'Frutas',
+    LACTEOS = 'Lácteos',
+    VARIOS = 'Varios'
 }

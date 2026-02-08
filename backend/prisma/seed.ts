@@ -1,106 +1,172 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as XLSX from 'xlsx';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Start seeding...');
 
-  // Create Users
-  const hashedPassword = await bcrypt.hash('admin123', 10);
+  const hashedAdminPassword = await bcrypt.hash('admin123', 10);
+  const hashedUserPassword = await bcrypt.hash('password123', 10);
 
-  // Create Admin
-  const adminAccount = await prisma.account.upsert({
+  // 1. Create Admin
+  await prisma.account.upsert({
     where: { email: 'admin@nutrisaas.com' },
     update: {},
     create: {
       email: 'admin@nutrisaas.com',
-      password: hashedPassword,
+      password: hashedAdminPassword,
       role: 'ADMIN_GENERAL',
       status: 'ACTIVE',
     },
   });
   console.log('✅ Created Admin Account');
 
-  // Create Nutritionist
-  const nutriAccount = await prisma.account.upsert({
-    where: { email: 'nutri@test.com' },
-    update: {},
-    create: {
-      email: 'nutri@test.com',
-      password: hashedPassword,
-      role: 'NUTRITIONIST',
-      status: 'ACTIVE',
-    },
-  });
-
-  const nutritionist = await prisma.nutritionist.upsert({
-    where: { accountId: nutriAccount.id },
-    update: {},
-    create: {
-      accountId: nutriAccount.id,
-      fullName: 'Dr. Test Nutritionist',
-      professionalId: '123456-7',
-      specialty: 'Clinical Nutrition',
-    },
-  });
-  console.log('✅ Created Nutritionist Account and Profile');
-
-  const foods = [
-    {
-      name: 'Marraqueta (Unidad)',
-      brand: 'Panadería Local',
-      category: 'Panadería',
-      calories: 267.0,
-      proteins: 8.5,
-      carbs: 58.0,
-      fats: 1.2,
-      tags: ['VEGAN', 'TRADICIONAL', 'BAJO_GRASA'],
-      ingredients: 'Harina de trigo, agua, levadura, sal.',
-      serving: { unit: 'unidad', g_per_serving: 100, price_estimate: 250 },
-      isPublic: true,
-    },
-    {
-      name: 'Palta Hass',
-      brand: 'Feria',
-      category: 'Frutas y Verduras',
-      calories: 160.0,
-      proteins: 2.0,
-      carbs: 8.5,
-      fats: 14.7,
-      tags: ['VEGAN', 'KETO', 'SALUDABLE', 'LIBRE_DE_GLUTEN'],
-      ingredients: 'Palta natural 100%',
-      serving: { unit: 'g', g_per_serving: 100, price_estimate: 4900 },
-      isPublic: true,
-      micros: { potassium: 485, fiber: 6.7 },
-    },
-    {
-      name: 'Yogurt Protein Vainilla',
-      brand: 'Soprole',
-      category: 'Lácteos',
-      calories: 58.0,
-      proteins: 10.0,
-      carbs: 4.5,
-      fats: 0.0,
-      tags: ['ALTO_PROTEINA', 'SIN_AZUCAR_ANADIDA', 'LIBRE_DE_GLUTEN'],
-      ingredients: 'Leche descremada, concentrado de proteína láctea, saborizante idéntico a natural, sucralosa.',
-      serving: { unit: 'pote', g_per_serving: 155, price_estimate: 650 },
-      isPublic: true,
-      micros: { calcium: 180 },
-    },
+  // 2. Create Nutritionist Users
+  const users = [
+    { email: 'nutri@test.com', name: 'Dr. Test Nutritionist', role: 'NUTRITIONIST' },
+    { email: 'joakomask@gmail.com', name: 'Dr. Joako Mask', role: 'NUTRITIONIST' },
+    { email: 'moralespizarrobenjamin763@gmail.com', name: 'Dr. Benjamin Morales', role: 'NUTRITIONIST' }
   ];
 
-  for (const food of foods) {
-    const existing = await prisma.food.findFirst({ where: { name: food.name } });
-    if (!existing) {
-      await prisma.food.create({ data: food });
-      console.log(`✅ Created ${food.name}`);
-    } else {
-      console.log(`🔹 Skipped ${food.name} (already exists)`);
-    }
+  for (const user of users) {
+    const account = await prisma.account.upsert({
+      where: { email: user.email },
+      update: { password: hashedUserPassword }, // Update password just in case
+      create: {
+        email: user.email,
+        password: hashedUserPassword,
+        role: user.role as any,
+        status: 'ACTIVE',
+      },
+    });
+
+    await prisma.nutritionist.upsert({
+      where: { accountId: account.id },
+      update: {},
+      create: {
+        accountId: account.id,
+        fullName: user.name,
+        professionalId: `RUT-${Math.floor(Math.random() * 1000000)}`,
+        specialty: 'Clinical Nutrition',
+      },
+    });
+    console.log(`✅ Upserted Nutritionist: ${user.email}`);
   }
 
-  // Create Membership Plans
+  // 3. Seed Ingredients from CSV
+  console.log('🥑 Seeding Ingredients from CSV...');
+  try {
+    const filePath = path.resolve(process.cwd(), '..', 'docs', 'data', 'foods.csv');
+    if (fs.existsSync(filePath)) {
+      const workbook = XLSX.readFile(filePath);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      let count = 0;
+      // Process in chunks or one by one
+      for (const row of jsonData as any[]) {
+        const name = row['Producto'] || row['name'];
+        if (!name) continue;
+
+        const price = parseFloat(String(row['Precio promedio']).replace(',', '.') || '0') || 0;
+        const categoryName = row['Grupo'] || 'General';
+        const brandName = row['Marca'] || '';
+
+        const category = await prisma.ingredientCategory.upsert({
+          where: { name: categoryName },
+          update: {},
+          create: { name: categoryName },
+        });
+
+        let brandId = undefined;
+        if (brandName) {
+          const brand = await prisma.ingredientBrand.upsert({
+            where: { name: brandName },
+            update: {},
+            create: { name: brandName },
+          });
+          brandId = brand.id;
+        }
+
+        // Skip if exists to save time, or upsert
+        const existing = await prisma.ingredient.findFirst({ where: { name } });
+        if (!existing) {
+          await prisma.ingredient.create({
+            data: {
+              name: name,
+              categoryId: category.id,
+              brandId: brandId,
+              price: Math.round(price),
+              unit: row['Unidad'] || 'u',
+              amount: 1, // Default amount if missing
+              calories: row['Calorías'] ? parseFloat(String(row['Calorías']).replace(',', '.')) : 0,
+              proteins: row['Proteínas'] ? parseFloat(String(row['Proteínas']).replace(',', '.')) : 0,
+              lipids: row['Grasa Total'] ? parseFloat(String(row['Grasa Total']).replace(',', '.')) : 0,
+              carbs: row['Carbohidratos Disp'] ? parseFloat(String(row['Carbohidratos Disp']).replace(',', '.')) : 0,
+              sugars: 0,
+              fiber: 0,
+              sodium: 0,
+              isPublic: true,
+              verified: true
+            }
+          });
+          count++;
+        }
+      }
+      console.log(`✅ Seeded ${count} ingredients from CSV.`);
+    } else {
+      console.warn(`⚠️ CSV file not found at ${filePath}. Skipping mass seed.`);
+      // Fallback to manual seed
+      const manualIngredients = [
+        {
+          name: 'Marraqueta (Unidad)',
+          brandName: 'Panadería Local',
+          categoryName: 'Panadería',
+          price: 250,
+          unit: 'unidad',
+          amount: 100,
+          calories: 267.0,
+          proteins: 8.5,
+          lipids: 1.2,
+          carbs: 58.0,
+          isPublic: true,
+          verified: true
+        },
+      ];
+      for (const ing of manualIngredients) {
+        const { brandName, categoryName, ...rest } = ing;
+
+        const category = await prisma.ingredientCategory.upsert({
+          where: { name: categoryName },
+          update: {},
+          create: { name: categoryName },
+        });
+
+        const brand = brandName ? await prisma.ingredientBrand.upsert({
+          where: { name: brandName },
+          update: {},
+          create: { name: brandName },
+        }) : null;
+
+        await prisma.ingredient.create({
+          data: {
+            ...rest,
+            categoryId: category.id,
+            brandId: brand?.id,
+          }
+        }).catch(() => { });
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error seeding from CSV:', error);
+  }
+
+  // 4. Create Membership Plans
   const plans = [
     {
       name: 'Plan Gratuito',

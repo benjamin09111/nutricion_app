@@ -1,35 +1,50 @@
-
-import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { cookies } from 'next/headers';
 import FoodsClient from './FoodsClient';
-import { getLocalMarketPrices } from '@/lib/data-reader';
+import { Ingredient } from '@/features/foods';
+
+async function getIngredients(): Promise<any[]> {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+
+    try {
+        const res = await fetch(`${apiUrl}/foods?limit=1000`, {
+            cache: 'no-store',
+            headers: {
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            }
+        });
+
+        if (!res.ok) {
+            console.error('Failed to fetch ingredients:', res.status, res.statusText);
+            return [];
+        }
+        return res.json();
+    } catch (error) {
+        console.error('Error fetching ingredients:', error);
+        return [];
+    }
+}
 
 export default async function FoodsPage() {
-    // Reading all records for catalog
-    const localPrices = getLocalMarketPrices(0);
-    const finalData = localPrices;
+    const ingredients = await getIngredients();
 
     return (
         <div className="space-y-6">
             <div className="md:flex md:items-center md:justify-between px-2">
                 <div>
                     <h2 className="text-3xl font-black tracking-tight text-slate-900">
-                        Catálogo de Alimentos
+                        Catálogo de Ingredientes
                     </h2>
                     <p className="mt-1 text-sm font-medium text-slate-500">
-                        Explora precios y productos del mercado chileno.
+                        Gestiona los ingredientes base para tus pautas y recetas.
                     </p>
                 </div>
-                <div className="mt-4 flex md:ml-4 md:mt-0">
-                    <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-emerald-200 transition-all active:scale-95">
-                        <Plus className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
-                        Añadir Alimento
-                    </Button>
-                </div>
+                {/* Action button moved to Client Component */}
             </div>
 
             {/* Main Content: Filters + Table consolidated in Client Component */}
-            <FoodsClient initialData={finalData} />
+            <FoodsClient initialData={ingredients} />
         </div>
     );
 }

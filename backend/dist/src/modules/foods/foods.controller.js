@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FoodsController = void 0;
 const common_1 = require("@nestjs/common");
+const passport_1 = require("@nestjs/passport");
 const foods_service_1 = require("./foods.service");
 const create_food_dto_1 = require("./dto/create-food.dto");
 const update_food_dto_1 = require("./dto/update-food.dto");
@@ -22,16 +23,21 @@ let FoodsController = class FoodsController {
     constructor(foodsService) {
         this.foodsService = foodsService;
     }
-    create(createFoodDto) {
-        return this.foodsService.create(createFoodDto, undefined);
+    create(createFoodDto, req) {
+        return this.foodsService.create(createFoodDto, req.user.id);
     }
-    findAll(search, category, page, limit) {
+    findAll(req, search, category, tab, page, limit) {
         return this.foodsService.findAll({
+            nutritionistAccountId: req.user.id,
             search,
             category,
+            tab,
             page: page ? +page : 1,
             limit: limit ? +limit : 20,
         });
+    }
+    updatePreferences(id, req, data) {
+        return this.foodsService.togglePreference(id, req.user.id, data);
     }
     getMarketPrices(limit) {
         return this.foodsService.getMarketPrices(limit ? Number(limit) : 7);
@@ -49,21 +55,36 @@ let FoodsController = class FoodsController {
 exports.FoodsController = FoodsController;
 __decorate([
     (0, common_1.Post)(),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_food_dto_1.CreateFoodDto]),
+    __metadata("design:paramtypes", [create_food_dto_1.CreateFoodDto, Object]),
     __metadata("design:returntype", void 0)
 ], FoodsController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),
-    __param(0, (0, common_1.Query)('search')),
-    __param(1, (0, common_1.Query)('category')),
-    __param(2, (0, common_1.Query)('page')),
-    __param(3, (0, common_1.Query)('limit')),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('search')),
+    __param(2, (0, common_1.Query)('category')),
+    __param(3, (0, common_1.Query)('tab')),
+    __param(4, (0, common_1.Query)('page')),
+    __param(5, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], FoodsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Patch)(':id/preferences'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", void 0)
+], FoodsController.prototype, "updatePreferences", null);
 __decorate([
     (0, common_1.Get)('market-prices'),
     __param(0, (0, common_1.Query)('limit')),

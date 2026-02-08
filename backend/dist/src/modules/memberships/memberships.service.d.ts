@@ -71,9 +71,9 @@ export declare class MembershipsService {
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        price: import("@prisma/client/runtime/library").Decimal;
         slug: string;
         description: string | null;
-        price: import("@prisma/client/runtime/library").Decimal;
         currency: string;
         billingPeriod: string;
         features: import("@prisma/client/runtime/library").JsonValue;
@@ -101,9 +101,9 @@ export declare class MembershipsService {
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        price: import("@prisma/client/runtime/library").Decimal;
         slug: string;
         description: string | null;
-        price: import("@prisma/client/runtime/library").Decimal;
         currency: string;
         billingPeriod: string;
         features: import("@prisma/client/runtime/library").JsonValue;
@@ -118,9 +118,9 @@ export declare class MembershipsService {
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        price: import("@prisma/client/runtime/library").Decimal;
         slug: string;
         description: string | null;
-        price: import("@prisma/client/runtime/library").Decimal;
         currency: string;
         billingPeriod: string;
         features: import("@prisma/client/runtime/library").JsonValue;
@@ -135,9 +135,9 @@ export declare class MembershipsService {
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        price: import("@prisma/client/runtime/library").Decimal;
         slug: string;
         description: string | null;
-        price: import("@prisma/client/runtime/library").Decimal;
         currency: string;
         billingPeriod: string;
         features: import("@prisma/client/runtime/library").JsonValue;

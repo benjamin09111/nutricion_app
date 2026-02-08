@@ -12,12 +12,13 @@ const requests_service_1 = require("./requests.service");
 const requests_controller_1 = require("./requests.controller");
 const prisma_module_1 = require("../../prisma/prisma.module");
 const mail_module_1 = require("../mail/mail.module");
+const auth_module_1 = require("../auth/auth.module");
 let RequestsModule = class RequestsModule {
 };
 exports.RequestsModule = RequestsModule;
 exports.RequestsModule = RequestsModule = __decorate([
     (0, common_1.Module)({
-        imports: [prisma_module_1.PrismaModule, mail_module_1.MailModule],
+        imports: [prisma_module_1.PrismaModule, mail_module_1.MailModule, auth_module_1.AuthModule],
         providers: [requests_service_1.RequestsService],
         controllers: [requests_controller_1.RequestsController]
     })

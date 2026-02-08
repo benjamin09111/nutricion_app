@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsNumber, IsOptional, IsArray, IsObject, IsBoolean } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsOptional, IsArray, IsBoolean } from 'class-validator';
 
 export class CreateFoodDto {
     @IsString()
@@ -6,12 +6,24 @@ export class CreateFoodDto {
     name: string;
 
     @IsString()
-    @IsOptional()
-    brand?: string;
+    @IsNotEmpty()
+    brand: string;
 
     @IsString()
     @IsNotEmpty()
     category: string;
+
+    @IsNumber()
+    @IsOptional()
+    price?: number;
+
+    @IsString()
+    @IsNotEmpty()
+    unit: string;
+
+    @IsNumber()
+    @IsOptional()
+    amount?: number;
 
     @IsNumber()
     calories: number;
@@ -20,10 +32,23 @@ export class CreateFoodDto {
     proteins: number;
 
     @IsNumber()
+    @IsOptional()
+    lipids?: number;
+
+    @IsNumber()
     carbs: number;
 
     @IsNumber()
-    fats: number;
+    @IsOptional()
+    sugars?: number;
+
+    @IsNumber()
+    @IsOptional()
+    fiber?: number;
+
+    @IsNumber()
+    @IsOptional()
+    sodium?: number;
 
     @IsArray()
     @IsString({ each: true })
@@ -33,14 +58,6 @@ export class CreateFoodDto {
     @IsString()
     @IsOptional()
     ingredients?: string;
-
-    @IsObject()
-    @IsOptional()
-    micros?: Record<string, any>;
-
-    @IsObject()
-    @IsOptional()
-    serving?: Record<string, any>;
 
     @IsBoolean()
     @IsOptional()

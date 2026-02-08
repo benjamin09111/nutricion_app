@@ -26,20 +26,22 @@ model Account {
 }
 
 model Nutritionist {
-  id              String           @id @default(uuid())
-  accountId       String           @unique
-  fullName        String           @map("full_name")
-  professionalId  String?          @map("professional_id")
-  specialty       String?
-  phone           String?
-  avatarUrl       String?          @map("avatar_url")
-  settings        Json?            @default("{}")
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  foodPreferences FoodPreference[]
-  customFoods     Food[]
-  account         Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  patients        Patient[]
+  id                    String                 @id @default(uuid())
+  accountId             String                 @unique
+  fullName              String                 @map("full_name")
+  professionalId        String?                @map("professional_id")
+  specialty             String?
+  phone                 String?
+  avatarUrl             String?                @map("avatar_url")
+  settings              Json?                  @default("{}")
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  ingredientPreferences IngredientPreference[]
+  customIngredients     Ingredient[]
+  ingredientGroups      IngredientGroup[]
+  account               Account                @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  patients              Patient[]
+  recipes               Recipe[]
 
   @@map("nutritionists")
 }
@@ -62,41 +64,123 @@ model Patient {
   @@map("patients")
 }
 
-model Food {
-  id             String           @id @default(uuid())
+model Ingredient {
+  id             String                 @id @default(uuid())
   name           String
-  brand          String?
-  category       String
+  brandId        String?                @map("brand_id")
+  price          Int                    @default(0)
+  
+  // Units (normalized)
+  unit           String                 // 'gramos', 'ml', 'unidad'
+  amount         Float                  @default(100) // Base amount for nutrition (usually 100g/ml)
+  
+  // Nutrition (per 100g/ml)
   calories       Float
   proteins       Float
-  carbs          Float
-  fats           Float
-  tags           String[]
-  ingredients    String?
-  micros         Json?
-  serving        Json?
-  isPublic       Boolean          @default(false) @map("is_public")
-  nutritionistId String?          @map("nutritionist_id")
-  createdAt      DateTime         @default(now())
-  preferences    FoodPreference[]
-  nutritionist   Nutritionist?    @relation(fields: [nutritionistId], references: [id])
+  lipids         Float                  @default(0)
+  carbs          Float                  
+  sugars         Float?                 @default(0)
+  fiber          Float?                 @default(0)
+  sodium         Float?                 @default(0)
+  
+  // Meta
+  categoryId     String                 @map("category_id")
+  ingredients    String? // List of sub-ingredients if composite
+  
+  // Origin & Visibility
+  isPublic       Boolean                @default(false) @map("is_public")
+  verified       Boolean                @default(false)
+  nutritionistId String?                @map("nutritionist_id")
+
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  
+  brand          IngredientBrand?       @relation(fields: [brandId], references: [id])
+  category       IngredientCategory     @relation(fields: [categoryId], references: [id])
+  tags           Tag[]                  @relation("GlobalTags")
+  nutritionist   Nutritionist?          @relation(fields: [nutritionistId], references: [id])
+  groupEntries   IngredientGroupEntry[] 
+  preferences    IngredientPreference[]
+  recipeIngredients RecipeIngredient[]
 
   @@index([name])
-  @@index([category])
-  @@map("foods")
+  @@index([isPublic, verified])
+  @@map("ingredients")
 }
 
-model FoodPreference {
-  id             String       @id @default(uuid())
-  nutritionistId String       @map("nutritionist_id")
-  foodId         String       @map("food_id")
-  isFavorite     Boolean      @default(false) @map("is_favorite")
-  isHidden       Boolean      @default(false) @map("is_hidden")
-  food           Food         @relation(fields: [foodId], references: [id])
-  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
+model IngredientBrand {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  ingredients Ingredient[]
 
-  @@unique([nutritionistId, foodId])
-  @@map("food_preferences")
+  @@map("ingredient_brands")
+}
+
+model IngredientCategory {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  ingredients Ingredient[]
+
+  @@map("ingredient_categories")
+}
+
+model Tag {
+  id          String                 @id @default(uuid())
+  name        String                 @unique
+  ingredients Ingredient[]           @relation("GlobalTags")
+  preferences IngredientPreference[] @relation("PersonalTags")
+  ingredientGroups IngredientGroup[] @relation("GroupTags")
+
+  @@map("tags")
+}
+
+model IngredientPreference {
+  id               String       @id @default(uuid())
+  nutritionistId   String       @map("nutritionist_id")
+  ingredientId     String       @map("ingredient_id")
+  isFavorite       Boolean      @default(false) @map("is_favorite")
+  isNotRecommended Boolean      @default(false) @map("is_not_recommended")
+  isHidden         Boolean      @default(false) @map("is_hidden")
+  
+  tags             Tag[]        @relation("PersonalTags")
+  
+  ingredient       Ingredient   @relation(fields: [ingredientId], references: [id])
+  nutritionist     Nutritionist @relation(fields: [nutritionistId], references: [id])
+
+  @@unique([nutritionistId, ingredientId])
+  @@map("ingredient_preferences")
+}
+
+model IngredientGroup {
+  id             String       @id @default(uuid())
+  name           String
+  nutritionistId String       @map("nutritionist_id")
+  description    String?
+  
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  entries        IngredientGroupEntry[] // Explicit relation
+  tags           Tag[]                  @relation("GroupTags")
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("ingredient_groups")
+}
+
+model IngredientGroupEntry {
+  id              String          @id @default(uuid())
+  groupId         String          @map("group_id")
+  ingredientId    String          @map("ingredient_id")
+  brandSuggestion String?         @map("brand_suggestion") // The new field
+  amount          Float?          @default(1)
+  unit            String?         
+  
+  group           IngredientGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  ingredient      Ingredient      @relation(fields: [ingredientId], references: [id])
+
+  @@index([groupId])
+  @@index([ingredientId])
+  @@map("ingredient_group_entries")
 }
 
 model FoodPriceRecord {
@@ -307,4 +391,48 @@ enum SubscriptionStatus {
   PAST_DUE
   CANCELED
   UNPAID
+}
+
+model Recipe {
+  id             String             @id @default(uuid())
+  name           String
+  description    String?
+  preparation    String?            @db.Text
+  portionSize    Float              @default(100) @map("portion_size") // g per portion
+  portions       Int                @default(1)
+  
+  // Total Macros per portion (Calculated or Manual Check)
+  calories       Float              @default(0)
+  proteins       Float              @default(0)
+  carbs          Float              @default(0)
+  lipids         Float              @default(0)
+  fiber          Float?             @default(0)
+  sodium         Float?             @default(0)
+  
+  isPublic       Boolean            @default(false) @map("is_public")
+  nutritionistId String?            @map("nutritionist_id")
+  
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  nutritionist   Nutritionist?      @relation(fields: [nutritionistId], references: [id])
+  ingredients    RecipeIngredient[]
+
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id              String     @id @default(uuid())
+  recipeId        String     @map("recipe_id")
+  ingredientId    String     @map("ingredient_id")
+  amount          Float      // Amount of the ingredient in this recipe
+  unit            String     // Unit used (g, ml, unit)
+  brandSuggestion String?    @map("brand_suggestion") // Metadata
+  
+  recipe          Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient      Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@index([recipeId])
+  @@index([ingredientId])
+  @@map("recipe_ingredients")
 }

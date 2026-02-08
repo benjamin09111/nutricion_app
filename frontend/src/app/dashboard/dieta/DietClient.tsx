@@ -379,6 +379,10 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                     <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
                         <Sparkles className="h-5 w-5 text-amber-500" />
                         Dieta Base Generada
+                        <span className="ml-2 text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-1 rounded-full border border-slate-200 flex items-center gap-1">
+                            <Info className="w-3 h-3" />
+                            Fuente: INTA (2018)
+                        </span>
                     </h2>
                     <button
                         onClick={() => setFavoritesEnabled(!favoritesEnabled)}

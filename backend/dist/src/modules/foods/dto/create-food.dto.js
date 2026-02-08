@@ -15,14 +15,18 @@ class CreateFoodDto {
     name;
     brand;
     category;
+    price;
+    unit;
+    amount;
     calories;
     proteins;
+    lipids;
     carbs;
-    fats;
+    sugars;
+    fiber;
+    sodium;
     tags;
     ingredients;
-    micros;
-    serving;
     isPublic;
 }
 exports.CreateFoodDto = CreateFoodDto;
@@ -33,7 +37,7 @@ __decorate([
 ], CreateFoodDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateFoodDto.prototype, "brand", void 0);
 __decorate([
@@ -41,6 +45,21 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateFoodDto.prototype, "category", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateFoodDto.prototype, "price", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateFoodDto.prototype, "unit", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateFoodDto.prototype, "amount", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
@@ -51,12 +70,28 @@ __decorate([
 ], CreateFoodDto.prototype, "proteins", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateFoodDto.prototype, "lipids", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateFoodDto.prototype, "carbs", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
-], CreateFoodDto.prototype, "fats", void 0);
+], CreateFoodDto.prototype, "sugars", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateFoodDto.prototype, "fiber", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateFoodDto.prototype, "sodium", void 0);
 __decorate([
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.IsString)({ each: true }),
@@ -68,16 +103,6 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateFoodDto.prototype, "ingredients", void 0);
-__decorate([
-    (0, class_validator_1.IsObject)(),
-    (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", Object)
-], CreateFoodDto.prototype, "micros", void 0);
-__decorate([
-    (0, class_validator_1.IsObject)(),
-    (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", Object)
-], CreateFoodDto.prototype, "serving", void 0);
 __decorate([
     (0, class_validator_1.IsBoolean)(),
     (0, class_validator_1.IsOptional)(),
