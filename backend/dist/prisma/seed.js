@@ -96,15 +96,29 @@ async function main() {
                 if (!name)
                     continue;
                 const price = parseFloat(String(row['Precio promedio']).replace(',', '.') || '0') || 0;
-                const category = row['Grupo'] || 'General';
-                const brand = row['Marca'] || '';
+                const categoryName = row['Grupo'] || 'General';
+                const brandName = row['Marca'] || '';
+                const category = await prisma.ingredientCategory.upsert({
+                    where: { name: categoryName },
+                    update: {},
+                    create: { name: categoryName },
+                });
+                let brandId = undefined;
+                if (brandName) {
+                    const brand = await prisma.ingredientBrand.upsert({
+                        where: { name: brandName },
+                        update: {},
+                        create: { name: brandName },
+                    });
+                    brandId = brand.id;
+                }
                 const existing = await prisma.ingredient.findFirst({ where: { name } });
                 if (!existing) {
                     await prisma.ingredient.create({
                         data: {
                             name: name,
-                            category: category,
-                            brand: brand,
+                            categoryId: category.id,
+                            brandId: brandId,
                             price: Math.round(price),
                             unit: row['Unidad'] || 'u',
                             amount: 1,
@@ -115,7 +129,6 @@ async function main() {
                             sugars: 0,
                             fiber: 0,
                             sodium: 0,
-                            tags: [],
                             isPublic: true,
                             verified: true
                         }
@@ -130,8 +143,8 @@ async function main() {
             const manualIngredients = [
                 {
                     name: 'Marraqueta (Unidad)',
-                    brand: 'Panadería Local',
-                    category: 'Panadería',
+                    brandName: 'Panadería Local',
+                    categoryName: 'Panadería',
                     price: 250,
                     unit: 'unidad',
                     amount: 100,
@@ -144,7 +157,24 @@ async function main() {
                 },
             ];
             for (const ing of manualIngredients) {
-                await prisma.ingredient.create({ data: ing }).catch(() => { });
+                const { brandName, categoryName, ...rest } = ing;
+                const category = await prisma.ingredientCategory.upsert({
+                    where: { name: categoryName },
+                    update: {},
+                    create: { name: categoryName },
+                });
+                const brand = brandName ? await prisma.ingredientBrand.upsert({
+                    where: { name: brandName },
+                    update: {},
+                    create: { name: brandName },
+                }) : null;
+                await prisma.ingredient.create({
+                    data: {
+                        ...rest,
+                        categoryId: category.id,
+                        brandId: brand?.id,
+                    }
+                }).catch(() => { });
             }
         }
     }

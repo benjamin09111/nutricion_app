@@ -31,7 +31,7 @@ export function getLocalMarketPrices(limit: number = 20): MarketPrice[] {
         // Use slice if limit is positive, otherwise take all
         const rows = limit > 0 ? jsonData.slice(1, limit + 1) : jsonData.slice(1);
 
-        return rows.map(row => {
+        return rows.map((row, index) => {
             const record: any = {};
             headers.forEach((header, index) => {
                 const value = row[index];
@@ -45,6 +45,7 @@ export function getLocalMarketPrices(limit: number = 20): MarketPrice[] {
             };
 
             return {
+                id: `market-${index}`,
                 producto: String(record['Alimento'] || ''),
                 precioPromedio: parsePrice(record['Precio promedio']),
                 unidad: String(record['Unidad'] || ''),

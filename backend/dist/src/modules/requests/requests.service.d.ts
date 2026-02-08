@@ -1,10 +1,12 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateRegistrationRequestDto } from './dto/create-registration-request.dto';
 import { MailService } from '../mail/mail.service';
+import { AuthService } from '../auth/auth.service';
 export declare class RequestsService {
     private prisma;
     private mailService;
-    constructor(prisma: PrismaService, mailService: MailService);
+    private authService;
+    constructor(prisma: PrismaService, mailService: MailService, authService: AuthService);
     create(createDto: CreateRegistrationRequestDto): Promise<{
         success: boolean;
         message: string;

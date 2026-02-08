@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateRegistrationRequestDto } from './dto/create-registration-request.dto';
 import { MailService } from '../mail/mail.service';
+import { AuthService } from '../auth/auth.service';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
@@ -9,9 +10,11 @@ export class RequestsService {
     constructor(
         private prisma: PrismaService,
         private mailService: MailService,
+        private authService: AuthService,
     ) { }
 
     async create(createDto: CreateRegistrationRequestDto) {
+        // ... (lines 15-46 remain unchanged)
         // 1. Check if email already exists in users or pending requests
         const existingUser = await this.prisma.account.findUnique({
             where: { email: createDto.email },
@@ -85,43 +88,25 @@ export class RequestsService {
                 return { success: true, message: 'La cuenta ya existía. Solicitud marcada como aceptada.' };
             }
 
-            const tempPassword = Math.random().toString(36).slice(-8) + 'Aa1!';
-            const hashedPassword = await bcrypt.hash(tempPassword, 10);
+            // Utilize centralized AuthService to create account and profile
+            try {
+                await this.authService.createAccount(
+                    request.email,
+                    'NUTRITIONIST',
+                    request.fullName
+                );
 
-            await this.prisma.$transaction(async (tx) => {
-                // 1. Create Account
-                const account = await tx.account.create({
-                    data: {
-                        email: request.email,
-                        password: hashedPassword,
-                        role: 'NUTRITIONIST',
-                        status: 'ACTIVE',
-                        plan: 'FREE',
-                    }
-                });
-
-                // 2. Create Nutritionist Profile
-                await tx.nutritionist.create({
-                    data: {
-                        accountId: account.id,
-                        fullName: request.fullName,
-                        professionalId: request.professionalId,
-                        specialty: request.specialty,
-                        phone: request.phone,
-                    }
-                });
-
-                // 3. Update Request Status
-                await tx.registrationRequest.update({
+                // Update Request Status
+                await this.prisma.registrationRequest.update({
                     where: { id },
                     data: { status, adminNotes }
                 });
-            });
 
-            // 4. Send Email with Creds
-            await this.mailService.sendRegistrationApproved(request.email, request.fullName, tempPassword);
-
-            return { success: true, message: 'Solicitud aceptada: Cuenta creada y credenciales enviadas.' };
+                return { success: true, message: 'Solicitud aceptada: Cuenta creada y credenciales enviadas.' };
+            } catch (error: any) {
+                console.error("Error confirming request:", error);
+                throw new BadRequestException("Error al crear la cuenta: " + error.message);
+            }
         }
 
         // Standard update for other cases (Rejection or moving back to pending)

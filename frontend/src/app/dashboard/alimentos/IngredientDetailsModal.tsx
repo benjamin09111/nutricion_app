@@ -1,8 +1,8 @@
-import { Fragment } from 'react';
-import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { X, Tag, BarChart2, Scale, Info } from 'lucide-react';
 import { Ingredient } from '@/features/foods';
 import { formatCLP } from '@/lib/utils/currency';
+import { cn } from '@/lib/utils';
+import { Modal } from '@/components/ui/Modal';
 
 interface IngredientDetailsModalProps {
     isOpen: boolean;
@@ -14,163 +14,160 @@ export default function IngredientDetailsModal({ isOpen, onClose, ingredient }: 
     if (!ingredient) return null;
 
     return (
-        <Transition show={isOpen} as={Fragment}>
-            <Dialog as="div" className="relative z-50" onClose={onClose}>
-                <TransitionChild
-                    as={Fragment}
-                    enter="ease-out duration-300"
-                    enterFrom="opacity-0"
-                    enterTo="opacity-100"
-                    leave="ease-in duration-200"
-                    leaveFrom="opacity-100"
-                    leaveTo="opacity-0"
-                >
-                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" />
-                </TransitionChild>
-
-                <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
-                    <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                        <TransitionChild
-                            as={Fragment}
-                            enter="ease-out duration-300"
-                            enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                            enterTo="opacity-100 translate-y-0 sm:scale-100"
-                            leave="ease-in duration-200"
-                            leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-                            leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            className="sm:max-w-4xl p-0" // p-0 to keep custom header padding
+        >
+            <div className="relative">
+                {/* Header / Hero Section */}
+                <div className="p-8 border-b border-slate-50 bg-slate-50/30">
+                    <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-emerald-600 font-bold text-[10px] uppercase tracking-widest bg-emerald-50 w-fit px-2 py-0.5 rounded-lg">
+                                <Info className="h-3 w-3" />
+                                Detalles del Ingrediente
+                            </div>
+                            <h3 className="text-3xl font-black text-slate-900 tracking-tight">
+                                {ingredient.name}
+                            </h3>
+                            <p className="text-sm text-slate-400 font-bold uppercase tracking-tight">
+                                {ingredient.brand?.name || 'Marca Genérica'} • <span className="text-slate-500">{ingredient.category?.name || 'Varios'}</span>
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            className="p-2 rounded-full bg-slate-100 text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all cursor-pointer"
+                            onClick={onClose}
                         >
-                            <DialogPanel className="relative transform overflow-hidden rounded-2xl bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6 border border-slate-100">
-                                <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
-                                    <button
-                                        type="button"
-                                        className="rounded-md bg-white text-slate-400 hover:text-slate-500 focus:outline-hidden"
-                                        onClick={onClose}
-                                    >
-                                        <span className="sr-only">Cerrar</span>
-                                        <X className="h-6 w-6" aria-hidden="true" />
-                                    </button>
-                                </div>
-                                <div className="sm:flex sm:items-start w-full">
-                                    <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                                        <DialogTitle as="h3" className="text-xl font-black leading-6 text-slate-900 flex items-center gap-2">
-                                            <Info className="h-6 w-6 text-emerald-600" />
-                                            {ingredient.name}
-                                        </DialogTitle>
-                                        <div className="mt-2">
-                                            <p className="text-sm text-slate-500 font-medium">
-                                                {ingredient.brand || 'Marca genérica'} • {ingredient.category}
-                                            </p>
-                                        </div>
-
-                                        {/* Main Info Grid */}
-                                        <div className="mt-6 grid grid-cols-2 gap-4">
-                                            <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50">
-                                                <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Precio Referencia</p>
-                                                <p className="text-2xl font-black text-slate-900">{formatCLP(ingredient.price)}</p>
-                                                <p className="text-xs text-slate-400 mt-1">Por {ingredient.amount} {ingredient.unit}</p>
-                                            </div>
-                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Porción Base</p>
-                                                <p className="text-lg font-bold text-slate-700 flex items-center gap-2">
-                                                    <Scale className="h-5 w-5 text-slate-400" />
-                                                    {ingredient.amount} {ingredient.unit}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        {/* Nutritional Facts Table */}
-                                        <div className="mt-6">
-                                            <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                <BarChart2 className="h-4 w-4 text-slate-400" />
-                                                Información Nutricional
-                                                <span className="text-[10px] lowercase font-medium text-slate-400 ml-1">(por 100g/ml)</span>
-                                            </h4>
-
-                                            <div className="bg-white border boundary-slate-200 rounded-xl overflow-hidden shadow-sm">
-                                                <table className="min-w-full divide-y divide-slate-100">
-                                                    <tbody className="divide-y divide-slate-50 bg-white">
-                                                        <tr className="bg-slate-50/50">
-                                                            <td className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Energía</td>
-                                                            <td className="px-4 py-3 text-sm font-black text-slate-900 text-right">{ingredient.calories} kcal</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td className="px-4 py-3 text-xs font-medium text-slate-500">Proteínas</td>
-                                                            <td className="px-4 py-3 text-sm font-bold text-slate-700 text-right">{ingredient.proteins} g</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td className="px-4 py-3 text-xs font-medium text-slate-500">Grasas Totales</td>
-                                                            <td className="px-4 py-3 text-sm font-bold text-slate-700 text-right">{ingredient.lipids} g</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td className="px-4 py-3 text-xs font-medium text-slate-500">Hidratos de Carbono</td>
-                                                            <td className="px-4 py-3 text-sm font-bold text-slate-700 text-right">{ingredient.carbs} g</td>
-                                                        </tr>
-                                                        {ingredient.sugars !== undefined && (
-                                                            <tr>
-                                                                <td className="px-4 py-3 text-xs font-medium text-slate-400 pl-8">Azúcares Totales</td>
-                                                                <td className="px-4 py-3 text-sm font-medium text-slate-500 text-right">{ingredient.sugars} g</td>
-                                                            </tr>
-                                                        )}
-                                                        {ingredient.fiber !== undefined && (
-                                                            <tr>
-                                                                <td className="px-4 py-3 text-xs font-medium text-slate-500">Fibra Dietética</td>
-                                                                <td className="px-4 py-3 text-sm font-bold text-slate-700 text-right">{ingredient.fiber} g</td>
-                                                            </tr>
-                                                        )}
-                                                        {ingredient.sodium !== undefined && (
-                                                            <tr>
-                                                                <td className="px-4 py-3 text-xs font-medium text-slate-500">Sodio</td>
-                                                                <td className="px-4 py-3 text-sm font-bold text-slate-700 text-right">{ingredient.sodium} mg</td>
-                                                            </tr>
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-
-                                        {/* Tags */}
-                                        {ingredient.tags && ingredient.tags.length > 0 && (
-                                            <div className="mt-6 pt-4 border-t border-slate-100">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <Tag className="h-4 w-4 text-slate-400" />
-                                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tags</span>
-                                                </div>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {ingredient.tags.map(tag => (
-                                                        <span key={tag} className="px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold">
-                                                            {tag}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Ingredients List */}
-                                        {ingredient.ingredients && (
-                                            <div className="mt-4 pt-4 border-t border-slate-100">
-                                                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Ingredientes</p>
-                                                <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100 italic">
-                                                    {ingredient.ingredients}
-                                                </p>
-                                            </div>
-                                        )}
-
-                                    </div>
-                                </div>
-                                <div className="mt-8 sm:flex sm:flex-row-reverse w-full">
-                                    <button
-                                        type="button"
-                                        className="inline-flex w-full justify-center rounded-xl bg-slate-900 px-3 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800 sm:ml-3 sm:w-auto transition-colors"
-                                        onClick={onClose}
-                                    >
-                                        Cerrar
-                                    </button>
-                                </div>
-                            </DialogPanel>
-                        </TransitionChild>
+                            <X className="h-6 w-6" aria-hidden="true" />
+                        </button>
                     </div>
                 </div>
-            </Dialog>
-        </Transition>
+
+                <div className="p-8">
+                    <div className="grid md:grid-cols-2 gap-12">
+                        {/* Column 1: General Info & Tags */}
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-emerald-50/50 p-5 rounded-3xl border border-emerald-100/50 group hover:shadow-lg hover:shadow-emerald-500/5 transition-all">
+                                    <div className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1 items-center flex gap-1.5">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                        Precio Ref
+                                    </div>
+                                    <p className="text-3xl font-black text-slate-900 leading-none">{formatCLP(ingredient.price)}</p>
+                                    <p className="text-[11px] text-slate-400 mt-2 font-bold uppercase italic">Por {ingredient.amount}{ingredient.unit}</p>
+                                </div>
+                                <div className="bg-slate-50/50 p-5 rounded-3xl border border-slate-100/50 group hover:shadow-lg hover:shadow-slate-500/5 transition-all">
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 items-center flex gap-1.5">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                        Porción Base
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Scale className="h-5 w-5 text-slate-400" />
+                                        <p className="text-xl font-black text-slate-700">{ingredient.amount} <span className="text-sm font-bold lowercase text-slate-400">{ingredient.unit}</span></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Tags Section */}
+                            {(() => {
+                                const combinedTags = [
+                                    ...(ingredient.tags || []),
+                                    ...(ingredient.preferences?.[0]?.tags || [])
+                                ];
+                                if (combinedTags.length === 0) return null;
+
+                                return (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <Tag className="h-4 w-4 text-emerald-500" />
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Etiquetas vinculadas</span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {combinedTags.map(tag => (
+                                                <span key={tag.id} className="px-3 py-1.5 bg-slate-50 text-slate-600 rounded-xl text-xs font-bold border border-slate-100 hover:border-emerald-200 transition-colors">
+                                                    #{tag.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Composite Ingredients */}
+                            {ingredient.ingredients && (
+                                <div className="space-y-3">
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                        <div className="w-4 h-px bg-slate-200" />
+                                        Lista de Ingredientes
+                                    </div>
+                                    <p className="text-xs text-slate-500 leading-relaxed bg-slate-50/30 p-5 rounded-3xl border border-dashed border-slate-200 italic font-medium">
+                                        {ingredient.ingredients}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Column 2: Nutritional Facts */}
+                        <div className="bg-slate-50/40 p-6 rounded-3xl border border-slate-100 h-fit">
+                            <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <BarChart2 className="h-4 w-4 text-emerald-500" />
+                                    Información Nutricional
+                                </div>
+                                <span className="text-[9px] lowercase font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-100">
+                                    por 100g/ml
+                                </span>
+                            </h4>
+
+                            <div className="space-y-1">
+                                {[
+                                    { label: 'Energía', value: `${ingredient.calories} kcal`, bold: true, color: 'text-amber-600' },
+                                    { label: 'Proteínas', value: `${ingredient.proteins} g`, bold: true, color: 'text-blue-600' },
+                                    { label: 'Carbohidratos', value: `${ingredient.carbs} g`, bold: true, color: 'text-emerald-600' },
+                                    { label: 'Grasas Totales', value: `${ingredient.lipids} g`, bold: true, color: 'text-red-600' },
+                                    { label: 'Azúcares', value: `${ingredient.sugars || 0} g`, indent: true },
+                                    { label: 'Fibra', value: `${ingredient.fiber || 0} g` },
+                                    { label: 'Sodio', value: `${ingredient.sodium || 0} mg` },
+                                ].map((row, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={cn(
+                                            "flex justify-between items-center py-2.5 px-4 rounded-xl transition-colors",
+                                            row.bold ? "bg-white shadow-sm ring-1 ring-slate-100" : "hover:bg-slate-200/40"
+                                        )}
+                                    >
+                                        <span className={cn(
+                                            "text-[11px] font-bold uppercase tracking-tight",
+                                            row.indent ? "pl-6 text-slate-400" : "text-slate-500"
+                                        )}>
+                                            {row.label}
+                                        </span>
+                                        <span className={cn(
+                                            "text-sm font-black tracking-tight",
+                                            row.color || "text-slate-900"
+                                        )}>
+                                            {row.value}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer / Actions */}
+                    <div className="mt-12 flex justify-end">
+                        <button
+                            type="button"
+                            className="px-8 py-3 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all active:scale-95 text-xs uppercase tracking-widest cursor-pointer"
+                            onClick={onClose}
+                        >
+                            Cerrar Detalles
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Modal>
     );
 }

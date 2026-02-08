@@ -1,6 +1,6 @@
 export declare class CreateFoodDto {
     name: string;
-    brand?: string;
+    brand: string;
     category: string;
     price?: number;
     unit: string;

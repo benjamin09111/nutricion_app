@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateFoodDto } from './dto/create-food.dto';
 import { UpdateFoodDto } from './dto/update-food.dto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -12,9 +12,45 @@ import { MarketPriceDto } from './dto/market-price.dto';
 export class FoodsService {
     constructor(private readonly prisma: PrismaService) { }
 
+    private async getOrCreateBrand(name?: string) {
+        if (!name) return null;
+        const normalized = name.trim();
+        return (this.prisma as any).ingredientBrand.upsert({
+            where: { name: normalized },
+            update: {},
+            create: { name: normalized },
+        });
+    }
+
+    private async getOrCreateCategory(name: string) {
+        const normalized = name.trim();
+        return (this.prisma as any).ingredientCategory.upsert({
+            where: { name: normalized },
+            update: {},
+            create: { name: normalized },
+        });
+    }
+
+    private async getOrCreateTags(names?: string[]) {
+        if (!names || names.length === 0) return [];
+        const tags = [];
+        for (const name of names) {
+            const normalized = name.trim();
+            const tag = await (this.prisma as any).tag.upsert({
+                where: { name: normalized },
+                update: {},
+                create: { name: normalized },
+            });
+            tags.push(tag);
+        }
+        return tags;
+    }
+
     async create(createFoodDto: CreateFoodDto, userId: string) {
+        const { brand, category, tags, ...rest } = createFoodDto;
+
         // Find nutritionist profile from Account ID
-        const nutritionist = await this.prisma.nutritionist.findUnique({
+        const nutritionist = await (this.prisma as any).nutritionist.findUnique({
             where: { accountId: userId },
         });
 
@@ -22,13 +58,44 @@ export class FoodsService {
             throw new Error("Nutritionist profile required to create ingredients. Please ensure you are logged in as a Nutritionist.");
         }
 
-        return this.prisma.$transaction(async (tx) => {
+        const brandRecord = await this.getOrCreateBrand(brand);
+        const categoryRecord = await this.getOrCreateCategory(category);
+        const tagRecords = await this.getOrCreateTags(tags);
+
+        // Check for duplicates (Name + Brand)
+        if (brandRecord) {
+            const existing = await (this.prisma as any).ingredient.findFirst({
+                where: {
+                    name: rest.name,
+                    brandId: brandRecord.id,
+                }
+            });
+
+            if (existing) {
+                // If it exists, we could either return it or throw error.
+                // User said "alimentos son unicos en nombre, y unicos en marca".
+                // Implies we should reject creation of duplicate.
+                throw new Error(`Ya existe un alimento llamado '${rest.name}' de la marca '${brand}'.`);
+            }
+        }
+
+        return (this.prisma as any).$transaction(async (tx: any) => {
             const ingredient = await tx.ingredient.create({
                 data: {
-                    ...createFoodDto,
-                    isPublic: true, // Always public per requirement
+                    ...rest,
+                    brand: brandRecord ? { connect: { id: brandRecord.id } } : undefined,
+                    category: { connect: { id: categoryRecord.id } },
+                    tags: {
+                        connect: tagRecords.map(t => ({ id: t.id })),
+                    },
+                    isPublic: true,
                     verified: false,
                     nutritionist: { connect: { id: nutritionist.id } },
+                },
+                include: {
+                    brand: true,
+                    category: true,
+                    tags: true,
                 },
             });
 
@@ -36,7 +103,7 @@ export class FoodsService {
                 data: {
                     nutritionist: { connect: { id: nutritionist.id } },
                     ingredient: { connect: { id: ingredient.id } },
-                    isFavorite: true,
+                    isFavorite: true, // Auto-favorite own creations? User didn't specify, but usually yes.
                     isHidden: false,
                 },
             });
@@ -46,49 +113,102 @@ export class FoodsService {
     }
 
     async findAll(params: {
-        nutritionistId?: string;
+        nutritionistAccountId?: string;
         search?: string;
         category?: string;
+        tab?: string;
         page?: number;
         limit?: number;
     }) {
-        const { nutritionistId, search, category, page = 1, limit = 20 } = params;
+        const { nutritionistAccountId, search, category, tab = 'all', page = 1, limit = 20 } = params;
 
-        const whereClause: any = {
-            OR: [{ isPublic: true }],
-        };
-
-        if (nutritionistId) {
-            whereClause.OR.push({ nutritionistId });
+        let nutritionistId: string | undefined;
+        if (nutritionistAccountId) {
+            const nutritionist = await (this.prisma as any).nutritionist.findUnique({
+                where: { accountId: nutritionistAccountId },
+            });
+            nutritionistId = nutritionist?.id;
         }
 
+        const whereClause: any = {};
+
+        // 1. Tab-based filtering
+        if (tab === 'created' && nutritionistId) {
+            whereClause.nutritionistId = nutritionistId;
+        } else if (tab === 'favorites' && nutritionistId) {
+            whereClause.preferences = {
+                some: {
+                    nutritionistId,
+                    isFavorite: true,
+                },
+            };
+        } else if (tab === 'not_recommended' && nutritionistId) {
+            whereClause.preferences = {
+                some: {
+                    nutritionistId,
+                    isNotRecommended: true,
+                },
+            };
+        } else if (tab === 'app') {
+            // "Ingredientes de la App" -> Verified/System ingredients
+            // Using verified=true as proxy for "System/App" ingredients.
+            // Adjust if seeding logic differs.
+            whereClause.verified = true;
+            whereClause.isPublic = true;
+        } else if (tab === 'community') {
+            // "Ingredientes de Nutricionistas" -> Public but not verified (yet)
+            whereClause.verified = false;
+            whereClause.isPublic = true;
+            whereClause.nutritionistId = { not: null };
+        } else {
+            // 'all' tab (default fallback): Show public foods OR my created foods (if any remaining logic uses 'all')
+            whereClause.OR = [
+                { isPublic: true },
+                ...(nutritionistId ? [{ nutritionistId }] : []),
+            ];
+        }
+
+        // 2. Additional filters
         if (search) {
             whereClause.name = { contains: search, mode: 'insensitive' };
         }
 
         if (category) {
-            whereClause.category = category;
+            // Filter by category name
+            whereClause.category = {
+                name: { contains: category, mode: 'insensitive' }
+            };
         }
 
-        const ingredients = await this.prisma.ingredient.findMany({
-            where: {
-                ...whereClause,
-                ...(nutritionistId ? {
+        // 3. Hide completely hidden foods for this nutritionist
+        if (nutritionistId) {
+            const originalWhere = { ...whereClause };
+            whereClause.AND = [
+                originalWhere,
+                {
                     preferences: {
                         none: {
                             nutritionistId,
-                            isHidden: true
-                        }
-                    }
-                } : {})
-            },
-            include: nutritionistId
-                ? {
+                            isHidden: true,
+                        },
+                    },
+                },
+            ];
+        }
+
+        const ingredients = await (this.prisma as any).ingredient.findMany({
+            where: whereClause,
+            include: {
+                brand: true,
+                category: true,
+                tags: true,
+                ...(nutritionistId ? {
                     preferences: {
                         where: { nutritionistId },
+                        include: { tags: true },
                     },
-                }
-                : undefined,
+                } : {}),
+            },
             skip: (page - 1) * limit,
             take: limit,
             orderBy: { name: 'asc' },
@@ -97,21 +217,124 @@ export class FoodsService {
         return ingredients;
     }
 
+    async togglePreference(ingredientId: string, userId: string, data: {
+        isFavorite?: boolean;
+        isNotRecommended?: boolean;
+        isHidden?: boolean;
+        tags?: string[];
+    }) {
+        console.log('[togglePreference] Processing for Account ID:', userId, 'Ingredient ID:', ingredientId);
+        let nutritionist = await (this.prisma as any).nutritionist.findUnique({
+            where: { accountId: userId },
+        });
+
+        if (!nutritionist) {
+            console.warn(`[togglePreference] Nutritionist profile missing for Account ID: ${userId}. Attempting auto-creation...`);
+
+            // Check if account exists first
+            const account = await (this.prisma as any).account.findUnique({
+                where: { id: userId }
+            });
+
+            if (!account) {
+                console.error(`[togglePreference] Account not found: ${userId}`);
+                throw new NotFoundException("Cuenta de usuario no encontrada.");
+            }
+
+            // Auto-create nutritionist profile to fix the issue
+            try {
+                nutritionist = await (this.prisma as any).nutritionist.create({
+                    data: {
+                        accountId: userId,
+                        fullName: 'Nutricionista (Auto-generado)',
+                        specialty: 'General',
+                    }
+                });
+                console.log(`[togglePreference] Auto-created Nutritionist profile: ${nutritionist.id}`);
+            } catch (createError) {
+                console.error(`[togglePreference] Failed to auto-create profile:`, createError);
+                throw new NotFoundException("No se pudo crear el perfil de nutricionista necesario.");
+            }
+        }
+
+        // Verify ingredient exists
+        const ingredient = await (this.prisma as any).ingredient.findUnique({
+            where: { id: ingredientId },
+        });
+
+        if (!ingredient) {
+            console.error(`[togglePreference] Ingredient not found: ${ingredientId}`);
+            throw new NotFoundException("Ingrediente no encontrado.");
+        }
+
+        const { tags, ...rest } = data;
+        const tagRecords = tags ? await this.getOrCreateTags(tags) : undefined;
+
+        try {
+            return await (this.prisma as any).ingredientPreference.upsert({
+                where: {
+                    nutritionistId_ingredientId: {
+                        nutritionistId: nutritionist.id,
+                        ingredientId,
+                    },
+                },
+                update: {
+                    ...rest,
+                    ...(tagRecords ? {
+                        tags: {
+                            set: tagRecords.map(t => ({ id: t.id })),
+                        },
+                    } : {}),
+                },
+                create: {
+                    nutritionistId: nutritionist.id,
+                    ingredientId,
+                    ...rest,
+                    ...(tagRecords ? {
+                        tags: {
+                            connect: tagRecords.map(t => ({ id: t.id })),
+                        },
+                    } : {}),
+                },
+                include: { tags: true },
+            });
+        } catch (error) {
+            console.error(`[togglePreference] Error upserting preference:`, error);
+            throw error;
+        }
+    }
+
     async findOne(id: string) {
-        return this.prisma.ingredient.findUnique({
+        return (this.prisma as any).ingredient.findUnique({
             where: { id },
+            include: {
+                brand: true,
+                category: true,
+                tags: true,
+            },
         });
     }
 
-    update(id: string, updateFoodDto: UpdateFoodDto) {
-        return this.prisma.ingredient.update({
+    async update(id: string, updateFoodDto: UpdateFoodDto) {
+        const { brand, category, tags, ...rest } = updateFoodDto;
+
+        const brandRecord = brand ? await this.getOrCreateBrand(brand) : undefined;
+        const categoryRecord = category ? await this.getOrCreateCategory(category) : undefined;
+        const tagRecords = tags ? await this.getOrCreateTags(tags) : undefined;
+
+        return (this.prisma as any).ingredient.update({
             where: { id },
-            data: updateFoodDto,
+            data: {
+                ...rest,
+                ...(brandRecord && { brand: { connect: { id: brandRecord.id } } }),
+                ...(categoryRecord && { category: { connect: { id: categoryRecord.id } } }),
+                ...(tagRecords && { tags: { set: tagRecords.map(t => ({ id: t.id })) } }),
+            },
         });
     }
 
     remove(id: string) {
-        return this.prisma.ingredient.delete({
+        return (this.prisma as any).ingredient.delete({
             where: { id },
         });
     }

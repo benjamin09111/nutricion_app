@@ -10,23 +10,43 @@ export class FoodsController {
 
     @Post()
     @UseGuards(AuthGuard('jwt'))
-    create(@Body() createFoodDto: CreateFoodDto, @Request() req) {
+    create(@Body() createFoodDto: CreateFoodDto, @Request() req: any) {
         return this.foodsService.create(createFoodDto, req.user.id);
     }
 
     @Get()
+    @UseGuards(AuthGuard('jwt'))
     findAll(
+        @Request() req: any,
         @Query('search') search?: string,
         @Query('category') category?: string,
+        @Query('tab') tab?: string,
         @Query('page') page?: string,
         @Query('limit') limit?: string,
     ) {
         return this.foodsService.findAll({
+            nutritionistAccountId: req.user.id,
             search,
             category,
+            tab,
             page: page ? +page : 1,
             limit: limit ? +limit : 20,
         });
+    }
+
+    @Patch(':id/preferences')
+    @UseGuards(AuthGuard('jwt'))
+    updatePreferences(
+        @Param('id') id: string,
+        @Request() req: any,
+        @Body() data: {
+            isFavorite?: boolean;
+            isNotRecommended?: boolean;
+            isHidden?: boolean;
+            tags?: string[];
+        }
+    ) {
+        return this.foodsService.togglePreference(id, req.user.id, data);
     }
 
     @Get('market-prices')

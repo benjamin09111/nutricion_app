@@ -1,12 +1,20 @@
-import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { cookies } from 'next/headers';
 import FoodsClient from './FoodsClient';
 import { Ingredient } from '@/features/foods';
 
-async function getIngredients(): Promise<Ingredient[]> {
+async function getIngredients(): Promise<any[]> {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+
     try {
-        const res = await fetch(`${apiUrl}/foods?limit=1000`, { cache: 'no-store' }); // Disable cache for dev
+        const res = await fetch(`${apiUrl}/foods?limit=1000`, {
+            cache: 'no-store',
+            headers: {
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            }
+        });
+
         if (!res.ok) {
             console.error('Failed to fetch ingredients:', res.status, res.statusText);
             return [];

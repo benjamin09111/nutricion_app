@@ -15,6 +15,8 @@ import { PatientsModule } from './modules/patients/patients.module';
 import { MembershipsModule } from './modules/memberships/memberships.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
+import { IngredientGroupsModule } from './modules/ingredient-groups/ingredient-groups.module';
+import { RecipesModule } from './modules/recipes/recipes.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
 import { HttpLoggerMiddleware } from './common/middleware/http-logger.middleware';
@@ -36,6 +38,8 @@ import { MiddlewareConsumer, NestModule } from '@nestjs/common';
     MembershipsModule,
     PaymentsModule,
     MetricsModule,
+    IngredientGroupsModule,
+    RecipesModule,
     ScheduleModule.forRoot(),
     CacheModule.register({
       isGlobal: true,

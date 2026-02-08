@@ -42,7 +42,8 @@ const groups: SidebarGroup[] = [
             { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
             { name: 'Pacientes', href: '/dashboard/pacientes', icon: Users },
             { name: 'Mis Consultas', href: '/dashboard/consultas', icon: CalendarDays },
-            { name: 'Alimentos', href: '/dashboard/alimentos', icon: Apple },
+            { name: 'Ingredientes', href: '/dashboard/alimentos', icon: Apple },
+            { name: 'Platos', href: '/dashboard/platos', icon: Utensils },
             { name: 'Mis Creaciones', href: '/dashboard/creaciones', icon: Folder },
         ]
     },

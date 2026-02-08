@@ -74,8 +74,24 @@ async function main() {
         if (!name) continue;
 
         const price = parseFloat(String(row['Precio promedio']).replace(',', '.') || '0') || 0;
-        const category = row['Grupo'] || 'General';
-        const brand = row['Marca'] || '';
+        const categoryName = row['Grupo'] || 'General';
+        const brandName = row['Marca'] || '';
+
+        const category = await prisma.ingredientCategory.upsert({
+          where: { name: categoryName },
+          update: {},
+          create: { name: categoryName },
+        });
+
+        let brandId = undefined;
+        if (brandName) {
+          const brand = await prisma.ingredientBrand.upsert({
+            where: { name: brandName },
+            update: {},
+            create: { name: brandName },
+          });
+          brandId = brand.id;
+        }
 
         // Skip if exists to save time, or upsert
         const existing = await prisma.ingredient.findFirst({ where: { name } });
@@ -83,8 +99,8 @@ async function main() {
           await prisma.ingredient.create({
             data: {
               name: name,
-              category: category,
-              brand: brand,
+              categoryId: category.id,
+              brandId: brandId,
               price: Math.round(price),
               unit: row['Unidad'] || 'u',
               amount: 1, // Default amount if missing
@@ -92,10 +108,9 @@ async function main() {
               proteins: row['Proteínas'] ? parseFloat(String(row['Proteínas']).replace(',', '.')) : 0,
               lipids: row['Grasa Total'] ? parseFloat(String(row['Grasa Total']).replace(',', '.')) : 0,
               carbs: row['Carbohidratos Disp'] ? parseFloat(String(row['Carbohidratos Disp']).replace(',', '.')) : 0,
-              sugars: 0, // Not in simple CSV usually, default 0
+              sugars: 0,
               fiber: 0,
               sodium: 0,
-              tags: [],
               isPublic: true,
               verified: true
             }
@@ -110,8 +125,8 @@ async function main() {
       const manualIngredients = [
         {
           name: 'Marraqueta (Unidad)',
-          brand: 'Panadería Local',
-          category: 'Panadería',
+          brandName: 'Panadería Local',
+          categoryName: 'Panadería',
           price: 250,
           unit: 'unidad',
           amount: 100,
@@ -122,10 +137,29 @@ async function main() {
           isPublic: true,
           verified: true
         },
-        // ... others if needed
       ];
       for (const ing of manualIngredients) {
-        await prisma.ingredient.create({ data: ing as any }).catch(() => { });
+        const { brandName, categoryName, ...rest } = ing;
+
+        const category = await prisma.ingredientCategory.upsert({
+          where: { name: categoryName },
+          update: {},
+          create: { name: categoryName },
+        });
+
+        const brand = brandName ? await prisma.ingredientBrand.upsert({
+          where: { name: brandName },
+          update: {},
+          create: { name: brandName },
+        }) : null;
+
+        await prisma.ingredient.create({
+          data: {
+            ...rest,
+            categoryId: category.id,
+            brandId: brand?.id,
+          }
+        }).catch(() => { });
       }
     }
   } catch (error) {

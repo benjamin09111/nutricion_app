@@ -22,6 +22,8 @@ const patients_module_1 = require("./modules/patients/patients.module");
 const memberships_module_1 = require("./modules/memberships/memberships.module");
 const payments_module_1 = require("./modules/payments/payments.module");
 const metrics_module_1 = require("./modules/metrics/metrics.module");
+const ingredient_groups_module_1 = require("./modules/ingredient-groups/ingredient-groups.module");
+const recipes_module_1 = require("./modules/recipes/recipes.module");
 const schedule_1 = require("@nestjs/schedule");
 const cache_manager_1 = require("@nestjs/cache-manager");
 const http_logger_middleware_1 = require("./common/middleware/http-logger.middleware");
@@ -50,6 +52,8 @@ exports.AppModule = AppModule = __decorate([
             memberships_module_1.MembershipsModule,
             payments_module_1.PaymentsModule,
             metrics_module_1.MetricsModule,
+            ingredient_groups_module_1.IngredientGroupsModule,
+            recipes_module_1.RecipesModule,
             schedule_1.ScheduleModule.forRoot(),
             cache_manager_1.CacheModule.register({
                 isGlobal: true,
