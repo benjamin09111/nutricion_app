@@ -13,7 +13,8 @@ import {
     Shield,
     Building2,
     Inbox,
-    Lock
+    Lock,
+    Bell
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -43,6 +44,7 @@ const groups: SidebarGroup[] = [
             { name: 'Peticiones', href: '/dashboard/admin/peticiones', icon: Inbox },
             { name: 'Clientes', href: '/dashboard/admin/nutricionistas', icon: Users },
             { name: 'Cuentas', href: '/dashboard/admin/usuarios', icon: Shield },
+            { name: 'Notificaciones', href: '/dashboard/admin/notificaciones', icon: Bell },
             { name: 'Licencias', href: '/dashboard/admin/organizaciones', icon: Building2, locked: true },
         ]
     },

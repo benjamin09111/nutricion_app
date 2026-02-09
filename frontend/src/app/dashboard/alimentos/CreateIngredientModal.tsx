@@ -32,7 +32,7 @@ type IngredientFormValues = z.infer<typeof ingredientSchema>;
 interface CreateIngredientModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSuccess: () => void;
+    onSuccess: (ingredient?: any) => void;
     availableTags?: string[];
 }
 
@@ -83,9 +83,11 @@ export default function CreateIngredientModal({ isOpen, onClose, onSuccess, avai
                 throw new Error(errorData.message || 'Error al crear ingrediente');
             }
 
+            const newIngredient = await response.json();
+
             toast.success('Ingrediente creado correctamente y añadido a favoritos.');
             reset();
-            onSuccess();
+            onSuccess(newIngredient);
             onClose();
         } catch (error) {
             console.error('Error creating ingredient:', error);

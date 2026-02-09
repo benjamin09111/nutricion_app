@@ -16,6 +16,7 @@ interface AddIngredientsToGroupModalProps {
     allIngredients: Ingredient[];
     currentIngredientIds: string[];
     onIngredientsAdded: () => void;
+    onCreateNew?: () => void;
 }
 
 export default function AddIngredientsToGroupModal({
@@ -24,7 +25,8 @@ export default function AddIngredientsToGroupModal({
     groupId,
     allIngredients,
     currentIngredientIds,
-    onIngredientsAdded
+    onIngredientsAdded,
+    onCreateNew
 }: AddIngredientsToGroupModalProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -109,8 +111,8 @@ export default function AddIngredientsToGroupModal({
         >
             <div className="flex flex-col h-[70vh]">
                 {/* Search */}
-                <div className="pb-4 border-b border-slate-100">
-                    <div className="relative">
+                <div className="pb-4 border-b border-slate-100 flex gap-2">
+                    <div className="relative flex-1">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <Search className="h-4 w-4 text-slate-400" />
                         </div>
@@ -123,13 +125,35 @@ export default function AddIngredientsToGroupModal({
                             autoFocus
                         />
                     </div>
+                    {onCreateNew && (
+                        <Button
+                            variant="outline"
+                            onClick={onCreateNew}
+                            className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 shrink-0"
+                            title="Fabricar nuevo ingrediente"
+                        >
+                            <Plus size={18} />
+                        </Button>
+                    )}
                 </div>
 
                 {/* List */}
                 <div className="flex-1 overflow-y-auto py-4 scrollbar-thumb-slate-200 scrollbar-track-transparent scrollbar-thin">
                     {filteredIngredients.length === 0 ? (
-                        <div className="py-12 text-center text-slate-400 text-sm">
-                            {searchTerm ? 'No se encontraron ingredientes.' : 'Escribe para buscar...'}
+                        <div className="py-12 text-center">
+                            <p className="text-slate-400 text-sm mb-4">
+                                {searchTerm ? 'No se encontraron ingredientes.' : 'Escribe para buscar...'}
+                            </p>
+                            {onCreateNew && (
+                                <Button
+                                    variant="outline"
+                                    onClick={onCreateNew}
+                                    className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 gap-2 mx-auto"
+                                >
+                                    <Plus size={16} />
+                                    Crear "{searchTerm || 'Nuevo'}"
+                                </Button>
+                            )}
                         </div>
                     ) : (
                         <div className="space-y-1">

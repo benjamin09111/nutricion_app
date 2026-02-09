@@ -5,6 +5,13 @@ export declare class IngredientGroupsService {
     private prisma;
     constructor(prisma: PrismaService);
     create(nutritionistId: string, createDto: CreateIngredientGroupDto): Promise<{
+        _count: {
+            entries: number;
+        };
+        tags: {
+            id: string;
+            name: string;
+        }[];
         entries: ({
             ingredient: {
                 id: string;
@@ -16,58 +23,39 @@ export declare class IngredientGroupsService {
             };
         } & {
             id: string;
-            brandSuggestion: string | null;
             amount: number | null;
             unit: string | null;
+            brandSuggestion: string | null;
             ingredientId: string;
             groupId: string;
         })[];
-        tags: {
-            id: string;
-            name: string;
-        }[];
-        _count: {
-            entries: number;
-        };
     } & {
         id: string;
-        name: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        name: string;
         nutritionistId: string;
+        description: string | null;
     }>;
     findAll(nutritionistId: string): Promise<({
+        _count: {
+            entries: number;
+        };
         tags: {
             id: string;
             name: string;
         }[];
-        _count: {
-            entries: number;
-        };
     } & {
         id: string;
-        name: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        name: string;
         nutritionistId: string;
+        description: string | null;
     })[]>;
     findOne(id: string, nutritionistId: string): Promise<{
         ingredients: {
             ingredient: {
-                tags: {
-                    id: string;
-                    name: string;
-                }[];
-                preferences: {
-                    id: string;
-                    nutritionistId: string;
-                    ingredientId: string;
-                    isFavorite: boolean;
-                    isNotRecommended: boolean;
-                    isHidden: boolean;
-                }[];
                 brand: {
                     id: string;
                     name: string;
@@ -76,27 +64,39 @@ export declare class IngredientGroupsService {
                     id: string;
                     name: string;
                 };
+                tags: {
+                    id: string;
+                    name: string;
+                }[];
+                preferences: {
+                    id: string;
+                    nutritionistId: string;
+                    isFavorite: boolean;
+                    isNotRecommended: boolean;
+                    isHidden: boolean;
+                    ingredientId: string;
+                }[];
             } & {
                 id: string;
-                name: string;
                 createdAt: Date;
                 updatedAt: Date;
-                nutritionistId: string | null;
-                ingredients: string | null;
                 amount: number;
-                unit: string;
-                brandId: string | null;
+                name: string;
+                verified: boolean;
                 price: number;
+                unit: string;
                 calories: number;
                 proteins: number;
                 lipids: number;
                 carbs: number;
+                ingredients: string | null;
+                brandId: string | null;
                 sugars: number | null;
                 fiber: number | null;
                 sodium: number | null;
                 categoryId: string;
                 isPublic: boolean;
-                verified: boolean;
+                nutritionistId: string | null;
             };
             brandSuggestion: string | null;
             amount: number | null;
@@ -106,20 +106,12 @@ export declare class IngredientGroupsService {
         nutritionist: {
             id: string;
         };
+        tags: {
+            id: string;
+            name: string;
+        }[];
         entries: ({
             ingredient: {
-                tags: {
-                    id: string;
-                    name: string;
-                }[];
-                preferences: {
-                    id: string;
-                    nutritionistId: string;
-                    ingredientId: string;
-                    isFavorite: boolean;
-                    isNotRecommended: boolean;
-                    isHidden: boolean;
-                }[];
                 brand: {
                     id: string;
                     name: string;
@@ -128,46 +120,54 @@ export declare class IngredientGroupsService {
                     id: string;
                     name: string;
                 };
+                tags: {
+                    id: string;
+                    name: string;
+                }[];
+                preferences: {
+                    id: string;
+                    nutritionistId: string;
+                    isFavorite: boolean;
+                    isNotRecommended: boolean;
+                    isHidden: boolean;
+                    ingredientId: string;
+                }[];
             } & {
                 id: string;
-                name: string;
                 createdAt: Date;
                 updatedAt: Date;
-                nutritionistId: string | null;
-                ingredients: string | null;
                 amount: number;
-                unit: string;
-                brandId: string | null;
+                name: string;
+                verified: boolean;
                 price: number;
+                unit: string;
                 calories: number;
                 proteins: number;
                 lipids: number;
                 carbs: number;
+                ingredients: string | null;
+                brandId: string | null;
                 sugars: number | null;
                 fiber: number | null;
                 sodium: number | null;
                 categoryId: string;
                 isPublic: boolean;
-                verified: boolean;
+                nutritionistId: string | null;
             };
         } & {
             id: string;
-            brandSuggestion: string | null;
             amount: number | null;
             unit: string | null;
+            brandSuggestion: string | null;
             ingredientId: string;
             groupId: string;
         })[];
-        tags: {
-            id: string;
-            name: string;
-        }[];
         id: string;
-        name: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        name: string;
         nutritionistId: string;
+        description: string | null;
     }>;
     private validateGroupOwnership;
     update(id: string, nutritionistId: string, updateDto: CreateIngredientGroupDto): Promise<{
@@ -177,19 +177,19 @@ export declare class IngredientGroupsService {
         }[];
     } & {
         id: string;
-        name: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        name: string;
         nutritionistId: string;
+        description: string | null;
     }>;
     remove(id: string, nutritionistId: string): Promise<{
         id: string;
-        name: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        name: string;
         nutritionistId: string;
+        description: string | null;
     }>;
     addIngredients(id: string, nutritionistId: string, dto: UpdateGroupIngredientsDto): Promise<{
         _count: {
@@ -197,11 +197,11 @@ export declare class IngredientGroupsService {
         };
     } & {
         id: string;
-        name: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        name: string;
         nutritionistId: string;
+        description: string | null;
     }>;
     removeIngredients(id: string, nutritionistId: string, dto: UpdateGroupIngredientsDto): Promise<{
         _count: {
@@ -209,11 +209,11 @@ export declare class IngredientGroupsService {
         };
     } & {
         id: string;
-        name: string;
-        description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        name: string;
         nutritionistId: string;
+        description: string | null;
     }>;
     private getOrCreateTag;
 }
