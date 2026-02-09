@@ -75,8 +75,9 @@ export function CreateRecipeModal({ isOpen, onClose, onSuccess }: CreateRecipeMo
 
             setIsSearching(true);
             try {
-                const token = Cookies.get('token');
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/foods?search=${searchTerm}`, {
+                const token = Cookies.get('auth_token');
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+                const response = await fetch(`${apiUrl}/foods?search=${searchTerm}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (response.ok) {
@@ -129,7 +130,7 @@ export function CreateRecipeModal({ isOpen, onClose, onSuccess }: CreateRecipeMo
 
     const onSubmit = async (data: CreateRecipeForm) => {
         try {
-            const token = Cookies.get('token');
+            const token = Cookies.get('auth_token');
             const payload = {
                 ...data,
                 portions: Number(data.portions),
@@ -141,7 +142,8 @@ export function CreateRecipeModal({ isOpen, onClose, onSuccess }: CreateRecipeMo
                 }))
             };
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/recipes`, {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+            const response = await fetch(`${apiUrl}/recipes`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

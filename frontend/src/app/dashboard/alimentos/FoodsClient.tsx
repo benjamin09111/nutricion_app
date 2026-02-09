@@ -50,6 +50,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
     const [selectedIngredientForTags, setSelectedIngredientForTags] = useState<Ingredient | null>(null);
     const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
+    const [targetGroupIdForNewIngredient, setTargetGroupIdForNewIngredient] = useState<string | null>(null);
 
     useEffect(() => {
         setData(initialData);
@@ -146,6 +147,35 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         return filteredIngredients.slice(start, start + itemsPerPage);
     }, [filteredIngredients, currentPage, itemsPerPage]);
 
+    const groupTotals = useMemo(() => {
+        if (!selectedGroup || !selectedGroup.ingredients) return null;
+
+        return selectedGroup.ingredients.reduce((acc: any, rel: any) => {
+            const ing = rel.ingredient;
+            if (!ing) return acc;
+
+            const ratio = rel.amount / (ing.amount || 100);
+
+            return {
+                calories: acc.calories + (ing.calories || 0) * ratio,
+                proteins: acc.proteins + (ing.proteins || 0) * ratio,
+                carbs: acc.carbs + (ing.carbs || 0) * ratio,
+                lipids: acc.lipids + (ing.lipids || 0) * ratio,
+                sugars: acc.sugars + (ing.sugars || 0) * ratio,
+                fiber: acc.fiber + (ing.fiber || 0) * ratio,
+                sodium: acc.sodium + (ing.sodium || 0) * ratio,
+            };
+        }, {
+            calories: 0,
+            proteins: 0,
+            carbs: 0,
+            lipids: 0,
+            sugars: 0,
+            fiber: 0,
+            sodium: 0,
+        });
+    }, [selectedGroup]);
+
     const tabs: IngredientTab[] = [
         'Dieta base',
         'Favoritos',
@@ -239,6 +269,39 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         } catch (error) {
             console.error('Error removing ingredient:', error);
             toast.error('Error al eliminar ingrediente');
+        }
+    };
+
+    const handleCreateIngredientSuccess = async (newIngredient?: any) => {
+        router.refresh();
+
+        if (targetGroupIdForNewIngredient && newIngredient) {
+            const token = Cookies.get('auth_token');
+            if (!token) return;
+
+            try {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+                const res = await fetch(`${apiUrl}/ingredient-groups/${targetGroupIdForNewIngredient}/ingredients`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ ingredientIds: [newIngredient.id] })
+                });
+
+                if (res.ok) {
+                    toast.success('Ingrediente creado y añadido al grupo 🚀');
+                    // Refresh group details if we are still viewing it
+                    if (selectedGroup?.id === targetGroupIdForNewIngredient) {
+                        handleGroupClick(targetGroupIdForNewIngredient);
+                    }
+                }
+            } catch (error) {
+                console.error('Error adding new ingredient to group:', error);
+            } finally {
+                setTargetGroupIdForNewIngredient(null);
+            }
         }
     };
 
@@ -514,6 +577,52 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                                     Eliminar Grupo
                                 </Button>
                             </div>
+
+                            {/* Group Macros Summary */}
+                            {groupTotals && selectedGroup.ingredients?.length > 0 && (
+                                <div className="mt-8 pt-6 border-t border-slate-100">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <Scale size={18} className="text-indigo-500" />
+                                        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Totales de la Agrupación</h3>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+                                        <div className="bg-orange-50/50 p-3 rounded-xl border border-orange-100 flex flex-col items-center justify-center">
+                                            <span className="text-[10px] font-bold text-orange-600 uppercase mb-1">Calorías</span>
+                                            <span className="text-lg font-black text-orange-700">{Math.round(groupTotals.calories)}</span>
+                                        </div>
+                                        <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex flex-col items-center justify-center">
+                                            <span className="text-[10px] font-bold text-blue-600 uppercase mb-1">Proteínas</span>
+                                            <span className="text-lg font-black text-blue-700">{groupTotals.proteins.toFixed(1)}g</span>
+                                        </div>
+                                        <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 flex flex-col items-center justify-center">
+                                            <span className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Carbos</span>
+                                            <span className="text-lg font-black text-emerald-700">{groupTotals.carbs.toFixed(1)}g</span>
+                                        </div>
+                                        <div className="bg-yellow-50/50 p-3 rounded-xl border border-yellow-100 flex flex-col items-center justify-center">
+                                            <span className="text-[10px] font-bold text-yellow-600 uppercase mb-1">Grasas</span>
+                                            <span className="text-lg font-black text-yellow-700">{groupTotals.lipids.toFixed(1)}g</span>
+                                        </div>
+                                        {groupTotals.sugars > 0 && (
+                                            <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col items-center justify-center">
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase mb-1">Azúcares</span>
+                                                <span className="text-md font-bold text-slate-700">{groupTotals.sugars.toFixed(1)}g</span>
+                                            </div>
+                                        )}
+                                        {groupTotals.fiber > 0 && (
+                                            <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col items-center justify-center">
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase mb-1">Fibra</span>
+                                                <span className="text-md font-bold text-slate-700">{groupTotals.fiber.toFixed(1)}g</span>
+                                            </div>
+                                        )}
+                                        {groupTotals.sodium > 0 && (
+                                            <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col items-center justify-center">
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase mb-1">Sodio</span>
+                                                <span className="text-md font-bold text-slate-700">{Math.round(groupTotals.sodium)}mg</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Ingredients Table */}
@@ -855,6 +964,16 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                 onGroupCreated={fetchGroups}
             />
 
+            <CreateIngredientModal
+                isOpen={isCreateModalOpen}
+                onClose={() => {
+                    setIsCreateModalOpen(false);
+                    setTargetGroupIdForNewIngredient(null);
+                }}
+                onSuccess={handleCreateIngredientSuccess}
+                availableTags={allTags.filter(t => t !== 'Todos')}
+            />
+
             {
                 selectedGroup && (
                     <AddIngredientsToGroupModal
@@ -864,6 +983,11 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                         allIngredients={data} // Pass all available ingredients
                         currentIngredientIds={selectedGroup.ingredients?.map((r: any) => r.ingredient.id) || []}
                         onIngredientsAdded={() => handleGroupClick(selectedGroup.id)} // Refresh group details
+                        onCreateNew={() => {
+                            setTargetGroupIdForNewIngredient(selectedGroup.id);
+                            setIsAddIngredientModalOpen(false);
+                            setIsCreateModalOpen(true);
+                        }}
                     />
                 )
             }

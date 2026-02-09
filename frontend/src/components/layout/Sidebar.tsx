@@ -18,7 +18,8 @@ import {
     PlayCircle,
     Folder,
     Dumbbell,
-    Bot
+    Bot,
+    Bell
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -43,7 +44,7 @@ const groups: SidebarGroup[] = [
             { name: 'Pacientes', href: '/dashboard/pacientes', icon: Users },
             { name: 'Mis Consultas', href: '/dashboard/consultas', icon: CalendarDays },
             { name: 'Ingredientes', href: '/dashboard/alimentos', icon: Apple },
-            { name: 'Platos', href: '/dashboard/platos', icon: Utensils },
+            { name: 'Platos', href: '/dashboard/platos', icon: Utensils, locked: true }, // Locked as requested
             { name: 'Mis Creaciones', href: '/dashboard/creaciones', icon: Folder },
         ]
     },
@@ -65,8 +66,9 @@ const groups: SidebarGroup[] = [
         ]
     },
     {
-        title: 'Ayuda',
+        title: 'Ajustes',
         items: [
+            { name: 'Notificaciones', href: '/dashboard/ajustes/notificaciones', icon: Bell },
             { name: 'Feedback', href: '/dashboard/feedback', icon: MessageSquare },
         ]
     }

@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { User, LogOut, ChevronDown, Settings, Glasses, ScanEye, CreditCard, Check, Crown } from 'lucide-react';
+import { User, LogOut, ChevronDown, Settings, Glasses, ScanEye, CreditCard, Check, Crown, Bell } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAdmin } from '@/context/AdminContext';
 import { cn } from '@/lib/utils';
 import { useSubscription, SubscriptionPlan } from '@/context/SubscriptionContext';
 import { authService } from '@/features/auth/services/auth.service';
+import { useNotifications } from '@/context/NotificationsContext';
 
 function SubscriptionSwitcher() {
     const { plan, forceUpdatePlan } = useSubscription();
@@ -41,6 +42,7 @@ export function Navbar() {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const { isAdmin, isAdminView, toggleViewMode } = useAdmin();
     const { plan, trialEndsAt } = useSubscription();
+    const { unreadCount } = useNotifications();
     const daysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0;
 
     const [userEmail, setUserEmail] = useState<string>('usuario@demo.com');
@@ -84,6 +86,19 @@ export function Navbar() {
             <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6 justify-end">
                 <div className="flex items-center gap-x-4 lg:gap-x-6">
 
+                    {/* Notification Bell */}
+                    <Link
+                        href="/dashboard/ajustes/notificaciones"
+                        className="relative p-2 text-slate-400 hover:text-emerald-600 hover:bg-slate-50 rounded-full transition-all"
+                    >
+                        <Bell className="h-5 w-5" />
+                        {unreadCount > 0 && (
+                            <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                            </span>
+                        )}
+                    </Link>
 
                     {/* Trial Notification - Only for Nutris, not Admins */}
                     {plan === 'trial' && !isAdmin && (
