@@ -43,7 +43,7 @@ export default function AdminNotificationsPage() {
                     <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
                         <Bell size={24} />
                     </div>
-                    Gestor de Notificaciones
+                    Gestor de Anuncios
                 </h1>
                 <p className="text-slate-500 mt-2">
                     Envía avisos y novedades a todos los nutricionistas de la plataforma.

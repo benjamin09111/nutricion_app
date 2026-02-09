@@ -44,7 +44,8 @@ const groups: SidebarGroup[] = [
             { name: 'Peticiones', href: '/dashboard/admin/peticiones', icon: Inbox },
             { name: 'Clientes', href: '/dashboard/admin/nutricionistas', icon: Users },
             { name: 'Cuentas', href: '/dashboard/admin/usuarios', icon: Shield },
-            { name: 'Notificaciones', href: '/dashboard/admin/notificaciones', icon: Bell },
+            { name: 'Anuncios', href: '/dashboard/admin/notificaciones', icon: Bell },
+            { name: 'Feedback', href: '/dashboard/admin/feedback', icon: Inbox },
             { name: 'Licencias', href: '/dashboard/admin/organizaciones', icon: Building2, locked: true },
         ]
     },

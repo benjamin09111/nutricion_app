@@ -19,7 +19,6 @@ const feedbackSchema = z.object({
     type: z.enum(['feedback', 'complaint', 'idea']),
     subject: z.string().min(5, 'El asunto debe tener al menos 5 caracteres'),
     message: z.string().min(10, 'El mensaje debe ser más detallado (mínimo 10 caracteres)'),
-    email: z.string().email('Ingresa un correo válido').optional().or(z.literal('')),
 });
 
 type FeedbackFormData = z.infer<typeof feedbackSchema>;
@@ -41,7 +40,6 @@ export function FeedbackForm() {
             type: 'feedback',
             subject: '',
             message: '',
-            email: '',
         },
     });
 
@@ -50,21 +48,19 @@ export function FeedbackForm() {
     const onSubmit = async (data: FeedbackFormData) => {
         setIsSubmitting(true);
         try {
+            const token = localStorage.getItem('auth_token');
             const payload = {
                 ...data,
                 // Map frontend types to uppercase for backend consistency if needed, 
                 // though backend DTO maps string to enum.
                 type: data.type.toUpperCase(),
-                // Use provided email or fallback
-                email: data.email || 'anonimo@nutrisaas.com'
             };
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/support`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/support/feedback`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // Add Authorization header if we had the token easily accessible
-                    // 'Authorization': `Bearer ${token}` 
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify(payload),
             });
@@ -87,14 +83,7 @@ export function FeedbackForm() {
         }
     };
 
-    const getTypeIcon = (type: string) => {
-        switch (type) {
-            case 'feedback': return <MessageSquare className="w-5 h-5" />;
-            case 'complaint': return <AlertTriangle className="w-5 h-5" />;
-            case 'idea': return <Lightbulb className="w-5 h-5" />;
-            default: return <MessageSquare className="w-5 h-5" />;
-        }
-    };
+
 
     const typeStyles = {
         feedback: {
@@ -185,26 +174,6 @@ export function FeedbackForm() {
                                 <p className="flex items-center text-rose-500 text-xs font-bold mt-1 ml-1 animate-in slide-in-from-left-1">
                                     <AlertCircle className="w-3 h-3 mr-1" />
                                     {errors.type.message}
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Email */}
-                        <div className="space-y-1">
-                            <label htmlFor="email" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
-                                Email (Opcional)
-                            </label>
-                            <Input
-                                id="email"
-                                placeholder="tu@email.com"
-                                error={errors.email?.message}
-                                {...register('email')}
-                                className="bg-slate-50 border-slate-200 focus:bg-white transition-colors"
-                            />
-                            {errors.email && (
-                                <p className="flex items-center text-rose-500 text-xs font-bold mt-1 ml-1 animate-in slide-in-from-left-1">
-                                    <AlertCircle className="w-3 h-3 mr-1" />
-                                    {errors.email?.message}
                                 </p>
                             )}
                         </div>
