@@ -42,7 +42,9 @@ export function Navbar() {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const { isAdmin, isAdminView, toggleViewMode } = useAdmin();
     const { plan, trialEndsAt } = useSubscription();
-    const { unreadCount } = useNotifications();
+    const { unreadCount, notifications, markAsRead, markAllAsRead } = useNotifications();
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const notificationRef = useRef<HTMLDivElement>(null);
     const daysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0;
 
     const [userEmail, setUserEmail] = useState<string>('usuario@demo.com');
@@ -66,6 +68,9 @@ export function Navbar() {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsProfileOpen(false);
             }
+            if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+                setIsNotificationsOpen(false);
+            }
         }
         document.addEventListener("mousedown", handleClickOutside);
         return () => {
@@ -87,18 +92,93 @@ export function Navbar() {
                 <div className="flex items-center gap-x-4 lg:gap-x-6">
 
                     {/* Notification Bell */}
-                    <Link
-                        href="/dashboard/ajustes/notificaciones"
-                        className="relative p-2 text-slate-400 hover:text-emerald-600 hover:bg-slate-50 rounded-full transition-all"
-                    >
-                        <Bell className="h-5 w-5" />
-                        {unreadCount > 0 && (
-                            <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-                            </span>
+                    <div className="relative" ref={notificationRef}>
+                        <button
+                            onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                            className="relative p-2 text-slate-400 hover:text-emerald-600 hover:bg-slate-50 rounded-full transition-all outline-none"
+                        >
+                            <Bell className="h-5 w-5" />
+                            {unreadCount > 0 && (
+                                <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                                </span>
+                            )}
+                        </button>
+
+                        {isNotificationsOpen && (
+                            <div
+                                className="absolute right-0 z-20 mt-2.5 w-80 sm:w-96 origin-top-right rounded-xl bg-white shadow-xl ring-1 ring-slate-900/5 focus:outline-none animate-in fade-in zoom-in-95 duration-100 border border-slate-100 overflow-hidden"
+                            >
+                                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+                                    <h3 className="text-sm font-semibold text-slate-900">Notificaciones</h3>
+                                    {unreadCount > 0 && (
+                                        <button 
+                                            onClick={markAllAsRead}
+                                            className="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+                                        >
+                                            Marcar todo como leído
+                                        </button>
+                                    )}
+                                </div>
+                                
+                                <div className="max-h-[70vh] overflow-y-auto">
+                                    {notifications.length === 0 ? (
+                                        <div className="px-4 py-8 text-center">
+                                            <p className="text-sm text-slate-500">No tienes notificaciones recientes</p>
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-slate-100">
+                                            {notifications.slice(0, 3).map((notification) => (
+                                                <div 
+                                                    key={notification.id} 
+                                                    className={cn(
+                                                        "px-4 py-3 hover:bg-slate-50 transition-colors flex gap-3 group relative cursor-pointer",
+                                                        !notification.read && "bg-emerald-50/30"
+                                                    )}
+                                                    onClick={() => !notification.read && markAsRead(notification.id)}
+                                                >
+                                                    <div className={cn(
+                                                        "h-2 w-2 mt-2 rounded-full shrink-0",
+                                                        !notification.read ? "bg-emerald-500" : "bg-slate-200"
+                                                    )} />
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className={cn(
+                                                            "text-sm font-medium truncate pr-6",
+                                                            !notification.read ? "text-slate-900" : "text-slate-600"
+                                                        )}>
+                                                            {notification.title}
+                                                        </p>
+                                                        <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">
+                                                            {notification.message}
+                                                        </p>
+                                                        <p className="text-[10px] text-slate-400 mt-1.5">
+                                                            {new Intl.DateTimeFormat('es-CL', {
+                                                                day: 'numeric',
+                                                                month: 'short',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            }).format(new Date(notification.date))}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="p-2 border-t border-slate-100 bg-slate-50/50">
+                                    <Link
+                                        href="/dashboard/ajustes/notificaciones"
+                                        className="flex items-center justify-center w-full px-4 py-2 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm"
+                                        onClick={() => setIsNotificationsOpen(false)}
+                                    >
+                                        Ver todas las notificaciones
+                                    </Link>
+                                </div>
+                            </div>
                         )}
-                    </Link>
+                    </div>
 
                     {/* Trial Notification - Only for Nutris, not Admins */}
                     {plan === 'trial' && !isAdmin && (

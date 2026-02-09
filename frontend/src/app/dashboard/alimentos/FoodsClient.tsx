@@ -11,6 +11,7 @@ import { Pagination } from '@/components/ui/Pagination';
 import { useRouter } from 'next/navigation';
 import CreateIngredientModal from './CreateIngredientModal';
 import IngredientDetailsModal from './IngredientDetailsModal';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { toast } from 'sonner';
 import Cookies from 'js-cookie';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -40,6 +41,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     const [groups, setGroups] = useState<any[]>([]);
     const [isLoadingGroups, setIsLoadingGroups] = useState(false);
     const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
 
     // Modal State
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -206,23 +209,30 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         }
     };
 
-    const handleDeleteGroup = async (groupId: string, e: React.MouseEvent) => {
+    const handleDeleteGroup = (groupId: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!confirm('¿Estás seguro de que deseas eliminar este grupo?')) return;
+        setGroupToDelete(groupId);
+        setIsDeleteConfirmOpen(true);
+    };
+
+    const confirmDeleteGroup = async () => {
+        if (!groupToDelete) return;
         const token = Cookies.get('auth_token');
         if (!token) return;
 
         try {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
-            const res = await fetch(`${apiUrl}/ingredient-groups/${groupId}`, {
+            const res = await fetch(`${apiUrl}/ingredient-groups/${groupToDelete}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             if (res.ok) {
                 toast.success('Grupo eliminado correctamente');
-                setGroups(prev => prev.filter(g => g.id !== groupId));
-                if (selectedGroup?.id === groupId) setSelectedGroup(null);
+                setGroups(prev => prev.filter(g => g.id !== groupToDelete));
+                if (selectedGroup?.id === groupToDelete) setSelectedGroup(null);
+                setIsDeleteConfirmOpen(false);
+                setGroupToDelete(null);
             } else {
                 toast.error('Error al eliminar el grupo');
             }

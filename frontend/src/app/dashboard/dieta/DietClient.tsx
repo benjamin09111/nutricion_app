@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { TagInput } from '@/components/ui/TagInput';
 import { MarketPrice, FoodGroup } from '@/features/foods';
 import { toast } from 'sonner';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -43,6 +44,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     const [customConstraints, setCustomConstraints] = useState<{ id: string, label: string }[]>([]);
     const [newConstraintLabel, setNewConstraintLabel] = useState('');
     const [customGroups, setCustomGroups] = useState<string[]>([]); // Track manually created empty groups
+    const [isDeleteGroupConfirmOpen, setIsDeleteGroupConfirmOpen] = useState(false);
+    const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
 
     // Derived available tags from foods (excluding generic ones if needed)
     const availableTags = useMemo(() => {
@@ -229,6 +232,24 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             // router.push('/dashboard/recetas'); // Placeholder next step
             toast.info("Módulo de Recetas próximamente...");
         }, 1500);
+    };
+
+    // Confirm Delete Group Logic
+    const confirmDeleteGroup = () => {
+        if (groupToDelete) {
+            // Mark all foods in this group as removed
+            const updates: Record<string, 'removed'> = {};
+            initialFoods.filter(f => f.grupo === groupToDelete).forEach(f => {
+                updates[f.producto] = 'removed';
+            });
+            manualAdditions.filter(f => f.grupo === groupToDelete).forEach(f => {
+                updates[f.producto] = 'removed';
+            });
+            setFoodStatus(prev => ({ ...prev, ...updates }));
+            toast.success(`Grupo ${groupToDelete} eliminado.`);
+            setIsDeleteGroupConfirmOpen(false);
+            setGroupToDelete(null);
+        }
     };
 
     // Grouping for Display
@@ -445,20 +466,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                                     </button>
                                     <button
                                         onClick={() => {
-                                            if (confirm(`¿Estás seguro de eliminar el grupo "${groupName}" y todos sus alimentos de esta vista?`)) {
-                                                // Mark all foods in this group as removed
-                                                const updates: Record<string, 'removed'> = {};
-                                                initialFoods.filter(f => f.grupo === groupName).forEach(f => {
-                                                    updates[f.producto] = 'removed';
-                                                });
-                                                manualAdditions.filter(f => f.grupo === groupName).forEach(f => {
-                                                    updates[f.producto] = 'removed';
-                                                });
-                                                setFoodStatus(prev => ({ ...prev, ...updates }));
-                                                // Also we need to "hide" the group itself from display if it's empty
-                                                // The current logic hides empty groups automatically, so removing all items works.
-                                                toast.success(`Grupo ${groupName} eliminado.`);
-                                            }
+                                            setGroupToDelete(groupName);
+                                            setIsDeleteGroupConfirmOpen(true);
                                         }}
                                         className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                                         title="Eliminar grupo completo"
@@ -747,6 +756,17 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                     </div>
                 )
             }
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={isDeleteGroupConfirmOpen}
+                onClose={() => setIsDeleteGroupConfirmOpen(false)}
+                onConfirm={confirmDeleteGroup}
+                title={`¿Eliminar grupo "${groupToDelete}"?`}
+                description="Se eliminarán todos los alimentos de este grupo de la vista actual."
+                confirmText="Eliminar"
+                cancelText="Cancelar"
+                variant="destructive"
+            />
         </div >
     );
 }

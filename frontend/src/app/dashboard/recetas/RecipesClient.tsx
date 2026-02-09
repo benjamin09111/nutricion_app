@@ -156,6 +156,8 @@ export default function RecipesClient() {
     const [jokers, setJokers] = useState<EmergencyJoker[]>([]);
     const [isAddJokerModalOpen, setIsAddJokerModalOpen] = useState(false);
     const [newJokerTitle, setNewJokerTitle] = useState('');
+    const [isDeleteJokerModalOpen, setIsDeleteJokerModalOpen] = useState(false);
+    const [jokerToDelete, setJokerToDelete] = useState<string | null>(null);
 
     useEffect(() => {
         // Init and Load Jokers
@@ -180,11 +182,18 @@ export default function RecipesClient() {
     };
 
     const handleDeleteJoker = (id: string, e: React.MouseEvent) => {
-        e.stopPropagation(); // prevent triggering parent click if any
-        if (confirm("¿Borrar este comodín?")) { // Simple confirm for quickness, or use modal
-            JokerStorage.delete(id);
+        e.stopPropagation();
+        setJokerToDelete(id);
+        setIsDeleteJokerModalOpen(true);
+    };
+
+    const confirmDeleteJoker = () => {
+        if (jokerToDelete) {
+            JokerStorage.delete(jokerToDelete);
             setJokers(JokerStorage.getAll());
             toast.info("Comodín eliminado.");
+            setJokerToDelete(null);
+            setIsDeleteJokerModalOpen(false);
         }
     };
 
@@ -696,7 +705,7 @@ export default function RecipesClient() {
                 {/* Add Joker Modal */}
                 {isAddJokerModalOpen && (
                     <div
-                        className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
+                        className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
                         onClick={() => setIsAddJokerModalOpen(false)}
                     >
                         <div
@@ -756,6 +765,17 @@ export default function RecipesClient() {
                         </Button>
                     </div>
                 </div>
+
+                <ConfirmationModal
+                    isOpen={isDeleteJokerModalOpen}
+                    onClose={() => setIsDeleteJokerModalOpen(false)}
+                    onConfirm={confirmDeleteJoker}
+                    title="¿Borrar este comodín?"
+                    description="Esta acción eliminará el comodín de tu lista de opciones rápidas."
+                    confirmText="Borrar"
+                    cancelText="Cancelar"
+                    variant="destructive"
+                />
             </div>
         </div>
     );

@@ -364,8 +364,14 @@ export default function AdminClientsPage() {
 
             {/* Manual Config Modal */}
             {showConfigModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setShowConfigModal(false)}
+                >
+                    <div
+                        className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                             <div>
                                 <h2 className="text-xl font-bold text-slate-900">Configurar Acceso</h2>

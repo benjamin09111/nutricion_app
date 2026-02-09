@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Bell, Send, CheckCircle2, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
+import Cookies from 'js-cookie';
 
 export default function AdminNotificationsPage() {
     const { addNotification } = useNotifications();
@@ -13,8 +14,24 @@ export default function AdminNotificationsPage() {
     const [message, setMessage] = useState('');
     const [type, setType] = useState<NotificationType>('info');
     const [link, setLink] = useState('');
+    const [targetRoles, setTargetRoles] = useState<string[]>(['ALL']);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleRoleChange = (role: string) => {
+        if (role === 'ALL') {
+            setTargetRoles(['ALL']);
+        } else {
+            let newRoles = targetRoles.filter(r => r !== 'ALL');
+            if (newRoles.includes(role)) {
+                newRoles = newRoles.filter(r => r !== role);
+            } else {
+                newRoles = [...newRoles, role];
+            }
+            if (newRoles.length === 0) newRoles = ['ALL']; // Fallback to all if empty? Or just let it be empty (invalid state)
+            setTargetRoles(newRoles);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!title.trim() || !message.trim()) {
@@ -22,18 +39,44 @@ export default function AdminNotificationsPage() {
             return;
         }
 
-        addNotification({
-            title,
-            message,
-            type,
-            link: link || undefined
-        });
+        const token = Cookies.get('auth_token');
+        if (!token) {
+            toast.error('Sesión no válida');
+            return;
+        }
 
-        // Reset form
-        setTitle('');
-        setMessage('');
-        setType('info');
-        setLink('');
+        try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const res = await fetch(`${apiUrl}/announcements`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    title,
+                    message,
+                    type,
+                    link: link || undefined,
+                    targetRoles
+                })
+            });
+
+            if (res.ok) {
+                toast.success('Anuncio enviado correctamente');
+                // Reset form
+                setTitle('');
+                setMessage('');
+                setType('info');
+                setLink('');
+                setTargetRoles(['ALL']);
+            } else {
+                toast.error('Error al enviar el anuncio');
+            }
+        } catch (error) {
+            console.error('Error sending announcement:', error);
+            toast.error('Error de conexión');
+        }
     };
 
     return (
@@ -58,7 +101,7 @@ export default function AdminNotificationsPage() {
                             <select
                                 value={type}
                                 onChange={(e) => setType(e.target.value as NotificationType)}
-                                className="w-full h-10 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                className="w-full h-10 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
                             >
                                 <option value="info">Información (Azul)</option>
                                 <option value="success">Éxito (Verde)</option>
@@ -74,6 +117,7 @@ export default function AdminNotificationsPage() {
                                 placeholder="https://..."
                                 value={link}
                                 onChange={(e) => setLink(e.target.value)}
+                                className="text-slate-900 font-medium"
                             />
                         </div>
                     </div>
@@ -82,19 +126,55 @@ export default function AdminNotificationsPage() {
                         <label className="text-sm font-semibold text-slate-700">Título</label>
                         <Input
                             placeholder="Ej: Nuevo módulo de recetas disponible"
-                            className="font-medium"
+                            className="font-medium text-slate-900"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                         />
                     </div>
 
+                    <div className="space-y-3">
+                        <label className="text-sm font-semibold text-slate-700">Destinatarios</label>
+                        <div className="flex flex-wrap gap-3">
+                            <button
+                                type="button"
+                                onClick={() => handleRoleChange('ALL')}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold border transition-all ${targetRoles.includes('ALL')
+                                    ? 'bg-indigo-600 border-indigo-600 text-white'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    }`}
+                            >
+                                Todos
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleRoleChange('NUTRITIONIST')}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold border transition-all ${targetRoles.includes('NUTRITIONIST')
+                                    ? 'bg-indigo-600 border-indigo-600 text-white'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    }`}
+                            >
+                                Nutricionistas
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleRoleChange('ADMIN')}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold border transition-all ${targetRoles.includes('ADMIN')
+                                    ? 'bg-indigo-600 border-indigo-600 text-white'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    }`}
+                            >
+                                Administradores
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
                         <label className="text-sm font-semibold text-slate-700">Mensaje</label>
                         <textarea
-                            className="w-full min-h-[120px] px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
                             placeholder="Escribe el contenido de la notificación..."
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
+                            className="w-full min-h-[120px] px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none font-medium"
                         />
                     </div>
 
@@ -143,6 +223,13 @@ export default function AdminNotificationsPage() {
                             <p className="text-slate-600 text-sm mt-1">{message || 'El mensaje aparecerá aquí...'}</p>
                             <p className="text-xs text-slate-400 mt-2">Hace un momento</p>
                         </div>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                        {targetRoles.map(role => (
+                            <span key={role} className="text-[10px] font-bold bg-slate-200 text-slate-600 px-2 py-0.5 rounded uppercase">
+                                {role === 'ALL' ? 'Todos' : role}
+                            </span>
+                        ))}
                     </div>
                 </div>
             </div>
