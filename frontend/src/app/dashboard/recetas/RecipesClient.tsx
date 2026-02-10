@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import {
     ChefHat,
+    GraduationCap,
     Zap,
     ArrowRight,
     ChevronLeft,
@@ -275,6 +276,7 @@ export default function RecipesClient() {
                         <div className="flex items-center gap-2 text-emerald-600 font-black text-[10px] uppercase tracking-widest">
                             <span className="bg-emerald-100 px-2 py-0.5 rounded">Etapa 3</span>
                             <span>Planes & Recetas (AI)</span>
+                            <GraduationCap className="h-4 w-4 ml-2 cursor-pointer hover:text-emerald-800 transition-colors" />
                         </div>
                         <h1 className="text-4xl font-black text-slate-900 tracking-tight">Estructura de Comidas</h1>
                         <p className="text-slate-500 font-medium">Convierte tu lista de compras en un plan de alimentación práctico.</p>

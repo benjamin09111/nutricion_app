@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { User, LogOut, ChevronDown, Settings, Glasses, ScanEye, CreditCard, Check, Crown, Bell } from 'lucide-react';
+import { User, LogOut, ChevronDown, Settings, Glasses, ScanEye, CreditCard, Check, Crown, Bell, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAdmin } from '@/context/AdminContext';
@@ -13,7 +13,7 @@ import { useNotifications } from '@/context/NotificationsContext';
 function SubscriptionSwitcher() {
     const { plan, forceUpdatePlan } = useSubscription();
     // Plans to show in the quick switcher
-    const plans: SubscriptionPlan[] = ['trial', 'pro'];
+    const plans: SubscriptionPlan[] = ['free', 'trial', 'pro'];
 
     return (
         <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-full border border-slate-200 ml-2">
@@ -113,7 +113,7 @@ export function Navbar() {
                                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
                                     <h3 className="text-sm font-semibold text-slate-900">Notificaciones</h3>
                                     {unreadCount > 0 && (
-                                        <button 
+                                        <button
                                             onClick={markAllAsRead}
                                             className="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
                                         >
@@ -121,7 +121,7 @@ export function Navbar() {
                                         </button>
                                     )}
                                 </div>
-                                
+
                                 <div className="max-h-[70vh] overflow-y-auto">
                                     {notifications.length === 0 ? (
                                         <div className="px-4 py-8 text-center">
@@ -130,8 +130,8 @@ export function Navbar() {
                                     ) : (
                                         <div className="divide-y divide-slate-100">
                                             {notifications.slice(0, 3).map((notification) => (
-                                                <div 
-                                                    key={notification.id} 
+                                                <div
+                                                    key={notification.id}
                                                     className={cn(
                                                         "px-4 py-3 hover:bg-slate-50 transition-colors flex gap-3 group relative cursor-pointer",
                                                         !notification.read && "bg-emerald-50/30"
@@ -180,22 +180,55 @@ export function Navbar() {
                         )}
                     </div>
 
-                    {/* Trial Notification - Only for Nutris, not Admins */}
-                    {plan === 'trial' && !isAdmin && (
-                        <div className="hidden md:flex items-center gap-3 bg-linear-to-r from-indigo-50 to-white px-3 py-1.5 rounded-full border border-indigo-100/50 shadow-xs mr-2 group hover:border-indigo-200 transition-colors">
-                            <div className="flex items-center gap-1.5">
-                                <Crown className="h-3.5 w-3.5 text-amber-500 fill-amber-500/20" />
-                                <span className="text-xs font-semibold text-indigo-900">
-                                    Trial: <span className="text-indigo-600">{daysLeft} días</span>
-                                </span>
-                            </div>
-                            <Link
-                                href="/pricing"
-                                className="text-[10px] font-bold bg-indigo-600 text-white px-2.5 py-1 rounded-full hover:bg-indigo-700 transition-all shadow-indigo-100 hover:shadow-indigo-200 shadow-sm active:scale-95 flex items-center gap-1"
-                            >
-                                ACTUALIZAR
-                            </Link>
-                        </div>
+                    {/* Subscription Status Indicator - Only for Nutris, not Admins */}
+                    {!isAdmin && (
+                        <>
+                            {/* FREE PLAN STATE */}
+                            {plan === 'free' && (
+                                <div className="hidden md:flex items-center gap-3 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 mr-2 group hover:border-slate-300 transition-colors">
+                                    <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5 cursor-default">
+                                        Actualmente tienes el plan free
+                                    </span>
+                                    <Link
+                                        href="/pricing"
+                                        className="text-[10px] font-bold bg-slate-900 text-white px-3 py-1 rounded-full hover:bg-slate-800 transition-all flex items-center gap-1.5 shadow-sm active:scale-95 hover:shadow-md"
+                                    >
+                                        <Sparkles className="h-3 w-3 text-yellow-300" />
+                                        MEJORAR
+                                    </Link>
+                                </div>
+                            )}
+
+                            {/* TRIAL STATE */}
+                            {plan === 'trial' && (
+                                <div className="hidden md:flex items-center gap-3 bg-linear-to-r from-indigo-50 to-white px-3 py-1.5 rounded-full border border-indigo-100/50 shadow-xs mr-2 group hover:border-indigo-200 transition-colors">
+                                    <div className="flex items-center gap-1.5">
+                                        <Crown className="h-3.5 w-3.5 text-amber-500 fill-amber-500/20" />
+                                        <span className="text-xs font-semibold text-indigo-900">
+                                            Trial: <span className="text-indigo-600">{daysLeft} días</span>
+                                        </span>
+                                    </div>
+                                    <Link
+                                        href="/pricing"
+                                        className="text-[10px] font-bold bg-indigo-600 text-white px-2.5 py-1 rounded-full hover:bg-indigo-700 transition-all shadow-indigo-100 hover:shadow-indigo-200 shadow-sm active:scale-95 flex items-center gap-1"
+                                    >
+                                        ACTUALIZAR
+                                    </Link>
+                                </div>
+                            )}
+
+                            {/* PRO STATE */}
+                            {plan === 'pro' && (
+                                <div className="hidden md:flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-full border border-indigo-100 mr-2">
+                                    <div className="h-5 w-5 rounded-full bg-indigo-100 flex items-center justify-center">
+                                        <Crown className="h-3 w-3 text-indigo-600 fill-indigo-600" />
+                                    </div>
+                                    <span className="text-xs font-bold text-indigo-700 uppercase tracking-wide">
+                                        Plan Pro
+                                    </span>
+                                </div>
+                            )}
+                        </>
                     )}
 
                     {/* View Switcher for Admins */}
@@ -270,7 +303,9 @@ export function Navbar() {
                                                 if (user.role === 'ADMIN_MASTER') return 'Admin Master';
                                                 return 'Admin General';
                                             })()
-                                        ) : 'Plan Nutricionista'}
+                                        ) : (
+                                            plan === 'pro' ? 'Plan Pro' : plan === 'trial' ? 'Plan Trial' : 'Plan Gratuito'
+                                        )}
                                     </p>
                                 </div>
 

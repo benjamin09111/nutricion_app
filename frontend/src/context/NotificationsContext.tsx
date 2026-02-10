@@ -26,6 +26,9 @@ interface NotificationsContextType {
 
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
 
+const MAX_STORAGE = 50;
+const MAX_UNREAD_DISPLAY = 10;
+
 export function NotificationsProvider({ children }: { children: React.ReactNode }) {
     const [notifications, setNotifications] = useState<Notification[]>([]);
 
@@ -64,6 +67,20 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
+    // Computed notifications for display
+    const displayNotifications = (() => {
+        const unread = notifications
+            .filter(n => !n.read)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, MAX_UNREAD_DISPLAY);
+
+        const read = notifications
+            .filter(n => n.read)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        return [...unread, ...read];
+    })();
+
     const addNotification = (data: Omit<Notification, 'id' | 'date' | 'read'>) => {
         const newNotification: Notification = {
             ...data,
@@ -72,8 +89,12 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
             read: false,
         };
 
-        setNotifications(prev => [newNotification, ...prev]);
-        toast.success('Notificación enviada correctamente');
+        setNotifications(prev => {
+            const updated = [newNotification, ...prev];
+            // Prune if exceeds storage limit, keeping most recent
+            return updated.slice(0, MAX_STORAGE);
+        });
+        toast.success('Notificación recibida');
     };
 
     const markAsRead = (id: string) => {
@@ -92,7 +113,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
 
     return (
         <NotificationsContext.Provider value={{
-            notifications,
+            notifications: displayNotifications,
             unreadCount,
             addNotification,
             markAsRead,

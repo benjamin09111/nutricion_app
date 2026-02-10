@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
     Dumbbell,
+    GraduationCap,
     Zap,
     Target,
     ArrowRight,
@@ -85,6 +86,7 @@ export default function FitnessClient() {
                         <div className="flex items-center gap-2 text-rose-600 font-black text-[10px] uppercase tracking-widest">
                             <span className="bg-rose-100 px-2 py-0.5 rounded">Fase Adicional</span>
                             <span>Fitness & Entrenamiento</span>
+                            <GraduationCap className="h-4 w-4 ml-2 cursor-pointer hover:text-rose-800 transition-colors" />
                         </div>
                         <h1 className="text-4xl font-black text-slate-900 tracking-tight">Plan de Entrenamiento</h1>
                         <p className="text-slate-500 font-medium">Sincroniza la nutrición con la actividad física para maximizar resultados.</p>

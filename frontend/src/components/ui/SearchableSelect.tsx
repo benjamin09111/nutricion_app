@@ -11,11 +11,21 @@ interface SearchableSelectProps {
     options: (Option | string)[];
     value: string;
     onChange: (value: string) => void;
+    onSearch?: (value: string) => void;
     placeholder?: string;
     className?: string;
+    isLoading?: boolean;
 }
 
-export function SearchableSelect({ options, value, onChange, placeholder = "Seleccionar...", className }: SearchableSelectProps) {
+export function SearchableSelect({
+    options,
+    value,
+    onChange,
+    onSearch,
+    placeholder = "Seleccionar...",
+    className,
+    isLoading
+}: SearchableSelectProps) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
     const containerRef = useRef<HTMLDivElement>(null);
@@ -41,6 +51,13 @@ export function SearchableSelect({ options, value, onChange, placeholder = "Sele
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    const handleSearchChange = (val: string) => {
+        setSearch(val);
+        if (onSearch) {
+            onSearch(val);
+        }
+    };
+
     return (
         <div className={cn("relative", className)} ref={containerRef}>
             <button
@@ -53,7 +70,7 @@ export function SearchableSelect({ options, value, onChange, placeholder = "Sele
             </button>
 
             {open && (
-                <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-xl bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute z-50 mt-1 max-h-[220px] w-full overflow-auto rounded-xl bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm animate-in fade-in zoom-in-95 duration-100">
                     <div className="sticky top-0 z-10 bg-white px-2 py-1.5 border-b border-slate-100">
                         <div className="relative">
                             <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-slate-400" />
@@ -62,27 +79,32 @@ export function SearchableSelect({ options, value, onChange, placeholder = "Sele
                                 className="w-full rounded-md border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-2 text-xs focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                 placeholder="Buscar..."
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                                 autoFocus
                             />
                         </div>
                     </div>
-                    {filteredOptions.length === 0 ? (
+                    {isLoading ? (
                         <div className="relative cursor-default select-none px-4 py-2 text-slate-500 text-xs text-center italic">
-                            No encontrado.
+                            Cargando...
+                        </div>
+                    ) : filteredOptions.length === 0 ? (
+                        <div className="relative cursor-default select-none px-4 py-2 text-slate-500 text-xs text-center italic">
+                            {search.length === 0 && onSearch ? "Escribe para buscar..." : "No encontrado."}
                         </div>
                     ) : (
                         filteredOptions.map((option) => (
                             <div
                                 key={option.value}
                                 className={cn(
-                                    "relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-sm",
+                                    "relative cursor-pointer select-none py-2.5 pl-3 pr-9 hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-sm",
                                     value === option.value ? "bg-emerald-50 text-emerald-700 font-bold" : "text-slate-700"
                                 )}
                                 onClick={() => {
                                     onChange(option.value);
                                     setOpen(false);
-                                    setSearch("");
+                                    // Keep search or reset? Clearing it is usually better for next open
+                                    // setSearch("");
                                 }}
                             >
                                 <span className="block truncate">{option.label}</span>

@@ -9,7 +9,8 @@ export function getLocalMarketPrices(limit: number = 20): MarketPrice[] {
         const filePath = path.resolve(process.cwd(), '..', 'docs', 'data', 'foods.csv');
 
         if (!fs.existsSync(filePath)) {
-            console.error('Market prices file not found at:', filePath);
+            // Squelch error in development/production if file is expected to be missing or populated later
+            // console.warn('Market prices file not found at:', filePath);
             return [];
         }
 

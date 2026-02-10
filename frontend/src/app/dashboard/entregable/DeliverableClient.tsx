@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
     ClipboardCheck,
+    GraduationCap,
     Download,
     Eye,
     CheckCircle2,
@@ -128,6 +129,7 @@ export default function DeliverableClient() {
                         <div className="flex items-center gap-2 text-emerald-600 font-black text-[10px] uppercase tracking-widest">
                             <span className="bg-emerald-100 px-2 py-0.5 rounded">Etapa 4</span>
                             <span>Personalización & Entrega</span>
+                            <GraduationCap className="h-4 w-4 ml-2 cursor-pointer hover:text-emerald-800 transition-colors" />
                         </div>
                         <h1 className="text-4xl font-black text-slate-900 tracking-tight">Configurar Entregable</h1>
                         <p className="text-slate-500 font-medium">Selecciona los módulos que incluirá el PDF final para tu paciente.</p>

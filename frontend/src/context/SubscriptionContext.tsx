@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from 'sonner';
 
-export type SubscriptionPlan = 'trial' | 'pro';
+export type SubscriptionPlan = 'free' | 'trial' | 'pro';
 export type SubscriptionStatus = 'active' | 'expired' | 'cancelled';
 
 interface SubscriptionContextType {
@@ -25,21 +25,29 @@ const SubscriptionContext = createContext<SubscriptionContextType | undefined>(u
 
 // Features Map
 const PLAN_FEATURES = {
+    free: { canGenerateDiet: false, canExportPDF: false, patientLimit: 1, hasBranding: false },
     trial: { canGenerateDiet: true, canExportPDF: true, patientLimit: 5, hasBranding: true },
     pro: { canGenerateDiet: true, canExportPDF: true, patientLimit: 999, hasBranding: true }
 };
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
-    // MOCK: Default to 'trial'
-    const [plan, setPlan] = useState<SubscriptionPlan>('trial');
+    // Default to 'free' as requested ("si es que no la tenemos")
+    const [plan, setPlan] = useState<SubscriptionPlan>('free');
     const [status, setStatus] = useState<SubscriptionStatus>('active');
 
-    // Default trial is 7 days (1 week)
-    const [trialEndsAt, setTrialEndsAt] = useState<Date | null>(() => {
-        const date = new Date();
-        date.setDate(date.getDate() + 7);
-        return date;
-    });
+    // Default trial logic (only if plan is trial)
+    const [trialEndsAt, setTrialEndsAt] = useState<Date | null>(null);
+
+    // Effect to set trial date when switching to trial
+    useEffect(() => {
+        if (plan === 'trial' && !trialEndsAt) {
+            const date = new Date();
+            date.setDate(date.getDate() + 7);
+            setTrialEndsAt(date);
+        } else if (plan !== 'trial') {
+            setTrialEndsAt(null);
+        }
+    }, [plan, trialEndsAt]);
 
     const redeemCode = async (code: string): Promise<boolean> => {
         // Mock validation
@@ -71,7 +79,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         plan,
         status,
         trialEndsAt,
-        features: PLAN_FEATURES[plan] || PLAN_FEATURES.trial,
+        features: PLAN_FEATURES[plan] || PLAN_FEATURES.free,
         redeemCode,
         forceUpdatePlan
     };
