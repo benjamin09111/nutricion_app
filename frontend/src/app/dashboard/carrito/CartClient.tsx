@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatCLP } from '@/lib/utils/currency';
+import { useAdmin } from '@/context/AdminContext';
 
 interface CartItem {
     id: string;
@@ -87,6 +88,7 @@ const MOCK_CART_ITEMS: CartItem[] = [
 
 export default function CartClient() {
     const router = useRouter();
+    const { role } = useAdmin();
     const [items, setItems] = useState<CartItem[]>(MOCK_CART_ITEMS);
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
     const [selectedMarket, setSelectedMarket] = useState('General (Precios Promedio)');
@@ -167,6 +169,15 @@ export default function CartClient() {
         window.dispatchEvent(new Event('patient-updated'));
 
         toast.success("Perfil de Juan Pérez cargado. Los objetivos han sido actualizados.");
+    };
+
+    const printJson = () => {
+        console.group('📊 CART / CARRO DATA');
+        console.log('Items en Carrito:', items);
+        console.log('Totales Calculados:', totals);
+        if (selectedPatient) console.log('Paciente Vinculado:', selectedPatient);
+        console.groupEnd();
+        toast.info("JSON del carrito impreso en consola.");
     };
 
     return (
@@ -485,6 +496,15 @@ export default function CartClient() {
                     <Button variant="ghost" className="text-slate-500 font-bold hover:bg-slate-100 rounded-xl">
                         Guardar Borrador
                     </Button>
+
+                    <Button
+                        variant="outline"
+                        className="text-slate-500 font-bold hover:bg-slate-100 rounded-xl px-4 h-10 border-slate-200"
+                        onClick={printJson}
+                    >
+                        Imprimir JSON (Carrito)
+                    </Button>
+
                     <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl px-8 shadow-lg shadow-emerald-200">
                         Generar Recetas Automáticas
                         <Zap className="ml-2 h-4 w-4 fill-current" />

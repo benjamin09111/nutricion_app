@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Star, Ban, Info, Pencil, Tag, BadgeCheck, Scale, Plus, Check, X, FolderPlus, Users, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Search, Star, Ban, Info, Pencil, Tag, BadgeCheck, Scale, Plus, Check, X, FolderPlus, Users, ChevronLeft, ChevronRight, Trash2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Ingredient } from '@/features/foods';
@@ -442,20 +442,22 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                 <div className="flex flex-col gap-3">
                     {/* Main Tabs Switcher */}
                     <div className="flex p-1 bg-slate-100/80 rounded-2xl w-fit border border-slate-200/50 backdrop-blur-sm overflow-x-auto max-w-full">
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={cn(
-                                    "px-6 py-2.5 text-sm font-bold rounded-xl transition-all duration-200 cursor-pointer whitespace-nowrap",
-                                    activeTab === tab
-                                        ? "bg-white text-emerald-700 shadow-sm ring-1 ring-slate-200/50"
-                                        : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
-                                )}
-                            >
-                                {tab}
-                            </button>
-                        ))}
+                        {tabs.map((tab) => {
+                            return (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={cn(
+                                        "px-6 py-2.5 text-sm font-bold rounded-xl transition-all duration-200 whitespace-nowrap flex items-center gap-2 cursor-pointer",
+                                        activeTab === tab
+                                            ? "bg-white text-emerald-700 shadow-sm ring-1 ring-slate-200/50"
+                                            : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                                    )}
+                                >
+                                    {tab}
+                                </button>
+                            );
+                        })}
                     </div>
 
                     {/* Sub-tabs for Dieta base */}
@@ -710,6 +712,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                                     </div>
                                     <h3 className="text-slate-900 font-medium mb-1">No tienes agrupaciones</h3>
                                     <p className="text-slate-500 text-sm mb-4">Organiza tus ingredientes en grupos personalizados.</p>
+                                    {/* 
                                     <Button
                                         variant="outline"
                                         onClick={() => setIsCreateGroupModalOpen(true)}
@@ -717,6 +720,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                                     >
                                         Crear mi primera agrupación
                                     </Button>
+                                    */}
                                 </div>
                             ) : (
                                 groups.map(group => (

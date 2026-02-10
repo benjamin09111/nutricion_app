@@ -45,8 +45,10 @@ export default function DashboardPage() {
         const fetchStats = async () => {
             try {
                 const token = localStorage.getItem('token');
+
+                // If no token, silently skip (middleware handles auth)
                 if (!token) {
-                    toast.error('Sesión no válida');
+                    setLoading(false);
                     return;
                 }
 

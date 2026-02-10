@@ -1,7 +1,13 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Save, ArrowRight, X, Heart, Plus, ChevronDown, ChevronUp, AlertCircle, Sparkles, Info, Zap, Dumbbell, Users, BookOpen, Library, Trash2, FolderPlus, GraduationCap } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
+import {
+    Search, Loader2, Filter, Star, Heart, Plus, ChevronDown, ChevronUp,
+    AlertCircle, Sparkles, Info, BookOpen,
+    Library, Trash2, FolderPlus, GraduationCap, Save, ArrowRight, X, Brain, CheckCircle2,
+    Calendar, User, Tag as TagIcon, ListChecks, Check
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { TagInput } from '@/components/ui/TagInput';
@@ -12,6 +18,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { formatCLP } from '@/lib/utils/currency';
+import Cookies from 'js-cookie';
 
 interface DietClientProps {
     initialFoods: MarketPrice[];
@@ -25,174 +32,243 @@ const DEFAULT_CONSTRAINTS = [
     { id: 'gluten', label: 'Sin Gluten' },
 ];
 
+const DRAFT_KEY = 'nutrisaas_diet_draft';
+
 export default function DietClient({ initialFoods }: DietClientProps) {
     const router = useRouter();
 
     // -- State --
     const [dietName, setDietName] = useState('');
     const [dietTags, setDietTags] = useState<string[]>([]);
-
-    // Constraints
     const [activeConstraints, setActiveConstraints] = useState<string[]>([]);
-
-    // Status Map: Key = Food ID/Product Name, Value = 'base' | 'favorite' | 'removed' | 'added'
     const [foodStatus, setFoodStatus] = useState<Record<string, 'base' | 'favorite' | 'removed' | 'added'>>({});
-
-    const [manualAdditions, setManualAdditions] = useState<MarketPrice[]>([]); // New items not in initial list
+    const [manualAdditions, setManualAdditions] = useState<MarketPrice[]>([]);
     const [showInfoModal, setShowInfoModal] = useState(false);
     const [showSupplementsDrawer, setShowSupplementsDrawer] = useState(false);
     const [customConstraints, setCustomConstraints] = useState<{ id: string, label: string }[]>([]);
     const [newConstraintLabel, setNewConstraintLabel] = useState('');
-    const [customGroups, setCustomGroups] = useState<string[]>([]); // Track manually created empty groups
+    const [customGroups, setCustomGroups] = useState<string[]>([]);
     const [isDeleteGroupConfirmOpen, setIsDeleteGroupConfirmOpen] = useState(false);
     const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
+    const [isAddFoodModalOpen, setIsAddFoodModalOpen] = useState(false);
+    const [activeGroupForAddition, setActiveGroupForAddition] = useState<string | null>(null);
+    const [foodSearchQuery, setFoodSearchQuery] = useState('');
+    const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
+    const [newGroupNameInput, setNewGroupNameInput] = useState('');
+    const [searchResultFoods, setSearchResultFoods] = useState<MarketPrice[]>([]);
+    const [isSearchingFoods, setIsSearchingFoods] = useState(false);
+    const [isApplyingPreferences, setIsApplyingPreferences] = useState(false);
 
-    // Derived available tags from foods (excluding generic ones if needed)
-    const availableTags = useMemo(() => {
-        const tags = new Set<string>();
-        initialFoods.forEach(f => f.tags?.forEach(t => tags.add(t)));
-        return Array.from(tags).map(t => ({ id: t.toLowerCase(), label: t })); // Simple mapping
-    }, [initialFoods]);
+    // -- Smart Add State --
+    const [isSmartModalOpen, setIsSmartModalOpen] = useState(false);
+    const [smartAddTab, setSmartAddTab] = useState<'favorites' | 'groups' | 'myproducts'>('favorites');
+    const [smartFavorites, setSmartFavorites] = useState<any[]>([]);
+    const [smartGroups, setSmartGroups] = useState<any[]>([]);
+    const [smartMyProducts, setSmartMyProducts] = useState<any[]>([]);
+    const [selectedFoods, setSelectedFoods] = useState<Set<string>>(new Set());
+    const [isLoadingSmart, setIsLoadingSmart] = useState(false);
 
-    // Merge default constraints with found tags
-    const allConstraints = useMemo(() => {
-        // Avoid duplicates
-        const defaults = DEFAULT_CONSTRAINTS;
-        const dynamic = availableTags.filter(t => !defaults.find(d => d.id === t.id));
-        return [...defaults, ...dynamic, ...customConstraints];
-    }, [availableTags, customConstraints]);
+    // -- Food Info Modal State --
+    const [isFoodInfoModalOpen, setIsFoodInfoModalOpen] = useState(false);
+    const [selectedFoodForInfo, setSelectedFoodForInfo] = useState<MarketPrice | null>(null);
 
-    // Favorites Logic
-    // Favorites Logic
-    const [favoritesEnabled, setFavoritesEnabled] = useState(true);
-    // Initialize base status
+    // -- Import Diet Modal State --
+    const [isImportDietModalOpen, setIsImportDietModalOpen] = useState(false);
+    const [savedDiets, setSavedDiets] = useState<any[]>([]);
+    const [isLoadingDiets, setIsLoadingDiets] = useState(false);
+    const [dietSearchQuery, setDietSearchQuery] = useState('');
+
+    const favoritesEnabled = true; // Always enabled by request
+
+    // Mock saved diets (replace with actual API call later)
+    const mockSavedDiets = [
+        {
+            id: '1',
+            name: 'Dieta Keto Estándar',
+            tags: ['keto', 'bajo-carb'],
+            createdAt: '2026-02-01',
+            foodCount: 45,
+            type: 'Dieta Base'
+        },
+        {
+            id: '2',
+            name: 'Dieta Mediterránea',
+            tags: ['mediterranea', 'saludable'],
+            createdAt: '2026-02-05',
+            foodCount: 62,
+            type: 'Dieta Base'
+        },
+        {
+            id: '3',
+            name: 'Dieta Vegana Alta Proteína',
+            tags: ['vegana', 'proteina'],
+            createdAt: '2026-02-08',
+            foodCount: 38,
+            type: 'Dieta Base'
+        }
+    ];
+
+    // Inicializar o cargar borrador
     useEffect(() => {
         const statuses: Record<string, 'base' | 'favorite' | 'removed' | 'added'> = {};
-
-        // 1. Identify Base Foods (e.g. from initial list derivation)
-        // Re-use derivation logic here or simplify? 
-        // For simple sync, let's mark the 'initial' included ones as 'base'
-
-        // Mock favorites from initial data
-        const initialFavs = initialFoods.slice(0, 3).map(f => f.producto);
-
-        // Calculate initial "Base" set based on logic (Group top 4)
-        const grouped: Record<string, number> = {};
         initialFoods.forEach(f => {
-            if (!grouped[f.grupo]) grouped[f.grupo] = 0;
-            if (grouped[f.grupo] < 4) {
-                statuses[f.producto] = 'base';
-                grouped[f.grupo]++;
+            statuses[f.producto] = 'base';
+        });
+
+        const savedDraft = localStorage.getItem(DRAFT_KEY);
+        if (savedDraft) {
+            try {
+                const draft = JSON.parse(savedDraft);
+                setDietName(draft.dietName || '');
+                setDietTags(draft.dietTags || []);
+                setActiveConstraints(draft.activeConstraints || []);
+                setManualAdditions(draft.manualAdditions || []);
+                setCustomGroups(draft.customGroups || []);
+                setCustomConstraints(draft.customConstraints || []);
+                setFoodStatus({ ...statuses, ...draft.foodStatus });
+                return;
+            } catch (e) {
+                console.error("Error loading draft", e);
             }
-        });
-
-        // Apply Favorites
-        initialFavs.forEach(fav => {
-            statuses[fav] = 'favorite'; // Overwrite base if it was base
-        });
-
-        setFoodStatus(prev => ({ ...prev, ...statuses }));
+        }
+        setFoodStatus(statuses);
     }, [initialFoods]);
 
-    // -- Derived Diet List --
-    // -- Derived Diet List --
+    // Alimentos incluidos
     const includedFoods = useMemo(() => {
-        // Pool of all potential foods: Initial + Manual Additions
         const allPotential = [...initialFoods, ...manualAdditions];
 
-        return allPotential.filter(food => {
-            const status = foodStatus[food.producto];
+        return allPotential.filter((food, idx) => {
+            if (idx < initialFoods.length) {
+                const hasManualOverride = manualAdditions.some(ma => ma.producto === food.producto);
+                if (hasManualOverride) return false;
+            }
 
-            // 1. If Explicitly Removed, exclude
+            const status = foodStatus[food.producto];
             if (status === 'removed') return false;
 
-            // 2. If Manual Addition, include (unless removed)
-            // (We handle manualAdditions status usually as 'added' or 'base')
-            if (manualAdditions.find(ma => ma.producto === food.producto)) {
+            if (manualAdditions.some(ma => ma.producto === food.producto)) {
                 return true;
             }
 
-            // 3. Logic for 'Base' or 'Favorite'
-            // If it is marked as 'base' or 'favorite' or 'added', we consider it...
             if (status === 'base' || status === 'favorite' || status === 'added') {
-                // ...BUT we still apply Constraints unless it's a Favorite?
-
-                // Toggle Logic Check
-                if (status === 'favorite' && !favoritesEnabled) {
-                    return false;
-                }
-
-                // usually favorites override constraints slightly or are exempt. 
-                // But let's check constraints for Base items.
                 if (status === 'base') {
-                    // Check Constraints for Base items
                     if (activeConstraints.includes('vegetariano')) {
-                        const meatGroups = [FoodGroup.BOVINA, FoodGroup.CERDO_AVE_CORDERO];
-                        if (meatGroups.includes(food.grupo as FoodGroup)) return false;
+                        const meatGroups = ['Carnes y Vísceras', 'Pescados y Mariscos', 'Huevos'];
+                        if (meatGroups.includes(food.grupo)) return false;
                     }
                     if (activeConstraints.includes('diabetico')) {
-                        const sugarKeywords = ['azucar', 'dulce', 'chocolate', 'galleta', 'bebida', 'nectar', 'mermelada'];
+                        if (food.azucares !== undefined && food.azucares > 10) return false;
+                        const sugarKeywords = ['azucar', 'dulce', 'chocolate', 'galleta', 'bebida', 'nectar', 'mermelada', 'miel'];
                         if (sugarKeywords.some(k => food.producto.toLowerCase().includes(k))) return false;
                     }
+                    if (activeConstraints.includes('celiaco') || activeConstraints.includes('gluten')) {
+                        const glutenGroups = ['Cereales y Derivados'];
+                        const glutenKeywords = ['trigo', 'cebada', 'centeno', 'pan', 'fideos', 'galleta'];
+                        if (glutenGroups.includes(food.grupo) && glutenKeywords.some(k => food.producto.toLowerCase().includes(k))) return false;
+                    }
                 }
-
                 return true;
             }
-
-            return false; // Not in any active status
+            return false;
         });
-    }, [initialFoods, manualAdditions, foodStatus, activeConstraints, favoritesEnabled]);
+    }, [initialFoods, manualAdditions, foodStatus, activeConstraints]);
 
-    // -- Totals Calculation --
-    const totalCalories = useMemo(() => {
-        return includedFoods.reduce((acc, curr) => acc + (curr.calorias || 0), 0);
-    }, [includedFoods]);
-
-    const totalProtein = useMemo(() => {
-        // Mock protein calculation if not available (approx 15% of cals / 4)
-        return includedFoods.reduce((acc, curr) => acc + (curr.proteinas || Math.floor((curr.calorias || 0) * 0.08)), 0);
-    }, [includedFoods]);
-
-
-    // -- Handlers --
+    // Totales
+    const totalCalories = useMemo(() => includedFoods.reduce((acc, curr) => acc + (curr.calorias || 0), 0), [includedFoods]);
+    const totalProtein = useMemo(() => includedFoods.reduce((acc, curr) => acc + (curr.proteinas || 0), 0), [includedFoods]);
+    const totalCarbs = useMemo(() => includedFoods.reduce((acc, curr) => acc + (curr.carbohidratos || 0), 0), [includedFoods]);
+    const totalFats = useMemo(() => includedFoods.reduce((acc, curr) => acc + (curr.lipidos || 0), 0), [includedFoods]);
 
     const toggleConstraint = (id: string) => {
-        setActiveConstraints(prev =>
-            prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
-        );
+        setActiveConstraints(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
     };
 
     const removeFood = (productName: string) => {
-        setFoodStatus(prev => ({ ...prev, [productName]: 'removed' }));
+        setFoodStatus(prev => {
+            const next: Record<string, 'base' | 'favorite' | 'removed' | 'added'> = { ...prev, [productName]: 'removed' };
+            // Actualizar borrador
+            try {
+                const draftStr = localStorage.getItem(DRAFT_KEY);
+                const draft = draftStr ? JSON.parse(draftStr) : {};
+                localStorage.setItem(DRAFT_KEY, JSON.stringify({
+                    ...draft,
+                    foodStatus: { ...(draft.foodStatus || {}), [productName]: 'removed' }
+                }));
+            } catch (e) { }
+            return next;
+        });
 
         toast("Alimento eliminado de la dieta", {
             action: {
                 label: "Deshacer",
                 onClick: () => setFoodStatus(prev => {
                     const next = { ...prev };
-                    delete next[productName]; // Revert to whatever it was before (undefined -> gone, or original base)
-                    // If it was base, we might need to restore 'base'. 
-                    // Simplified: If we delete, it goes back to 'default' state, derived from logic again?
-                    // Better: We rely on the fact that if it's not 'removed', the derivation logic picks it up again IF it meets criteria.
+                    delete next[productName];
                     return next;
                 })
             }
         });
     };
 
-    const toggleFavorite = (productName: string) => {
-        setFoodStatus(prev => {
-            const current = prev[productName];
-            // Toggle Logic: 
-            // If favorite -> go back to 'base' (if it was base?) or 'added'?
-            // Simplified: If favorite -> 'base' (assuming it was base). If not -> 'favorite'.
+    const toggleFavorite = async (food: MarketPrice) => {
+        const productName = food.producto;
+        const previousStatus = foodStatus[productName];
+        const isCurrentlyFavorite = previousStatus === 'favorite';
+        const newStatus = isCurrentlyFavorite ? (manualAdditions.some(ma => ma.producto === productName) ? 'added' : 'base') : 'favorite' as const;
 
-            if (current === 'favorite') {
-                return { ...prev, [productName]: 'base' }; // Downgrade to base
-            } else {
-                return { ...prev, [productName]: 'favorite' }; // Upgrade to favorite
-            }
+        // 1. UI Local & Feedback Inmediato
+        if (!isCurrentlyFavorite) {
+            toast.success(`${productName} guardado en favoritos ✨`);
+        } else {
+            toast.info(`${productName} eliminado de favoritos`);
+        }
+
+        setFoodStatus(prev => {
+            const next: Record<string, 'base' | 'favorite' | 'removed' | 'added'> = { ...prev, [productName]: newStatus };
+            try {
+                const draftStr = localStorage.getItem(DRAFT_KEY);
+                const draft = draftStr ? JSON.parse(draftStr) : {};
+                localStorage.setItem(DRAFT_KEY, JSON.stringify({
+                    ...draft,
+                    foodStatus: { ...(draft.foodStatus || {}), [productName]: newStatus }
+                }));
+            } catch (e) { }
+            return next;
         });
+
+        // 2. Persistencia Backend (En segundo plano)
+        const token = Cookies.get('auth_token');
+        if (token) {
+            try {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+                let targetId = food.id;
+
+                if (food.id && food.id.startsWith('base-')) {
+                    const res = await fetch(`${apiUrl}/foods?search=${encodeURIComponent(productName)}&limit=1`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const results = await res.json();
+                        const matching = results.find((r: any) => r.name.toLowerCase() === productName.toLowerCase());
+                        if (matching) targetId = matching.id;
+                    }
+                }
+
+                if (targetId && !targetId.startsWith('base-') && !targetId.startsWith('search-') && !targetId.startsWith('manual-')) {
+                    await fetch(`${apiUrl}/foods/${targetId}/preferences`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ isFavorite: !isCurrentlyFavorite })
+                    });
+                }
+            } catch (e) {
+                console.error("Error toggling favorite", e);
+            }
+        }
     };
 
     const handleSave = () => {
@@ -200,17 +276,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             toast.error('Por favor, asigna un nombre a la dieta.');
             return;
         }
-
-        // Ideally Save to Backend
-        console.log('Saving Diet:', { dietName, dietTags, includedFoods, activeConstraints });
-
-        // Show Success UI
         toast.success(`Dieta "${dietName}" guardada correctamente.`, {
             description: 'Las restricciones seleccionadas generarán contenido educativo automáticamente.',
-            action: {
-                label: 'Ir a Creaciones',
-                onClick: () => router.push('/dashboard/creaciones')
-            },
+            action: { label: 'Ir a Creaciones', onClick: () => router.push('/dashboard/creaciones') },
             duration: 5000,
         });
     };
@@ -220,31 +288,16 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             toast.error('Por favor, asigna un nombre a la dieta antes de continuar.');
             return;
         }
-        // Save to LocalStorage for next step
         localStorage.setItem('currentDietStep', JSON.stringify({ dietName, dietTags, includedFoods }));
-
-        toast.success("Progreso guardado localmente", {
-            description: "Redirigiendo al generador de recetas...",
-        });
-
-        // Simulate delay then redirect
-        setTimeout(() => {
-            // router.push('/dashboard/recetas'); // Placeholder next step
-            toast.info("Módulo de Recetas próximamente...");
-        }, 1500);
+        toast.success("Progreso guardado localmente");
+        setTimeout(() => toast.info("Módulo de Recetas próximamente..."), 1500);
     };
 
-    // Confirm Delete Group Logic
     const confirmDeleteGroup = () => {
         if (groupToDelete) {
-            // Mark all foods in this group as removed
             const updates: Record<string, 'removed'> = {};
-            initialFoods.filter(f => f.grupo === groupToDelete).forEach(f => {
-                updates[f.producto] = 'removed';
-            });
-            manualAdditions.filter(f => f.grupo === groupToDelete).forEach(f => {
-                updates[f.producto] = 'removed';
-            });
+            initialFoods.filter(f => f.grupo === groupToDelete).forEach(f => { updates[f.producto] = 'removed'; });
+            manualAdditions.filter(f => f.grupo === groupToDelete).forEach(f => { updates[f.producto] = 'removed'; });
             setFoodStatus(prev => ({ ...prev, ...updates }));
             toast.success(`Grupo ${groupToDelete} eliminado.`);
             setIsDeleteGroupConfirmOpen(false);
@@ -252,43 +305,331 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         }
     };
 
-    // Grouping for Display
-    const displayedGroups = useMemo(() => {
-        const groups: Record<string, MarketPrice[]> = {};
-
-        let foodsToDisplay = includedFoods;
-
-        // Sorting: Favorites first? Not explicitly asked but good UX.
-        // Grouping
-        foodsToDisplay.forEach(f => {
-            if (!groups[f.grupo]) groups[f.grupo] = [];
-            groups[f.grupo].push(f);
-        });
-
-        return groups;
-    }, [includedFoods]);
-
-    // Derived: Final Groups List (Regular Groups with content + Empty Custom Groups)
-    // We want to show custom groups even if they are empty so the user can add items to them.
     const allGroupsToRender = useMemo(() => {
-        const renderedGroups = { ...displayedGroups };
-        customGroups.forEach(g => {
-            if (!renderedGroups[g]) {
-                renderedGroups[g] = []; // Initialize empty
+        const renderedGroups: Record<string, MarketPrice[]> = {};
+        includedFoods.forEach(f => {
+            if (!renderedGroups[f.grupo]) renderedGroups[f.grupo] = [];
+            renderedGroups[f.grupo].push(f);
+        });
+        customGroups.forEach(g => { if (!renderedGroups[g]) renderedGroups[g] = []; });
+        const finalGroups: Record<string, MarketPrice[]> = {};
+        Object.entries(renderedGroups).forEach(([name, foods]) => {
+            if (foods.length > 0 || customGroups.includes(name)) finalGroups[name] = foods;
+        });
+        return finalGroups;
+    }, [includedFoods, customGroups]);
+
+    useEffect(() => {
+        if (!isAddFoodModalOpen || !foodSearchQuery.trim()) {
+            setSearchResultFoods([]);
+            setIsSearchingFoods(false);
+            return;
+        }
+
+        const fetchFoods = async () => {
+            setIsSearchingFoods(true);
+            const token = Cookies.get('auth_token');
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+            try {
+                const res = await fetch(`${apiUrl}/foods?search=${foodSearchQuery}&limit=20`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setSearchResultFoods(data.map((ing: any) => ({
+                        id: ing.id,
+                        producto: ing.name,
+                        grupo: ing.category?.name || 'Varios',
+                        unidad: ing.unit || 'g',
+                        precioPromedio: ing.price || 0,
+                        calorias: ing.calories || 0,
+                        proteinas: ing.proteins || 0,
+                        carbohidratos: ing.carbs || 0,
+                        lipidos: ing.lipids || 0,
+                        tags: ing.tags?.map((t: any) => t.name) || []
+                    })));
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsSearchingFoods(false);
+            }
+        };
+
+        const timeoutId = setTimeout(fetchFoods, 300);
+        return () => clearTimeout(timeoutId);
+    }, [isAddFoodModalOpen, foodSearchQuery]);
+
+    const dietJson = useMemo(() => ({
+        dietName, tags: dietTags, activeConstraints, categories: allGroupsToRender,
+        summary: Object.fromEntries(Object.entries(allGroupsToRender).map(([n, f]) => [n, f.length]))
+    }), [dietName, dietTags, activeConstraints, allGroupsToRender]);
+
+    const printJson = () => {
+        console.log('DIET DATA:', dietJson);
+        toast.info("Datos impresos en consola.");
+    };
+
+    const resetDiet = () => {
+        setDietName(''); setDietTags([]); setActiveConstraints([]); setManualAdditions([]);
+        setCustomGroups([]); setCustomConstraints([]); localStorage.removeItem(DRAFT_KEY);
+        const st: Record<string, 'base'> = {};
+        initialFoods.forEach(f => { st[f.producto] = 'base'; });
+        setFoodStatus(st as any);
+        toast.success("Dieta reiniciada.");
+    };
+
+    const saveAsDraft = () => {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({
+            dietName, dietTags, activeConstraints, foodStatus, manualAdditions,
+            customGroups, customConstraints, favoritesEnabled, timestamp: Date.now()
+        }));
+        toast.success("Borrador guardado.");
+    };
+
+    const openAddModal = (groupName: string) => {
+        setActiveGroupForAddition(groupName); setFoodSearchQuery(''); setIsAddFoodModalOpen(true);
+    };
+
+    const handleAddFromSearch = (food: MarketPrice) => {
+        if (!activeGroupForAddition) return;
+        setFoodStatus(prev => ({ ...prev, [food.producto]: 'added' as const }));
+        const isInInitial = initialFoods.some(f => f.producto === food.producto);
+        const alreadyInManual = manualAdditions.some(ma => ma.producto === food.producto && ma.grupo === activeGroupForAddition);
+
+        if (!isInInitial && !alreadyInManual) {
+            setManualAdditions(prev => [...prev, { ...food, grupo: activeGroupForAddition!, id: `search-${Date.now()}` }]);
+        } else if (isInInitial) {
+            const baseFood = initialFoods.find(f => f.producto === food.producto);
+            if (baseFood && baseFood.grupo !== activeGroupForAddition) {
+                setManualAdditions(prev => [...prev, { ...food, grupo: activeGroupForAddition!, id: `override-${Date.now()}` }]);
+            }
+        }
+        toast.success(`${food.producto} añadido.`);
+        setIsAddFoodModalOpen(false);
+    };
+
+    const handleCreateGroup = () => {
+        const name = newGroupNameInput.trim();
+        if (!name) return toast.error("Nombre vacío.");
+        if (Object.keys(allGroupsToRender).includes(name)) return toast.error("Grupo duplicado.");
+        setCustomGroups(prev => [...prev, name]); setNewGroupNameInput(''); setIsAddGroupModalOpen(false);
+        setActiveGroupForAddition(name); setIsAddFoodModalOpen(true);
+        toast.success(`Grupo "${name}" creado.`);
+    };
+
+    const applyNutritionistPreferences = async () => {
+        setIsApplyingPreferences(true);
+        const token = Cookies.get('auth_token');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+        try {
+            // Agregamos limit=1000 para asegurar que traemos todos los alimentos configurados por el nutri
+            const res = await fetch(`${apiUrl}/foods?limit=1000`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) {
+                const allFoods = await res.json();
+
+                const favorites = allFoods.filter((f: any) => f.preferences?.[0]?.isFavorite);
+                const notRec = allFoods.filter((f: any) => f.preferences?.[0]?.isNotRecommended).map((f: any) => f.name);
+
+                console.log('DEBUG - Preferencias cargadas:', {
+                    totalAlimentosRecibidos: allFoods.length,
+                    favoritosCount: favorites.length,
+                    noRecomendadosCount: notRec.length,
+                    nombresNoRecomendados: notRec
+                });
+
+                setFoodStatus(prev => {
+                    const next: Record<string, 'base' | 'favorite' | 'removed' | 'added'> = { ...prev };
+
+                    // Quitar no recomendados (con comparación insensible a mayúsculas)
+                    notRec.forEach((name: string) => {
+                        const nameLow = name.toLowerCase().trim();
+                        const baseMatch = initialFoods.find(b => b.producto.toLowerCase().trim() === nameLow);
+                        const manualMatch = manualAdditions.find(ma => ma.producto.toLowerCase().trim() === nameLow);
+
+                        if (baseMatch) {
+                            console.log(`DEBUG - Quitando de dieta base: ${baseMatch.producto} (coincide con no recomendado: ${name})`);
+                            next[baseMatch.producto] = 'removed';
+                        } else if (manualMatch) {
+                            console.log(`DEBUG - Quitando de adiciones manuales: ${manualMatch.producto} (coincide con no recomendado: ${name})`);
+                            next[manualMatch.producto] = 'removed';
+                        } else {
+                            console.log(`DEBUG - No recomendado "${name}" no se encontró en la dieta actual (ni base ni manual).`);
+                        }
+                    });
+
+                    // Marcar favoritos existentes
+                    favorites.forEach((f: any) => {
+                        const favNameLow = f.name.toLowerCase().trim();
+                        const baseMatch = initialFoods.find(b => b.producto.toLowerCase().trim() === favNameLow);
+                        if (baseMatch) {
+                            next[baseMatch.producto] = 'favorite';
+                        } else {
+                            const manualMatch = manualAdditions.find(ma => ma.producto.toLowerCase().trim() === favNameLow);
+                            if (manualMatch) next[manualMatch.producto] = 'favorite';
+                        }
+                    });
+
+                    return next;
+                });
+
+                setManualAdditions(prev => {
+                    // Normalizar nombres existentes para evitar duplicados por minúsculas/mayúsculas
+                    const existingNamesLower = new Set([
+                        ...initialFoods.map(f => f.producto.toLowerCase().trim()),
+                        ...prev.map(ma => ma.producto.toLowerCase().trim())
+                    ]);
+
+                    const notRecNamesLower = new Set(notRec.map((n: string) => n.toLowerCase().trim()));
+
+                    const newFavs = favorites
+                        .filter((f: any) => {
+                            const nameLow = f.name.toLowerCase().trim();
+                            // No añadir si ya existe o si es un alimento no recomendado
+                            return !existingNamesLower.has(nameLow) && !notRecNamesLower.has(nameLow);
+                        })
+                        .map((f: any) => ({
+                            id: f.id,
+                            producto: f.name,
+                            grupo: f.category?.name || 'Varios',
+                            calorias: f.calories || 0,
+                            proteinas: f.proteins || 0,
+                            carbohidratos: f.carbs || 0,
+                            lipidos: f.lipids || 0,
+                            unidad: f.unit || 'g',
+                            precioPromedio: f.price || 0,
+                            tags: f.tags?.map((t: any) => t.name) || []
+                        }));
+                    return [...prev, ...newFavs];
+                });
+                toast.success("Preferencias aplicadas ✨");
+            }
+        } catch (e) {
+            toast.error("Error al cargar preferencias.");
+        } finally {
+            setIsApplyingPreferences(false);
+        }
+    };
+
+    const fetchSmartAddData = async () => {
+        setIsLoadingSmart(true);
+        const token = Cookies.get('auth_token');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+        try {
+            // Fetch All Foods for Favorites
+            const foodsRes = await fetch(`${apiUrl}/foods?limit=1000`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (foodsRes.ok) {
+                const allFoods = await foodsRes.json();
+                setSmartFavorites(allFoods.filter((f: any) => f.preferences?.[0]?.isFavorite));
+            }
+
+            // Fetch Groups
+            const groupsRes = await fetch(`${apiUrl}/ingredient-groups`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (groupsRes.ok) {
+                const groups = await groupsRes.json();
+                setSmartGroups(groups);
+            }
+        } catch (error) {
+            toast.error("Error al cargar datos para adición inteligente");
+        } finally {
+            setIsLoadingSmart(false);
+        }
+    };
+
+    const toggleSmartSelection = (id: string) => {
+        setSelectedFoods(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleGroupSelection = (groupId: string) => {
+        const group = smartGroups.find(g => g.id === groupId);
+        if (!group || !group.ingredients) return;
+
+        const ingredientIds = group.ingredients
+            .filter((rel: any) => rel.ingredient)
+            .map((rel: any) => (rel.ingredient as any).id as string);
+
+        setSelectedFoods(prev => {
+            const next = new Set(prev);
+            const allSelected = ingredientIds.every((id: string) => next.has(id));
+
+            if (allSelected) {
+                // Unselect all in this group
+                ingredientIds.forEach((id: string) => next.delete(id));
+            } else {
+                // Select all in this group
+                ingredientIds.forEach((id: string) => next.add(id));
+            }
+            return next;
+        });
+    };
+
+    const handleSmartAddAll = () => {
+        const foodsToAdd: any[] = [];
+        const selectedIds = Array.from(selectedFoods);
+
+        selectedIds.forEach((id: string) => {
+            let found = smartFavorites.find(f => f.id === id);
+            if (!found) {
+                smartGroups.forEach(g => {
+                    const groupFood = g.ingredients?.find((rel: any) => rel.ingredient?.id === id);
+                    if (groupFood) found = groupFood.ingredient;
+                });
+            }
+
+            if (found) {
+                foodsToAdd.push({
+                    producto: found.name,
+                    grupo: found.category?.name || 'Varios',
+                    calorias: found.calories || 0,
+                    proteinas: found.proteins || 0,
+                    carbohidratos: found.carbs || 0,
+                    lipidos: found.lipids || 0,
+                    unidad: found.unit || 'g',
+                    precioPromedio: found.price || 0,
+                    id: found.id || `smart-${Date.now()}-${Math.random()}`
+                });
             }
         });
-        return renderedGroups;
-    }, [displayedGroups, customGroups]);
+
+        if (foodsToAdd.length === 0) {
+            toast.error("No hay alimentos seleccionados");
+            return;
+        }
+
+        setFoodStatus(prev => {
+            const next = { ...prev };
+            foodsToAdd.forEach(f => { next[f.producto] = 'added'; });
+            return next;
+        });
+
+        setManualAdditions(prev => {
+            const existingNames = new Set([
+                ...initialFoods.map(f => f.producto.toLowerCase().trim()),
+                ...prev.map(ma => ma.producto.toLowerCase().trim())
+            ]);
+
+            const actuallyNew = foodsToAdd.filter(f => !existingNames.has(f.producto.toLowerCase().trim()));
+            return [...prev, ...actuallyNew];
+        });
+
+        toast.success(`${foodsToAdd.length} alimentos añadidos a la dieta 🚀`);
+        setIsSmartModalOpen(false);
+        setSelectedFoods(new Set());
+    };
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 pb-20">
-            {/* Header */}
             <div className="space-y-4">
                 <div className="space-y-1">
                     <div className="flex items-center gap-2 text-emerald-600 font-black text-[10px] uppercase tracking-widest">
                         <span className="bg-emerald-100 px-2 py-0.5 rounded">Etapa 1</span>
                         <span>Estrategia & Base</span>
-                        <GraduationCap className="h-4 w-4 ml-2 cursor-pointer hover:text-emerald-800 transition-colors" />
+                        <GraduationCap className="h-4 w-4 ml-2" />
                     </div>
                     <h1 className="text-4xl font-black text-slate-900 tracking-tight">Diseñador de Dieta General</h1>
                     <p className="text-slate-500 font-medium">Define la estructura base y restricciones para tu paciente.</p>
@@ -298,476 +639,733 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                     <div className="grid md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <label className="text-sm font-bold text-slate-700">Nombre de la Dieta <span className="text-red-500">*</span></label>
-                            <Input
-                                placeholder="Ej: Dieta Keto para Juan"
-                                value={dietName}
-                                onChange={e => setDietName(e.target.value)}
-                                className="h-11 border-slate-200"
-                            />
+                            <Input placeholder="Ej: Dieta Keto" value={dietName} onChange={e => setDietName(e.target.value)} className="h-11" />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700">Etiquetas (Opcional)</label>
-                            <TagInput
-                                value={dietTags}
-                                onChange={setDietTags}
-                                placeholder="Ej: Fitness, Bajo en Carbos..."
-                            />
+                            <label className="text-sm font-bold text-slate-700">Etiquetas</label>
+                            <TagInput value={dietTags} onChange={setDietTags} placeholder="Tags..." />
                         </div>
                     </div>
 
-                    {/* Constraints Bar */}
                     <div className="space-y-3">
                         <div className="flex items-center gap-2">
-                            <AlertCircle className="h-4 w-4 text-emerald-600" />
-                            <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">Restricciones & Condiciones</label>
+                            <Library className="h-4 w-4 text-indigo-600" />
+                            <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">Importar Dieta Base</label>
                         </div>
-                        <div className="flex flex-wrap gap-3">
-                            {allConstraints.map(constraint => {
-                                const isActive = activeConstraints.includes(constraint.id);
-                                return (
-                                    <button
-                                        key={constraint.id}
-                                        onClick={() => toggleConstraint(constraint.id)}
-                                        className={cn(
-                                            "flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all active:scale-95 cursor-pointer",
-                                            isActive
-                                                ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-200"
-                                                : "bg-white border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-600"
-                                        )}
-                                    >
-                                        <div className={cn(
-                                            "w-4 h-4 rounded border flex items-center justify-center transition-colors",
-                                            isActive ? "border-white bg-white/20" : "border-slate-300"
-                                        )}>
-                                            {isActive && <div className="w-2 h-2 bg-white rounded-full" />}
-                                        </div>
-                                        {constraint.label}
-                                        {isActive && (
-                                            <div className="ml-1 p-0.5 bg-white/20 rounded-md" title="Contenido educativo vinculado">
-                                                <BookOpen className="h-3 w-3" />
-                                            </div>
-                                        )}
-                                    </button>
-                                )
-                            })}
-
-                            {/* Input to add custom constraint */}
-                            <div className="flex items-center gap-2">
-                                <Input
-                                    placeholder="Nueva restricción..."
-                                    className="h-10 w-40 text-xs border-slate-200"
-                                    value={newConstraintLabel}
-                                    onChange={(e) => setNewConstraintLabel(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && newConstraintLabel.trim()) {
-                                            const id = newConstraintLabel.toLowerCase().replace(/\s+/g, '-');
-                                            if (!allConstraints.find(c => c.id === id)) {
-                                                setCustomConstraints(prev => [...prev, { id, label: newConstraintLabel }]);
-                                                setActiveConstraints(prev => [...prev, id]);
-                                                setNewConstraintLabel('');
-                                                toast.success(`Restricción "${newConstraintLabel}" creada.`);
-                                            } else {
-                                                toast.error("Esta restricción ya existe.");
-                                            }
-                                        }
-                                    }}
-                                />
-                                <button
-                                    className="p-2.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition-colors"
-                                    onClick={() => {
-                                        if (newConstraintLabel.trim()) {
-                                            const id = newConstraintLabel.toLowerCase().replace(/\s+/g, '-');
-                                            setCustomConstraints(prev => [...prev, { id, label: newConstraintLabel }]);
-                                            setActiveConstraints(prev => [...prev, id]);
-                                            setNewConstraintLabel('');
-                                        }
-                                    }}
-                                >
-                                    <Plus className="h-4 w-4" />
-                                </button>
-                            </div>
-                        </div>
-                        <p className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1">
-                            <Library className="h-3 w-3" />
-                            * Las restricciones marcadas incluirán automáticamente una sección educativa en el entregable final.
-                        </p>
+                        <Button
+                            onClick={() => {
+                                setIsImportDietModalOpen(true);
+                                setSavedDiets(mockSavedDiets);
+                            }}
+                            variant="outline"
+                            className="w-full h-12 border-2 border-dashed border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400 font-black rounded-xl transition-all"
+                        >
+                            <Library className="h-5 w-5 mr-2" />
+                            Cargar dieta creada anteriormente
+                        </Button>
                     </div>
                 </div>
             </div>
 
-            {/* Main Workspace */}
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
                         <Sparkles className="h-5 w-5 text-amber-500" />
                         Dieta Base Generada
-                        <span className="ml-2 text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-1 rounded-full border border-slate-200 flex items-center gap-1">
-                            <Info className="w-3 h-3" />
-                            Fuente: INTA (2018)
-                        </span>
                     </h2>
-                    <button
-                        onClick={() => setFavoritesEnabled(!favoritesEnabled)}
-                        className={cn(
-                            "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-colors cursor-pointer",
-                            favoritesEnabled ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                        )}
+                    <Button
+                        onClick={applyNutritionistPreferences}
+                        disabled={isApplyingPreferences}
+                        className="h-10 px-6 bg-slate-900 text-white hover:bg-slate-800 border-none font-black text-sm rounded-xl gap-2 transition-all active:scale-95 shadow-lg shadow-slate-200"
                     >
-                        <Heart className={cn("h-4 w-4", favoritesEnabled && "fill-current")} />
-                        {favoritesEnabled ? "Favoritos Incluidos" : "Incluir Favoritos"}
-                    </button>
-                    <button
-                        onClick={() => setShowSupplementsDrawer(true)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors cursor-pointer"
-                    >
-                        <Zap className="h-4 w-4 fill-current" />
-                        Potenciadores
-                    </button>
+                        {isApplyingPreferences ? <Loader2 className="h-5 w-5 animate-spin" /> : <Filter className="h-5 w-5" />}
+                        Añadir favoritos y quitar no recomendados
+                    </Button>
                 </div>
 
                 <div className="grid gap-6">
-                    {Object.entries(allGroupsToRender).map(([groupName, foods]) => (
-                        <div key={groupName} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                            <div className="bg-slate-50/80 p-4 border-b border-slate-100 flex justify-between items-center group/header">
+                    {Object.entries(allGroupsToRender).map(([name, foods]) => (
+                        <div key={name} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                            <div className="bg-slate-50/80 p-4 border-b border-slate-100 flex justify-between items-center">
                                 <h3 className="font-bold text-slate-700 uppercase tracking-tight text-sm flex items-center gap-2">
-                                    {groupName}
+                                    {name}
                                     <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-black">{foods.length}</span>
                                 </h3>
                                 <div className="flex gap-2">
-                                    <button
-                                        onClick={() => {
-                                            const name = prompt("Nombre del alimento a agregar (Simulación):");
-                                            if (name) {
-                                                const newItem: MarketPrice = {
-                                                    id: `manual-${Date.now()}`,
-                                                    producto: name,
-                                                    grupo: groupName,
-                                                    unidad: 'unidad',
-                                                    precioMinimo: 0,
-                                                    precioMaximo: 0,
-                                                    precioPromedio: 0,
-                                                    region: 'Metropolitana',
-                                                    sector: 'Centro',
-                                                    tipoPuntoMonitoreo: 'Supermercado',
-                                                    anio: '2025',
-                                                    mes: '01',
-                                                    semana: '01',
-                                                    fechaInicio: '',
-                                                    fechaTermino: ''
-                                                };
-                                                setManualAdditions(prev => [...prev, newItem]);
-                                                setFoodStatus(prev => ({ ...prev, [name]: 'added' }));
-                                                toast.success(`${name} agregado a la sección ${groupName}`);
-                                            }
-                                        }}
-                                        className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                                        title="Agregar alimento rápido"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setGroupToDelete(groupName);
-                                            setIsDeleteGroupConfirmOpen(true);
-                                        }}
-                                        className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                        title="Eliminar grupo completo"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
+                                    <button onClick={() => openAddModal(name)} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg cursor-pointer"><Plus className="h-4 w-4" /></button>
+                                    <button onClick={() => { setGroupToDelete(name); setIsDeleteGroupConfirmOpen(true); }} className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg cursor-pointer"><Trash2 className="h-4 w-4" /></button>
                                 </div>
                             </div>
                             <div className="divide-y divide-slate-100">
                                 {foods.map((food, idx) => (
                                     <div key={`${food.producto}-${idx}`} className="p-4 flex items-center justify-between group hover:bg-emerald-50/30 transition-colors">
                                         <div className="flex items-center gap-3">
-                                            <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-lg">
-                                                {/* Simple emoji mapping based on group could go here, or just generic */}
-                                                🍽️
-                                            </div>
+                                            <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-lg">🍽️</div>
                                             <div>
                                                 <p className="font-bold text-slate-900 text-sm">{food.producto}</p>
-                                                <div className="flex gap-2 text-xs text-slate-400 font-medium items-center">
-                                                    {foodStatus[food.producto] === 'base' && <span className="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wide">Base</span>}
-                                                    {foodStatus[food.producto] === 'added' && <span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wide">Agregado</span>}
-
-                                                    <span>{food.calorias || 0} kcal</span>
+                                                <div className="flex gap-2 text-xs text-slate-500 font-medium items-center flex-wrap">
+                                                    <span className="text-orange-600 font-bold">{food.calorias || 0} kcal</span>
                                                     <span>•</span>
-                                                    <span>{formatCLP(food.precioPromedio)}</span>
-
+                                                    <span className="text-blue-600">P: {food.proteinas || 0}g</span>
+                                                    <span>•</span>
+                                                    <span className="text-emerald-600">C: {food.carbohidratos || 0}g</span>
+                                                    <span>•</span>
+                                                    <span className="text-yellow-600">L: {food.lipidos || 0}g</span>
+                                                    {(food as any).sugars > 0 && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <span className="text-slate-500">Az: {(food as any).sugars}g</span>
+                                                        </>
+                                                    )}
+                                                    {(food as any).fiber > 0 && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <span className="text-slate-500">Fib: {(food as any).fiber}g</span>
+                                                        </>
+                                                    )}
+                                                    {(food as any).sodium > 0 && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <span className="text-slate-500">Na: {(food as any).sodium}mg</span>
+                                                        </>
+                                                    )}
                                                     <button
-                                                        onClick={() => toggleFavorite(food.producto)}
-                                                        className={cn("flex items-center gap-0.5 transition-colors cursor-pointer",
-                                                            foodStatus[food.producto] === 'favorite' ? "text-red-500" : "text-slate-300 hover:text-red-300"
+                                                        onClick={() => toggleFavorite(food)}
+                                                        className={cn("flex items-center gap-1 transition-colors cursor-pointer",
+                                                            foodStatus[food.producto] === 'favorite' ? "text-amber-500" : "text-slate-300 hover:text-amber-300"
                                                         )}
-                                                        title={foodStatus[food.producto] === 'favorite' ? "Quitar de favoritos" : "Marcar como favorito"}
                                                     >
-                                                        <Heart className={cn("h-3 w-3", foodStatus[food.producto] === 'favorite' && "fill-current")} />
+                                                        <Star className={cn("h-3 w-3", foodStatus[food.producto] === 'favorite' && "fill-current")} />
                                                         {foodStatus[food.producto] === 'favorite' && "Favorito"}
                                                     </button>
                                                 </div>
                                             </div>
                                         </div>
-                                        <button
-                                            onClick={() => removeFood(food.producto)}
-                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
-                                            title="Quitar de la dieta"
-                                        >
-                                            <X className="h-5 w-5" />
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedFoodForInfo(food);
+                                                    setIsFoodInfoModalOpen(true);
+                                                }}
+                                                className="p-2 text-slate-400 hover:text-indigo-600 rounded-xl cursor-pointer transition-colors"
+                                            >
+                                                <Info className="h-5 w-5" />
+                                            </button>
+                                            <button onClick={() => removeFood(food.producto)} className="p-2 text-slate-400 hover:text-red-500 rounded-xl cursor-pointer">
+                                                <X className="h-5 w-5" />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
-                                <div className="p-3 bg-slate-50/50 text-center">
-                                    <button
-                                        onClick={() => {
-                                            const name = prompt("Nombre del alimento a agregar (Simulación):");
-                                            if (name) {
-                                                const newItem: MarketPrice = {
-                                                    id: `manual-${Date.now()}`,
-                                                    producto: name,
-                                                    grupo: groupName, // Add to current group
-                                                    unidad: 'unidad',
-                                                    precioMinimo: 0,
-                                                    precioMaximo: 0,
-                                                    precioPromedio: 0,
-                                                    region: 'Metropolitana',
-                                                    sector: 'Centro',
-                                                    tipoPuntoMonitoreo: 'Supermercado',
-                                                    anio: '2025',
-                                                    mes: '01',
-                                                    semana: '01',
-                                                    fechaInicio: '',
-                                                    fechaTermino: ''
-                                                };
-                                                setManualAdditions(prev => [...prev, newItem]);
-                                                toast.success(`${name} agregado a la sección ${groupName}`);
-                                            }
-                                        }}
-                                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center justify-center gap-1 mx-auto py-1 px-3 rounded-lg hover:bg-emerald-50 transition-colors cursor-pointer"
-                                    >
-                                        <Plus className="h-3 w-3" /> Agregar alimento a esta sección
-                                    </button>
-                                </div>
+                                <button
+                                    onClick={() => openAddModal(name)}
+                                    className="w-full p-3 text-xs font-bold text-emerald-600 hover:bg-emerald-50 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Añadir alimento a {name}
+                                </button>
                             </div>
                         </div>
                     ))}
 
-                    {/* Add New Group Button */}
+                    {/* 
                     <button
-                        onClick={() => {
-                            const name = prompt("Nombre del nuevo grupo de alimentos:");
-                            if (name && name.trim()) {
-                                if (customGroups.includes(name) || Object.keys(displayedGroups).includes(name)) {
-                                    toast.error("Este grupo ya existe.");
-                                } else {
-                                    setCustomGroups(prev => [...prev, name]);
-                                    toast.success(`Grupo "${name}" creado.`);
-                                }
-                            }
-                        }}
-                        className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 font-bold hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/10 transition-all flex items-center justify-center gap-2 group cursor-pointer"
+                        onClick={() => setIsAddGroupModalOpen(true)}
+                        className="w-full py-6 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 font-bold hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/10 cursor-pointer"
                     >
-                        <div className="p-2 bg-slate-50 rounded-full group-hover:bg-emerald-100 transition-colors">
-                            <FolderPlus className="h-5 w-5" />
-                        </div>
-                        Crear Nuevo Grupo de Alimentos
+                        + Añadir nueva categoría
                     </button>
-
-                    {Object.keys(displayedGroups).length === 0 && (
-                        <div className="text-center py-20 bg-slate-50 rounded-3xl border border-dashed border-slate-300">
-                            <p className="text-slate-400 font-medium">No hay alimentos en la dieta.</p>
-                            <Button
-                                variant="outline"
-                                className="mt-4"
-                                onClick={() => setFoodStatus({})}
-                            >
-                                Restaurar Dieta Base
-                            </Button>
-                        </div>
-                    )}
+                    */}
                 </div>
             </div>
 
-            {/* Footer Actions */}
-            <div className="sticky bottom-0 bg-slate-50/90 backdrop-blur-md border-t border-slate-200 p-4 -mx-4 md:-mx-8 md:px-8 flex flex-col md:flex-row items-center justify-between gap-4 z-10 transition-colors">
-
-                {/* Stats Left */}
-                <div className="flex items-center gap-6 text-sm font-medium text-slate-600 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
-                    <div className="flex items-center gap-2">
-                        <span className="text-slate-400">Proteínas totales:</span>
-                        <span className="font-bold text-slate-800">{totalProtein}g</span>
+            <div className="sticky bottom-0 bg-white/90 backdrop-blur-md border-t border-slate-200 p-4 flex justify-between items-center gap-3 z-10 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)]">
+                <Button
+                    variant="outline"
+                    className="h-12 border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-black gap-2 transition-all active:scale-95 group"
+                    onClick={() => {
+                        setIsSmartModalOpen(true);
+                        fetchSmartAddData();
+                    }}
+                >
+                    <div className="bg-indigo-100 p-1.5 rounded-lg group-hover:scale-110 transition-transform">
+                        <Brain className="h-5 w-5" />
                     </div>
-                    <div className="w-px h-4 bg-slate-200" />
-                    <div className="flex items-center gap-2">
-                        <span className="text-slate-400">Calorías totales:</span>
-                        <span className="font-bold text-slate-800">{totalCalories} kcal</span>
-                    </div>
-                    <button
-                        onClick={() => setShowInfoModal(true)}
-                        className="p-1 rounded-full hover:bg-slate-200 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
-                    >
-                        <Info className="h-4 w-4" />
-                    </button>
-                </div>
+                    Añadir alimentos inteligente
+                </Button>
 
-                {/* Buttons Right */}
-                <div className="flex items-center gap-3">
-                    <Link href="/dashboard/creaciones" className="hidden" id="creations-link" />
-
-                    <Button
-                        variant="ghost"
-                        className="h-12 px-6 font-bold text-slate-600 hover:text-slate-900"
-                        onClick={() => {/* Cancel logic */ }}
-                    >
-                        Cancelar
-                    </Button>
-
-                    <Button
-                        className="h-12 px-8 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg shadow-slate-200"
-                        onClick={handleSave}
-                    >
-                        <Save className="mr-2 h-5 w-5" />
-                        Guardar Creación
-                    </Button>
-
-                    <Button
-                        className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-200"
-                        onClick={handleContinue}
-                    >
-                        Continuar
-                        <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
+                <div className="flex gap-3">
+                    <Button variant="outline" className="h-12" onClick={saveAsDraft}>Guardar Borrador</Button>
+                    <Button variant="outline" className="h-12 border-rose-200 text-rose-600" onClick={resetDiet}>Reset</Button>
+                    <Button className="h-12 px-8 bg-slate-900" onClick={handleSave}>Guardar Creación</Button>
+                    <Button className="h-12 px-8 bg-emerald-600" onClick={handleContinue}>Continuar <ArrowRight className="ml-2 h-5 w-5" /></Button>
                 </div>
             </div>
 
-            {/* Info Modal */}
-            {
-                showInfoModal && (
-                    <div
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200 cursor-default"
-                        onClick={() => setShowInfoModal(false)}
-                    >
-                        <div
-                            className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full space-y-4"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-2">
-                                    <div className="p-2 bg-blue-50 rounded-lg">
-                                        <Info className="h-5 w-5 text-blue-600" />
-                                    </div>
-                                    <h3 className="font-bold text-slate-900">Recomendaciones Mock</h3>
-                                </div>
-                                <button onClick={() => setShowInfoModal(false)} className="text-slate-400 hover:text-slate-600">
-                                    <X className="h-5 w-5" />
-                                </button>
-                            </div>
-                            <div className="space-y-3 pt-2">
-                                <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                                    <span className="text-sm font-medium text-slate-600">Proteínas Recomendadas</span>
-                                    <span className="text-sm font-bold text-slate-900">140g - 160g</span>
-                                </div>
-                                <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                                    <span className="text-sm font-medium text-slate-600">Calorías Recomendadas</span>
-                                    <span className="text-sm font-bold text-slate-900">2200 - 2500 kcal</span>
-                                </div>
-                            </div>
-                            <p className="text-xs text-slate-400 text-center pt-2">Valores referenciales basados en perfil promedio.</p>
-                            <Button
-                                className="w-full bg-slate-900 text-white font-bold rounded-xl"
-                                onClick={() => setShowInfoModal(false)}
-                            >
-                                Entendido
-                            </Button>
-                        </div>
-                    </div>
-                )
-            }
+            <ConfirmationModal
+                isOpen={isDeleteGroupConfirmOpen} onClose={() => setIsDeleteGroupConfirmOpen(false)}
+                onConfirm={confirmDeleteGroup} title={`¿Eliminar grupo "${groupToDelete}"?`}
+                description="Esto quitará los alimentos de esta vista."
+            />
 
-            {/* Supplements Power Drawer (Right Sidebar Mock) */}
-            {
-                showSupplementsDrawer && (
-                    <div
-                        className="fixed inset-0 z-50 flex justify-end bg-black/10 backdrop-blur-[1px] cursor-default"
-                        onClick={() => setShowSupplementsDrawer(false)}
-                    >
-                        <div
-                            className="w-96 bg-white h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col cursor-default"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                <div className="flex items-center gap-2">
-                                    <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
-                                        <Zap className="h-5 w-5 fill-current" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-black text-slate-900 leading-tight">Potenciadores</h3>
-                                        <p className="text-xs text-slate-500 font-medium">Suplementos & Vitaminas</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setShowSupplementsDrawer(false)} className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 transition-colors">
-                                    <X className="h-5 w-5" />
-                                </button>
+            <Modal isOpen={isAddFoodModalOpen} onClose={() => setIsAddFoodModalOpen(false)} title={`Añadir a "${activeGroupForAddition}"`}>
+                <div className="space-y-4">
+                    <Input placeholder="Buscar..." value={foodSearchQuery} onChange={e => setFoodSearchQuery(e.target.value)} autoFocus />
+                    <div className="space-y-1 max-h-60 overflow-y-auto">
+                        {isSearchingFoods ? (
+                            <div className="py-12 flex flex-col items-center justify-center gap-3">
+                                <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+                                <p className="text-sm text-slate-400 font-medium">Buscando alimentos...</p>
                             </div>
-
-                            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                                {/* Suggestions Section */}
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 uppercase tracking-wider">
-                                        <Sparkles className="h-3 w-3" />
-                                        Sugerido por IA
-                                    </div>
-                                    <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl relative overflow-hidden group hover:border-blue-200 transition-all cursor-move">
-                                        <div className="absolute top-0 right-0 bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded-bl-xl">
-                                            Alta Pureza
+                        ) : searchResultFoods.length > 0 ? (
+                            searchResultFoods.map(f => (
+                                <div key={f.id} className="w-full flex justify-between items-center p-3 hover:bg-slate-50 rounded-lg transition-colors group">
+                                    <div className="flex-1">
+                                        <p className="font-bold text-sm text-slate-900">{f.producto}</p>
+                                        <div className="flex gap-2 text-xs text-slate-500 mt-0.5">
+                                            <span className="text-orange-600 font-bold">{f.calorias || 0} kcal</span>
+                                            <span>•</span>
+                                            <span className="text-blue-600">P: {f.proteinas || 0}g</span>
                                         </div>
-                                        <div className="flex gap-3">
-                                            <div className="h-12 w-12 bg-white rounded-xl shadow-sm border border-blue-50 flex items-center justify-center">
-                                                <Dumbbell className="h-6 w-6 text-blue-600" />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedFoodForInfo(f);
+                                                setIsFoodInfoModalOpen(true);
+                                            }}
+                                            className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                                        >
+                                            <Info className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleAddFromSearch(f)}
+                                            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        ) : foodSearchQuery.trim() ? (
+                            <div className="py-6 text-center">
+                                <p className="text-sm text-slate-400 mb-3">No se encontraron resultados.</p>
+                                <Button
+                                    variant="outline"
+                                    className="text-emerald-600"
+                                    onClick={() => {
+                                        const newItem: MarketPrice = {
+                                            id: `manual-${Date.now()}`,
+                                            producto: foodSearchQuery,
+                                            grupo: activeGroupForAddition || 'Varios',
+                                            unidad: 'unidad',
+                                            precioPromedio: 0,
+                                            calorias: 0,
+                                            proteinas: 0,
+                                            carbohidratos: 0,
+                                            lipidos: 0,
+                                            tags: []
+                                        };
+                                        setManualAdditions(prev => [...prev, newItem]);
+                                        setFoodStatus(prev => ({ ...prev, [foodSearchQuery]: 'added' as const }));
+                                        toast.success(`"${foodSearchQuery}" creado.`);
+                                        setIsAddFoodModalOpen(false);
+                                    }}
+                                >
+                                    Crear "{foodSearchQuery}" manualmente
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="py-12 text-center">
+                                <Search className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                                <p className="text-sm text-slate-400">Escribe para buscar alimentos...</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Modal de Adición Inteligente */}
+            <Modal
+                isOpen={isSmartModalOpen}
+                onClose={() => setIsSmartModalOpen(false)}
+                title="Selección Inteligente"
+                className="sm:max-w-2xl"
+            >
+                <div className="space-y-6">
+                    {/* Tabs */}
+                    <div className="flex bg-slate-100 p-1 rounded-2xl">
+                        <button
+                            onClick={() => setSmartAddTab('favorites')}
+                            className={cn(
+                                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
+                                smartAddTab === 'favorites' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                            )}
+                        >
+                            <Star className={cn("h-4 w-4", smartAddTab === 'favorites' && "fill-current")} />
+                            Favoritos
+                        </button>
+                        <button
+                            onClick={() => setSmartAddTab('groups')}
+                            className={cn(
+                                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
+                                smartAddTab === 'groups' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                            )}
+                        >
+                            <FolderPlus className="h-4 w-4" />
+                            Mis Grupos
+                        </button>
+                        <button
+                            onClick={() => setSmartAddTab('myproducts')}
+                            className={cn(
+                                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
+                                smartAddTab === 'myproducts' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                            )}
+                        >
+                            <Plus className="h-4 w-4" />
+                            Mis Productos
+                        </button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="max-h-[400px] overflow-y-auto px-1 space-y-4">
+                        {isLoadingSmart ? (
+                            <div className="py-20 flex flex-col items-center justify-center gap-3">
+                                <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
+                                <p className="text-slate-400 font-bold text-sm">Cargando tus secretos culinarios...</p>
+                            </div>
+                        ) : smartAddTab === 'favorites' ? (
+                            smartFavorites.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {smartFavorites.map(f => (
+                                        <div
+                                            key={f.id}
+                                            onClick={() => toggleSmartSelection(f.id)}
+                                            className={cn(
+                                                "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+                                                selectedFoods.has(f.id)
+                                                    ? "border-indigo-500 bg-indigo-50/50"
+                                                    : "border-slate-100 bg-white hover:border-indigo-200"
+                                            )}
+                                        >
+                                            <div className="flex-1">
+                                                <p className="font-black text-slate-800 text-sm mb-1">{f.name}</p>
+                                                <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-black uppercase">
+                                                    {f.category?.name || 'Varios'}
+                                                </span>
                                             </div>
-                                            <div>
-                                                <h4 className="font-bold text-slate-900 text-sm">Whey Protein Isolate</h4>
-                                                <p className="text-xs text-slate-500 mb-1">Optimum Nutrition • Vainilla</p>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-bold text-blue-700">Premium Isolate</span>
-                                                    <span className="text-[10px] text-slate-400 border border-slate-200 px-1 rounded">Partner</span>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedFoodForInfo({
+                                                            id: f.id,
+                                                            producto: f.name,
+                                                            grupo: f.category?.name || 'Varios',
+                                                            calorias: f.calories || 0,
+                                                            proteinas: f.proteins || 0,
+                                                            carbohidratos: f.carbs || 0,
+                                                            lipidos: f.lipids || 0,
+                                                            unidad: f.unit || 'g',
+                                                            precioPromedio: f.price || 0,
+                                                            tags: f.tags?.map((t: any) => t.name) || [],
+                                                            ...(f as any)
+                                                        });
+                                                        setIsFoodInfoModalOpen(true);
+                                                    }}
+                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                                                >
+                                                    <Info className="h-4 w-4" />
+                                                </button>
+                                                <div className={cn(
+                                                    "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                                                    selectedFoods.has(f.id)
+                                                        ? "bg-indigo-600 border-indigo-600 text-white"
+                                                        : "border-slate-200 group-hover:border-indigo-300"
+                                                )}>
+                                                    {selectedFoods.has(f.id) && <Plus className="h-4 w-4" />}
                                                 </div>
                                             </div>
                                         </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
+                                    <Star className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                                    <p className="text-slate-400 font-bold text-sm px-10">No tienes alimentos favoritos marcados aún.</p>
+                                </div>
+                            )
+                        ) : (
+                            smartGroups.length > 0 ? (
+                                <div className="space-y-6">
+                                    {smartGroups.map(group => {
+                                        const groupIngredientIds = (group.ingredients as any[])?.map((rel: any) => (rel.ingredient as any)?.id as string) || [];
+                                        const isAllSelected = groupIngredientIds.length > 0 && groupIngredientIds.every(id => selectedFoods.has(id));
+
+                                        return (
+                                            <div key={group.id} className="space-y-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+                                                <div className="flex items-center justify-between px-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+                                                        <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{group.name}</h4>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={() => toggleGroupSelection(group.id)}
+                                                        className={cn(
+                                                            "text-[10px] font-black uppercase tracking-tighter px-3 py-1 rounded-lg transition-all border shadow-sm",
+                                                            isAllSelected
+                                                                ? "bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100"
+                                                                : "bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
+                                                        )}
+                                                    >
+                                                        {isAllSelected ? "Quitar todo el grupo" : "Seleccionar todo el grupo"}
+                                                    </button>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    {group.ingredients?.map((rel: any) => (
+                                                        <div
+                                                            key={rel.ingredient?.id}
+                                                            onClick={() => toggleSmartSelection(rel.ingredient?.id)}
+                                                            className={cn(
+                                                                "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+                                                                selectedFoods.has(rel.ingredient?.id)
+                                                                    ? "border-indigo-500 bg-indigo-50/50"
+                                                                    : "border-slate-100 bg-white hover:border-indigo-200"
+                                                            )}
+                                                        >
+                                                            <div className="flex-1">
+                                                                <p className="font-black text-slate-800 text-sm mb-1">{rel.ingredient?.name}</p>
+                                                                <span className="text-[10px] text-slate-400 font-bold">
+                                                                    {rel.amount || 100} {rel.ingredient?.unit || rel.unit || 'g'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        const ing = rel.ingredient;
+                                                                        setSelectedFoodForInfo({
+                                                                            id: ing?.id,
+                                                                            producto: ing?.name || 'Desconocido',
+                                                                            grupo: ing?.category?.name || 'Varios',
+                                                                            calorias: ing?.calories || 0,
+                                                                            proteinas: ing?.proteins || 0,
+                                                                            carbohidratos: ing?.carbs || 0,
+                                                                            lipidos: ing?.lipids || 0,
+                                                                            unidad: ing?.unit || 'g',
+                                                                            precioPromedio: ing?.price || 0,
+                                                                            tags: ing?.tags?.map((t: any) => t.name) || [],
+                                                                            ...(ing as any)
+                                                                        });
+                                                                        setIsFoodInfoModalOpen(true);
+                                                                    }}
+                                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                                                                >
+                                                                    <Info className="h-4 w-4" />
+                                                                </button>
+                                                                <div className={cn(
+                                                                    "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                                                                    selectedFoods.has(rel.ingredient?.id)
+                                                                        ? "bg-indigo-600 border-indigo-600 text-white"
+                                                                        : "border-slate-200 group-hover:border-indigo-300"
+                                                                )}>
+                                                                    {selectedFoods.has(rel.ingredient?.id) ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4 text-slate-300" />}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
+                                    <FolderPlus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                                    <p className="text-slate-400 font-bold text-sm px-10">No has creado grupos de ingredientes aún.</p>
+                                </div>
+                            )
+                        ) : smartAddTab === 'myproducts' ? (
+                            smartMyProducts.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {smartMyProducts.map(f => (
+                                <div
+                                    key={f.id}
+                                    onClick={() => toggleSmartSelection(f.id)}
+                                    className={cn(
+                                        "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+                                        selectedFoods.has(f.id)
+                                            ? "border-indigo-500 bg-indigo-50/50"
+                                            : "border-slate-100 bg-white hover:border-indigo-200"
+                                    )}
+                                >
+                                    <div className="flex-1">
+                                        <p className="font-black text-slate-800 text-sm mb-1">{f.name}</p>
+                                        <span className="text-[10px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded font-black uppercase">
+                                            Creado por ti
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedFoodForInfo({
+                                                    id: f.id,
+                                                    producto: f.name,
+                                                    grupo: f.category?.name || 'Varios',
+                                                    calorias: f.calories || 0,
+                                                    proteinas: f.proteins || 0,
+                                                    carbohidratos: f.carbs || 0,
+                                                    lipidos: f.lipids || 0,
+                                                    unidad: f.unit || 'g',
+                                                    precioPromedio: f.price || 0,
+                                                    tags: f.tags?.map((t: any) => t.name) || [],
+                                                    ...(f as any)
+                                                });
+                                                setIsFoodInfoModalOpen(true);
+                                            }}
+                                            className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                                        >
+                                            <Info className="h-4 w-4" />
+                                        </button>
+                                        <div className={cn(
+                                            "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                                            selectedFoods.has(f.id)
+                                                ? "bg-indigo-600 border-indigo-600 text-white"
+                                                : "border-slate-200 group-hover:border-indigo-300"
+                                        )}>
+                                            {selectedFoods.has(f.id) && <Plus className="h-4 w-4" />}
+                                        </div>
                                     </div>
                                 </div>
+                            ))}
+                        </div>
+                        ) : (
+                        <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
+                            <Plus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                            <p className="text-slate-400 font-bold text-sm px-10">No has creado productos personalizados aún.</p>
+                        </div>
+                        )
+                        ) : null}
+                    </div>
 
-                                {/* Categories */}
-                                <div className="space-y-4">
-                                    <h4 className="font-bold text-slate-800 text-sm">Categorías</h4>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {['Proteínas', 'Vitaminas', 'Creatina', 'Pre-Workout'].map(cat => (
-                                            <div key={cat} className="p-3 border border-slate-200 rounded-xl hover:bg-slate-50 text-center cursor-pointer transition-colors">
-                                                <span className="text-xs font-bold text-slate-600">{cat}</span>
+                    {/* Footer Actions */}
+                    <div className="flex items-center justify-between pt-6 border-t border-slate-100 mt-4">
+                        <div className="text-xs">
+                            <span className="text-slate-400 font-bold">Seleccionados: </span>
+                            <span className="text-indigo-600 font-black">{selectedFoods.size} alimentos</span>
+                        </div>
+                        <div className="flex gap-3">
+                            <Button variant="ghost" className="h-11 rounded-xl" onClick={() => setIsSmartModalOpen(false)}>Cancelar</Button>
+                            <Button
+                                className="h-11 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-lg shadow-indigo-100 flex items-center gap-2"
+                                onClick={handleSmartAddAll}
+                                disabled={selectedFoods.size === 0}
+                            >
+                                <CheckCircle2 className="h-5 w-5" />
+                                Añadir todo(s)
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Food Info Modal - Side Panel */}
+            {isFoodInfoModalOpen && selectedFoodForInfo && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-start">
+                    <div
+                        className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+                        onClick={() => setIsFoodInfoModalOpen(false)}
+                    />
+                    <div className="relative w-full max-w-md h-full bg-white shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-300 z-10">
+                        <div className="sticky top-0 bg-white border-b border-slate-200 p-6 z-10">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <h2 className="text-xl font-black text-slate-900 mb-1">{selectedFoodForInfo.producto}</h2>
+                                    <p className="text-sm text-slate-500 font-medium">{selectedFoodForInfo.grupo}</p>
+                                </div>
+                                <button
+                                    onClick={() => setIsFoodInfoModalOpen(false)}
+                                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    <X className="h-5 w-5 text-slate-400" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            {/* Macronutrientes Principales */}
+                            <div>
+                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Macronutrientes</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                                        <p className="text-xs font-bold text-orange-600 mb-1">Calorías</p>
+                                        <p className="text-2xl font-black text-orange-700">{selectedFoodForInfo.calorias || 0}</p>
+                                        <p className="text-[10px] text-orange-500 font-medium">kcal</p>
+                                    </div>
+                                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                        <p className="text-xs font-bold text-blue-600 mb-1">Proteínas</p>
+                                        <p className="text-2xl font-black text-blue-700">{selectedFoodForInfo.proteinas || 0}</p>
+                                        <p className="text-[10px] text-blue-500 font-medium">gramos</p>
+                                    </div>
+                                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                                        <p className="text-xs font-bold text-emerald-600 mb-1">Carbohidratos</p>
+                                        <p className="text-2xl font-black text-emerald-700">{selectedFoodForInfo.carbohidratos || 0}</p>
+                                        <p className="text-[10px] text-emerald-500 font-medium">gramos</p>
+                                    </div>
+                                    <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100">
+                                        <p className="text-xs font-bold text-yellow-600 mb-1">Lípidos</p>
+                                        <p className="text-2xl font-black text-yellow-700">{selectedFoodForInfo.lipidos || 0}</p>
+                                        <p className="text-[10px] text-yellow-500 font-medium">gramos</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Micronutrientes y Otros */}
+                            {((selectedFoodForInfo as any).sugars > 0 || (selectedFoodForInfo as any).fiber > 0 || (selectedFoodForInfo as any).sodium > 0) && (
+                                <div>
+                                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Información Adicional</h3>
+                                    <div className="space-y-2">
+                                        {(selectedFoodForInfo as any).sugars > 0 && (
+                                            <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                                <span className="text-sm font-bold text-slate-700">Azúcares</span>
+                                                <span className="text-sm font-black text-slate-900">{(selectedFoodForInfo as any).sugars}g</span>
                                             </div>
+                                        )}
+                                        {(selectedFoodForInfo as any).fiber > 0 && (
+                                            <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                                <span className="text-sm font-bold text-slate-700">Fibra</span>
+                                                <span className="text-sm font-black text-slate-900">{(selectedFoodForInfo as any).fiber}g</span>
+                                            </div>
+                                        )}
+                                        {(selectedFoodForInfo as any).sodium > 0 && (
+                                            <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                                <span className="text-sm font-bold text-slate-700">Sodio</span>
+                                                <span className="text-sm font-black text-slate-900">{(selectedFoodForInfo as any).sodium}mg</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Porción */}
+                            <div>
+                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Porción de Referencia</h3>
+                                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                                    <p className="text-sm font-bold text-indigo-600 mb-1">Unidad</p>
+                                    <p className="text-lg font-black text-indigo-900">{selectedFoodForInfo.unidad || 'g'}</p>
+                                </div>
+                            </div>
+
+                            {/* Precio */}
+                            {selectedFoodForInfo.precioPromedio > 0 && (
+                                <div>
+                                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Precio Estimado</h3>
+                                    <div className="p-4 bg-green-50 rounded-xl border border-green-100">
+                                        <p className="text-sm font-bold text-green-600 mb-1">Precio Promedio</p>
+                                        <p className="text-lg font-black text-green-900">{formatCLP(selectedFoodForInfo.precioPromedio)}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Tags */}
+                            {selectedFoodForInfo.tags && selectedFoodForInfo.tags.length > 0 && (
+                                <div>
+                                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Etiquetas</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedFoodForInfo.tags.map((tag: string, idx: number) => (
+                                            <span key={idx} className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full text-xs font-bold border border-slate-200">
+                                                #{tag}
+                                            </span>
                                         ))}
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="p-4 border-t border-slate-100 bg-slate-50 text-center text-xs text-slate-400">
-                                Arrastra los items a tu pauta diaria
-                            </div>
+                            )}
                         </div>
                     </div>
-                )
-            }
-            {/* Confirmation Modal */}
-            <ConfirmationModal
-                isOpen={isDeleteGroupConfirmOpen}
-                onClose={() => setIsDeleteGroupConfirmOpen(false)}
-                onConfirm={confirmDeleteGroup}
-                title={`¿Eliminar grupo "${groupToDelete}"?`}
-                description="Se eliminarán todos los alimentos de este grupo de la vista actual."
-                confirmText="Eliminar"
-                cancelText="Cancelar"
-                variant="destructive"
-            />
+                </div>
+            )}
+
+            {/* Import Diet Modal */}
+            <Modal
+                isOpen={isImportDietModalOpen}
+                onClose={() => {
+                    setIsImportDietModalOpen(false);
+                    setDietSearchQuery('');
+                }}
+                title="Importar Dieta Base"
+            >
+                <div className="space-y-4">
+                    <Input
+                        placeholder="Buscar dieta..."
+                        value={dietSearchQuery}
+                        onChange={e => setDietSearchQuery(e.target.value)}
+                        autoFocus
+                    />
+
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                        {savedDiets
+                            .filter(diet =>
+                                diet.name.toLowerCase().includes(dietSearchQuery.toLowerCase()) ||
+                                diet.tags.some((tag: string) => tag.toLowerCase().includes(dietSearchQuery.toLowerCase()))
+                            )
+                            .map(diet => (
+                                <div
+                                    key={diet.id}
+                                    onClick={() => {
+                                        // TODO: Load diet JSON and update current state
+                                        toast.success(`Dieta "${diet.name}" importada correctamente`);
+                                        setIsImportDietModalOpen(false);
+                                        setDietSearchQuery('');
+                                    }}
+                                    className="p-4 border-2 border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50/30 transition-all cursor-pointer group"
+                                >
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div className="flex-1">
+                                            <h3 className="font-black text-slate-900 text-sm mb-1">{diet.name}</h3>
+                                            <p className="text-xs text-slate-500 font-medium">
+                                                {diet.foodCount} alimentos • Creada el {new Date(diet.createdAt).toLocaleDateString('es-ES')}
+                                            </p>
+                                        </div>
+                                        <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-black uppercase">
+                                            {diet.type}
+                                        </span>
+                                    </div>
+
+                                    {diet.tags.length > 0 && (
+                                        <div className="flex flex-wrap gap-1.5 mt-2">
+                                            {diet.tags.map((tag: string, idx: number) => (
+                                                <span
+                                                    key={idx}
+                                                    className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold"
+                                                >
+                                                    #{tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        }
+
+                        {savedDiets.filter(diet =>
+                            diet.name.toLowerCase().includes(dietSearchQuery.toLowerCase()) ||
+                            diet.tags.some((tag: string) => tag.toLowerCase().includes(dietSearchQuery.toLowerCase()))
+                        ).length === 0 && (
+                                <div className="py-12 text-center">
+                                    <Library className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                                    <p className="text-sm text-slate-400">
+                                        {dietSearchQuery ? 'No se encontraron dietas' : 'No tienes dietas guardadas aún'}
+                                    </p>
+                                </div>
+                            )}
+                    </div>
+                </div>
+            </Modal>
+
         </div >
     );
 }

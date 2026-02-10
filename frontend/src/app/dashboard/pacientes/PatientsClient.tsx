@@ -11,6 +11,7 @@ import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { toast } from 'sonner';
 import { PatientStorage } from '@/features/patients/services/patientStorage';
+import { useAdmin } from '@/context/AdminContext';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -39,9 +40,18 @@ export default function PatientsClient({ initialData }: PatientsClientProps) {
     const [activeTab, setActiveTab] = useState<PatientTab>('Todos');
     const [searchTerm, setSearchTerm] = useState('');
     const router = useRouter();
+    const { role } = useAdmin();
 
 
 
+
+    const printJson = () => {
+        console.group('📊 PATIENTS DATA');
+        console.log('Pacientes:', patients);
+        console.log('Filtros:', { searchTerm, activeTab });
+        console.groupEnd();
+        toast.info("JSON de pacientes impreso en consola.");
+    };
 
     const filteredPatients = useMemo(() => {
         return patients.filter((patient) => {
@@ -61,7 +71,7 @@ export default function PatientsClient({ initialData }: PatientsClientProps) {
     const tabs: PatientTab[] = ['Todos', 'Activos', 'Inactivos'];
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 pb-24">
             {/* Header Section */}
             <div className="md:flex md:items-center md:justify-between px-2">
                 <div>
@@ -214,6 +224,16 @@ export default function PatientsClient({ initialData }: PatientsClientProps) {
                         </table>
                     </div>
                 </div>
+            </div>
+
+            <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-200 p-4 flex justify-end px-8 z-40">
+                <Button
+                    variant="outline"
+                    className="h-10 border-slate-200 text-slate-500 font-bold"
+                    onClick={printJson}
+                >
+                    Imprimir JSON (Pacientes)
+                </Button>
             </div>
 
         </div>
