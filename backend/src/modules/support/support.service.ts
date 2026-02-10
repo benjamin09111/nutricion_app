@@ -11,10 +11,13 @@ export class SupportService {
     ) { }
 
     async create(data: { email: string; message?: string; type: string; subject?: string }) {
-        // Map frontend types to DB enum (temporary until DB migration)
-        let dbType: SupportRequestType = 'OTHER';
-        if (data.type === 'PASSWORD_RESET') dbType = 'PASSWORD_RESET';
-        if (data.type === 'CONTACT') dbType = 'CONTACT';
+        // Map frontend types to DB enum
+        let dbType: SupportRequestType = SupportRequestType.OTHER;
+        if (data.type === 'PASSWORD_RESET') dbType = SupportRequestType.PASSWORD_RESET;
+        if (data.type === 'CONTACT') dbType = SupportRequestType.CONTACT;
+        if (data.type === 'FEEDBACK') dbType = SupportRequestType.FEEDBACK;
+        if (data.type === 'COMPLAINT') dbType = SupportRequestType.COMPLAINT;
+        if (data.type === 'IDEA') dbType = SupportRequestType.IDEA;
 
         // 1. Save request to DB
         // We prepend the subject to the message for storage context
@@ -25,7 +28,7 @@ export class SupportService {
                 email: data.email,
                 message: fullMessage,
                 type: dbType,
-                status: 'PENDING'
+                status: SupportRequestStatus.PENDING
             }
         });
 
@@ -49,7 +52,13 @@ export class SupportService {
     async resolve(id: string) {
         return this.prisma.supportRequest.update({
             where: { id },
-            data: { status: 'RESOLVED' }
+            data: { status: SupportRequestStatus.RESOLVED }
+        });
+    }
+
+    async remove(id: string) {
+        return this.prisma.supportRequest.delete({
+            where: { id }
         });
     }
 }

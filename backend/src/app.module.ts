@@ -21,6 +21,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
 import { HttpLoggerMiddleware } from './common/middleware/http-logger.middleware';
 import { MiddlewareConsumer, NestModule } from '@nestjs/common';
+// import { AnnouncementsModule } from './modules/announcements/announcements.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -40,11 +42,13 @@ import { MiddlewareConsumer, NestModule } from '@nestjs/common';
     MetricsModule,
     IngredientGroupsModule,
     RecipesModule,
+    // AnnouncementsModule,
     ScheduleModule.forRoot(),
     CacheModule.register({
       isGlobal: true,
       ttl: 300000, // 5 minutes default cache
     }),
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

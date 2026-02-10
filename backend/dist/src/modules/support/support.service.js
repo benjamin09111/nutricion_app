@@ -13,6 +13,7 @@ exports.SupportService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const mail_service_1 = require("../mail/mail.service");
+const client_1 = require("@prisma/client");
 let SupportService = class SupportService {
     prisma;
     mailService;
@@ -21,18 +22,24 @@ let SupportService = class SupportService {
         this.mailService = mailService;
     }
     async create(data) {
-        let dbType = 'OTHER';
+        let dbType = client_1.SupportRequestType.OTHER;
         if (data.type === 'PASSWORD_RESET')
-            dbType = 'PASSWORD_RESET';
+            dbType = client_1.SupportRequestType.PASSWORD_RESET;
         if (data.type === 'CONTACT')
-            dbType = 'CONTACT';
+            dbType = client_1.SupportRequestType.CONTACT;
+        if (data.type === 'FEEDBACK')
+            dbType = client_1.SupportRequestType.FEEDBACK;
+        if (data.type === 'COMPLAINT')
+            dbType = client_1.SupportRequestType.COMPLAINT;
+        if (data.type === 'IDEA')
+            dbType = client_1.SupportRequestType.IDEA;
         const fullMessage = data.subject ? `[${data.subject}] ${data.message}` : data.message;
         const request = await this.prisma.supportRequest.create({
             data: {
                 email: data.email,
                 message: fullMessage,
                 type: dbType,
-                status: 'PENDING'
+                status: client_1.SupportRequestStatus.PENDING
             }
         });
         await this.mailService.sendFeedback({
@@ -51,7 +58,12 @@ let SupportService = class SupportService {
     async resolve(id) {
         return this.prisma.supportRequest.update({
             where: { id },
-            data: { status: 'RESOLVED' }
+            data: { status: client_1.SupportRequestStatus.RESOLVED }
+        });
+    }
+    async remove(id) {
+        return this.prisma.supportRequest.delete({
+            where: { id }
         });
     }
 };

@@ -27,6 +27,7 @@ const recipes_module_1 = require("./modules/recipes/recipes.module");
 const schedule_1 = require("@nestjs/schedule");
 const cache_manager_1 = require("@nestjs/cache-manager");
 const http_logger_middleware_1 = require("./common/middleware/http-logger.middleware");
+const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer
@@ -59,6 +60,7 @@ exports.AppModule = AppModule = __decorate([
                 isGlobal: true,
                 ttl: 300000,
             }),
+            dashboard_module_1.DashboardModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

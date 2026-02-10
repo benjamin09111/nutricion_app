@@ -25,11 +25,20 @@ let SupportController = class SupportController {
     create(body) {
         return this.supportService.create(body);
     }
+    createFeedback(req, body) {
+        return this.supportService.create({
+            ...body,
+            email: req.user.email
+        });
+    }
     findAll() {
         return this.supportService.findAll();
     }
     resolve(id) {
         return this.supportService.resolve(id);
+    }
+    remove(id) {
+        return this.supportService.remove(id);
     }
 };
 exports.SupportController = SupportController;
@@ -40,6 +49,15 @@ __decorate([
     __metadata("design:paramtypes", [create_support_request_dto_1.CreateSupportRequestDto]),
     __metadata("design:returntype", void 0)
 ], SupportController.prototype, "create", null);
+__decorate([
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.Post)('feedback'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], SupportController.prototype, "createFeedback", null);
 __decorate([
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Get)(),
@@ -55,6 +73,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], SupportController.prototype, "resolve", null);
+__decorate([
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], SupportController.prototype, "remove", null);
 exports.SupportController = SupportController = __decorate([
     (0, common_1.Controller)('support'),
     __metadata("design:paramtypes", [support_service_1.SupportService])

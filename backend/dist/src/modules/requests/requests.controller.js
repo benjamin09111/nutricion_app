@@ -25,11 +25,22 @@ let RequestsController = class RequestsController {
     create(createDto) {
         return this.requestsService.create(createDto);
     }
-    findAll(req) {
+    findAll(req, page, limit, status, search) {
         if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
             throw new common_1.UnauthorizedException('Solo el administrador puede ver las peticiones');
         }
-        return this.requestsService.findAll();
+        return this.requestsService.findAll({
+            page: page ? Number(page) : 1,
+            limit: limit ? Number(limit) : 10,
+            status,
+            search
+        });
+    }
+    remove(id, req) {
+        if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
+            throw new common_1.UnauthorizedException('Solo el administrador puede eliminar peticiones');
+        }
+        return this.requestsService.delete(id);
     }
     getPendingCount(req) {
         if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
@@ -56,10 +67,23 @@ __decorate([
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Get)(),
     __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('page')),
+    __param(2, (0, common_1.Query)('limit')),
+    __param(3, (0, common_1.Query)('status')),
+    __param(4, (0, common_1.Query)('search')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], RequestsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], RequestsController.prototype, "remove", null);
 __decorate([
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Get)('count/pending'),

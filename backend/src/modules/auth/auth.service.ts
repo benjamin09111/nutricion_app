@@ -17,7 +17,7 @@ export class AuthService {
         private mailService: MailService,
     ) { }
 
-    async createAccount(email: string, role: UserRole, fullName: string = 'Usuario') {
+    async createAccount(email: string, role: UserRole, fullName: string = 'Usuario', adminMessage?: string) {
         const normalizedEmail = email.toLowerCase().trim();
         const existingAccount = await this.prisma.account.findUnique({
             where: { email: normalizedEmail },
@@ -51,7 +51,7 @@ export class AuthService {
             });
 
             // SEND REAL EMAIL
-            await this.mailService.sendWelcomeEmail(email, fullName, password);
+            await this.mailService.sendWelcomeEmail(email, fullName, password, adminMessage);
 
             return {
                 success: true,
@@ -146,8 +146,8 @@ export class AuthService {
                 greetingName = 'Admin General';
             }
 
-            // Reuse welcome email or create a specific reset one later
-            await this.mailService.sendWelcomeEmail(email, greetingName, password);
+            // Use specific password reset email
+            await this.mailService.sendPasswordResetEmail(email, greetingName, password);
 
             return {
                 success: true,

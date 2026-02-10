@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f5;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            background-color: #bc1c1c;
+            padding: 40px 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .content {
+            padding: 40px;
+            color: #374151;
+            line-height: 1.6;
+        }
+
+        .welcome-text {
+            font-size: 20px;
+            font-weight: bold;
+            color: #111827;
+            margin-bottom: 20px;
+        }
+
+        .footer {
+            background-color: #f8fafc;
+            padding: 25px;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 14px;
+            border-top: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">NutriSaaS</div>
+            <p style="margin-top: 10px; opacity: 0.9;">Plataforma Integral para Nutricionistas</p>
+        </div>
+        <div class="content">
+            <p class="welcome-text">Hola, {{name}}</p>
+            <p>Hemos revisado tu solicitud de registro en <strong>NutriSaaS</strong>.</p>
+            <p>Lamentamos informarte que tu solicitud <span style="color: #ef4444; font-weight: bold;">no ha sido
+                    aprobada</span> en esta ocasión.</p>
+
+            {{#if adminMessage}}
+            <div
+                style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 0; color: #991b1b; font-weight: bold; font-size: 14px;">Motivo del rechazo / Nota del
+                    Administrador:</p>
+                <p style="margin: 5px 0 0; color: #b91c1c; font-style: italic;">"{{adminMessage}}"</p>
+            </div>
+            {{/if}}
+
+            <p>Si consideras que esto es un error o deseas proporcionar más información, por favor responde a este
+                correo o contáctanos a través de nuestro soporte.</p>
+        </div>
+        <div class="footer">
+            &copy; {{year}} NutriSaaS. Todos los derechos reservados.<br>
+            Santiago, Chile.
+        </div>
+    </div>
+</body>
+
+</html>

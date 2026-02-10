@@ -28,6 +28,13 @@
             <p>Es un placer darte la bienvenida a <span class="accent">NutriSaaS</span>. Tu cuenta como profesional ha sido creada con éxito por nuestro equipo administrativo.</p>
             <p>Ya puedes acceder a la plataforma para gestionar tus pacientes, crear dietas y optimizar tu consulta con nuestras herramientas de IA.</p>
             
+            {{#if adminMessage}}
+            <div style="background-color: #fce7f3; border-left: 4px solid #db2777; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 0; color: #831843; font-weight: bold; font-size: 14px;">Nota del Administrador:</p>
+                <p style="margin: 5px 0 0; color: #be185d; font-style: italic;">"{{adminMessage}}"</p>
+            </div>
+            {{/if}}
+
             <div class="credentials">
                 <div class="credential-item">
                     <span class="label">Usuario:</span>

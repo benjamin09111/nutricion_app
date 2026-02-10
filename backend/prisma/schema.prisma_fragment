@@ -1,0 +1,14 @@
+
+model Announcement {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  type      String   @default("info")
+  link      String?
+  targetRoles String[] // ['ALL'], ['ADMIN'], ['NUTRITIONIST']
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("announcements")
+}

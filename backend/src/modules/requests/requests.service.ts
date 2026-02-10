@@ -48,9 +48,66 @@ export class RequestsService {
         };
     }
 
-    async findAll() {
-        return this.prisma.registrationRequest.findMany({
-            orderBy: { createdAt: 'desc' },
+    async findAll(params: {
+        page?: number;
+        limit?: number;
+        status?: 'PENDING' | 'ACCEPTED' | 'APPROVED' | 'REJECTED' | 'ALL_ACCEPTED';
+        search?: string;
+    } = {}) {
+        const { page = 1, limit = 10, status, search } = params;
+        const skip = (page - 1) * limit;
+
+        const where: any = {};
+
+        // Status filter
+        if (status) {
+            if (status === 'ALL_ACCEPTED') {
+                where.status = { in: ['ACCEPTED', 'APPROVED'] };
+            } else {
+                where.status = status;
+            }
+        }
+
+        // Search filter
+        if (search) {
+            where.OR = [
+                { fullName: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
+            ];
+        }
+
+        const [data, total, pendingCount, acceptedCount, rejectedCount] = await Promise.all([
+            this.prisma.registrationRequest.findMany({
+                where,
+                skip,
+                take: Number(limit),
+                orderBy: { createdAt: 'desc' },
+            }),
+            this.prisma.registrationRequest.count({ where }),
+            this.prisma.registrationRequest.count({ where: { status: 'PENDING' } }),
+            this.prisma.registrationRequest.count({ where: { status: { in: ['ACCEPTED', 'APPROVED'] } } }),
+            this.prisma.registrationRequest.count({ where: { status: 'REJECTED' } }),
+        ]);
+
+        return {
+            data,
+            meta: {
+                total,
+                page: Number(page),
+                limit: Number(limit),
+                totalPages: Math.ceil(total / limit),
+                counts: {
+                    pending: pendingCount,
+                    accepted: acceptedCount,
+                    rejected: rejectedCount
+                }
+            }
+        };
+    }
+
+    async delete(id: string) {
+        return this.prisma.registrationRequest.delete({
+            where: { id }
         });
     }
 
@@ -90,10 +147,12 @@ export class RequestsService {
 
             // Utilize centralized AuthService to create account and profile
             try {
+                // This method ALREADY generates a random password, creates the account and sends the welcome email with credentials
                 await this.authService.createAccount(
                     request.email,
                     'NUTRITIONIST',
-                    request.fullName
+                    request.fullName,
+                    adminNotes
                 );
 
                 // Update Request Status
@@ -102,11 +161,15 @@ export class RequestsService {
                     data: { status, adminNotes }
                 });
 
-                return { success: true, message: 'Solicitud aceptada: Cuenta creada y credenciales enviadas.' };
+                return { success: true, message: 'Solicitud aceptada y credenciales enviadas automáticamente al correo.' };
             } catch (error: any) {
                 console.error("Error confirming request:", error);
                 throw new BadRequestException("Error al crear la cuenta: " + error.message);
             }
+        }
+
+        if (status === 'REJECTED') {
+            await this.mailService.sendRejectionEmail(request.email, request.fullName, adminNotes);
         }
 
         // Standard update for other cases (Rejection or moving back to pending)

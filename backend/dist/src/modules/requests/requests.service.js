@@ -49,9 +49,54 @@ let RequestsService = class RequestsService {
             message: 'Solicitud enviada correctamente. Revisaremos tus datos y te contactaremos.',
         };
     }
-    async findAll() {
-        return this.prisma.registrationRequest.findMany({
-            orderBy: { createdAt: 'desc' },
+    async findAll(params = {}) {
+        const { page = 1, limit = 10, status, search } = params;
+        const skip = (page - 1) * limit;
+        const where = {};
+        if (status) {
+            if (status === 'ALL_ACCEPTED') {
+                where.status = { in: ['ACCEPTED', 'APPROVED'] };
+            }
+            else {
+                where.status = status;
+            }
+        }
+        if (search) {
+            where.OR = [
+                { fullName: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
+            ];
+        }
+        const [data, total, pendingCount, acceptedCount, rejectedCount] = await Promise.all([
+            this.prisma.registrationRequest.findMany({
+                where,
+                skip,
+                take: Number(limit),
+                orderBy: { createdAt: 'desc' },
+            }),
+            this.prisma.registrationRequest.count({ where }),
+            this.prisma.registrationRequest.count({ where: { status: 'PENDING' } }),
+            this.prisma.registrationRequest.count({ where: { status: { in: ['ACCEPTED', 'APPROVED'] } } }),
+            this.prisma.registrationRequest.count({ where: { status: 'REJECTED' } }),
+        ]);
+        return {
+            data,
+            meta: {
+                total,
+                page: Number(page),
+                limit: Number(limit),
+                totalPages: Math.ceil(total / limit),
+                counts: {
+                    pending: pendingCount,
+                    accepted: acceptedCount,
+                    rejected: rejectedCount
+                }
+            }
+        };
+    }
+    async delete(id) {
+        return this.prisma.registrationRequest.delete({
+            where: { id }
         });
     }
     async findOne(id) {
@@ -82,17 +127,20 @@ let RequestsService = class RequestsService {
                 return { success: true, message: 'La cuenta ya existía. Solicitud marcada como aceptada.' };
             }
             try {
-                await this.authService.createAccount(request.email, 'NUTRITIONIST', request.fullName);
+                await this.authService.createAccount(request.email, 'NUTRITIONIST', request.fullName, adminNotes);
                 await this.prisma.registrationRequest.update({
                     where: { id },
                     data: { status, adminNotes }
                 });
-                return { success: true, message: 'Solicitud aceptada: Cuenta creada y credenciales enviadas.' };
+                return { success: true, message: 'Solicitud aceptada y credenciales enviadas automáticamente al correo.' };
             }
             catch (error) {
                 console.error("Error confirming request:", error);
                 throw new common_1.BadRequestException("Error al crear la cuenta: " + error.message);
             }
+        }
+        if (status === 'REJECTED') {
+            await this.mailService.sendRejectionEmail(request.email, request.fullName, adminNotes);
         }
         return this.prisma.registrationRequest.update({
             where: { id },

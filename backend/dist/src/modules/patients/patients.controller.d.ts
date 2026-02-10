@@ -6,12 +6,12 @@ export declare class PatientsController {
     constructor(patientsService: PatientsService);
     create(req: any, createPatientDto: CreatePatientDto): Promise<{
         id: string;
-        email: string | null;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
+        email: string | null;
         fullName: string;
         phone: string | null;
-        nutritionistId: string;
         documentId: string | null;
         birthDate: Date | null;
         gender: string | null;
@@ -21,12 +21,12 @@ export declare class PatientsController {
     findAll(req: any, page?: string, limit?: string, search?: string): Promise<{
         data: {
             id: string;
-            email: string | null;
+            nutritionistId: string;
             createdAt: Date;
             updatedAt: Date;
+            email: string | null;
             fullName: string;
             phone: string | null;
-            nutritionistId: string;
             documentId: string | null;
             birthDate: Date | null;
             gender: string | null;
@@ -41,12 +41,12 @@ export declare class PatientsController {
     }>;
     findOne(req: any, id: string): Promise<{
         id: string;
-        email: string | null;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
+        email: string | null;
         fullName: string;
         phone: string | null;
-        nutritionistId: string;
         documentId: string | null;
         birthDate: Date | null;
         gender: string | null;
@@ -55,12 +55,12 @@ export declare class PatientsController {
     }>;
     update(req: any, id: string, updatePatientDto: UpdatePatientDto): Promise<{
         id: string;
-        email: string | null;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
+        email: string | null;
         fullName: string;
         phone: string | null;
-        nutritionistId: string;
         documentId: string | null;
         birthDate: Date | null;
         gender: string | null;
@@ -69,12 +69,12 @@ export declare class PatientsController {
     }>;
     remove(req: any, id: string): Promise<{
         id: string;
-        email: string | null;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
+        email: string | null;
         fullName: string;
         phone: string | null;
-        nutritionistId: string;
         documentId: string | null;
         birthDate: Date | null;
         gender: string | null;

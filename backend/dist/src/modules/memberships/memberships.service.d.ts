@@ -4,10 +4,10 @@ export declare class MembershipsService {
     constructor(prisma: PrismaService);
     findAll(): Promise<{
         price: number;
+        name: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         slug: string;
         description: string | null;
         currency: string;
@@ -21,10 +21,10 @@ export declare class MembershipsService {
     }[]>;
     findActive(): Promise<{
         price: number;
+        name: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         slug: string;
         description: string | null;
         currency: string;
@@ -38,10 +38,10 @@ export declare class MembershipsService {
     }[]>;
     findOne(id: string): Promise<{
         price: number;
+        name: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         slug: string;
         description: string | null;
         currency: string;
@@ -67,11 +67,11 @@ export declare class MembershipsService {
         isActive?: boolean;
         displayOrder?: number;
     }): Promise<{
+        name: string;
+        price: import("@prisma/client/runtime/library").Decimal;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
-        price: import("@prisma/client/runtime/library").Decimal;
         slug: string;
         description: string | null;
         currency: string;
@@ -97,11 +97,11 @@ export declare class MembershipsService {
         isActive?: boolean;
         displayOrder?: number;
     }): Promise<{
+        name: string;
+        price: import("@prisma/client/runtime/library").Decimal;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
-        price: import("@prisma/client/runtime/library").Decimal;
         slug: string;
         description: string | null;
         currency: string;
@@ -114,11 +114,11 @@ export declare class MembershipsService {
         displayOrder: number;
     }>;
     remove(id: string): Promise<{
+        name: string;
+        price: import("@prisma/client/runtime/library").Decimal;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
-        price: import("@prisma/client/runtime/library").Decimal;
         slug: string;
         description: string | null;
         currency: string;
@@ -131,11 +131,11 @@ export declare class MembershipsService {
         displayOrder: number;
     }>;
     toggleActive(id: string): Promise<{
+        name: string;
+        price: import("@prisma/client/runtime/library").Decimal;
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
-        price: import("@prisma/client/runtime/library").Decimal;
         slug: string;
         description: string | null;
         currency: string;

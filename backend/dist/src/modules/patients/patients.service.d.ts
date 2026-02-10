@@ -6,12 +6,12 @@ export declare class PatientsService {
     constructor(prisma: PrismaService);
     create(nutritionistId: string, createPatientDto: CreatePatientDto): Promise<{
         id: string;
-        email: string | null;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
+        email: string | null;
         fullName: string;
         phone: string | null;
-        nutritionistId: string;
         documentId: string | null;
         birthDate: Date | null;
         gender: string | null;
@@ -21,12 +21,12 @@ export declare class PatientsService {
     findAll(nutritionistId: string, page?: number, limit?: number, search?: string): Promise<{
         data: {
             id: string;
-            email: string | null;
+            nutritionistId: string;
             createdAt: Date;
             updatedAt: Date;
+            email: string | null;
             fullName: string;
             phone: string | null;
-            nutritionistId: string;
             documentId: string | null;
             birthDate: Date | null;
             gender: string | null;
@@ -41,12 +41,12 @@ export declare class PatientsService {
     }>;
     findOne(nutritionistId: string, id: string): Promise<{
         id: string;
-        email: string | null;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
+        email: string | null;
         fullName: string;
         phone: string | null;
-        nutritionistId: string;
         documentId: string | null;
         birthDate: Date | null;
         gender: string | null;
@@ -55,12 +55,12 @@ export declare class PatientsService {
     }>;
     update(nutritionistId: string, id: string, updatePatientDto: UpdatePatientDto): Promise<{
         id: string;
-        email: string | null;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
+        email: string | null;
         fullName: string;
         phone: string | null;
-        nutritionistId: string;
         documentId: string | null;
         birthDate: Date | null;
         gender: string | null;
@@ -69,12 +69,12 @@ export declare class PatientsService {
     }>;
     remove(nutritionistId: string, id: string): Promise<{
         id: string;
-        email: string | null;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
+        email: string | null;
         fullName: string;
         phone: string | null;
-        nutritionistId: string;
         documentId: string | null;
         birthDate: Date | null;
         gender: string | null;

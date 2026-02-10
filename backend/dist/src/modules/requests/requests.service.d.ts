@@ -11,25 +11,56 @@ export declare class RequestsService {
         success: boolean;
         message: string;
     }>;
-    findAll(): Promise<{
+    findAll(params?: {
+        page?: number;
+        limit?: number;
+        status?: 'PENDING' | 'ACCEPTED' | 'APPROVED' | 'REJECTED' | 'ALL_ACCEPTED';
+        search?: string;
+    }): Promise<{
+        data: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            email: string;
+            status: import(".prisma/client").$Enums.RequestStatus;
+            fullName: string;
+            professionalId: string | null;
+            specialty: string | null;
+            phone: string | null;
+            message: string | null;
+            adminNotes: string | null;
+        }[];
+        meta: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+            counts: {
+                pending: number;
+                accepted: number;
+                rejected: number;
+            };
+        };
+    }>;
+    delete(id: string): Promise<{
         id: string;
-        email: string;
-        status: import(".prisma/client").$Enums.RequestStatus;
         createdAt: Date;
         updatedAt: Date;
+        email: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
         fullName: string;
         professionalId: string | null;
         specialty: string | null;
         phone: string | null;
         message: string | null;
         adminNotes: string | null;
-    }[]>;
+    }>;
     findOne(id: string): Promise<{
         id: string;
-        email: string;
-        status: import(".prisma/client").$Enums.RequestStatus;
         createdAt: Date;
         updatedAt: Date;
+        email: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
         fullName: string;
         professionalId: string | null;
         specialty: string | null;
@@ -40,10 +71,10 @@ export declare class RequestsService {
     getPendingCount(): Promise<number>;
     updateStatus(id: string, status: 'PENDING' | 'ACCEPTED' | 'APPROVED' | 'REJECTED', adminNotes?: string): Promise<{
         id: string;
-        email: string;
-        status: import(".prisma/client").$Enums.RequestStatus;
         createdAt: Date;
         updatedAt: Date;
+        email: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
         fullName: string;
         professionalId: string | null;
         specialty: string | null;

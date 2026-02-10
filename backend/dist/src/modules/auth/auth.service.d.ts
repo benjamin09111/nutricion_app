@@ -9,7 +9,7 @@ export declare class AuthService {
     private jwtService;
     private mailService;
     constructor(prisma: PrismaService, jwtService: JwtService, mailService: MailService);
-    createAccount(email: string, role: UserRole, fullName?: string): Promise<{
+    createAccount(email: string, role: UserRole, fullName?: string, adminMessage?: string): Promise<{
         success: boolean;
         message: string;
     }>;
@@ -48,12 +48,12 @@ export declare class AuthService {
         } | null;
     } & {
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         email: string;
         password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
         status: import(".prisma/client").$Enums.AccountStatus;
-        createdAt: Date;
-        updatedAt: Date;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
     }) | null>;

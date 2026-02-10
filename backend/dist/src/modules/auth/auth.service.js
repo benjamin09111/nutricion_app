@@ -58,7 +58,7 @@ let AuthService = class AuthService {
         this.jwtService = jwtService;
         this.mailService = mailService;
     }
-    async createAccount(email, role, fullName = 'Usuario') {
+    async createAccount(email, role, fullName = 'Usuario', adminMessage) {
         const normalizedEmail = email.toLowerCase().trim();
         const existingAccount = await this.prisma.account.findUnique({
             where: { email: normalizedEmail },
@@ -86,7 +86,7 @@ let AuthService = class AuthService {
                     });
                 }
             });
-            await this.mailService.sendWelcomeEmail(email, fullName, password);
+            await this.mailService.sendWelcomeEmail(email, fullName, password, adminMessage);
             return {
                 success: true,
                 message: 'Cuenta creada. Las credenciales han sido enviadas al correo especificado.',
@@ -168,7 +168,7 @@ let AuthService = class AuthService {
             else if (['ADMIN', 'ADMIN_GENERAL'].includes(account.role)) {
                 greetingName = 'Admin General';
             }
-            await this.mailService.sendWelcomeEmail(email, greetingName, password);
+            await this.mailService.sendPasswordResetEmail(email, greetingName, password);
             return {
                 success: true,
                 message: 'Contraseña restablecida. Las nuevas credenciales han sido enviadas al correo especificado.',
