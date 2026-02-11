@@ -39,11 +39,29 @@ model Nutritionist {
   ingredientGroups      IngredientGroup[]
   ingredientPreferences IngredientPreference[]
   customIngredients     Ingredient[]
+  creations             Creation[]
   account               Account                @relation(fields: [accountId], references: [id], onDelete: Cascade)
   patients              Patient[]
   recipes               Recipe[]
 
   @@map("nutritionists")
+}
+
+model Creation {
+  id             String       @id @default(uuid())
+  nutritionistId String       @map("nutritionist_id")
+  name           String
+  type           String       // DIET, RECIPE, SHOPPING_LIST
+  format         String       @default("NATIVE") // 'NATIVE' (JSON backed) | 'PDF' (External/Legacy)
+  content        Json         // The Source of Truth
+  metadata       Json?        // Summary fields for fast searching (calories, tags)
+  tags           String[]     @default([])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+
+  @@index([nutritionistId])
+  @@map("creations")
 }
 
 model Patient {

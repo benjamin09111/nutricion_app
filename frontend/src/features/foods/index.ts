@@ -72,6 +72,11 @@ export interface MarketPrice {
     fechaTermino?: string;
     calorias?: number;
     proteinas?: number;
+    carbohidratos?: number;
+    lipidos?: number;
+    azucares?: number;
+    fibra?: number;
+    sodio?: number;
     tags?: string[];
 }
 

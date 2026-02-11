@@ -50,16 +50,41 @@ let IngredientGroupsService = class IngredientGroupsService {
         });
     }
     async findAll(nutritionistId) {
-        return this.prisma.ingredientGroup.findMany({
+        const groups = await this.prisma.ingredientGroup.findMany({
             where: {
                 nutritionistId
             },
             include: {
                 tags: true,
+                entries: {
+                    include: {
+                        ingredient: {
+                            include: {
+                                brand: true,
+                                category: true,
+                                preferences: {
+                                    where: { nutritionistId }
+                                }
+                            }
+                        }
+                    }
+                },
                 _count: { select: { entries: true } }
             },
             orderBy: { updatedAt: 'desc' }
         });
+        return groups.map(group => ({
+            ...group,
+            ingredients: (group.entries || [])
+                .filter(entry => entry.ingredient)
+                .map(entry => ({
+                ingredient: entry.ingredient,
+                brandSuggestion: entry.brandSuggestion,
+                amount: entry.amount,
+                unit: entry.unit,
+                entryId: entry.id
+            }))
+        }));
     }
     async findOne(id, nutritionistId) {
         const group = await this.prisma.ingredientGroup.findUnique({

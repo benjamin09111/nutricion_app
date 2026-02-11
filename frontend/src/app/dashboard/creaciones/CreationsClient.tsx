@@ -16,11 +16,16 @@ import {
     UploadCloud,
     X,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 import { Creation, CreationType } from '@/features/creations';
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -40,38 +45,86 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [localCreations, setLocalCreations] = useState<Creation[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const itemsPerPage = 7;
+
+    const mapBackendTypeToFrontend = (type: string): CreationType => {
+        switch (type) {
+            case 'DIET': return CreationType.DIET;
+            case 'SHOPPING_LIST': return CreationType.SHOPPING_LIST;
+            case 'RECIPE': return CreationType.RECIPE;
+            default: return CreationType.OTHER;
+        }
+    };
 
     // Modal State
     const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+    const [viewModalOpen, setViewModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<Creation | null>(null);
+    const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+    const [fullCreationData, setFullCreationData] = useState<any | null>(null);
+    const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
     const handleDownloadClick = (item: Creation) => {
         setSelectedItem(item);
         setDownloadModalOpen(true);
     };
 
-    useEffect(() => {
-        // Mock checking "pending drafts" or recently created items
-        const raw = localStorage.getItem('currentDietStep');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                const draft: Creation = {
-                    id: 'draft-1',
-                    name: `${parsed.dietName} (Borrador)`,
-                    type: CreationType.DIET,
-                    createdAt: 'Recién creado',
-                    size: 'N/A',
-                    format: 'JSON',
-                    tags: parsed.dietTags || ['Borrador']
-                };
-                setLocalCreations([draft]);
-            } catch (e) { console.error('Error parsing draft', e) }
+    const handleViewClick = async (item: Creation) => {
+        setSelectedItem(item);
+        setViewModalOpen(true);
+        setIsLoadingDetails(true);
+        try {
+            const token = Cookies.get('auth_token');
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+            const response = await fetch(`${apiUrl}/creations/${item.id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setFullCreationData(data);
+            }
+        } catch (error) {
+            console.error('Error fetching creation details:', error);
+        } finally {
+            setIsLoadingDetails(false);
         }
+    };
+
+    useEffect(() => {
+        const fetchCreations = async () => {
+            setIsLoading(true);
+            try {
+                const token = Cookies.get('auth_token');
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+                const response = await fetch(`${apiUrl}/creations`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    const mappedData = data.map((item: any) => ({
+                        id: item.id,
+                        name: item.name,
+                        type: mapBackendTypeToFrontend(item.type),
+                        createdAt: new Date(item.createdAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+                        size: 'N/A',
+                        format: item.format === 'NATIVE' ? 'JSON' : 'PDF',
+                        tags: item.tags || []
+                    }));
+                    setLocalCreations(mappedData);
+                }
+            } catch (error) {
+                console.error('Error fetching creations:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchCreations();
     }, []);
 
-    const allData = useMemo(() => [...localCreations, ...initialData], [localCreations, initialData]);
+    const allData = useMemo(() => localCreations, [localCreations]);
 
     const allTags = useMemo(() => {
         const tags = new Set<string>();
@@ -133,6 +186,36 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
             default:
                 // Fallback
                 console.warn("Edit not implemented for type", item.type);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        setItemToDelete(id);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+
+        try {
+            const token = Cookies.get('auth_token');
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+            const response = await fetch(`${apiUrl}/creations/${itemToDelete}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                setLocalCreations(prev => prev.filter(c => c.id !== itemToDelete));
+                toast.success('Creación eliminada correctamente');
+            } else {
+                toast.error('No se pudo eliminar la creación');
+            }
+        } catch (error) {
+            console.error('Error deleting creation:', error);
+            toast.error('Error al conectar con el servidor');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setItemToDelete(null);
         }
     };
 
@@ -214,7 +297,16 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50 bg-white">
-                            {paginatedData.length > 0 ? (
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan={5} className="text-center py-24">
+                                        <div className="flex flex-col items-center justify-center space-y-3">
+                                            <Loader2 className="h-10 w-10 text-emerald-500 animate-spin" />
+                                            <p className="text-sm font-bold text-slate-500">Cargando tus creaciones...</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : paginatedData.length > 0 ? (
                                 paginatedData.map((item) => (
                                     <tr key={item.id} className="hover:bg-emerald-50/20 transition-colors group">
                                         <td className="px-6 py-4">
@@ -259,7 +351,11 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-1">
-                                                <button className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer" title="Previsualizar">
+                                                <button
+                                                    onClick={() => handleViewClick(item)}
+                                                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
+                                                    title="Previsualizar"
+                                                >
                                                     <Eye className="h-4 w-4" />
                                                 </button>
                                                 <button
@@ -277,7 +373,11 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                                                     <Download className="h-4 w-4" />
                                                 </button>
                                                 <div className="w-px h-4 bg-slate-200 mx-1" />
-                                                <button className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer" title="Eliminar">
+                                                <button
+                                                    onClick={() => handleDelete(item.id)}
+                                                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                                                    title="Eliminar"
+                                                >
                                                     <Trash2 className="h-4 w-4" />
                                                 </button>
                                             </div>
@@ -380,6 +480,143 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                     </div>
                 </div>
             )}
+            {/* View Modal */}
+            <Modal
+                isOpen={viewModalOpen}
+                onClose={() => {
+                    setViewModalOpen(false);
+                    setFullCreationData(null);
+                }}
+                title="Detalles de la Creación"
+            >
+                <div className="space-y-6">
+                    {isLoadingDetails ? (
+                        <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                            <Loader2 className="h-10 w-10 text-emerald-500 animate-spin" />
+                            <p className="text-sm font-bold text-slate-500">Cargando detalles...</p>
+                        </div>
+                    ) : fullCreationData ? (
+                        <div className="space-y-6">
+                            {/* Cabecera del Resumen */}
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-start gap-4">
+                                <div className={cn("p-3 rounded-xl bg-white shadow-sm border border-slate-200", getTypeStyles(mapBackendTypeToFrontend(fullCreationData.type)))}>
+                                    {getTypeIcon(mapBackendTypeToFrontend(fullCreationData.type))}
+                                </div>
+                                <div className="space-y-1">
+                                    <h3 className="text-lg font-black text-slate-900 leading-tight">{fullCreationData.name}</h3>
+                                    <div className="flex flex-wrap gap-1.5 pt-1">
+                                        {fullCreationData.tags?.map((tag: string) => (
+                                            <span key={tag} className="px-2 py-0.5 bg-white text-slate-500 border border-slate-200 rounded text-[10px] font-bold uppercase tracking-wider">
+                                                #{tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Contenido (Alimentos) */}
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                        <FileText className="h-4 w-4" />
+                                        Alimentos Incluidos
+                                    </h4>
+                                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tight">
+                                        {fullCreationData.metadata?.foodCount || 0} ITEMS
+                                    </span>
+                                </div>
+
+                                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200">
+                                    {/* Aquí mostramos un resumen simplificado de los alimentos */}
+                                    {/* Nota: En DIET, el content tiene foodStatus y manualAdditions */}
+                                    {fullCreationData.type === 'DIET' && (
+                                        <div className="space-y-4">
+                                            {(() => {
+                                                const foodMap: Record<string, string[]> = {};
+
+                                                // Prioridad 1: Usar foodSummary de metadata (versión nueva)
+                                                if (fullCreationData.metadata?.foodSummary) {
+                                                    fullCreationData.metadata.foodSummary.forEach((f: any) => {
+                                                        if (!foodMap[f.group]) foodMap[f.group] = [];
+                                                        foodMap[f.group].push(f.name);
+                                                    });
+                                                }
+                                                // Prioridad 2: Usar manualAdditions (versión antigua)
+                                                else if (fullCreationData.content?.manualAdditions) {
+                                                    fullCreationData.content.manualAdditions.forEach((ma: any) => {
+                                                        if (!foodMap[ma.grupo]) foodMap[ma.grupo] = [];
+                                                        foodMap[ma.grupo].push(ma.producto);
+                                                    });
+                                                }
+
+                                                if (Object.keys(foodMap).length === 0) {
+                                                    return (
+                                                        <div className="py-4 text-center">
+                                                            <p className="text-sm text-slate-400 italic">No hay detalles específicos guardados para los alimentos en este resumen.</p>
+                                                        </div>
+                                                    );
+                                                }
+
+                                                return Object.entries(foodMap).map(([group, products]) => (
+                                                    <div key={group} className="space-y-2">
+                                                        <h5 className="text-[10px] font-black text-slate-500 uppercase bg-slate-100 px-2 py-1 rounded inline-block">{group}</h5>
+                                                        <ul className="grid grid-cols-1 gap-1 pl-1">
+                                                            {products.map((p, idx) => (
+                                                                <li key={idx} className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                                                    <div className="h-1 w-1 bg-emerald-400 rounded-full" />
+                                                                    {p}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                ));
+                                            })()}
+                                        </div>
+                                    )}
+
+                                    {fullCreationData.type !== 'DIET' && (
+                                        <div className="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                            <p className="text-sm text-slate-400">Resumen detallado próximamente para este tipo de creación.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-slate-100 flex gap-3">
+                                <Button
+                                    className="flex-1 bg-slate-900 hover:bg-slate-800 h-11 text-white font-black rounded-xl"
+                                    onClick={() => handleEdit(selectedItem!)}
+                                >
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Cargar en Diseñador
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="h-11 border-slate-200 text-slate-600 font-bold px-4 rounded-xl"
+                                    onClick={() => setViewModalOpen(false)}
+                                >
+                                    Cerrar
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-12">
+                            <p className="text-slate-500 font-medium text-sm">No se pudieron cargar los datos de la creación.</p>
+                        </div>
+                    )}
+                </div>
+            </Modal>
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Eliminar Creación"
+                description="¿Estás seguro de que deseas eliminar esta creación? Esta acción no se puede deshacer."
+                confirmText="Eliminar"
+                cancelText="Cancelar"
+                variant="destructive"
+            />
         </div>
     );
 }

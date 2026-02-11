@@ -48,12 +48,12 @@ export declare class AuthService {
         } | null;
     } & {
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         email: string;
         password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
         status: import(".prisma/client").$Enums.AccountStatus;
+        createdAt: Date;
+        updatedAt: Date;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
     }) | null>;

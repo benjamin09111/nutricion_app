@@ -10,10 +10,10 @@ export declare class RequestsController {
     findAll(req: any, page?: string, limit?: string, status?: 'PENDING' | 'ACCEPTED' | 'APPROVED' | 'REJECTED' | 'ALL_ACCEPTED', search?: string): Promise<{
         data: {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             email: string;
             status: import(".prisma/client").$Enums.RequestStatus;
+            createdAt: Date;
+            updatedAt: Date;
             fullName: string;
             professionalId: string | null;
             specialty: string | null;
@@ -35,10 +35,10 @@ export declare class RequestsController {
     }>;
     remove(id: string, req: any): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         email: string;
         status: import(".prisma/client").$Enums.RequestStatus;
+        createdAt: Date;
+        updatedAt: Date;
         fullName: string;
         professionalId: string | null;
         specialty: string | null;
@@ -52,10 +52,10 @@ export declare class RequestsController {
         adminNotes?: string;
     }, req: any): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         email: string;
         status: import(".prisma/client").$Enums.RequestStatus;
+        createdAt: Date;
+        updatedAt: Date;
         fullName: string;
         professionalId: string | null;
         specialty: string | null;

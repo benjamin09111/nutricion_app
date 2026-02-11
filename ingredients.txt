@@ -1,0 +1,569 @@
+Leche Materna,Lácteos,70,1.0,6.9,4.4,6.9,0.0,17.0,ml,100,0
+Leche de Burra,Lácteos,41,1.6,6.7,0.9,0.0,0.0,0.0,ml,100,0
+Leche de Cabra con Vit. D,Lácteos,69,3.6,4.5,4.1,4.5,0.0,50.0,ml,100,0
+Leche Fluida Entera (USDA),Lácteos,64,3.3,4.7,3.7,0.0,0.0,49.0,ml,100,0
+Leche Fluida Entera (INTA),Lácteos,58,3.2,5.6,2.5,0.0,0.0,59.7,ml,100,0
+Leche Entera con Sabor,Lácteos,80,2.4,10.5,2.9,0.0,0.5,59.6,ml,100,0
+Leche Semidescremada,Lácteos,42,2.6,5.1,1.3,3.2,0.0,66.0,ml,100,0
+Leche Semidescremada con Sabor,Lácteos,76,3.0,11.4,1.9,9.6,0.7,66.0,ml,100,0
+Leche Semidescremada Sabor Chocolate,Lácteos,52,3.2,5.6,1.8,5.0,0.0,70.0,ml,100,0
+Leche Semidescremada Sabor Frutilla,Lácteos,54,3.1,6.0,1.9,5.5,0.0,60.0,ml,100,0
+Leche Semidescremada sin Lactosa,Lácteos,44,3.1,4.6,1.3,4.6,0.0,60.0,ml,100,0
+Leche Descremada (Etiquetado),Lácteos,32,3.3,4.7,0.1,4.7,0.0,32.0,ml,100,0
+Leche Descremada (INTA),Lácteos,42,3.4,5.0,1.0,5.2,0.0,44.0,ml,100,0
+Leche en Polvo 26% MG,Lácteos,489,28.6,36.7,25.3,0.0,0.0,394.6,g,100,0
+Leche en Polvo 26% MG con Vit. D,Lácteos,496,26.3,38.4,26.7,38.4,0.0,371.0,g,100,0
+Leche en Polvo 18% MG E0tra Calcio,Lácteos,454,29.1,42.7,17.9,0.0,0.0,0.0,g,100,0
+Leche en Polvo 12% MG,Lácteos,406,34.6,41.8,11.1,0.0,0.0,534.9,g,100,0
+Leche en Polvo Descremada,Lácteos,358,35.1,52.2,0.7,52.2,0.0,549.0,g,100,0
+Leche en Polvo Descremada E0tra Calcio,Lácteos,349,31.0,52.8,1.5,52.5,0.0,450.0,g,100,0
+Leche en Polvo Purita Cereal,Lácteos,454,19.4,51.2,19.1,36.8,1.7,207.0,g,100,0
+Leche Condensada,Lácteos,321,7.9,54.4,8.7,54.4,0.0,127.0,g,100,0
+Leche Evaporada,Lácteos,134,6.8,10.0,7.6,10.0,0.0,106.0,ml,100,0
+Quesillo (INTA),Lácteos,103,12.5,2.7,4.5,0.0,0.0,405.0,g,100,0
+Quesillo 0% MG,Lácteos,85,13.9,4.4,1.3,3.8,0.0,260.0,g,100,0
+Quesillo sin Sal,Lácteos,151,13.0,4.5,9.0,3.8,0.0,51.0,g,100,0
+Queso de Cabra,Lácteos,364,21.6,0.1,29.8,0.1,0.0,415.0,g,100,0
+Queso Chanco,Lácteos,356,20.8,5.1,28.0,0.1,0.0,536.0,g,100,0
+Queso Cheddar,Lácteos,404,22.9,3.1,33.3,0.5,0.0,653.0,g,100,0
+Queso Crema (USDA),Lácteos,350,6.2,5.5,34.4,3.8,0.0,314.0,g,100,0
+Queso Crema (INTA),Lácteos,218,12.0,7.3,15.6,0.0,0.0,763.0,g,100,0
+Queso Fresco (INTA),Lácteos,228,16.9,1.6,17.1,0.0,0.0,401.0,g,100,0
+Queso Fresco (Etiquetado),Lácteos,177,12.6,4.5,12.1,3.3,0.0,254.0,g,100,0
+Queso Fresco Light,Lácteos,193,13.8,3.2,13.9,0.0,0.0,363.0,g,100,0
+Queso Gouda (USDA),Lácteos,356,24.9,2.2,27.4,2.2,0.0,819.0,g,100,0
+Queso Gouda (INTA),Lácteos,341,24.8,4.8,24.7,0.0,0.0,259.0,g,100,0
+Queso Mantecoso,Lácteos,394,24.7,8.0,29.2,0.0,0.0,452.0,g,100,0
+Queso Mozzarella,Lácteos,199,13.5,2.3,15.1,1.3,0.0,507.0,g,100,0
+Queso Parmesano (INTA),Lácteos,476,47.1,5.5,29.5,0.0,0.0,1176.0,g,100,0
+Queso Parmesano (USDA),Lácteos,420,28.4,13.9,27.8,0.1,0.0,1804.0,g,100,0
+Queso Pategras,Lácteos,394,25.7,2.3,31.2,0.0,0.0,720.0,g,100,0
+Queso Reggianito,Lácteos,339,33.1,5.9,20.3,0.0,0.0,742.0,g,100,0
+Queso Suizo,Lácteos,393,27.0,1.5,31.0,0.0,0.0,187.0,g,100,0
+Queso Untable,Lácteos,303,20.0,3.3,25.0,0.0,0.0,0.0,g,100,0
+Ricota,Lácteos,174,11.3,3.0,13.0,0.3,0.0,84.0,g,100,0
+Yogurt Natural,Lácteos,61,3.5,4.7,3.3,4.7,0.0,46.0,ml,100,0
+Yogurt con Sabor,Lácteos,101,4.4,14.9,2.7,0.0,0.1,46.3,ml,100,0
+Yogurt Light,Lácteos,56,5.7,7.7,0.2,7.7,0.0,77.0,ml,100,0
+Yogurt sin Lactosa,Lácteos,53,3.0,9.3,0.4,2.0,0.0,55.0,ml,100,0
+Yogurt con Frutas,Lácteos,114,4.1,18.2,2.8,0.0,0.3,46.3,ml,100,0
+Yogurt con Frutas Bajo en Grasa,Lácteos,105,4.9,18.6,1.4,0.0,0.0,65.0,ml,100,0
+Yogurt con Fruta sin Lactosa,Lácteos,56,3.0,10.1,0.4,0.0,0.0,55.0,ml,100,0
+Tofu (USDA),Lácteos,78,9.0,2.0,4.2,0.6,0.9,12.0,g,100,0
+Tofu (INTA),Lácteos,95,10.4,8.0,2.4,0.4,0.0,73.0,g,100,0
+Huevo entero (USDA),Huevos,143,12.6,0.7,9.5,0.4,0.0,142.0,g,100,0
+Huevo entero (INTA),Huevos,149,12.4,0.3,10.9,0.1,0.0,153.0,g,100,0
+Clara de huevo,Huevos,52,10.9,0.7,0.2,0.7,0.0,166.0,g,100,0
+Yema de huevo,Huevos,322,15.9,3.6,26.5,0.6,0.0,48.0,g,100,0
+Huevo de codorniz,Huevos,158,13.1,0.4,11.1,0.4,0.0,141.0,g,100,0
+Pollo cocido (USDA),Carnes y Vísceras,176,27.3,0.0,6.7,0.0,0.0,70.0,g,100,0
+Pollo pierna (INTA),Carnes y Vísceras,199,22.4,1.5,11.5,0.0,0.0,70.0,g,100,0
+Pollo pechuga (INTA),Carnes y Vísceras,130,22.3,1.7,3.8,0.0,0.0,70.0,g,100,0
+Pollo pechuga deshuesado,Carnes y Vísceras,114,22.2,1.9,1.9,0.0,0.0,0.0,g,100,0
+Pato cocido (USDA),Carnes y Vísceras,201,23.5,0.0,11.2,0.0,0.0,65.0,g,100,0
+Pavo pierna (INTA),Carnes y Vísceras,123,22.0,1.2,3.3,0.0,0.0,70.0,g,100,0
+Pavo rostizado,Carnes y Vísceras,189,28.6,0.1,7.4,0.0,0.0,103.0,g,100,0
+Carne de cerdo,Carnes y Vísceras,293,25.1,0.0,20.7,0.0,0.0,59.1,g,100,0
+Cazuela de cerdo,Carnes y Vísceras,264,20.6,4.4,18.2,0.0,0.0,161.0,g,100,0
+Lomito de cerdo,Carnes y Vísceras,90,15.3,0.3,3.0,0.3,0.0,339.0,g,100,0
+Pierna de cerdo marinada,Carnes y Vísceras,164,16.6,0.2,10.7,0.1,0.0,204.0,g,100,0
+Chuleta de cerdo centro marinada,Carnes y Vísceras,284,13.7,0.9,25.0,0.1,0.0,156.0,g,100,0
+Chuleta de cerdo vetada marinada,Carnes y Vísceras,312,14.7,0.2,28.1,0.1,0.0,148.0,g,100,0
+Costillar de cerdo,Carnes y Vísceras,210,17.5,0.1,15.5,0.1,0.0,117.0,g,100,0
+Costillar de cerdo marinado,Carnes y Vísceras,209,17.2,0.2,15.5,0.1,0.0,154.0,g,100,0
+Chuleta de cordero,Carnes y Vísceras,129,21.4,0.2,4.7,0.0,0.0,59.1,g,100,0
+Filete de cerdo,Carnes y Vísceras,132,21.2,1.8,4.4,0.0,0.0,91.0,g,100,0
+Pulpa de cerdo,Carnes y Vísceras,152,20.6,0.2,7.6,0.0,0.0,116.0,g,100,0
+Cazuela de cordero,Carnes y Vísceras,201,18.8,5.3,11.6,0.0,0.0,142.0,g,100,0
+Pulpa de cordero,Carnes y Vísceras,144,20.4,4.7,4.8,0.0,0.0,101.0,g,100,0
+Conejo (INTA),Carnes y Vísceras,109,19.4,0.8,3.1,0.0,0.0,37.0,g,100,0
+Conejo (USDA),Carnes y Vísceras,136,20.1,0.0,5.6,0.0,0.0,41.0,g,100,0
+Conejo horneado,Carnes y Vísceras,197,29.1,0.0,8.1,0.0,0.0,47.0,g,100,0
+Filete vacuno,Carnes y Vísceras,124,21.2,1.1,3.9,0.0,0.0,180.0,g,100,0
+Guachalomo,Carnes y Vísceras,128,23.2,0.2,3.8,0.0,0.0,107.0,g,100,0
+Lomo centro marinado,Carnes y Vísceras,116,20.4,0.3,3.7,0.1,0.0,202.0,g,100,0
+Lomo liso,Carnes y Vísceras,145,23.0,0.6,5.6,0.0,0.0,73.0,g,100,0
+Lomo vetado,Carnes y Vísceras,137,21.8,1.3,4.9,0.0,0.0,75.0,g,100,0
+Asiento picana,Carnes y Vísceras,123,21.4,2.4,3.1,0.0,0.0,73.0,g,100,0
+Plateada,Carnes y Vísceras,134,20.3,0.9,5.5,0.0,0.0,76.0,g,100,0
+Pollo ganso,Carnes y Vísceras,116,22.2,1.1,2.5,0.0,0.0,76.0,g,100,0
+Posta negra,Carnes y Vísceras,130,23.6,1.8,3.1,0.0,0.0,86.0,g,100,0
+Posta rosada,Carnes y Vísceras,127,21.2,4.3,2.8,0.0,0.0,92.0,g,100,0
+Cazuela de vacuno,Carnes y Vísceras,145,22.3,0.8,5.8,0.0,0.0,129.0,g,100,0
+Carne vacuno,Carnes y Vísceras,138,23.6,1.6,3.1,0.0,0.0,86.0,g,100,0
+Carne vacuno 5% MG,Carnes y Vísceras,174,27.3,0.6,6.4,0.0,0.0,58.0,g,100,0
+Carne vacuno 10% MG,Carnes y Vísceras,176,20.0,0.0,10.0,0.0,0.0,66.0,g,100,0
+Guatita,Carnes y Vísceras,98,14.5,0.0,4.0,0.0,0.0,46.0,g,100,0
+Molleja o contre de pollo cocido,Carnes y Vísceras,146,27.1,1.1,3.7,0.0,0.0,65.0,g,100,0
+Corazón de pollo cocido,Carnes y Vísceras,185,26.4,0.1,7.9,0.0,0.0,48.0,g,100,0
+Riñón de vacuno cocido,Carnes y Vísceras,144,25.5,1.0,3.4,0.0,0.0,133.0,g,100,0
+Criadillas de vacuno,Carnes y Vísceras,66,13.1,0.6,1.2,0.0,0.0,163.0,g,100,0
+Arrollado de huaso,Carnes y Vísceras,403,27.4,0.5,32.4,0.2,0.0,417.0,g,100,0
+Proteína de soja (carne vegetal),Carnes y Vísceras,350,50.0,28.0,2.0,15.0,3.0,15.0,g,100,0
+Charqui de vacuno,Carnes y Vísceras,382,75.6,1.8,8.0,0.5,0.0,1477.0,g,100,0
+Choricillo cocido,Carnes y Vísceras,212,15.2,0.4,16.6,0.0,0.0,796.0,g,100,0
+Chorizo,Carnes y Vísceras,405,13.7,5.0,36.7,0.5,0.0,609.0,g,100,0
+Hígado de cordero cocido,Carnes y Vísceras,220,30.6,2.5,8.8,0.0,0.0,56.0,g,100,0
+Hígado de pollo cocido,Carnes y Vísceras,167,24.5,0.9,6.5,0.0,0.0,76.0,g,100,0
+Hígado de vacuno cocido,Carnes y Vísceras,191,29.1,5.1,5.3,0.0,0.0,79.0,g,100,0
+Lengua de vacuno (INTA),Carnes y Vísceras,244,20.1,8.1,14.6,0.1,0.0,362.0,g,100,0
+Lengua vacuno cocida (USDA),Carnes y Vísceras,284,19.3,0.0,22.3,0.0,0.0,65.0,g,100,0
+Ubre,Carnes y Vísceras,162,11.2,1.0,12.6,0.0,0.0,110.0,g,100,0
+Jamón de cerdo,Carnes y Vísceras,180,16.5,4.2,10.3,0.0,0.0,1039.0,g,100,0
+Jamón cerdo e0tramagro,Carnes y Vísceras,113,20.1,1.3,3.1,0.0,0.0,615.0,g,100,0
+Jamón crudo,Carnes y Vísceras,312,20.5,0.0,25.5,0.0,0.0,0.0,g,100,0
+Jamón pavo,Carnes y Vísceras,124,19.6,2.9,3.8,0.0,0.0,1038.0,g,100,0
+Jamón de pavo ahumado,Carnes y Vísceras,118,16.3,3.0,4.0,1.2,0.0,909.0,g,100,0
+Jamón pavo acaramelado,Carnes y Vísceras,83,17.9,0.4,1.1,0.0,0.0,943.0,g,100,0
+Jamón picado,Carnes y Vísceras,263,16.3,1.8,20.7,0.0,0.0,1245.0,g,100,0
+Longaniza (INTA),Carnes y Vísceras,397,14.0,2.1,36.9,0.6,0.0,587.0,g,100,0
+Longaniza (USDA),Carnes y Vísceras,346,14.3,0.6,31.3,0.0,0.0,731.0,g,100,0
+Mortadela,Carnes y Vísceras,311,16.4,3.1,25.4,0.0,0.0,1246.0,g,100,0
+Nugget de pollo,Carnes y Vísceras,248,10.7,17.8,14.9,0.0,0.0,394.0,g,100,0
+Paté (Chile),Carnes y Vísceras,429,11.5,1.3,42.0,0.0,0.0,446.0,g,100,0
+Paté (USDA),Carnes y Vísceras,462,11.4,4.7,43.8,0.0,0.0,697.0,g,100,0
+Pechuga pavo ahumado,Carnes y Vísceras,89,16.7,1.2,1.9,0.0,0.0,976.0,g,100,0
+Pechuga pavo cocida (INTA),Carnes y Vísceras,93,15.4,2.7,2.3,0.0,0.0,821.0,g,100,0
+Pechuga pavo cocida (USDA),Carnes y Vísceras,126,22.2,1.4,3.5,0.0,0.0,397.0,g,100,0
+Pechuga de pollo cocida,Carnes y Vísceras,101,17.8,2.2,2.3,0.0,0.0,810.0,g,100,0
+Pepperoni,Carnes y Vísceras,504,19.3,1.2,46.3,0.0,0.0,1582.0,g,100,0
+Pernil,Carnes y Vísceras,206,21.3,0.9,13.0,0.0,0.0,276.0,g,100,0
+Prieta (INTA),Carnes y Vísceras,253,9.1,6.1,21.4,1.0,0.0,703.0,g,100,0
+Prieta (USDA),Carnes y Vísceras,379,14.6,1.3,34.5,1.3,0.0,680.0,g,100,0
+Queso cabeza (INTA 3),Carnes y Vísceras,359,15.5,6.8,30.0,0.7,0.0,748.0,g,100,0
+Queso cabeza (INTA 2),Carnes y Vísceras,205,15.8,0.0,15.7,0.0,0.0,0.0,g,100,0
+Salame (Etiqueta),Carnes y Vísceras,426,14.5,0.7,40.6,0.5,0.0,2028.0,g,100,0
+Salame cocido,Carnes y Vísceras,261,12.6,1.9,22.2,1.5,0.0,1140.0,g,100,0
+Seso,Carnes y Vísceras,151,11.7,1.5,10.5,0.0,0.0,108.0,g,100,0
+Tocino,Carnes y Vísceras,517,29.1,0.8,44.2,0.8,0.0,1420.0,g,100,0
+Turin,Carnes y Vísceras,299,15.9,3.5,24.6,0.0,0.0,1215.0,g,100,0
+Vienesa (Etiqueta),Carnes y Vísceras,250,12.0,2.5,21.3,0.5,0.0,793.0,g,100,0
+Vienesa de pavo,Carnes y Vísceras,235,15.4,1.6,18.1,0.0,0.0,639.0,g,100,0
+Vienesa de pollo,Carnes y Vísceras,226,15.3,3.5,16.7,1.0,0.0,713.0,g,100,0
+Almeja (USDA),Pescados y Mariscos,74,12.8,2.6,1.0,0.0,0.0,56.0,g,100,0
+Almeja conserva en agua,Pescados y Mariscos,121,20.0,2.8,3.3,0.0,0.0,395.0,g,100,0
+Caracol de mar,Pescados y Mariscos,106,16.0,5.5,2.2,0.0,0.0,0.0,g,100,0
+Cholga en agua,Pescados y Mariscos,74,14.2,2.5,0.8,0.0,0.0,0.0,g,100,0
+Cholga conserva en aceite,Pescados y Mariscos,132,21.3,1.9,4.4,0.0,0.0,315.0,g,100,0
+Chorito conserva en aceite,Pescados y Mariscos,100,16.0,1.9,3.1,0.0,0.0,392.0,g,100,0
+Chorito en agua,Pescados y Mariscos,72,10.0,4.0,1.8,0.0,0.0,137.0,g,100,0
+Chorito,Pescados y Mariscos,86,11.9,3.7,2.2,0.0,0.0,286.0,g,100,0
+Erizo,Pescados y Mariscos,123,14.4,4.9,5.1,0.0,0.0,0.0,g,100,0
+Jibia,Pescados y Mariscos,181,35.0,9.8,0.2,0.0,0.0,34.7,g,100,0
+Loco,Pescados y Mariscos,113,21.7,5.5,0.5,0.0,0.0,0.0,g,100,0
+Macha en conserva en agua,Pescados y Mariscos,118,21.3,2.8,2.4,0.0,0.0,332.0,g,100,0
+Navajuela,Pescados y Mariscos,80,14.2,5.0,0.4,0.0,0.0,0.0,g,100,0
+Ostra,Pescados y Mariscos,81,9.5,5.0,2.3,0.0,0.0,106.0,g,100,0
+Piure,Pescados y Mariscos,57,8.8,3.3,0.9,0.0,0.0,0.0,g,100,0
+Camaron (USDA),Pescados y Mariscos,85,20.1,0.0,0.5,0.0,0.0,119.0,g,100,0
+Camaron congelado,Pescados y Mariscos,110,23.7,0.0,1.7,0.0,0.0,240.0,g,100,0
+Centolla,Pescados y Mariscos,87,17.4,0.2,1.8,0.0,0.0,312.0,g,100,0
+Centollón,Pescados y Mariscos,71,14.5,0.0,1.5,0.0,0.0,446.0,g,100,0
+Jaiva,Pescados y Mariscos,115,18.3,3.8,2.9,0.0,0.0,542.0,g,100,0
+Atún conserva en agua (Etiqueta),Pescados y Mariscos,120,28.0,0.0,1.4,0.0,0.0,500.0,g,100,0
+Atún conserva en agua (USDA),Pescados y Mariscos,131,29.6,0.0,0.5,0.0,0.0,356.0,g,100,0
+Atún conserva en aceite,Pescados y Mariscos,198,29.1,0.0,8.2,0.0,0.0,416.0,g,100,0
+Cojinova,Pescados y Mariscos,187,17.2,0.6,12.9,0.0,0.0,61.0,g,100,0
+Congrio colorado,Pescados y Mariscos,77,15.5,3.2,0.2,0.0,0.0,0.0,g,100,0
+Congrio dorado,Pescados y Mariscos,73,16.5,0.5,0.5,0.0,0.0,112.0,g,100,0
+Congrio negro,Pescados y Mariscos,71,15.8,1.5,0.2,0.0,0.0,0.0,g,100,0
+Corvina,Pescados y Mariscos,97,20.5,2.7,0.5,0.0,0.0,0.0,g,100,0
+Jurel (Chile 2),Pescados y Mariscos,122,21.9,0.1,3.8,0.0,0.0,72.0,g,100,0
+Jurel,Pescados y Mariscos,105,20.3,0.0,2.0,0.0,0.0,158.0,g,100,0
+Jurel conserva en agua,Pescados y Mariscos,155,23.8,0.3,6.5,0.0,0.0,444.0,g,100,0
+Jurel conserva en aceite,Pescados y Mariscos,280,22.0,0.7,21.0,0.0,0.0,450.0,g,100,0
+Lenguado (Chile 2),Pescados y Mariscos,85,18.9,1.4,0.4,0.0,0.0,81.2,g,100,0
+Lenguado (USDA),Pescados y Mariscos,70,12.4,0.0,1.9,0.0,0.0,296.0,g,100,0
+Merluza o pescada,Pescados y Mariscos,89,18.6,0.0,1.1,0.0,0.0,53.0,g,100,0
+Mero,Pescados y Mariscos,239,12.2,1.3,20.5,0.0,0.0,64.0,g,100,0
+Pejegallo,Pescados y Mariscos,89,21.3,0.3,0.3,0.0,0.0,120.0,g,100,0
+Pejerrey,Pescados y Mariscos,103,16.4,2.9,2.9,0.0,0.0,112.0,g,100,0
+Reineta,Pescados y Mariscos,105,19.3,0.9,2.7,0.0,0.0,142.0,g,100,0
+Roncador,Pescados y Mariscos,88,18.2,1.4,1.1,0.0,0.0,0.0,g,100,0
+Salmón coho fresco,Pescados y Mariscos,290,19.1,0.3,23.6,0.2,0.0,66.0,g,100,0
+Salmón (USDA),Pescados y Mariscos,146,21.6,0.0,5.9,0.0,0.0,46.0,g,100,0
+Salmón filete sin piel,Pescados y Mariscos,165,20.6,0.3,9.0,0.3,0.0,87.0,g,100,0
+Sardina conserva en aceite,Pescados y Mariscos,309,21.2,0.6,24.6,0.0,0.0,443.0,g,100,0
+Sardina española,Pescados y Mariscos,169,17.1,2.3,10.2,0.0,0.0,129.0,g,100,0
+Sierra,Pescados y Mariscos,156,22.1,6.3,4.7,0.0,0.0,0.0,g,100,0
+Trucha congelada,Pescados y Mariscos,189,19.5,1.1,11.9,0.0,0.0,174.0,g,100,0
+Trucha de cultivo,Pescados y Mariscos,131,19.6,0.5,5.6,0.0,0.0,41.0,g,100,0
+Trucha filete,Pescados y Mariscos,198,17.9,1.1,13.6,0.1,0.0,163.0,g,100,0
+Trucha fresca de mar (USDA),Pescados y Mariscos,104,16.7,0.0,3.6,0.0,0.0,58.0,g,100,0
+Kanikama,Pescados y Mariscos,118,7.3,19.4,1.3,2.4,0.0,560.0,g,100,0
+Ovas (masago),Pescados y Mariscos,33,5.6,2.6,1.1,0.0,0.0,36.1,g,100,0
+Paté de trucha ahumada,Pescados y Mariscos,288,3.4,16.5,23.2,0.9,0.0,455.0,g,100,0
+Almendras (USDA),Semillas y Nueces,579,21.2,9.0,49.9,4.4,12.5,1.0,g,100,0
+Almendras (INTA),Semillas y Nueces,578,24.0,7.3,50.3,0.0,10.9,49.0,g,100,0
+Avellana,Semillas y Nueces,628,15.0,7.0,60.8,4.3,9.7,0.0,g,100,0
+Castaña de cajú tostada,Semillas y Nueces,574,15.3,29.7,46.4,5.0,3.0,16.0,g,100,0
+Macadamia,Semillas y Nueces,718,7.9,5.2,75.8,4.6,8.6,5.0,g,100,0
+Maní,Semillas y Nueces,567,25.8,7.6,49.2,4.7,8.5,18.0,g,100,0
+Maní japonés,Semillas y Nueces,437,17.7,44.2,21.1,13.5,12.4,438.0,g,100,0
+Maní tostado salado,Semillas y Nueces,587,24.4,12.9,49.7,4.9,8.4,410.0,g,100,0
+Nueces (INTA),Semillas y Nueces,551,17.5,3.1,52.1,3.1,22.4,18.0,g,100,0
+Nueces (USDA),Semillas y Nueces,606,24.3,8.2,56.6,0.0,5.0,1.0,g,100,0
+Pistacho,Semillas y Nueces,560,20.2,16.6,45.3,7.7,10.6,1.0,g,100,0
+Castaña cruda pelada,Semillas y Nueces,369,5.0,78.4,3.9,0.0,0.0,37.0,g,100,0
+Piñón (INTA),Semillas y Nueces,180,4.5,0.0,1.1,0.0,0.0,0.0,g,100,0
+Piñón deshidratado,Semillas y Nueces,673,13.7,9.4,68.4,3.6,3.7,2.0,g,100,0
+Chía,Semillas y Nueces,486,16.5,7.7,30.7,0.0,34.4,16.0,g,100,0
+Semilla amapola,Semillas y Nueces,525,18.0,8.6,41.6,3.0,19.5,26.0,g,100,0
+Semilla sésamo tostado,Semillas y Nueces,565,17.0,11.7,48.0,0.0,14.0,11.0,g,100,0
+Semilla maravilla tostada,Semillas y Nueces,619,17.2,9.1,56.8,0.0,11.5,3.0,g,100,0
+Semilla zapallo,Semillas y Nueces,559,30.2,4.7,49.1,1.4,6.0,7.0,g,100,0
+Semilla linaza,Semillas y Nueces,418,21.9,29.6,22.2,0.0,16.1,0.0,g,100,0
+Crutones,Cereales y Derivados,407,11.9,68.4,6.6,0.0,5.1,698.0,g,100,0
+Pan blanco sin sal,Cereales y Derivados,267,8.2,47.3,3.6,4.3,2.3,298.0,g,100,0
+Pan de centeno,Cereales y Derivados,259,8.5,42.6,3.3,3.9,5.8,603.0,g,100,0
+Pan de miel,Cereales y Derivados,250,12.0,44.9,2.5,6.4,4.0,289.0,g,100,0
+Pan especial,Cereales y Derivados,212,10.2,38.4,1.9,0.0,8.4,365.0,g,100,0
+Pan hallulla,Cereales y Derivados,363,9.1,53.6,12.5,0.0,0.0,564.0,g,100,0
+Pan integral,Cereales y Derivados,252,12.5,36.7,3.5,4.3,6.0,455.0,g,100,0
+Pan marraqueta,Cereales y Derivados,272,10.8,49.7,2.4,4.6,2.2,602.0,g,100,0
+Pan molde (USDA),Cereales y Derivados,269,8.7,48.8,3.2,0.0,1.9,504.0,g,100,0
+Pan molde (INTA),Cereales y Derivados,244,8.1,49.9,1.4,0.0,3.3,466.0,g,100,0
+Pan pita blanco,Cereales y Derivados,275,9.1,53.5,1.2,0.0,2.2,536.0,g,100,0
+Pan rallado seco,Cereales y Derivados,395,13.4,67.5,5.3,6.2,4.5,732.0,g,100,0
+Pan salvado de trigo,Cereales y Derivados,248,8.8,43.8,3.4,9.7,4.0,486.0,g,100,0
+Pan trigo,Cereales y Derivados,260,8.7,44.0,3.9,0.0,5.5,538.0,g,100,0
+Tortilla para tacos,Cereales y Derivados,269,8.9,45.0,5.9,1.2,0.0,354.0,g,100,0
+Arroz blanco (INTA),Cereales y Derivados,370,6.8,78.9,0.6,0.0,2.8,7.0,g,100,0
+Arroz blanco (USDA),Cereales y Derivados,130,2.7,27.8,0.3,0.1,0.4,1.0,g,100,0
+Arroz integral cocido (INTA),Cereales y Derivados,367,7.5,72.7,3.2,0.7,3.6,5.0,g,100,0
+Arroz integral cocido (USDA),Cereales y Derivados,112,2.3,21.7,0.8,0.0,1.8,1.0,g,100,0
+Cabritas,Cereales y Derivados,387,12.9,63.3,4.5,0.9,14.5,8.0,g,100,0
+Choclo cocido,Cereales y Derivados,96,3.4,18.6,1.5,4.5,2.4,1.0,g,100,0
+Choclo congelado,Cereales y Derivados,81,2.6,16.9,0.7,3.1,2.4,1.0,g,100,0
+Choclo (USDA),Cereales y Derivados,86,3.3,16.7,1.4,6.3,2.0,15.0,g,100,0
+Mote trigo cocido,Cereales y Derivados,131,3.5,0.0,0.4,0.0,0.0,13.7,g,100,0
+Mote trigo (Etiqueta),Cereales y Derivados,354,10.5,73.6,2.0,1.8,0.0,143.0,g,100,0
+Quinoa (USDA),Cereales y Derivados,368,14.1,57.2,6.1,0.0,7.0,5.0,g,100,0
+Quinoa (INTA),Cereales y Derivados,351,12.2,65.6,4.4,0.0,5.9,23.0,g,100,0
+Quinoa cocida,Cereales y Derivados,120,4.4,18.5,1.9,0.9,2.8,7.0,g,100,0
+Salvado de avena,Cereales y Derivados,246,17.3,50.8,7.0,1.5,15.4,4.0,g,100,0
+Salvado de trigo,Cereales y Derivados,216,15.6,21.7,4.3,0.4,42.8,2.0,g,100,0
+Avena,Cereales y Derivados,389,16.9,55.7,6.9,0.0,10.6,2.0,g,100,0
+Cereal de maíz (INTA),Cereales y Derivados,358,8.1,79.0,1.1,23.9,3.7,17.6,g,100,0
+Cereal de maíz (USDA),Cereales y Derivados,357,7.5,81.0,0.4,9.5,3.3,729.0,g,100,0
+Granola,Cereales y Derivados,442,11.4,51.1,21.4,20.2,11.5,44.0,g,100,0
+Burgol,Cereales y Derivados,364,10.4,78.0,1.1,1.3,0.0,25.0,g,100,0
+Cuscús cocido,Cereales y Derivados,112,3.8,21.8,0.2,0.1,1.4,5.0,g,100,0
+Cuscús seco,Cereales y Derivados,376,12.8,72.4,0.6,0.0,5.0,10.0,g,100,0
+Fideos,Cereales y Derivados,352,13.9,64.2,2.9,2.7,9.2,6.0,g,100,0
+Fideos cocidos,Cereales y Derivados,149,6.0,26.2,1.7,0.8,3.9,4.0,g,100,0
+Fideos de arroz cocido,Cereales y Derivados,108,1.8,23.0,0.2,0.0,1.0,19.0,g,100,0
+Galleta champaña,Cereales y Derivados,409,5.6,81.7,6.6,49.0,0.0,217.0,g,100,0
+Galleta cereal avena,Cereales y Derivados,428,8.6,56.1,17.0,0.0,6.5,214.0,g,100,0
+Galleta cereal berries,Cereales y Derivados,430,8.5,57.9,16.4,0.0,5.1,184.0,g,100,0
+Galleta cereal cacao,Cereales y Derivados,427,8.3,54.2,17.3,0.0,6.9,198.0,g,100,0
+Galleta cereal clásica,Cereales y Derivados,430,7.6,61.8,16.9,0.0,7.7,209.0,g,100,0
+Galleta cereal fibra cacao,Cereales y Derivados,427,8.9,54.8,19.0,0.0,11.7,220.0,g,100,0
+Galleta chips de chocolate,Cereales y Derivados,481,5.4,64.3,22.6,0.0,2.5,315.0,g,100,0
+Galleta chocolate,Cereales y Derivados,463,7.1,66.0,18.9,0.0,3.1,266.0,g,100,0
+Galleta de arroz (Chile),Cereales y Derivados,363,6.7,83.4,0.3,0.0,3.7,152.0,g,100,0
+Galleta de arroz (Etiqueta),Cereales y Derivados,373,5.2,82.7,1.3,0.1,3.2,120.0,g,100,0
+Galleta de arroz sésamo,Cereales y Derivados,371,7.5,74.2,4.9,1.2,5.7,665.0,g,100,0
+Galleta de arroz sin sal,Cereales y Derivados,363,7.7,80.1,1.3,1.2,4.6,18.0,g,100,0
+Galleta de arroz trigo avena,Cereales y Derivados,356,11.0,72.2,2.6,2.6,7.5,525.0,g,100,0
+Galleta mantequilla,Cereales y Derivados,469,5.8,71.0,18.0,0.0,1.6,273.0,g,100,0
+Galleta mini cocaditas,Cereales y Derivados,483,5.4,65.5,22.2,0.0,4.0,162.0,g,100,0
+Galleta mini limón,Cereales y Derivados,467,7.3,67.4,18.7,0.0,2.2,322.0,g,100,0
+Galleta mini mantequilla,Cereales y Derivados,476,6.5,67.4,20.0,0.0,1.9,313.0,g,100,0
+Galleta mini vino,Cereales y Derivados,409,9.6,59.5,14.7,0.0,13.6,228.0,g,100,0
+Galleta soda,Cereales y Derivados,428,9.0,73.4,10.4,1.9,0.0,720.0,g,100,0
+Galleta vainilla,Cereales y Derivados,453,8.0,69.7,15.8,0.0,2.2,98.0,g,100,0
+Galleta vino (INTA),Cereales y Derivados,405,7.4,60.3,14.9,0.0,14.6,235.0,g,100,0
+Galletas cracker,Cereales y Derivados,386,5.7,72.3,5.7,22.9,5.7,629.0,g,100,0
+Galletas de agua,Cereales y Derivados,384,8.0,71.1,9.4,0.0,2.5,670.0,g,100,0
+Galletas de arroz (Etiqueta),Cereales y Derivados,363,8.4,77.0,2.4,0.5,5.5,228.0,g,100,0
+Harina de centeno,Cereales y Derivados,349,10.9,63.6,1.5,1.1,11.8,2.0,g,100,0
+Harina de trigo,Cereales y Derivados,364,10.3,73.6,1.0,0.3,2.7,2.0,g,100,0
+Harina de yuca,Cereales y Derivados,333,0.3,82.7,0.1,0.0,8.0,17.0,g,100,0
+Harina de trigo tostada,Cereales y Derivados,380,13.4,77.45,1.9,0.0,0.9,0.0,g,100,0
+Chuchoca,Cereales y Derivados,361,6.9,69.6,3.9,0.6,7.3,5.0,g,100,0
+Chuño,Cereales y Derivados,351,8.0,78.9,0.8,0.15,1.1,34.0,g,100,0
+Maicena,Cereales y Derivados,381,0.3,90.4,0.1,0.0,0.9,9.0,g,100,0
+Sémola (INTA),Cereales y Derivados,360,12.7,68.9,1.1,0.0,3.9,1.0,g,100,0
+Sémola (Etiqueta),Cereales y Derivados,342,12.0,69.0,2.0,4.0,0.0,5.0,g,100,0
+Tapioca,Cereales y Derivados,358,0.2,87.8,0.0,3.4,0.9,1.0,g,100,0
+Camote,Papas,131,1.6,30.25,0.4,0.0,0.0,0.0,g,100,0
+Papa cocida,Papas,89,2.3,17.8,0.2,1.4,1.8,12.0,g,100,0
+Papa cruda,Papas,80,3.1,16.55,0.2,0.0,0.0,7.0,g,100,0
+Papa entera rojiza,Papas,79,2.1,16.85,0.1,0.6,1.3,5.0,g,100,0
+Aceite de canola,Grasas y Aceites,884,0.0,0.0,100.0,0.0,0.0,0.0,ml,100,0
+Aceite de coco,Grasas y Aceites,892,0.0,0.9,99.1,0.0,0.0,0.0,ml,100,0
+Aceite de maíz,Grasas y Aceites,897,0.0,0.3,99.7,0.0,0.0,0.0,ml,100,0
+Aceite de maravilla (USDA),Grasas y Aceites,884,0.0,0.0,100.0,0.0,0.0,0.0,ml,100,0
+Aceite de maravilla (INTA 1),Grasas y Aceites,898,0.0,0.2,99.8,0.0,0.0,0.0,ml,100,0
+Aceite de maravilla (INTA 2),Grasas y Aceites,897,0.0,0.3,99.7,0.0,0.0,0.1,ml,100,0
+Aceite de oliva,Grasas y Aceites,884,0.0,0.0,100.0,0.0,0.0,2.0,ml,100,0
+Aceite de oliva e0tra virgen,Grasas y Aceites,887,0.2,0.0,97.9,0.0,0.0,0.3,ml,100,0
+Aceite de palma,Grasas y Aceites,884,0.0,0.0,100.0,0.0,0.0,0.0,ml,100,0
+Aceite de soja orgánico,Grasas y Aceites,897,0.0,0.3,99.7,0.0,0.0,0.0,ml,100,0
+Aceite de soja,Grasas y Aceites,884,0.0,0.0,100.0,0.0,0.0,0.0,ml,100,0
+Aceite palta,Grasas y Aceites,897,0.4,0.0,99.4,0.0,0.0,0.0,ml,100,0
+Crema ácida,Grasas y Aceites,181,7.0,7.0,14.1,0.3,0.0,70.0,g,100,0
+Crema chantilly,Grasas y Aceites,345,2.1,2.85,37.0,0.0,0.0,37.4,g,100,0
+Crema de leche light,Grasas y Aceites,194,2.7,4.8,18.2,0.0,0.0,0.0,g,100,0
+Grasa animal,Grasas y Aceites,897,0.0,0.0,99.5,0.0,0.0,150.0,g,100,0
+Manteca vegetal,Grasas y Aceites,897,0.0,0.3,99.7,0.0,0.0,0.0,g,100,0
+Mantequilla (USDA),Grasas y Aceites,717,0.9,0.1,81.1,0.1,0.0,643.0,g,100,0
+Mantequilla (INTA),Grasas y Aceites,749,0.3,0.0,83.1,0.0,0.0,563.0,g,100,0
+Margarina (USDA),Grasas y Aceites,717,0.2,0.7,80.7,0.0,0.0,751.0,g,100,0
+Margarina (INTA),Grasas y Aceites,700,0.6,0.2,77.4,0.0,0.0,686.0,g,100,0
+Margarina reducida en grasa (Chile),Grasas y Aceites,424,0.2,0.9,47.5,0.0,0.0,646.0,g,100,0
+Margarina reducida en grasa (USDA),Grasas y Aceites,192,0.0,0.0,21.3,0.0,0.0,605.0,g,100,0
+Mayonesa,Grasas y Aceites,717,1.1,2.75,79.7,0.0,0.0,568.0,g,100,0
+Mayonesa casera,Grasas y Aceites,671,7.2,1.8,70.6,0.2,0.0,827.0,g,100,0
+Acelga (INTA 3),Verduras,27,4.4,2.0,0.2,0.0,5.0,0.0,g,100,0
+Acelga cocida (INTA),Verduras,20,1.9,2.0,0.1,1.1,2.1,179.0,g,100,0
+Acelga (USDA),Verduras,19,1.8,2.1,0.2,1.1,1.6,213.0,g,100,0
+Achicoria,Verduras,23,1.7,0.7,0.3,0.7,4.0,45.0,g,100,0
+Ajo,Verduras,149,6.4,31.0,0.5,1.0,2.1,17.0,g,100,0
+Alcachofa,Verduras,53,2.9,6.3,0.3,1.0,5.7,60.0,g,100,0
+Alfalfa brotes,Verduras,23,4.0,0.2,0.7,0.2,1.9,6.0,g,100,0
+Apio,Verduras,16,0.7,1.4,0.2,1.3,1.6,80.0,g,100,0
+Berenjena,Verduras,35,0.8,6.2,0.2,3.2,2.5,1.0,g,100,0
+Berro,Verduras,11,2.3,0.8,0.1,0.2,0.5,41.0,g,100,0
+Betarraga,Verduras,43,1.6,6.8,0.2,6.8,2.8,78.0,g,100,0
+Brócoli,Verduras,28,3.1,2.4,0.1,1.5,3.0,24.0,g,100,0
+Cebolla,Verduras,40,1.1,7.6,0.1,4.2,1.7,4.0,g,100,0
+Cebollín,Verduras,32,1.8,4.7,0.2,2.3,2.6,16.0,g,100,0
+Champiñón blanco (USDA),Verduras,22,3.1,2.3,0.3,2.0,1.0,5.0,g,100,0
+Champiñón blanco cocido con sal,Verduras,28,2.2,3.1,0.5,2.3,2.2,238.0,g,100,0
+Champiñón ostra,Verduras,33,3.3,3.8,0.4,1.1,2.3,18.0,g,100,0
+Champiñón portabella,Verduras,22,2.1,2.6,0.4,2.5,1.3,9.0,g,100,0
+Champiñón shiitake,Verduras,34,2.2,4.3,0.5,2.4,2.5,9.0,g,100,0
+Champiñón shiitake cocido con sal,Verduras,56,1.6,12.3,0.2,3.8,2.1,240.0,g,100,0
+Champiñones en conserva,Verduras,25,1.9,2.7,0.3,2.3,2.4,425.0,g,100,0
+Cochayuyo,Verduras,56,1.7,6.25,0.2,0.0,6.9,0.0,g,100,0
+Coliflor,Verduras,23,1.8,1.8,0.5,2.1,2.3,15.0,g,100,0
+Endivia,Verduras,17,1.3,0.3,0.2,0.3,3.1,22.0,g,100,0
+Espárrago,Verduras,22,2.4,2.1,0.2,1.3,2.0,14.0,g,100,0
+Espinaca cocida,Verduras,23,3.0,1.3,0.3,0.4,2.4,70.0,g,100,0
+Espinaca,Verduras,23,2.9,1.4,0.4,0.4,2.2,79.0,g,100,0
+Hinojo bulbo,Verduras,31,1.2,4.2,0.2,3.9,3.1,52.0,g,100,0
+Lechuga,Verduras,13,1.4,1.1,0.2,0.9,1.1,5.0,g,100,0
+Lechuga escarola,Verduras,14,0.7,1.3,0.7,0.0,0.0,22.0,g,100,0
+Lechuga roja,Verduras,16,1.3,1.4,0.2,0.5,0.9,25.0,g,100,0
+Luche (INTA 2),Verduras,37,3.3,0.0,0.7,0.0,8.8,0.0,g,100,0
+Luche ahumado (INTA 3),Verduras,157,23.9,15.1,0.1,0.1,41.6,357.0,g,100,0
+Nabos,Verduras,28,0.9,4.6,0.1,3.8,1.8,67.0,g,100,0
+Penca,Verduras,21,0.4,4.4,0.2,0.0,0.0,0.0,g,100,0
+Pepino,Verduras,12,0.6,1.5,0.2,1.4,0.7,2.0,g,100,0
+Pepinillos en conserva,Verduras,12,0.5,1.4,0.3,1.1,1.0,809.0,g,100,0
+Pickles,Verduras,67,0.9,16.35,0.2,0.0,1.3,670.0,g,100,0
+Pimentón rojo,Verduras,31,1.0,3.9,0.3,4.2,2.1,4.0,g,100,0
+Pimentón verde,Verduras,20,0.9,2.9,0.2,2.4,1.7,3.0,g,100,0
+Poroto verde enlatado,Verduras,21,1.1,2.3,0.4,1.4,1.9,268.0,g,100,0
+Porotos verdes,Verduras,35,1.9,4.7,0.3,3.6,3.2,1.0,g,100,0
+Puerro,Verduras,61,1.5,12.4,0.3,3.9,1.8,20.0,g,100,0
+Rabanito,Verduras,16,0.7,1.8,0.1,1.9,1.6,39.0,g,100,0
+Repollitos de bruselas (USDA),Verduras,36,2.6,4.5,0.5,1.7,2.6,21.0,g,100,0
+Repollitos de bruselas cocido con sal (INTA),Verduras,42,3.6,4.2,0.4,2.1,4.1,259.0,g,100,0
+Repollo (USDA),Verduras,25,1.3,3.3,0.1,3.2,2.5,18.0,g,100,0
+Repollo morado (USDA),Verduras,31,1.4,5.3,0.2,3.8,2.1,27.0,g,100,0
+Tomate,Verduras,18,0.9,2.7,0.2,2.6,1.2,5.0,g,100,0
+Ulte,Verduras,29,1.5,4.7,0.4,0.0,6.4,0.0,g,100,0
+Zanahoria (INTA),Verduras,35,0.8,5.2,0.2,3.5,3.0,58.0,g,100,0
+Zanahoria (USDA),Verduras,41,0.9,6.8,0.2,4.7,2.8,69.0,g,100,0
+Zapallo italiano,Verduras,17,1.2,2.1,0.3,2.5,1.0,8.0,g,100,0
+Zapallo italiano cocido con sal,Verduras,15,1.1,1.7,0.4,1.7,1.0,239.0,g,100,0
+Zapallo,Verduras,20,0.7,3.8,0.1,2.1,1.1,1.0,g,100,0
+Aceitunas negras,Frutas,232,1.1,2.1,24.4,1.4,0.0,1588.0,g,100,0
+Aceitunas verdes,Frutas,263,1.2,3.1,27.3,1.4,0.0,1508.0,g,100,0
+Arándanos azul,Frutas,57,0.7,12.1,0.3,10.0,2.4,1.0,g,100,0
+Arándanos rojo,Frutas,46,0.5,8.4,0.1,4.3,3.6,2.0,g,100,0
+Caqui,Frutas,70,0.6,16.8,0.2,0.0,1.8,1.0,g,100,0
+Cerezas,Frutas,50,1.0,10.6,0.3,8.5,1.6,3.0,g,100,0
+Chirimoya,Frutas,75,1.6,14.7,0.7,12.9,3.0,7.0,g,100,0
+Ciruelas,Frutas,46,0.7,10.0,0.3,9.9,1.4,0.0,g,100,0
+Ciruelas desecadas,Frutas,240,2.2,56.8,0.4,38.1,7.1,2.0,g,100,0
+Clementinas,Frutas,47,0.9,10.3,0.2,9.2,1.7,1.0,g,100,0
+Damasco,Frutas,48,1.4,9.1,0.4,9.2,2.0,1.0,g,100,0
+Damascos secos,Frutas,244,4.6,56.1,0.1,12.8,9.1,347.0,g,100,0
+Durazno,Frutas,39,0.9,8.0,0.3,8.4,1.5,0.0,g,100,0
+Duraznos en conserva,Frutas,45.0,0.6,10.0,0.3,10.0,0.0,10.0,g,100,0
+Frambuesa,Frutas,52,1.2,5.4,0.7,4.4,6.5,1.0,g,100,0
+Frutilla,Frutas,32,0.7,5.7,0.3,4.9,2.0,1.0,g,100,0
+Granada,Frutas,83,1.7,14.7,1.2,13.7,4.0,3.0,g,100,0
+Grosella roja y blanca,Frutas,56,1.4,9.5,0.2,7.4,4.3,1.0,g,100,0
+Guayaba,Frutas,68,2.6,8.9,1.0,8.9,5.4,2.0,g,100,0
+Guindas,Frutas,63,1.1,13.9,0.2,12.8,2.1,0.0,g,100,0
+Guindas ácidas rojas,Frutas,50,1.0,10.6,0.3,8.5,1.6,3.0,g,100,0
+Higos frescos,Frutas,74,0.8,16.3,0.3,16.3,2.9,1.0,g,100,0
+Higos secos,Frutas,249,3.3,54.1,0.9,47.9,9.8,10.0,g,100,0
+Huesillo,Frutas,239,3.6,53.1,0.8,41.7,8.2,7.0,g,100,0
+Kiwi,Frutas,61,1.1,11.7,0.5,9.0,3.0,3.0,g,100,0
+Limón fruto,Frutas,29,1.1,6.5,0.3,2.5,2.8,2.0,g,100,0
+Mandarina,Frutas,53,0.8,11.5,0.3,10.6,1.8,2.0,g,100,0
+Mango,Frutas,60,0.8,13.4,0.4,13.7,1.6,1.0,g,100,0
+Manzana,Frutas,52,0.3,11.4,0.2,10.4,2.4,1.0,g,100,0
+Manzana fuji,Frutas,63,0.2,13.1,0.2,11.7,2.1,1.0,g,100,0
+Manzana golden,Frutas,57,0.3,11.2,0.2,10.0,2.4,2.0,g,100,0
+Manzana roja,Frutas,59,0.3,11.8,0.2,10.5,2.3,1.0,g,100,0
+Manzana sin cáscara,Frutas,48,0.3,11.5,0.1,10.1,1.3,0.0,g,100,0
+Manzana verde,Frutas,58,0.4,10.8,0.2,9.6,2.8,1.0,g,100,0
+Melón,Frutas,34,0.8,7.3,0.2,7.9,0.9,16.0,g,100,0
+Membrillo,Frutas,57,0.4,13.4,0.1,0.0,1.9,4.0,g,100,0
+Mora,Frutas,43,1.4,4.3,0.5,4.9,5.3,1.0,g,100,0
+Naranja,Frutas,47,0.9,9.3,0.1,9.4,2.4,0.0,g,100,0
+Níspero,Frutas,47,0.4,8.9,0.2,0.0,3.2,1.0,g,100,0
+Palta hass,Frutas,160,2.0,1.8,14.7,0.7,6.7,7.0,g,100,0
+Palta,Frutas,160,1.7,0.0,15.4,0.3,0.0,4.0,g,100,0
+Papaya,Frutas,43,0.5,9.1,0.3,7.8,1.7,8.0,g,100,0
+Pasas,Frutas,299,3.1,75.5,0.5,59.2,3.7,11.0,g,100,0
+Pepino dulce,Frutas,25,0.4,6.3,0.1,0.0,0.5,3.0,g,100,0
+Pera,Frutas,57,0.4,12.1,0.1,9.8,3.1,1.0,g,100,0
+Peras desecadas,Frutas,262,1.9,62.2,0.6,62.2,7.5,6.0,g,100,0
+Piña,Frutas,50,0.5,11.7,0.1,9.9,1.4,1.0,g,100,0
+Piña en conserva,Frutas,61,0.3,14.8,0.0,13.5,1.0,6.0,g,100,0
+Plátano,Frutas,89,1.1,20.3,0.3,12.2,2.6,1.0,g,100,0
+Pomelo,Frutas,32,0.6,7.0,0.1,7.0,1.1,0.0,g,100,0
+Sandía,Frutas,30,0.6,7.1,0.2,6.2,0.4,1.0,g,100,0
+Tumbo,Frutas,59,2.2,12.2,0.2,0.0,7.8,0.0,g,100,0
+Tuna,Frutas,56,1.1,13.5,0.4,0.0,3.1,0.0,g,100,0
+Uvas,Frutas,57,0.8,10.0,0.5,0.0,3.9,1.0,g,100,0
+Azúcar,Azúcares y Miel,387,0.0,100.0,0.0,99.8,0.0,1.0,g,100,0
+Azúcar (INTA),Azúcares y Miel,399,0.1,99.6,0.0,0.0,0.1,0.0,g,100,0
+Azúcar flor,Azúcares y Miel,389,0.0,99.8,0.0,97.8,0.0,2.0,g,100,0
+Azúcar light con estevia,Azúcares y Miel,400,0.0,99.9,0.0,0.0,0.0,0.0,g,100,0
+Azúcar light con sucralosa,Azúcares y Miel,400,0.0,99.9,0.0,0.0,0.0,0.0,g,100,0
+Miel de abeja (INTA),Azúcares y Miel,334,0.6,82.7,0.1,82.7,0.0,7.8,g,100,0
+Miel de abeja,Azúcares y Miel,318,0.3,78.8,0.0,78.8,0.0,5.0,g,100,0
+Miel de palma,Azúcares y Miel,254,0.0,63.6,0.0,63.6,0.0,0.0,g,100,0
+Alfajor,Alimentos Dulces,407,2.3,69.0,13.2,0.0,1.8,212.0,g,100,0
+Barra cereal,Alimentos Dulces,354,11.6,59.9,7.5,0.0,11.0,93.0,g,100,0
+Barra chocolate relleno frutilla,Alimentos Dulces,487,3.0,69.2,22.0,66.0,0.0,50.0,g,100,0
+Berlín,Alimentos Dulces,307,6.2,47.4,10.3,0.0,0.0,38.0,g,100,0
+Biscocho simple,Alimentos Dulces,381,4.2,51.7,17.4,0.0,0.1,412.0,g,100,0
+Cacao en polvo sin azúcar,Alimentos Dulces,228,19.6,20.9,13.7,1.8,37.0,21.0,g,100,0
+Chancaca,Alimentos Dulces,367,0.8,91.0,0.0,91.0,0.0,108.0,g,100,0
+Chocolate leche con almendras,Alimentos Dulces,559,11.3,46.9,36.2,44.0,0.0,84.0,g,100,0
+Chocolate amargo 60-69%,Alimentos Dulces,579,6.1,44.4,38.3,36.7,8.0,10.0,g,100,0
+Chocolate amargo 70-85%,Alimentos Dulces,598,7.8,35.0,42.6,24.0,10.9,20.0,g,100,0
+Chocolate de leche,Alimentos Dulces,548,8.3,60.0,30.5,52.3,0.0,108.0,g,100,0
+Cacao en polvo con azúcar,Alimentos Dulces,393,8.0,80.55,4.0,0.0,2.3,0.0,g,100,0
+Fruta confitada,Alimentos Dulces,322,0.3,81.3,0.1,80.7,1.6,98.0,g,100,0
+Jalea polvo,Alimentos Dulces,381,7.8,90.5,0.0,86.0,0.0,466.0,g,100,0
+Jalea reconstituida (USDA),Alimentos Dulces,62,1.2,14.2,0.0,13.5,0.0,75.0,g,100,0
+Jalea reconstituida,Alimentos Dulces,28,0.0,7.1,0.0,5.4,0.0,0.0,g,100,0
+Jalea polvo sin azúcar,Alimentos Dulces,318,62.0,9.0,0.0,0.0,0.0,480.0,g,100,0
+Manjar,Alimentos Dulces,290,6.2,47.4,8.4,38.8,0.0,130.0,g,100,0
+Mermelada damasco,Alimentos Dulces,232,0.4,57.6,0.0,48.2,2.0,34.0,g,100,0
+Mermelada membrillo,Alimentos Dulces,199,0.2,49.6,0.0,41.8,1.8,12.0,g,100,0
+Mermelada sin azúcar adicionada,Alimentos Dulces,56,0.7,17.0,0.2,8.8,17.0,19.0,g,100,0
+Dulce de membrillo,Alimentos Dulces,237,0.2,58.7,0.1,58.7,0.9,17.0,g,100,0
+Mousse vainilla,Alimentos Dulces,149,6.2,18.2,5.7,18.2,0.0,0.0,g,100,0
+Muffins arándano,Alimentos Dulces,333,4.9,54.8,10.1,13.0,1.9,444.0,g,100,0
+Oblea bañada chocolate,Alimentos Dulces,503,4.0,68.0,23.9,60.0,0.0,150.0,g,100,0
+Cono de barquillo,Alimentos Dulces,402,7.9,82.5,3.8,25.7,1.7,298.0,g,100,0
+Pie de limón,Alimentos Dulces,268,1.5,46.0,8.7,23.9,1.2,172.0,g,100,0
+Strudel de manzana,Alimentos Dulces,274,3.3,39.0,11.2,25.8,2.2,135.0,g,100,0
+Marshmallow (INTA),Alimentos Dulces,338,4.3,80.2,0.0,80.2,0.0,32.0,g,100,0
+Sustancia simple,Alimentos Dulces,349,2.1,84.1,0.5,84.1,0.0,40.0,g,100,0
+Sustancia con chocolate,Alimentos Dulces,464,4.4,69.9,18.4,69.9,0.0,162.0,g,100,0
+Arroz con leche,Postres de Leche,85,3.5,14.5,1.4,4.3,0.0,44.0,g,100,0
+Flan de leche sabor vainilla,Postres de Leche,115,2.6,24.0,0.9,13.3,0.0,130.0,g,100,0
+Flan vainilla reconstituido,Postres de Leche,81,3.4,8.4,3.8,0.0,0.0,71.0,g,100,0
+Flan polvo,Postres de Leche,390,0.0,97.4,0.0,97.4,0.0,958.0,g,100,0
+Leche asada con salsa de caramelo,Postres de Leche,144,3.6,24.4,3.6,22.2,0.0,95.0,g,100,0
+Sémola con leche con salsa caramelo,Postres de Leche,142,2.7,28.0,2.2,22.2,0.0,77.0,g,100,0
+Bebida de soya sabor manzana,Jugos y Néctares,66,1.2,14.0,0.6,12.0,0.8,34.0,ml,100,0
+Jugo de limón,Jugos y Néctares,22,0.4,6.6,0.2,2.5,0.3,1.0,ml,100,0
+Jugo de mandarina,Jugos y Néctares,43,0.5,9.9,0.2,9.9,0.2,1.0,ml,100,0
+Jugo de maqui,Jugos y Néctares,45,0.0,11.2,0.0,4.8,0.0,14.0,ml,100,0
+Jugo de naranja,Jugos y Néctares,45,0.7,10.2,0.2,8.4,0.2,1.0,ml,100,0
+Jugo de pomelo,Jugos y Néctares,39,0.5,9.1,0.1,9.1,0.1,1.0,ml,100,0
+Néctar damasco (INTA 3),Jugos y Néctares,42,0.1,10.3,0.0,8.2,0.0,8.0,ml,100,0
+Néctar damasco light,Jugos y Néctares,10,0.3,1.9,0.1,1.9,0.0,9.0,ml,100,0
+Néctar durazno,Jugos y Néctares,42,0.1,10.4,0.0,8.8,0.0,9.0,ml,100,0
+Néctar durazno light,Jugos y Néctares,15,0.3,3.3,0.0,0.0,0.0,8.0,ml,100,0
+Néctar manzana,Jugos y Néctares,41,0.0,10.2,0.0,8.6,0.0,7.0,ml,100,0
+Néctar naranja,Jugos y Néctares,41,0.4,9.8,0.0,8.0,0.0,7.0,ml,100,0
+Néctar naranja light,Jugos y Néctares,20,0.3,4.8,0.0,3.1,0.0,7.0,ml,100,0
+Néctar uva light,Jugos y Néctares,9,0.3,1.9,0.0,1.7,0.0,17.0,ml,100,0
+Refresco polvo bajo en calorías,Refrescos en Polvo,366,0.0,81.0,0.0,80.0,0.0,125.0,g,100,0
+Refresco polvo light durazno,Refrescos en Polvo,155,3.0,35.7,0.0,0.0,52.0,0.0,g,100,0
+Refresco polvo light naranja,Refrescos en Polvo,226,1.7,54.8,0.0,0.0,35.3,0.0,g,100,0
+Refresco polvo light piña,Refrescos en Polvo,125,1.5,29.8,0.0,0.0,57.9,0.0,g,100,0
+Agua tónica,Bebidas,34,0.0,8.8,0.0,8.8,0.0,12.0,ml,100,0
+Bebida cola light,Bebidas,0,0.1,0.0,0.0,0.0,0.0,0.0,ml,100,0
+Bebida cola tradicional,Bebidas,42,0.0,10.4,0.3,9.9,0.0,3.0,ml,100,0
+Bebida energética,Bebidas,43,0.5,10.2,0.0,10.2,0.0,39.0,ml,100,0
+Bebida gaseosa sabor limón,Bebidas,41,0.1,10.4,0.0,10.4,0.0,10.0,ml,100,0
+Bebida gaseosa sabor naranja,Bebidas,48,0.0,12.3,0.0,0.0,0.0,12.0,ml,100,0
+Bebida gaseosa sabor piña,Bebidas,40,0.1,10.1,0.0,9.0,0.0,9.0,ml,100,0
+Bebida gaseosa sabor piña libre de azúcar,Bebidas,1,0.1,0.2,0.0,0.0,0.0,8.9,ml,100,0
+Bebida isotónica,Bebidas,32,0.0,7.8,0.1,6.1,0.0,42.0,ml,100,0
+Bebida isotónica sabor lima limón,Bebidas,24,0.0,6.0,0.0,6.0,0.0,49.0,ml,100,0
+Cerveza,Bebidas Alcohólicas,51,0.5,7.4,0.0,0.0,0.0,4.0,ml,100,0
+Champagna,Bebidas Alcohólicas,77,0.2,0.0,0.0,0.0,0.0,6.1,ml,100,0
+Licor de café,Bebidas Alcohólicas,325,0.1,52.55,0.3,38.3,0.0,8.0,ml,100,0
+Licor de menta,Bebidas Alcohólicas,351,0.0,71.4,0.3,41.6,0.0,5.0,ml,100,0
+Martini,Bebidas Alcohólicas,223,0.0,0.0,0.0,0.0,0.0,3.0,ml,100,0
+Pisco,Bebidas Alcohólicas,210,0.0,0.0,0.0,0.0,0.0,0.0,ml,100,0
+Pisco sour,Bebidas Alcohólicas,185,0.0,14.3,0.1,0.0,0.0,0.0,ml,100,0
+Ron,Bebidas Alcohólicas,231,0.0,33.4,0.0,0.0,0.0,1.0,ml,100,0
+Vodka,Bebidas Alcohólicas,230,0.0,33.4,0.0,0.0,0.0,1.0,ml,100,0
+Whisky,Bebidas Alcohólicas,240,0.0,36.1,0.0,0.1,0.0,0.0,ml,100,0
+Vino blanco,Bebidas Alcohólicas,81,0.1,3.3,0.0,1.0,0.0,5.0,ml,100,0
+Vino tinto (USDA),Bebidas Alcohólicas,82,0.1,3.6,0.0,0.6,0.0,4.0,ml,100,0
+Vino tinto (INTA),Bebidas Alcohólicas,84,0.1,1.6,0.0,0.0,0.0,0.0,ml,100,0
+Hojuelas papas fritas,Productos Salados,500,5.7,59.7,26.5,0.8,3.6,354.0,g,100,0
+Hojuelas papas fritas sabor crema y cebolla,Productos Salados,485,6.1,57.8,25.5,4.3,4.5,418.0,g,100,0
+Suflé sabor queso,Productos Salados,510,6.2,64.5,25.2,6.8,1.2,468.0,g,100,0
+Pesto,Salsas,418,9.8,8.3,37.6,6.3,1.8,603.0,g,100,0
+Salsa barbecue,Salsas,172,0.8,39.9,0.6,33.2,0.9,1027.0,g,100,0
+Salsa blanca casera,Salsas,105,3.8,7.3,6.7,4.8,0.1,328.0,g,100,0
+Salsa de tomates (USDA),Salsas,24,1.2,3.8,0.3,3.6,1.5,474.0,g,100,0
+Salsa de tomates (Etiqueta),Salsas,47,1.7,9.7,0.2,9.4,0.0,356.0,g,100,0
+Salsa de tomates con cebolla,Salsas,42,1.6,8.2,0.2,0.0,1.8,551.0,g,100,0
+Salsa tártara,Salsas,211,1.0,12.8,16.7,4.3,0.5,667.0,g,100,0
+Salsa teriyaki,Salsas,89,5.9,15.8,0.0,14.1,0.1,3833.0,g,100,0
+Salsa verde,Salsas,38,1.1,4.5,0.9,3.5,1.9,600.0,g,100,0
+Ajo en polvo,Especias,331,16.6,63.7,0.7,2.4,9.0,60.0,g,100,0
+Albahaca fresca,Especias,23,3.2,1.1,0.6,0.3,1.6,4.0,g,100,0
+Albahaca seca,Especias,233,23.0,10.1,4.1,1.7,37.7,76.0,g,100,0
+Azafrán,Especias,310,11.4,61.5,5.9,0.0,3.9,148.0,g,100,0
+Canela,Especias,247,4.0,27.5,1.2,2.2,53.1,10.0,g,100,0
+Cardamomo,Especias,311,10.8,40.5,6.7,0.0,28.0,18.0,g,100,0
+Cebolla en polvo,Especias,341,10.4,63.9,1.0,6.6,15.2,73.0,g,100,0
+Clavo de olor,Especias,274,6.0,31.6,13.0,2.4,33.9,277.0,g,100,0
+Cúrcuma,Especias,312,9.7,44.4,3.3,3.2,22.7,27.0,g,100,0
+Curry en polvo,Especias,325,14.3,2.6,14.0,2.6,53.2,52.0,g,100,0
+Eneldo fresco,Especias,43,3.5,4.9,1.1,0.0,2.1,61.0,g,100,0
+Eneldo seco,Especias,253,20.0,42.2,4.4,0.0,13.6,208.0,g,100,0
+Estragón seco,Especias,295,22.8,42.8,7.2,0.0,7.4,62.0,g,100,0
+Hierbabuena,Especias,70,3.8,6.9,0.9,0.0,8.0,31.0,g,100,0
+Jengibre,Especias,335,9.0,57.5,4.2,3.4,14.1,27.0,g,100,0
+Laurel,Especias,313,7.6,48.7,8.4,0.0,26.3,23.0,g,100,0
+Locoto deshidratado,Especias,363,9.6,74.9,2.8,0.0,0.0,227.0,g,100,0
+Locoto fresco,Especias,23,1.5,3.7,0.2,2.4,4.4,20.0,g,100,0
+Menta verde fresca,Especias,44,3.3,1.6,0.7,0.0,6.8,30.0,g,100,0
+Menta verde seca,Especias,285,19.9,22.2,6.0,0.0,29.8,344.0,g,100,0
+Merkén,Especias,156,10.2,20.5,3.6,0.0,32.3,7440.0,g,100,0
+Nuez moscada,Especias,525,5.8,28.5,36.3,3.0,20.8,16.0,g,100,0
+Orégano seco,Especias,265,9.0,26.4,4.3,4.1,42.5,25.0,g,100,0
+Paprika,Especias,282,14.1,19.1,12.9,10.3,34.9,68.0,g,100,0
+Pimentón deshidratado,Especias,249,8.3,52.3,0.7,36.0,20.4,42.0,g,100,0
+Perejil fresco,Especias,36,2.97,3.03,0.79,0.85,3.3,56.0,g,100,0
+Perejil seco,Especias,292,26.6,23.9,5.5,7.3,26.7,452.0,g,100,0
+Pimienta blanca,Especias,296,10.4,48.3,2.1,0.0,26.2,5.0,g,100,0
+Pimienta negra,Especias,251,10.4,44.1,3.3,0.6,25.3,20.0,g,100,0
+Pimienta roja,Especias,318,12.0,29.4,17.3,10.3,27.2,30.0,g,100,0
+Romero fresco,Especias,131,3.3,6.6,5.9,0.0,14.1,26.0,g,100,0
+Romero seco,Especias,331,4.9,21.5,15.2,0.0,42.6,50.0,g,100,0
+Sal de mar,Especias,0,0.0,0.0,0.0,0.0,0.0,35983.0,g,100,0
+Sal de mesa,Especias,0,0.0,0.0,0.0,0.0,0.0,38758.0,g,100,0
+Semilla de amapola,Especias,525,18.0,8.6,41.6,3.0,19.5,26.0,g,100,0
+Semilla de comino,Especias,375,17.8,33.7,22.3,2.3,10.5,168.0,g,100,0
+Semillas de hinojo,Especias,345,15.8,12.5,14.9,0.0,39.8,88.0,g,100,0
+Semilla de mostaza,Especias,508,26.1,15.9,36.2,6.8,12.2,13.0,g,100,0
+Tomillo fresco,Especias,101,5.6,10.5,1.7,0.0,14.0,9.0,g,100,0
+Tomillo seco,Especias,276,9.1,26.9,7.4,1.7,37.0,55.0,g,100,0
+Endulzante agave líquido,Endulzantes,153,0.1,37.9,0.0,0.0,0.0,20.0,ml,100,0
+Endulzante agave más sucralosa en tableta,Endulzantes,371,0.4,92.4,0.0,0.0,0.0,177.0,g,100,0
+Endulzante stevia líquido,Endulzantes,49,0.1,12.1,0.0,0.0,0.0,70.0,ml,100,0
+Endulzante sucralosa líquido,Endulzantes,15,0.0,3.7,0.0,0.0,0.0,0.9,ml,100,0

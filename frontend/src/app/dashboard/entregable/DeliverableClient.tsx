@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import SmartPatientHeader from '@/components/layout/SmartPatientHeader';
 import { PremiumGuard } from '@/components/common/PremiumGuard';
+import { useAdmin } from '@/context/AdminContext';
 
 interface SectionItem {
     id: string;
@@ -60,6 +61,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
 ];
 
 export default function DeliverableClient() {
+    const { role } = useAdmin();
     const [selectedSections, setSelectedSections] = useState<string[]>(
         DELIVERABLE_SECTIONS.filter(s => s.defaultSelected).map(s => s.id)
     );
@@ -115,6 +117,14 @@ export default function DeliverableClient() {
     const handleEditSection = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
         toast.info(`Abriendo editor de ${id}...`);
+    };
+
+    const printJson = () => {
+        console.group('📊 DELIVERABLE CONFIG DATA');
+        console.log('Secciones Seleccionadas:', selectedSections);
+        console.log('Configuración Logo:', includeLogo);
+        console.groupEnd();
+        toast.info("JSON de configuración de entregable impreso en consola.");
     };
 
     return (
@@ -278,6 +288,13 @@ export default function DeliverableClient() {
                         </div>
 
                         <div className="flex items-center gap-3 w-full md:w-auto">
+                            <Button
+                                variant="outline"
+                                className="h-14 px-8 rounded-2xl font-bold flex items-center justify-center gap-2 border-slate-200 hover:bg-slate-50 transition-all active:scale-95 text-slate-500 min-w-[150px]"
+                                onClick={printJson}
+                            >
+                                Imprimir JSON
+                            </Button>
                             <Button
                                 variant="outline"
                                 onClick={() => toast.info("Generando vista previa temporal...")}

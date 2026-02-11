@@ -39,6 +39,7 @@ import { cn } from '@/lib/utils';
 import { JokerStorage, EmergencyJoker } from '@/features/recipes/services/jokerStorage';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import SmartPatientHeader from '@/components/layout/SmartPatientHeader';
+import { useAdmin } from '@/context/AdminContext';
 
 // -- Mock Types --
 
@@ -108,6 +109,7 @@ const DEFAULT_SLOTS: MealSlot[] = [
 
 export default function RecipesClient() {
     const router = useRouter();
+    const { role } = useAdmin();
 
     // -- State --
     const [mealCount, setMealCount] = useState(4);
@@ -263,6 +265,14 @@ export default function RecipesClient() {
         });
         setCurrentSlots(newSlots);
         toast.info("Tiempos de comida reacomodados automáticamente.");
+    };
+
+    const printJson = () => {
+        console.group('📊 RECIPES GENERATION DATA');
+        console.log('Slots Semanales:', weekSlots);
+        console.log('Metas Nutricionales:', { targetProtein, targetCalories, targetCarbs, targetFats });
+        console.groupEnd();
+        toast.info("JSON de recetas impreso en consola.");
     };
 
     return (
@@ -758,6 +768,15 @@ export default function RecipesClient() {
                         >
                             Guardar PDF Borrador
                         </Button>
+
+                        <Button
+                            variant="outline"
+                            className="h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-widest border-slate-200 text-slate-500 hover:bg-slate-50"
+                            onClick={printJson}
+                        >
+                            Imprimir JSON (AI)
+                        </Button>
+
                         <Button
                             onClick={() => router.push('/dashboard/fitness')}
                             className="h-14 px-10 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-2xl shadow-emerald-200 transition-all hover:scale-[1.02] flex items-center gap-3"
