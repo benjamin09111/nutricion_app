@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -6,9 +6,7 @@ import { FoodsModule } from './modules/foods/foods.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { MailModule } from './modules/mail/mail.module';
-
 import { UsersModule } from './modules/users/users.module';
-
 import { SupportModule } from './modules/support/support.module';
 import { RequestsModule } from './modules/requests/requests.module';
 import { PatientsModule } from './modules/patients/patients.module';
@@ -20,9 +18,8 @@ import { RecipesModule } from './modules/recipes/recipes.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
 import { HttpLoggerMiddleware } from './common/middleware/http-logger.middleware';
-import { MiddlewareConsumer, NestModule } from '@nestjs/common';
-// import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { CreationsModule } from './modules/creations/creations.module';
 
 @Module({
   imports: [
@@ -42,13 +39,13 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     MetricsModule,
     IngredientGroupsModule,
     RecipesModule,
-    // AnnouncementsModule,
     ScheduleModule.forRoot(),
     CacheModule.register({
       isGlobal: true,
       ttl: 300000, // 5 minutes default cache
     }),
     DashboardModule,
+    CreationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

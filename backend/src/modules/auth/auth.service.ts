@@ -84,6 +84,10 @@ export class AuthService {
             throw new UnauthorizedException('Credenciales inválidas');
         }
 
+        if (!account.nutritionist) {
+            console.warn(`[AuthService] Warning: Account ${account.email} has no Nutritionist record. Role: ${account.role}`);
+        }
+
         const payload = {
             email: account.email,
             sub: account.id,

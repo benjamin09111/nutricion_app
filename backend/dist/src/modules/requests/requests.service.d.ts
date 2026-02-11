@@ -19,10 +19,10 @@ export declare class RequestsService {
     }): Promise<{
         data: {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             email: string;
             status: import(".prisma/client").$Enums.RequestStatus;
+            createdAt: Date;
+            updatedAt: Date;
             fullName: string;
             professionalId: string | null;
             specialty: string | null;
@@ -44,10 +44,10 @@ export declare class RequestsService {
     }>;
     delete(id: string): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         email: string;
         status: import(".prisma/client").$Enums.RequestStatus;
+        createdAt: Date;
+        updatedAt: Date;
         fullName: string;
         professionalId: string | null;
         specialty: string | null;
@@ -57,10 +57,10 @@ export declare class RequestsService {
     }>;
     findOne(id: string): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         email: string;
         status: import(".prisma/client").$Enums.RequestStatus;
+        createdAt: Date;
+        updatedAt: Date;
         fullName: string;
         professionalId: string | null;
         specialty: string | null;
@@ -71,10 +71,10 @@ export declare class RequestsService {
     getPendingCount(): Promise<number>;
     updateStatus(id: string, status: 'PENDING' | 'ACCEPTED' | 'APPROVED' | 'REJECTED', adminNotes?: string): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         email: string;
         status: import(".prisma/client").$Enums.RequestStatus;
+        createdAt: Date;
+        updatedAt: Date;
         fullName: string;
         professionalId: string | null;
         specialty: string | null;

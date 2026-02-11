@@ -32,7 +32,17 @@ const DEFAULT_CONSTRAINTS = [
     { id: 'gluten', label: 'Sin Gluten' },
 ];
 
-const DRAFT_KEY = 'nutrisaas_diet_draft';
+const getUserDraftKey = () => {
+    if (typeof window === 'undefined') return 'nutrisaas_diet_draft';
+    try {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            if (user && user.id) return `nutrisaas_diet_draft_${user.id}`;
+        }
+    } catch (e) { }
+    return 'nutrisaas_diet_draft';
+};
 
 export default function DietClient({ initialFoods }: DietClientProps) {
     const router = useRouter();
@@ -76,46 +86,131 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     const [isImportDietModalOpen, setIsImportDietModalOpen] = useState(false);
     const [savedDiets, setSavedDiets] = useState<any[]>([]);
     const [isLoadingDiets, setIsLoadingDiets] = useState(false);
+    const [availableTags, setAvailableTags] = useState<string[]>([]);
     const [dietSearchQuery, setDietSearchQuery] = useState('');
 
     const favoritesEnabled = true; // Always enabled by request
 
-    // Mock saved diets (replace with actual API call later)
-    const mockSavedDiets = [
-        {
-            id: '1',
-            name: 'Dieta Keto Estándar',
-            tags: ['keto', 'bajo-carb'],
-            createdAt: '2026-02-01',
-            foodCount: 45,
-            type: 'Dieta Base'
-        },
-        {
-            id: '2',
-            name: 'Dieta Mediterránea',
-            tags: ['mediterranea', 'saludable'],
-            createdAt: '2026-02-05',
-            foodCount: 62,
-            type: 'Dieta Base'
-        },
-        {
-            id: '3',
-            name: 'Dieta Vegana Alta Proteína',
-            tags: ['vegana', 'proteina'],
-            createdAt: '2026-02-08',
-            foodCount: 38,
-            type: 'Dieta Base'
+    const fetchAvailableTags = async () => {
+        try {
+            const token = Cookies.get('auth_token') || localStorage.getItem('auth_token');
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const response = await fetch(`${apiUrl}/creations/tags`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const tags = await response.json();
+                setAvailableTags(tags);
+            }
+        } catch (e) {
+            console.error("Error fetching tags", e);
         }
-    ];
+    };
 
-    // Inicializar o cargar borrador
+    const fetchSavedDiets = async () => {
+        setIsLoadingDiets(true);
+        try {
+            const token = Cookies.get('auth_token') || localStorage.getItem('auth_token');
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const response = await fetch(`${apiUrl}/creations?type=DIET`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setSavedDiets(data);
+            }
+        } catch (e) {
+            console.error("Error fetching diets", e);
+            toast.error("No se pudieron cargar las dietas guardadas");
+        } finally {
+            setIsLoadingDiets(false);
+        }
+    };
+
+    const handleImportDiet = (diet: any) => {
+        const { content } = diet;
+        if (!content) {
+            toast.error("Esta dieta no tiene contenido válido");
+            return;
+        }
+
+        setDietName(diet.name || '');
+        setDietTags(diet.tags || []);
+        setActiveConstraints(content.activeConstraints || []);
+        setManualAdditions(content.manualAdditions || []);
+        setCustomGroups(content.customGroups || []);
+        setCustomConstraints(content.customConstraints || []);
+
+        // Actualizar estados de alimentos
+        // Nota: Los alimentos base de initialFoods que no están en el borrador seguirán como 'base'
+        // gracias al merge en setFoodStatus
+        if (content.foodStatus) {
+            setFoodStatus(prev => ({ ...prev, ...content.foodStatus }));
+        }
+
+        setIsImportDietModalOpen(false);
+        setDietSearchQuery('');
+        toast.success(`Dieta "${diet.name}" importada correctamente`);
+    };
+
+    // Inicializar o cargar borrador o edición
     useEffect(() => {
+        fetchAvailableTags();
         const statuses: Record<string, 'base' | 'favorite' | 'removed' | 'added'> = {};
         initialFoods.forEach(f => {
             statuses[f.producto] = 'base';
         });
 
-        const savedDraft = localStorage.getItem(DRAFT_KEY);
+        const loadFromBackend = async (id: string) => {
+            if (!id || id === 'undefined' || id === 'null') {
+                localStorage.removeItem('currentDietEditId');
+                return;
+            }
+
+            try {
+                const token = Cookies.get('auth_token') || localStorage.getItem('auth_token');
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+                const response = await fetch(`${apiUrl}/creations/${id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const text = await response.text();
+                    if (!text) {
+                        console.warn("La respuesta del servidor está vacía para el ID:", id);
+                        localStorage.removeItem('currentDietEditId');
+                        return;
+                    }
+
+                    try {
+                        const data = JSON.parse(text);
+                        handleImportDiet(data);
+                    } catch (parseError) {
+                        console.error("Error parseando JSON de la creación:", parseError);
+                    }
+                } else {
+                    console.error("Error en la respuesta del servidor:", response.status);
+                    if (response.status === 404) {
+                        toast.error("La dieta que intentas editar ya no existe.");
+                    }
+                }
+            } catch (e) {
+                console.error("Error loading creation to edit", e);
+            } finally {
+                localStorage.removeItem('currentDietEditId');
+            }
+        };
+
+        const editId = localStorage.getItem('currentDietEditId');
+        if (editId) {
+            loadFromBackend(editId);
+            return;
+        }
+
+        const savedDraft = localStorage.getItem(getUserDraftKey());
         if (savedDraft) {
             try {
                 const draft = JSON.parse(savedDraft);
@@ -189,9 +284,10 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             const next: Record<string, 'base' | 'favorite' | 'removed' | 'added'> = { ...prev, [productName]: 'removed' };
             // Actualizar borrador
             try {
-                const draftStr = localStorage.getItem(DRAFT_KEY);
+                const currentDraftKey = getUserDraftKey();
+                const draftStr = localStorage.getItem(currentDraftKey);
                 const draft = draftStr ? JSON.parse(draftStr) : {};
-                localStorage.setItem(DRAFT_KEY, JSON.stringify({
+                localStorage.setItem(currentDraftKey, JSON.stringify({
                     ...draft,
                     foodStatus: { ...(draft.foodStatus || {}), [productName]: 'removed' }
                 }));
@@ -227,9 +323,10 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         setFoodStatus(prev => {
             const next: Record<string, 'base' | 'favorite' | 'removed' | 'added'> = { ...prev, [productName]: newStatus };
             try {
-                const draftStr = localStorage.getItem(DRAFT_KEY);
+                const currentDraftKey = getUserDraftKey();
+                const draftStr = localStorage.getItem(currentDraftKey);
                 const draft = draftStr ? JSON.parse(draftStr) : {};
-                localStorage.setItem(DRAFT_KEY, JSON.stringify({
+                localStorage.setItem(currentDraftKey, JSON.stringify({
                     ...draft,
                     foodStatus: { ...(draft.foodStatus || {}), [productName]: newStatus }
                 }));
@@ -271,16 +368,66 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         }
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!dietName.trim()) {
             toast.error('Por favor, asigna un nombre a la dieta.');
             return;
         }
-        toast.success(`Dieta "${dietName}" guardada correctamente.`, {
-            description: 'Las restricciones seleccionadas generarán contenido educativo automáticamente.',
-            action: { label: 'Ir a Creaciones', onClick: () => router.push('/dashboard/creaciones') },
-            duration: 5000,
-        });
+
+        // Guardar estado actual en borrador
+        saveAsDraft();
+
+        const dietJson = {
+            dietName,
+            dietTags,
+            activeConstraints,
+            foodStatus,
+            manualAdditions,
+            customGroups,
+            customConstraints,
+            favoritesEnabled,
+            timestamp: Date.now()
+        };
+
+        try {
+            const token = Cookies.get('auth_token');
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+
+            const response = await fetch(`${apiUrl}/creations`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name: dietName,
+                    type: 'DIET',
+                    content: dietJson,
+                    metadata: {
+                        foodCount: includedFoods.length,
+                        totalCalories: includedFoods.reduce((acc, f) => acc + (f.calorias || 0), 0),
+                        activeConstraints: activeConstraints,
+                        foodSummary: includedFoods.map(f => ({ name: f.producto, group: f.grupo }))
+                    },
+                    tags: dietTags
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Error al guardar la creación');
+            }
+
+            toast.success(`Dieta "${dietName}" guardada correctamente en Mis Creaciones.`, {
+                description: 'Las restricciones seleccionadas generarán contenido educativo automáticamente.',
+                action: { label: 'Ir a Creaciones', onClick: () => router.push('/dashboard/creaciones') },
+                duration: 5000,
+            });
+            fetchAvailableTags();
+        } catch (error: any) {
+            console.error('Error saving creation:', error);
+            toast.error(error.message || 'No se pudo guardar la creación en la base de datos.');
+        }
     };
 
     const handleContinue = () => {
@@ -288,6 +435,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             toast.error('Por favor, asigna un nombre a la dieta antes de continuar.');
             return;
         }
+        // Guardar estado actual antes de continuar
+        saveAsDraft();
+
         localStorage.setItem('currentDietStep', JSON.stringify({ dietName, dietTags, includedFoods }));
         toast.success("Progreso guardado localmente");
         setTimeout(() => toast.info("Módulo de Recetas próximamente..."), 1500);
@@ -372,7 +522,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
     const resetDiet = () => {
         setDietName(''); setDietTags([]); setActiveConstraints([]); setManualAdditions([]);
-        setCustomGroups([]); setCustomConstraints([]); localStorage.removeItem(DRAFT_KEY);
+        setCustomGroups([]); setCustomConstraints([]); localStorage.removeItem(getUserDraftKey());
         const st: Record<string, 'base'> = {};
         initialFoods.forEach(f => { st[f.producto] = 'base'; });
         setFoodStatus(st as any);
@@ -380,7 +530,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     };
 
     const saveAsDraft = () => {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        localStorage.setItem(getUserDraftKey(), JSON.stringify({
             dietName, dietTags, activeConstraints, foodStatus, manualAdditions,
             customGroups, customConstraints, favoritesEnabled, timestamp: Date.now()
         }));
@@ -643,7 +793,12 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-bold text-slate-700">Etiquetas</label>
-                            <TagInput value={dietTags} onChange={setDietTags} placeholder="Tags..." />
+                            <TagInput
+                                value={dietTags}
+                                onChange={setDietTags}
+                                placeholder="Tags..."
+                                suggestions={availableTags}
+                            />
                         </div>
                     </div>
 
@@ -655,7 +810,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         <Button
                             onClick={() => {
                                 setIsImportDietModalOpen(true);
-                                setSavedDiets(mockSavedDiets);
+                                fetchSavedDiets();
                             }}
                             variant="outline"
                             className="w-full h-12 border-2 border-dashed border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400 font-black rounded-xl transition-all"
@@ -795,6 +950,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 </Button>
 
                 <div className="flex gap-3">
+                    <Button variant="ghost" className="h-12 text-slate-400 font-bold" onClick={printJson}>Imprimir JSON</Button>
                     <Button variant="outline" className="h-12" onClick={saveAsDraft}>Guardar Borrador</Button>
                     <Button variant="outline" className="h-12 border-rose-200 text-rose-600" onClick={resetDiet}>Reset</Button>
                     <Button className="h-12 px-8 bg-slate-900" onClick={handleSave}>Guardar Creación</Button>
@@ -996,7 +1152,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                                     <p className="text-slate-400 font-bold text-sm px-10">No tienes alimentos favoritos marcados aún.</p>
                                 </div>
                             )
-                        ) : (
+                        ) : smartAddTab === 'groups' ? (
                             smartGroups.length > 0 ? (
                                 <div className="space-y-6">
                                     {smartGroups.map(group => {
@@ -1090,65 +1246,65 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                             )
                         ) : smartAddTab === 'myproducts' ? (
                             smartMyProducts.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {smartMyProducts.map(f => (
-                                <div
-                                    key={f.id}
-                                    onClick={() => toggleSmartSelection(f.id)}
-                                    className={cn(
-                                        "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
-                                        selectedFoods.has(f.id)
-                                            ? "border-indigo-500 bg-indigo-50/50"
-                                            : "border-slate-100 bg-white hover:border-indigo-200"
-                                    )}
-                                >
-                                    <div className="flex-1">
-                                        <p className="font-black text-slate-800 text-sm mb-1">{f.name}</p>
-                                        <span className="text-[10px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded font-black uppercase">
-                                            Creado por ti
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedFoodForInfo({
-                                                    id: f.id,
-                                                    producto: f.name,
-                                                    grupo: f.category?.name || 'Varios',
-                                                    calorias: f.calories || 0,
-                                                    proteinas: f.proteins || 0,
-                                                    carbohidratos: f.carbs || 0,
-                                                    lipidos: f.lipids || 0,
-                                                    unidad: f.unit || 'g',
-                                                    precioPromedio: f.price || 0,
-                                                    tags: f.tags?.map((t: any) => t.name) || [],
-                                                    ...(f as any)
-                                                });
-                                                setIsFoodInfoModalOpen(true);
-                                            }}
-                                            className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {smartMyProducts.map(f => (
+                                        <div
+                                            key={f.id}
+                                            onClick={() => toggleSmartSelection(f.id)}
+                                            className={cn(
+                                                "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+                                                selectedFoods.has(f.id)
+                                                    ? "border-indigo-500 bg-indigo-50/50"
+                                                    : "border-slate-100 bg-white hover:border-indigo-200"
+                                            )}
                                         >
-                                            <Info className="h-4 w-4" />
-                                        </button>
-                                        <div className={cn(
-                                            "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
-                                            selectedFoods.has(f.id)
-                                                ? "bg-indigo-600 border-indigo-600 text-white"
-                                                : "border-slate-200 group-hover:border-indigo-300"
-                                        )}>
-                                            {selectedFoods.has(f.id) && <Plus className="h-4 w-4" />}
+                                            <div className="flex-1">
+                                                <p className="font-black text-slate-800 text-sm mb-1">{f.name}</p>
+                                                <span className="text-[10px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded font-black uppercase">
+                                                    Creado por ti
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedFoodForInfo({
+                                                            id: f.id,
+                                                            producto: f.name,
+                                                            grupo: f.category?.name || 'Varios',
+                                                            calorias: f.calories || 0,
+                                                            proteinas: f.proteins || 0,
+                                                            carbohidratos: f.carbs || 0,
+                                                            lipidos: f.lipids || 0,
+                                                            unidad: f.unit || 'g',
+                                                            precioPromedio: f.price || 0,
+                                                            tags: f.tags?.map((t: any) => t.name) || [],
+                                                            ...(f as any)
+                                                        });
+                                                        setIsFoodInfoModalOpen(true);
+                                                    }}
+                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                                                >
+                                                    <Info className="h-4 w-4" />
+                                                </button>
+                                                <div className={cn(
+                                                    "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                                                    selectedFoods.has(f.id)
+                                                        ? "bg-indigo-600 border-indigo-600 text-white"
+                                                        : "border-slate-200 group-hover:border-indigo-300"
+                                                )}>
+                                                    {selectedFoods.has(f.id) && <Plus className="h-4 w-4" />}
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                        ) : (
-                        <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
-                            <Plus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-                            <p className="text-slate-400 font-bold text-sm px-10">No has creado productos personalizados aún.</p>
-                        </div>
-                        )
+                            ) : (
+                                <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
+                                    <Plus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                                    <p className="text-slate-400 font-bold text-sm px-10">No has creado productos personalizados aún.</p>
+                                </div>
+                            )
                         ) : null}
                     </div>
 
@@ -1306,6 +1462,12 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         autoFocus
                     />
 
+                    {isLoadingDiets && (
+                        <div className="flex justify-center py-8">
+                            <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                        </div>
+                    )}
+
                     <div className="space-y-3 max-h-[400px] overflow-y-auto">
                         {savedDiets
                             .filter(diet =>
@@ -1315,12 +1477,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                             .map(diet => (
                                 <div
                                     key={diet.id}
-                                    onClick={() => {
-                                        // TODO: Load diet JSON and update current state
-                                        toast.success(`Dieta "${diet.name}" importada correctamente`);
-                                        setIsImportDietModalOpen(false);
-                                        setDietSearchQuery('');
-                                    }}
+                                    onClick={() => handleImportDiet(diet)}
                                     className="p-4 border-2 border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50/30 transition-all cursor-pointer group"
                                 >
                                     <div className="flex items-start justify-between mb-2">
@@ -1351,7 +1508,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                             ))
                         }
 
-                        {savedDiets.filter(diet =>
+                        {!isLoadingDiets && savedDiets.filter(diet =>
                             diet.name.toLowerCase().includes(dietSearchQuery.toLowerCase()) ||
                             diet.tags.some((tag: string) => tag.toLowerCase().includes(dietSearchQuery.toLowerCase()))
                         ).length === 0 && (
