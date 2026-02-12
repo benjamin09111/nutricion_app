@@ -6,7 +6,7 @@ import {
     Search, Loader2, Filter, Star, Heart, Plus, ChevronDown, ChevronUp,
     AlertCircle, Sparkles, Info, BookOpen,
     Library, Trash2, FolderPlus, GraduationCap, Save, ArrowRight, X, Brain, CheckCircle2,
-    Calendar, User, Tag as TagIcon, ListChecks, Check
+    Calendar, User, Tag as TagIcon, ListChecks, Check, UserPlus, RotateCcw, FileCode
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { formatCLP } from '@/lib/utils/currency';
 import Cookies from 'js-cookie';
+import { ActionDock, ActionDockItem } from '@/components/ui/ActionDock';
 
 interface DietClientProps {
     initialFoods: MarketPrice[];
@@ -143,9 +144,29 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         setCustomGroups(content.customGroups || []);
         setCustomConstraints(content.customConstraints || []);
 
+        // Compatibilidad: Si no tiene estados detallados pero tiene categorías (formato antiguo)
+        if (!content.foodStatus && content.categories) {
+            console.log("Recuperando dieta en formato antiguo...");
+            const recoveredManual: any[] = [];
+            const recoveredGroups: string[] = [];
+            const recoveredStatus: Record<string, any> = {};
+
+            Object.entries(content.categories).forEach(([groupName, foods]: [string, any]) => {
+                recoveredGroups.push(groupName);
+                if (Array.isArray(foods)) {
+                    foods.forEach(f => {
+                        recoveredManual.push({ ...f, grupo: groupName });
+                        recoveredStatus[f.producto] = 'added';
+                    });
+                }
+            });
+
+            if (recoveredManual.length > 0) setManualAdditions(recoveredManual);
+            if (recoveredGroups.length > 0) setCustomGroups(recoveredGroups);
+            setFoodStatus(prev => ({ ...prev, ...recoveredStatus }));
+        }
+
         // Actualizar estados de alimentos
-        // Nota: Los alimentos base de initialFoods que no están en el borrador seguirán como 'base'
-        // gracias al merge en setFoodStatus
         if (content.foodStatus) {
             setFoodStatus(prev => ({ ...prev, ...content.foodStatus }));
         }
@@ -194,7 +215,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 } else {
                     console.error("Error en la respuesta del servidor:", response.status);
                     if (response.status === 404) {
-                        toast.error("La dieta que intentas editar ya no existe.");
+                        // Silent cleanup if not found, start fresh
+                        localStorage.removeItem('currentDietEditId');
                     }
                 }
             } catch (e) {
@@ -270,10 +292,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }, [initialFoods, manualAdditions, foodStatus, activeConstraints]);
 
     // Totales
-    const totalCalories = useMemo(() => includedFoods.reduce((acc, curr) => acc + (curr.calorias || 0), 0), [includedFoods]);
-    const totalProtein = useMemo(() => includedFoods.reduce((acc, curr) => acc + (curr.proteinas || 0), 0), [includedFoods]);
-    const totalCarbs = useMemo(() => includedFoods.reduce((acc, curr) => acc + (curr.carbohidratos || 0), 0), [includedFoods]);
-    const totalFats = useMemo(() => includedFoods.reduce((acc, curr) => acc + (curr.lipidos || 0), 0), [includedFoods]);
+    // Totales removidos por no tener sentido sin porciones
 
     const toggleConstraint = (id: string) => {
         setActiveConstraints(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
@@ -404,9 +423,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                     type: 'DIET',
                     content: dietJson,
                     metadata: {
-                        foodCount: includedFoods.length,
-                        totalCalories: includedFoods.reduce((acc, f) => acc + (f.calorias || 0), 0),
-                        activeConstraints: activeConstraints,
                         foodSummary: includedFoods.map(f => ({ name: f.producto, group: f.grupo }))
                     },
                     tags: dietTags
@@ -511,9 +527,17 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }, [isAddFoodModalOpen, foodSearchQuery]);
 
     const dietJson = useMemo(() => ({
-        dietName, tags: dietTags, activeConstraints, categories: allGroupsToRender,
+        dietName,
+        tags: dietTags,
+        activeConstraints,
+        foodStatus,
+        manualAdditions,
+        customGroups,
+        customConstraints,
+        favoritesEnabled,
+        categories: allGroupsToRender,
         summary: Object.fromEntries(Object.entries(allGroupsToRender).map(([n, f]) => [n, f.length]))
-    }), [dietName, dietTags, activeConstraints, allGroupsToRender]);
+    }), [dietName, dietTags, activeConstraints, foodStatus, manualAdditions, customGroups, customConstraints, favoritesEnabled, allGroupsToRender]);
 
     const printJson = () => {
         console.log('DIET DATA:', dietJson);
@@ -785,39 +809,99 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                     <p className="text-slate-500 font-medium">Define la estructura base y restricciones para tu paciente.</p>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
-                    <div className="grid md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700">Nombre de la Dieta <span className="text-red-500">*</span></label>
-                            <Input placeholder="Ej: Dieta Keto" value={dietName} onChange={e => setDietName(e.target.value)} className="h-11" />
+                <ActionDock items={[
+                    {
+                        id: 'import-diet',
+                        icon: Library,
+                        label: 'Importar Dieta',
+                        variant: 'indigo',
+                        onClick: () => {
+                            setIsImportDietModalOpen(true);
+                            fetchSavedDiets();
+                        }
+                    },
+                    {
+                        id: 'link-patient',
+                        icon: User,
+                        label: 'Importar Paciente',
+                        variant: 'emerald',
+                        onClick: () => toast.info("Módulo de importación de pacientes próximamente...")
+                    },
+                    { id: 'sep-1', icon: Library, label: '', onClick: () => { }, isSeparator: true },
+                    {
+                        id: 'eval-ai',
+                        icon: Sparkles,
+                        label: 'Evaluar con IA',
+                        variant: 'amber',
+                        onClick: () => toast.info("Módulo de IA próximamente... Análisis clínico en desarrollo 🧠")
+                    },
+                    { id: 'sep-2', icon: Library, label: '', onClick: () => { }, isSeparator: true },
+                    {
+                        id: 'save-draft',
+                        icon: Save,
+                        label: 'Guardar Borrador',
+                        variant: 'slate',
+                        onClick: saveAsDraft
+                    },
+                    {
+                        id: 'export-json',
+                        icon: FileCode,
+                        label: 'Imprimir JSON',
+                        variant: 'slate',
+                        onClick: printJson
+                    },
+                    {
+                        id: 'reset',
+                        icon: RotateCcw,
+                        label: 'Reiniciar Todo',
+                        variant: 'rose',
+                        onClick: resetDiet
+                    }
+                ]} />
+
+                <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-200 space-y-8">
+                    <div className="grid md:grid-cols-2 gap-8">
+                        <div className="space-y-3">
+                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Nombre de la Dieta <span className="text-rose-500">*</span></label>
+                            <Input placeholder="Ej: Protocolo Hipertrofia Avanzado" value={dietName} onChange={e => setDietName(e.target.value)} className="h-14 text-lg font-bold rounded-2xl border-slate-200 focus:border-emerald-500 bg-slate-50/80 shadow-sm" />
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700">Etiquetas</label>
+                        <div className="space-y-3">
+                            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Etiquetas de Clasificación</label>
                             <TagInput
                                 value={dietTags}
                                 onChange={setDietTags}
-                                placeholder="Tags..."
+                                placeholder="Añadir tags (Keto, Vegano...)"
                                 suggestions={availableTags}
+                                className="min-h-[56px] rounded-2xl border-slate-200 bg-slate-50/80 shadow-sm"
                             />
                         </div>
                     </div>
 
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                            <Library className="h-4 w-4 text-indigo-600" />
-                            <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">Importar Dieta Base</label>
+                    <div className="space-y-6 pt-6 border-t border-slate-100">
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                <AlertCircle className="h-5 w-5 text-rose-500" />
+                                Restricciones Clínicas del Plan
+                            </label>
                         </div>
-                        <Button
-                            onClick={() => {
-                                setIsImportDietModalOpen(true);
-                                fetchSavedDiets();
-                            }}
-                            variant="outline"
-                            className="w-full h-12 border-2 border-dashed border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-400 font-black rounded-xl transition-all"
-                        >
-                            <Library className="h-5 w-5 mr-2" />
-                            Cargar dieta creada anteriormente
-                        </Button>
+
+                        <div className="flex flex-wrap gap-3">
+                            {DEFAULT_CONSTRAINTS.map(constraint => (
+                                <button
+                                    key={constraint.id}
+                                    onClick={() => toggleConstraint(constraint.id)}
+                                    className={cn(
+                                        "px-6 py-3 rounded-2xl text-sm font-black transition-all border-2 cursor-pointer flex items-center gap-2",
+                                        activeConstraints.includes(constraint.id)
+                                            ? "bg-rose-50 border-rose-500 text-rose-700 shadow-md shadow-rose-100 scale-[1.02]"
+                                            : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 shadow-sm"
+                                    )}
+                                >
+                                    {activeConstraints.includes(constraint.id) && <CheckCircle2 className="h-4 w-4" />}
+                                    {constraint.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -866,22 +950,22 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                                                     <span className="text-emerald-600">C: {food.carbohidratos || 0}g</span>
                                                     <span>•</span>
                                                     <span className="text-yellow-600">L: {food.lipidos || 0}g</span>
-                                                    {(food as any).sugars > 0 && (
+                                                    {food.azucares !== undefined && food.azucares > 0 && (
                                                         <>
                                                             <span>•</span>
-                                                            <span className="text-slate-500">Az: {(food as any).sugars}g</span>
+                                                            <span className="text-slate-500">Az: {food.azucares}g</span>
                                                         </>
                                                     )}
-                                                    {(food as any).fiber > 0 && (
+                                                    {food.fibra !== undefined && food.fibra > 0 && (
                                                         <>
                                                             <span>•</span>
-                                                            <span className="text-slate-500">Fib: {(food as any).fiber}g</span>
+                                                            <span className="text-slate-500">Fib: {food.fibra}g</span>
                                                         </>
                                                     )}
-                                                    {(food as any).sodium > 0 && (
+                                                    {food.sodio !== undefined && food.sodio > 0 && (
                                                         <>
                                                             <span>•</span>
-                                                            <span className="text-slate-500">Na: {(food as any).sodium}mg</span>
+                                                            <span className="text-slate-500">Na: {food.sodio}mg</span>
                                                         </>
                                                     )}
                                                     <button
@@ -923,14 +1007,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         </div>
                     ))}
 
-                    {/* 
                     <button
                         onClick={() => setIsAddGroupModalOpen(true)}
-                        className="w-full py-6 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 font-bold hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/10 cursor-pointer"
+                        className="w-full py-6 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 font-bold hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/10 cursor-pointer transition-all active:scale-[0.99]"
                     >
-                        + Añadir nueva categoría
+                        <Plus className="h-5 w-5 mx-auto mb-1" />
+                        Añadir nueva categoría personalizada
                     </button>
-                    */}
                 </div>
             </div>
 
@@ -950,9 +1033,14 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 </Button>
 
                 <div className="flex gap-3">
-                    <Button variant="ghost" className="h-12 text-slate-400 font-bold" onClick={printJson}>Imprimir JSON</Button>
-                    <Button variant="outline" className="h-12" onClick={saveAsDraft}>Guardar Borrador</Button>
-                    <Button variant="outline" className="h-12 border-rose-200 text-rose-600" onClick={resetDiet}>Reset</Button>
+                    <Button
+                        variant="ghost"
+                        className="h-12 text-emerald-600 font-black gap-2 hover:bg-emerald-50 border-2 border-transparent hover:border-emerald-100 rounded-xl"
+                        onClick={() => toast.info("Función de asignación próximamente... Podrás vincular esta dieta a un paciente específico 👤")}
+                    >
+                        <UserPlus className="h-5 w-5" />
+                        Asignar a un paciente
+                    </Button>
                     <Button className="h-12 px-8 bg-slate-900" onClick={handleSave}>Guardar Creación</Button>
                     <Button className="h-12 px-8 bg-emerald-600" onClick={handleContinue}>Continuar <ArrowRight className="ml-2 h-5 w-5" /></Button>
                 </div>
@@ -1381,26 +1469,26 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                             </div>
 
                             {/* Micronutrientes y Otros */}
-                            {((selectedFoodForInfo as any).sugars > 0 || (selectedFoodForInfo as any).fiber > 0 || (selectedFoodForInfo as any).sodium > 0) && (
+                            {((selectedFoodForInfo as any).azucares > 0 || (selectedFoodForInfo as any).fibra > 0 || (selectedFoodForInfo as any).sodio > 0) && (
                                 <div>
                                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Información Adicional</h3>
                                     <div className="space-y-2">
-                                        {(selectedFoodForInfo as any).sugars > 0 && (
+                                        {(selectedFoodForInfo as any).azucares > 0 && (
                                             <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                                                 <span className="text-sm font-bold text-slate-700">Azúcares</span>
-                                                <span className="text-sm font-black text-slate-900">{(selectedFoodForInfo as any).sugars}g</span>
+                                                <span className="text-sm font-black text-slate-900">{(selectedFoodForInfo as any).azucares}g</span>
                                             </div>
                                         )}
-                                        {(selectedFoodForInfo as any).fiber > 0 && (
+                                        {(selectedFoodForInfo as any).fibra > 0 && (
                                             <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                                                 <span className="text-sm font-bold text-slate-700">Fibra</span>
-                                                <span className="text-sm font-black text-slate-900">{(selectedFoodForInfo as any).fiber}g</span>
+                                                <span className="text-sm font-black text-slate-900">{(selectedFoodForInfo as any).fibra}g</span>
                                             </div>
                                         )}
-                                        {(selectedFoodForInfo as any).sodium > 0 && (
+                                        {(selectedFoodForInfo as any).sodio > 0 && (
                                             <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                                                 <span className="text-sm font-bold text-slate-700">Sodio</span>
-                                                <span className="text-sm font-black text-slate-900">{(selectedFoodForInfo as any).sodium}mg</span>
+                                                <span className="text-sm font-black text-slate-900">{(selectedFoodForInfo as any).sodio}mg</span>
                                             </div>
                                         )}
                                     </div>
