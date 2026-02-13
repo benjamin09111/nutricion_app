@@ -30,12 +30,12 @@ export declare class UsersService {
         } | null;
     } & {
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         email: string;
         password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
         status: import(".prisma/client").$Enums.AccountStatus;
+        createdAt: Date;
+        updatedAt: Date;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
     }) | null>;
@@ -46,23 +46,23 @@ export declare class UsersService {
         role?: UserRole;
     }): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         email: string;
         password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
         status: import(".prisma/client").$Enums.AccountStatus;
+        createdAt: Date;
+        updatedAt: Date;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
     }>;
     updatePlan(userId: string, plan: SubscriptionPlan, days?: number): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         email: string;
         password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
         status: import(".prisma/client").$Enums.AccountStatus;
+        createdAt: Date;
+        updatedAt: Date;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
     }>;

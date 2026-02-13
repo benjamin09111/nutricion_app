@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
     User, Mail, Phone, Calendar, Ruler, Weight,
     ArrowLeft, TrendingUp, History, ClipboardList,
-    Plus, Activity, Target, Zap, Dumbbell, Lock
+    Plus, Activity, Target, Zap, Dumbbell, Lock, AlertCircle
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Patient } from '@/features/patients';
@@ -374,7 +374,54 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                             </div>
                                         </div>
                                         <div className="space-y-4">
-                                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b pb-2">Preferencias</h4>
+                                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b pb-2">Preferencias & Restricciones</h4>
+                                            <div className="space-y-2">
+                                                <p className="text-xs font-bold text-rose-500 flex items-center gap-1.5">
+                                                    <AlertCircle className="w-3 h-3" />
+                                                    RESTRICCIONES CLÍNICAS:
+                                                </p>
+                                                {isEditing ? (
+                                                    <div className="space-y-3">
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {['Celiaco', 'Diabético', 'Sin Lactosa', 'Hipertensión', 'Vegano', 'Vegetariano'].map(restriction => {
+                                                                const isSelected = (editForm.dietaryRestrictions || []).includes(restriction);
+                                                                return (
+                                                                    <button
+                                                                        key={restriction}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const current = editForm.dietaryRestrictions || [];
+                                                                            const next = isSelected
+                                                                                ? current.filter(r => r !== restriction)
+                                                                                : [...current, restriction];
+                                                                            updateField('dietaryRestrictions', next);
+                                                                        }}
+                                                                        className={cn(
+                                                                            "px-2 py-1 rounded-lg text-[10px] font-black transition-all border cursor-pointer",
+                                                                            isSelected
+                                                                                ? "bg-rose-50 border-rose-500 text-rose-700"
+                                                                                : "bg-white border-slate-100 text-slate-400"
+                                                                        )}
+                                                                    >
+                                                                        {restriction}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        <TagInput
+                                                            value={editForm.dietaryRestrictions || []}
+                                                            onChange={(tags) => updateField('dietaryRestrictions', tags)}
+                                                            placeholder="Otras restricciones..."
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {patient.dietaryRestrictions?.length ? patient.dietaryRestrictions.map(t => (
+                                                            <span key={t} className="px-3 py-1 bg-rose-50 text-rose-700 text-[10px] font-black rounded-lg border border-rose-100">{t}</span>
+                                                        )) : <span className="text-xs text-slate-400 italic">Sin restricciones detectadas</span>}
+                                                    </div>
+                                                )}
+                                            </div>
                                             <div className="space-y-2">
                                                 <p className="text-xs font-bold text-slate-400">GUSTOS:</p>
                                                 {isEditing ? (

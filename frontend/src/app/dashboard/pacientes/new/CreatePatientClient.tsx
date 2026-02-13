@@ -335,14 +335,51 @@ export default function CreatePatientClient() {
                                     onChange={(e) => updateDraft({ height: parseFloat(e.target.value) })}
                                 />
                             </div>
+                            <div className="space-y-3 col-span-2 pt-2 border-t border-slate-50">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                                        <AlertCircle className="h-3 w-3" />
+                                        Restricciones Clínicas
+                                    </label>
+                                    <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter">Impacta filtrado de alimentos</span>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2">
+                                    {['Celiaco', 'Diabético', 'Sin Lactosa', 'Hipertensión', 'Vegano', 'Vegetariano'].map(restriction => {
+                                        const isSelected = draft.dietaryRestrictions?.includes(restriction);
+                                        return (
+                                            <button
+                                                key={restriction}
+                                                type="button"
+                                                onClick={() => {
+                                                    const current = draft.dietaryRestrictions || [];
+                                                    const next = isSelected
+                                                        ? current.filter(r => r !== restriction)
+                                                        : [...current, restriction];
+                                                    updateDraft({ dietaryRestrictions: next });
+                                                }}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-xl text-[11px] font-black transition-all border-2 cursor-pointer",
+                                                    isSelected
+                                                        ? "bg-rose-50 border-rose-500 text-rose-700 shadow-sm"
+                                                        : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"
+                                                )}
+                                            >
+                                                {restriction}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
                             <div className="space-y-1.5 col-span-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Restricciones</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Otras Restricciones / Alergias</label>
                                 <div className="bg-slate-50 rounded-xl border border-slate-100 focus-within:border-emerald-500 p-1 transition-all">
                                     <TagInput
                                         value={draft.dietaryRestrictions || []}
                                         onChange={(tags) => updateDraft({ dietaryRestrictions: tags })}
-                                        placeholder="Añadir..."
-                                        suggestions={['Celiaco', 'Diabético', 'Sin Lactosa', 'Vegano', 'Vegetariano']}
+                                        placeholder="Escribe y presiona Enter..."
+                                        suggestions={['Sin Gluten', 'Sin Azúcar', 'Renal', 'Embarazo']}
                                         className="border-none shadow-none text-xs"
                                     />
                                 </div>

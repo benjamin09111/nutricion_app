@@ -75,6 +75,7 @@ model Patient {
   gender         String?
   height         Float?
   weight         Float?
+  dietRestrictions Json?        @map("diet_restrictions") @default("[]")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
