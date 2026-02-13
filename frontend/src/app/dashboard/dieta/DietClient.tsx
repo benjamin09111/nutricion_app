@@ -72,10 +72,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
     // -- Smart Add State --
     const [isSmartModalOpen, setIsSmartModalOpen] = useState(false);
-    const [smartAddTab, setSmartAddTab] = useState<'favorites' | 'groups' | 'myproducts'>('favorites');
+    const [smartAddTab, setSmartAddTab] = useState<'favorites' | 'groups' | 'myproducts' | 'search'>('favorites');
     const [smartFavorites, setSmartFavorites] = useState<any[]>([]);
     const [smartGroups, setSmartGroups] = useState<any[]>([]);
     const [smartMyProducts, setSmartMyProducts] = useState<any[]>([]);
+    const [smartSearchQuery, setSmartSearchQuery] = useState('');
+    const [smartSearchResults, setSmartSearchResults] = useState<any[]>([]);
+    const [isSearchingInSmart, setIsSearchingInSmart] = useState(false);
     const [selectedFoods, setSelectedFoods] = useState<Set<string>>(new Set());
     const [isLoadingSmart, setIsLoadingSmart] = useState(false);
 
@@ -294,34 +297,58 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     // Totales
     // Totales removidos por no tener sentido sin porciones
 
+    const saveDraft = (overrides: any = {}) => {
+        try {
+            const currentDraftKey = getUserDraftKey();
+            const draft = {
+                dietName: overrides.dietName !== undefined ? overrides.dietName : dietName,
+                dietTags: overrides.dietTags !== undefined ? overrides.dietTags : dietTags,
+                activeConstraints: overrides.activeConstraints !== undefined ? overrides.activeConstraints : activeConstraints,
+                foodStatus: overrides.foodStatus !== undefined ? overrides.foodStatus : foodStatus,
+                manualAdditions: overrides.manualAdditions !== undefined ? overrides.manualAdditions : manualAdditions,
+                customGroups: overrides.customGroups !== undefined ? overrides.customGroups : customGroups,
+                customConstraints: overrides.customConstraints !== undefined ? overrides.customConstraints : customConstraints,
+                favoritesEnabled,
+                timestamp: Date.now()
+            };
+            localStorage.setItem(currentDraftKey, JSON.stringify(draft));
+        } catch (e) {
+            console.error("Error saving draft", e);
+        }
+    };
+
+    // Auto-save draft on critical changes
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            saveDraft();
+        }, 1000);
+        return () => clearTimeout(timeout);
+    }, [dietName, dietTags, activeConstraints, customGroups, customConstraints, manualAdditions, foodStatus]);
+
     const toggleConstraint = (id: string) => {
-        setActiveConstraints(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+        const next = activeConstraints.includes(id)
+            ? activeConstraints.filter(c => c !== id)
+            : [...activeConstraints, id];
+        setActiveConstraints(next);
+        saveDraft({ activeConstraints: next });
     };
 
     const removeFood = (productName: string) => {
-        setFoodStatus(prev => {
-            const next: Record<string, 'base' | 'favorite' | 'removed' | 'added'> = { ...prev, [productName]: 'removed' };
-            // Actualizar borrador
-            try {
-                const currentDraftKey = getUserDraftKey();
-                const draftStr = localStorage.getItem(currentDraftKey);
-                const draft = draftStr ? JSON.parse(draftStr) : {};
-                localStorage.setItem(currentDraftKey, JSON.stringify({
-                    ...draft,
-                    foodStatus: { ...(draft.foodStatus || {}), [productName]: 'removed' }
-                }));
-            } catch (e) { }
-            return next;
-        });
+        const nextStatus = { ...foodStatus, [productName]: 'removed' as const };
+        setFoodStatus(nextStatus);
+        saveDraft({ foodStatus: nextStatus });
 
         toast("Alimento eliminado de la dieta", {
             action: {
                 label: "Deshacer",
-                onClick: () => setFoodStatus(prev => {
-                    const next = { ...prev };
-                    delete next[productName];
-                    return next;
-                })
+                onClick: () => {
+                    setFoodStatus(prev => {
+                        const next = { ...prev };
+                        delete next[productName];
+                        saveDraft({ foodStatus: next });
+                        return next;
+                    });
+                }
             }
         });
     };
@@ -339,19 +366,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             toast.info(`${productName} eliminado de favoritos`);
         }
 
-        setFoodStatus(prev => {
-            const next: Record<string, 'base' | 'favorite' | 'removed' | 'added'> = { ...prev, [productName]: newStatus };
-            try {
-                const currentDraftKey = getUserDraftKey();
-                const draftStr = localStorage.getItem(currentDraftKey);
-                const draft = draftStr ? JSON.parse(draftStr) : {};
-                localStorage.setItem(currentDraftKey, JSON.stringify({
-                    ...draft,
-                    foodStatus: { ...(draft.foodStatus || {}), [productName]: newStatus }
-                }));
-            } catch (e) { }
-            return next;
-        });
+        const nextStatus: Record<string, 'base' | 'favorite' | 'removed' | 'added'> = { ...foodStatus, [productName]: newStatus };
+        setFoodStatus(nextStatus);
+        saveDraft({ foodStatus: nextStatus });
 
         // 2. Persistencia Backend (En segundo plano)
         const token = Cookies.get('auth_token');
@@ -526,6 +543,36 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         return () => clearTimeout(timeoutId);
     }, [isAddFoodModalOpen, foodSearchQuery]);
 
+    useEffect(() => {
+        if (smartAddTab !== 'search' || !smartSearchQuery.trim()) {
+            setSmartSearchResults([]);
+            setIsSearchingInSmart(false);
+            return;
+        }
+
+        const fetchFoods = async () => {
+            setIsSearchingInSmart(true);
+            const token = Cookies.get('auth_token');
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
+            try {
+                const res = await fetch(`${apiUrl}/foods?search=${smartSearchQuery}&limit=20`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setSmartSearchResults(data);
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsSearchingInSmart(false);
+            }
+        };
+
+        const timeoutId = setTimeout(fetchFoods, 300);
+        return () => clearTimeout(timeoutId);
+    }, [smartAddTab, smartSearchQuery]);
+
     const dietJson = useMemo(() => ({
         dietName,
         tags: dietTags,
@@ -554,10 +601,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     };
 
     const saveAsDraft = () => {
-        localStorage.setItem(getUserDraftKey(), JSON.stringify({
-            dietName, dietTags, activeConstraints, foodStatus, manualAdditions,
-            customGroups, customConstraints, favoritesEnabled, timestamp: Date.now()
-        }));
+        saveDraft();
         toast.success("Borrador guardado.");
     };
 
@@ -567,7 +611,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
     const handleAddFromSearch = (food: MarketPrice) => {
         if (!activeGroupForAddition) return;
-        setFoodStatus(prev => ({ ...prev, [food.producto]: 'added' as const }));
+        const nextStatus: Record<string, 'base' | 'favorite' | 'removed' | 'added'> = { ...foodStatus, [food.producto]: 'added' as const };
+        setFoodStatus(nextStatus);
+        saveDraft({ foodStatus: nextStatus });
         const isInInitial = initialFoods.some(f => f.producto === food.producto);
         const alreadyInManual = manualAdditions.some(ma => ma.producto === food.producto && ma.grupo === activeGroupForAddition);
 
@@ -742,6 +788,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         });
     };
 
+    const openSmartModal = () => {
+        setIsSmartModalOpen(true);
+        setSmartSearchQuery('');
+        setSmartSearchResults([]);
+        fetchSmartAddData();
+    };
+
     const handleSmartAddAll = () => {
         const foodsToAdd: any[] = [];
         const selectedIds = Array.from(selectedFoods);
@@ -753,6 +806,14 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                     const groupFood = g.ingredients?.find((rel: any) => rel.ingredient?.id === id);
                     if (groupFood) found = groupFood.ingredient;
                 });
+            }
+
+            if (!found) {
+                found = smartSearchResults.find(f => f.id === id);
+            }
+
+            if (!found) {
+                found = smartMyProducts.find(f => f.id === id);
             }
 
             if (found) {
@@ -775,11 +836,10 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             return;
         }
 
-        setFoodStatus(prev => {
-            const next = { ...prev };
-            foodsToAdd.forEach(f => { next[f.producto] = 'added'; });
-            return next;
-        });
+        const nextStatus: Record<string, 'base' | 'favorite' | 'removed' | 'added'> = { ...foodStatus };
+        foodsToAdd.forEach(f => { nextStatus[f.producto] = 'added'; });
+        setFoodStatus(nextStatus);
+        saveDraft({ foodStatus: nextStatus });
 
         setManualAdditions(prev => {
             const existingNames = new Set([
@@ -1021,10 +1081,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 <Button
                     variant="outline"
                     className="h-12 border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-black gap-2 transition-all active:scale-95 group"
-                    onClick={() => {
-                        setIsSmartModalOpen(true);
-                        fetchSmartAddData();
-                    }}
+                    onClick={openSmartModal}
                 >
                     <div className="bg-indigo-100 p-1.5 rounded-lg group-hover:scale-110 transition-transform">
                         <Brain className="h-5 w-5" />
@@ -1170,7 +1227,29 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                             <Plus className="h-4 w-4" />
                             Mis Productos
                         </button>
+                        <button
+                            onClick={() => setSmartAddTab('search')}
+                            className={cn(
+                                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
+                                smartAddTab === 'search' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                            )}
+                        >
+                            <Search className="h-4 w-4" />
+                            Buscar
+                        </button>
                     </div>
+
+                    {smartAddTab === 'search' && (
+                        <div className="px-1">
+                            <Input
+                                placeholder="Buscar en toda la base de datos..."
+                                value={smartSearchQuery}
+                                onChange={e => setSmartSearchQuery(e.target.value)}
+                                className="h-12 rounded-xl bg-slate-50 border-slate-200 focus:border-indigo-500"
+                                autoFocus
+                            />
+                        </div>
+                    )}
 
                     {/* Content */}
                     <div className="max-h-[400px] overflow-y-auto px-1 space-y-4">
@@ -1391,6 +1470,77 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                                 <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
                                     <Plus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
                                     <p className="text-slate-400 font-bold text-sm px-10">No has creado productos personalizados aún.</p>
+                                </div>
+                            )
+                        ) : smartAddTab === 'search' ? (
+                            isSearchingInSmart ? (
+                                <div className="py-20 flex flex-col items-center justify-center gap-3">
+                                    <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
+                                    <p className="text-slate-400 font-bold text-sm">Escaneando base de datos...</p>
+                                </div>
+                            ) : smartSearchResults.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {smartSearchResults.map(f => (
+                                        <div
+                                            key={f.id}
+                                            onClick={() => toggleSmartSelection(f.id)}
+                                            className={cn(
+                                                "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+                                                selectedFoods.has(f.id)
+                                                    ? "border-indigo-500 bg-indigo-50/50"
+                                                    : "border-slate-100 bg-white hover:border-indigo-200"
+                                            )}
+                                        >
+                                            <div className="flex-1">
+                                                <p className="font-black text-slate-800 text-sm mb-1">{f.name}</p>
+                                                <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-black uppercase">
+                                                    {f.category?.name || 'Varios'}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedFoodForInfo({
+                                                            id: f.id,
+                                                            producto: f.name,
+                                                            grupo: f.category?.name || 'Varios',
+                                                            calorias: f.calories || 0,
+                                                            proteinas: f.proteins || 0,
+                                                            carbohidratos: f.carbs || 0,
+                                                            lipidos: f.lipids || 0,
+                                                            unidad: f.unit || 'g',
+                                                            precioPromedio: f.price || 0,
+                                                            tags: f.tags?.map((t: any) => t.name) || [],
+                                                            ...(f as any)
+                                                        });
+                                                        setIsFoodInfoModalOpen(true);
+                                                    }}
+                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                                                >
+                                                    <Info className="h-4 w-4" />
+                                                </button>
+                                                <div className={cn(
+                                                    "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                                                    selectedFoods.has(f.id)
+                                                        ? "bg-indigo-600 border-indigo-600 text-white"
+                                                        : "border-slate-200 group-hover:border-indigo-300"
+                                                )}>
+                                                    {selectedFoods.has(f.id) && <Plus className="h-4 w-4" />}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : smartSearchQuery.trim() ? (
+                                <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
+                                    <Search className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                                    <p className="text-slate-400 font-bold text-sm px-10">No se encontraron productos para "{smartSearchQuery}"</p>
+                                </div>
+                            ) : (
+                                <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
+                                    <Search className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                                    <p className="text-slate-400 font-bold text-sm px-10">Escribe algo para buscar en toda la base de datos...</p>
                                 </div>
                             )
                         ) : null}
