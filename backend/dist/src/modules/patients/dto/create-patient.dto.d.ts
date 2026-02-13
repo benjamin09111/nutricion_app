@@ -7,4 +7,5 @@ export declare class CreatePatientDto {
     gender?: string;
     height?: number;
     weight?: number;
+    dietRestrictions?: string[];
 }

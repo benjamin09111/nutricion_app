@@ -6,32 +6,34 @@ export declare class PatientsService {
     constructor(prisma: PrismaService);
     create(nutritionistId: string, createPatientDto: CreatePatientDto): Promise<{
         id: string;
-        nutritionistId: string;
+        email: string | null;
         createdAt: Date;
         updatedAt: Date;
-        email: string | null;
         fullName: string;
         phone: string | null;
+        nutritionistId: string;
         documentId: string | null;
         birthDate: Date | null;
         gender: string | null;
         height: number | null;
         weight: number | null;
+        dietRestrictions: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     findAll(nutritionistId: string, page?: number, limit?: number, search?: string): Promise<{
         data: {
             id: string;
-            nutritionistId: string;
+            email: string | null;
             createdAt: Date;
             updatedAt: Date;
-            email: string | null;
             fullName: string;
             phone: string | null;
+            nutritionistId: string;
             documentId: string | null;
             birthDate: Date | null;
             gender: string | null;
             height: number | null;
             weight: number | null;
+            dietRestrictions: import("@prisma/client/runtime/library").JsonValue | null;
         }[];
         meta: {
             total: number;
@@ -41,44 +43,47 @@ export declare class PatientsService {
     }>;
     findOne(nutritionistId: string, id: string): Promise<{
         id: string;
-        nutritionistId: string;
+        email: string | null;
         createdAt: Date;
         updatedAt: Date;
-        email: string | null;
         fullName: string;
         phone: string | null;
+        nutritionistId: string;
         documentId: string | null;
         birthDate: Date | null;
         gender: string | null;
         height: number | null;
         weight: number | null;
+        dietRestrictions: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     update(nutritionistId: string, id: string, updatePatientDto: UpdatePatientDto): Promise<{
         id: string;
-        nutritionistId: string;
+        email: string | null;
         createdAt: Date;
         updatedAt: Date;
-        email: string | null;
         fullName: string;
         phone: string | null;
+        nutritionistId: string;
         documentId: string | null;
         birthDate: Date | null;
         gender: string | null;
         height: number | null;
         weight: number | null;
+        dietRestrictions: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     remove(nutritionistId: string, id: string): Promise<{
         id: string;
-        nutritionistId: string;
+        email: string | null;
         createdAt: Date;
         updatedAt: Date;
-        email: string | null;
         fullName: string;
         phone: string | null;
+        nutritionistId: string;
         documentId: string | null;
         birthDate: Date | null;
         gender: string | null;
         height: number | null;
         weight: number | null;
+        dietRestrictions: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
 }

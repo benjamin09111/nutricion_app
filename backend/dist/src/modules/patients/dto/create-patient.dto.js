@@ -20,6 +20,7 @@ class CreatePatientDto {
     gender;
     height;
     weight;
+    dietRestrictions;
 }
 exports.CreatePatientDto = CreatePatientDto;
 __decorate([
@@ -62,4 +63,10 @@ __decorate([
     (0, class_validator_1.IsNumber)({}, { message: 'El peso debe ser un número (kg)' }),
     __metadata("design:type", Number)
 ], CreatePatientDto.prototype, "weight", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)({ message: 'Las restricciones deben ser una lista de etiquetas' }),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], CreatePatientDto.prototype, "dietRestrictions", void 0);
 //# sourceMappingURL=create-patient.dto.js.map

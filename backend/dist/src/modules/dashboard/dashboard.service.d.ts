@@ -12,8 +12,8 @@ export declare class DashboardService {
         }[];
         recentPatients: {
             id: string;
-            updatedAt: Date;
             email: string | null;
+            updatedAt: Date;
             fullName: string;
         }[];
     }>;

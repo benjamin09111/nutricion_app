@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsEmail, IsOptional, IsNumber, IsDateString, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsEmail, IsOptional, IsNumber, IsDateString, IsEnum, IsArray } from 'class-validator';
 
 export class CreatePatientDto {
     @IsNotEmpty({ message: 'El nombre completo es obligatorio' })
@@ -33,4 +33,9 @@ export class CreatePatientDto {
     @IsOptional()
     @IsNumber({}, { message: 'El peso debe ser un número (kg)' })
     weight?: number;
+
+    @IsOptional()
+    @IsArray({ message: 'Las restricciones deben ser una lista de etiquetas' })
+    @IsString({ each: true })
+    dietRestrictions?: string[];
 }
