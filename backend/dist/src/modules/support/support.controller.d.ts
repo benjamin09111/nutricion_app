@@ -9,8 +9,8 @@ export declare class SupportController {
         status: import(".prisma/client").$Enums.SupportRequestStatus;
         createdAt: Date;
         updatedAt: Date;
-        message: string | null;
         type: import(".prisma/client").$Enums.SupportRequestType;
+        message: string | null;
     }>;
     createFeedback(req: any, body: import('./dto/create-feedback.dto').CreateFeedbackDto): Promise<{
         id: string;
@@ -18,8 +18,8 @@ export declare class SupportController {
         status: import(".prisma/client").$Enums.SupportRequestStatus;
         createdAt: Date;
         updatedAt: Date;
-        message: string | null;
         type: import(".prisma/client").$Enums.SupportRequestType;
+        message: string | null;
     }>;
     findAll(): Promise<{
         id: string;
@@ -27,8 +27,8 @@ export declare class SupportController {
         status: import(".prisma/client").$Enums.SupportRequestStatus;
         createdAt: Date;
         updatedAt: Date;
-        message: string | null;
         type: import(".prisma/client").$Enums.SupportRequestType;
+        message: string | null;
     }[]>;
     resolve(id: string): Promise<{
         id: string;
@@ -36,8 +36,8 @@ export declare class SupportController {
         status: import(".prisma/client").$Enums.SupportRequestStatus;
         createdAt: Date;
         updatedAt: Date;
-        message: string | null;
         type: import(".prisma/client").$Enums.SupportRequestType;
+        message: string | null;
     }>;
     remove(id: string): Promise<{
         id: string;
@@ -45,7 +45,7 @@ export declare class SupportController {
         status: import(".prisma/client").$Enums.SupportRequestStatus;
         createdAt: Date;
         updatedAt: Date;
-        message: string | null;
         type: import(".prisma/client").$Enums.SupportRequestType;
+        message: string | null;
     }>;
 }

@@ -20,6 +20,10 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { HttpLoggerMiddleware } from './common/middleware/http-logger.middleware';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { CreationsModule } from './modules/creations/creations.module';
+import { TagsModule } from './modules/tags/tags.module';
+import { SubstitutesModule } from './modules/substitutes/substitutes.module';
+import { ResourcesModule } from './modules/resources/resources.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
 
 @Module({
   imports: [
@@ -46,6 +50,10 @@ import { CreationsModule } from './modules/creations/creations.module';
     }),
     DashboardModule,
     CreationsModule,
+    TagsModule,
+    SubstitutesModule,
+    ResourcesModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

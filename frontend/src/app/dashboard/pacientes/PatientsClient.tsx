@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Search, MoreHorizontal, User, Phone, Calendar, Mail, Plus } from 'lucide-react';
+import { Search, MoreHorizontal, User, Phone, Calendar, Mail, Plus, Save, FileCode, RotateCcw, Library, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -12,6 +12,8 @@ import { twMerge } from 'tailwind-merge';
 import { toast } from 'sonner';
 import { PatientStorage } from '@/features/patients/services/patientStorage';
 import { useAdmin } from '@/context/AdminContext';
+import { ModuleLayout } from '@/components/shared/ModuleLayout';
+import { ActionDockItem } from '@/components/ui/ActionDock';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -70,27 +72,75 @@ export default function PatientsClient({ initialData }: PatientsClientProps) {
 
     const tabs: PatientTab[] = ['Todos', 'Activos', 'Inactivos'];
 
+    const resetPatients = () => {
+        setPatients(initialData);
+        PatientStorage.initialize(initialData);
+        toast.info("Lista de pacientes reiniciada.");
+    };
+
+    const actionDockItems: ActionDockItem[] = useMemo(() => [
+        {
+            id: 'import-diet',
+            icon: Library,
+            label: 'Importar Dieta',
+            variant: 'indigo',
+            onClick: () => toast.info("Funcionalidad próximamente...")
+        },
+        {
+            id: 'link-patient',
+            icon: User,
+            label: 'Importar Paciente',
+            variant: 'emerald',
+            onClick: () => toast.info("Módulo de importación de pacientes próximamente...")
+        },
+        { id: 'sep-1', icon: Library, label: '', onClick: () => { }, isSeparator: true },
+        {
+            id: 'eval-ai',
+            icon: Sparkles,
+            label: 'Evaluar con IA',
+            variant: 'amber',
+            onClick: () => toast.info("Módulo de IA próximamente... Análisis clínico en desarrollo 🧠")
+        },
+        { id: 'sep-2', icon: Library, label: '', onClick: () => { }, isSeparator: true },
+        {
+            id: 'save-draft',
+            icon: Save,
+            label: 'Guardar Borrador',
+            variant: 'slate',
+            onClick: () => toast.success("Borrador de pacientes guardado")
+        },
+        {
+            id: 'export-json',
+            icon: FileCode,
+            label: 'Imprimir JSON',
+            variant: 'slate',
+            onClick: printJson
+        },
+        {
+            id: 'reset',
+            icon: RotateCcw,
+            label: 'Reiniciar Todo',
+            variant: 'rose',
+            onClick: resetPatients
+        }
+    ], [printJson, resetPatients]);
+
     return (
-        <div className="space-y-8 pb-24">
-            {/* Header Section */}
-            <div className="md:flex md:items-center md:justify-between px-2">
-                <div>
-                    <h2 className="text-3xl font-black tracking-tight text-slate-900">
-                        Pacientes
-                    </h2>
-                    <p className="mt-1 text-sm font-medium text-slate-500">
-                        Gestiona los expedientes y progreso de tus pacientes.
-                    </p>
-                </div>
-                <div className="mt-4 flex md:ml-4 md:mt-0">
-                    <Button
-                        onClick={() => router.push('/dashboard/pacientes/new')}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black h-12 px-8 rounded-2xl shadow-xl shadow-emerald-200 transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-2 group"
-                    >
-                        <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform" aria-hidden="true" />
-                        NUEVO PACIENTE
-                    </Button>
-                </div>
+        <ModuleLayout
+            title="Pacientes"
+            description="Gestiona los expedientes y progreso de tus pacientes."
+            rightNavItems={actionDockItems}
+            className="pb-8"
+        >
+            {/* Header Actions */}
+            <div className="flex justify-end mb-6">
+                <Button
+                    onClick={() => router.push('/dashboard/pacientes/new')}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black h-12 px-8 rounded-2xl shadow-xl shadow-emerald-200 transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-2 group"
+                >
+                    <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform" aria-hidden="true" />
+                    NUEVO PACIENTE
+                </Button>
             </div>
             {/* Tabs Switcher */}
             <div className="flex p-1 bg-slate-100/80 rounded-2xl w-fit border border-slate-200/50 backdrop-blur-sm">
@@ -226,16 +276,6 @@ export default function PatientsClient({ initialData }: PatientsClientProps) {
                 </div>
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-slate-200 p-4 flex justify-end px-8 z-40">
-                <Button
-                    variant="outline"
-                    className="h-10 border-slate-200 text-slate-500 font-bold"
-                    onClick={printJson}
-                >
-                    Imprimir JSON (Pacientes)
-                </Button>
-            </div>
-
-        </div>
+        </ModuleLayout>
     );
 }
