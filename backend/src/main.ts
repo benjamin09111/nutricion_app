@@ -5,9 +5,14 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { SanitizationPipe } from './common/pipes/sanitization.pipe';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { join } from 'path';
+import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Serve static files from 'uploads'
+  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
   // Security
   // app.use(helmet()); // Temporarily disabled to debug connectivity

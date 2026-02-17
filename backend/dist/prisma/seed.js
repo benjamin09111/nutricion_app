@@ -237,6 +237,21 @@ async function main() {
         });
         console.log(`✅ Upserted Membership Plan: ${plan.name}`);
     }
+    const defaultTags = [
+        'Diabético',
+        'Hipertensión',
+        'Vegetariano',
+        'Celiaco',
+        'Sin Gluten'
+    ];
+    for (const tagName of defaultTags) {
+        await prisma.tag.upsert({
+            where: { name: tagName },
+            update: {},
+            create: { name: tagName },
+        });
+    }
+    console.log('✅ Seeded default clinical restrictions as tags.');
     console.log('🏁 Seeding finished.');
 }
 main()

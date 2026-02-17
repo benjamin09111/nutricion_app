@@ -43,8 +43,22 @@ model Nutritionist {
   account               Account                @relation(fields: [accountId], references: [id], onDelete: Cascade)
   patients              Patient[]
   recipes               Recipe[]
+  substitutes           Substitute[]
+  resources             Resource[]
 
   @@map("nutritionists")
+}
+
+model Substitute {
+  id             String       @id @default(uuid())
+  nutritionistId String       @map("nutritionist_id")
+  content        Json         // The Source of Truth for common substitutes
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+
+  @@index([nutritionistId])
+  @@map("substitutes")
 }
 
 model Creation {
@@ -450,4 +464,20 @@ model Announcement {
   updatedAt   DateTime @updatedAt
 
   @@map("announcements")
+}
+model Resource {
+  id             String       @id @default(uuid())
+  nutritionistId String?      @map("nutritionist_id")
+  title          String
+  content        String       @db.Text
+  category       String       // 'mitos', 'consejos', 'ejercicios', 'habitos', 'emocional', etc.
+  tags           String[]     @default([]) // For auto-mapping to patient conditions
+  images         Json?        @default("[]") // Array of image URLs
+  isPublic       Boolean      @default(false) @map("is_public")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  nutritionist   Nutritionist? @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+
+  @@index([nutritionistId])
+  @@map("resources")
 }

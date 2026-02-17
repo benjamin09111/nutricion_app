@@ -29,6 +29,10 @@ const cache_manager_1 = require("@nestjs/cache-manager");
 const http_logger_middleware_1 = require("./common/middleware/http-logger.middleware");
 const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
 const creations_module_1 = require("./modules/creations/creations.module");
+const tags_module_1 = require("./modules/tags/tags.module");
+const substitutes_module_1 = require("./modules/substitutes/substitutes.module");
+const resources_module_1 = require("./modules/resources/resources.module");
+const uploads_module_1 = require("./modules/uploads/uploads.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer
@@ -63,6 +67,10 @@ exports.AppModule = AppModule = __decorate([
             }),
             dashboard_module_1.DashboardModule,
             creations_module_1.CreationsModule,
+            tags_module_1.TagsModule,
+            substitutes_module_1.SubstitutesModule,
+            resources_module_1.ResourcesModule,
+            uploads_module_1.UploadsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

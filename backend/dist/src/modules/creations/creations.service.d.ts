@@ -8,11 +8,11 @@ export declare class CreationsService {
         updatedAt: Date;
         name: string;
         nutritionistId: string;
-        tags: string[];
         type: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        content: import("@prisma/client/runtime/library").JsonValue;
         format: string;
+        content: import("@prisma/client/runtime/library").JsonValue;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        tags: string[];
     }>;
     findAll(nutritionistId: string, type?: string): Promise<{
         id: string;
@@ -20,11 +20,11 @@ export declare class CreationsService {
         updatedAt: Date;
         name: string;
         nutritionistId: string;
-        tags: string[];
         type: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        content: import("@prisma/client/runtime/library").JsonValue;
         format: string;
+        content: import("@prisma/client/runtime/library").JsonValue;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        tags: string[];
     }[]>;
     findOne(id: string, nutritionistId: string): Promise<{
         id: string;
@@ -32,11 +32,11 @@ export declare class CreationsService {
         updatedAt: Date;
         name: string;
         nutritionistId: string;
-        tags: string[];
         type: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        content: import("@prisma/client/runtime/library").JsonValue;
         format: string;
+        content: import("@prisma/client/runtime/library").JsonValue;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        tags: string[];
     }>;
     delete(id: string, nutritionistId: string): Promise<import(".prisma/client").Prisma.BatchPayload>;
     getAvailableTags(nutritionistId: string): Promise<any[]>;

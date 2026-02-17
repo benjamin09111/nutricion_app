@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import {
     ClipboardCheck,
-    GraduationCap,
     Download,
     Eye,
     CheckCircle2,
@@ -18,20 +17,23 @@ import {
     Apple,
     HelpCircle,
     Info,
-    Calendar,
     Save,
     Image as ImageIcon,
     Pencil,
     Layout,
     Palette,
-    X
+    X,
+    ChevronLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import SmartPatientHeader from '@/components/layout/SmartPatientHeader';
+import { ModuleLayout } from '@/components/shared/ModuleLayout';
+import { ModuleFooter } from '@/components/shared/ModuleFooter';
+import { ActionDockItem } from '@/components/ui/ActionDock';
 import { PremiumGuard } from '@/components/common/PremiumGuard';
 import { useAdmin } from '@/context/AdminContext';
+import { useRouter } from 'next/navigation';
 
 interface SectionItem {
     id: string;
@@ -61,6 +63,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
 ];
 
 export default function DeliverableClient() {
+    const router = useRouter();
     const { role } = useAdmin();
     const [selectedSections, setSelectedSections] = useState<string[]>(
         DELIVERABLE_SECTIONS.filter(s => s.defaultSelected).map(s => s.id)
@@ -68,18 +71,58 @@ export default function DeliverableClient() {
     const [includeLogo, setIncludeLogo] = useState(true);
     const [isExporting, setIsExporting] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [selectedPatient, setSelectedPatient] = useState<any>(null);
+
+    // Load project draft on mount
+    useEffect(() => {
+        const storedDraft = localStorage.getItem('nutri_active_draft');
+        if (storedDraft) {
+            try {
+                const draft = JSON.parse(storedDraft);
+                if (draft.deliverable) {
+                    if (draft.deliverable.selectedSections) setSelectedSections(draft.deliverable.selectedSections);
+                    if (draft.deliverable.includeLogo !== undefined) setIncludeLogo(draft.deliverable.includeLogo);
+                }
+            } catch (e) {
+                console.error("Error loading project draft", e);
+            }
+        }
+    }, []);
+
+    // Auto-save deliverable config to draft
+    useEffect(() => {
+        const storedDraft = localStorage.getItem('nutri_active_draft');
+        let draft = storedDraft ? JSON.parse(storedDraft) : {};
+
+        draft.deliverable = {
+            selectedSections,
+            includeLogo,
+            updatedAt: new Date().toISOString()
+        };
+
+        localStorage.setItem('nutri_active_draft', JSON.stringify(draft));
+    }, [selectedSections, includeLogo]);
 
     // AI Review State
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [isReviewing, setIsReviewing] = useState(false);
 
-    // Simulate AI Review Process
+    // Load stored patient
     useEffect(() => {
+        const storedPatient = localStorage.getItem('nutri_patient');
+        if (storedPatient) {
+            try {
+                setSelectedPatient(JSON.parse(storedPatient));
+            } catch (e) {
+                console.error("Failed to parse stored patient", e);
+            }
+        }
+
         if (isReviewModalOpen) {
             setIsReviewing(true);
             const timer = setTimeout(() => {
                 setIsReviewing(false);
-            }, 3000); // 3 seconds fake analysis
+            }, 3000);
             return () => clearTimeout(timer);
         }
     }, [isReviewModalOpen]);
@@ -120,62 +163,122 @@ export default function DeliverableClient() {
     };
 
     const printJson = () => {
-        console.group('📊 DELIVERABLE CONFIG DATA');
-        console.log('Secciones Seleccionadas:', selectedSections);
-        console.log('Configuración Logo:', includeLogo);
+        const storedDraft = localStorage.getItem('nutri_active_draft');
+        console.group('📊 PROJECT DRAFT JSON (STAGE 1-4)');
+        console.log(storedDraft ? JSON.parse(storedDraft) : "No draft found");
         console.groupEnd();
-        toast.info("JSON de configuración de entregable impreso en consola.");
+        toast.info("JSON completo del proyecto impreso en consola.");
     };
 
+    const handlePatientLoad = () => {
+        const patientData = {
+            name: 'Juan Pérez',
+            age: 34,
+            weight: 88,
+            height: 1.82,
+            targetProtein: 180,
+            targetCarbs: 300,
+            targetFats: 80,
+            targetCalories: 2600
+        };
+
+        setSelectedPatient(patientData);
+        localStorage.setItem('nutri_patient', JSON.stringify(patientData));
+        window.dispatchEvent(new Event('patient-updated'));
+        toast.success("Perfil de Juan Pérez cargado.");
+    };
+
+    const actionDockItems: ActionDockItem[] = [
+        {
+            id: 'preview',
+            icon: Eye,
+            label: 'Vista Previa',
+            variant: 'slate',
+            onClick: () => toast.info("Generando vista previa temporal...")
+        },
+        {
+            id: 'save-creations',
+            icon: Save,
+            label: 'Guardar Creación',
+            variant: 'slate',
+            onClick: handleSaveToCreations
+        },
+        {
+            id: 'review-ia',
+            icon: Brain,
+            label: 'Analizar con IA',
+            variant: 'amber',
+            onClick: () => setIsReviewModalOpen(true)
+        },
+        {
+            id: 'print-json',
+            icon: FileText,
+            label: 'Imprimir JSON',
+            variant: 'slate',
+            onClick: printJson
+        }
+    ];
+
     return (
-        <div className="max-w-5xl mx-auto pb-32 animate-in fade-in duration-700 space-y-4">
-            <SmartPatientHeader />
+        <ModuleLayout
+            title="Personalización & Entrega"
+            description="Configura el entregable final para tu paciente."
+            step={{ number: 4, label: "Entregable PDF", icon: ClipboardCheck, color: "text-slate-600" }}
+            rightNavItems={actionDockItems}
+            className="max-w-5xl"
+            footer={
+                <ModuleFooter>
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="outline"
+                            className="h-12 px-6 border-slate-200 text-slate-600 font-bold rounded-2xl flex items-center gap-2 hover:bg-slate-50 transition-all"
+                            onClick={handlePatientLoad}
+                        >
+                            <User className="h-4 w-4" />
+                            {selectedPatient ? selectedPatient.name : "Asignar a un paciente"}
+                        </Button>
 
-            <div className="space-y-4">
-
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-100 pb-8 mb-10">
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-emerald-600 font-black text-[10px] uppercase tracking-widest">
-                            <span className="bg-emerald-100 px-2 py-0.5 rounded">Etapa 4</span>
-                            <span>Personalización & Entrega</span>
-                            <GraduationCap className="h-4 w-4 ml-2 cursor-pointer hover:text-emerald-800 transition-colors" />
-                        </div>
-                        <h1 className="text-4xl font-black text-slate-900 tracking-tight">Configurar Entregable</h1>
-                        <p className="text-slate-500 font-medium">Selecciona los módulos que incluirá el PDF final para tu paciente.</p>
+                        <Button
+                            className="h-12 px-8 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-200 uppercase tracking-widest text-xs flex items-center gap-2"
+                            onClick={handleExport}
+                            disabled={isExporting}
+                        >
+                            {isExporting ? <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <Download className="h-4 w-4" />}
+                            EXPORTAR PDF
+                        </Button>
                     </div>
-
-                    <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-3xl border border-slate-100">
+                </ModuleFooter>
+            }
+        >
+            <div className="space-y-12 mt-8">
+                {/* Custom Options */}
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div className="p-6 bg-white border border-slate-100 rounded-3xl space-y-4">
                         <div className="flex items-center gap-3">
                             <div className={cn(
-                                "h-10 w-10 rounded-xl border-2 flex items-center justify-center transition-all cursor-pointer",
-                                includeLogo ? "bg-white border-emerald-500 text-emerald-500" : "bg-slate-100 border-slate-200 text-slate-400"
+                                "h-12 w-12 rounded-2xl border-2 flex items-center justify-center transition-all cursor-pointer",
+                                includeLogo ? "bg-white border-emerald-500 text-emerald-500 shadow-lg shadow-emerald-500/10" : "bg-slate-50 border-slate-200 text-slate-400"
                             )} onClick={() => setIncludeLogo(!includeLogo)}>
-                                <ImageIcon className="h-5 w-5" />
+                                <ImageIcon className="h-6 w-6" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-black uppercase text-slate-700">Logo Profesional (Opcional)</p>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Tu marca en el PDF</p>
+                                <h4 className="text-xs font-black uppercase text-slate-900">Logo del Nutricionista</h4>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Incluir marca personal</p>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Template Info Banner */}
-                <div className="bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-100 rounded-2xl p-4 mb-8 flex items-start sm:items-center gap-4">
-                    <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center shadow-sm shrink-0">
-                        <Palette className="h-5 w-5 text-violet-600" />
-                    </div>
-                    <div className="flex-1">
-                        <p className="text-sm text-slate-700">
-                            <span className="font-bold text-slate-900">Plantilla por defecto:</span> NutriSaaS Standard.
-                            Si deseas un diseño personalizado, puedes <span className="font-semibold text-violet-700 cursor-pointer hover:underline">conectar con Canva</span> para sincronizar tus propias plantillas.
-                        </p>
-                    </div>
-                    <div className="hidden sm:block">
-                        <Button variant="ghost" size="sm" className="text-violet-700 hover:bg-violet-100 hover:text-violet-800 font-bold text-xs">
-                            Conectar Canva
-                        </Button>
+                    <div className="p-6 bg-white border border-slate-100 rounded-3xl space-y-4">
+                        <div className="flex items-center gap-3">
+                            <div className="h-12 w-12 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center">
+                                <Palette className="h-6 w-6 text-violet-600" />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="text-xs font-black uppercase text-slate-900">Plantilla Visual</h4>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Standard NutriSaaS</p>
+                            </div>
+                            <Button variant="ghost" className="text-[10px] font-black text-violet-600 uppercase hover:bg-violet-50 px-3 h-8">Cambiar</Button>
+                        </div>
                     </div>
                 </div>
 
@@ -279,72 +382,8 @@ export default function DeliverableClient() {
                     </section>
                 </div>
 
-                {/* Fixed Footbar */}
-                <div className="fixed bottom-0 left-0 right-0 z-50 p-6 bg-white/80 backdrop-blur-xl border-t border-slate-100 shadow-[0_-20px_50px_rgba(0,0,0,0.05)]">
-                    <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
-                        <div className="hidden md:flex flex-col">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Módulos Seleccionados</p>
-                            <p className="text-sm font-black text-slate-900">{selectedSections.length} de {DELIVERABLE_SECTIONS.length}</p>
-                        </div>
-
-                        <div className="flex items-center gap-3 w-full md:w-auto">
-                            <Button
-                                variant="outline"
-                                className="h-14 px-8 rounded-2xl font-bold flex items-center justify-center gap-2 border-slate-200 hover:bg-slate-50 transition-all active:scale-95 text-slate-500 min-w-[150px]"
-                                onClick={printJson}
-                            >
-                                Imprimir JSON
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={() => toast.info("Generando vista previa temporal...")}
-                                className="flex-1 md:flex-none rounded-2xl font-bold flex items-center justify-center gap-2 border-slate-200 h-14 px-8 hover:bg-slate-50 transition-all active:scale-95 text-slate-600 min-w-[160px]"
-                            >
-                                <Eye className="h-4 w-4" />
-                                Vista previa
-                            </Button>
-                            <PremiumGuard feature="canGenerateDiet">
-                                <Button
-                                    variant="outline"
-                                    onClick={handleSaveToCreations}
-                                    disabled={isSaving}
-                                    className="flex-1 md:flex-none rounded-2xl font-bold flex items-center justify-center gap-2 border-slate-200 h-14 px-8 hover:bg-slate-50 transition-all active:scale-95 text-slate-600 min-w-[200px]"
-                                >
-                                    {isSaving ? (
-                                        <div className="h-4 w-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-                                    ) : (
-                                        <Save className="h-4 w-4" />
-                                    )}
-                                    Guardar en mis creaciones
-                                </Button>
-                            </PremiumGuard>
-                            <Button
-                                onClick={() => setIsReviewModalOpen(true)}
-                                className="flex-1 md:flex-none bg-amber-400 hover:bg-amber-500 text-amber-950 rounded-2xl font-black shadow-xl shadow-amber-100 flex items-center justify-center gap-2 px-6 h-14 transition-all active:scale-95"
-                            >
-                                <Brain className="h-5 w-5" />
-                                Revisar con IA
-                            </Button>
-                            <PremiumGuard feature="canExportPDF">
-                                <Button
-                                    onClick={handleExport}
-                                    disabled={isExporting}
-                                    className="flex-1 md:flex-none bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black shadow-2xl shadow-slate-200 flex items-center justify-center gap-3 px-12 h-14 transition-all active:scale-95 min-w-[220px]"
-                                >
-                                    {isExporting ? (
-                                        <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                                    ) : (
-                                        <Download className="h-5 w-5" />
-                                    )}
-                                    Exportar PDF
-                                </Button>
-                            </PremiumGuard>
-                        </div>
-                    </div>
-                </div>
-
                 {/* Floating indicator for 'Manual preview' - subtle */}
-                <div className="mt-20 flex justify-center">
+                <div className="mt-20 flex justify-center pb-12">
                     <div className="flex items-center gap-2 px-6 py-3 bg-emerald-50 rounded-full border border-emerald-100 text-emerald-700">
                         <Sparkles className="h-4 w-4 fill-current" />
                         <span className="text-[10px] font-black uppercase tracking-widest text-center">
@@ -355,7 +394,7 @@ export default function DeliverableClient() {
 
                 {/* AI Review Modal */}
                 {isReviewModalOpen && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
                         <div className="bg-white rounded-4xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
                             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                                 <div className="flex items-center gap-3">
@@ -442,6 +481,6 @@ export default function DeliverableClient() {
                     </div>
                 )}
             </div>
-        </div>
+        </ModuleLayout>
     );
 }

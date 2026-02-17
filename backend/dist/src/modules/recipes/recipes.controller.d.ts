@@ -10,6 +10,7 @@ export declare class RecipesController {
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
+                nutritionistId: string | null;
                 verified: boolean;
                 price: number;
                 unit: string;
@@ -23,7 +24,6 @@ export declare class RecipesController {
                 fiber: number | null;
                 sodium: number | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 brandId: string | null;
                 categoryId: string;
             };
@@ -40,6 +40,7 @@ export declare class RecipesController {
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        nutritionistId: string | null;
         calories: number;
         proteins: number;
         lipids: number;
@@ -47,7 +48,6 @@ export declare class RecipesController {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         description: string | null;
         preparation: string | null;
         portions: number;
@@ -65,6 +65,7 @@ export declare class RecipesController {
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        nutritionistId: string | null;
         calories: number;
         proteins: number;
         lipids: number;
@@ -72,7 +73,6 @@ export declare class RecipesController {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         description: string | null;
         preparation: string | null;
         portions: number;
@@ -97,6 +97,7 @@ export declare class RecipesController {
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
+                nutritionistId: string | null;
                 verified: boolean;
                 price: number;
                 unit: string;
@@ -110,7 +111,6 @@ export declare class RecipesController {
                 fiber: number | null;
                 sodium: number | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 brandId: string | null;
                 categoryId: string;
             };
@@ -127,6 +127,7 @@ export declare class RecipesController {
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        nutritionistId: string | null;
         calories: number;
         proteins: number;
         lipids: number;
@@ -134,7 +135,6 @@ export declare class RecipesController {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         description: string | null;
         preparation: string | null;
         portions: number;
@@ -154,6 +154,7 @@ export declare class RecipesController {
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        nutritionistId: string | null;
         calories: number;
         proteins: number;
         lipids: number;
@@ -161,7 +162,6 @@ export declare class RecipesController {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         description: string | null;
         preparation: string | null;
         portions: number;
@@ -172,6 +172,7 @@ export declare class RecipesController {
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        nutritionistId: string | null;
         calories: number;
         proteins: number;
         lipids: number;
@@ -179,7 +180,6 @@ export declare class RecipesController {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         description: string | null;
         preparation: string | null;
         portions: number;

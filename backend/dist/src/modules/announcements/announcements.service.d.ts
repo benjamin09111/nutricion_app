@@ -7,22 +7,22 @@ export declare class AnnouncementsService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        type: string;
         isActive: boolean;
+        title: string;
         link: string | null;
         message: string;
-        type: string;
-        title: string;
         targetRoles: string[];
     }>;
     findAll(): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        type: string;
         isActive: boolean;
+        title: string;
         link: string | null;
         message: string;
-        type: string;
-        title: string;
         targetRoles: string[];
     }[]>;
 }

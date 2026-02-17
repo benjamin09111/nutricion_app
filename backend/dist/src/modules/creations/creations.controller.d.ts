@@ -8,11 +8,11 @@ export declare class CreationsController {
         updatedAt: Date;
         name: string;
         nutritionistId: string;
-        tags: string[];
         type: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        content: import("@prisma/client/runtime/library").JsonValue;
         format: string;
+        content: import("@prisma/client/runtime/library").JsonValue;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        tags: string[];
     }>;
     findAll(req: any, type?: string): Promise<{
         id: string;
@@ -20,11 +20,11 @@ export declare class CreationsController {
         updatedAt: Date;
         name: string;
         nutritionistId: string;
-        tags: string[];
         type: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        content: import("@prisma/client/runtime/library").JsonValue;
         format: string;
+        content: import("@prisma/client/runtime/library").JsonValue;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        tags: string[];
     }[]>;
     getTags(req: any): Promise<any[]>;
     findOne(req: any, id: string): Promise<{
@@ -33,11 +33,11 @@ export declare class CreationsController {
         updatedAt: Date;
         name: string;
         nutritionistId: string;
-        tags: string[];
         type: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        content: import("@prisma/client/runtime/library").JsonValue;
         format: string;
+        content: import("@prisma/client/runtime/library").JsonValue;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        tags: string[];
     }>;
     delete(req: any, id: string): Promise<import(".prisma/client").Prisma.BatchPayload>;
 }

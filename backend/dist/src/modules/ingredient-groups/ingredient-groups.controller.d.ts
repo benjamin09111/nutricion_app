@@ -61,6 +61,7 @@ export declare class IngredientGroupsController {
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
+                nutritionistId: string | null;
                 verified: boolean;
                 price: number;
                 unit: string;
@@ -74,7 +75,6 @@ export declare class IngredientGroupsController {
                 fiber: number | null;
                 sodium: number | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 brandId: string | null;
                 categoryId: string;
             };
@@ -113,6 +113,7 @@ export declare class IngredientGroupsController {
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
+                nutritionistId: string | null;
                 verified: boolean;
                 price: number;
                 unit: string;
@@ -126,7 +127,6 @@ export declare class IngredientGroupsController {
                 fiber: number | null;
                 sodium: number | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 brandId: string | null;
                 categoryId: string;
             };
@@ -148,6 +148,10 @@ export declare class IngredientGroupsController {
     findOne(req: any, id: string): Promise<{
         ingredients: {
             ingredient: {
+                tags: {
+                    id: string;
+                    name: string;
+                }[];
                 preferences: {
                     id: string;
                     nutritionistId: string;
@@ -164,15 +168,12 @@ export declare class IngredientGroupsController {
                     id: string;
                     name: string;
                 };
-                tags: {
-                    id: string;
-                    name: string;
-                }[];
             } & {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
+                nutritionistId: string | null;
                 verified: boolean;
                 price: number;
                 unit: string;
@@ -186,7 +187,6 @@ export declare class IngredientGroupsController {
                 fiber: number | null;
                 sodium: number | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 brandId: string | null;
                 categoryId: string;
             };
@@ -204,6 +204,10 @@ export declare class IngredientGroupsController {
         }[];
         entries: ({
             ingredient: {
+                tags: {
+                    id: string;
+                    name: string;
+                }[];
                 preferences: {
                     id: string;
                     nutritionistId: string;
@@ -220,15 +224,12 @@ export declare class IngredientGroupsController {
                     id: string;
                     name: string;
                 };
-                tags: {
-                    id: string;
-                    name: string;
-                }[];
             } & {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
+                nutritionistId: string | null;
                 verified: boolean;
                 price: number;
                 unit: string;
@@ -242,7 +243,6 @@ export declare class IngredientGroupsController {
                 fiber: number | null;
                 sodium: number | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 brandId: string | null;
                 categoryId: string;
             };
