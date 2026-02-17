@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, Fragment } from 'react';
+import Cookies from 'js-cookie';
 import {
     ShoppingCart,
     ArrowRight,
@@ -25,7 +26,8 @@ import {
     Library,
     User,
     UserPlus,
-    BookOpen
+    BookOpen,
+    Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -813,143 +815,144 @@ export default function CartClient() {
                         </Button>
                     </div>
                 </div>
-                {/* Reference Modal - UDD Standards */}
-                <Modal
-                    isOpen={isReferenceOpen}
-                    onClose={() => setIsReferenceOpen(false)}
-                    title="Manual de Porciones de Intercambio (UDD)"
-                    className="max-w-2xl"
-                >
-                    <div className="max-h-[70vh] overflow-y-auto space-y-6 text-slate-600 pr-2 custom-scrollbar">
-                        <section>
-                            <h4 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-3 flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                                1. Panes, Cereales, Tubérculos y Leguminosas
-                            </h4>
-                            <p className="text-[10px] mb-2 font-bold text-slate-400">Aporte: 140 Kcal, 30g CHO, 3g PRO, 1g LIP.</p>
-                            <ul className="text-xs space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <li>• <b>Pan Marraqueta/Hallulla:</b> 50g (1/2 unidad)</li>
-                                <li>• <b>Arroz/Pastas cocidos:</b> 100-110g (3/4 a 1 taza)</li>
-                                <li>• <b>Avena:</b> 6 cucharadas</li>
-                                <li>• <b>Papa:</b> 150g (1 unidad)</li>
-                                <li>• <b>Legumbres frescas (Habas/Arvejas):</b> 150-180g (1 taza)</li>
-                            </ul>
-                        </section>
+            </div>
 
-                        <section>
-                            <h4 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-3 flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                2. Carnes y Proteínas
-                            </h4>
-                            <p className="text-[10px] mb-2 font-bold text-slate-400">Aporte Bajo en Grasa: 65 Kcal, 11g PRO, 2g LIP.</p>
-                            <ul className="text-xs space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <li>• <b>Vacuno/Pollo/Pavo/Cerdo magro:</b> 50g (6x6x1 cm)</li>
-                                <li>• <b>Pescados blancos:</b> 80g</li>
-                                <li>• <b>Huevo:</b> 1 unidad entera o 3 claras (100g)</li>
-                            </ul>
-                        </section>
+            {/* Reference Modal - UDD Standards */}
+            <Modal
+                isOpen={isReferenceOpen}
+                onClose={() => setIsReferenceOpen(false)}
+                title="Manual de Porciones de Intercambio (UDD)"
+                className="max-w-2xl"
+            >
+                <div className="max-h-[70vh] overflow-y-auto space-y-6 text-slate-600 pr-2 custom-scrollbar">
+                    <section>
+                        <h4 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-3 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                            1. Panes, Cereales, Tubérculos y Leguminosas
+                        </h4>
+                        <p className="text-[10px] mb-2 font-bold text-slate-400">Aporte: 140 Kcal, 30g CHO, 3g PRO, 1g LIP.</p>
+                        <ul className="text-xs space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <li>• <b>Pan Marraqueta/Hallulla:</b> 50g (1/2 unidad)</li>
+                            <li>• <b>Arroz/Pastas cocidos:</b> 100-110g (3/4 a 1 taza)</li>
+                            <li>• <b>Avena:</b> 6 cucharadas</li>
+                            <li>• <b>Papa:</b> 150g (1 unidad)</li>
+                            <li>• <b>Legumbres frescas (Habas/Arvejas):</b> 150-180g (1 taza)</li>
+                        </ul>
+                    </section>
 
-                        <section>
-                            <h4 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-3 flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-amber-200" />
-                                3. Frutas
-                            </h4>
-                            <p className="text-[10px] mb-2 font-bold text-slate-400">Aporte: 65 Kcal, 15g CHO, 1g PRO.</p>
-                            <ul className="text-xs space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <li>• <b>Manzana/Pera:</b> 1 unidad chica</li>
-                                <li>• <b>Plátano:</b> 1/2 unidad</li>
-                                <li>• <b>Arándanos/Frutillas:</b> 1/2 a 1 taza</li>
-                            </ul>
-                        </section>
+                    <section>
+                        <h4 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-3 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            2. Carnes y Proteínas
+                        </h4>
+                        <p className="text-[10px] mb-2 font-bold text-slate-400">Aporte Bajo en Grasa: 65 Kcal, 11g PRO, 2g LIP.</p>
+                        <ul className="text-xs space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <li>• <b>Vacuno/Pollo/Pavo/Cerdo magro:</b> 50g (6x6x1 cm)</li>
+                            <li>• <b>Pescados blancos:</b> 80g</li>
+                            <li>• <b>Huevo:</b> 1 unidad entera o 3 claras (100g)</li>
+                        </ul>
+                    </section>
 
-                        <section>
-                            <h4 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-3 flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                                4. Aceites y Alimentos Ricos en Lípidos
-                            </h4>
-                            <p className="text-[10px] mb-2 font-bold text-slate-400">Aporte (Bloque UDD): 180 Kcal, 20g LIP.</p>
-                            <ul className="text-xs space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <li>• <b>Aceites:</b> 20ml (4 cucharaditas)</li>
-                                <li>• <b>Palta:</b> 90g (3 cucharadas)</li>
-                                <li>• <b>Nueces/Almendras:</b> 25-30g (5-26 unidades)</li>
-                            </ul>
-                        </section>
+                    <section>
+                        <h4 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-3 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-200" />
+                            3. Frutas
+                        </h4>
+                        <p className="text-[10px] mb-2 font-bold text-slate-400">Aporte: 65 Kcal, 15g CHO, 1g PRO.</p>
+                        <ul className="text-xs space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <li>• <b>Manzana/Pera:</b> 1 unidad chica</li>
+                            <li>• <b>Plátano:</b> 1/2 unidad</li>
+                            <li>• <b>Arándanos/Frutillas:</b> 1/2 a 1 taza</li>
+                        </ul>
+                    </section>
 
-                        <section>
-                            <h4 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-3 flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                                5. Lácteos Descremados
-                            </h4>
-                            <p className="text-[10px] mb-2 font-bold text-slate-400">Aporte: 70 Kcal, 9g CHO, 8g PRO.</p>
-                            <ul className="text-xs space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <li>• <b>Leche líquida:</b> 1 taza</li>
-                                <li>• <b>Leche en polvo:</b> 2 cucharadas colmadas</li>
-                                <li>• <b>Yogurt descremado:</b> 1 unidad</li>
-                            </ul>
-                        </section>
+                    <section>
+                        <h4 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-3 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                            4. Aceites y Alimentos Ricos en Lípidos
+                        </h4>
+                        <p className="text-[10px] mb-2 font-bold text-slate-400">Aporte (Bloque UDD): 180 Kcal, 20g LIP.</p>
+                        <ul className="text-xs space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <li>• <b>Aceites:</b> 20ml (4 cucharaditas)</li>
+                            <li>• <b>Palta:</b> 90g (3 cucharadas)</li>
+                            <li>• <b>Nueces/Almendras:</b> 25-30g (5-26 unidades)</li>
+                        </ul>
+                    </section>
 
-                        <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                            <p className="text-[10px] text-indigo-700 font-bold leading-tight italic">
-                                * Información extraída de la Tabla de Composición de Alimentos UDD. El sistema utiliza estos valores para normalizar las porciones clínicas.
-                            </p>
-                        </div>
+                    <section>
+                        <h4 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-3 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                            5. Lácteos Descremados
+                        </h4>
+                        <p className="text-[10px] mb-2 font-bold text-slate-400">Aporte: 70 Kcal, 9g CHO, 8g PRO.</p>
+                        <ul className="text-xs space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <li>• <b>Leche líquida:</b> 1 taza</li>
+                            <li>• <b>Leche en polvo:</b> 2 cucharadas colmadas</li>
+                            <li>• <b>Yogurt descremado:</b> 1 unidad</li>
+                        </ul>
+                    </section>
+
+                    <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                        <p className="text-[10px] text-indigo-700 font-bold leading-tight italic">
+                            * Información extraída de la Tabla de Composición de Alimentos UDD. El sistema utiliza estos valores para normalizar las porciones clínicas.
+                        </p>
                     </div>
-                </Modal>
-            )}
+                </div>
+            </Modal>
 
-                {/* Add Food Modal */}
-                <Modal
-                    isOpen={isAddFoodModalOpen}
-                    onClose={() => setIsAddFoodModalOpen(false)}
-                    title="Añadir alimento adicional"
-                    className="max-w-md"
-                >
-                    <div className="space-y-4 pt-4">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                            <Input
-                                placeholder="Buscar en la base de datos..."
-                                value={foodSearchQuery}
-                                onChange={(e) => setFoodSearchQuery(e.target.value)}
-                                className="pl-10 h-11 rounded-xl"
-                                autoFocus
-                            />
-                        </div>
+            {/* Add Food Modal */}
+            <Modal
+                isOpen={isAddFoodModalOpen}
+                onClose={() => setIsAddFoodModalOpen(false)}
+                title="Añadir alimento adicional"
+                className="max-w-md"
+            >
+                <div className="space-y-4 pt-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                            placeholder="Buscar en la base de datos..."
+                            value={foodSearchQuery}
+                            onChange={(e) => setFoodSearchQuery(e.target.value)}
+                            className="pl-10 h-11 rounded-xl"
+                            autoFocus
+                        />
+                    </div>
 
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
-                            {isSearchingFoods ? (
-                                <div className="py-8 flex flex-col items-center gap-2">
-                                    <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
-                                    <p className="text-xs text-slate-400 font-bold">Buscando...</p>
-                                </div>
-                            ) : searchResultFoods.length > 0 ? (
-                                searchResultFoods.map((food) => (
-                                    <div
-                                        key={food.id}
-                                        onClick={() => handleAddFoodFromSearch(food)}
-                                        className="p-3 bg-slate-50 border border-slate-100 rounded-xl hover:border-indigo-400 hover:bg-indigo-50/50 transition-all cursor-pointer group"
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="font-black text-slate-800 text-sm leading-tight">{food.name}</p>
-                                                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{food.category?.name || 'Varios'}</p>
-                                            </div>
-                                            <Plus className="h-4 w-4 text-slate-300 group-hover:text-indigo-600 group-hover:scale-110 transition-all" />
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                        {isSearchingFoods ? (
+                            <div className="py-8 flex flex-col items-center gap-2">
+                                <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+                                <p className="text-xs text-slate-400 font-bold">Buscando...</p>
+                            </div>
+                        ) : searchResultFoods.length > 0 ? (
+                            searchResultFoods.map((food) => (
+                                <div
+                                    key={food.id}
+                                    onClick={() => handleAddFoodFromSearch(food)}
+                                    className="p-3 bg-slate-50 border border-slate-100 rounded-xl hover:border-indigo-400 hover:bg-indigo-50/50 transition-all cursor-pointer group"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-black text-slate-800 text-sm leading-tight">{food.name}</p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{food.category?.name || 'Varios'}</p>
                                         </div>
+                                        <Plus className="h-4 w-4 text-slate-300 group-hover:text-indigo-600 group-hover:scale-110 transition-all" />
                                     </div>
-                                ))
-                            ) : foodSearchQuery.trim() ? (
-                                <div className="py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                                    <p className="text-xs text-slate-400 font-medium">No se encontraron resultados.</p>
                                 </div>
-                            ) : (
-                                <div className="py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                                    <p className="text-xs text-slate-400 font-medium italic">Escribe para buscar alimentos...</p>
-                                </div>
-                            )}
-                        </div>
+                            ))
+                        ) : foodSearchQuery.trim() ? (
+                            <div className="py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                <p className="text-xs text-slate-400 font-medium">No se encontraron resultados.</p>
+                            </div>
+                        ) : (
+                            <div className="py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                <p className="text-xs text-slate-400 font-medium italic">Escribe para buscar alimentos...</p>
+                            </div>
+                        )}
                     </div>
-                </Modal>
+                </div>
+            </Modal>
 
         </ModuleLayout>
     );
