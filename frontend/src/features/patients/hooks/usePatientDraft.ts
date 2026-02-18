@@ -5,23 +5,14 @@ import { Patient } from '../types';
 const STORAGE_KEY = 'nutrisaas_patient_creation_draft';
 
 const INITIAL_STATE: Partial<Patient> = {
-    name: '',
+    fullName: '',
     email: '',
-    contactInfo: '',
+    phone: '',
     birthDate: '',
-    gender: 'M',
-    wakeUpTime: '07:30',
-    sleepTime: '23:00',
-    mealCount: 4,
-    dietaryRestrictions: [],
+    gender: 'Masculino',
+    height: 170,
     weight: 70,
-    height: 1.70,
-    targetProtein: 140,
-    targetCalories: 2000,
-    fitnessGoals: [],
-    initialConsultationTitle: '',
-    initialConsultationDescription: '',
-    initialConsultationMetrics: []
+    dietRestrictions: [],
 };
 
 export function usePatientDraft() {
@@ -37,8 +28,8 @@ export function usePatientDraft() {
             try {
                 const parsed = JSON.parse(saved);
                 setDraft({ ...INITIAL_STATE, ...parsed });
-            } catch (e) {
-                console.error("Failed to parse patient draft", e);
+            } catch (_) {
+                console.error("Failed to parse patient draft");
                 setDraft(INITIAL_STATE);
             }
         }

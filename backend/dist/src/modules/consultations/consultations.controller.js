@@ -12,53 +12,53 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PatientsController = void 0;
+exports.ConsultationsController = void 0;
 const common_1 = require("@nestjs/common");
-const patients_service_1 = require("./patients.service");
-const create_patient_dto_1 = require("./dto/create-patient.dto");
-const update_patient_dto_1 = require("./dto/update-patient.dto");
+const consultations_service_1 = require("./consultations.service");
+const create_consultation_dto_1 = require("./dto/create-consultation.dto");
+const update_consultation_dto_1 = require("./dto/update-consultation.dto");
 const passport_1 = require("@nestjs/passport");
-let PatientsController = class PatientsController {
-    patientsService;
-    constructor(patientsService) {
-        this.patientsService = patientsService;
+let ConsultationsController = class ConsultationsController {
+    consultationsService;
+    constructor(consultationsService) {
+        this.consultationsService = consultationsService;
     }
-    create(req, createPatientDto) {
-        return this.patientsService.create(req.user.nutritionistId, createPatientDto);
+    create(req, createConsultationDto) {
+        return this.consultationsService.create(req.user.nutritionistId, createConsultationDto);
     }
-    findAll(req, page, limit, search, status) {
-        return this.patientsService.findAll(req.user.nutritionistId, page ? +page : 1, limit ? +limit : 20, search, status);
+    findAll(req, page, limit, search, patientId) {
+        return this.consultationsService.findAll(req.user.nutritionistId, page ? +page : 1, limit ? +limit : 20, search, patientId);
     }
     findOne(req, id) {
-        return this.patientsService.findOne(req.user.nutritionistId, id);
+        return this.consultationsService.findOne(req.user.nutritionistId, id);
     }
-    update(req, id, updatePatientDto) {
-        return this.patientsService.update(req.user.nutritionistId, id, updatePatientDto);
+    update(req, id, updateConsultationDto) {
+        return this.consultationsService.update(req.user.nutritionistId, id, updateConsultationDto);
     }
     remove(req, id) {
-        return this.patientsService.remove(req.user.nutritionistId, id);
+        return this.consultationsService.remove(req.user.nutritionistId, id);
     }
 };
-exports.PatientsController = PatientsController;
+exports.ConsultationsController = ConsultationsController;
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, create_patient_dto_1.CreatePatientDto]),
+    __metadata("design:paramtypes", [Object, create_consultation_dto_1.CreateConsultationDto]),
     __metadata("design:returntype", void 0)
-], PatientsController.prototype, "create", null);
+], ConsultationsController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Query)('page')),
     __param(2, (0, common_1.Query)('limit')),
     __param(3, (0, common_1.Query)('search')),
-    __param(4, (0, common_1.Query)('status')),
+    __param(4, (0, common_1.Query)('patientId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, String, String, String, String]),
     __metadata("design:returntype", void 0)
-], PatientsController.prototype, "findAll", null);
+], ConsultationsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Request)()),
@@ -66,16 +66,16 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
-], PatientsController.prototype, "findOne", null);
+], ConsultationsController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Patch)(':id'),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, update_patient_dto_1.UpdatePatientDto]),
+    __metadata("design:paramtypes", [Object, String, update_consultation_dto_1.UpdateConsultationDto]),
     __metadata("design:returntype", void 0)
-], PatientsController.prototype, "update", null);
+], ConsultationsController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Request)()),
@@ -83,10 +83,10 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
-], PatientsController.prototype, "remove", null);
-exports.PatientsController = PatientsController = __decorate([
-    (0, common_1.Controller)('patients'),
+], ConsultationsController.prototype, "remove", null);
+exports.ConsultationsController = ConsultationsController = __decorate([
+    (0, common_1.Controller)('consultations'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
-    __metadata("design:paramtypes", [patients_service_1.PatientsService])
-], PatientsController);
-//# sourceMappingURL=patients.controller.js.map
+    __metadata("design:paramtypes", [consultations_service_1.ConsultationsService])
+], ConsultationsController);
+//# sourceMappingURL=consultations.controller.js.map

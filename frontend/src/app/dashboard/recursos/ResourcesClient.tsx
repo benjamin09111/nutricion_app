@@ -80,7 +80,7 @@ export function ResourcesClient() {
         isGlobal: false
     });
 
-    const fetchResources = async () => {
+    const fetchResources = async (retries = 3) => {
         setIsLoading(true);
         try {
             const token = Cookies.get('auth_token') || localStorage.getItem('auth_token');
@@ -97,10 +97,13 @@ export function ResourcesClient() {
                 setResources(data);
             }
         } catch (error) {
-            console.error('Error fetching resources:', error);
-            toast.error('Error al cargar los recursos');
+            if (retries > 0) {
+                setTimeout(() => fetchResources(retries - 1), 2000);
+            } else {
+                console.warn('Backend no disponible para cargar recursos aún.');
+            }
         } finally {
-            setIsLoading(false);
+            if (retries === 0) setIsLoading(false);
         }
     };
 

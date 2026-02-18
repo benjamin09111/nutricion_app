@@ -96,9 +96,15 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     const [availableTags, setAvailableTags] = useState<string[]>([]);
     const [dietSearchQuery, setDietSearchQuery] = useState('');
 
+    // -- Import Patient Modal State --
+    const [isImportPatientModalOpen, setIsImportPatientModalOpen] = useState(false);
+    const [patients, setPatients] = useState<any[]>([]);
+    const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+    const [patientSearchQuery, setPatientSearchQuery] = useState('');
+
     const favoritesEnabled = true; // Always enabled by request
 
-    const fetchAvailableTags = async () => {
+    const fetchAvailableTags = async (retries = 3) => {
         try {
             const token = Cookies.get('auth_token') || localStorage.getItem('auth_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -111,7 +117,11 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 setAvailableTags(tags);
             }
         } catch (e) {
-            console.error("Error fetching tags", e);
+            if (retries > 0) {
+                setTimeout(() => fetchAvailableTags(retries - 1), 2000);
+            } else {
+                console.warn("Backend no disponible para cargar tags aún.");
+            }
         }
     };
 
@@ -135,7 +145,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         }
     };
 
-    const fetchSavedDiets = async () => {
+    const fetchSavedDiets = async (retries = 2) => {
         setIsLoadingDiets(true);
         try {
             const token = Cookies.get('auth_token') || localStorage.getItem('auth_token');
@@ -150,11 +160,84 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 setSavedDiets(data);
             }
         } catch (e) {
-            console.error("Error fetching diets", e);
-            toast.error("No se pudieron cargar las dietas guardadas");
+            if (retries > 0) {
+                setTimeout(() => fetchSavedDiets(retries - 1), 2000);
+            } else {
+                console.warn("No se pudieron cargar las dietas guardadas");
+            }
         } finally {
             setIsLoadingDiets(false);
         }
+    };
+
+    const fetchPatients = async () => {
+        setIsLoadingPatients(true);
+        try {
+            const token = Cookies.get('auth_token') || localStorage.getItem('auth_token');
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const response = await fetch(`${apiUrl}/patients`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setPatients(data.data || []);
+            }
+        } catch (e) {
+            console.error("Error fetching patients", e);
+        } finally {
+            setIsLoadingPatients(false);
+        }
+    };
+
+    const handleSelectPatient = (patient: any) => {
+        setSelectedPatient(patient);
+        localStorage.setItem('nutri_patient', JSON.stringify(patient));
+
+        // Sync restrictions automatically
+        const restrictions = Array.isArray(patient.dietRestrictions) ? patient.dietRestrictions : [];
+        const validRestrictions = restrictions.filter((r: string) => r && r.trim() !== '');
+        const newConstraints = Array.from(new Set([...activeConstraints, ...validRestrictions]));
+
+        setActiveConstraints(newConstraints);
+
+        // Sync metadata to global draft
+        const storedDraft = localStorage.getItem('nutri_active_draft');
+        let draft = storedDraft ? JSON.parse(storedDraft) : {};
+
+        draft.patientMeta = {
+            id: patient.id,
+            fullName: patient.fullName,
+            restrictions: validRestrictions,
+            nutritionalFocus: patient.nutritionalFocus,
+            fitnessGoals: patient.fitnessGoals,
+            birthDate: patient.birthDate,
+            weight: patient.weight,
+            height: patient.height,
+            gender: patient.gender,
+            updatedAt: new Date().toISOString()
+        };
+
+        if (!draft.diet) draft.diet = {};
+        draft.diet.activeConstraints = newConstraints;
+
+        localStorage.setItem('nutri_active_draft', JSON.stringify(draft));
+
+        if (validRestrictions.length > 0) {
+            toast.success(`Paciente vinculado: ${patient.fullName}`, {
+                description: `${validRestrictions.length} restricciones sincronizadas automáticamente.`
+            });
+        } else {
+            toast.success(`Paciente vinculado: ${patient.fullName}`);
+        }
+
+        setIsImportPatientModalOpen(false);
+        setPatientSearchQuery('');
+    };
+
+    const handleUnlinkPatient = () => {
+        setSelectedPatient(null);
+        localStorage.removeItem('nutri_patient');
+        toast.info("Paciente desvinculado de esta sesión");
     };
 
     const handleImportDiet = (diet: any) => {
@@ -262,7 +345,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             statuses[f.producto] = 'base';
         });
 
-        const loadFromBackend = async (id: string) => {
+        const loadFromBackend = async (id: string, retries = 3) => {
             if (!id || id === 'undefined' || id === 'null') {
                 localStorage.removeItem('currentDietEditId');
                 return;
@@ -290,17 +373,19 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                     } catch (parseError) {
                         console.error("Error parseando JSON de la creación:", parseError);
                     }
+                } else if (response.status === 404) {
+                    localStorage.removeItem('currentDietEditId');
                 } else {
-                    console.error("Error en la respuesta del servidor:", response.status);
-                    if (response.status === 404) {
-                        // Silent cleanup if not found, start fresh
-                        localStorage.removeItem('currentDietEditId');
-                    }
+                    throw new Error(`Server error: ${response.status}`);
                 }
             } catch (e) {
-                console.error("Error loading creation to edit", e);
+                if (retries > 0) {
+                    setTimeout(() => loadFromBackend(id, retries - 1), 2000);
+                } else {
+                    console.warn("Error al cargar la creación para editar (backend no disponible)");
+                }
             } finally {
-                localStorage.removeItem('currentDietEditId');
+                if (retries === 0) localStorage.removeItem('currentDietEditId');
             }
         };
 
@@ -972,9 +1057,12 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         {
             id: 'link-patient',
             icon: User,
-            label: 'Importar Paciente',
+            label: selectedPatient ? 'Cambiar Paciente' : 'Importar Paciente',
             variant: 'emerald',
-            onClick: () => toast.info("Módulo de importación de pacientes próximamente...")
+            onClick: () => {
+                setIsImportPatientModalOpen(true);
+                fetchPatients();
+            }
         },
         { id: 'sep-1', icon: Library, label: '', onClick: () => { }, isSeparator: true },
         {
@@ -1031,10 +1119,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         <Button
                             variant="ghost"
                             className="h-12 text-emerald-600 font-black gap-2 hover:bg-emerald-50 border-2 border-transparent hover:border-emerald-100 rounded-xl"
-                            onClick={handlePatientLoad}
+                            onClick={() => {
+                                setIsImportPatientModalOpen(true);
+                                fetchPatients();
+                            }}
                         >
                             <UserPlus className="h-5 w-5" />
-                            {selectedPatient ? selectedPatient.name : "Asignar a un paciente"}
+                            {selectedPatient ? (selectedPatient.fullName || selectedPatient.name) : "Asignar a un paciente"}
                         </Button>
                         <Button className="h-12 px-8 bg-slate-900" onClick={handleSave}>Guardar Creación</Button>
                         <Button className="h-12 px-8 bg-emerald-600" onClick={handleContinue}>Continuar <ArrowRight className="ml-2 h-5 w-5" /></Button>
@@ -1042,6 +1133,28 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 </ModuleFooter>
             }
         >
+
+            {selectedPatient && (
+                <div className="mb-6 animate-in slide-in-from-top duration-300">
+                    <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-[2.5rem] flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center border border-emerald-200">
+                                <User className="h-6 w-6 text-emerald-600" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Paciente Vinculado</p>
+                                <h3 className="text-xl font-black text-slate-900 italic leading-none">{selectedPatient.fullName}</h3>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleUnlinkPatient}
+                            className="bg-white/50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-200/50 hover:border-rose-200 transition-all cursor-pointer"
+                        >
+                            Cambiar o Desvincular
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-200 space-y-8">
                 <div className="grid md:grid-cols-2 gap-8">
@@ -1693,9 +1806,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             {/* Food Info Modal - Side Panel */}
             {
                 isFoodInfoModalOpen && selectedFoodForInfo && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-start">
+                    <div className="fixed inset-0 z-100 flex items-center justify-start">
                         <div
-                            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+                            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
                             onClick={() => setIsFoodInfoModalOpen(false)}
                         />
                         <div className="relative w-full max-w-md h-full bg-white shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-300 z-10">
@@ -1882,6 +1995,78 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                                     </p>
                                 </div>
                             )}
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Import Patient Modal */}
+            <Modal
+                isOpen={isImportPatientModalOpen}
+                onClose={() => {
+                    setIsImportPatientModalOpen(false);
+                    setPatientSearchQuery('');
+                }}
+                title="Vincular Paciente"
+            >
+                <div className="space-y-4">
+                    <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                            placeholder="Buscar por nombre o email..."
+                            value={patientSearchQuery}
+                            onChange={e => setPatientSearchQuery(e.target.value)}
+                            className="pl-11 h-12 rounded-xl border-slate-200 focus:border-indigo-500"
+                            autoFocus
+                        />
+                    </div>
+
+                    {isLoadingPatients && (
+                        <div className="flex justify-center py-8">
+                            <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                        </div>
+                    )}
+
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1 text-left">
+                        {patients
+                            .filter(patient =>
+                                patient.fullName.toLowerCase().includes(patientSearchQuery.toLowerCase()) ||
+                                (patient.email && patient.email.toLowerCase().includes(patientSearchQuery.toLowerCase()))
+                            )
+                            .map(patient => (
+                                <div
+                                    key={patient.id}
+                                    onClick={() => handleSelectPatient(patient)}
+                                    className="p-4 border-2 border-slate-200 rounded-2xl hover:border-emerald-400 hover:bg-emerald-50/30 transition-all cursor-pointer group flex items-center justify-between"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 group-hover:bg-emerald-100 group-hover:border-emerald-200 transition-colors">
+                                            <User className="h-5 w-5 text-slate-400 group-hover:text-emerald-600" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-black text-slate-900 text-sm">{patient.fullName}</h3>
+                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
+                                                {patient.email || 'Sin email'} • {patient.weight ? `${patient.weight}kg` : 'Peso no reg.'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {patient.dietRestrictions && Array.isArray(patient.dietRestrictions) && patient.dietRestrictions.length > 0 && (
+                                        <div className="flex items-center gap-1">
+                                            <AlertCircle className="h-3 w-3 text-rose-400" />
+                                            <span className="text-[10px] font-black text-rose-500 uppercase tracking-tighter">{patient.dietRestrictions.length}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        }
+
+                        {!isLoadingPatients && patients.length === 0 && (
+                            <div className="py-12 text-center">
+                                <UserPlus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                                <p className="text-sm text-slate-400 font-bold">
+                                    No se encontraron pacientes registrados.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </Modal>

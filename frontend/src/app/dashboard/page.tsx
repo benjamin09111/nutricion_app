@@ -42,7 +42,7 @@ export default function DashboardPage() {
     const router = useRouter();
 
     useEffect(() => {
-        const fetchStats = async () => {
+        const fetchStats = async (retries = 3) => {
             try {
                 const token = localStorage.getItem('token');
 
@@ -67,10 +67,13 @@ export default function DashboardPage() {
                 console.log('Dashboard Data:', result);
                 setData(result);
             } catch (error) {
-                console.error('Fetch Stats Error:', error);
-                toast.error('No se pudo cargar la información del panel (Ver consola)');
+                if (retries > 0) {
+                    setTimeout(() => fetchStats(retries - 1), 2000);
+                } else {
+                    console.warn('Backend no disponible para cargar estadísticas del panel.');
+                }
             } finally {
-                setLoading(false);
+                if (retries === 0) setLoading(false);
             }
         };
 
@@ -99,7 +102,7 @@ export default function DashboardPage() {
                 <div className="mt-4 flex md:ml-4 md:mt-0">
                     <Link
                         href="/dashboard/dieta"
-                        className="ml-3 inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+                        className="ml-3 inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
                     >
                         Nueva Planificación
                     </Link>

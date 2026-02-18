@@ -45,6 +45,7 @@ model Nutritionist {
   recipes               Recipe[]
   substitutes           Substitute[]
   resources             Resource[]
+  consultations         Consultation[]
 
   @@map("nutritionists")
 }
@@ -90,11 +91,35 @@ model Patient {
   height         Float?
   weight         Float?
   dietRestrictions Json?        @map("diet_restrictions") @default("[]")
+  status         String?      @default("Active")
+  clinicalSummary String?     @db.Text
+  nutritionalFocus String?    @map("nutritional_focus")
+  fitnessGoals   String?      @map("fitness_goals")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
+  consultations  Consultation[]
 
   @@map("patients")
+}
+
+model Consultation {
+  id             String       @id @default(uuid())
+  patientId      String       @map("patient_id")
+  nutritionistId String       @map("nutritionist_id")
+  date           DateTime     @default(now())
+  title          String
+  description    String?      @db.Text
+  metrics        Json?        @default("[]")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  patient        Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([nutritionistId])
+  @@map("consultations")
 }
 
 model Ingredient {

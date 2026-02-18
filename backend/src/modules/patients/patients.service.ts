@@ -16,22 +16,30 @@ export class PatientsService {
         });
     }
 
-    async findAll(nutritionistId: string, page: number = 1, limit: number = 20, search?: string) {
+    async findAll(nutritionistId: string, page: number = 1, limit: number = 20, search?: string, status?: string) {
         const skip = (page - 1) * limit;
 
         const where: any = {
             nutritionistId,
         };
 
+        if (status && status !== 'Todos') {
+            where.status = status === 'Activos' ? 'Active' : 'Inactive';
+        }
+
         if (search) {
             where.OR = [
                 { fullName: { contains: search, mode: 'insensitive' } },
                 { email: { contains: search, mode: 'insensitive' } },
+                { documentId: { contains: search, mode: 'insensitive' } },
             ];
         }
 
-        const [total, data] = await Promise.all([
+        const [filteredTotal, total, activeCount, inactiveCount, data] = await Promise.all([
             this.prisma.patient.count({ where }),
+            this.prisma.patient.count({ where: { nutritionistId } }),
+            this.prisma.patient.count({ where: { nutritionistId, status: 'Active' } }),
+            this.prisma.patient.count({ where: { nutritionistId, status: 'Inactive' } }),
             this.prisma.patient.findMany({
                 where,
                 skip,
@@ -44,8 +52,11 @@ export class PatientsService {
             data,
             meta: {
                 total,
+                filteredTotal,
+                activeCount,
+                inactiveCount,
                 page,
-                lastPage: Math.ceil(total / limit),
+                lastPage: Math.ceil(filteredTotal / limit),
             },
         };
     }
@@ -53,6 +64,11 @@ export class PatientsService {
     async findOne(nutritionistId: string, id: string) {
         const patient = await this.prisma.patient.findUnique({
             where: { id },
+            include: {
+                consultations: {
+                    orderBy: { date: 'asc' },
+                },
+            },
         });
 
         if (!patient) {

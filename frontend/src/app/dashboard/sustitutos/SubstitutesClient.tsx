@@ -36,7 +36,7 @@ export function SubstitutesClient() {
         fetchSubstitutes();
     }, []);
 
-    const fetchSubstitutes = async () => {
+    const fetchSubstitutes = async (retries = 3) => {
         try {
             const token = Cookies.get('auth_token') || localStorage.getItem('auth_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -50,7 +50,11 @@ export function SubstitutesClient() {
                 }
             }
         } catch (e) {
-            console.error("Error fetching substitutes", e);
+            if (retries > 0) {
+                setTimeout(() => fetchSubstitutes(retries - 1), 2000);
+            } else {
+                console.warn("Backend no disponible para cargar sustitutos aún.");
+            }
         } finally {
             setIsLoading(false);
         }

@@ -25,19 +25,26 @@ let PatientsService = class PatientsService {
             },
         });
     }
-    async findAll(nutritionistId, page = 1, limit = 20, search) {
+    async findAll(nutritionistId, page = 1, limit = 20, search, status) {
         const skip = (page - 1) * limit;
         const where = {
             nutritionistId,
         };
+        if (status && status !== 'Todos') {
+            where.status = status === 'Activos' ? 'Active' : 'Inactive';
+        }
         if (search) {
             where.OR = [
                 { fullName: { contains: search, mode: 'insensitive' } },
                 { email: { contains: search, mode: 'insensitive' } },
+                { documentId: { contains: search, mode: 'insensitive' } },
             ];
         }
-        const [total, data] = await Promise.all([
+        const [filteredTotal, total, activeCount, inactiveCount, data] = await Promise.all([
             this.prisma.patient.count({ where }),
+            this.prisma.patient.count({ where: { nutritionistId } }),
+            this.prisma.patient.count({ where: { nutritionistId, status: 'Active' } }),
+            this.prisma.patient.count({ where: { nutritionistId, status: 'Inactive' } }),
             this.prisma.patient.findMany({
                 where,
                 skip,
@@ -49,14 +56,22 @@ let PatientsService = class PatientsService {
             data,
             meta: {
                 total,
+                filteredTotal,
+                activeCount,
+                inactiveCount,
                 page,
-                lastPage: Math.ceil(total / limit),
+                lastPage: Math.ceil(filteredTotal / limit),
             },
         };
     }
     async findOne(nutritionistId, id) {
         const patient = await this.prisma.patient.findUnique({
             where: { id },
+            include: {
+                consultations: {
+                    orderBy: { date: 'asc' },
+                },
+            },
         });
         if (!patient) {
             throw new common_1.NotFoundException('Paciente no encontrado');

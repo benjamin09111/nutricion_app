@@ -27,7 +27,9 @@ import {
     User,
     UserPlus,
     BookOpen,
-    Search
+    Search,
+    AlertCircle,
+    Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -113,6 +115,12 @@ export default function CartClient() {
     const [foodSearchQuery, setFoodSearchQuery] = useState('');
     const [searchResultFoods, setSearchResultFoods] = useState<any[]>([]);
     const [isSearchingFoods, setIsSearchingFoods] = useState(false);
+
+    // -- Import Patient Modal State --
+    const [isImportPatientModalOpen, setIsImportPatientModalOpen] = useState(false);
+    const [patients, setPatients] = useState<any[]>([]);
+    const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+    const [patientSearchQuery, setPatientSearchQuery] = useState('');
 
     // -- Persistence: Draft Load/Save --
     useEffect(() => {
@@ -289,29 +297,65 @@ export default function CartClient() {
         }));
     };
 
-    const handlePatientLoad = () => {
-        const patientData = {
-            name: 'Juan Pérez',
-            age: 34,
-            weight: 88,
-            height: 1.82,
-            targetProtein: 180,
-            targetCarbs: 300,
-            targetFats: 80,
-            targetCalories: 2600,
-            fitnessGoals: {
-                weights: { enabled: true, minutes: 60, freq: 4 },
-                cardio: { enabled: true, level: 'moderado', minutes: 30, freq: 3 },
-                sports: { enabled: false, type: 'Fútbol', minutes: 90, freq: 1 },
-                lowImpact: { enabled: true, type: 'Caminata', minutes: 45, freq: 2 }
+    const fetchPatients = async () => {
+        setIsLoadingPatients(true);
+        try {
+            const token = Cookies.get('auth_token') || localStorage.getItem('auth_token');
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const response = await fetch(`${apiUrl}/patients`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setPatients(data.data || []);
             }
+        } catch (e) {
+            console.error("Error fetching patients", e);
+        } finally {
+            setIsLoadingPatients(false);
+        }
+    };
+
+    const handleSelectPatient = (patient: any) => {
+        setSelectedPatient(patient);
+        localStorage.setItem('nutri_patient', JSON.stringify(patient));
+
+        // Sync metadata to global draft
+        const storedDraft = localStorage.getItem('nutri_active_draft');
+        let draft = storedDraft ? JSON.parse(storedDraft) : {};
+
+        const restrictions = Array.isArray(patient.dietRestrictions) ? patient.dietRestrictions : [];
+        const validRestrictions = restrictions.filter((r: string) => r && r.trim() !== '');
+
+        draft.patientMeta = {
+            id: patient.id,
+            fullName: patient.fullName,
+            restrictions: validRestrictions,
+            nutritionalFocus: patient.nutritionalFocus,
+            fitnessGoals: patient.fitnessGoals,
+            birthDate: patient.birthDate,
+            weight: patient.weight,
+            height: patient.height,
+            gender: patient.gender,
+            updatedAt: new Date().toISOString()
         };
 
-        setSelectedPatient(patientData);
-        localStorage.setItem('nutri_patient', JSON.stringify(patientData));
-        window.dispatchEvent(new Event('patient-updated'));
+        localStorage.setItem('nutri_active_draft', JSON.stringify(draft));
 
-        toast.success("Perfil de Juan Pérez cargado. Los objetivos han sido actualizados.");
+        toast.success(`Paciente vinculado: ${patient.fullName}`);
+        setIsImportPatientModalOpen(false);
+        setPatientSearchQuery('');
+    };
+
+    const handlePatientLoad = () => {
+        setIsImportPatientModalOpen(true);
+        fetchPatients();
+    };
+
+    const handleUnlinkPatient = () => {
+        setSelectedPatient(null);
+        localStorage.removeItem('nutri_patient');
+        toast.info("Paciente desvinculado de esta sesión");
     };
 
     const removeItem = (id: string) => {
@@ -353,7 +397,7 @@ export default function CartClient() {
             return;
         }
 
-        const fetchFoods = async () => {
+        const fetchFoods = async (retries = 2) => {
             setIsSearchingFoods(true);
             const token = Cookies.get('auth_token') || localStorage.getItem('auth_token');
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
@@ -366,7 +410,11 @@ export default function CartClient() {
                     setSearchResultFoods(data);
                 }
             } catch (e) {
-                console.error(e);
+                if (retries > 0) {
+                    setTimeout(() => fetchFoods(retries - 1), 1000);
+                } else {
+                    console.warn("Error buscando alimentos (backend no disponible)");
+                }
             } finally {
                 setIsSearchingFoods(false);
             }
@@ -518,7 +566,7 @@ export default function CartClient() {
                             onClick={handlePatientLoad}
                         >
                             <UserPlus className="h-5 w-5" />
-                            {selectedPatient ? selectedPatient.name : "Asignar a un paciente"}
+                            {selectedPatient ? (selectedPatient.fullName || selectedPatient.name) : "Asignar a un paciente"}
                         </Button>
                         <Button className="h-12 px-8 bg-slate-900" onClick={() => saveCartToStorage()}>Guardar Creación</Button>
                         <Button
@@ -532,6 +580,28 @@ export default function CartClient() {
                 </ModuleFooter>
             }
         >
+            {selectedPatient && (
+                <div className="mb-6 animate-in slide-in-from-top duration-300">
+                    <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-[2.5rem] flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center border border-emerald-200">
+                                <User className="h-6 w-6 text-emerald-600" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">Paciente Vinculado</p>
+                                <h3 className="text-xl font-black text-slate-900 italic leading-none">{selectedPatient.fullName || selectedPatient.name}</h3>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleUnlinkPatient}
+                            className="bg-white/50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-200/50 hover:border-rose-200 transition-all cursor-pointer"
+                        >
+                            Cambiar o Desvincular
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Header Controls */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
@@ -948,6 +1018,77 @@ export default function CartClient() {
                         ) : (
                             <div className="py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                                 <p className="text-xs text-slate-400 font-medium italic">Escribe para buscar alimentos...</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Import Patient Modal */}
+            <Modal
+                isOpen={isImportPatientModalOpen}
+                onClose={() => {
+                    setIsImportPatientModalOpen(false);
+                    setPatientSearchQuery('');
+                }}
+                title="Vincular Paciente"
+            >
+                <div className="space-y-4">
+                    <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                            placeholder="Buscar por nombre o email..."
+                            value={patientSearchQuery}
+                            onChange={e => setPatientSearchQuery(e.target.value)}
+                            className="pl-11 h-12 rounded-xl border-slate-200 focus:border-indigo-500"
+                            autoFocus
+                        />
+                    </div>
+
+                    {isLoadingPatients && (
+                        <div className="flex justify-center py-8">
+                            <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                        </div>
+                    )}
+
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1 text-left">
+                        {patients
+                            .filter(patient =>
+                                patient.fullName.toLowerCase().includes(patientSearchQuery.toLowerCase()) ||
+                                (patient.email && patient.email.toLowerCase().includes(patientSearchQuery.toLowerCase()))
+                            )
+                            .map(patient => (
+                                <div
+                                    key={patient.id}
+                                    onClick={() => handleSelectPatient(patient)}
+                                    className="p-4 border-2 border-slate-200 rounded-2xl hover:border-emerald-400 hover:bg-emerald-50/30 transition-all cursor-pointer group flex items-center justify-between"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 group-hover:bg-emerald-100 group-hover:border-emerald-200 transition-colors">
+                                            <User className="h-5 w-5 text-slate-400 group-hover:text-emerald-600" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-black text-slate-900 text-sm">{patient.fullName}</h3>
+                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
+                                                {patient.email || 'Sin email'} • {patient.weight ? `${patient.weight}kg` : 'Peso no reg.'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {patient.dietRestrictions && Array.isArray(patient.dietRestrictions) && patient.dietRestrictions.length > 0 && (
+                                        <div className="flex items-center gap-1">
+                                            <AlertCircle className="h-3 w-3 text-rose-400" />
+                                            <span className="text-[10px] font-black text-rose-500 uppercase tracking-tighter">{patient.dietRestrictions.length}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        }
+
+                        {!isLoadingPatients && patients.length === 0 && (
+                            <div className="py-12 text-center">
+                                <p className="text-sm text-slate-400 font-bold">
+                                    No se encontraron pacientes registrados.
+                                </p>
                             </div>
                         )}
                     </div>

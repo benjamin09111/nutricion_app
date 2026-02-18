@@ -32,7 +32,7 @@ export default function LandingPage() {
   const [nutriCount, setNutriCount] = useState<number | null>(null);
 
   useEffect(() => {
-    const fetchCount = async () => {
+    const fetchCount = async (retries = 3) => {
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
         const res = await fetch(`${API_URL}/users/count/nutritionists`);
@@ -41,7 +41,12 @@ export default function LandingPage() {
           setNutriCount(data.count);
         }
       } catch (error) {
-        console.error('Error fetching count', error);
+        // En desarrollo, el backend puede tardar unos segundos en arrancar
+        if (retries > 0) {
+          setTimeout(() => fetchCount(retries - 1), 2000);
+        } else {
+          console.warn('Backend no disponible para el contador de nutricionistas aún.');
+        }
       }
     };
     fetchCount();
@@ -85,10 +90,10 @@ export default function LandingPage() {
       <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-indigo-50">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-200">
+            <div className="h-10 w-10 rounded-xl bg-linear-to-br from-indigo-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-200">
               <Leaf className="h-6 w-6 text-white" />
             </div>
-            <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-900 to-indigo-600">
+            <span className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-indigo-900 to-indigo-600">
               NutriSaaS
             </span>
           </div>
@@ -109,7 +114,7 @@ export default function LandingPage() {
       <main>
         {/* Hero Section */}
         <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-gradient-to-b from-indigo-50/50 to-transparent -z-10" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-linear-to-b from-indigo-50/50 to-transparent -z-10" />
           <div className="max-w-7xl mx-auto px-4">
             <div className="text-center max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 text-indigo-700 text-sm font-bold border border-indigo-100 mb-4">
@@ -118,7 +123,7 @@ export default function LandingPage() {
               </div>
               <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight text-indigo-950 leading-[1.1]">
                 {content.hero.titleLine1} <br />
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-emerald-500">
+                <span className="bg-clip-text text-transparent bg-linear-to-r from-indigo-600 to-emerald-500">
                   {content.hero.titleLine2}
                 </span>
               </h1>
@@ -194,7 +199,7 @@ export default function LandingPage() {
         <section id="registro" className="py-24">
           <div className="max-w-7xl mx-auto px-4">
             <div className="bg-indigo-900 rounded-[3rem] overflow-hidden shadow-2xl relative">
-              <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-indigo-800 to-transparent opacity-50" />
+              <div className="absolute top-0 right-0 w-1/2 h-full bg-linear-to-l from-indigo-800 to-transparent opacity-50" />
               <div className="relative z-10 grid lg:grid-cols-2">
                 <div className="p-12 lg:p-20 text-white space-y-8">
                   <h2 className="text-4xl lg:text-5xl font-bold leading-tight">
@@ -216,7 +221,7 @@ export default function LandingPage() {
                   </ul>
                 </div>
                 <div className="p-8 lg:p-12">
-                  <div className="bg-white rounded-[2rem] p-8 shadow-2xl">
+                  <div className="bg-white rounded-4xl p-8 shadow-2xl">
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4">
                       <div className="space-y-2">
                         <label className="text-sm font-bold text-slate-700">Nombre Completo <span className="text-red-500">*</span></label>
@@ -300,18 +305,25 @@ function PricingSection() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchPlans = async () => {
+    const fetchPlans = async (retries = 3) => {
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
         const res = await fetch(`${API_URL}/memberships/active`);
         if (res.ok) {
           const data = await res.json();
           setPlans(data);
+          setIsLoading(false);
+          return;
         }
+        throw new Error('Response not ok');
       } catch (error) {
-        console.error('Error fetching plans', error);
-      } finally {
-        setIsLoading(false);
+        if (retries > 0) {
+          // Reintentar cada 2 segundos si el backend no responde (startup)
+          setTimeout(() => fetchPlans(retries - 1), 2000);
+        } else {
+          console.warn('No se pudieron cargar los planes. El backend podría estar caído.');
+          setIsLoading(false);
+        }
       }
     };
 

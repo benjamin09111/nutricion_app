@@ -33,6 +33,7 @@ const tags_module_1 = require("./modules/tags/tags.module");
 const substitutes_module_1 = require("./modules/substitutes/substitutes.module");
 const resources_module_1 = require("./modules/resources/resources.module");
 const uploads_module_1 = require("./modules/uploads/uploads.module");
+const consultations_module_1 = require("./modules/consultations/consultations.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer
@@ -71,6 +72,7 @@ exports.AppModule = AppModule = __decorate([
             substitutes_module_1.SubstitutesModule,
             resources_module_1.ResourcesModule,
             uploads_module_1.UploadsModule,
+            consultations_module_1.ConsultationsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

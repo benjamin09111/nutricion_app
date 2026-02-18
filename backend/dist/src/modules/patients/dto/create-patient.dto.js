@@ -21,6 +21,10 @@ class CreatePatientDto {
     height;
     weight;
     dietRestrictions;
+    status;
+    clinicalSummary;
+    nutritionalFocus;
+    fitnessGoals;
 }
 exports.CreatePatientDto = CreatePatientDto;
 __decorate([
@@ -69,4 +73,24 @@ __decorate([
     (0, class_validator_1.IsString)({ each: true }),
     __metadata("design:type", Array)
 ], CreatePatientDto.prototype, "dietRestrictions", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(['Active', 'Inactive'], { message: 'El estado debe ser Active o Inactive' }),
+    __metadata("design:type", String)
+], CreatePatientDto.prototype, "status", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreatePatientDto.prototype, "clinicalSummary", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreatePatientDto.prototype, "nutritionalFocus", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreatePatientDto.prototype, "fitnessGoals", void 0);
 //# sourceMappingURL=create-patient.dto.js.map

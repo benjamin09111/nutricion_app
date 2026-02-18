@@ -20,12 +20,14 @@ export class PatientsController {
         @Query('page') page?: string,
         @Query('limit') limit?: string,
         @Query('search') search?: string,
+        @Query('status') status?: string,
     ) {
         return this.patientsService.findAll(
             req.user.nutritionistId,
             page ? +page : 1,
             limit ? +limit : 20,
             search,
+            status,
         );
     }
 

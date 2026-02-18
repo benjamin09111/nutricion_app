@@ -1,31 +1,34 @@
-import { Metric } from '@/features/consultations';
-
 export interface Patient {
     id: string;
-    name: string;
-    email: string;
-    birthDate: string;
-    gender: 'M' | 'F' | 'Other';
-    contactInfo: string;
-    status: 'Active' | 'Inactive';
-    lastVisit?: string;
-    // Chronobiology
-    wakeUpTime?: string;
-    sleepTime?: string;
-    // Nutrition & Restrictions
-    dietaryRestrictions?: string[];
-    mealCount?: number;
-    tastes?: string[];
-    dislikes?: string[];
-    // Physical Parameters
-    weight?: number;
+    nutritionistId: string;
+    fullName: string;
+    email?: string;
+    phone?: string;
+    documentId?: string;
+    birthDate?: string;
+    gender?: string;
     height?: number;
-    age?: number;
-    targetProtein?: number;
-    targetCalories?: number;
-    fitnessGoals?: string[];
-    // Optional initial consultation
-    initialConsultationTitle?: string;
-    initialConsultationDescription?: string;
-    initialConsultationMetrics?: Metric[];
+    weight?: number;
+    dietRestrictions?: string[]; // Stored as Json array in backend
+    createdAt: string;
+    updatedAt: string;
+    clinicalSummary?: string;
+    nutritionalFocus?: string;
+    fitnessGoals?: string;
+
+    // UI specific/Legacy fields
+    status?: 'Active' | 'Inactive';
+    lastVisit?: string;
+}
+
+export interface PatientsResponse {
+    data: Patient[];
+    meta: {
+        total: number;
+        filteredTotal: number;
+        activeCount: number;
+        inactiveCount: number;
+        page: number;
+        lastPage: number;
+    };
 }

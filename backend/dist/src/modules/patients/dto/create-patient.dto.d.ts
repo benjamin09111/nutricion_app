@@ -8,4 +8,8 @@ export declare class CreatePatientDto {
     height?: number;
     weight?: number;
     dietRestrictions?: string[];
+    status?: string;
+    clinicalSummary?: string;
+    nutritionalFocus?: string;
+    fitnessGoals?: string;
 }
