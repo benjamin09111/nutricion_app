@@ -12,12 +12,12 @@ export class UploadsController {
         FileInterceptor('file', {
             storage: diskStorage({
                 destination: './uploads',
-                filename: (req, file, callback) => {
+                filename: (req: any, file: any, callback: any) => {
                     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
                     callback(null, `${uniqueSuffix}${extname(file.originalname)}`);
                 },
             }),
-            fileFilter: (req, file, callback) => {
+            fileFilter: (req: any, file: any, callback: any) => {
                 if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
                     return callback(new Error('Only image files are allowed!'), false);
                 }

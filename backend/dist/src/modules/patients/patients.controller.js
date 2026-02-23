@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const patients_service_1 = require("./patients.service");
 const create_patient_dto_1 = require("./dto/create-patient.dto");
 const update_patient_dto_1 = require("./dto/update-patient.dto");
+const create_exam_dto_1 = require("./dto/create-exam.dto");
 const passport_1 = require("@nestjs/passport");
 let PatientsController = class PatientsController {
     patientsService;
@@ -37,6 +38,9 @@ let PatientsController = class PatientsController {
     }
     remove(req, id) {
         return this.patientsService.remove(req.user.nutritionistId, id);
+    }
+    addExam(req, patientId, createExamDto) {
+        return this.patientsService.addExam(req.user.nutritionistId, patientId, createExamDto);
     }
 };
 exports.PatientsController = PatientsController;
@@ -84,6 +88,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], PatientsController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Post)(':id/exams'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, create_exam_dto_1.CreateExamDto]),
+    __metadata("design:returntype", void 0)
+], PatientsController.prototype, "addExam", null);
 exports.PatientsController = PatientsController = __decorate([
     (0, common_1.Controller)('patients'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),

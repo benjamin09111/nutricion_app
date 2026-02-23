@@ -15,6 +15,8 @@ import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { toast } from 'sonner';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { ModuleLayout } from '@/components/shared/ModuleLayout';
+import { ActionDockItem } from '@/components/ui/ActionDock';
 import Cookies from 'js-cookie';
 
 function cn(...inputs: ClassValue[]) {
@@ -129,7 +131,6 @@ export default function ConsultationsClient() {
         fetchPatients();
         if (patientIdFromQuery) {
             setFormData(prev => ({ ...prev, patientId: patientIdFromQuery }));
-            setIsCreateModalOpen(true);
         }
     }, [patientIdFromQuery]);
 
@@ -264,8 +265,23 @@ export default function ConsultationsClient() {
         setIsResetConfirmOpen(false);
     };
 
+    const actionDockItems: ActionDockItem[] = useMemo(() => [
+        {
+            id: 'refresh',
+            icon: RotateCcw,
+            label: 'Refrescar',
+            variant: 'rose',
+            onClick: () => fetchConsultations()
+        }
+    ], []);
+
     return (
-        <>
+        <ModuleLayout
+            title="Mis Consultas"
+            description="Sistema centralizado de seguimiento y evolución clínica de pacientes."
+            rightNavItems={actionDockItems}
+            className="pb-8"
+        >
             <ConfirmationModal
                 isOpen={isResetConfirmOpen}
                 onClose={() => setIsResetConfirmOpen(false)}
@@ -350,9 +366,12 @@ export default function ConsultationsClient() {
                                                 <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center">
                                                     <User className="w-4 h-4 text-emerald-600" />
                                                 </div>
-                                                <span className="text-sm font-black text-slate-700 italic">
+                                                <button
+                                                    onClick={() => router.push(`/dashboard/pacientes/${item.patientId}`)}
+                                                    className="text-sm font-black text-slate-700 italic hover:text-emerald-600 transition-colors text-left cursor-pointer"
+                                                >
                                                     {item.patientName}
-                                                </span>
+                                                </button>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
@@ -613,10 +632,13 @@ export default function ConsultationsClient() {
                                             </span>
                                         </div>
                                         <h2 className="text-4xl font-black text-slate-900 italic tracking-tighter">{selectedConsultation.title}</h2>
-                                        <div className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
-                                            <User className="w-4 h-4 text-emerald-500" />
+                                        <button
+                                            onClick={() => router.push(`/dashboard/pacientes/${selectedConsultation.patientId}`)}
+                                            className="flex items-center gap-2 text-slate-400 font-bold uppercase text-[10px] tracking-widest hover:text-emerald-600 transition-colors cursor-pointer group"
+                                        >
+                                            <User className="w-4 h-4 text-emerald-500 group-hover:scale-110 transition-transform" />
                                             {selectedConsultation.patientName}
-                                        </div>
+                                        </button>
                                     </div>
                                     <button onClick={() => setSelectedConsultation(null)} className="p-4 bg-slate-50 rounded-2xl text-slate-400 hover:text-slate-900 transition-colors">
                                         <X className="w-6 h-6" />
@@ -659,6 +681,6 @@ export default function ConsultationsClient() {
                     </div>
                 )}
             </div>
-        </>
+        </ModuleLayout>
     );
 }

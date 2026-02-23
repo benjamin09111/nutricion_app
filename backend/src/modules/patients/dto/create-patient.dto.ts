@@ -54,4 +54,8 @@ export class CreatePatientDto {
     @IsOptional()
     @IsString()
     fitnessGoals?: string;
+
+    @IsOptional()
+    @IsArray()
+    customVariables?: { key: string; label: string; unit: string }[];
 }

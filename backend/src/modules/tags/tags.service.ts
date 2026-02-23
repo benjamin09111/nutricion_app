@@ -34,4 +34,10 @@ export class TagsService {
             take: 20,
         });
     }
+
+    async remove(id: string) {
+        return this.prisma.tag.delete({
+            where: { id },
+        });
+    }
 }

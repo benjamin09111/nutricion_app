@@ -44,6 +44,11 @@ let TagsService = class TagsService {
             take: 20,
         });
     }
+    async remove(id) {
+        return this.prisma.tag.delete({
+            where: { id },
+        });
+    }
 };
 exports.TagsService = TagsService;
 exports.TagsService = TagsService = __decorate([

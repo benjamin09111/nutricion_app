@@ -202,7 +202,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
                 <div className="h-16 w-16 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin" />
-                <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Cargando expediente...</p>
+                <p className="text-slate-400 font-semibold text-xs">Cargando expediente...</p>
             </div>
         );
     }
@@ -222,26 +222,26 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                     </button>
                     <div>
                         <div className="flex items-center gap-3 mb-1">
-                            <h1 className="text-4xl font-black text-slate-900 tracking-tighter italic">
+                            <h1 className="text-2xl font-semibold text-slate-900">
                                 {isEditing ? (
                                     <Input
                                         value={editForm.fullName || ''}
                                         onChange={e => updateField('fullName', e.target.value)}
-                                        className="bg-slate-50 border-none font-black text-4xl h-12 p-0 focus:bg-transparent"
+                                        className="bg-slate-50 border-none font-semibold text-2xl h-12 p-0 focus:bg-transparent"
                                     />
                                 ) : patient.fullName}
                             </h1>
                             <button
                                 onClick={toggleStatus}
                                 className={cn(
-                                    "px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all cursor-pointer hover:scale-105 active:scale-95",
+                                    "px-3 py-1 rounded-xl text-xs font-semibold border transition-all cursor-pointer hover:scale-105 active:scale-95",
                                     patient.status !== 'Inactive' ? "bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100" : "bg-slate-50 text-slate-400 border-slate-100 hover:bg-slate-100"
                                 )}
                             >
                                 {patient.status !== 'Inactive' ? 'Activo' : 'Inactivo'}
                             </button>
                         </div>
-                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em] flex items-center gap-2">
+                        <p className="text-slate-400 font-bold text-xs flex items-center gap-2">
                             EXPEDIENTE INTEGRADO <ChevronRight className="w-3 h-3" /> {patient.documentId || 'SIN ID'}
                         </p>
                     </div>
@@ -253,14 +253,14 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                             <Button
                                 onClick={() => setIsEditing(false)}
                                 variant="ghost"
-                                className="rounded-2xl h-14 px-8 text-slate-400 font-black uppercase tracking-widest text-xs"
+                                className="rounded-2xl h-10 px-4 text-slate-400 font-semibold text-xs"
                             >
                                 <CloseIcon className="w-5 h-5 mr-3" />
                                 Cancelar
                             </Button>
                             <Button
                                 onClick={handleSave}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-black h-14 px-10 rounded-2xl shadow-2xl shadow-emerald-100 transition-all hover:scale-[1.02] active:scale-95"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-10 px-4 rounded-2xl shadow-sm transition-all hover:scale-[1.02] active:scale-95"
                             >
                                 <Save className="w-5 h-5 mr-3" />
                                 GUARDAR CAMBIOS
@@ -271,14 +271,14 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                             <Button
                                 onClick={handleEdit}
                                 variant="ghost"
-                                className="rounded-2xl h-14 px-8 text-slate-400 hover:text-slate-900 hover:bg-white border border-transparent hover:border-slate-100 font-black uppercase tracking-widest text-xs"
+                                className="rounded-2xl h-10 px-4 text-slate-400 hover:text-slate-900 hover:bg-white border border-transparent hover:border-slate-100 font-semibold text-xs"
                             >
                                 <Edit2 className="w-4 h-4 mr-3" />
                                 Editar Perfil
                             </Button>
                             <Button
                                 onClick={() => router.push('/dashboard/consultas?patientId=' + patient.id)}
-                                className="bg-slate-900 hover:bg-slate-800 text-white font-black h-14 px-10 rounded-2xl shadow-2xl transition-all hover:scale-[1.02] active:scale-95"
+                                className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-semibold h-10 px-4 rounded-2xl shadow-sm transition-all hover:scale-[1.02] active:scale-95"
                             >
                                 <Plus className="w-5 h-5 mr-3" />
                                 NUEVA CONSULTA
@@ -304,24 +304,24 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                     { label: 'Género', value: patient.gender, icon: User, color: 'text-amber-600', bg: 'bg-amber-50', field: 'gender' },
                     { label: 'Identificador', value: patient.documentId || '---', icon: ClipboardList, color: 'text-rose-600', bg: 'bg-rose-50', field: 'documentId' },
                 ].map((stat, i) => (
-                    <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col gap-4 group hover:scale-[1.02] transition-all">
+                    <div key={i} className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4 group hover:scale-[1.02] transition-all">
                         <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center transition-transform", stat.bg)}>
                             <stat.icon className={cn("w-6 h-6", stat.color)} />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">{stat.label}</p>
-                            <div className="text-2xl font-black text-slate-900 flex items-baseline gap-1">
+                            <p className="text-[10px] font-semibold text-slate-300 mb-1">{stat.label}</p>
+                            <div className="text-2xl font-semibold text-slate-900 flex items-baseline gap-1">
                                 {isEditing && stat.field ? (
                                     <Input
                                         type={typeof stat.value === 'number' ? 'number' : 'text'}
                                         value={(editForm[stat.field as keyof Patient] as string | number) || ''}
                                         onChange={e => updateField(stat.field as keyof Patient, e.target.value)}
-                                        className="h-8 border-none bg-slate-50 font-black p-1 text-xl"
+                                        className="h-8 border-none bg-slate-50 font-semibold p-1 text-xl"
                                     />
                                 ) : (
                                     <>
                                         {stat.value}
-                                        <span className="text-xs text-slate-400 font-bold uppercase">{stat.unit}</span>
+                                        <span className="text-xs text-slate-400 font-bold">{stat.unit}</span>
                                     </>
                                 )}
                             </div>
@@ -331,13 +331,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             </div>
 
             {/* Tabs Navigation */}
-            <div className="flex gap-10 border-b border-slate-100 px-6">
+            <div className="flex gap-6 border-b border-slate-100 px-6">
                 {(['General', 'Progreso'] as TabType[]).map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
                         className={cn(
-                            "pb-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative",
+                            "pb-4 text-xs font-semibold transition-all relative",
                             activeTab === tab ? "text-slate-900" : "text-slate-300 hover:text-slate-500 cursor-pointer"
                         )}
                     >
@@ -351,31 +351,31 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
             {/* Main Content Area */}
             {activeTab === 'General' ? (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* Left Column: Clinical & Dietary */}
                     <div className="lg:col-span-8 space-y-10">
-                        <div className="bg-white rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden">
-                            <div className="p-10 border-b border-slate-50 bg-slate-50/20 flex items-center justify-between">
-                                <h3 className="text-2xl font-black text-slate-900 flex items-center gap-4 italic">
+                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm shadow-slate-200/50 overflow-hidden">
+                            <div className="p-6 border-b border-slate-50 bg-slate-50/20 flex items-center justify-between">
+                                <h3 className="text-2xl font-semibold text-slate-900 flex items-center gap-4">
                                     <Activity className="w-8 h-8 text-emerald-500" />
                                     Inteligencia Clínica
                                 </h3>
-                                <div className="px-5 py-2 bg-emerald-50 text-emerald-600 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+                                <div className="px-5 py-2 bg-emerald-50 text-emerald-600 rounded-2xl text-xs font-semibold border border-emerald-100">
                                     Sincronizado
                                 </div>
                             </div>
 
-                            <div className="p-10 grid md:grid-cols-2 gap-12">
+                            <div className="p-6 grid md:grid-cols-2 gap-12">
                                 <div className="space-y-8">
                                     <div className="space-y-4">
-                                        <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest border-b border-slate-50 pb-3">Información de Contacto</h4>
+                                        <h4 className="text-[10px] font-semibold text-slate-300 border-b border-slate-50 pb-3">Información de Contacto</h4>
                                         <div className="space-y-4">
                                             <div className="flex items-center gap-4 group">
                                                 <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-emerald-50 transition-colors">
                                                     <Mail className="w-4 h-4 text-emerald-500" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Email</p>
+                                                    <p className="text-[10px] font-semibold text-slate-300">Email</p>
                                                     {isEditing ? (
                                                         <Input
                                                             value={editForm.email || ''}
@@ -390,7 +390,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                                     <Phone className="w-4 h-4 text-emerald-500" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Teléfono</p>
+                                                    <p className="text-[10px] font-semibold text-slate-300">Teléfono</p>
                                                     {isEditing ? (
                                                         <Input
                                                             value={editForm.phone || ''}
@@ -406,27 +406,27 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
                                 <div className="space-y-8">
                                     <div className="space-y-5">
-                                        <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest border-b border-slate-50 pb-3">Restricciones Alimentarias</h4>
+                                        <h4 className="text-[10px] font-semibold text-slate-300 border-b border-slate-50 pb-3">Restricciones Alimentarias</h4>
                                         <div className="flex flex-wrap gap-3">
                                             {isEditing ? (
                                                 <TagInput
                                                     value={editForm.dietRestrictions as string[] || []}
                                                     onChange={tags => updateField('dietRestrictions', tags)}
-                                                    className="bg-slate-50 border-none rounded-2xl p-4 font-black"
+                                                    className="bg-slate-50 border-none rounded-2xl p-4 font-semibold"
                                                     placeholder="Agregar restricción..."
                                                 />
                                             ) : (
                                                 <>
                                                     {Array.isArray(patient.dietRestrictions) && patient.dietRestrictions.length > 0 ? (
                                                         patient.dietRestrictions.map((r, i) => (
-                                                            <span key={i} className="px-5 py-2 bg-rose-50 text-rose-700 text-[10px] font-black uppercase tracking-widest rounded-2xl border border-rose-100 shadow-sm">
+                                                            <span key={i} className="px-5 py-2 bg-rose-50 text-rose-700 text-xs font-semibold rounded-2xl border border-rose-100 shadow-sm">
                                                                 {r}
                                                             </span>
                                                         ))
                                                     ) : (
                                                         <div className="flex items-center gap-3 text-slate-400 p-4 bg-slate-50 rounded-2xl w-full border border-dashed border-slate-200">
                                                             <AlertCircle className="w-4 h-4" />
-                                                            <span className="text-xs font-bold italic">Sin restricciones detectadas</span>
+                                                            <span className="text-xs font-bold">Sin restricciones detectadas</span>
                                                         </div>
                                                     )}
                                                 </>
@@ -439,10 +439,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                             {/* New Clinical Summary Row */}
                             <div className="px-10 pb-10">
                                 <div className="space-y-4">
-                                    <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest border-b border-slate-50 pb-3 flex items-center justify-between">
+                                    <h4 className="text-[10px] font-semibold text-slate-300 border-b border-slate-50 pb-3 flex items-center justify-between">
                                         Resumen / Observaciones Clínicas
                                         {!isEditing && (
-                                            <span className="text-emerald-500 lowercase font-bold tracking-normal italic opacity-50">Solo visible para el nutricionista</span>
+                                            <span className="text-emerald-500 lowercase font-bold tracking-normal opacity-50">Solo visible para el nutricionista</span>
                                         )}
                                     </h4>
                                     {isEditing ? (
@@ -453,7 +453,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                             placeholder="Ingresa notas clínicas, antecedentes importantes o evolución general..."
                                         />
                                     ) : (
-                                        <div className="p-8 bg-slate-50/50 rounded-3xl border border-slate-50 min-h-[100px]">
+                                        <div className="p-8 bg-slate-50/50 rounded-2xl border border-slate-50 min-h-[100px]">
                                             {patient.clinicalSummary ? (
                                                 <p className="text-slate-600 font-medium whitespace-pre-wrap leading-relaxed">
                                                     {patient.clinicalSummary}
@@ -461,7 +461,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                             ) : (
                                                 <div className="flex flex-col items-center justify-center gap-3 py-4 text-slate-300">
                                                     <ClipboardList className="w-8 h-8 opacity-20" />
-                                                    <p className="text-xs font-bold italic">Sin observaciones clínicas registradas</p>
+                                                    <p className="text-xs font-bold">Sin observaciones clínicas registradas</p>
                                                 </div>
                                             )}
                                         </div>
@@ -473,13 +473,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         {/* Timeline */}
                         <div className="space-y-6">
                             <div className="flex items-center justify-between px-6">
-                                <h3 className="text-2xl font-black text-slate-900 flex items-center gap-4 italic text-shadow-sm">
+                                <h3 className="text-2xl font-semibold text-slate-900 flex items-center gap-4 text-shadow-sm">
                                     <HistoryIcon className="w-7 h-7 text-emerald-600" />
                                     Historial Clínico
                                 </h3>
                                 <button
                                     onClick={() => router.push('/dashboard/consultas')}
-                                    className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-emerald-600 transition-colors cursor-pointer"
+                                    className="text-[10px] font-semibold text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer"
                                 >
                                     Ver Todo
                                 </button>
@@ -494,7 +494,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                     consultations.map((consultation) => (
                                         <div
                                             key={consultation.id}
-                                            className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 flex items-center justify-between group hover:scale-[1.01] transition-all cursor-pointer"
+                                            className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group hover:scale-[1.01] transition-all cursor-pointer"
                                             onClick={() => router.push('/dashboard/consultas')}
                                         >
                                             <div className="flex items-center gap-6">
@@ -502,10 +502,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                                     <CalendarDays className="w-6 h-6 text-slate-300 group-hover:text-emerald-500" />
                                                 </div>
                                                 <div>
-                                                    <div className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">
+                                                    <div className="text-[10px] font-semibold text-emerald-600 mb-1">
                                                         {new Date(consultation.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
                                                     </div>
-                                                    <h4 className="text-lg font-black text-slate-800 tracking-tight leading-none group-hover:text-slate-900">
+                                                    <h4 className="text-lg font-semibold text-slate-800 tracking-tight leading-none group-hover:text-slate-900">
                                                         {consultation.title}
                                                     </h4>
                                                 </div>
@@ -514,7 +514,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                                 {consultation.metrics && consultation.metrics.length > 0 && (
                                                     <div className="hidden md:flex items-center gap-2">
                                                         {consultation.metrics.slice(0, 1).map((m, i) => (
-                                                            <div key={i} className="px-4 py-1.5 bg-slate-50 rounded-xl border border-slate-100 text-[10px] font-black text-slate-400 uppercase">
+                                                            <div key={i} className="px-4 py-1.5 bg-slate-50 rounded-xl border border-slate-100 text-xs font-semibold text-slate-400">
                                                                 {m.label}: {m.value}{m.unit}
                                                             </div>
                                                         ))}
@@ -527,17 +527,17 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="bg-slate-50 rounded-[3rem] p-16 text-center border-4 border-dashed border-slate-200/50">
-                                        <div className="w-20 h-20 bg-white rounded-4xl shadow-xl shadow-slate-200 flex items-center justify-center mx-auto mb-6">
+                                    <div className="bg-slate-50 rounded-2xl p-16 text-center border-4 border-dashed border-slate-200/50">
+                                        <div className="w-20 h-20 bg-white rounded-2xl shadow-xl shadow-slate-200 flex items-center justify-center mx-auto mb-6">
                                             <Activity className="w-10 h-10 text-slate-200" />
                                         </div>
-                                        <h4 className="text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Sin registros de consulta</h4>
+                                        <h4 className="text-xs font-semibold text-slate-600 mb-2">Sin registros de consulta</h4>
                                         <p className="text-slate-400 font-medium max-w-xs mx-auto mb-8">
                                             Empieza a documentar el progreso de {patient.fullName} creando su primera consulta.
                                         </p>
                                         <Button
                                             onClick={() => router.push('/dashboard/consultas?patientId=' + patient.id)}
-                                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black h-12 px-8 rounded-2xl transition-all shadow-xl shadow-emerald-200/50 active:scale-95"
+                                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-10 px-4 rounded-2xl transition-all shadow-xl shadow-emerald-200/50 active:scale-95"
                                         >
                                             <Plus className="w-4 h-4 mr-2" />
                                             Iniciar Evaluación
@@ -550,49 +550,49 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
                     {/* Right Column: Health Status */}
                     <div className="lg:col-span-4 space-y-10">
-                        <div className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl shadow-slate-300 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/20 blur-[60px] translate-x-1/4 -translate-y-1/4 rounded-full" />
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative overflow-hidden group">
 
-                            <h4 className="flex items-center gap-3 font-black text-emerald-400 uppercase text-[10px] tracking-[0.2em] mb-8">
+
+                            <h4 className="flex items-center gap-3 font-semibold text-emerald-600 text-xs mb-8">
                                 <Target className="w-4 h-4" />
                                 Foco Nutricional
                             </h4>
 
                             <div className="space-y-8 relative z-10">
                                 <div>
-                                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Objetivo Principal</p>
+                                    <p className="text-xs font-semibold text-slate-400 mb-2">Objetivo Principal</p>
                                     {isEditing ? (
                                         <Input
                                             value={editForm.nutritionalFocus || ''}
                                             onChange={e => updateField('nutritionalFocus', e.target.value)}
-                                            className="bg-slate-800 border-none text-white font-black text-2xl h-12 p-2 focus:ring-1 focus:ring-emerald-500"
+                                            className="bg-slate-100 border-none text-slate-800 font-semibold text-2xl h-12 p-2 focus:ring-1 focus:ring-emerald-500"
                                             placeholder="Ej. Déficit Calórico"
                                         />
                                     ) : (
-                                        <p className="text-2xl font-black tracking-tight leading-tight italic">
+                                        <p className="text-2xl font-semibold tracking-tight leading-tight">
                                             {patient.nutritionalFocus || 'Sin foco definido'}
                                         </p>
                                     )}
                                 </div>
 
-                                <div className="flex items-center gap-4 p-5 bg-white/5 rounded-4xl border border-white/10 backdrop-blur-sm group-hover:bg-white/10 transition-all">
-                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                                        <Zap className="w-5 h-5 text-emerald-400" />
+                                <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 backdrop-blur-sm group-hover:bg-white/10 transition-all">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+                                        <Zap className="w-5 h-5 text-emerald-600" />
                                     </div>
-                                    <p className="text-sm font-bold text-emerald-100 italic">
+                                    <p className="text-sm font-bold text-emerald-700">
                                         {patient.status === 'Active' ? 'Seguimiento optimizado.' : 'Paciente en pausa.'}
                                     </p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-xl shadow-slate-200/40 space-y-8">
+                        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-8">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4 text-rose-600">
                                     <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center">
                                         <Dumbbell className="w-6 h-6" />
                                     </div>
-                                    <h4 className="text-lg font-black uppercase tracking-tight italic">Metas Fitness</h4>
+                                    <h4 className="text-lg font-semibold tracking-tight">Metas Fitness</h4>
                                 </div>
                             </div>
 
@@ -601,17 +601,17 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                     <textarea
                                         value={editForm.fitnessGoals || ''}
                                         onChange={e => updateField('fitnessGoals', e.target.value)}
-                                        className="w-full h-24 rounded-4xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-rose-500/20 transition-all resize-none"
+                                        className="w-full h-24 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-rose-500/20 transition-all resize-none"
                                         placeholder="Ej. Maratón en Septiembre, Hipertrofia tren inferior..."
                                     />
                                 ) : (
-                                    <div className="p-6 bg-slate-50 rounded-[2.5rem] border border-slate-100">
+                                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
                                         {patient.fitnessGoals ? (
-                                            <p className="text-sm font-bold text-slate-600 italic leading-relaxed text-center">
+                                            <p className="text-sm font-bold text-slate-600 leading-relaxed text-center">
                                                 {patient.fitnessGoals}
                                             </p>
                                         ) : (
-                                            <p className="text-xs font-bold text-slate-400 italic text-center">No se han definido objetivos aún.</p>
+                                            <p className="text-xs font-bold text-slate-400 text-center">No se han definido objetivos aún.</p>
                                         )}
                                     </div>
                                 )}
@@ -622,16 +622,16 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             ) : (
                 <div className="space-y-10 animate-in zoom-in-95 duration-500">
                     {/* Progression Charts */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Weight Chart */}
-                        <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-2xl shadow-slate-200/50">
+                        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm shadow-slate-200/50">
                             <div className="flex items-center justify-between mb-8">
                                 <div className="space-y-1">
-                                    <h3 className="text-xl font-black text-slate-900 italic flex items-center gap-3">
+                                    <h3 className="text-xl font-semibold text-slate-900 flex items-center gap-3">
                                         <Weight className="w-6 h-6 text-blue-500" />
                                         Evolución de Peso
                                     </h3>
-                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Variación en kilogramos (kg)</p>
+                                    <p className="text-[10px] font-semibold text-slate-300">Variación en kilogramos (kg)</p>
                                 </div>
                             </div>
 
@@ -675,24 +675,24 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                     </ResponsiveContainer>
                                 ) : (
                                     <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
-                                        <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center">
+                                        <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center">
                                             <Weight className="w-8 h-8 opacity-20" />
                                         </div>
-                                        <p className="text-xs font-black italic">No hay datos de peso suficientes</p>
+                                        <p className="text-xs font-semibold">No hay datos de peso suficientes</p>
                                     </div>
                                 )}
                             </div>
                         </div>
 
                         {/* Body Fat Chart */}
-                        <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-2xl shadow-slate-200/50">
+                        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm shadow-slate-200/50">
                             <div className="flex items-center justify-between mb-8">
                                 <div className="space-y-1">
-                                    <h3 className="text-xl font-black text-slate-900 italic flex items-center gap-3">
+                                    <h3 className="text-xl font-semibold text-slate-900 flex items-center gap-3">
                                         <Activity className="w-6 h-6 text-emerald-500" />
                                         Grasa Corporal
                                     </h3>
-                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Porcentaje (%)</p>
+                                    <p className="text-[10px] font-semibold text-slate-300">Porcentaje (%)</p>
                                 </div>
                             </div>
 
@@ -736,10 +736,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                     </ResponsiveContainer>
                                 ) : (
                                     <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
-                                        <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center">
+                                        <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center">
                                             <Activity className="w-8 h-8 opacity-20" />
                                         </div>
-                                        <p className="text-xs font-black italic">No hay datos de grasa registrados</p>
+                                        <p className="text-xs font-semibold">No hay datos de grasa registrados</p>
                                     </div>
                                 )}
                             </div>
@@ -771,13 +771,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                 bg: 'bg-slate-50'
                             },
                         ].map((card, i) => (
-                            <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 flex items-center gap-6 group hover:scale-[1.02] transition-all">
+                            <div key={i} className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-6 group hover:scale-[1.02] transition-all">
                                 <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg", card.bg)}>
                                     <card.icon className={cn("w-7 h-7", card.color)} />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">{card.label}</p>
-                                    <p className="text-xl font-black text-slate-900 italic tracking-tight">{card.value}</p>
+                                    <p className="text-[10px] font-semibold text-slate-300 mb-1">{card.label}</p>
+                                    <p className="text-xl font-semibold text-slate-900 tracking-tight">{card.value}</p>
                                 </div>
                             </div>
                         ))}

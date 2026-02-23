@@ -10,4 +10,8 @@ export declare class TagsController {
         id: string;
         name: string;
     } | null>;
+    remove(id: string): Promise<{
+        id: string;
+        name: string;
+    }>;
 }

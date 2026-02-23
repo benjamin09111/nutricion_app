@@ -95,12 +95,31 @@ model Patient {
   clinicalSummary String?     @db.Text
   nutritionalFocus String?    @map("nutritional_focus")
   fitnessGoals   String?      @map("fitness_goals")
+  customVariables Json?        @map("custom_variables") @default("[]")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
   consultations  Consultation[]
+  exams          PatientExam[]
 
   @@map("patients")
+}
+
+model PatientExam {
+  id             String       @id @default(uuid())
+  patientId      String       @map("patient_id")
+  name           String
+  date           DateTime     @default(now())
+  laboratory     String?      // Optional laboratory name
+  fileUrl        String?      @map("file_url")
+  notes          String?      @db.Text
+  results        Json?        @default("{}") // Structured exam results: { "Glucose": { "value": 90, "unit": "mg/dL" }, ... }
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  patient        Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("patient_exams")
 }
 
 model Consultation {

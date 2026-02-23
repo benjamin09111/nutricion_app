@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
+import { CreateExamDto } from './dto/create-exam.dto';
 
 @Injectable()
 export class PatientsService {
@@ -68,6 +69,9 @@ export class PatientsService {
                 consultations: {
                     orderBy: { date: 'asc' },
                 },
+                exams: {
+                    orderBy: { date: 'desc' },
+                },
             },
         });
 
@@ -99,6 +103,20 @@ export class PatientsService {
 
         return this.prisma.patient.delete({
             where: { id },
+        });
+    }
+
+    async addExam(nutritionistId: string, patientId: string, dto: CreateExamDto) {
+        // Run check ownership first
+        await this.findOne(nutritionistId, patientId);
+
+        return this.prisma.patientExam.create({
+            data: {
+                ...dto,
+                patientId,
+                date: new Date(dto.date),
+                results: dto.results as any, // Prisma Json compatibility
+            },
         });
     }
 }

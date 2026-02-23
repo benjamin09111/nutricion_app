@@ -64,7 +64,7 @@ export default function PatientsClient() {
                 toast.error("Error al conectar con el servidor");
             }
         } finally {
-            if (retries === 0) setIsLoading(false);
+            setIsLoading(false);
         }
     };
 
@@ -139,55 +139,55 @@ export default function PatientsClient() {
 
                 <Button
                     onClick={() => router.push('/dashboard/pacientes/new')}
-                    className="bg-slate-900 hover:bg-slate-800 text-white font-black h-14 px-8 rounded-2xl shadow-2xl transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3 group border-b-4 border-slate-700 active:border-b-0"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-10 px-6 rounded-xl shadow-sm transition-all flex items-center gap-2"
                 >
-                    <Plus className="h-6 w-6 group-hover:rotate-90 transition-transform" aria-hidden="true" />
-                    NUEVO PACIENTE
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Nuevo Paciente
                 </Button>
             </div>
 
             <div className="relative mb-8 group">
-                <div className="absolute inset-0 bg-linear-to-r from-emerald-500/20 to-blue-500/10 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="relative bg-white p-2 rounded-3xl shadow-sm border border-slate-200 flex items-center gap-2">
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-blue-500/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="relative bg-white p-2 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-2">
                     <div className="pl-4">
                         <Search className="h-5 w-5 text-slate-400" />
                     </div>
                     <Input
                         type="search"
                         placeholder="Buscar por nombre, correo o documento..."
-                        className="border-none bg-transparent h-12 text-lg focus-visible:ring-0 placeholder:text-slate-300 font-medium"
+                        className="border-none bg-transparent h-10 text-sm focus-visible:ring-0 placeholder:text-slate-400 font-medium"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                     {isLoading && (
                         <div className="pr-4">
-                            <RotateCcw className="h-5 w-5 text-emerald-500 animate-spin" />
+                            <RotateCcw className="h-4 w-4 text-emerald-500 animate-spin" />
                         </div>
                     )}
                 </div>
             </div>
 
             <div className="space-y-4">
-                <div className="flex justify-between items-center px-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                        <User className="h-3 w-3" />
-                        Total: <span className="text-emerald-600 font-black">{meta.total}</span> pacientes registrados
+                <div className="flex justify-between items-center px-1">
+                    <p className="text-xs font-medium text-slate-500 flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Total: <span className="text-emerald-600 font-semibold">{meta.total}</span> pacientes registrados
                     </p>
                 </div>
 
-                <div className="bg-white shadow-2xl shadow-slate-200/50 border border-slate-200 sm:rounded-[2.5rem] overflow-hidden">
+                <div className="bg-white shadow-sm border border-slate-200 rounded-2xl overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-slate-100">
                             <thead className="bg-slate-50/50">
                                 <tr>
-                                    <th scope="col" className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Identidad del Paciente</th>
-                                    <th scope="col" className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Documento / Id</th>
-                                    <th scope="col" className="px-8 py-5 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado Clínico</th>
-                                    <th scope="col" className="px-8 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Ver</th>
+                                    <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Identidad del Paciente</th>
+                                    <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Documento / Id</th>
+                                    <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado Clínico</th>
+                                    <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Ver</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50 bg-white">
-                                {isLoading && patients.length === 0 ? (
+                                {isLoading ? (
                                     [1, 2, 3].map(i => (
                                         <tr key={i} className="animate-pulse">
                                             <td colSpan={5} className="px-8 py-6 h-20 bg-slate-50/30" />
@@ -198,63 +198,62 @@ export default function PatientsClient() {
                                         <tr
                                             key={patient.id}
                                             onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
-                                            className="hover:bg-linear-to-r hover:from-slate-50 hover:to-white transition-all group cursor-pointer"
+                                            className="hover:bg-slate-50 transition-colors group cursor-pointer"
                                         >
-                                            <td className="px-8 py-5">
+                                            <td className="px-6 py-4">
                                                 <div className="flex items-center">
-                                                    <div className="h-12 w-12 shrink-0">
-                                                        <div className="h-12 w-12 rounded-2xl bg-linear-to-br from-emerald-50 to-emerald-100 flex items-center justify-center text-emerald-600 font-black border border-emerald-200 shadow-sm group-hover:scale-110 transition-transform">
+                                                    <div className="h-10 w-10 shrink-0">
+                                                        <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 font-semibold border border-emerald-100 shadow-sm">
                                                             {patient.fullName.charAt(0)}
                                                         </div>
                                                     </div>
-                                                    <div className="ml-5">
-                                                        <div className="text-base font-black text-slate-900 group-hover:text-emerald-700 transition-colors leading-none mb-1">
+                                                    <div className="ml-4">
+                                                        <div className="text-sm font-semibold text-slate-900 leading-none mb-1">
                                                             {patient.fullName}
                                                         </div>
-                                                        <div className="text-xs text-slate-400 font-bold flex items-center gap-1.5 uppercase tracking-wider">
-                                                            <Mail className="w-3 h-3" />
+                                                        <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+                                                            <Mail className="w-3 h-3 text-slate-400" />
                                                             {patient.email || 'Sin correo'}
                                                         </div>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-8 py-5">
-                                                <span className="inline-flex items-center px-3 py-1 rounded-xl bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-wider border border-slate-200">
+                                            <td className="px-6 py-4">
+                                                <span className="inline-flex items-center text-sm font-medium text-slate-600">
                                                     {patient.documentId || '---'}
                                                 </span>
                                             </td>
-                                            <td className="px-8 py-5 text-center">
+                                            <td className="px-6 py-4 text-center">
                                                 <span className={cn(
-                                                    "inline-flex items-center rounded-2xl px-4 py-1.5 text-[10px] font-black uppercase tracking-widest ring-1 ring-inset",
+                                                    "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset",
                                                     patient.status !== 'Inactive'
                                                         ? "bg-emerald-50 text-emerald-700 ring-emerald-600/20"
-                                                        : "bg-slate-50 text-slate-500 ring-slate-500/10"
+                                                        : "bg-slate-50 text-slate-600 ring-slate-500/10"
                                                 )}>
-                                                    <div className={cn("h-2 w-2 rounded-full mr-2", patient.status !== 'Inactive' ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
                                                     {patient.status !== 'Inactive' ? 'Activo' : 'Inactivo'}
                                                 </span>
                                             </td>
-                                            <td className="px-8 py-5 text-right">
-                                                <button className="p-3 text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 rounded-2xl transition-all active:scale-90 cursor-pointer">
-                                                    <ArrowRight className="h-6 w-6" />
+                                            <td className="px-6 py-4 text-right">
+                                                <button className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer">
+                                                    <ArrowRight className="h-5 w-5" />
                                                 </button>
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={5} className="text-center py-24 bg-slate-50/50">
+                                        <td colSpan={5} className="text-center py-20 bg-slate-50/50">
                                             <div className="flex flex-col items-center justify-center space-y-4">
-                                                <div className="h-20 w-20 bg-white rounded-4xl shadow-xl shadow-slate-200 flex items-center justify-center border border-slate-100">
-                                                    <User className="h-10 w-10 text-slate-200" />
+                                                <div className="h-16 w-16 bg-white rounded-2xl shadow-sm flex items-center justify-center border border-slate-200">
+                                                    <User className="h-8 w-8 text-slate-300" />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <p className="text-lg font-black text-slate-900 uppercase tracking-widest">Silencio clínico</p>
-                                                    <p className="text-sm text-slate-400 font-medium">No hay pacientes que coincidan con la búsqueda.</p>
+                                                    <p className="text-base font-semibold text-slate-700">Sin pacientes registrados</p>
+                                                    <p className="text-sm text-slate-500">No hay pacientes que coincidan con la búsqueda.</p>
                                                 </div>
                                                 <Button
                                                     variant="ghost"
-                                                    className="font-black text-xs text-emerald-600 uppercase tracking-widest"
+                                                    className="font-medium text-sm text-emerald-600 hover:text-emerald-700"
                                                     onClick={resetPatients}
                                                 >
                                                     Limpiar filtros
@@ -272,18 +271,18 @@ export default function PatientsClient() {
                     <div className="flex items-center justify-center gap-2 pt-4">
                         <Button
                             variant="outline"
-                            className="rounded-xl font-bold h-10 w-10 p-0"
+                            className="rounded-lg font-medium h-9 w-9 p-0"
                             disabled={page === 1}
                             onClick={() => setPage(prev => prev - 1)}
                         >
-                            <ChevronLeft className="h-5 w-5" />
+                            <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <span className="text-xs font-black text-slate-400 uppercase tracking-widest mx-4">
+                        <span className="text-sm font-medium text-slate-600 mx-4">
                             Página {page} de {meta.lastPage}
                         </span>
                         <Button
                             variant="outline"
-                            className="rounded-xl font-bold h-10 w-10 p-0"
+                            className="rounded-lg font-medium h-9 w-9 p-0"
                             disabled={page === meta.lastPage}
                             onClick={() => setPage(prev => prev + 1)}
                         >

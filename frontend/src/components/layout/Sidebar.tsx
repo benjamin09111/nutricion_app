@@ -46,6 +46,7 @@ const groups: SidebarGroup[] = [
             { name: 'Ingredientes', href: '/dashboard/alimentos', icon: Apple },
             { name: 'Platos', href: '/dashboard/platos', icon: Utensils, locked: true }, // Locked as requested
             { name: 'Mis Creaciones', href: '/dashboard/creaciones', icon: Folder },
+            { name: 'Detalles', href: '/dashboard/detalles', icon: FileText },
         ]
     },
     {
@@ -53,7 +54,6 @@ const groups: SidebarGroup[] = [
         items: [
             { name: 'Dieta', href: '/dashboard/dieta', icon: Utensils },
             { name: 'Carrito', href: '/dashboard/carrito', icon: ShoppingCart },
-            { name: 'Recetas', href: '/dashboard/recetas', icon: ChefHat },
             { name: 'Fitness', href: '/dashboard/fitness', icon: Dumbbell, locked: true },
             { name: 'Entregable', href: '/dashboard/entregable', icon: ClipboardCheck },
         ]
@@ -62,7 +62,6 @@ const groups: SidebarGroup[] = [
         title: 'Herramientas',
         items: [
             { name: 'Recursos', href: '/dashboard/recursos', icon: FileText },
-            { name: 'Sustitutos', href: '/dashboard/sustitutos', icon: ClipboardCheck },
             { name: 'Agentes (IA)', href: '/dashboard/agentes', icon: Bot },
         ]
     },

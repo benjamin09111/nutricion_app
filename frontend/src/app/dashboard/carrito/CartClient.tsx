@@ -28,8 +28,7 @@ import {
     UserPlus,
     BookOpen,
     Search,
-    AlertCircle,
-    Loader2
+    AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';

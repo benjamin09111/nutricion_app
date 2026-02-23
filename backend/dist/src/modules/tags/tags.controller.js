@@ -30,6 +30,9 @@ let TagsController = class TagsController {
     async create(name) {
         return this.tagsService.findOrCreate(name);
     }
+    async remove(id) {
+        return this.tagsService.remove(id);
+    }
 };
 exports.TagsController = TagsController;
 __decorate([
@@ -46,6 +49,13 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], TagsController.prototype, "create", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], TagsController.prototype, "remove", null);
 exports.TagsController = TagsController = __decorate([
     (0, common_1.Controller)('tags'),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),

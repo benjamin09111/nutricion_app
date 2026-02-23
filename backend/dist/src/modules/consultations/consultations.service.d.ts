@@ -10,14 +10,14 @@ export declare class ConsultationsService {
         };
     } & {
         id: string;
-        date: Date;
-        title: string;
-        description: string | null;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         createdAt: Date;
         updatedAt: Date;
-        patientId: string;
         nutritionistId: string;
+        description: string | null;
+        title: string;
+        date: Date;
+        patientId: string;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     findAll(nutritionistId: string, page?: number, limit?: number, search?: string, patientId?: string): Promise<{
         data: {
@@ -26,14 +26,14 @@ export declare class ConsultationsService {
                 fullName: string;
             };
             id: string;
-            date: Date;
-            title: string;
-            description: string | null;
-            metrics: import("@prisma/client/runtime/library").JsonValue | null;
             createdAt: Date;
             updatedAt: Date;
-            patientId: string;
             nutritionistId: string;
+            description: string | null;
+            title: string;
+            date: Date;
+            patientId: string;
+            metrics: import("@prisma/client/runtime/library").JsonValue | null;
         }[];
         meta: {
             total: number;
@@ -47,14 +47,14 @@ export declare class ConsultationsService {
             fullName: string;
         };
         id: string;
-        date: Date;
-        title: string;
-        description: string | null;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         createdAt: Date;
         updatedAt: Date;
-        patientId: string;
         nutritionistId: string;
+        description: string | null;
+        title: string;
+        date: Date;
+        patientId: string;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     update(nutritionistId: string, id: string, updateConsultationDto: UpdateConsultationDto): Promise<{
         patient: {
@@ -62,25 +62,25 @@ export declare class ConsultationsService {
         };
     } & {
         id: string;
-        date: Date;
-        title: string;
-        description: string | null;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         createdAt: Date;
         updatedAt: Date;
-        patientId: string;
         nutritionistId: string;
+        description: string | null;
+        title: string;
+        date: Date;
+        patientId: string;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     private syncPatientData;
     remove(nutritionistId: string, id: string): Promise<{
         id: string;
-        date: Date;
-        title: string;
-        description: string | null;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         createdAt: Date;
         updatedAt: Date;
-        patientId: string;
         nutritionistId: string;
+        description: string | null;
+        title: string;
+        date: Date;
+        patientId: string;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
 }

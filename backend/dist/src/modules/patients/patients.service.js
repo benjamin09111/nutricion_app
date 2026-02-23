@@ -71,6 +71,9 @@ let PatientsService = class PatientsService {
                 consultations: {
                     orderBy: { date: 'asc' },
                 },
+                exams: {
+                    orderBy: { date: 'desc' },
+                },
             },
         });
         if (!patient) {
@@ -92,6 +95,17 @@ let PatientsService = class PatientsService {
         await this.findOne(nutritionistId, id);
         return this.prisma.patient.delete({
             where: { id },
+        });
+    }
+    async addExam(nutritionistId, patientId, dto) {
+        await this.findOne(nutritionistId, patientId);
+        return this.prisma.patientExam.create({
+            data: {
+                ...dto,
+                patientId,
+                date: new Date(dto.date),
+                results: dto.results,
+            },
         });
     }
 };

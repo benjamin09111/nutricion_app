@@ -80,6 +80,10 @@ export default function DeliverableClient() {
     const [isSaving, setIsSaving] = useState(false);
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
 
+    // Track available modules
+    const [hasCart, setHasCart] = useState(false);
+    const [hasRecipes, setHasRecipes] = useState(false);
+
     // -- Import Patient Modal State --
     const [isImportPatientModalOpen, setIsImportPatientModalOpen] = useState(false);
     const [patients, setPatients] = useState<any[]>([]);
@@ -93,9 +97,24 @@ export default function DeliverableClient() {
             try {
                 const draft = JSON.parse(storedDraft);
                 if (draft.deliverable) {
-                    if (draft.deliverable.selectedSections) setSelectedSections(draft.deliverable.selectedSections);
-                    if (draft.deliverable.includeLogo !== undefined) setIncludeLogo(draft.deliverable.includeLogo);
+                    if (draft.deliverable.selectedSections) {
+                        setSelectedSections(draft.deliverable.selectedSections);
+                    }
+                    if (draft.deliverable.includeLogo !== undefined) {
+                        setIncludeLogo(draft.deliverable.includeLogo);
+                    }
+                } else {
+                    // Si no hay configuración previa de entregable, filtramos por defecto basados en disponibilidad
+                    const availableDefaults = DELIVERABLE_SECTIONS.filter(s => {
+                        if (!s.defaultSelected) return false;
+                        if ((s.id === 'shoppingList' || s.id === 'qrCode') && !draft.cart) return false;
+                        if (s.id === 'recipes' && !draft.recipes) return false;
+                        return true;
+                    }).map(s => s.id);
+                    setSelectedSections(availableDefaults);
                 }
+                setHasCart(!!draft.cart);
+                setHasRecipes(!!draft.recipes);
             } catch (e) {
                 console.error("Error loading project draft", e);
             }
@@ -140,26 +159,72 @@ export default function DeliverableClient() {
         }
     }, [isReviewModalOpen]);
 
-    const toggleSection = (id: string) => {
+    const toggleSection = (id: string, disabled?: boolean) => {
+        if (disabled) return;
         setSelectedSections(prev =>
             prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
         );
     };
 
-    const handleExport = () => {
-        setIsExporting(true);
-        const promise = new Promise((resolve) => setTimeout(resolve, 2000));
+    const availableSections = DELIVERABLE_SECTIONS.map(section => {
+        let disabled = false;
+        let finalDescription = section.description;
 
-        toast.promise(
-            promise,
-            {
-                loading: 'Generando PDF profesional...',
-                success: 'PDF exportado exitosamente.',
-                error: 'Error al generar el PDF.',
+        if (section.id === 'shoppingList' || section.id === 'qrCode') {
+            if (!hasCart) {
+                disabled = true;
+                finalDescription = '⚠️ Requiere haber generado el carrito.';
             }
-        );
+        }
+        if (section.id === 'recipes') {
+            if (!hasRecipes) {
+                disabled = true;
+                finalDescription = '⚠️ Requiere haber generado recetas.';
+            }
+        }
 
-        promise.then(() => setIsExporting(false));
+        return { ...section, disabled, description: finalDescription };
+    });
+
+    const handleExport = async () => {
+        setIsExporting(true);
+
+        try {
+            toast.loading("Compilando PDF nativo en el navegador...", { id: 'pdf-toast' });
+
+            // Dynamically import heavy PDF library only when needed to avoid SSR bloat
+            const { pdf } = await import('@react-pdf/renderer');
+            const { StandardTemplate } = await import('@/features/deliverable/components/StandardTemplate');
+
+            // Leer JSON gigante de persistencia
+            const storedDraft = localStorage.getItem('nutri_active_draft');
+            const draftData = storedDraft ? JSON.parse(storedDraft) : {};
+
+            const config = {
+                includeLogo,
+                selectedSections
+            };
+
+            // Generar PDF 100% nativo desde React Component a Blob Memory
+            const blob = await pdf(<StandardTemplate data={draftData} config={config} />).toBlob();
+
+            // Forzar descarga local
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Plan_Nutricional_${Date.now()}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            toast.success('¡PDF generado y descargado exitosamente!', { id: 'pdf-toast' });
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            toast.error('Ocurrió un error al generar de PDF. Revisa la consola.', { id: 'pdf-toast' });
+        } finally {
+            setIsExporting(false);
+        }
     };
 
     const handleSaveToCreations = () => {
@@ -351,20 +416,22 @@ export default function DeliverableClient() {
                             </div>
 
                             <div className="flex flex-col gap-3">
-                                {DELIVERABLE_SECTIONS.filter(s => s.category === 'core').map((section) => (
+                                {availableSections.filter(s => s.category === 'core').map((section) => (
                                     <div
                                         key={section.id}
-                                        onClick={() => toggleSection(section.id)}
+                                        onClick={() => toggleSection(section.id, section.disabled)}
                                         className={cn(
                                             "p-5 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-4 group",
-                                            selectedSections.includes(section.id)
-                                                ? "bg-white border-emerald-500 shadow-lg shadow-emerald-500/5"
-                                                : "bg-slate-50 border-slate-100 hover:border-slate-200 opacity-60"
+                                            section.disabled ? "opacity-30 cursor-not-allowed bg-slate-50 border-slate-100" :
+                                                selectedSections.includes(section.id)
+                                                    ? "bg-white border-emerald-500 shadow-lg shadow-emerald-500/5"
+                                                    : "bg-slate-50 border-slate-100 hover:border-slate-200 opacity-60"
                                         )}
                                     >
                                         <div className={cn(
                                             "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
-                                            selectedSections.includes(section.id) ? "bg-emerald-500 text-white" : "bg-white text-slate-400 group-hover:text-slate-600 shadow-sm"
+                                            section.disabled ? "bg-slate-200 text-slate-400" :
+                                                selectedSections.includes(section.id) ? "bg-emerald-500 text-white" : "bg-white text-slate-400 group-hover:text-slate-600 shadow-sm"
                                         )}>
                                             <section.icon className="h-5 w-5" />
                                         </div>
@@ -406,26 +473,28 @@ export default function DeliverableClient() {
                             </div>
 
                             <div className="flex flex-col gap-3">
-                                {DELIVERABLE_SECTIONS.filter(s => s.category === 'info').map((section) => (
+                                {availableSections.filter(s => s.category === 'info').map((section) => (
                                     <div
                                         key={section.id}
-                                        onClick={() => toggleSection(section.id)}
+                                        onClick={() => toggleSection(section.id, section.disabled)}
                                         className={cn(
                                             "p-5 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-4 group",
-                                            selectedSections.includes(section.id)
-                                                ? "bg-white border-blue-500 shadow-lg shadow-blue-500/5"
-                                                : "bg-slate-50 border-slate-100 hover:border-slate-200 opacity-60"
+                                            section.disabled ? "opacity-30 cursor-not-allowed bg-slate-50 border-slate-100" :
+                                                selectedSections.includes(section.id)
+                                                    ? "bg-white border-blue-500 shadow-lg shadow-blue-500/5"
+                                                    : "bg-slate-50 border-slate-100 hover:border-slate-200 opacity-60"
                                         )}
                                     >
                                         <div className={cn(
                                             "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
-                                            selectedSections.includes(section.id) ? "bg-blue-500 text-white" : "bg-white text-slate-400 group-hover:text-slate-600 shadow-sm border border-slate-100"
+                                            section.disabled ? "bg-slate-200 text-slate-400" :
+                                                selectedSections.includes(section.id) ? "bg-blue-500 text-white" : "bg-white text-slate-400 group-hover:text-slate-600 shadow-sm border border-slate-100"
                                         )}>
                                             <section.icon className="h-5 w-5" />
                                         </div>
                                         <div className="flex-1">
                                             <h4 className="font-black text-slate-800 text-xs uppercase tracking-wider">{section.label}</h4>
-                                            <p className="text-[10px] text-slate-500 font-medium leading-tight mt-1">{section.description}</p>
+                                            <p className={cn("text-[10px] font-medium leading-tight mt-1", section.disabled ? "text-rose-500 font-bold" : "text-slate-500")}>{section.description}</p>
                                         </div>
                                         <div className={cn(
                                             "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",

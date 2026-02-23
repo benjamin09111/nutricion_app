@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, 
 import { PatientsService } from './patients.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
+import { CreateExamDto } from './dto/create-exam.dto';
 import { AuthGuard } from '@nestjs/passport';
 
 @Controller('patients')
@@ -48,5 +49,14 @@ export class PatientsController {
     @Delete(':id')
     remove(@Request() req: any, @Param('id') id: string) {
         return this.patientsService.remove(req.user.nutritionistId, id);
+    }
+
+    @Post(':id/exams')
+    addExam(
+        @Request() req: any,
+        @Param('id') patientId: string,
+        @Body() createExamDto: CreateExamDto,
+    ) {
+        return this.patientsService.addExam(req.user.nutritionistId, patientId, createExamDto);
     }
 }

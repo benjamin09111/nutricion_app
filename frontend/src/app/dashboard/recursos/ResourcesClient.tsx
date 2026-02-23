@@ -62,6 +62,8 @@ export function ResourcesClient() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeCategory, setActiveCategory] = useState('all');
+    const [availableTags, setAvailableTags] = useState<string[]>([]);
+    const DEFAULT_CONSTRAINTS = ['Diabético', 'Hipertensión', 'Vegetariano', 'Celiaco', 'Sin Gluten'];
 
     // Upload state
     const [isUploading, setIsUploading] = useState(false);
@@ -109,7 +111,28 @@ export function ResourcesClient() {
 
     useEffect(() => {
         fetchResources();
+        fetchTags();
     }, []);
+
+    const fetchTags = async () => {
+        try {
+            const token = Cookies.get('auth_token') || localStorage.getItem('auth_token');
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const response = await fetch(`${apiUrl}/tags`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const tagsData = await response.json();
+                const backendTags = tagsData.map((t: any) => t.name);
+                setAvailableTags(Array.from(new Set([...DEFAULT_CONSTRAINTS, ...backendTags])));
+            } else {
+                setAvailableTags(DEFAULT_CONSTRAINTS);
+            }
+        } catch (error) {
+            console.error('Error fetching tags', error);
+            setAvailableTags(DEFAULT_CONSTRAINTS);
+        }
+    };
 
     const filteredResources = useMemo(() => {
         return resources.filter(res => {
@@ -386,8 +409,8 @@ export function ResourcesClient() {
                             <FileText className="h-10 w-10 text-slate-300" />
                         </div>
                         <div className="space-y-1">
-                            <h3 className="font-black text-slate-900">No se encontraron recursos</h3>
-                            <p className="text-sm text-slate-500 max-w-xs">Intenta cambiar el filtro o el término de búsqueda.</p>
+                            <h3 className="font-black text-slate-900">No hay recursos actualmente</h3>
+                            <p className="text-sm text-slate-500 max-w-xs">No hemos encontrado nada, intenta ajustar la búsqueda o añade uno nuevo al sistema.</p>
                         </div>
                         <Button
                             variant="outline"
@@ -415,13 +438,13 @@ export function ResourcesClient() {
                                 placeholder="Ej: La verdad sobre el ayuno intermitente"
                                 value={formData.title}
                                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                className="rounded-xl border-slate-200 h-11"
+                                className="rounded-xl border-slate-200 h-11 text-slate-900"
                             />
                         </div>
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Categoría</label>
                             <select
-                                className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
+                                className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
                                 value={formData.category}
                                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                             >
@@ -477,8 +500,14 @@ export function ResourcesClient() {
                                 </span>
                             ))}
                         </div>
+                        <datalist id="available-constraints">
+                            {availableTags.map(tag => (
+                                <option key={tag} value={tag} />
+                            ))}
+                        </datalist>
                         <Input
-                            placeholder="Presiona Enter para añadir una etiqueta (ej: Hipertensión, Vegano)"
+                            list="available-constraints"
+                            placeholder="Escribe o selecciona resticción y presiona Enter (ej: Diabético)"
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                     e.preventDefault();
@@ -489,14 +518,14 @@ export function ResourcesClient() {
                                     }
                                 }
                             }}
-                            className="rounded-xl border-slate-200 h-11"
+                            className="rounded-xl border-slate-200 h-11 text-slate-900"
                         />
                     </div>
 
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contenido (Markdown)</label>
                         <textarea
-                            className="w-full h-48 rounded-2xl border border-slate-200 bg-white p-4 text-sm focus:ring-2 focus:ring-emerald-500 transition-all outline-none resize-none leading-relaxed"
+                            className="w-full h-48 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 transition-all outline-none resize-none leading-relaxed"
                             placeholder="Escribe aquí el contenido educativo..."
                             value={formData.content}
                             onChange={(e) => setFormData({ ...formData, content: e.target.value })}
