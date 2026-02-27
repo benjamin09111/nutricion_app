@@ -145,8 +145,8 @@ export default function DetailsClient() {
       return;
     }
 
-    if (allTags.includes(newTag.trim())) {
-      toast.error("Esta restricción ya existe");
+    if (allHealthTags.includes(newTag.trim()) || hashTags.includes(newTag.trim())) {
+      toast.error("Esta restricción o etiqueta ya existe");
       return;
     }
 
