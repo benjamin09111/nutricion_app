@@ -46,6 +46,8 @@ model Nutritionist {
   substitutes           Substitute[]
   resources             Resource[]
   consultations         Consultation[]
+  createdTags           Tag[]
+  metricDefinitions     MetricDefinition[]
 
   @@map("nutritionists")
 }
@@ -95,6 +97,7 @@ model Patient {
   clinicalSummary String?     @db.Text
   nutritionalFocus String?    @map("nutritional_focus")
   fitnessGoals   String?      @map("fitness_goals")
+  tags           String[]     @default([])
   customVariables Json?        @map("custom_variables") @default("[]")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -194,11 +197,28 @@ model IngredientCategory {
 model Tag {
   id               String                 @id @default(uuid())
   name             String                 @unique
+  nutritionistId   String?                @map("nutritionist_id")
   ingredients      Ingredient[]           @relation("GlobalTags")
   ingredientGroups IngredientGroup[]      @relation("GroupTags")
   preferences      IngredientPreference[] @relation("PersonalTags")
+  nutritionist     Nutritionist?          @relation(fields: [nutritionistId], references: [id])
 
   @@map("tags")
+}
+
+model MetricDefinition {
+  id             String       @id @default(uuid())
+  name           String       @unique
+  unit           String
+  key            String       @unique
+  nutritionistId String?      @map("nutritionist_id")
+  icon           String?      @default("Activity")
+  color          String?      @default("#64748b")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  nutritionist   Nutritionist? @relation(fields: [nutritionistId], references: [id])
+
+  @@map("metric_definitions")
 }
 
 model IngredientPreference {

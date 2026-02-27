@@ -80,14 +80,14 @@ export declare class RecipesController {
     })[]>;
     findOne(req: any, id: string): Promise<{
         nutritionist: {
+            fullName: string;
+            phone: string | null;
             id: string;
             createdAt: Date;
             updatedAt: Date;
             accountId: string;
-            fullName: string;
             professionalId: string | null;
             specialty: string | null;
-            phone: string | null;
             avatarUrl: string | null;
             settings: import("@prisma/client/runtime/library").JsonValue | null;
         } | null;

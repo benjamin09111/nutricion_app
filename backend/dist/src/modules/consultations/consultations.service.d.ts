@@ -1,9 +1,11 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateConsultationDto } from './dto/create-consultation.dto';
 import { UpdateConsultationDto } from './dto/update-consultation.dto';
+import { CacheService } from '../../common/services/cache.service';
 export declare class ConsultationsService {
     private prisma;
-    constructor(prisma: PrismaService);
+    private cacheService;
+    constructor(prisma: PrismaService, cacheService: CacheService);
     create(nutritionistId: string, createConsultationDto: CreateConsultationDto): Promise<{
         patient: {
             fullName: string;
@@ -16,10 +18,10 @@ export declare class ConsultationsService {
         description: string | null;
         title: string;
         date: Date;
-        patientId: string;
         metrics: import("@prisma/client/runtime/library").JsonValue | null;
+        patientId: string;
     }>;
-    findAll(nutritionistId: string, page?: number, limit?: number, search?: string, patientId?: string): Promise<{
+    findAll(nutritionistId: string, page?: number, limit?: number, search?: string, patientId?: string, type?: 'CLINICAL' | 'METRIC' | 'ALL'): Promise<{
         data: {
             patientName: string;
             patient: {
@@ -32,8 +34,8 @@ export declare class ConsultationsService {
             description: string | null;
             title: string;
             date: Date;
-            patientId: string;
             metrics: import("@prisma/client/runtime/library").JsonValue | null;
+            patientId: string;
         }[];
         meta: {
             total: number;
@@ -53,8 +55,8 @@ export declare class ConsultationsService {
         description: string | null;
         title: string;
         date: Date;
-        patientId: string;
         metrics: import("@prisma/client/runtime/library").JsonValue | null;
+        patientId: string;
     }>;
     update(nutritionistId: string, id: string, updateConsultationDto: UpdateConsultationDto): Promise<{
         patient: {
@@ -68,8 +70,8 @@ export declare class ConsultationsService {
         description: string | null;
         title: string;
         date: Date;
-        patientId: string;
         metrics: import("@prisma/client/runtime/library").JsonValue | null;
+        patientId: string;
     }>;
     private syncPatientData;
     remove(nutritionistId: string, id: string): Promise<{
@@ -80,7 +82,7 @@ export declare class ConsultationsService {
         description: string | null;
         title: string;
         date: Date;
-        patientId: string;
         metrics: import("@prisma/client/runtime/library").JsonValue | null;
+        patientId: string;
     }>;
 }

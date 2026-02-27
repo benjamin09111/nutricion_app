@@ -2,9 +2,14 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 
+import { CacheService } from '../../common/services/cache.service';
+
 @Injectable()
 export class RecipesService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly cacheService: CacheService
+    ) { }
 
     private async getNutritionistId(accountId: string): Promise<string> {
         // Assuming accountId IS the userId passed from controller (which is true now)
@@ -65,7 +70,7 @@ export class RecipesService {
             if (!data.lipids) calcMacros.lipids = parseFloat((totalLipids / portions).toFixed(2));
         }
 
-        return this.prisma.recipe.create({
+        const recipe = await this.prisma.recipe.create({
             data: {
                 ...data,
                 nutritionist: { connect: { id: nutritionistId } },
@@ -90,6 +95,10 @@ export class RecipesService {
                 }
             }
         });
+
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'recipes');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+        return recipe;
     }
 
     async findAll(userId: string) {
@@ -174,11 +183,15 @@ export class RecipesService {
             // Ideally re-calc macros here if not provided in DTO
         }
 
-        return this.prisma.recipe.update({
+        const updated = await this.prisma.recipe.update({
             where: { id },
             data: updateData,
             include: { ingredients: true }
         });
+
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'recipes');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+        return updated;
     }
 
     async remove(id: string, userId: string) {
@@ -187,6 +200,10 @@ export class RecipesService {
 
         if (recipe.nutritionistId !== nutritionistId) throw new ForbiddenException('Cannot delete public or others recipes');
 
-        return this.prisma.recipe.delete({ where: { id } });
+        const deleted = await this.prisma.recipe.delete({ where: { id } });
+
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'recipes');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+        return deleted;
     }
 }

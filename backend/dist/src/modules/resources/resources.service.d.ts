@@ -3,24 +3,24 @@ export declare class ResourcesService {
     private readonly prisma;
     constructor(prisma: PrismaService);
     findAll(nutritionistId: string, isAdmin: boolean): Promise<{
+        tags: string[];
         id: string;
         createdAt: Date;
         updatedAt: Date;
         nutritionistId: string | null;
         content: string;
-        tags: string[];
         isPublic: boolean;
         category: string;
         title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
     }[]>;
     findOne(id: string): Promise<{
+        tags: string[];
         id: string;
         createdAt: Date;
         updatedAt: Date;
         nutritionistId: string | null;
         content: string;
-        tags: string[];
         isPublic: boolean;
         category: string;
         title: string;
@@ -34,12 +34,12 @@ export declare class ResourcesService {
         images?: any;
         isPublic?: boolean;
     }): Promise<{
+        tags: string[];
         id: string;
         createdAt: Date;
         updatedAt: Date;
         nutritionistId: string | null;
         content: string;
-        tags: string[];
         isPublic: boolean;
         category: string;
         title: string;
@@ -53,24 +53,24 @@ export declare class ResourcesService {
         images?: any;
         isPublic?: boolean;
     }): Promise<{
+        tags: string[];
         id: string;
         createdAt: Date;
         updatedAt: Date;
         nutritionistId: string | null;
         content: string;
-        tags: string[];
         isPublic: boolean;
         category: string;
         title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     remove(id: string, nutritionistId: string, isAdmin: boolean): Promise<{
+        tags: string[];
         id: string;
         createdAt: Date;
         updatedAt: Date;
         nutritionistId: string | null;
         content: string;
-        tags: string[];
         isPublic: boolean;
         category: string;
         title: string;

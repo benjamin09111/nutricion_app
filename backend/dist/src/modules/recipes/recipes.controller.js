@@ -17,6 +17,8 @@ const common_1 = require("@nestjs/common");
 const recipes_service_1 = require("./recipes.service");
 const create_recipe_dto_1 = require("./dto/create-recipe.dto");
 const auth_guard_1 = require("../auth/guards/auth.guard");
+const http_cache_interceptor_1 = require("../../common/interceptors/http-cache.interceptor");
+const cache_manager_1 = require("@nestjs/cache-manager");
 let RecipesController = class RecipesController {
     recipesService;
     constructor(recipesService) {
@@ -82,6 +84,8 @@ __decorate([
 exports.RecipesController = RecipesController = __decorate([
     (0, common_1.Controller)('recipes'),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    (0, common_1.UseInterceptors)(http_cache_interceptor_1.HttpCacheInterceptor),
+    (0, cache_manager_1.CacheTTL)(300000),
     __metadata("design:paramtypes", [recipes_service_1.RecipesService])
 ], RecipesController);
 //# sourceMappingURL=recipes.controller.js.map

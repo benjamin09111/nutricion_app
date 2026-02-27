@@ -20,14 +20,14 @@ export declare class AuthService {
             email: string;
             role: import(".prisma/client").$Enums.UserRole;
             nutritionist: {
+                fullName: string;
+                phone: string | null;
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
                 accountId: string;
-                fullName: string;
                 professionalId: string | null;
                 specialty: string | null;
-                phone: string | null;
                 avatarUrl: string | null;
                 settings: import("@prisma/client/runtime/library").JsonValue | null;
             } | null;
@@ -35,23 +35,23 @@ export declare class AuthService {
     }>;
     validateUser(payload: any): Promise<({
         nutritionist: {
+            fullName: string;
+            phone: string | null;
             id: string;
             createdAt: Date;
             updatedAt: Date;
             accountId: string;
-            fullName: string;
             professionalId: string | null;
             specialty: string | null;
-            phone: string | null;
             avatarUrl: string | null;
             settings: import("@prisma/client/runtime/library").JsonValue | null;
         } | null;
     } & {
-        id: string;
         email: string;
+        status: import(".prisma/client").$Enums.AccountStatus;
+        id: string;
         password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
-        status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;

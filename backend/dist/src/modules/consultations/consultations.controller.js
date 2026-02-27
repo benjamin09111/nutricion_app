@@ -18,6 +18,8 @@ const consultations_service_1 = require("./consultations.service");
 const create_consultation_dto_1 = require("./dto/create-consultation.dto");
 const update_consultation_dto_1 = require("./dto/update-consultation.dto");
 const passport_1 = require("@nestjs/passport");
+const http_cache_interceptor_1 = require("../../common/interceptors/http-cache.interceptor");
+const cache_manager_1 = require("@nestjs/cache-manager");
 let ConsultationsController = class ConsultationsController {
     consultationsService;
     constructor(consultationsService) {
@@ -26,8 +28,8 @@ let ConsultationsController = class ConsultationsController {
     create(req, createConsultationDto) {
         return this.consultationsService.create(req.user.nutritionistId, createConsultationDto);
     }
-    findAll(req, page, limit, search, patientId) {
-        return this.consultationsService.findAll(req.user.nutritionistId, page ? +page : 1, limit ? +limit : 20, search, patientId);
+    findAll(req, page, limit, search, patientId, type) {
+        return this.consultationsService.findAll(req.user.nutritionistId, page ? +page : 1, limit ? +limit : 20, search, patientId, type);
     }
     findOne(req, id) {
         return this.consultationsService.findOne(req.user.nutritionistId, id);
@@ -55,8 +57,9 @@ __decorate([
     __param(2, (0, common_1.Query)('limit')),
     __param(3, (0, common_1.Query)('search')),
     __param(4, (0, common_1.Query)('patientId')),
+    __param(5, (0, common_1.Query)('type')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], ConsultationsController.prototype, "findAll", null);
 __decorate([
@@ -87,6 +90,8 @@ __decorate([
 exports.ConsultationsController = ConsultationsController = __decorate([
     (0, common_1.Controller)('consultations'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.UseInterceptors)(http_cache_interceptor_1.HttpCacheInterceptor),
+    (0, cache_manager_1.CacheTTL)(300000),
     __metadata("design:paramtypes", [consultations_service_1.ConsultationsService])
 ], ConsultationsController);
 //# sourceMappingURL=consultations.controller.js.map

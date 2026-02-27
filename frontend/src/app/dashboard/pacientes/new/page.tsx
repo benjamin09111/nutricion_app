@@ -1,6 +1,5 @@
-
-import CreatePatientClient from './CreatePatientClient';
+import CreatePatientClient from "./CreatePatientClient";
 
 export default function NewPatientPage() {
-    return <CreatePatientClient />;
+  return <CreatePatientClient />;
 }

@@ -10,11 +10,19 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | NutriSaaS',
-    default: 'NutriSaaS - Software para Nutricionistas',
+    template: "%s | NutriSaaS",
+    default: "NutriSaaS - Software para Nutricionistas",
   },
-  description: 'Plataforma integral para gestión de pacientes, creación de dietas automatizadas y seguimiento clínico. Diseñado para nutricionistas en Chile.',
-  keywords: ['nutricionista', 'software nutrición', 'dietas', 'gestión pacientes', 'saas salud', 'chile'],
+  description:
+    "Plataforma integral para gestión de pacientes, creación de dietas automatizadas y seguimiento clínico. Diseñado para nutricionistas en Chile.",
+  keywords: [
+    "nutricionista",
+    "software nutrición",
+    "dietas",
+    "gestión pacientes",
+    "saas salud",
+    "chile",
+  ],
   robots: {
     index: false,
     follow: false,
@@ -37,9 +45,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body
-        className={`${inter.variable} antialiased`}
-      >
+      <body className={`${inter.variable} antialiased`}>
         <Providers>
           {children}
           <Toaster position="top-right" richColors />

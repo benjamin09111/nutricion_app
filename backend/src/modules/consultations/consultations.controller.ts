@@ -1,11 +1,15 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Query, UseInterceptors } from '@nestjs/common';
 import { ConsultationsService } from './consultations.service';
 import { CreateConsultationDto } from './dto/create-consultation.dto';
 import { UpdateConsultationDto } from './dto/update-consultation.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
+import { CacheTTL } from '@nestjs/cache-manager';
 
 @Controller('consultations')
 @UseGuards(AuthGuard('jwt'))
+@UseInterceptors(HttpCacheInterceptor)
+@CacheTTL(300000) // 5 minutes
 export class ConsultationsController {
     constructor(private readonly consultationsService: ConsultationsService) { }
 
@@ -21,6 +25,7 @@ export class ConsultationsController {
         @Query('limit') limit?: string,
         @Query('search') search?: string,
         @Query('patientId') patientId?: string,
+        @Query('type') type?: 'CLINICAL' | 'METRIC' | 'ALL',
     ) {
         return this.consultationsService.findAll(
             req.user.nutritionistId,
@@ -28,6 +33,7 @@ export class ConsultationsController {
             limit ? +limit : 20,
             search,
             patientId,
+            type
         );
     }
 

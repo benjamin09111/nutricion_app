@@ -21,39 +21,45 @@ let TagsController = class TagsController {
     constructor(tagsService) {
         this.tagsService = tagsService;
     }
-    async findAll(search) {
+    async findAll(search, limit) {
         if (search) {
             return this.tagsService.search(search);
         }
-        return this.tagsService.findAll();
+        return this.tagsService.findAll(limit ? parseInt(limit) : undefined);
     }
-    async create(name) {
-        return this.tagsService.findOrCreate(name);
+    async create(name, req) {
+        const nutritionistId = req.user.nutritionistId;
+        return this.tagsService.findOrCreate(name, nutritionistId);
     }
-    async remove(id) {
-        return this.tagsService.remove(id);
+    async remove(id, req) {
+        const nutritionistId = req.user.nutritionistId;
+        const role = req.user.role;
+        return this.tagsService.remove(id, nutritionistId, role);
     }
 };
 exports.TagsController = TagsController;
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('search')),
+    __param(1, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], TagsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)('name')),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], TagsController.prototype, "create", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], TagsController.prototype, "remove", null);
 exports.TagsController = TagsController = __decorate([

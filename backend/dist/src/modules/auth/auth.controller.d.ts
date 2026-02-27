@@ -12,14 +12,14 @@ export declare class AuthController {
             email: string;
             role: import(".prisma/client").$Enums.UserRole;
             nutritionist: {
+                fullName: string;
+                phone: string | null;
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
                 accountId: string;
-                fullName: string;
                 professionalId: string | null;
                 specialty: string | null;
-                phone: string | null;
                 avatarUrl: string | null;
                 settings: import("@prisma/client/runtime/library").JsonValue | null;
             } | null;

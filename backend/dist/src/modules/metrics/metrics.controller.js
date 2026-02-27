@@ -15,58 +15,55 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MetricsController = void 0;
 const common_1 = require("@nestjs/common");
 const metrics_service_1 = require("./metrics.service");
-const passport_1 = require("@nestjs/passport");
+const auth_guard_1 = require("../auth/guards/auth.guard");
 let MetricsController = class MetricsController {
     metricsService;
     constructor(metricsService) {
         this.metricsService = metricsService;
     }
-    test() {
-        return { status: 'ok', message: 'Metrics connectivity working' };
+    async findAll(search) {
+        if (search) {
+            return this.metricsService.search(search);
+        }
+        return this.metricsService.findAll();
     }
-    async getAdminDashboard(req) {
-        try {
-            if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
-                throw new common_1.UnauthorizedException('Solo administradores pueden ver métricas');
-            }
-            return await this.metricsService.getAdminDashboardStats();
-        }
-        catch (error) {
-            console.error('Error in getAdminDashboard controller:', error);
-            throw error;
-        }
+    async create(data, req) {
+        const nutritionistId = req.user.nutritionistId;
+        return this.metricsService.findOrCreate(data, nutritionistId);
     }
-    async forceCalculate(req) {
-        if (!['ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
-            throw new common_1.UnauthorizedException('Solo Master Admin');
-        }
-        return this.metricsService.forceCalculate();
+    async remove(id, req) {
+        const nutritionistId = req.user.nutritionistId;
+        const role = req.user.role;
+        return this.metricsService.remove(id, nutritionistId, role);
     }
 };
 exports.MetricsController = MetricsController;
 __decorate([
-    (0, common_1.Get)('test'),
+    (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)('search')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], MetricsController.prototype, "test", null);
-__decorate([
-    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
-    (0, common_1.Get)('admin/dashboard'),
-    __param(0, (0, common_1.Request)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
-], MetricsController.prototype, "getAdminDashboard", null);
+], MetricsController.prototype, "findAll", null);
 __decorate([
-    (0, common_1.Post)('force-calculate'),
-    __param(0, (0, common_1.Request)()),
+    (0, common_1.Post)(),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
-], MetricsController.prototype, "forceCalculate", null);
+], MetricsController.prototype, "create", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], MetricsController.prototype, "remove", null);
 exports.MetricsController = MetricsController = __decorate([
     (0, common_1.Controller)('metrics'),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
     __metadata("design:paramtypes", [metrics_service_1.MetricsService])
 ], MetricsController);
 //# sourceMappingURL=metrics.controller.js.map

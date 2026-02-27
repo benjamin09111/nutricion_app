@@ -12,25 +12,45 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TagsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const cache_service_1 = require("../../common/services/cache.service");
 let TagsService = class TagsService {
     prisma;
-    constructor(prisma) {
+    cacheService;
+    constructor(prisma, cacheService) {
         this.prisma = prisma;
+        this.cacheService = cacheService;
     }
-    async findAll() {
+    async findAll(limit) {
         return this.prisma.tag.findMany({
             orderBy: { name: 'asc' },
+            ...(limit ? { take: limit } : {}),
+            select: {
+                id: true,
+                name: true,
+                nutritionistId: true
+            }
         });
     }
-    async findOrCreate(name) {
+    async findOrCreate(name, nutritionistId) {
         const normalizedName = name.trim();
         if (!normalizedName)
             return null;
-        return this.prisma.tag.upsert({
-            where: { name: normalizedName },
-            update: {},
-            create: { name: normalizedName },
+        const existingTag = await this.prisma.tag.findFirst({
+            where: {
+                name: { equals: normalizedName, mode: 'insensitive' }
+            }
         });
+        if (existingTag) {
+            return existingTag;
+        }
+        const tag = await this.prisma.tag.create({
+            data: {
+                name: normalizedName,
+                nutritionistId: nutritionistId
+            },
+        });
+        await this.cacheService.invalidateGlobalPrefix('tags');
+        return tag;
     }
     async search(query) {
         return this.prisma.tag.findMany({
@@ -42,17 +62,36 @@ let TagsService = class TagsService {
             },
             orderBy: { name: 'asc' },
             take: 20,
+            select: {
+                id: true,
+                name: true,
+                nutritionistId: true
+            }
         });
     }
-    async remove(id) {
-        return this.prisma.tag.delete({
+    async remove(id, nutritionistId, role) {
+        const tag = await this.prisma.tag.findUnique({ where: { id } });
+        if (!tag) {
+            throw new Error('La restricción que intentas eliminar no existe o ya fue borrada.');
+        }
+        const isAdmin = role && role.startsWith('ADMIN');
+        if (!isAdmin && tag.nutritionistId && tag.nutritionistId !== nutritionistId) {
+            throw new Error('No tienes permisos para eliminar esta restricción');
+        }
+        if (!isAdmin && !tag.nutritionistId) {
+            throw new Error('Las restricciones globales del sistema no pueden ser eliminadas');
+        }
+        const deleted = await this.prisma.tag.delete({
             where: { id },
         });
+        await this.cacheService.invalidateGlobalPrefix('tags');
+        return deleted;
     }
 };
 exports.TagsService = TagsService;
 exports.TagsService = TagsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        cache_service_1.CacheService])
 ], TagsService);
 //# sourceMappingURL=tags.service.js.map

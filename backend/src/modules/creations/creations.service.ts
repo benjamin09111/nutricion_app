@@ -1,9 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
+import { CacheService } from '../../common/services/cache.service';
+
 @Injectable()
 export class CreationsService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly cacheService: CacheService
+    ) { }
 
     async create(nutritionistId: string, data: any) {
         const { name, type, content, metadata, tags } = data;
@@ -26,7 +31,7 @@ export class CreationsService {
             throw new Error('El nombre de la creación es obligatorio');
         }
 
-        return this.prisma.creation.create({
+        const creation = await this.prisma.creation.create({
             data: {
                 name,
                 type,
@@ -36,6 +41,9 @@ export class CreationsService {
                 nutritionist: { connect: { id: nutritionistId } }
             }
         });
+
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'creations');
+        return creation;
     }
 
     async findAll(nutritionistId: string, type?: string) {
@@ -61,9 +69,12 @@ export class CreationsService {
     }
 
     async delete(id: string, nutritionistId: string) {
-        return this.prisma.creation.deleteMany({
+        const result = await this.prisma.creation.deleteMany({
             where: { id, nutritionistId }
         });
+
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'creations');
+        return result;
     }
 
     async getAvailableTags(nutritionistId: string) {

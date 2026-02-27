@@ -1,9 +1,13 @@
-import { Controller, Post, Body, Get, UseGuards, Request, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Request, Param, Delete, Query, UseInterceptors } from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { CreationsService } from './creations.service';
+import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
+import { CacheTTL } from '@nestjs/cache-manager';
 
 @Controller('creations')
 @UseGuards(AuthGuard)
+@UseInterceptors(HttpCacheInterceptor)
+@CacheTTL(300000) // 5 minutes
 export class CreationsController {
     constructor(private readonly creationsService: CreationsService) { }
 

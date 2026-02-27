@@ -57,5 +57,10 @@ export class CreatePatientDto {
 
     @IsOptional()
     @IsArray()
+    @IsString({ each: true })
+    tags?: string[];
+
+    @IsOptional()
+    @IsArray()
     customVariables?: { key: string; label: string; unit: string }[];
 }

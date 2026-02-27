@@ -17,23 +17,23 @@ export declare class UsersService {
     }[]>;
     findOne(id: string): Promise<({
         nutritionist: {
+            fullName: string;
+            phone: string | null;
             id: string;
             createdAt: Date;
             updatedAt: Date;
             accountId: string;
-            fullName: string;
             professionalId: string | null;
             specialty: string | null;
-            phone: string | null;
             avatarUrl: string | null;
             settings: import("@prisma/client/runtime/library").JsonValue | null;
         } | null;
     } & {
-        id: string;
         email: string;
+        status: import(".prisma/client").$Enums.AccountStatus;
+        id: string;
         password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
-        status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
@@ -45,22 +45,22 @@ export declare class UsersService {
         subscriptionEndsAt?: Date;
         role?: UserRole;
     }): Promise<{
-        id: string;
         email: string;
+        status: import(".prisma/client").$Enums.AccountStatus;
+        id: string;
         password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
-        status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
     }>;
     updatePlan(userId: string, plan: SubscriptionPlan, days?: number): Promise<{
-        id: string;
         email: string;
+        status: import(".prisma/client").$Enums.AccountStatus;
+        id: string;
         password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
-        status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;

@@ -16,10 +16,10 @@ export declare class ConsultationsController {
         description: string | null;
         title: string;
         date: Date;
-        patientId: string;
         metrics: import("@prisma/client/runtime/library").JsonValue | null;
+        patientId: string;
     }>;
-    findAll(req: any, page?: string, limit?: string, search?: string, patientId?: string): Promise<{
+    findAll(req: any, page?: string, limit?: string, search?: string, patientId?: string, type?: 'CLINICAL' | 'METRIC' | 'ALL'): Promise<{
         data: {
             patientName: string;
             patient: {
@@ -32,8 +32,8 @@ export declare class ConsultationsController {
             description: string | null;
             title: string;
             date: Date;
-            patientId: string;
             metrics: import("@prisma/client/runtime/library").JsonValue | null;
+            patientId: string;
         }[];
         meta: {
             total: number;
@@ -53,8 +53,8 @@ export declare class ConsultationsController {
         description: string | null;
         title: string;
         date: Date;
-        patientId: string;
         metrics: import("@prisma/client/runtime/library").JsonValue | null;
+        patientId: string;
     }>;
     update(req: any, id: string, updateConsultationDto: UpdateConsultationDto): Promise<{
         patient: {
@@ -68,8 +68,8 @@ export declare class ConsultationsController {
         description: string | null;
         title: string;
         date: Date;
-        patientId: string;
         metrics: import("@prisma/client/runtime/library").JsonValue | null;
+        patientId: string;
     }>;
     remove(req: any, id: string): Promise<{
         id: string;
@@ -79,7 +79,7 @@ export declare class ConsultationsController {
         description: string | null;
         title: string;
         date: Date;
-        patientId: string;
         metrics: import("@prisma/client/runtime/library").JsonValue | null;
+        patientId: string;
     }>;
 }

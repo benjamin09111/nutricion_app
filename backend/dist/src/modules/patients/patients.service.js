@@ -12,18 +12,57 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PatientsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const tags_service_1 = require("../tags/tags.service");
+const metrics_service_1 = require("../metrics/metrics.service");
+const cache_service_1 = require("../../common/services/cache.service");
 let PatientsService = class PatientsService {
     prisma;
-    constructor(prisma) {
+    tagsService;
+    metricsService;
+    cacheService;
+    constructor(prisma, tagsService, metricsService, cacheService) {
         this.prisma = prisma;
+        this.tagsService = tagsService;
+        this.metricsService = metricsService;
+        this.cacheService = cacheService;
+    }
+    async processTags(tags, nutritionistId) {
+        if (!tags || tags.length === 0)
+            return;
+        for (const tag of tags) {
+            await this.tagsService.findOrCreate(tag, nutritionistId);
+        }
+    }
+    async processMetrics(metrics, nutritionistId) {
+        if (!metrics || metrics.length === 0)
+            return;
+        for (const metric of metrics) {
+            await this.metricsService.findOrCreate({
+                key: metric.key,
+                name: metric.label,
+                unit: metric.unit
+            }, nutritionistId);
+        }
     }
     async create(nutritionistId, createPatientDto) {
-        return this.prisma.patient.create({
+        if (createPatientDto.dietRestrictions) {
+            await this.processTags(createPatientDto.dietRestrictions, nutritionistId);
+        }
+        if (createPatientDto.tags) {
+            await this.processTags(createPatientDto.tags, nutritionistId);
+        }
+        if (createPatientDto.customVariables) {
+            await this.processMetrics(createPatientDto.customVariables, nutritionistId);
+        }
+        const patient = await this.prisma.patient.create({
             data: {
                 ...createPatientDto,
                 nutritionistId,
             },
         });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'patients');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+        return patient;
     }
     async findAll(nutritionistId, page = 1, limit = 20, search, status) {
         const skip = (page - 1) * limit;
@@ -86,20 +125,35 @@ let PatientsService = class PatientsService {
     }
     async update(nutritionistId, id, updatePatientDto) {
         await this.findOne(nutritionistId, id);
-        return this.prisma.patient.update({
+        if (updatePatientDto.dietRestrictions) {
+            await this.processTags(updatePatientDto.dietRestrictions, nutritionistId);
+        }
+        if (updatePatientDto.tags) {
+            await this.processTags(updatePatientDto.tags, nutritionistId);
+        }
+        if (updatePatientDto.customVariables) {
+            await this.processMetrics(updatePatientDto.customVariables, nutritionistId);
+        }
+        const patient = await this.prisma.patient.update({
             where: { id },
             data: updatePatientDto,
         });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'patients');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+        return patient;
     }
     async remove(nutritionistId, id) {
         await this.findOne(nutritionistId, id);
-        return this.prisma.patient.delete({
+        const deleted = await this.prisma.patient.delete({
             where: { id },
         });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'patients');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+        return deleted;
     }
     async addExam(nutritionistId, patientId, dto) {
         await this.findOne(nutritionistId, patientId);
-        return this.prisma.patientExam.create({
+        const exam = await this.prisma.patientExam.create({
             data: {
                 ...dto,
                 patientId,
@@ -107,11 +161,16 @@ let PatientsService = class PatientsService {
                 results: dto.results,
             },
         });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'patients');
+        return exam;
     }
 };
 exports.PatientsService = PatientsService;
 exports.PatientsService = PatientsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        tags_service_1.TagsService,
+        metrics_service_1.MetricsService,
+        cache_service_1.CacheService])
 ], PatientsService);
 //# sourceMappingURL=patients.service.js.map

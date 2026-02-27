@@ -18,6 +18,8 @@ const ingredient_groups_service_1 = require("./ingredient-groups.service");
 const create_ingredient_group_dto_1 = require("./dto/create-ingredient-group.dto");
 const update_group_ingredients_dto_1 = require("./dto/update-group-ingredients.dto");
 const auth_guard_1 = require("../auth/guards/auth.guard");
+const http_cache_interceptor_1 = require("../../common/interceptors/http-cache.interceptor");
+const cache_manager_1 = require("@nestjs/cache-manager");
 let IngredientGroupsController = class IngredientGroupsController {
     ingredientGroupsService;
     constructor(ingredientGroupsService) {
@@ -107,6 +109,8 @@ __decorate([
 exports.IngredientGroupsController = IngredientGroupsController = __decorate([
     (0, common_1.Controller)('ingredient-groups'),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    (0, common_1.UseInterceptors)(http_cache_interceptor_1.HttpCacheInterceptor),
+    (0, cache_manager_1.CacheTTL)(300000),
     __metadata("design:paramtypes", [ingredient_groups_service_1.IngredientGroupsService])
 ], IngredientGroupsController);
 //# sourceMappingURL=ingredient-groups.controller.js.map

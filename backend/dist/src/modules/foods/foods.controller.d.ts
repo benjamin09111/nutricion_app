@@ -15,5 +15,5 @@ export declare class FoodsController {
     getMarketPrices(limit?: string): Promise<import("./dto/market-price.dto").MarketPriceDto[]>;
     findOne(id: string): Promise<any>;
     update(id: string, updateFoodDto: UpdateFoodDto): Promise<any>;
-    remove(id: string): any;
+    remove(id: string): Promise<any>;
 }

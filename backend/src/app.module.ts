@@ -17,6 +17,7 @@ import { IngredientGroupsModule } from './modules/ingredient-groups/ingredient-g
 import { RecipesModule } from './modules/recipes/recipes.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
+import { redisStore } from 'cache-manager-redis-yet';
 import { HttpLoggerMiddleware } from './common/middleware/http-logger.middleware';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { CreationsModule } from './modules/creations/creations.module';
@@ -25,6 +26,7 @@ import { SubstitutesModule } from './modules/substitutes/substitutes.module';
 import { ResourcesModule } from './modules/resources/resources.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { ConsultationsModule } from './modules/consultations/consultations.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
@@ -45,9 +47,15 @@ import { ConsultationsModule } from './modules/consultations/consultations.modul
     IngredientGroupsModule,
     RecipesModule,
     ScheduleModule.forRoot(),
-    CacheModule.register({
+    CacheModule.registerAsync({
       isGlobal: true,
-      ttl: 300000, // 5 minutes default cache
+      useFactory: async () => ({
+        store: await redisStore({
+          url: process.env.REDIS_URL,
+          ttl: 300000, // 5 minutes
+          pingInterval: 10000, // Keep connection alive
+        }),
+      }),
     }),
     DashboardModule,
     CreationsModule,
@@ -56,6 +64,7 @@ import { ConsultationsModule } from './modules/consultations/consultations.modul
     ResourcesModule,
     UploadsModule,
     ConsultationsModule,
+    CommonModule,
   ],
   controllers: [AppController],
   providers: [AppService],

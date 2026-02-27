@@ -26,6 +26,7 @@ const ingredient_groups_module_1 = require("./modules/ingredient-groups/ingredie
 const recipes_module_1 = require("./modules/recipes/recipes.module");
 const schedule_1 = require("@nestjs/schedule");
 const cache_manager_1 = require("@nestjs/cache-manager");
+const cache_manager_redis_yet_1 = require("cache-manager-redis-yet");
 const http_logger_middleware_1 = require("./common/middleware/http-logger.middleware");
 const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
 const creations_module_1 = require("./modules/creations/creations.module");
@@ -34,6 +35,7 @@ const substitutes_module_1 = require("./modules/substitutes/substitutes.module")
 const resources_module_1 = require("./modules/resources/resources.module");
 const uploads_module_1 = require("./modules/uploads/uploads.module");
 const consultations_module_1 = require("./modules/consultations/consultations.module");
+const common_module_1 = require("./common/common.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer
@@ -62,9 +64,15 @@ exports.AppModule = AppModule = __decorate([
             ingredient_groups_module_1.IngredientGroupsModule,
             recipes_module_1.RecipesModule,
             schedule_1.ScheduleModule.forRoot(),
-            cache_manager_1.CacheModule.register({
+            cache_manager_1.CacheModule.registerAsync({
                 isGlobal: true,
-                ttl: 300000,
+                useFactory: async () => ({
+                    store: await (0, cache_manager_redis_yet_1.redisStore)({
+                        url: process.env.REDIS_URL,
+                        ttl: 300000,
+                        pingInterval: 10000,
+                    }),
+                }),
             }),
             dashboard_module_1.DashboardModule,
             creations_module_1.CreationsModule,
@@ -73,6 +81,7 @@ exports.AppModule = AppModule = __decorate([
             resources_module_1.ResourcesModule,
             uploads_module_1.UploadsModule,
             consultations_module_1.ConsultationsModule,
+            common_module_1.CommonModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

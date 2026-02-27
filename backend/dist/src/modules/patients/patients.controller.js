@@ -19,6 +19,8 @@ const create_patient_dto_1 = require("./dto/create-patient.dto");
 const update_patient_dto_1 = require("./dto/update-patient.dto");
 const create_exam_dto_1 = require("./dto/create-exam.dto");
 const passport_1 = require("@nestjs/passport");
+const http_cache_interceptor_1 = require("../../common/interceptors/http-cache.interceptor");
+const cache_manager_1 = require("@nestjs/cache-manager");
 let PatientsController = class PatientsController {
     patientsService;
     constructor(patientsService) {
@@ -100,6 +102,8 @@ __decorate([
 exports.PatientsController = PatientsController = __decorate([
     (0, common_1.Controller)('patients'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.UseInterceptors)(http_cache_interceptor_1.HttpCacheInterceptor),
+    (0, cache_manager_1.CacheTTL)(300000),
     __metadata("design:paramtypes", [patients_service_1.PatientsService])
 ], PatientsController);
 //# sourceMappingURL=patients.controller.js.map

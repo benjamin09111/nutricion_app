@@ -8,9 +8,14 @@ import * as fs from 'fs';
 import * as XLSX from 'xlsx';
 import { MarketPriceDto } from './dto/market-price.dto';
 
+import { CacheService } from '../../common/services/cache.service';
+
 @Injectable()
 export class FoodsService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly cacheService: CacheService
+    ) { }
 
     private async getOrCreateBrand(name?: string) {
         if (!name) return null;
@@ -79,7 +84,7 @@ export class FoodsService {
             }
         }
 
-        return (this.prisma as any).$transaction(async (tx: any) => {
+        const ingredient = await (this.prisma as any).$transaction(async (tx: any) => {
             const ingredient = await tx.ingredient.create({
                 data: {
                     ...rest,
@@ -110,6 +115,10 @@ export class FoodsService {
 
             return ingredient;
         });
+
+        await this.cacheService.invalidateNutritionistPrefix(nutritionist.id, 'foods');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionist.id, 'dashboard');
+        return ingredient;
     }
 
     async findAll(params: {
@@ -271,7 +280,7 @@ export class FoodsService {
         const tagRecords = tags ? await this.getOrCreateTags(tags) : undefined;
 
         try {
-            return await (this.prisma as any).ingredientPreference.upsert({
+            const preference = await (this.prisma as any).ingredientPreference.upsert({
                 where: {
                     nutritionistId_ingredientId: {
                         nutritionistId: nutritionist.id,
@@ -298,6 +307,9 @@ export class FoodsService {
                 },
                 include: { tags: true },
             });
+
+            await this.cacheService.invalidateNutritionistPrefix(nutritionist.id, 'foods');
+            return preference;
         } catch (error) {
             console.error(`[togglePreference] Error upserting preference:`, error);
             throw error;
@@ -322,7 +334,7 @@ export class FoodsService {
         const categoryRecord = category ? await this.getOrCreateCategory(category) : undefined;
         const tagRecords = tags ? await this.getOrCreateTags(tags) : undefined;
 
-        return (this.prisma as any).ingredient.update({
+        const ingredient = await (this.prisma as any).ingredient.update({
             where: { id },
             data: {
                 ...rest,
@@ -331,12 +343,24 @@ export class FoodsService {
                 ...(tagRecords && { tags: { set: tagRecords.map(t => ({ id: t.id })) } }),
             },
         });
+
+        if (ingredient.nutritionistId) {
+            await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'foods');
+            await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'dashboard');
+        }
+        return ingredient;
     }
 
-    remove(id: string) {
-        return (this.prisma as any).ingredient.delete({
+    async remove(id: string) {
+        const ingredient = await (this.prisma as any).ingredient.findUnique({ where: { id } });
+        const result = await (this.prisma as any).ingredient.delete({
             where: { id },
         });
+        if (ingredient?.nutritionistId) {
+            await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'foods');
+            await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'dashboard');
+        }
+        return result;
     }
 
     async getMarketPrices(limit: number = 7): Promise<MarketPriceDto[]> {

@@ -1,7 +1,5 @@
-import PatientsClient from './PatientsClient';
+import PatientsClient from "./PatientsClient";
 
 export default function PatientsPage() {
-    return (
-        <PatientsClient />
-    );
+  return <PatientsClient />;
 }

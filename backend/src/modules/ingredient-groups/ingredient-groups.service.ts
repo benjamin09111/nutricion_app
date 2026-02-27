@@ -4,9 +4,14 @@ import { Tag } from '@prisma/client';
 import { CreateIngredientGroupDto } from './dto/create-ingredient-group.dto';
 import { UpdateGroupIngredientsDto } from './dto/update-group-ingredients.dto';
 
+import { CacheService } from '../../common/services/cache.service';
+
 @Injectable()
 export class IngredientGroupsService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private cacheService: CacheService
+    ) { }
 
 
 
@@ -18,7 +23,7 @@ export class IngredientGroupsService {
             ? await Promise.all(tags.map((name: string) => this.getOrCreateTag(name)))
             : [];
 
-        return this.prisma.ingredientGroup.create({
+        const group = await this.prisma.ingredientGroup.create({
             data: {
                 ...data,
                 nutritionist: { connect: { id: nutritionistId } },
@@ -44,6 +49,9 @@ export class IngredientGroupsService {
                 _count: { select: { entries: true } }
             }
         });
+
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'ingredient-groups');
+        return group;
     }
 
     async findAll(nutritionistId: string) {
@@ -169,22 +177,27 @@ export class IngredientGroupsService {
             };
         }
 
-        return this.prisma.ingredientGroup.update({
+        const group = await this.prisma.ingredientGroup.update({
             where: { id },
             data: updateData,
             include: { tags: true }
         });
+
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'ingredient-groups');
+        return group;
     }
 
     async remove(id: string, nutritionistId: string) {
         await this.validateGroupOwnership(id, nutritionistId);
-        return this.prisma.ingredientGroup.delete({ where: { id } });
+        const deleted = await this.prisma.ingredientGroup.delete({ where: { id } });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'ingredient-groups');
+        return deleted;
     }
 
     async addIngredients(id: string, nutritionistId: string, dto: UpdateGroupIngredientsDto) {
         await this.validateGroupOwnership(id, nutritionistId);
 
-        return this.prisma.ingredientGroup.update({
+        const updated = await this.prisma.ingredientGroup.update({
             where: { id },
             data: {
                 entries: {
@@ -195,12 +208,15 @@ export class IngredientGroupsService {
             },
             include: { _count: { select: { entries: true } } }
         });
+
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'ingredient-groups');
+        return updated;
     }
 
     async removeIngredients(id: string, nutritionistId: string, dto: UpdateGroupIngredientsDto) {
         await this.validateGroupOwnership(id, nutritionistId);
 
-        return this.prisma.ingredientGroup.update({
+        const updated = await this.prisma.ingredientGroup.update({
             where: { id },
             data: {
                 entries: {
@@ -211,6 +227,9 @@ export class IngredientGroupsService {
             },
             include: { _count: { select: { entries: true } } }
         });
+
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'ingredient-groups');
+        return updated;
     }
 
     // Helper

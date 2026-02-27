@@ -3,9 +3,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateConsultationDto } from './dto/create-consultation.dto';
 import { UpdateConsultationDto } from './dto/update-consultation.dto';
 
+import { CacheService } from '../../common/services/cache.service';
+
 @Injectable()
 export class ConsultationsService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private cacheService: CacheService
+    ) { }
 
     async create(nutritionistId: string, createConsultationDto: CreateConsultationDto) {
         const consultation = await this.prisma.consultation.create({
@@ -28,22 +33,34 @@ export class ConsultationsService {
             await this.syncPatientData(createConsultationDto.patientId, createConsultationDto.metrics);
         }
 
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'consultations');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'patients');
         return consultation;
     }
 
-    async findAll(nutritionistId: string, page: number = 1, limit: number = 20, search?: string, patientId?: string) {
+    async findAll(nutritionistId: string, page: number = 1, limit: number = 20, search?: string, patientId?: string, type?: 'CLINICAL' | 'METRIC' | 'ALL') {
         const skip = (page - 1) * limit;
 
         const where: any = {
             nutritionistId,
         };
 
+        if (type === 'CLINICAL' || !type) {
+            where.title = { not: 'Registro de Métricas Independiente' };
+        } else if (type === 'METRIC') {
+            where.title = 'Registro de Métricas Independiente';
+        }
+        // if type === 'ALL', we don't add the title filter
+
         if (patientId) {
             where.patientId = patientId;
         }
 
         if (search) {
-            where.title = { contains: search, mode: 'insensitive' };
+            where.OR = [
+                { title: { contains: search, mode: 'insensitive' } },
+                { patient: { fullName: { contains: search, mode: 'insensitive' } } },
+            ];
         }
 
         const [total, data] = await Promise.all([
@@ -127,6 +144,8 @@ export class ConsultationsService {
             await this.syncPatientData(existing.patientId, updateConsultationDto.metrics);
         }
 
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'consultations');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'patients');
         return consultation;
     }
 
@@ -155,8 +174,12 @@ export class ConsultationsService {
     async remove(nutritionistId: string, id: string) {
         await this.findOne(nutritionistId, id);
 
-        return this.prisma.consultation.delete({
+        const deleted = await this.prisma.consultation.delete({
             where: { id },
         });
+
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'consultations');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'patients');
+        return deleted;
     }
 }
