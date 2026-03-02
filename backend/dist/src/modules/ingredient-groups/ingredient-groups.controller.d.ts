@@ -5,14 +5,14 @@ export declare class IngredientGroupsController {
     private readonly ingredientGroupsService;
     constructor(ingredientGroupsService: IngredientGroupsService);
     create(req: any, createDto: CreateIngredientGroupDto): Promise<{
+        _count: {
+            entries: number;
+        };
         tags: {
             id: string;
             name: string;
             nutritionistId: string | null;
         }[];
-        _count: {
-            entries: number;
-        };
         entries: ({
             ingredient: {
                 id: string;
@@ -84,14 +84,14 @@ export declare class IngredientGroupsController {
             unit: string | null;
             entryId: string;
         }[];
+        _count: {
+            entries: number;
+        };
         tags: {
             id: string;
             name: string;
             nutritionistId: string | null;
         }[];
-        _count: {
-            entries: number;
-        };
         entries: ({
             ingredient: {
                 preferences: {
@@ -198,14 +198,14 @@ export declare class IngredientGroupsController {
             unit: string | null;
             entryId: string;
         }[];
+        nutritionist: {
+            id: string;
+        };
         tags: {
             id: string;
             name: string;
             nutritionistId: string | null;
         }[];
-        nutritionist: {
-            id: string;
-        };
         entries: ({
             ingredient: {
                 tags: {

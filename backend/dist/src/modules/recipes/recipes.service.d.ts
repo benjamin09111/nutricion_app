@@ -83,14 +83,14 @@ export declare class RecipesService {
     })[]>;
     findOne(id: string, userId: string): Promise<{
         nutritionist: {
-            fullName: string;
-            phone: string | null;
             id: string;
             createdAt: Date;
             updatedAt: Date;
             accountId: string;
+            fullName: string;
             professionalId: string | null;
             specialty: string | null;
+            phone: string | null;
             avatarUrl: string | null;
             settings: import("@prisma/client/runtime/library").JsonValue | null;
         } | null;

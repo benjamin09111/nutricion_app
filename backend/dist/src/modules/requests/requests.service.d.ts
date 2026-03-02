@@ -18,16 +18,16 @@ export declare class RequestsService {
         search?: string;
     }): Promise<{
         data: {
-            message: string | null;
-            fullName: string;
-            email: string;
-            phone: string | null;
-            status: import(".prisma/client").$Enums.RequestStatus;
             id: string;
+            email: string;
+            status: import(".prisma/client").$Enums.RequestStatus;
             createdAt: Date;
             updatedAt: Date;
+            fullName: string;
             professionalId: string | null;
             specialty: string | null;
+            phone: string | null;
+            message: string | null;
             adminNotes: string | null;
         }[];
         meta: {
@@ -43,43 +43,43 @@ export declare class RequestsService {
         };
     }>;
     delete(id: string): Promise<{
-        message: string | null;
-        fullName: string;
-        email: string;
-        phone: string | null;
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
+        email: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
         createdAt: Date;
         updatedAt: Date;
+        fullName: string;
         professionalId: string | null;
         specialty: string | null;
+        phone: string | null;
+        message: string | null;
         adminNotes: string | null;
     }>;
     findOne(id: string): Promise<{
-        message: string | null;
-        fullName: string;
-        email: string;
-        phone: string | null;
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
+        email: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
         createdAt: Date;
         updatedAt: Date;
+        fullName: string;
         professionalId: string | null;
         specialty: string | null;
+        phone: string | null;
+        message: string | null;
         adminNotes: string | null;
     } | null>;
     getPendingCount(): Promise<number>;
     updateStatus(id: string, status: 'PENDING' | 'ACCEPTED' | 'APPROVED' | 'REJECTED', adminNotes?: string): Promise<{
-        message: string | null;
-        fullName: string;
-        email: string;
-        phone: string | null;
-        status: import(".prisma/client").$Enums.RequestStatus;
         id: string;
+        email: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
         createdAt: Date;
         updatedAt: Date;
+        fullName: string;
         professionalId: string | null;
         specialty: string | null;
+        phone: string | null;
+        message: string | null;
         adminNotes: string | null;
     } | {
         success: boolean;
