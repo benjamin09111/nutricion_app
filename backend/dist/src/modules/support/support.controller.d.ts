@@ -4,48 +4,48 @@ export declare class SupportController {
     private readonly supportService;
     constructor(supportService: SupportService);
     create(body: CreateSupportRequestDto): Promise<{
-        message: string | null;
+        id: string;
         email: string;
         status: import(".prisma/client").$Enums.SupportRequestStatus;
-        id: string;
         createdAt: Date;
         updatedAt: Date;
         type: import(".prisma/client").$Enums.SupportRequestType;
+        message: string | null;
     }>;
     createFeedback(req: any, body: import('./dto/create-feedback.dto').CreateFeedbackDto): Promise<{
-        message: string | null;
+        id: string;
         email: string;
         status: import(".prisma/client").$Enums.SupportRequestStatus;
-        id: string;
         createdAt: Date;
         updatedAt: Date;
         type: import(".prisma/client").$Enums.SupportRequestType;
+        message: string | null;
     }>;
     findAll(): Promise<{
-        message: string | null;
+        id: string;
         email: string;
         status: import(".prisma/client").$Enums.SupportRequestStatus;
-        id: string;
         createdAt: Date;
         updatedAt: Date;
         type: import(".prisma/client").$Enums.SupportRequestType;
+        message: string | null;
     }[]>;
     resolve(id: string): Promise<{
-        message: string | null;
+        id: string;
         email: string;
         status: import(".prisma/client").$Enums.SupportRequestStatus;
-        id: string;
         createdAt: Date;
         updatedAt: Date;
         type: import(".prisma/client").$Enums.SupportRequestType;
+        message: string | null;
     }>;
     remove(id: string): Promise<{
-        message: string | null;
+        id: string;
         email: string;
         status: import(".prisma/client").$Enums.SupportRequestStatus;
-        id: string;
         createdAt: Date;
         updatedAt: Date;
         type: import(".prisma/client").$Enums.SupportRequestType;
+        message: string | null;
     }>;
 }

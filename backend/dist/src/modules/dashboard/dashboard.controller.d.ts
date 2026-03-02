@@ -11,10 +11,10 @@ export declare class DashboardController {
             changeType: string;
         }[];
         recentPatients: {
-            fullName: string;
-            email: string | null;
             id: string;
+            email: string | null;
             updatedAt: Date;
+            fullName: string;
         }[];
     }>;
 }

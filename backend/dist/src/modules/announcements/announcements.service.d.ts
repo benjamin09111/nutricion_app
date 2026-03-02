@@ -4,7 +4,6 @@ export declare class AnnouncementsService {
     private prisma;
     constructor(prisma: PrismaService);
     create(data: CreateAnnouncementDto): Promise<{
-        message: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
@@ -12,10 +11,10 @@ export declare class AnnouncementsService {
         isActive: boolean;
         title: string;
         link: string | null;
+        message: string;
         targetRoles: string[];
     }>;
     findAll(): Promise<{
-        message: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
@@ -23,6 +22,7 @@ export declare class AnnouncementsService {
         isActive: boolean;
         title: string;
         link: string | null;
+        message: string;
         targetRoles: string[];
     }[]>;
 }
