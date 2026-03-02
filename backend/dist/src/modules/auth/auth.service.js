@@ -103,17 +103,21 @@ let AuthService = class AuthService {
     async login(loginDto) {
         const { email, password } = loginDto;
         const normalizedEmail = email.toLowerCase().trim();
+        console.log(`[LOGIN ATTEMPT] Email: "${normalizedEmail}", Original length: ${email.length}, Password length: ${password.length}`);
         const account = await this.prisma.account.findUnique({
             where: { email: normalizedEmail },
             include: { nutritionist: true },
         });
         if (!account || !account.password) {
+            console.log(`[LOGIN FAILED] Account not found or has no password for email: "${normalizedEmail}"`);
             throw new common_1.UnauthorizedException('Credenciales inválidas');
         }
         const isPasswordValid = await bcrypt.compare(password, account.password);
         if (!isPasswordValid) {
+            console.log(`[LOGIN FAILED] Invalid password for email: "${normalizedEmail}"`);
             throw new common_1.UnauthorizedException('Credenciales inválidas');
         }
+        console.log(`[LOGIN SUCCESS] User logged in: "${normalizedEmail}"`);
         if (!account.nutritionist) {
             console.warn(`[AuthService] Warning: Account ${account.email} has no Nutritionist record. Role: ${account.role}`);
         }

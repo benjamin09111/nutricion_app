@@ -44,7 +44,7 @@ export default function DashboardPage() {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const token = localStorage.getItem('token');
+                const token = localStorage.getItem('auth_token');
 
                 // If no token, silently skip (middleware handles auth)
                 if (!token) {
