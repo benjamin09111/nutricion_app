@@ -66,3 +66,6 @@ description: General development rules for the project
 ## Content Management (JSON First)
 - **Static Content**: For landing pages, static sections, or any large block of repetitive content (features, pricing cards, FAQs), **ALWAYS** extract the text and structure into a JSON file (e.g., `src/content/landing.json`).
 - **Modifiability**: This ensures the content can be easily modified by non-developers or via scripts without touching the React code logic.
+## Interacciones de Usuario (Modales)
+- **PROHIBIDO**: Nunca usar el lert(), prompt() o confirm() nativo del navegador bajo ninguna circunstancia.
+- **ESTÁNDAR**: Usar exclusivamente los componentes del sistema como <ConfirmationModal> o notificaciones de 	oast para cualquier interacción ou confirmación de usuario.

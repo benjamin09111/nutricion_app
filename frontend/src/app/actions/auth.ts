@@ -1,40 +1,40 @@
-'use server'
+"use server";
 
-import nodemailer from 'nodemailer';
-import { RegisterFormData, registerSchema } from '@/lib/schemas/auth';
+import nodemailer from "nodemailer";
+import { RegisterFormData, registerSchema } from "@/lib/schemas/auth";
 
 export async function sendRegistrationRequest(data: RegisterFormData) {
-    // Validate again on server
-    const result = registerSchema.safeParse(data);
-    if (!result.success) {
-        return { success: false, error: 'Datos inválidos' };
-    }
+  // Validate again on server
+  const result = registerSchema.safeParse(data);
+  if (!result.success) {
+    return { success: false, error: "Datos inválidos" };
+  }
 
-    const { name, email, description } = result.data;
+  const { name, email, description } = result.data;
 
-    // Default to a simulation if no env vars are present to avoid crash in demo
-    if (!process.env.SMTP_HOST && !process.env.SMTP_USER) {
-        console.log('--- SIMULATING EMAIL SEND ---');
-        console.log('To: benjamin.morales3@mail.udp.cl');
-        console.log('Data:', data);
-        console.log('--- END SIMULATION ---');
-        // Return success for specific demo context if user hasn't configured SMTP yet
-        // But usually I should fail. I'll return success with a note in console.
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Network delay
-        return { success: true, message: 'Simulated' };
-    }
+  // Default to a simulation if no env vars are present to avoid crash in demo
+  if (!process.env.SMTP_HOST && !process.env.SMTP_USER) {
+    console.log("--- SIMULATING EMAIL SEND ---");
+    console.log("To: benjamin.morales3@mail.udp.cl");
+    console.log("Data:", data);
+    console.log("--- END SIMULATION ---");
+    // Return success for specific demo context if user hasn't configured SMTP yet
+    // But usually I should fail. I'll return success with a note in console.
+    await new Promise((resolve) => setTimeout(resolve, 1000)); // Network delay
+    return { success: true, message: "Simulated" };
+  }
 
-    const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-        },
-    });
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: process.env.SMTP_SECURE === "true",
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
 
-    const htmlContent = `
+  const htmlContent = `
     <!DOCTYPE html>
     <html lang="es">
     <head>
@@ -71,7 +71,7 @@ export async function sendRegistrationRequest(data: RegisterFormData) {
 
                 <div class="field">
                     <span class="label">Mensaje / Descripción</span>
-                    <div class="value" style="white-space: pre-wrap;">${description || 'Sin descripción adicional.'}</div>
+                    <div class="value" style="white-space: pre-wrap;">${description || "Sin descripción adicional."}</div>
                 </div>
 
                 <p style="margin-top: 30px; font-size: 0.875rem; color: #6b7280;">
@@ -86,17 +86,17 @@ export async function sendRegistrationRequest(data: RegisterFormData) {
     </html>
     `;
 
-    try {
-        await transporter.sendMail({
-            from: '"NutriSaaS" <noreply@nutrisaas.com>',
-            to: 'benjamin.morales3@mail.udp.cl',
-            subject: `🚀 Nueva Solicitud: ${name}`,
-            html: htmlContent,
-            text: `Nueva solicitud de: ${name} (${email}).\n${description || ''}`
-        });
-        return { success: true };
-    } catch (error) {
-        console.error('Email error:', error);
-        return { success: false, error: 'Error al enviar correo' };
-    }
+  try {
+    await transporter.sendMail({
+      from: '"NutriSaaS" <noreply@nutrisaas.com>',
+      to: "benjamin.morales3@mail.udp.cl",
+      subject: `🚀 Nueva Solicitud: ${name}`,
+      html: htmlContent,
+      text: `Nueva solicitud de: ${name} (${email}).\n${description || ""}`,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Email error:", error);
+    return { success: false, error: "Error al enviar correo" };
+  }
 }

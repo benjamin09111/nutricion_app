@@ -11,8 +11,8 @@ export declare class PaymentsService {
             } | null;
         };
     } & {
-        id: string;
         status: import(".prisma/client").$Enums.PaymentStatus;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         accountId: string;
@@ -31,8 +31,8 @@ export declare class PaymentsService {
             } | null;
         };
     } & {
-        id: string;
         status: import(".prisma/client").$Enums.PaymentStatus;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         accountId: string;
@@ -52,8 +52,8 @@ export declare class PaymentsService {
         idempotencyKey?: string;
         metadata?: any;
     }): Promise<{
-        id: string;
         status: import(".prisma/client").$Enums.PaymentStatus;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         accountId: string;
@@ -77,8 +77,8 @@ export declare class PaymentsService {
         method: PaymentMethod;
     }): Promise<{
         payment: {
-            id: string;
             status: import(".prisma/client").$Enums.PaymentStatus;
+            id: string;
             createdAt: Date;
             updatedAt: Date;
             accountId: string;
@@ -91,8 +91,8 @@ export declare class PaymentsService {
             paidAt: Date | null;
         };
         subscription: {
-            id: string;
             status: import(".prisma/client").$Enums.SubscriptionStatus;
+            id: string;
             createdAt: Date;
             updatedAt: Date;
             accountId: string;

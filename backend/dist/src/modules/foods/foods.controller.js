@@ -18,6 +18,8 @@ const passport_1 = require("@nestjs/passport");
 const foods_service_1 = require("./foods.service");
 const create_food_dto_1 = require("./dto/create-food.dto");
 const update_food_dto_1 = require("./dto/update-food.dto");
+const http_cache_interceptor_1 = require("../../common/interceptors/http-cache.interceptor");
+const cache_manager_1 = require("@nestjs/cache-manager");
 let FoodsController = class FoodsController {
     foodsService;
     constructor(foodsService) {
@@ -116,6 +118,8 @@ __decorate([
 ], FoodsController.prototype, "remove", null);
 exports.FoodsController = FoodsController = __decorate([
     (0, common_1.Controller)('foods'),
+    (0, common_1.UseInterceptors)(http_cache_interceptor_1.HttpCacheInterceptor),
+    (0, cache_manager_1.CacheTTL)(3600000),
     __metadata("design:paramtypes", [foods_service_1.FoodsService])
 ], FoodsController);
 //# sourceMappingURL=foods.controller.js.map

@@ -1,10 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, UseInterceptors } from '@nestjs/common';
 import { RecipesService } from './recipes.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
+import { CacheTTL } from '@nestjs/cache-manager';
 
 @Controller('recipes')
 @UseGuards(AuthGuard)
+@UseInterceptors(HttpCacheInterceptor)
+@CacheTTL(300000) // 5 minutes
 export class RecipesController {
     constructor(private readonly recipesService: RecipesService) { }
 

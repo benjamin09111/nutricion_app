@@ -2,9 +2,11 @@ import { CreateFoodDto } from './dto/create-food.dto';
 import { UpdateFoodDto } from './dto/update-food.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MarketPriceDto } from './dto/market-price.dto';
+import { CacheService } from '../../common/services/cache.service';
 export declare class FoodsService {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly cacheService;
+    constructor(prisma: PrismaService, cacheService: CacheService);
     private getOrCreateBrand;
     private getOrCreateCategory;
     private getOrCreateTags;
@@ -25,6 +27,6 @@ export declare class FoodsService {
     }): Promise<any>;
     findOne(id: string): Promise<any>;
     update(id: string, updateFoodDto: UpdateFoodDto): Promise<any>;
-    remove(id: string): any;
+    remove(id: string): Promise<any>;
     getMarketPrices(limit?: number): Promise<MarketPriceDto[]>;
 }

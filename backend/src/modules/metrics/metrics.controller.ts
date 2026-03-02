@@ -1,36 +1,33 @@
-import { Controller, Get, Post, UseGuards, UnauthorizedException, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Delete, Param, UseInterceptors, Request } from '@nestjs/common';
 import { MetricsService } from './metrics.service';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('metrics')
+@UseGuards(AuthGuard)
 export class MetricsController {
     constructor(private readonly metricsService: MetricsService) { }
 
-    @Get('test')
-    test() {
-        return { status: 'ok', message: 'Metrics connectivity working' };
+    @Get()
+    async findAll(@Query('search') search?: string) {
+        if (search) {
+            return this.metricsService.search(search);
+        }
+        return this.metricsService.findAll();
     }
 
-    @UseGuards(AuthGuard('jwt'))
-    @Get('admin/dashboard')
-    async getAdminDashboard(@Request() req: any) {
-        try {
-            if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
-                throw new UnauthorizedException('Solo administradores pueden ver métricas');
-            }
-            return await this.metricsService.getAdminDashboardStats();
-        } catch (error) {
-            console.error('Error in getAdminDashboard controller:', error);
-            throw error;
-        }
+    @Post()
+    async create(
+        @Body() data: { name: string; unit: string; key: string; icon?: string; color?: string },
+        @Request() req: any
+    ) {
+        const nutritionistId = req.user.nutritionistId;
+        return this.metricsService.findOrCreate(data, nutritionistId);
     }
 
-    // For manual testing (Dev only)
-    @Post('force-calculate')
-    async forceCalculate(@Request() req: any) {
-        if (!['ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
-            throw new UnauthorizedException('Solo Master Admin');
-        }
-        return this.metricsService.forceCalculate();
+    @Delete(':id')
+    async remove(@Param('id') id: string, @Request() req: any) {
+        const nutritionistId = req.user.nutritionistId;
+        const role = req.user.role;
+        return this.metricsService.remove(id, nutritionistId, role);
     }
 }

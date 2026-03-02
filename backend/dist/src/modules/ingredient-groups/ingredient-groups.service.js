@@ -12,17 +12,20 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.IngredientGroupsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const cache_service_1 = require("../../common/services/cache.service");
 let IngredientGroupsService = class IngredientGroupsService {
     prisma;
-    constructor(prisma) {
+    cacheService;
+    constructor(prisma, cacheService) {
         this.prisma = prisma;
+        this.cacheService = cacheService;
     }
     async create(nutritionistId, createDto) {
         const { tags, ingredients, ...data } = createDto;
         const tagRecords = tags && tags.length > 0
             ? await Promise.all(tags.map((name) => this.getOrCreateTag(name)))
             : [];
-        return this.prisma.ingredientGroup.create({
+        const group = await this.prisma.ingredientGroup.create({
             data: {
                 ...data,
                 nutritionist: { connect: { id: nutritionistId } },
@@ -48,6 +51,8 @@ let IngredientGroupsService = class IngredientGroupsService {
                 _count: { select: { entries: true } }
             }
         });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'ingredient-groups');
+        return group;
     }
     async findAll(nutritionistId) {
         const groups = await this.prisma.ingredientGroup.findMany({
@@ -160,19 +165,23 @@ let IngredientGroupsService = class IngredientGroupsService {
                 }))
             };
         }
-        return this.prisma.ingredientGroup.update({
+        const group = await this.prisma.ingredientGroup.update({
             where: { id },
             data: updateData,
             include: { tags: true }
         });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'ingredient-groups');
+        return group;
     }
     async remove(id, nutritionistId) {
         await this.validateGroupOwnership(id, nutritionistId);
-        return this.prisma.ingredientGroup.delete({ where: { id } });
+        const deleted = await this.prisma.ingredientGroup.delete({ where: { id } });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'ingredient-groups');
+        return deleted;
     }
     async addIngredients(id, nutritionistId, dto) {
         await this.validateGroupOwnership(id, nutritionistId);
-        return this.prisma.ingredientGroup.update({
+        const updated = await this.prisma.ingredientGroup.update({
             where: { id },
             data: {
                 entries: {
@@ -183,10 +192,12 @@ let IngredientGroupsService = class IngredientGroupsService {
             },
             include: { _count: { select: { entries: true } } }
         });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'ingredient-groups');
+        return updated;
     }
     async removeIngredients(id, nutritionistId, dto) {
         await this.validateGroupOwnership(id, nutritionistId);
-        return this.prisma.ingredientGroup.update({
+        const updated = await this.prisma.ingredientGroup.update({
             where: { id },
             data: {
                 entries: {
@@ -197,6 +208,8 @@ let IngredientGroupsService = class IngredientGroupsService {
             },
             include: { _count: { select: { entries: true } } }
         });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'ingredient-groups');
+        return updated;
     }
     async getOrCreateTag(name) {
         return this.prisma.tag.upsert({
@@ -209,6 +222,7 @@ let IngredientGroupsService = class IngredientGroupsService {
 exports.IngredientGroupsService = IngredientGroupsService;
 exports.IngredientGroupsService = IngredientGroupsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        cache_service_1.CacheService])
 ], IngredientGroupsService);
 //# sourceMappingURL=ingredient-groups.service.js.map

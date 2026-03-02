@@ -1,556 +1,466 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
-import { ArrowLeft, User, Mail, Phone, Clock, Brain, Save, RotateCcw, CheckCircle2, Trash2, TrendingUp, Plus, AlertCircle } from 'lucide-react';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import { TagInput } from '@/components/ui/TagInput';
-import { Patient } from '@/features/patients';
-import { Metric } from '@/features/consultations';
-import { usePatientDraft } from '@/features/patients/hooks/usePatientDraft';
-import { toast } from 'sonner';
-import { useEffect, useState } from 'react';
-import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { PatientStorage } from '@/features/patients/services/patientStorage';
-import { cn } from '@/lib/utils';
+import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  User,
+  Mail,
+  Phone,
+  Save,
+  RotateCcw,
+  AlertCircle,
+  ChevronRight,
+  Activity,
+} from "lucide-react";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { TagInput } from "@/components/ui/TagInput";
+import { MetricTagInput } from "@/components/ui/MetricTagInput";
+import { Patient } from "@/features/patients";
+import { usePatientDraft } from "@/features/patients/hooks/usePatientDraft";
+import { toast } from "sonner";
+import { useState, useEffect } from "react";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { cn } from "@/lib/utils";
+import { DEFAULT_METRICS } from "@/lib/constants";
+import Cookies from "js-cookie";
 
 export default function CreatePatientClient() {
-    const router = useRouter();
-    const { draft, updateDraft, clearDraft, isLoaded } = usePatientDraft();
-    const [isSaving, setIsSaving] = useState(false);
-    const [showSaveConfirm, setShowSaveConfirm] = useState(false);
-    const [showResetConfirm, setShowResetConfirm] = useState(false);
-
-    // Prevent hydration mismatch by rendering nothing until loaded
-    if (!isLoaded) return null;
-
-    const handleSaveClick = () => {
-        if (!draft.name || !draft.email) {
-            toast.error("Por favor completa los campos obligatorios (Nombre y Email).");
-            return;
-        }
-        setShowSaveConfirm(true);
-    };
-
-    const addMetric = () => {
-        const currentMetrics = draft.initialConsultationMetrics || [];
-        updateDraft({
-            initialConsultationMetrics: [...currentMetrics, { label: '', value: '', unit: '' }]
-        });
-    };
-
-    const removeMetric = (index: number) => {
-        const newMetrics = [...(draft.initialConsultationMetrics || [])];
-        newMetrics.splice(index, 1);
-        updateDraft({ initialConsultationMetrics: newMetrics });
-    };
-
-    const updateMetricItem = (index: number, field: keyof Metric, value: string) => {
-        const newMetrics = [...(draft.initialConsultationMetrics || [])];
-        newMetrics[index] = { ...newMetrics[index], [field]: value };
-        updateDraft({ initialConsultationMetrics: newMetrics });
-    };
-
-    const handleConfirmSave = async () => {
-        setIsSaving(true);
-        setShowSaveConfirm(false);
-
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Create or Update Patient Logic
-        const patientData = {
-            ...draft,
-            // Ensure mandatory fields for TS even if they are in draft
-            name: draft.name!,
-            email: draft.email!,
-            // Generate ID if not present
-            id: draft.id || Math.random().toString(36).substr(2, 9),
-            status: 'Active' as const,
-            lastVisit: new Date().toISOString().split('T')[0]
-        };
-
-        // Save to "DB"
-        // @ts-ignore - draft types are partial but we validated essentials
-        PatientStorage.save(patientData);
-
-        // Update draft with the generated ID so subsequent saves are updates
-        updateDraft({ id: patientData.id });
-
-        toast.success(draft.id ? "Datos del paciente actualizados." : "Paciente registrado correctamente.");
-        setIsSaving(false);
-        // We do NOT redirect. We stay here.
-    };
-
-    const handleSaveConsultation = async () => {
-        // This action finishes the process
-        if (!draft.id) {
-            toast.error("Primero debes registrar al paciente antes de guardar la consulta.");
-            return;
-        }
-        if (!draft.initialConsultationTitle) {
-            toast.error("Debes ingresar un título para la consulta.");
-            return;
-        }
-
-        setIsSaving(true);
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        // Save the consultation to history
-        const { ConsultationStorage } = await import('@/features/consultations/services/consultationStorage');
-
-        ConsultationStorage.save({
-            id: Math.random().toString(36).substr(2, 9),
-            patientId: draft.id,
-            patientName: draft.name || 'Sin nombre',
-            date: new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }),
-            title: draft.initialConsultationTitle,
-            description: draft.initialConsultationDescription || '',
-            metrics: draft.initialConsultationMetrics && draft.initialConsultationMetrics.length > 0
-                ? draft.initialConsultationMetrics
-                : [
-                    { label: 'Peso', value: draft.weight || 0, unit: 'kg' },
-                    { label: 'Altura', value: draft.height || 0, unit: 'm' }
-                ]
-        });
-
-        toast.success("Consulta inicial guardada y añadida al historial.");
-        clearDraft(); // Now we clear
-        router.push(`/dashboard/pacientes/${draft.id}`);
-    };
-
-    return (
-
-
-        <div className="max-w-5xl mx-auto space-y-8 pb-24 animate-in fade-in duration-500">
-            {/* Header / Navigation */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <Button
-                        variant="ghost"
-                        onClick={() => router.back()}
-                        className="h-10 w-10 p-0 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all"
-                    >
-                        <ArrowLeft className="h-6 w-6" />
-                    </Button>
-                    <div>
-                        <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center gap-2">
-                            Nuevo Paciente
-                            <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest border border-emerald-100 shadow-sm">
-                                Borrador
-                            </span>
-                        </h1>
-                        <p className="text-sm font-medium text-slate-500">
-                            La información se guarda automáticamente mientras escribes.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <Button
-                        variant="ghost"
-                        onClick={() => setShowResetConfirm(true)}
-                        className="h-11 px-4 text-slate-400 hover:text-red-500 hover:bg-red-50 font-bold rounded-xl transition-all gap-2"
-                    >
-                        <RotateCcw className="h-4 w-4" />
-                        <span className="hidden sm:inline">Comenzar otra vez</span>
-                    </Button>
-
-                    <Button
-                        onClick={handleSaveClick}
-                        disabled={isSaving}
-                        className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-lg shadow-emerald-200 transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-2"
-                    >
-                        {isSaving ? (
-                            <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <Save className="h-5 w-5" />
-                        )}
-                        {draft.id ? "ACTUALIZAR FICHA" : "REGISTRAR PACIENTE"}
-                    </Button>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Main Column */}
-                <div className="lg:col-span-8 space-y-8">
-
-                    {/* Panel 1: Personal Information */}
-                    <div className="bg-white p-8 rounded-4xl shadow-sm border border-slate-200 space-y-6">
-                        <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-                            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-                                <User className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-black text-slate-900">Información Personal</h3>
-                                <p className="text-xs font-medium text-slate-400">Datos básicos de identificación.</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2 md:col-span-2">
-                                <label className="text-xs font-bold text-slate-700 ml-1 uppercase tracking-wider">Nombre Completo *</label>
-                                <Input
-                                    placeholder="Ej. Juan Pérez"
-                                    className="h-12 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-emerald-500 transition-all font-medium"
-                                    value={draft.name}
-                                    onChange={(e) => updateDraft({ name: e.target.value })}
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-700 ml-1 uppercase tracking-wider">Email *</label>
-                                <div className="relative">
-                                    <Mail className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
-                                    <Input
-                                        type="email"
-                                        placeholder="juan@email.com"
-                                        className="h-12 pl-10 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-emerald-500 transition-all font-medium"
-                                        value={draft.email}
-                                        onChange={(e) => updateDraft({ email: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-700 ml-1 uppercase tracking-wider">Teléfono</label>
-                                <div className="relative">
-                                    <Phone className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
-                                    <Input
-                                        placeholder="+56 9..."
-                                        className="h-12 pl-10 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-emerald-500 transition-all font-medium"
-                                        value={draft.contactInfo}
-                                        onChange={(e) => updateDraft({ contactInfo: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-700 ml-1 uppercase tracking-wider">Género</label>
-                                <select
-                                    className="w-full h-12 bg-slate-50 border border-transparent rounded-xl px-4 text-sm font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all outline-none cursor-pointer"
-                                    value={draft.gender}
-                                    onChange={(e) => updateDraft({ gender: e.target.value as any })}
-                                >
-                                    <option value="M">Masculino</option>
-                                    <option value="F">Femenino</option>
-                                    <option value="Other">Otro</option>
-                                </select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-700 ml-1 uppercase tracking-wider">Fecha Nacimiento</label>
-                                <Input
-                                    type="date"
-                                    className="h-12 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-emerald-500 transition-all font-medium text-slate-600"
-                                    value={draft.birthDate || ''}
-                                    onChange={(e) => updateDraft({ birthDate: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Panel 2: Physical Metrics */}
-
-                </div>
-
-                {/* Sidebar Column */}
-                <div className="lg:col-span-4 space-y-8">
-
-                    {/* Panel 3: Chronobiology */}
-                    <div className="bg-white p-6 rounded-4xl shadow-sm border border-slate-200 space-y-6">
-                        <div className="flex items-center gap-3 text-slate-900 mb-2">
-                            <Clock className="h-5 w-5 text-orange-500" />
-                            <h3 className="text-base font-black uppercase tracking-tight">Rutina Diaria</h3>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Despertar</label>
-                                    <Input
-                                        type="time"
-                                        className="h-10 rounded-xl bg-orange-50/50 border-orange-100 text-center font-bold text-slate-700"
-                                        value={draft.wakeUpTime}
-                                        onChange={(e) => updateDraft({ wakeUpTime: e.target.value })}
-                                    />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dormir</label>
-                                    <Input
-                                        type="time"
-                                        className="h-10 rounded-xl bg-indigo-50/50 border-indigo-100 text-center font-bold text-slate-700"
-                                        value={draft.sleepTime}
-                                        onChange={(e) => updateDraft({ sleepTime: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="pt-4 border-t border-slate-100 space-y-3">
-                                <label className="flex items-center justify-between">
-                                    <span className="text-xs font-bold text-slate-700">Comidas por día</span>
-                                    <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-lg">{draft.mealCount}</span>
-                                </label>
-                                <input
-                                    type="range"
-                                    min="2"
-                                    max="6"
-                                    step="1"
-                                    className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                                    value={draft.mealCount}
-                                    onChange={(e) => updateDraft({ mealCount: parseInt(e.target.value) })}
-                                />
-                                <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase">
-                                    <span>Min (2)</span>
-                                    <span>Max (6)</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Panel 2 (Moved): Metrics */}
-                    <div className="bg-white p-6 rounded-4xl shadow-sm border border-slate-200 space-y-6">
-                        <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
-                            <Brain className="h-5 w-5 text-violet-500" />
-                            <h3 className="text-base font-black text-slate-900 uppercase tracking-tight">Métricas</h3>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Peso (kg)</label>
-                                <Input
-                                    type="number"
-                                    className="h-10 rounded-xl bg-violet-50/50 border-violet-100 font-bold text-slate-700"
-                                    value={draft.weight}
-                                    onChange={(e) => updateDraft({ weight: parseFloat(e.target.value) })}
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Altura (m)</label>
-                                <Input
-                                    type="number"
-                                    step="0.01"
-                                    className="h-10 rounded-xl bg-violet-50/50 border-violet-100 font-bold text-slate-700"
-                                    value={draft.height}
-                                    onChange={(e) => updateDraft({ height: parseFloat(e.target.value) })}
-                                />
-                            </div>
-                            <div className="space-y-3 col-span-2 pt-2 border-t border-slate-50">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1 flex items-center gap-1.5">
-                                        <AlertCircle className="h-3 w-3" />
-                                        Restricciones Clínicas
-                                    </label>
-                                    <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter">Impacta filtrado de alimentos</span>
-                                </div>
-
-                                <div className="flex flex-wrap gap-2">
-                                    {['Celiaco', 'Diabético', 'Sin Lactosa', 'Hipertensión', 'Vegano', 'Vegetariano'].map(restriction => {
-                                        const isSelected = draft.dietaryRestrictions?.includes(restriction);
-                                        return (
-                                            <button
-                                                key={restriction}
-                                                type="button"
-                                                onClick={() => {
-                                                    const current = draft.dietaryRestrictions || [];
-                                                    const next = isSelected
-                                                        ? current.filter(r => r !== restriction)
-                                                        : [...current, restriction];
-                                                    updateDraft({ dietaryRestrictions: next });
-                                                }}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-xl text-[11px] font-black transition-all border-2 cursor-pointer",
-                                                    isSelected
-                                                        ? "bg-rose-50 border-rose-500 text-rose-700 shadow-sm"
-                                                        : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"
-                                                )}
-                                            >
-                                                {restriction}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            <div className="space-y-1.5 col-span-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Otras Restricciones / Alergias</label>
-                                <div className="bg-slate-50 rounded-xl border border-slate-100 focus-within:border-emerald-500 p-1 transition-all">
-                                    <TagInput
-                                        value={draft.dietaryRestrictions || []}
-                                        onChange={(tags) => updateDraft({ dietaryRestrictions: tags })}
-                                        placeholder="Escribe y presiona Enter..."
-                                        suggestions={['Sin Gluten', 'Sin Azúcar', 'Renal', 'Embarazo']}
-                                        className="border-none shadow-none text-xs"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+  const router = useRouter();
+  const { draft, updateDraft, clearDraft, isLoaded } = usePatientDraft();
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const selectedMetrics = draft.customVariables || [];
 
 
 
-                </div>
-            </div>
+  if (!isLoaded) return null;
 
-            {/* Bottom Section: First Consultation (Full Width) */}
-            <div className="bg-emerald-900 text-white p-8 rounded-4xl shadow-xl shadow-emerald-900/20 relative overflow-hidden group mt-8">
-                <div className="absolute top-0 right-0 p-64 bg-emerald-800/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
+  const handleSaveClick = () => {
+    if (!draft.fullName || !draft.email) {
+      toast.error(
+        "Por favor completa los campos obligatorios (Nombre y Email).",
+      );
+      return;
+    }
+    setShowSaveConfirm(true);
+  };
 
-                <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                    <div className="lg:col-span-4 space-y-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-emerald-800/50 rounded-2xl border border-emerald-700/50">
-                                <CheckCircle2 className="h-6 w-6 text-emerald-400" />
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-3">
-                                    <h3 className="text-xl font-black uppercase tracking-tight">Primera Consulta</h3>
-                                    <span className="text-[9px] font-black bg-emerald-800 text-emerald-200 px-2 py-0.5 rounded-md uppercase border border-emerald-700">Opcional</span>
-                                </div>
-                                <p className="text-emerald-300/80 text-sm font-medium mt-1">
-                                    Optimiza tu flujo registrando la primera sesión ahora mismo.
-                                </p>
-                            </div>
-                        </div>
-                        <p className="text-xs text-emerald-400/60 leading-relaxed">
-                            Si agregas notas aquí, se creará automáticamente una consulta en el historial del paciente con la fecha de hoy.
-                        </p>
-                    </div>
+  const handleConfirmSave = async () => {
+    setIsSaving(true);
+    setShowSaveConfirm(false);
 
-                    <div className="lg:col-span-8 space-y-4">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest ml-1">Motivo o Título</label>
-                            <Input
-                                placeholder="Ej. Evaluación inicial post-parto"
-                                className="h-12 rounded-2xl bg-emerald-800/50 border-emerald-700/50 text-white placeholder:text-emerald-400/50 text-base font-medium focus:bg-emerald-800 transition-all border-none focus:ring-1 focus:ring-emerald-400"
-                                value={draft.initialConsultationTitle}
-                                onChange={(e) => updateDraft({ initialConsultationTitle: e.target.value })}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest ml-1">Notas de la sesión</label>
-                            <textarea
-                                placeholder="Describe los hallazgos, objetivos acordados o notas rápidas de esta primera interacción..."
-                                className="w-full min-h-[120px] p-4 rounded-3xl bg-emerald-800/50 border border-emerald-700/50 text-sm text-emerald-100 focus:text-white outline-none resize-none placeholder:text-emerald-400/50 focus:bg-emerald-800 transition-all focus:ring-1 focus:ring-emerald-400 shadow-inner"
-                                value={draft.initialConsultationDescription}
-                                onChange={(e) => updateDraft({ initialConsultationDescription: e.target.value })}
-                            />
-                        </div>
+    try {
+      const token =
+        Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-                        {/* Tracking Metrics Section */}
-                        <div className="space-y-4 p-6 bg-emerald-800/30 rounded-[32px] border border-emerald-700/50">
-                            <div className="flex justify-between items-center">
-                                <div className="flex items-center gap-2">
-                                    <TrendingUp className="w-5 h-5 text-emerald-400" />
-                                    <h4 className="text-sm font-black text-emerald-100 uppercase tracking-tight">Seguimiento de Progreso</h4>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={addMetric}
-                                    className="text-[10px] font-black bg-emerald-600 text-white px-3 py-1.5 rounded-xl hover:bg-emerald-500 transition-all flex items-center gap-1 shadow-md shadow-emerald-900/20 cursor-pointer"
-                                >
-                                    <Plus className="w-3 h-3" /> AGREGAR MÉTRICA
-                                </button>
-                            </div>
+      const method = draft.id ? "PATCH" : "POST";
+      const url = draft.id
+        ? `${apiUrl}/patients/${draft.id}`
+        : `${apiUrl}/patients`;
 
-                            {draft.initialConsultationMetrics && draft.initialConsultationMetrics.length > 0 ? (
-                                <div className="space-y-3">
-                                    {draft.initialConsultationMetrics.map((metric, idx) => (
-                                        <div key={idx} className="grid grid-cols-12 gap-3 items-end animate-in slide-in-from-left-2 duration-200">
-                                            <div className="col-span-12 md:col-span-5 space-y-1">
-                                                <label className="text-[9px] font-black text-emerald-400/70 uppercase ml-1">Característica</label>
-                                                <Input
-                                                    placeholder="Vitamina C, Peso..."
-                                                    className="h-10 rounded-xl bg-emerald-900/50 border-emerald-700/50 text-emerald-50 text-xs font-bold placeholder:text-emerald-700 focus:bg-emerald-900 focus:border-emerald-500"
-                                                    value={metric.label}
-                                                    onChange={(e) => updateMetricItem(idx, 'label', e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="col-span-7 md:col-span-4 space-y-1">
-                                                <label className="text-[9px] font-black text-emerald-400/70 uppercase ml-1">Valor</label>
-                                                <Input
-                                                    placeholder="20, 75.5..."
-                                                    className="h-10 rounded-xl bg-emerald-900/50 border-emerald-700/50 text-emerald-50 text-xs font-bold placeholder:text-emerald-700 focus:bg-emerald-900 focus:border-emerald-500"
-                                                    value={metric.value}
-                                                    onChange={(e) => updateMetricItem(idx, 'value', e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="col-span-3 md:col-span-2 space-y-1">
-                                                <label className="text-[9px] font-black text-emerald-400/70 uppercase ml-1">Unidad</label>
-                                                <Input
-                                                    placeholder="mg, kg..."
-                                                    className="h-10 rounded-xl bg-emerald-900/50 border-emerald-700/50 text-emerald-50 text-xs font-bold placeholder:text-emerald-700 focus:bg-emerald-900 focus:border-emerald-500"
-                                                    value={metric.unit || ''}
-                                                    onChange={(e) => updateMetricItem(idx, 'unit', e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="col-span-2 md:col-span-1 pb-1">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeMetric(idx)}
-                                                    className="p-2 text-rose-400 hover:text-rose-300 hover:bg-rose-900/30 rounded-xl transition-all cursor-pointer"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="py-6 text-center bg-emerald-800/20 rounded-2xl border border-dashed border-emerald-700/50">
-                                    <AlertCircle className="w-6 h-6 text-emerald-700/50 mx-auto mb-2" />
-                                    <p className="text-[10px] font-medium text-emerald-400/50">
-                                        Si no añades métricas, se usarán Peso y Altura por defecto.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                        <div className="pt-4 flex justify-end">
-                            <Button
-                                onClick={handleSaveConsultation}
-                                disabled={!draft.id || isSaving}
-                                className={cn(
-                                    "h-11 px-6 rounded-xl font-black text-sm transition-all flex items-center gap-2 border",
-                                    draft.id
-                                        ? "bg-white text-emerald-800 hover:bg-emerald-50 border-white shadow-lg"
-                                        : "bg-emerald-800 text-emerald-500 border-emerald-700 cursor-not-allowed opacity-50"
-                                )}
-                            >
-                                <CheckCircle2 className="h-4 w-4" />
-                                {draft.id ? "FINALIZAR & GUARDAR CONSULTA" : "Registra al paciente primero"}
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {/* Confirmation Modals */}
-            <ConfirmationModal
-                isOpen={showSaveConfirm}
-                onClose={() => setShowSaveConfirm(false)}
-                onConfirm={handleConfirmSave}
-                title={draft.id ? "¿Actualizar Datos?" : "¿Registrar Paciente?"}
-                description={draft.id
-                    ? `Se actualizará la información del paciente ${draft.name}.`
-                    : `Estás a punto de crear el expediente de ${draft.name}. El borrador seguirá activo para que puedas añadir la consulta.`
-                }
-                confirmText={draft.id ? "Sí, Actualizar" : "Sí, Registrar"}
-                variant="primary"
-            />
+      // Clean payload to match precisely backend CreatePatientDto
+      const payload: any = {
+        fullName: draft.fullName,
+        email: draft.email || undefined,
+        phone: draft.phone || undefined,
+        documentId: draft.documentId || undefined,
+        birthDate: draft.birthDate
+          ? new Date(draft.birthDate).toISOString()
+          : undefined,
+        gender: draft.gender || undefined,
+        height: draft.height
+          ? Number(draft.height.toString().replace(",", "."))
+          : undefined,
+        weight: draft.weight
+          ? Number(draft.weight.toString().replace(",", "."))
+          : undefined,
+        dietRestrictions: draft.dietRestrictions || [],
+        clinicalSummary: draft.clinicalSummary || undefined,
+        nutritionalFocus: draft.nutritionalFocus || undefined,
+        fitnessGoals: draft.fitnessGoals || undefined,
+        customVariables: draft.customVariables || [],
+      };
 
-            <ConfirmationModal
-                isOpen={showResetConfirm}
-                onClose={() => setShowResetConfirm(false)}
-                onConfirm={() => {
-                    clearDraft();
-                    toast.info("Formulario reiniciado.");
-                    setShowResetConfirm(false);
-                }}
-                title="¿Comenzar de nuevo?"
-                description="Se perderá todo el progreso actual y el borrador será eliminado. Esta acción no se puede deshacer."
-                confirmText="Sí, Reiniciar"
-                cancelText="Mmm, mejor no"
-                variant="destructive"
-            />
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        const savedPatient = await response.json();
+        toast.success(
+          draft.id
+            ? "Expediente actualizado."
+            : "Paciente registrado con éxito.",
+        );
+        clearDraft();
+        router.push(`/dashboard/pacientes/${savedPatient.id}`);
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || "Error al guardar el paciente");
+      }
+    } catch (error) {
+      console.error("Save Patient Error:", error);
+      toast.error("Error de conexión con el servidor");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-10 pb-24 animate-in fade-in duration-700">
+      {/* Navigation Header */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="ghost"
+          onClick={() => router.back()}
+          className="group flex items-center gap-2 hover:bg-slate-100/50 rounded-xl px-4 py-2 transition-all"
+        >
+          <ArrowLeft className="h-4 w-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
+          <span className="text-sm font-medium text-slate-500 group-hover:text-slate-800 transition-colors">
+            Volver
+          </span>
+        </Button>
+
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            onClick={() => setShowResetConfirm(true)}
+            className="h-10 px-4 text-slate-500 hover:text-rose-600 hover:bg-rose-50 font-medium rounded-xl transition-all gap-2 text-sm"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Reiniciar
+          </Button>
+
+          <Button
+            onClick={handleSaveClick}
+            disabled={isSaving}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-10 px-6 rounded-xl shadow-sm transition-all flex items-center gap-2"
+          >
+            {isSaving ? (
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            <span>{draft.id ? "Actualizar Ficha" : "Registrar Paciente"}</span>
+          </Button>
         </div>
-    );
+      </div>
+
+      {/* Main Branding */}
+      <div className="bg-slate-900 rounded-2xl p-8 relative overflow-hidden shadow-lg border border-slate-800">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-[80px] -translate-y-1/2 translate-x-1/2 rounded-full" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/5 blur-[60px] translate-y-1/2 -translate-x-1/2 rounded-full" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-6">
+          <div className="h-16 w-16 rounded-xl bg-linear-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-inner border border-emerald-400/20">
+            <User className="h-8 w-8 text-emerald-50" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-white tracking-tight mb-1">
+              Nueva Identidad Clínica
+            </h1>
+            <p className="text-emerald-100/70 text-sm max-w-lg">
+              Crea un perfil detallado para un seguimiento nutricional
+              estructurado.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Form Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Panel 1: Personal Identification */}
+        <div className="lg:col-span-8 bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+          <div className="flex items-center gap-3 px-1 border-b border-slate-100 pb-4">
+            <User className="w-5 h-5 text-emerald-600" />
+            <h2 className="text-lg font-semibold text-slate-800">
+              Perfil de Identidad
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-xs font-semibold text-slate-500 ml-1">
+                Nombre Completo del Paciente *
+              </label>
+              <Input
+                placeholder="Ej. Valentina Morales Lagos"
+                className="h-11 rounded-xl bg-slate-50/50 border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                value={draft.fullName}
+                onChange={(e) => updateDraft({ fullName: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-500 ml-1">
+                Correo Electrónico *
+              </label>
+              <div className="relative group">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
+                <Input
+                  type="email"
+                  placeholder="valen@email.com"
+                  className="h-11 pl-10 rounded-xl bg-slate-50/50 border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                  value={draft.email}
+                  onChange={(e) => updateDraft({ email: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-500 ml-1">
+                Teléfono de Contacto
+              </label>
+              <div className="relative group">
+                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
+                <Input
+                  placeholder="+56 9 1234 5678"
+                  className="h-11 pl-10 rounded-xl bg-slate-50/50 border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                  value={draft.phone}
+                  onChange={(e) => updateDraft({ phone: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-500 ml-1">
+                Documento de Identidad (RUT - Opcional)
+              </label>
+              <Input
+                placeholder="12.345.678-9"
+                className="h-11 rounded-xl bg-slate-50/50 border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                value={draft.documentId}
+                onChange={(e) => updateDraft({ documentId: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-500 ml-1">
+                Fecha de Nacimiento
+              </label>
+              <Input
+                type="date"
+                className="h-11 rounded-xl bg-slate-50/50 border-slate-200 text-sm font-medium focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all text-slate-700"
+                value={draft.birthDate || ""}
+                onChange={(e) => updateDraft({ birthDate: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-xs font-semibold text-slate-500 ml-1">
+                Sexo biológico
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                {["Masculino", "Femenino", "Otro"].map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => updateDraft({ gender: g })}
+                    className={cn(
+                      "h-10 rounded-lg text-sm font-medium transition-all border",
+                      draft.gender === g
+                        ? "bg-emerald-50 border-emerald-500 text-emerald-700"
+                        : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300",
+                    )}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2 md:col-span-2 pt-6 border-t border-slate-100">
+              <label className="text-xs font-semibold text-slate-500 ml-1">
+                Propuesta de Foco Nutricional
+              </label>
+              <Input
+                placeholder="Ej. Pérdida de grasa / Recomposición corporal"
+                className="h-11 rounded-xl bg-white border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-emerald-50 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                value={draft.nutritionalFocus || ""}
+                onChange={(e) =>
+                  updateDraft({ nutritionalFocus: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-xs font-semibold text-slate-500 ml-1">
+                Metas Fitness / Deporte
+              </label>
+              <Input
+                placeholder="Ej. Media maratón en 3 meses"
+                className="h-11 rounded-xl bg-white border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-blue-50 focus:border-blue-300 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                value={draft.fitnessGoals || ""}
+                onChange={(e) => updateDraft({ fitnessGoals: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Left Column: Anthropometry & Clinical */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Panel 2: Physical Parameters */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+              <h2 className="text-base font-semibold text-slate-800">
+                Antropometría
+              </h2>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-500 ml-1">
+                  Peso Actual (kg)
+                </label>
+                <Input
+                  type="number"
+                  step="any"
+                  className="h-11 rounded-xl bg-slate-50/50 border-slate-200 text-base font-medium text-slate-800 placeholder:text-slate-300 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-500/20 transition-all text-center"
+                  value={draft.weight}
+                  onChange={(e) =>
+                    updateDraft({
+                      weight: e.target.value
+                        ? parseFloat(e.target.value)
+                        : undefined,
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-500 ml-1">
+                  Altura (cm)
+                </label>
+                <Input
+                  type="number"
+                  step="any"
+                  className="h-11 rounded-xl bg-slate-50/50 border-slate-200 text-base font-medium text-slate-800 placeholder:text-slate-300 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-500/20 transition-all text-center"
+                  value={draft.height}
+                  onChange={(e) =>
+                    updateDraft({
+                      height: e.target.value
+                        ? parseFloat(e.target.value)
+                        : undefined,
+                    })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Panel 3: Restrictions */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+              <AlertCircle className="w-5 h-5 text-rose-500" />
+              <h2 className="text-base font-semibold text-slate-800">
+                Restricciones
+              </h2>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-500 ml-1">
+                  Patologías / Exclusiones
+                </label>
+                <TagInput
+                  value={draft.dietRestrictions || []}
+                  onChange={(tags) => updateDraft({ dietRestrictions: tags })}
+                  fetchSuggestionsUrl={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/tags`}
+                  placeholder="Ej: Diabetes, Celiaco..."
+                  className="mt-2"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Panel 4: Metrics */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+              <Activity className="w-5 h-5 text-emerald-500" />
+              <h2 className="text-base font-semibold text-slate-800">
+                Métricas de Seguimiento
+              </h2>
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-slate-500">
+                Selecciona las métricas que deseas monitorear para este
+                paciente.{" "}
+                <span className="font-bold text-emerald-600">
+                  La métrica de Peso se añade automáticamente.
+                </span>
+              </p>
+              <MetricTagInput
+                value={selectedMetrics}
+                onChange={(metrics) => updateDraft({ customVariables: metrics })}
+                placeholder="Ej: Grasa Corporal, Plicometría, Brazo..."
+                className="mt-2"
+              />
+            </div>
+          </div>
+
+          {/* Panel 5: Clinical Notes */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+              <h2 className="text-base font-semibold text-slate-800">
+                Observaciones
+              </h2>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-500 ml-1">
+                  Notas Clínicas Iniciales
+                </label>
+                <textarea
+                  className="w-full h-28 rounded-xl bg-slate-50/50 border border-slate-200 p-4 text-sm font-medium text-slate-700 focus:bg-white focus:border-emerald-300 focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
+                  placeholder="Antecedentes, motivo de consulta..."
+                  value={draft.clinicalSummary || ""}
+                  onChange={(e) =>
+                    updateDraft({ clinicalSummary: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Confirmation Modals */}
+      <ConfirmationModal
+        isOpen={showSaveConfirm}
+        onClose={() => setShowSaveConfirm(false)}
+        onConfirm={handleConfirmSave}
+        title={draft.id ? "¿Actualizar Expediente?" : "¿Crear Ficha Clínica?"}
+        description={
+          draft.id
+            ? `Los cambios en el expediente de ${draft.fullName} se guardarán permanentemente.`
+            : `Estás a punto de registrar a ${draft.fullName}. Esto habilitará la creación de planes nutricionales para este paciente.`
+        }
+        confirmText={draft.id ? "Sí, Actualizar" : "Crear Expediente"}
+        variant="primary"
+      />
+
+      <ConfirmationModal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={() => {
+          clearDraft();
+          toast.info("Formulario reiniciado.");
+          setShowResetConfirm(false);
+        }}
+        title="¿Deseas vaciar el formulario?"
+        description="Toda la información ingresada en este borrador se eliminará permanentemente."
+        confirmText="Vaciar Borrador"
+        cancelText="Mantener info"
+        variant="destructive"
+      />
+    </div>
+  );
 }

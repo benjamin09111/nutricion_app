@@ -12,10 +12,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RecipesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const cache_service_1 = require("../../common/services/cache.service");
 let RecipesService = class RecipesService {
     prisma;
-    constructor(prisma) {
+    cacheService;
+    constructor(prisma, cacheService) {
         this.prisma = prisma;
+        this.cacheService = cacheService;
     }
     async getNutritionistId(accountId) {
         const nutritionist = await this.prisma.nutritionist.findUnique({
@@ -66,7 +69,7 @@ let RecipesService = class RecipesService {
             if (!data.lipids)
                 calcMacros.lipids = parseFloat((totalLipids / portions).toFixed(2));
         }
-        return this.prisma.recipe.create({
+        const recipe = await this.prisma.recipe.create({
             data: {
                 ...data,
                 nutritionist: { connect: { id: nutritionistId } },
@@ -89,6 +92,9 @@ let RecipesService = class RecipesService {
                 }
             }
         });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'recipes');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+        return recipe;
     }
     async findAll(userId) {
         try {
@@ -156,23 +162,30 @@ let RecipesService = class RecipesService {
                 }))
             };
         }
-        return this.prisma.recipe.update({
+        const updated = await this.prisma.recipe.update({
             where: { id },
             data: updateData,
             include: { ingredients: true }
         });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'recipes');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+        return updated;
     }
     async remove(id, userId) {
         const nutritionistId = await this.getNutritionistId(userId);
         const recipe = await this.findOne(id, userId);
         if (recipe.nutritionistId !== nutritionistId)
             throw new common_1.ForbiddenException('Cannot delete public or others recipes');
-        return this.prisma.recipe.delete({ where: { id } });
+        const deleted = await this.prisma.recipe.delete({ where: { id } });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'recipes');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+        return deleted;
     }
 };
 exports.RecipesService = RecipesService;
 exports.RecipesService = RecipesService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        cache_service_1.CacheService])
 ], RecipesService);
 //# sourceMappingURL=recipes.service.js.map

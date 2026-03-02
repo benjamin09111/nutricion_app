@@ -16,6 +16,8 @@ exports.CreationsController = void 0;
 const common_1 = require("@nestjs/common");
 const auth_guard_1 = require("../auth/guards/auth.guard");
 const creations_service_1 = require("./creations.service");
+const http_cache_interceptor_1 = require("../../common/interceptors/http-cache.interceptor");
+const cache_manager_1 = require("@nestjs/cache-manager");
 let CreationsController = class CreationsController {
     creationsService;
     constructor(creationsService) {
@@ -85,6 +87,8 @@ __decorate([
 exports.CreationsController = CreationsController = __decorate([
     (0, common_1.Controller)('creations'),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    (0, common_1.UseInterceptors)(http_cache_interceptor_1.HttpCacheInterceptor),
+    (0, cache_manager_1.CacheTTL)(300000),
     __metadata("design:paramtypes", [creations_service_1.CreationsService])
 ], CreationsController);
 //# sourceMappingURL=creations.controller.js.map

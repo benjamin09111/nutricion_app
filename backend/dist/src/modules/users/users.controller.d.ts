@@ -18,11 +18,11 @@ export declare class UsersController {
         patientCount: number;
     }[]>;
     update(id: string, body: any, req: any): Promise<{
-        id: string;
         email: string;
+        status: import(".prisma/client").$Enums.AccountStatus;
+        id: string;
         password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
-        status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
@@ -32,11 +32,11 @@ export declare class UsersController {
         plan: string;
         days?: number;
     }, req: any): Promise<{
-        id: string;
         email: string;
+        status: import(".prisma/client").$Enums.AccountStatus;
+        id: string;
         password: string | null;
         role: import(".prisma/client").$Enums.UserRole;
-        status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;

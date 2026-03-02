@@ -11,14 +11,16 @@ const common_1 = require("@nestjs/common");
 const metrics_service_1 = require("./metrics.service");
 const metrics_controller_1 = require("./metrics.controller");
 const prisma_module_1 = require("../../prisma/prisma.module");
+const common_module_1 = require("../../common/common.module");
 let MetricsModule = class MetricsModule {
 };
 exports.MetricsModule = MetricsModule;
 exports.MetricsModule = MetricsModule = __decorate([
     (0, common_1.Module)({
-        imports: [prisma_module_1.PrismaModule],
+        imports: [prisma_module_1.PrismaModule, common_module_1.CommonModule],
+        controllers: [metrics_controller_1.MetricsController],
         providers: [metrics_service_1.MetricsService],
-        controllers: [metrics_controller_1.MetricsController]
+        exports: [metrics_service_1.MetricsService],
     })
 ], MetricsModule);
 //# sourceMappingURL=metrics.module.js.map

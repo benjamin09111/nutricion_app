@@ -38,4 +38,29 @@ export class CreatePatientDto {
     @IsArray({ message: 'Las restricciones deben ser una lista de etiquetas' })
     @IsString({ each: true })
     dietRestrictions?: string[];
+
+    @IsOptional()
+    @IsEnum(['Active', 'Inactive'], { message: 'El estado debe ser Active o Inactive' })
+    status?: string;
+
+    @IsOptional()
+    @IsString()
+    clinicalSummary?: string;
+
+    @IsOptional()
+    @IsString()
+    nutritionalFocus?: string;
+
+    @IsOptional()
+    @IsString()
+    fitnessGoals?: string;
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    tags?: string[];
+
+    @IsOptional()
+    @IsArray()
+    customVariables?: { key: string; label: string; unit: string }[];
 }

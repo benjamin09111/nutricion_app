@@ -1,11 +1,15 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, UseInterceptors } from '@nestjs/common';
 import { IngredientGroupsService } from './ingredient-groups.service';
 import { CreateIngredientGroupDto } from './dto/create-ingredient-group.dto';
 import { UpdateGroupIngredientsDto } from './dto/update-group-ingredients.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
+import { CacheTTL } from '@nestjs/cache-manager';
 
 @Controller('ingredient-groups')
 @UseGuards(AuthGuard)
+@UseInterceptors(HttpCacheInterceptor)
+@CacheTTL(300000) // 5 minutes
 export class IngredientGroupsController {
     constructor(private readonly ingredientGroupsService: IngredientGroupsService) { }
 

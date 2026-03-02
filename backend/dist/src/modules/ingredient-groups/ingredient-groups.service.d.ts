@@ -1,17 +1,20 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateIngredientGroupDto } from './dto/create-ingredient-group.dto';
 import { UpdateGroupIngredientsDto } from './dto/update-group-ingredients.dto';
+import { CacheService } from '../../common/services/cache.service';
 export declare class IngredientGroupsService {
     private prisma;
-    constructor(prisma: PrismaService);
+    private cacheService;
+    constructor(prisma: PrismaService, cacheService: CacheService);
     create(nutritionistId: string, createDto: CreateIngredientGroupDto): Promise<{
-        _count: {
-            entries: number;
-        };
         tags: {
             id: string;
             name: string;
+            nutritionistId: string | null;
         }[];
+        _count: {
+            entries: number;
+        };
         entries: ({
             ingredient: {
                 id: string;
@@ -83,13 +86,14 @@ export declare class IngredientGroupsService {
             unit: string | null;
             entryId: string;
         }[];
-        _count: {
-            entries: number;
-        };
         tags: {
             id: string;
             name: string;
+            nutritionistId: string | null;
         }[];
+        _count: {
+            entries: number;
+        };
         entries: ({
             ingredient: {
                 preferences: {
@@ -151,6 +155,7 @@ export declare class IngredientGroupsService {
                 tags: {
                     id: string;
                     name: string;
+                    nutritionistId: string | null;
                 }[];
                 preferences: {
                     id: string;
@@ -195,18 +200,20 @@ export declare class IngredientGroupsService {
             unit: string | null;
             entryId: string;
         }[];
-        nutritionist: {
-            id: string;
-        };
         tags: {
             id: string;
             name: string;
+            nutritionistId: string | null;
         }[];
+        nutritionist: {
+            id: string;
+        };
         entries: ({
             ingredient: {
                 tags: {
                     id: string;
                     name: string;
+                    nutritionistId: string | null;
                 }[];
                 preferences: {
                     id: string;
@@ -266,6 +273,7 @@ export declare class IngredientGroupsService {
         tags: {
             id: string;
             name: string;
+            nutritionistId: string | null;
         }[];
     } & {
         id: string;

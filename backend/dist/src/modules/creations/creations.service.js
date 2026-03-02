@@ -12,10 +12,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreationsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const cache_service_1 = require("../../common/services/cache.service");
 let CreationsService = class CreationsService {
     prisma;
-    constructor(prisma) {
+    cacheService;
+    constructor(prisma, cacheService) {
         this.prisma = prisma;
+        this.cacheService = cacheService;
     }
     async create(nutritionistId, data) {
         const { name, type, content, metadata, tags } = data;
@@ -31,7 +34,7 @@ let CreationsService = class CreationsService {
         if (!name || name.trim() === '') {
             throw new Error('El nombre de la creación es obligatorio');
         }
-        return this.prisma.creation.create({
+        const creation = await this.prisma.creation.create({
             data: {
                 name,
                 type,
@@ -41,6 +44,8 @@ let CreationsService = class CreationsService {
                 nutritionist: { connect: { id: nutritionistId } }
             }
         });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'creations');
+        return creation;
     }
     async findAll(nutritionistId, type) {
         return this.prisma.creation.findMany({
@@ -61,9 +66,11 @@ let CreationsService = class CreationsService {
         return creation;
     }
     async delete(id, nutritionistId) {
-        return this.prisma.creation.deleteMany({
+        const result = await this.prisma.creation.deleteMany({
             where: { id, nutritionistId }
         });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'creations');
+        return result;
     }
     async getAvailableTags(nutritionistId) {
         const result = await this.prisma.$queryRaw `
@@ -78,6 +85,7 @@ let CreationsService = class CreationsService {
 exports.CreationsService = CreationsService;
 exports.CreationsService = CreationsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        cache_service_1.CacheService])
 ], CreationsService);
 //# sourceMappingURL=creations.service.js.map

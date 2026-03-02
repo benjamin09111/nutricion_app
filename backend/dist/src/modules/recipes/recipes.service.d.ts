@@ -1,8 +1,10 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
+import { CacheService } from '../../common/services/cache.service';
 export declare class RecipesService {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly cacheService;
+    constructor(prisma: PrismaService, cacheService: CacheService);
     private getNutritionistId;
     create(userId: string, createDto: CreateRecipeDto): Promise<{
         ingredients: ({
@@ -81,14 +83,14 @@ export declare class RecipesService {
     })[]>;
     findOne(id: string, userId: string): Promise<{
         nutritionist: {
+            fullName: string;
+            phone: string | null;
             id: string;
             createdAt: Date;
             updatedAt: Date;
             accountId: string;
-            fullName: string;
             professionalId: string | null;
             specialty: string | null;
-            phone: string | null;
             avatarUrl: string | null;
             settings: import("@prisma/client/runtime/library").JsonValue | null;
         } | null;

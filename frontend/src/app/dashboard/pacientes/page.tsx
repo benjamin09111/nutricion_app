@@ -1,8 +1,5 @@
-import PatientsClient from './PatientsClient';
-import { MOCK_PATIENTS } from '@/features/patients/mocks';
+import PatientsClient from "./PatientsClient";
 
 export default function PatientsPage() {
-    return (
-        <PatientsClient initialData={MOCK_PATIENTS} />
-    );
+  return <PatientsClient />;
 }

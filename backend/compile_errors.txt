@@ -1,0 +1,5 @@
+src/modules/uploads/uploads.controller.ts(3,29): error TS7016: Could not find a declaration file for module 'multer'. 'C:/Users/benja/OneDrive/Desktop/nutricion_app/backend/node_modules/multer/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/multer` if it exists or add a new declaration (.d.ts) file containing `declare module 'multer';`
+src/modules/uploads/uploads.controller.ts(15,28): error TS7006: Parameter 'req' implicitly has an 'any' type.
+src/modules/uploads/uploads.controller.ts(15,33): error TS7006: Parameter 'file' implicitly has an 'any' type.
+src/modules/uploads/uploads.controller.ts(15,39): error TS7006: Parameter 'callback' implicitly has an 'any' type.

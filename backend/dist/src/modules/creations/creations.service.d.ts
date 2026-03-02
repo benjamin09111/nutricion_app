@@ -1,8 +1,11 @@
 import { PrismaService } from '../../prisma/prisma.service';
+import { CacheService } from '../../common/services/cache.service';
 export declare class CreationsService {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly cacheService;
+    constructor(prisma: PrismaService, cacheService: CacheService);
     create(nutritionistId: string, data: any): Promise<{
+        tags: string[];
         id: string;
         createdAt: Date;
         updatedAt: Date;
@@ -12,9 +15,9 @@ export declare class CreationsService {
         format: string;
         content: import("@prisma/client/runtime/library").JsonValue;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        tags: string[];
     }>;
     findAll(nutritionistId: string, type?: string): Promise<{
+        tags: string[];
         id: string;
         createdAt: Date;
         updatedAt: Date;
@@ -24,9 +27,9 @@ export declare class CreationsService {
         format: string;
         content: import("@prisma/client/runtime/library").JsonValue;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        tags: string[];
     }[]>;
     findOne(id: string, nutritionistId: string): Promise<{
+        tags: string[];
         id: string;
         createdAt: Date;
         updatedAt: Date;
@@ -36,7 +39,6 @@ export declare class CreationsService {
         format: string;
         content: import("@prisma/client/runtime/library").JsonValue;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        tags: string[];
     }>;
     delete(id: string, nutritionistId: string): Promise<import(".prisma/client").Prisma.BatchPayload>;
     getAvailableTags(nutritionistId: string): Promise<any[]>;

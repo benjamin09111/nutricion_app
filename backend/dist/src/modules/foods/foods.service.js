@@ -48,10 +48,13 @@ const prisma_service_1 = require("../../prisma/prisma.service");
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const XLSX = __importStar(require("xlsx"));
+const cache_service_1 = require("../../common/services/cache.service");
 let FoodsService = class FoodsService {
     prisma;
-    constructor(prisma) {
+    cacheService;
+    constructor(prisma, cacheService) {
         this.prisma = prisma;
+        this.cacheService = cacheService;
     }
     async getOrCreateBrand(name) {
         if (!name)
@@ -108,7 +111,7 @@ let FoodsService = class FoodsService {
                 throw new Error(`Ya existe un alimento llamado '${rest.name}' de la marca '${brand}'.`);
             }
         }
-        return this.prisma.$transaction(async (tx) => {
+        const ingredient = await this.prisma.$transaction(async (tx) => {
             const ingredient = await tx.ingredient.create({
                 data: {
                     ...rest,
@@ -137,6 +140,9 @@ let FoodsService = class FoodsService {
             });
             return ingredient;
         });
+        await this.cacheService.invalidateNutritionistPrefix(nutritionist.id, 'foods');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionist.id, 'dashboard');
+        return ingredient;
     }
     async findAll(params) {
         const { nutritionistAccountId, search, category, tab = 'all', page = 1, limit = 20 } = params;
@@ -262,7 +268,7 @@ let FoodsService = class FoodsService {
         const { tags, ...rest } = data;
         const tagRecords = tags ? await this.getOrCreateTags(tags) : undefined;
         try {
-            return await this.prisma.ingredientPreference.upsert({
+            const preference = await this.prisma.ingredientPreference.upsert({
                 where: {
                     nutritionistId_ingredientId: {
                         nutritionistId: nutritionist.id,
@@ -289,6 +295,8 @@ let FoodsService = class FoodsService {
                 },
                 include: { tags: true },
             });
+            await this.cacheService.invalidateNutritionistPrefix(nutritionist.id, 'foods');
+            return preference;
         }
         catch (error) {
             console.error(`[togglePreference] Error upserting preference:`, error);
@@ -310,7 +318,7 @@ let FoodsService = class FoodsService {
         const brandRecord = brand ? await this.getOrCreateBrand(brand) : undefined;
         const categoryRecord = category ? await this.getOrCreateCategory(category) : undefined;
         const tagRecords = tags ? await this.getOrCreateTags(tags) : undefined;
-        return this.prisma.ingredient.update({
+        const ingredient = await this.prisma.ingredient.update({
             where: { id },
             data: {
                 ...rest,
@@ -319,11 +327,22 @@ let FoodsService = class FoodsService {
                 ...(tagRecords && { tags: { set: tagRecords.map(t => ({ id: t.id })) } }),
             },
         });
+        if (ingredient.nutritionistId) {
+            await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'foods');
+            await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'dashboard');
+        }
+        return ingredient;
     }
-    remove(id) {
-        return this.prisma.ingredient.delete({
+    async remove(id) {
+        const ingredient = await this.prisma.ingredient.findUnique({ where: { id } });
+        const result = await this.prisma.ingredient.delete({
             where: { id },
         });
+        if (ingredient?.nutritionistId) {
+            await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'foods');
+            await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'dashboard');
+        }
+        return result;
     }
     async getMarketPrices(limit = 7) {
         try {
@@ -375,6 +394,7 @@ let FoodsService = class FoodsService {
 exports.FoodsService = FoodsService;
 exports.FoodsService = FoodsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        cache_service_1.CacheService])
 ], FoodsService);
 //# sourceMappingURL=foods.service.js.map

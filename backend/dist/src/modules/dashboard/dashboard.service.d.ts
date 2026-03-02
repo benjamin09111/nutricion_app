@@ -11,10 +11,10 @@ export declare class DashboardService {
             changeType: string;
         }[];
         recentPatients: {
-            id: string;
-            email: string | null;
-            updatedAt: Date;
             fullName: string;
+            email: string | null;
+            id: string;
+            updatedAt: Date;
         }[];
     }>;
 }

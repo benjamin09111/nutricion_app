@@ -10,8 +10,8 @@ export declare class PaymentsController {
             } | null;
         };
     } & {
-        id: string;
         status: import(".prisma/client").$Enums.PaymentStatus;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         accountId: string;
@@ -30,8 +30,8 @@ export declare class PaymentsController {
             } | null;
         };
     } & {
-        id: string;
         status: import(".prisma/client").$Enums.PaymentStatus;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         accountId: string;
@@ -55,8 +55,8 @@ export declare class PaymentsController {
         method: string;
     }, req: any): Promise<{
         payment: {
-            id: string;
             status: import(".prisma/client").$Enums.PaymentStatus;
+            id: string;
             createdAt: Date;
             updatedAt: Date;
             accountId: string;
@@ -69,8 +69,8 @@ export declare class PaymentsController {
             paidAt: Date | null;
         };
         subscription: {
-            id: string;
             status: import(".prisma/client").$Enums.SubscriptionStatus;
+            id: string;
             createdAt: Date;
             updatedAt: Date;
             accountId: string;

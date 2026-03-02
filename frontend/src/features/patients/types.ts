@@ -1,31 +1,55 @@
-import { Metric } from '@/features/consultations';
-
 export interface Patient {
-    id: string;
-    name: string;
-    email: string;
-    birthDate: string;
-    gender: 'M' | 'F' | 'Other';
-    contactInfo: string;
-    status: 'Active' | 'Inactive';
-    lastVisit?: string;
-    // Chronobiology
-    wakeUpTime?: string;
-    sleepTime?: string;
-    // Nutrition & Restrictions
-    dietaryRestrictions?: string[];
-    mealCount?: number;
-    tastes?: string[];
-    dislikes?: string[];
-    // Physical Parameters
-    weight?: number;
-    height?: number;
-    age?: number;
-    targetProtein?: number;
-    targetCalories?: number;
-    fitnessGoals?: string[];
-    // Optional initial consultation
-    initialConsultationTitle?: string;
-    initialConsultationDescription?: string;
-    initialConsultationMetrics?: Metric[];
+  id: string;
+  nutritionistId: string;
+  fullName: string;
+  email?: string;
+  phone?: string;
+  documentId?: string;
+  birthDate?: string;
+  gender?: string;
+  height?: number;
+  weight?: number;
+  dietRestrictions?: string[]; // Stored as Json array in backend
+  tags?: string[];
+  customVariables?: { key: string; label: string; unit: string }[];
+  exams?: PatientExam[];
+  createdAt: string;
+  updatedAt: string;
+  clinicalSummary?: string;
+  nutritionalFocus?: string;
+  fitnessGoals?: string;
+
+  // UI specific/Legacy fields
+  status?: "Active" | "Inactive";
+  lastVisit?: string;
+}
+
+export interface ExamResultValue {
+  value: number;
+  unit: string;
+}
+
+export interface PatientExam {
+  id: string;
+  patientId: string;
+  name: string;
+  date: string;
+  laboratory?: string;
+  fileUrl?: string;
+  notes?: string;
+  results?: Record<string, ExamResultValue>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PatientsResponse {
+  data: Patient[];
+  meta: {
+    total: number;
+    filteredTotal: number;
+    activeCount: number;
+    inactiveCount: number;
+    page: number;
+    lastPage: number;
+  };
 }

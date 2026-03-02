@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export function DishesClient() {
-    const router = useRouter();
+  const router = useRouter();
 
-    useEffect(() => {
-        router.replace('/dashboard/alimentos');
-    }, [router]);
+  useEffect(() => {
+    router.replace("/dashboard/alimentos");
+  }, [router]);
 
-    return null;
+  return null;
 }
