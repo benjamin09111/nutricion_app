@@ -21,6 +21,7 @@ import {
     Phone,
     Hash,
     Tags,
+    Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -95,6 +96,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const [patientForm, setPatientForm] = useState({
         nutritionalFocus: "",
         fitnessGoals: "",
+        likes: "",
         clinicalSummary: "",
         dietRestrictions: [] as string[],
         tags: [] as string[],
@@ -132,6 +134,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
             setPatientForm({
                 nutritionalFocus: "",
                 fitnessGoals: "",
+                likes: "",
                 clinicalSummary: "",
                 dietRestrictions: [],
                 tags: [],
@@ -170,6 +173,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                 setPatientForm({
                     nutritionalFocus: data.nutritionalFocus || "",
                     fitnessGoals: data.fitnessGoals || "",
+                    likes: data.likes || "",
                     clinicalSummary: data.clinicalSummary || "",
                     dietRestrictions: data.dietRestrictions || [],
                     tags: data.tags || [],
@@ -511,6 +515,20 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                     placeholder="Ej: Correr 10k, mejorar fuerza..."
                                     value={patientForm.fitnessGoals}
                                     onChange={(e) => setPatientForm({ ...patientForm, fitnessGoals: e.target.value })}
+                                />
+                            </div>
+
+                            {/* Likes (Gustos) */}
+                            <div className="space-y-4">
+                                <h4 className="flex items-center gap-3 font-black text-slate-900 text-[10px] uppercase tracking-widest">
+                                    <Heart className="w-4 h-4 text-rose-500" />
+                                    Gustos y Preferencias
+                                </h4>
+                                <textarea
+                                    className="w-full h-32 rounded-2xl bg-slate-50 border-none p-4 font-medium text-slate-700 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all resize-none text-sm"
+                                    placeholder="Ej: No le gusta el brócoli, ama el chocolate, prefiere desayunos dulces..."
+                                    value={patientForm.likes}
+                                    onChange={(e) => setPatientForm({ ...patientForm, likes: e.target.value })}
                                 />
                             </div>
 
