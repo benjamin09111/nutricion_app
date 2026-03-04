@@ -56,6 +56,10 @@ export class CreatePatientDto {
     fitnessGoals?: string;
 
     @IsOptional()
+    @IsString()
+    likes?: string;
+
+    @IsOptional()
     @IsArray()
     @IsString({ each: true })
     tags?: string[];

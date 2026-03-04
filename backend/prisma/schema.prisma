@@ -97,6 +97,7 @@ model Patient {
   clinicalSummary String?     @db.Text
   nutritionalFocus String?    @map("nutritional_focus")
   fitnessGoals   String?      @map("fitness_goals")
+  likes          String?      @db.Text
   tags           String[]     @default([])
   customVariables Json?        @map("custom_variables") @default("[]")
   createdAt      DateTime     @default(now())
@@ -537,6 +538,7 @@ model Resource {
   category       String       // 'mitos', 'consejos', 'ejercicios', 'habitos', 'emocional', etc.
   tags           String[]     @default([]) // For auto-mapping to patient conditions
   images         Json?        @default("[]") // Array of image URLs
+  sources        String?      @db.Text
   isPublic       Boolean      @default(false) @map("is_public")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt

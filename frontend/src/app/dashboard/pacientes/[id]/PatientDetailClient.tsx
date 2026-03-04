@@ -30,6 +30,7 @@ import {
   Lock,
   Globe,
   Hash,
+  Heart,
 } from "lucide-react";
 import { DEFAULT_METRICS } from "@/lib/constants";
 import {
@@ -944,6 +945,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         clinicalSummary: editForm.clinicalSummary || undefined,
         nutritionalFocus: editForm.nutritionalFocus || undefined,
         fitnessGoals: editForm.fitnessGoals || undefined,
+        likes: editForm.likes || undefined,
         customVariables: editForm.customVariables || undefined,
       };
 
@@ -1539,6 +1541,45 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                     ) : (
                       <p className="text-xs font-semibold text-slate-400 text-center" >
                         No se han definido objetivos aún.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Likes (Gustos) */}
+            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-8" >
+              <div className="flex items-center justify-between" >
+                <div className="flex items-center gap-4 text-emerald-600" >
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center" >
+                    <Heart className="w-6 h-6 text-emerald-500" />
+                  </div>
+                  <h4 className="text-lg font-semibold tracking-tight" >
+                    Gustos y Preferencias
+                  </h4>
+                </div>
+              </div>
+
+              <div className="space-y-4" >
+                {isEditing ? (
+                  <textarea
+                    value={editForm.likes || ""}
+                    onChange={(e) =>
+                      updateField("likes", e.target.value)
+                    }
+                    className="w-full h-24 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
+                    placeholder="Ej. Prefiere comida casera, no le gusta el sabor a stevia..."
+                  />
+                ) : (
+                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100" >
+                    {patient.likes ? (
+                      <p className="text-sm font-semibold text-slate-600 leading-relaxed text-center" >
+                        {patient.likes}
+                      </p>
+                    ) : (
+                      <p className="text-xs font-semibold text-slate-400 text-center" >
+                        No hay preferencias registradas.
                       </p>
                     )}
                   </div>

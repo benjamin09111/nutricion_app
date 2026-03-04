@@ -11,6 +11,7 @@ import {
   AlertCircle,
   ChevronRight,
   Activity,
+  Heart,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -81,6 +82,7 @@ export default function CreatePatientClient() {
         clinicalSummary: draft.clinicalSummary || undefined,
         nutritionalFocus: draft.nutritionalFocus || undefined,
         fitnessGoals: draft.fitnessGoals || undefined,
+        likes: draft.likes || undefined,
         customVariables: draft.customVariables || [],
       };
 
@@ -300,6 +302,18 @@ export default function CreatePatientClient() {
                 className="h-11 rounded-xl bg-white border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-blue-50 focus:border-blue-300 focus:ring-2 focus:ring-blue-500/20 transition-all"
                 value={draft.fitnessGoals || ""}
                 onChange={(e) => updateDraft({ fitnessGoals: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-xs font-semibold text-slate-500 ml-1">
+                Gustos y Preferencias Personalizadas
+              </label>
+              <textarea
+                className="w-full h-28 rounded-xl bg-white border border-slate-200 p-4 text-sm font-medium text-slate-700 focus:bg-rose-50/30 focus:border-rose-300 focus:ring-2 focus:ring-rose-500/10 transition-all resize-none"
+                placeholder="Ej. No le gusta el brócoli, ama el chocolate, prefiere desayunos dulces..."
+                value={draft.likes || ""}
+                onChange={(e) => updateDraft({ likes: e.target.value })}
               />
             </div>
           </div>
