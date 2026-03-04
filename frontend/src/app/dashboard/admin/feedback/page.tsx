@@ -19,18 +19,19 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
 interface Feedback {
   id: string;
   email: string;
   message: string;
   type:
-    | "PASSWORD_RESET"
-    | "CONTACT"
-    | "OTHER"
-    | "FEEDBACK"
-    | "COMPLAINT"
-    | "IDEA";
+  | "PASSWORD_RESET"
+  | "CONTACT"
+  | "OTHER"
+  | "FEEDBACK"
+  | "COMPLAINT"
+  | "IDEA";
   status: "PENDING" | "IN_PROGRESS" | "RESOLVED";
   createdAt: string;
   updatedAt: string;
@@ -42,6 +43,8 @@ export default function AdminFeedbackPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>("ALL");
   const [searchTerm, setSearchTerm] = useState("");
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [feedbackToDelete, setFeedbackToDelete] = useState<string | null>(null);
 
   const fetchFeedback = async () => {
     setIsLoading(true);
@@ -97,12 +100,12 @@ export default function AdminFeedbackPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("¿Estás seguro de eliminar este mensaje?")) return;
+  const handleDelete = async () => {
+    if (!feedbackToDelete) return;
     try {
       const token = localStorage.getItem("auth_token");
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/support/${id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/support/${feedbackToDelete}`,
         {
           method: "DELETE",
           headers: {
@@ -115,10 +118,13 @@ export default function AdminFeedbackPage() {
 
       toast.success("Feedback eliminado");
       // Remove from state immediately to feel snappy
-      setFeedbackList((prev) => prev.filter((item) => item.id !== id));
+      setFeedbackList((prev) => prev.filter((item) => item.id !== feedbackToDelete));
     } catch (error) {
       console.error(error);
       toast.error("Error al eliminar");
+    } finally {
+      setIsDeleteConfirmOpen(false);
+      setFeedbackToDelete(null);
     }
   };
 
@@ -256,9 +262,8 @@ export default function AdminFeedbackPage() {
                 <div className="flex flex-col sm:flex-row gap-4 items-start justify-between">
                   <div className="flex gap-4 w-full">
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 mt-1 ${
-                        getTypeColor(item.type).split(" ")[0]
-                      }`}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 mt-1 ${getTypeColor(item.type).split(" ")[0]
+                        }`}
                     >
                       {getTypeIcon(item.type)}
                     </div>
@@ -315,7 +320,10 @@ export default function AdminFeedbackPage() {
                     )}
 
                     <button
-                      onClick={() => handleDelete(item.id)}
+                      onClick={() => {
+                        setFeedbackToDelete(item.id);
+                        setIsDeleteConfirmOpen(true);
+                      }}
                       className="text-xs font-medium bg-white border border-slate-200 text-rose-600 px-3 py-1.5 rounded-lg hover:bg-rose-50 hover:border-rose-200 transition-all shadow-sm flex items-center gap-1"
                       title="Eliminar permanentemente"
                     >
@@ -329,6 +337,19 @@ export default function AdminFeedbackPage() {
           </div>
         )}
       </div>
+
+      <ConfirmationModal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => {
+          setIsDeleteConfirmOpen(false);
+          setFeedbackToDelete(null);
+        }}
+        onConfirm={handleDelete}
+        title="¿Eliminar feedback?"
+        description="¿Estás seguro de eliminar este mensaje? Esta acción no se puede deshacer."
+        confirmText="Sí, eliminar"
+        variant="destructive"
+      />
     </div>
   );
 }

@@ -29,6 +29,8 @@ import {
   BookOpen,
   Search,
   AlertCircle,
+  FileUp,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -523,16 +525,18 @@ export default function CartClient() {
       {
         id: "link-patient",
         icon: User,
-        label: "Importar Paciente",
+        label: selectedPatient ? "Cambiar Paciente" : "Asignar Paciente",
         variant: "emerald",
-        onClick: () =>
-          toast.info("Módulo de importación de pacientes próximamente..."),
+        onClick: () => {
+          setIsImportPatientModalOpen(true);
+          fetchPatients();
+        },
       },
       {
         id: "sep-1",
         icon: Library,
         label: "",
-        onClick: () => {},
+        onClick: () => { },
         isSeparator: true,
       },
       {
@@ -549,7 +553,7 @@ export default function CartClient() {
         id: "sep-2",
         icon: Library,
         label: "",
-        onClick: () => {},
+        onClick: () => { },
         isSeparator: true,
       },
       {
@@ -570,6 +574,20 @@ export default function CartClient() {
         onClick: printJson,
       },
       {
+        id: "export-pdf",
+        icon: Download,
+        label: "Exportar PDF",
+        variant: "slate",
+        onClick: () => toast.info("Generación de PDF disponible en la etapa final."),
+      },
+      {
+        id: "upload-pdf",
+        icon: FileUp,
+        label: "Subir PDF",
+        variant: "slate",
+        onClick: () => toast.info("Módulo de escaneo de PDF próximamente... 📄"),
+      },
+      {
         id: "reset",
         icon: RotateCcw,
         label: "Reiniciar Todo",
@@ -577,7 +595,7 @@ export default function CartClient() {
         onClick: clearCart,
       },
     ],
-    [saveCartToStorage, printJson, clearCart],
+    [saveCartToStorage, printJson, clearCart, selectedPatient],
   );
 
   return (
@@ -590,6 +608,7 @@ export default function CartClient() {
         icon: ShoppingCart,
         color: "text-indigo-600",
       }}
+      rightNavItems={actionDockItems}
       footer={
         <ModuleFooter>
           <div className="flex items-center gap-8">
@@ -656,16 +675,6 @@ export default function CartClient() {
           </div>
 
           <div className="flex gap-4">
-            <Button
-              variant="ghost"
-              className="h-12 text-emerald-600 font-black gap-2 hover:bg-emerald-50 border-2 border-transparent hover:border-emerald-100 rounded-xl"
-              onClick={handlePatientLoad}
-            >
-              <UserPlus className="h-5 w-5" />
-              {selectedPatient
-                ? selectedPatient.fullName || selectedPatient.name
-                : "Asignar a un paciente"}
-            </Button>
             <Button
               className="h-12 px-8 bg-slate-900"
               onClick={() => saveCartToStorage()}
@@ -895,24 +904,24 @@ export default function CartClient() {
                                     item.grupo.toLowerCase().includes("verdura")
                                     ? "bg-amber-50 text-amber-700 border-amber-100"
                                     : item.grupo
-                                          .toLowerCase()
-                                          .includes("carne") ||
-                                        item.grupo
-                                          .toLowerCase()
-                                          .includes("huevo") ||
-                                        item.grupo
-                                          .toLowerCase()
-                                          .includes("pescado")
+                                      .toLowerCase()
+                                      .includes("carne") ||
+                                      item.grupo
+                                        .toLowerCase()
+                                        .includes("huevo") ||
+                                      item.grupo
+                                        .toLowerCase()
+                                        .includes("pescado")
                                       ? "bg-emerald-50 text-emerald-700 border-emerald-100"
                                       : item.grupo
-                                            .toLowerCase()
-                                            .includes("grasa") ||
-                                          item.grupo
-                                            .toLowerCase()
-                                            .includes("aceite") ||
-                                          item.grupo
-                                            .toLowerCase()
-                                            .includes("frutos secos")
+                                        .toLowerCase()
+                                        .includes("grasa") ||
+                                        item.grupo
+                                          .toLowerCase()
+                                          .includes("aceite") ||
+                                        item.grupo
+                                          .toLowerCase()
+                                          .includes("frutos secos")
                                         ? "bg-rose-50 text-rose-700 border-rose-100"
                                         : "bg-indigo-50 text-indigo-700 border-indigo-100",
                                 )}
@@ -1041,11 +1050,11 @@ export default function CartClient() {
                       "h-full transition-all duration-1000",
                       totals.protein >=
                         (selectedPatient?.targetProtein || 160) *
-                          (timeView === "dia"
-                            ? 1
-                            : timeView === "semana"
-                              ? 7
-                              : 30)
+                        (timeView === "dia"
+                          ? 1
+                          : timeView === "semana"
+                            ? 7
+                            : 30)
                         ? "bg-emerald-500"
                         : "bg-amber-500",
                     )}
@@ -1073,11 +1082,11 @@ export default function CartClient() {
                       "h-full transition-all duration-1000",
                       totals.carbs >=
                         (selectedPatient?.targetCarbs || 300) *
-                          (timeView === "dia"
-                            ? 1
-                            : timeView === "semana"
-                              ? 7
-                              : 30)
+                        (timeView === "dia"
+                          ? 1
+                          : timeView === "semana"
+                            ? 7
+                            : 30)
                         ? "bg-blue-500"
                         : "bg-blue-300",
                     )}
@@ -1105,11 +1114,11 @@ export default function CartClient() {
                       "h-full transition-all duration-1000",
                       totals.fats >=
                         (selectedPatient?.targetFats || 80) *
-                          (timeView === "dia"
-                            ? 1
-                            : timeView === "semana"
-                              ? 7
-                              : 30)
+                        (timeView === "dia"
+                          ? 1
+                          : timeView === "semana"
+                            ? 7
+                            : 30)
                         ? "bg-purple-500"
                         : "bg-purple-300",
                     )}

@@ -5,7 +5,7 @@ import {
   FileText, Plus, Search, Filter, Pencil, Trash2, CheckCircle2,
   Sparkles, Brain, Activity, Lightbulb, HelpCircle, X, Save,
   Layout, ExternalLink, ChevronDown, MoreVertical, Upload, Globe,
-  User as UserIcon, Loader2, Image as ImageIcon, Bold, Italic, Palette, Copy
+  User as UserIcon, Loader2, Image as ImageIcon, Bold, Italic, Palette, Copy, Hash
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -15,48 +15,94 @@ import { cn } from "@/lib/utils";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { useAdmin } from "@/context/AdminContext";
 import { TagInput } from "@/components/ui/TagInput";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import Cookies from "js-cookie";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 
+import { Modal } from "@/components/ui/Modal";
 const CONSTRAINT_IDS = DEFAULT_CONSTRAINTS.map(c => c.id);
 
-const RichEditor = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
+const RichEditor = ({ value, onChange, placeholder }: { value: string, onChange: (val: string) => void, placeholder?: string }) => {
+  const [activeTab, setActiveTab] = useState<"write" | "preview">("write");
   const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (editorRef.current && value !== editorRef.current.innerHTML) {
+    if (editorRef.current && value !== editorRef.current.innerHTML && document.activeElement !== editorRef.current) {
       editorRef.current.innerHTML = value || "";
     }
-  }, [value]);
+  }, [value, activeTab]);
 
-  const execCmd = (command: string, arg?: string) => {
-    document.execCommand(command, false, arg);
+  const handleInput = () => {
     if (editorRef.current) {
-      editorRef.current.focus();
       onChange(editorRef.current.innerHTML);
     }
   };
 
+  const formatDoc = (cmd: string, val: string = "") => {
+    document.execCommand(cmd, false, val);
+    handleInput();
+  };
+
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white focus-within:ring-2 focus-within:ring-emerald-500 transition-all">
-      <div className="flex flex-wrap items-center gap-1 p-2 border-b border-slate-100 bg-slate-50">
-        <button type="button" onClick={() => execCmd('bold')} className="p-1.5 hover:bg-slate-200 rounded text-slate-700 cursor-pointer" title="Negrita"><Bold className="w-4 h-4" /></button>
-        <button type="button" onClick={() => execCmd('italic')} className="p-1.5 hover:bg-slate-200 rounded text-slate-700 cursor-pointer" title="Cursiva"><Italic className="w-4 h-4" /></button>
-        <div className="w-px h-5 bg-slate-300 mx-1" />
-        <div className="flex items-center gap-1">
-          <Palette className="w-4 h-4 text-slate-400 mx-1" />
-          {["#0f172a", "#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899"].map(color => (
-            <button type="button" key={color} onClick={() => execCmd('foreColor', color)} className="w-5 h-5 rounded-full border border-black/10 hover:scale-110 transition-transform cursor-pointer" style={{ backgroundColor: color }} />
-          ))}
+    <div className="border border-slate-200 rounded-4xl overflow-hidden shadow-xl shadow-slate-200/50 bg-white focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all border-slate-100 flex flex-col">
+      <div className="flex items-center justify-between p-2 border-b border-slate-100 bg-slate-50/80 backdrop-blur-md">
+        <div className="flex p-1 bg-slate-200/50 rounded-2xl">
+          <button
+            type="button"
+            onClick={() => setActiveTab("write")}
+            className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", activeTab === "write" ? "bg-white text-emerald-600 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+          >
+            Editar
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("preview")}
+            className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", activeTab === "preview" ? "bg-white text-emerald-600 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+          >
+            Vista Previa
+          </button>
         </div>
+
+        {activeTab === "write" && (
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={() => formatDoc('bold')} className="p-2 hover:bg-white hover:shadow-sm rounded-xl text-slate-600 transition-all cursor-pointer group" title="Negrita"><Bold className="w-4 h-4 group-hover:scale-110 transition-transform" /></button>
+            <button type="button" onClick={() => formatDoc('italic')} className="p-2 hover:bg-white hover:shadow-sm rounded-xl text-slate-600 transition-all cursor-pointer group" title="Cursiva"><Italic className="w-4 h-4 group-hover:scale-110 transition-transform" /></button>
+            <div className="w-px h-4 bg-slate-200 mx-1" />
+            <button type="button" onClick={() => formatDoc('insertUnorderedList')} className="p-2 hover:bg-white hover:shadow-sm rounded-xl text-slate-600 transition-all cursor-pointer group" title="Lista"><Layout className="w-4 h-4 group-hover:scale-110 transition-transform" /></button>
+            <div className="w-px h-4 bg-slate-200 mx-1" />
+            <div className="flex items-center">
+              <span className="text-[10px] font-bold text-slate-400 mr-2 uppercase tracking-widest">Color</span>
+              <div className="flex gap-1.5">
+                {["#0f172a", "#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899"].map(c => (
+                  <button key={c} type="button" onClick={() => formatDoc('foreColor', c)} className="w-[14px] h-[14px] rounded-full shadow-sm hover:scale-125 transition-transform border border-slate-200 cursor-pointer" style={{ backgroundColor: c }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-      <div
-        ref={editorRef}
-        contentEditable
-        className="w-full min-h-[300px] p-4 outline-none text-slate-700 text-[15px] leading-relaxed"
-        onInput={(e) => onChange(e.currentTarget.innerHTML)}
-        onBlur={(e) => onChange(e.currentTarget.innerHTML)}
-      />
+
+      {activeTab === "write" ? (
+        <div
+          ref={editorRef}
+          contentEditable
+          data-text={placeholder || "Escribe el contenido del recurso aquí..."}
+          onInput={handleInput}
+          onBlur={handleInput}
+          className="w-full min-h-[400px] p-8 outline-none text-slate-700 text-[15px] leading-relaxed bg-transparent font-medium empty:before:content-[attr(data-text)] empty:before:text-slate-400 empty:before:italic"
+        />
+      ) : (
+        <div
+          className="w-full min-h-[400px] p-8 text-slate-700 text-[15px] leading-relaxed overflow-y-auto bg-slate-50/30 prose prose-slate max-w-none prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg"
+          dangerouslySetInnerHTML={{ __html: value || '<p class="text-slate-400 italic">Nada que previsualizar aún...</p>' }}
+        />
+      )}
+
+      <div className="px-6 py-2 border-t border-slate-50 bg-slate-50/30">
+        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+          Editor Visual
+        </p>
+      </div>
     </div>
   );
 };
@@ -105,6 +151,11 @@ export function ResourcesClient() {
   // Tabs: 'library' | 'create'
   const [activeTab, setActiveTab] = useState<"library" | "create">("library");
 
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [resourceToDelete, setResourceToDelete] = useState<string | null>(null);
+
+  const [resourceToView, setResourceToView] = useState<Resource | null>(null);
+
   const DEFAULT_CONSTRAINTS = ["Diabético", "Hipertensión", "Vegetariano", "Celiaco", "Sin Gluten"];
 
   // Upload state
@@ -124,7 +175,6 @@ export function ResourcesClient() {
   });
 
   // Repositorio mixto antiguo-nuevo
-  const [isRawMode, setIsRawMode] = useState(false);
   const [rawContent, setRawContent] = useState("");
 
   const DEFAULT_SYSTEM_RESOURCES: Resource[] = [
@@ -255,7 +305,6 @@ export function ResourcesClient() {
       content: resource.content || "",
     });
 
-    setIsRawMode(true);
     setActiveTab("create");
   };
 
@@ -271,7 +320,6 @@ export function ResourcesClient() {
       content: resource.content || "",
     });
 
-    setIsRawMode(true);
     setActiveTab("create");
     toast.info("Recurso copiado. Puedes editarlo y guardarlo en tus Creaciones.");
   };
@@ -287,7 +335,6 @@ export function ResourcesClient() {
       isPublic: false,
       content: "",
     });
-    setIsRawMode(false);
   };
 
   const handleSave = async () => {
@@ -325,12 +372,17 @@ export function ResourcesClient() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("¿Estás seguro de que quieres eliminar este recurso?")) return;
+  const confirmDelete = (id: string) => {
+    setResourceToDelete(id);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!resourceToDelete) return;
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/resources/${id}`, {
+      const response = await fetch(`${apiUrl}/resources/${resourceToDelete}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -340,6 +392,9 @@ export function ResourcesClient() {
       }
     } catch (error) {
       toast.error("Error al eliminar el recurso");
+    } finally {
+      setIsDeleteConfirmOpen(false);
+      setResourceToDelete(null);
     }
   };
 
@@ -349,13 +404,13 @@ export function ResourcesClient() {
   const filteredLibraryResources = useMemo(() => {
     let list = filteredResources;
     if (viewFilter === "system") {
-      list = list.filter(r => !r.isMine || r.isPublic);
+      list = list.filter((r: Resource) => !r.isMine || r.isPublic);
     } else {
-      list = list.filter(r => r.isMine);
+      list = list.filter((r: Resource) => r.isMine);
     }
 
     // Sort logic: Global (system) resources first, then by date descending
-    return list.sort((a, b) => {
+    return list.sort((a: Resource, b: Resource) => {
       const aIsGlobal = a.nutritionistId === null;
       const bIsGlobal = b.nutritionistId === null;
 
@@ -389,6 +444,49 @@ export function ResourcesClient() {
         },
       ]}
     >
+      <Modal
+        isOpen={!!resourceToView}
+        onClose={() => setResourceToView(null)}
+        title={resourceToView ? resourceToView.title : ""}
+      >
+        <div className="p-8 pb-12">
+          {resourceToView?.tags && resourceToView.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {resourceToView.tags.map((tag) => (
+                <span key={tag} className="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 flex items-center px-2 py-1 rounded-md">
+                  <Hash className="w-3 h-3 mr-1 text-slate-400" />
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div
+            className="prose prose-slate max-w-none prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg text-slate-700 leading-relaxed custom-formatting"
+            dangerouslySetInnerHTML={{ __html: resourceToView?.content || "" }}
+          />
+
+          <style dangerouslySetInnerHTML={{
+            __html: `
+            .custom-formatting font { font-size: inherit; }
+            .custom-formatting h1, .custom-formatting h2, .custom-formatting h3 { font-weight: 900; color: #0f172a; margin-bottom: 1rem; margin-top: 2rem; }
+            .custom-formatting ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
+            .custom-formatting li { margin-bottom: 0.25rem; }
+            .custom-formatting ol { list-style-type: decimal; margin-left: 1.5rem; margin-bottom: 1rem; }
+          `}} />
+        </div>
+      </Modal>
+
+      <ConfirmationModal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="¿Eliminar recurso?"
+        description="¿Estás seguro de que deseas eliminar este recurso? Esta acción no se puede deshacer y retirará el contenido de la biblioteca."
+        confirmText="Sí, eliminar"
+        variant="destructive"
+      />
+
       <div className="mt-6 flex border-b border-slate-200 mb-6 px-4">
         <button
           onClick={() => setActiveTab("library")}
@@ -492,7 +590,7 @@ export function ResourcesClient() {
                                     {isMine ? (
                                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button onClick={() => handleEdit(resource)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer" title="Editar"><Pencil className="h-4 w-4" /></button>
-                                        <button onClick={() => handleDelete(resource.id)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-rose-600 transition-colors cursor-pointer" title="Eliminar"><Trash2 className="h-4 w-4" /></button>
+                                        <button onClick={() => confirmDelete(resource.id)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-rose-600 transition-colors cursor-pointer" title="Eliminar"><Trash2 className="h-4 w-4" /></button>
                                       </div>
                                     ) : (
                                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -511,7 +609,7 @@ export function ResourcesClient() {
                                 </div>
                               </div>
                               <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-50 flex items-center justify-between mt-auto">
-                                <button onClick={() => handleEdit(resource)} className="cursor-pointer text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1 hover:underline">Ver Recurso Completo <ExternalLink className="h-3 w-3" /></button>
+                                <button onClick={() => setResourceToView(resource)} className="cursor-pointer text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1 hover:underline">Ver Recurso Completo <ExternalLink className="h-3 w-3" /></button>
                               </div>
                             </div>
                           );
@@ -640,29 +738,12 @@ export function ResourcesClient() {
               />
             </div>
 
-            <div className="space-y-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contenido Educativo</label>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setIsRawMode(!isRawMode)} className="text-[10px] font-bold text-blue-500 hover:text-blue-700 uppercase tracking-widest bg-blue-50 px-2 py-1 rounded">
-                    Modo actual: {isRawMode ? "Markdown/Plano" : "Constructor Visual"}
-                  </button>
-                </div>
-              </div>
-
-              {isRawMode ? (
-                <textarea
-                  className="w-full min-h-[300px] rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all outline-none resize-none leading-relaxed shadow-sm"
-                  placeholder="Puedes escribir en Markdown o pegar el contenido crudo aquí..."
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                />
-              ) : (
-                <RichEditor
-                  value={formData.content}
-                  onChange={(val) => setFormData({ ...formData, content: val })}
-                />
-              )}
+            <div className="space-y-4">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Contenido Educativo</label>
+              <RichEditor
+                value={formData.content}
+                onChange={(val) => setFormData({ ...formData, content: val })}
+              />
             </div>
 
             <div className="flex items-center gap-3 py-4 border-t border-slate-100">

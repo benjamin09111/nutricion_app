@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -122,6 +123,7 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
             size: "N/A",
             format: item.format === "NATIVE" ? "JSON" : "PDF",
             tags: item.tags || [],
+            isPublic: item.isPublic || false,
           }));
           setLocalCreations(mappedData);
         }
@@ -243,6 +245,38 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
     } finally {
       setIsDeleteModalOpen(false);
       setItemToDelete(null);
+    }
+  };
+  const handleShareToggle = async (creation: Creation) => {
+    const newStatus = !creation.isPublic;
+
+    try {
+      const token = Cookies.get("auth_token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
+
+      const response = await fetch(`${apiUrl}/creations/${creation.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ isPublic: newStatus })
+      });
+
+      if (response.ok) {
+        setLocalCreations(prev => prev.map(c =>
+          c.id === creation.id ? { ...c, isPublic: newStatus } : c
+        ));
+        toast.success(newStatus
+          ? "Creación compartida con la comunidad"
+          : "La creación ahora es privada"
+        );
+      } else {
+        toast.error("No se pudo actualizar el estado de la creación");
+      }
+    } catch (error) {
+      console.error("Error toggling share status:", error);
+      toast.error("Error al conectar con el servidor");
     }
   };
 
@@ -443,6 +477,18 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                           title="Descargar / Exportar"
                         >
                           <Download className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleShareToggle(item)}
+                          className={cn(
+                            "p-2 rounded-xl transition-all cursor-pointer",
+                            item.isPublic
+                              ? "text-emerald-600 bg-emerald-50"
+                              : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                          )}
+                          title={item.isPublic ? "Dejar de compartir" : "Compartir con la comunidad"}
+                        >
+                          <Share2 className="h-4 w-4" />
                         </button>
                         <div className="w-px h-4 bg-slate-200 mx-1" />
                         <button

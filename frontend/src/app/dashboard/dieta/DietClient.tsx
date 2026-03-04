@@ -32,6 +32,8 @@ import {
   UserPlus,
   RotateCcw,
   FileCode,
+  FileUp,
+  Download,
 } from "lucide-react";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
@@ -61,7 +63,7 @@ const getUserDraftKey = () => {
       const user = JSON.parse(userStr);
       if (user && user.id) return `nutrisaas_diet_draft_${user.id}`;
     }
-  } catch (e) {}
+  } catch (e) { }
   return "nutrisaas_diet_draft";
 };
 
@@ -1338,7 +1340,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         id: "sep-1",
         icon: Library,
         label: "",
-        onClick: () => {},
+        onClick: () => { },
         isSeparator: true,
       },
       {
@@ -1355,7 +1357,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         id: "sep-2",
         icon: Library,
         label: "",
-        onClick: () => {},
+        onClick: () => { },
         isSeparator: true,
       },
       {
@@ -1373,6 +1375,20 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         onClick: printJson,
       },
       {
+        id: "export-pdf",
+        icon: Download,
+        label: "Exportar PDF",
+        variant: "slate",
+        onClick: () => toast.info("Generación de PDF disponible en la etapa final."),
+      },
+      {
+        id: "upload-pdf",
+        icon: FileUp,
+        label: "Subir PDF",
+        variant: "slate",
+        onClick: () => toast.info("Módulo de escaneo de PDF próximamente... 📄"),
+      },
+      {
         id: "reset",
         icon: RotateCcw,
         label: "Reiniciar Todo",
@@ -1380,7 +1396,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         onClick: resetDiet,
       },
     ],
-    [saveAsDraft, printJson, resetDiet],
+    [saveAsDraft, printJson, resetDiet, selectedPatient],
   );
 
   return (
@@ -1393,6 +1409,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         icon: GraduationCap,
         color: "text-emerald-600",
       }}
+      rightNavItems={actionDockItems}
       footer={
         <ModuleFooter>
           <Button
@@ -1407,19 +1424,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           </Button>
 
           <div className="flex gap-3">
-            <Button
-              variant="ghost"
-              className="h-12 text-emerald-600 font-black gap-2 hover:bg-emerald-50 border-2 border-transparent hover:border-emerald-100 rounded-xl"
-              onClick={() => {
-                setIsImportPatientModalOpen(true);
-                fetchPatients();
-              }}
-            >
-              <UserPlus className="h-5 w-5" />
-              {selectedPatient
-                ? selectedPatient.fullName || selectedPatient.name
-                : "Asignar a un paciente"}
-            </Button>
             <Button className="h-12 px-8 bg-slate-900" onClick={handleSave}>
               Guardar Creación
             </Button>
@@ -1660,7 +1664,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                               className={cn(
                                 "h-3 w-3",
                                 foodStatus[food.producto] === "favorite" &&
-                                  "fill-current",
+                                "fill-current",
                               )}
                             />
                             {foodStatus[food.producto] === "favorite" &&
@@ -2365,44 +2369,44 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               {((selectedFoodForInfo as any).azucares > 0 ||
                 (selectedFoodForInfo as any).fibra > 0 ||
                 (selectedFoodForInfo as any).sodio > 0) && (
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
-                    Información Adicional
-                  </h3>
-                  <div className="space-y-2">
-                    {(selectedFoodForInfo as any).azucares > 0 && (
-                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                        <span className="text-sm font-bold text-slate-700">
-                          Azúcares
-                        </span>
-                        <span className="text-sm font-black text-slate-900">
-                          {(selectedFoodForInfo as any).azucares}g
-                        </span>
-                      </div>
-                    )}
-                    {(selectedFoodForInfo as any).fibra > 0 && (
-                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                        <span className="text-sm font-bold text-slate-700">
-                          Fibra
-                        </span>
-                        <span className="text-sm font-black text-slate-900">
-                          {(selectedFoodForInfo as any).fibra}g
-                        </span>
-                      </div>
-                    )}
-                    {(selectedFoodForInfo as any).sodio > 0 && (
-                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                        <span className="text-sm font-bold text-slate-700">
-                          Sodio
-                        </span>
-                        <span className="text-sm font-black text-slate-900">
-                          {(selectedFoodForInfo as any).sodio}mg
-                        </span>
-                      </div>
-                    )}
+                  <div>
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+                      Información Adicional
+                    </h3>
+                    <div className="space-y-2">
+                      {(selectedFoodForInfo as any).azucares > 0 && (
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                          <span className="text-sm font-bold text-slate-700">
+                            Azúcares
+                          </span>
+                          <span className="text-sm font-black text-slate-900">
+                            {(selectedFoodForInfo as any).azucares}g
+                          </span>
+                        </div>
+                      )}
+                      {(selectedFoodForInfo as any).fibra > 0 && (
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                          <span className="text-sm font-bold text-slate-700">
+                            Fibra
+                          </span>
+                          <span className="text-sm font-black text-slate-900">
+                            {(selectedFoodForInfo as any).fibra}g
+                          </span>
+                        </div>
+                      )}
+                      {(selectedFoodForInfo as any).sodio > 0 && (
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                          <span className="text-sm font-bold text-slate-700">
+                            Sodio
+                          </span>
+                          <span className="text-sm font-black text-slate-900">
+                            {(selectedFoodForInfo as any).sodio}mg
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Porción */}
               <div>

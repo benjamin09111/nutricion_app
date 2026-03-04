@@ -579,10 +579,10 @@ export default function FitnessClient() {
               <div className="space-y-3">
                 {(patient?.fitnessGoals
                   ? [
-                      "Bajar 5kg de grasa corporal",
-                      "Aumentar masa muscular",
-                      "Mejorar resistencia",
-                    ]
+                    "Bajar 5kg de grasa corporal",
+                    "Aumentar masa muscular",
+                    "Mejorar resistencia",
+                  ]
                   : ["No hay metas definidas."]
                 ).map((goal, i) => (
                   <div
@@ -632,13 +632,13 @@ export default function FitnessClient() {
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
-              onClick={() => router.push("/dashboard/entregable")}
+              onClick={() => router.push("/dashboard/entregable?flow=continue")}
               className="h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-widest border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all"
             >
               Saltar esta etapa
             </Button>
             <Button
-              onClick={() => router.push("/dashboard/entregable")}
+              onClick={() => router.push("/dashboard/entregable?flow=continue")}
               className="h-14 px-10 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-2xl shadow-2xl shadow-slate-200 transition-all hover:scale-[1.02] flex items-center gap-3"
             >
               CONTINUAR AL ENTREGABLE

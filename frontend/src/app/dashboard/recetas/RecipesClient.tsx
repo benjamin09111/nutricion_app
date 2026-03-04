@@ -36,6 +36,8 @@ import {
   User,
   UserPlus,
   AlertCircle,
+  FileUp,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -445,16 +447,18 @@ export default function RecipesClient() {
       {
         id: "link-patient",
         icon: User,
-        label: "Importar Paciente",
+        label: selectedPatient ? "Cambiar Paciente" : "Asignar Paciente",
         variant: "emerald",
-        onClick: () =>
-          toast.info("Módulo de importación de pacientes próximamente..."),
+        onClick: () => {
+          setIsImportPatientModalOpen(true);
+          fetchPatients();
+        },
       },
       {
         id: "sep-1",
         icon: Library,
         label: "",
-        onClick: () => {},
+        onClick: () => { },
         isSeparator: true,
       },
       {
@@ -471,7 +475,7 @@ export default function RecipesClient() {
         id: "sep-2",
         icon: Library,
         label: "",
-        onClick: () => {},
+        onClick: () => { },
         isSeparator: true,
       },
       {
@@ -489,6 +493,20 @@ export default function RecipesClient() {
         onClick: printJson,
       },
       {
+        id: "export-pdf",
+        icon: Download,
+        label: "Exportar PDF",
+        variant: "slate",
+        onClick: () => toast.info("Generación de PDF disponible en la etapa final."),
+      },
+      {
+        id: "upload-pdf",
+        icon: FileUp,
+        label: "Subir PDF",
+        variant: "slate",
+        onClick: () => toast.info("Módulo de escaneo de PDF próximamente... 📄"),
+      },
+      {
         id: "reset",
         icon: RotateCcw,
         label: "Reiniciar Todo",
@@ -496,7 +514,7 @@ export default function RecipesClient() {
         onClick: resetRecipes,
       },
     ],
-    [printJson, resetRecipes],
+    [printJson, resetRecipes, selectedPatient],
   );
 
   return (
@@ -510,6 +528,7 @@ export default function RecipesClient() {
           icon: GraduationCap,
           color: "text-emerald-600",
         }}
+        rightNavItems={actionDockItems}
         footer={
           <ModuleFooter>
             <div className="flex items-center gap-3">
@@ -525,16 +544,6 @@ export default function RecipesClient() {
             </div>
 
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                className="h-12 text-emerald-600 font-black gap-2 hover:bg-emerald-50 border-2 border-transparent hover:border-emerald-100 rounded-xl"
-                onClick={handlePatientLoad}
-              >
-                <UserPlus className="h-4 w-4" />
-                {selectedPatient
-                  ? selectedPatient.fullName || selectedPatient.name
-                  : "Asignar a un paciente"}
-              </Button>
 
               <Button
                 className="h-12 px-8 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-200 uppercase tracking-widest text-xs"
@@ -544,7 +553,7 @@ export default function RecipesClient() {
               </Button>
 
               <Button
-                onClick={() => router.push("/dashboard/entregable")}
+                onClick={() => router.push("/dashboard/entregable?flow=continue")}
                 className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-2xl shadow-emerald-200 transition-all hover:scale-[1.02] flex items-center gap-3 uppercase tracking-widest text-xs"
               >
                 CONTINUAR

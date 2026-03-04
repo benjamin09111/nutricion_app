@@ -13,4 +13,5 @@ export interface Creation {
   size: string;
   format: "PDF" | "Excel" | "JSON" | "Doc";
   tags?: string[];
+  isPublic?: boolean;
 }

@@ -24,6 +24,7 @@ import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import Cookies from "js-cookie";
 import { Pagination } from "@/components/ui/Pagination";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -45,6 +46,32 @@ export default function PatientsClient() {
   });
   const [activeTab, setActiveTab] = useState<PatientTab>("Todos");
   const router = useRouter();
+
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [patientToDelete, setPatientToDelete] = useState<string | null>(null);
+
+  const handleDeleteConfirmed = async () => {
+    if (!patientToDelete) return;
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const response = await fetch(`${apiUrl}/patients/${patientToDelete}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        toast.success("Paciente eliminado");
+        fetchPatients(0);
+      } else {
+        toast.error("Error al eliminar");
+      }
+    } catch (error) {
+      toast.error("Error de de red");
+    } finally {
+      setIsDeleteConfirmOpen(false);
+      setPatientToDelete(null);
+    }
+  };
 
   const fetchPatients = async (retries = 3) => {
     setIsLoading(true);
@@ -356,24 +383,10 @@ export default function PatientsClient() {
                                 Ver
                               </button>
                               <button
-                                onClick={async () => {
-                                  if (!window.confirm("¿Seguro que deseas eliminar este paciente?")) return;
-                                  try {
-                                    const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-                                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-                                    const response = await fetch(`${apiUrl}/patients/${patient.id}`, {
-                                      method: "DELETE",
-                                      headers: { Authorization: `Bearer ${token}` },
-                                    });
-                                    if (response.ok) {
-                                      toast.success("Paciente eliminado");
-                                      fetchPatients(0);
-                                    } else {
-                                      toast.error("Error al eliminar");
-                                    }
-                                  } catch (error) {
-                                    toast.error("Error de red");
-                                  }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPatientToDelete(patient.id);
+                                  setIsDeleteConfirmOpen(true);
                                 }}
                                 className="w-full text-left block px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 font-medium cursor-pointer"
                                 role="menuitem"
@@ -428,6 +441,19 @@ export default function PatientsClient() {
           />
         )}
       </div>
+
+      <ConfirmationModal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => {
+          setIsDeleteConfirmOpen(false);
+          setPatientToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirmed}
+        title="¿Eliminar paciente?"
+        description="¿Estás seguro de que deseas eliminar este paciente? Todo su historial clínico será borrado."
+        confirmText="Eliminar permanentemente"
+        variant="destructive"
+      />
     </ModuleLayout>
   );
 }

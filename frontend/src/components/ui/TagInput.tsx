@@ -6,6 +6,7 @@ import { Input } from "./Input";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 interface TagInputProps {
   value: string[];
   onChange: (tags: string[]) => void;
@@ -30,6 +31,9 @@ export function TagInput({
   const [fetchedSuggestions, setFetchedSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [tagToDelete, setTagToDelete] = useState<string | null>(null);
 
   const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
 
@@ -226,9 +230,8 @@ export function TagInput({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm(`¿Eliminar permanently "${suggestion}"?`)) {
-                          handleDeleteGlobalTag(suggestion);
-                        }
+                        setTagToDelete(suggestion);
+                        setIsDeleteConfirmOpen(true);
                       }}
                       className="p-3 text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover/item:opacity-100 cursor-pointer"
                     >
@@ -261,6 +264,23 @@ export function TagInput({
           ))}
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => {
+          setIsDeleteConfirmOpen(false);
+          setTagToDelete(null);
+        }}
+        onConfirm={() => {
+          if (tagToDelete) handleDeleteGlobalTag(tagToDelete);
+          setIsDeleteConfirmOpen(false);
+          setTagToDelete(null);
+        }}
+        title="¿Eliminar tag permanente?"
+        description={`¿Estás seguro de que deseas eliminar permanentemente el tag "${tagToDelete}"? Esta acción no se puede deshacer.`}
+        confirmText="Sí, eliminar"
+        variant="destructive"
+      />
     </div>
   );
 }
