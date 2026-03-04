@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { Creation, CreationType } from "@/features/creations";
+import { Pagination } from "@/components/ui/Pagination";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -373,11 +374,11 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                           className={cn(
                             "p-2 rounded-lg bg-slate-50 border border-slate-100",
                             item.type === CreationType.DIET &&
-                              "group-hover:bg-blue-50 group-hover:border-blue-100",
+                            "group-hover:bg-blue-50 group-hover:border-blue-100",
                             item.type === CreationType.SHOPPING_LIST &&
-                              "group-hover:bg-emerald-50 group-hover:border-emerald-100",
+                            "group-hover:bg-emerald-50 group-hover:border-emerald-100",
                             item.type === CreationType.RECIPE &&
-                              "group-hover:bg-amber-50 group-hover:border-amber-100",
+                            "group-hover:bg-amber-50 group-hover:border-amber-100",
                           )}
                         >
                           {getTypeIcon(item.type)}
@@ -486,25 +487,13 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
             resultados
           </p>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="p-2 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-black text-slate-700 bg-white border border-slate-200 px-3 py-2 rounded-xl">
-              Página {currentPage} de {totalPages || 1}
-            </span>
-            <button
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-              }
-              disabled={currentPage === totalPages || totalPages === 0}
-              className="p-2 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            )}
           </div>
         </div>
       </div>

@@ -1,9 +1,9 @@
 import { Controller, Get, Post, Body, Query, UseGuards, Delete, Param, UseInterceptors, Request } from '@nestjs/common';
 import { TagsService } from './tags.service';
-import { AuthGuard } from '../auth/guards/auth.guard';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('tags')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard('jwt'))
 export class TagsController {
     constructor(private readonly tagsService: TagsService) { }
 

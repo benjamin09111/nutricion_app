@@ -1690,6 +1690,32 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         >
                           <Edit2 className="w-5 h-5" />
                         </button>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!window.confirm("¿Estás seguro de que deseas eliminar esta consulta? Se eliminarán también las métricas asociadas a ella.")) return;
+                            try {
+                              const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+                              const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+                              const response = await fetch(`${apiUrl}/consultations/${consultation.id}`, {
+                                method: "DELETE",
+                                headers: { Authorization: `Bearer ${token}` },
+                              });
+                              if (response.ok) {
+                                toast.success("Consulta eliminada");
+                                fetchConsultations();
+                              } else {
+                                toast.error("Error al eliminar consulta");
+                              }
+                            } catch (error) {
+                              toast.error("Error de red");
+                            }
+                          }}
+                          className="p-3 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all cursor-pointer"
+                          title="Eliminar consulta"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
                       </div>
                     </div>
                   </div>

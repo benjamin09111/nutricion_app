@@ -6,7 +6,7 @@ export class ResourcesService {
     constructor(private readonly prisma: PrismaService) { }
 
     async findAll(nutritionistId: string, isAdmin: boolean) {
-        return this.prisma.resource.findMany({
+        const resources = await this.prisma.resource.findMany({
             where: {
                 OR: [
                     { nutritionistId },
@@ -16,6 +16,11 @@ export class ResourcesService {
             },
             orderBy: { updatedAt: 'desc' },
         });
+
+        return resources.map(resource => ({
+            ...resource,
+            isMine: resource.nutritionistId === nutritionistId
+        }));
     }
 
     async findOne(id: string) {
@@ -24,7 +29,7 @@ export class ResourcesService {
         });
     }
 
-    async create(nutritionistId: string | null, data: { title: string; content: string; category: string; tags?: string[]; images?: any; isPublic?: boolean }) {
+    async create(nutritionistId: string | null, data: { title: string; content: string; category: string; tags?: string[]; images?: any; isPublic?: boolean; sources?: string }) {
         return this.prisma.resource.create({
             data: {
                 ...data,
@@ -33,7 +38,7 @@ export class ResourcesService {
         });
     }
 
-    async update(id: string, nutritionistId: string, isAdmin: boolean, data: { title?: string; content?: string; category?: string; tags?: string[]; images?: any; isPublic?: boolean }) {
+    async update(id: string, nutritionistId: string, isAdmin: boolean, data: { title?: string; content?: string; category?: string; tags?: string[]; images?: any; isPublic?: boolean; sources?: string }) {
         // Check ownership (admins can edit anything, but usually they edit global ones)
         const resource = await this.prisma.resource.findUnique({ where: { id } });
         if (!resource) throw new Error('Resource not found');

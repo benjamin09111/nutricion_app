@@ -15,7 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TagsController = void 0;
 const common_1 = require("@nestjs/common");
 const tags_service_1 = require("./tags.service");
-const auth_guard_1 = require("../auth/guards/auth.guard");
+const passport_1 = require("@nestjs/passport");
 let TagsController = class TagsController {
     tagsService;
     constructor(tagsService) {
@@ -64,7 +64,7 @@ __decorate([
 ], TagsController.prototype, "remove", null);
 exports.TagsController = TagsController = __decorate([
     (0, common_1.Controller)('tags'),
-    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __metadata("design:paramtypes", [tags_service_1.TagsService])
 ], TagsController);
 //# sourceMappingURL=tags.controller.js.map

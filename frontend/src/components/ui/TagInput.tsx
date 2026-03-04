@@ -13,6 +13,7 @@ interface TagInputProps {
   suggestions?: string[];
   className?: string;
   fetchSuggestionsUrl?: string; // URL to fetch suggestions from
+  hideTags?: boolean; // If true, hides the selected tags below the input
 }
 
 export function TagInput({
@@ -22,6 +23,7 @@ export function TagInput({
   suggestions = [],
   className,
   fetchSuggestionsUrl,
+  hideTags = false,
 }: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -240,23 +242,25 @@ export function TagInput({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2 min-h-[20px] px-1">
-        {value.map((tag) => (
-          <span
-            key={tag}
-            className="inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm animate-in fade-in zoom-in duration-200"
-          >
-            {tag}
-            <button
-              type="button"
-              onClick={() => removeTag(tag)}
-              className="ml-2 h-4 w-4 rounded-full inline-flex items-center justify-center hover:bg-emerald-100 hover:text-emerald-900 transition-colors cursor-pointer"
+      {!hideTags && (
+        <div className="flex flex-wrap gap-2 min-h-[20px] px-1">
+          {value.map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm animate-in fade-in zoom-in duration-200"
             >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
-      </div>
+              {tag}
+              <button
+                type="button"
+                onClick={() => removeTag(tag)}
+                className="ml-2 h-4 w-4 rounded-full inline-flex items-center justify-center hover:bg-emerald-100 hover:text-emerald-900 transition-colors cursor-pointer"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -68,7 +68,7 @@ export function ConfirmationModal({
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="fixed inset-0" onClick={onClose} />
+      <div className="fixed inset-0" />
       <div className="relative bg-white w-full max-w-md rounded-4xl shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
         <div className="p-8 text-center space-y-6">
           <div

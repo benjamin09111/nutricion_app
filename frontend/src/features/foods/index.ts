@@ -35,6 +35,7 @@ export interface Ingredient {
   isPublic: boolean;
   verified: boolean;
   nutritionistId?: string | null;
+  isMine?: boolean;
 
   // Personalization
   preferences?: {
@@ -54,7 +55,7 @@ export type IngredientGroup = string;
 export interface CreateIngredientDto extends Omit<
   Ingredient,
   "id" | "createdAt" | "updatedAt"
-> {}
+> { }
 
 export interface MarketPrice {
   id: string;

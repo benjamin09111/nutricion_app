@@ -1,4 +1,3 @@
-import { use } from "react";
 import PatientDetailClient from "./PatientDetailClient";
 
 interface PageProps {
@@ -7,12 +6,12 @@ interface PageProps {
   }>;
 }
 
-export default function PatientDetailPage({ params }: PageProps) {
-  const resolvedParams = use(params);
+export default async function PatientDetailPage(props: PageProps) {
+  const { id } = await props.params;
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
-      <PatientDetailClient id={resolvedParams.id} />
+      <PatientDetailClient id={id} />
     </div>
   );
 }
