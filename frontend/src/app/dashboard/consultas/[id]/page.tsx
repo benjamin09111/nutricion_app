@@ -2,12 +2,14 @@ import { Suspense } from "react";
 import ConsultationFormClient from "../nueva/ConsultationFormClient";
 
 interface EditConsultationPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
-export default function EditConsultationPage({ params }: EditConsultationPageProps) {
+export default async function EditConsultationPage(props: EditConsultationPageProps) {
+    const params = await props.params;
+
     return (
         <Suspense
             fallback={

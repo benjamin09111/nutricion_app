@@ -18,7 +18,7 @@ let ResourcesService = class ResourcesService {
         this.prisma = prisma;
     }
     async findAll(nutritionistId, isAdmin) {
-        return this.prisma.resource.findMany({
+        const resources = await this.prisma.resource.findMany({
             where: {
                 OR: [
                     { nutritionistId },
@@ -28,6 +28,10 @@ let ResourcesService = class ResourcesService {
             },
             orderBy: { updatedAt: 'desc' },
         });
+        return resources.map(resource => ({
+            ...resource,
+            isMine: resource.nutritionistId === nutritionistId
+        }));
     }
     async findOne(id) {
         return this.prisma.resource.findUnique({

@@ -17,6 +17,7 @@ import {
   Lock,
   PlayCircle,
   Folder,
+  FolderPlus,
   Dumbbell,
   Bot,
   Bell,
@@ -40,7 +41,6 @@ const groups: SidebarGroup[] = [
   {
     title: "General",
     items: [
-      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Pacientes", href: "/dashboard/pacientes", icon: Users },
       {
         name: "Mis Consultas",
@@ -48,6 +48,7 @@ const groups: SidebarGroup[] = [
         icon: CalendarDays,
       },
       { name: "Ingredientes", href: "/dashboard/alimentos", icon: Apple },
+      { name: "Mis Grupos", href: "/dashboard/alimentos?tab=Mis grupos", icon: FolderPlus },
       {
         name: "Platos",
         href: "/dashboard/platos",
@@ -63,6 +64,7 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Dieta", href: "/dashboard/dieta", icon: Utensils },
       { name: "Carrito", href: "/dashboard/carrito", icon: ShoppingCart },
+      { name: "Recetas", href: "/dashboard/recetas", icon: ChefHat },
       {
         name: "Fitness",
         href: "/dashboard/fitness",

@@ -16,24 +16,39 @@ import { toast } from "sonner";
 import { TagInput } from "@/components/ui/TagInput";
 import Cookies from "js-cookie";
 
+interface IngredientFormValues {
+  name: string;
+  brand: string;
+  category: string;
+  price?: number;
+  unit: string;
+  amount: number;
+  calories: number;
+  proteins: number;
+  lipids: number;
+  carbs: number;
+  sugars?: number;
+  fiber?: number;
+  sodium?: number;
+  tags?: string[];
+}
+
 const ingredientSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
   brand: z.string().min(1, "La marca es obligatoria"),
   category: z.string().min(1, "La categoría es obligatoria"),
-  price: z.number().min(0).optional(),
+  price: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? undefined : Number(val)), z.number().optional()),
   unit: z.string().min(1, "La unidad es obligatoria"),
-  amount: z.number().min(0.1, "La cantidad base debe ser mayor a 0"),
-  calories: z.number().min(0, "Las calorías no pueden ser negativas"),
-  proteins: z.number().min(0),
-  lipids: z.number().min(0),
-  carbs: z.number().min(0),
-  sugars: z.number().min(0).optional(),
-  fiber: z.number().min(0).optional(),
-  sodium: z.number().min(0).optional(),
+  amount: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? 100 : Number(val)), z.number().default(100)),
+  calories: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? 0 : Number(val)), z.number().default(0)),
+  proteins: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? 0 : Number(val)), z.number().default(0)),
+  lipids: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? 0 : Number(val)), z.number().default(0)),
+  carbs: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? 0 : Number(val)), z.number().default(0)),
+  sugars: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? undefined : Number(val)), z.number().optional()),
+  fiber: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? undefined : Number(val)), z.number().optional()),
+  sodium: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? undefined : Number(val)), z.number().optional()),
   tags: z.array(z.string()).optional(),
 });
-
-type IngredientFormValues = z.infer<typeof ingredientSchema>;
 
 interface CreateIngredientModalProps {
   isOpen: boolean;
@@ -77,7 +92,7 @@ export default function CreateIngredientModal({
     reset,
     formState: { errors },
   } = useForm<IngredientFormValues>({
-    resolver: zodResolver(ingredientSchema),
+    resolver: zodResolver(ingredientSchema) as any,
     defaultValues: {
       amount: 100,
       unit: "g",

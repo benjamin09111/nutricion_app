@@ -26,7 +26,7 @@ import { Ingredient } from "@/features/foods";
 import { formatCLP } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/ui/Pagination";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import CreateIngredientModal from "./CreateIngredientModal";
 import IngredientDetailsModal from "./IngredientDetailsModal";
 import { useScrollLock } from "@/hooks/useScrollLock";
@@ -52,8 +52,18 @@ interface FoodsClientProps {
 
 export default function FoodsClient({ initialData }: FoodsClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab") as IngredientTab | null;
+
   const [data, setData] = useState<Ingredient[]>(initialData);
-  const [activeTab, setActiveTab] = useState<IngredientTab>("Dieta base");
+  const [activeTab, setActiveTab] = useState<IngredientTab>(tabParam || "Dieta base");
+
+  useEffect(() => {
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [baseTab, setBaseTab] = useState<"app" | "community">("app");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -151,9 +161,16 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  const [groupCurrentPage, setGroupCurrentPage] = useState(1);
+  const groupItemsPerPage = 10;
+
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, selectedCategory, selectedTag, activeTab]);
+
+  useEffect(() => {
+    setGroupCurrentPage(1);
+  }, [selectedGroup?.id]);
 
   const filteredIngredients = useMemo(() => {
     return data.filter((ingredient) => {
@@ -180,26 +197,32 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
       switch (activeTab) {
         case "Favoritos":
+          // Favorites are always private (my preferences)
           return pref?.isFavorite;
         case "No recomendados":
+          // No recommended are always private (my preferences)
           return pref?.isNotRecommended;
         case "Con tags":
+          // Combined Tags can be Global (App + Community)
           return combinedTagsNames.length > 0;
         case "Mis creaciones":
-          return !!ingredient.nutritionistId; // Assuming nutritionistId exists implies creation
+          // ONLY my own creations
+          return !!ingredient.isMine;
         case "Dieta base":
-          // if baseTab is 'app', show global items. if 'community', effectively all or a specific flag
+          // Dieta base is Global
           const isBase = !pref?.isFavorite && !pref?.isNotRecommended;
           if (isBase) {
             if (baseTab === "app") {
+              // Official App items are Global
               return !!ingredient.verified || !ingredient.nutritionistId;
             } else {
+              // Community items are Global (others' public creations)
               return !ingredient.verified && !!ingredient.nutritionistId;
             }
           }
           return false;
         case "Mis grupos":
-          return false; // Groups tab handles its own view
+          return false;
         default:
           return true;
       }
@@ -211,6 +234,15 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredIngredients.slice(start, start + itemsPerPage);
   }, [filteredIngredients, currentPage, itemsPerPage]);
+
+  const groupTotalPages = Math.ceil(
+    (selectedGroup?.ingredients?.length || 0) / groupItemsPerPage
+  );
+  const paginatedGroupIngredients = useMemo(() => {
+    if (!selectedGroup || !selectedGroup.ingredients) return [];
+    const start = (groupCurrentPage - 1) * groupItemsPerPage;
+    return selectedGroup.ingredients.slice(start, start + groupItemsPerPage);
+  }, [selectedGroup, groupCurrentPage, groupItemsPerPage]);
 
   const groupTotals = useMemo(() => {
     if (!selectedGroup || !selectedGroup.ingredients) return null;
@@ -362,6 +394,16 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   };
 
   const handleCreateIngredientSuccess = async (newIngredient?: any) => {
+    if (newIngredient) {
+      setData((prev) => [
+        {
+          ...newIngredient,
+          isMine: true,
+          preferences: newIngredient.preferences || [{ isFavorite: true, isNotRecommended: false, isHidden: false }],
+        },
+        ...prev,
+      ]);
+    }
     router.refresh();
 
     if (targetGroupIdForNewIngredient && newIngredient) {
@@ -796,9 +838,9 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-slate-100">
-                    {selectedGroup.ingredients &&
-                    selectedGroup.ingredients.length > 0 ? (
-                      selectedGroup.ingredients.map((relation: any) => (
+                    {paginatedGroupIngredients &&
+                      paginatedGroupIngredients.length > 0 ? (
+                      paginatedGroupIngredients.map((relation: any) => (
                         <tr
                           key={relation.ingredient?.id || Math.random()}
                           className="hover:bg-slate-50/50 transition-colors"
@@ -851,39 +893,50 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                 </table>
               </div>
             </div>
+
+            {/* Group Pagination */}
+            {groupTotalPages > 1 && (
+              <div className="flex items-center justify-between px-2 pt-4">
+                <Pagination
+                  currentPage={groupCurrentPage}
+                  totalPages={groupTotalPages}
+                  onPageChange={setGroupCurrentPage}
+                />
+              </div>
+            )}
           </div>
         ) : /* Groups Grid View */
-        isLoadingGroups ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in duration-300">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="bg-slate-50 p-4 rounded-xl border border-slate-200 h-32 animate-pulse flex flex-col justify-between"
-              >
-                <div className="flex gap-3">
-                  <div className="w-10 h-10 bg-slate-200 rounded-lg"></div>
-                  <div className="space-y-2 flex-1">
-                    <div className="h-4 bg-slate-200 rounded w-3/4"></div>
-                    <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+          isLoadingGroups ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in duration-300">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="bg-slate-50 p-4 rounded-xl border border-slate-200 h-32 animate-pulse flex flex-col justify-between"
+                >
+                  <div className="flex gap-3">
+                    <div className="w-10 h-10 bg-slate-200 rounded-lg"></div>
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in duration-300">
-            {groups.length === 0 ? (
-              <div className="col-span-full py-12 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                <div className="w-12 h-12 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <FolderPlus size={24} />
-                </div>
-                <h3 className="text-slate-900 font-medium mb-1">
-                  No tienes agrupaciones
-                </h3>
-                <p className="text-slate-500 text-sm mb-4">
-                  Organiza tus ingredientes en grupos personalizados.
-                </p>
-                {/* 
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in duration-300">
+              {groups.length === 0 ? (
+                <div className="col-span-full py-12 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <div className="w-12 h-12 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <FolderPlus size={24} />
+                  </div>
+                  <h3 className="text-slate-900 font-medium mb-1">
+                    No tienes agrupaciones
+                  </h3>
+                  <p className="text-slate-500 text-sm mb-4">
+                    Organiza tus ingredientes en grupos personalizados.
+                  </p>
+                  {/* 
                                     <Button
                                         variant="outline"
                                         onClick={() => setIsCreateGroupModalOpen(true)}
@@ -892,49 +945,49 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                                         Crear mi primera agrupación
                                     </Button>
                                     */}
-              </div>
-            ) : (
-              groups.map((group) => (
-                <div
-                  key={group.id}
-                  onClick={() => handleGroupClick(group.id)}
-                  className="bg-white p-4 rounded-xl border border-slate-200 hover:shadow-md transition-all cursor-pointer relative group"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                        <FolderPlus size={20} />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-slate-900">
-                          {group.name}
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          {group._count?.ingredients || 0} ingredientes
-                        </p>
+                </div>
+              ) : (
+                groups.map((group) => (
+                  <div
+                    key={group.id}
+                    onClick={() => handleGroupClick(group.id)}
+                    className="bg-white p-4 rounded-xl border border-slate-200 hover:shadow-md transition-all cursor-pointer relative group"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                          <FolderPlus size={20} />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-slate-900">
+                            {group.name}
+                          </h3>
+                          <p className="text-xs text-slate-500">
+                            {group._count?.ingredients || 0} ingredientes
+                          </p>
+                        </div>
                       </div>
                     </div>
+                    {group.description && (
+                      <p className="text-xs text-slate-600 mb-3 line-clamp-2">
+                        {group.description}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-1 mt-auto">
+                      {group.tags?.map((tag: any) => (
+                        <span
+                          key={tag.id}
+                          className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full"
+                        >
+                          #{tag.name}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  {group.description && (
-                    <p className="text-xs text-slate-600 mb-3 line-clamp-2">
-                      {group.description}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-1 mt-auto">
-                    {group.tags?.map((tag: any) => (
-                      <span
-                        key={tag.id}
-                        className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full"
-                      >
-                        #{tag.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )
+                ))
+              )}
+            </div>
+          )
       ) : (
         <>
           {/* Filters Section */}
@@ -1022,7 +1075,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                       >
                         Alimento
                       </th>
-                      {baseTab !== "app" && (
+                      {!(activeTab === "Dieta base" && baseTab === "app") && (
                         <>
                           <th
                             scope="col"
@@ -1048,9 +1101,9 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                         scope="col"
                         className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 italic"
                       >
-                        Unidad {baseTab === "app" && "(100)"}
+                        Unidad {(activeTab === "Dieta base" && baseTab === "app") && "(100)"}
                       </th>
-                      {baseTab !== "app" && (
+                      {!(activeTab === "Dieta base" && baseTab === "app") && (
                         <th
                           scope="col"
                           className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100"
@@ -1095,7 +1148,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                             </div>
                           )}
                         </td>
-                        {baseTab !== "app" && (
+                        {!(activeTab === "Dieta base" && baseTab === "app") && (
                           <td className="px-6 py-4 text-sm text-slate-500">
                             {editingId === ingredient.id ? (
                               <Input
@@ -1138,7 +1191,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                         <td className="px-6 py-4 text-sm text-center text-slate-500">
                           {ingredient.unit}
                         </td>
-                        {baseTab !== "app" && (
+                        {!(activeTab === "Dieta base" && baseTab === "app") && (
                           <td className="px-6 py-4">
                             <div className="flex flex-wrap gap-1 justify-center">
                               {(
@@ -1264,31 +1317,11 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
             {/* Pagination */}
             <div className="flex items-center justify-between px-2 pt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="bg-white hover:bg-slate-50 text-slate-600 border-slate-200"
-              >
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Anterior
-              </Button>
-              <span className="text-sm font-medium text-slate-600 bg-white px-3 py-1 rounded-lg border border-slate-100 shadow-sm">
-                Página {currentPage} de {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                }
-                disabled={currentPage === totalPages}
-                className="bg-white hover:bg-slate-50 text-slate-600 border-slate-200"
-              >
-                Siguiente
-                <ChevronRight className="h-4 w-4 ml-2" />
-              </Button>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
             </div>
           </div>
         </>
@@ -1316,6 +1349,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
           isOpen={isAddIngredientModalOpen}
           onClose={() => setIsAddIngredientModalOpen(false)}
           groupId={selectedGroup.id}
+          groupName={selectedGroup.name}
           allIngredients={data} // Pass all available ingredients
           currentIngredientIds={
             selectedGroup.ingredients?.map((r: any) => r.ingredient.id) || []

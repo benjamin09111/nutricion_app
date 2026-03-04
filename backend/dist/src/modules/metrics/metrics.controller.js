@@ -15,7 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MetricsController = void 0;
 const common_1 = require("@nestjs/common");
 const metrics_service_1 = require("./metrics.service");
-const auth_guard_1 = require("../auth/guards/auth.guard");
+const passport_1 = require("@nestjs/passport");
 let MetricsController = class MetricsController {
     metricsService;
     constructor(metricsService) {
@@ -63,7 +63,7 @@ __decorate([
 ], MetricsController.prototype, "remove", null);
 exports.MetricsController = MetricsController = __decorate([
     (0, common_1.Controller)('metrics'),
-    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __metadata("design:paramtypes", [metrics_service_1.MetricsService])
 ], MetricsController);
 //# sourceMappingURL=metrics.controller.js.map
