@@ -9,8 +9,8 @@ export declare class AnnouncementsController {
         updatedAt: Date;
         type: string;
         isActive: boolean;
-        title: string;
         link: string | null;
+        title: string;
         message: string;
         targetRoles: string[];
     }>;
@@ -20,8 +20,8 @@ export declare class AnnouncementsController {
         updatedAt: Date;
         type: string;
         isActive: boolean;
-        title: string;
         link: string | null;
+        title: string;
         message: string;
         targetRoles: string[];
     }[]>;

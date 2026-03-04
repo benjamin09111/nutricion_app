@@ -414,7 +414,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                 </label>
                                                 <Input
                                                     placeholder="Métrica..."
-                                                    value={m.label}
+                                                    value={m.label || ""}
                                                     onChange={(e) => updateMetric(idx, "label", e.target.value)}
                                                     className="bg-white h-12 rounded-xl"
                                                 />
@@ -425,7 +425,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                 </label>
                                                 <Input
                                                     placeholder="0.0"
-                                                    value={m.value}
+                                                    value={m.value || ""}
                                                     onChange={(e) => updateMetric(idx, "value", e.target.value)}
                                                     className="bg-white h-12 rounded-xl font-bold text-center"
                                                 />
@@ -436,7 +436,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                 </label>
                                                 <Input
                                                     placeholder="kg, %, cm..."
-                                                    value={m.unit}
+                                                    value={m.unit || ""}
                                                     onChange={(e) => updateMetric(idx, "unit", e.target.value)}
                                                     className="bg-white h-12 rounded-xl"
                                                 />

@@ -23,14 +23,16 @@ export class ResourcesController {
     create(@Request() req: any, @Body() data: any) {
         const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role);
         const nutritionistId = isAdmin ? (data.isGlobal ? null : req.user.nutritionistId) : req.user.nutritionistId;
-        return this.resourcesService.create(nutritionistId, data);
+        const { isGlobal, ...restData } = data;
+        return this.resourcesService.create(nutritionistId, restData);
     }
 
     @Patch(':id')
     update(@Param('id') id: string, @Request() req: any, @Body() data: any) {
         const nutritionistId = req.user.nutritionistId;
         const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role);
-        return this.resourcesService.update(id, nutritionistId, isAdmin, data);
+        const { isGlobal, ...restData } = data;
+        return this.resourcesService.update(id, nutritionistId, isAdmin, restData);
     }
 
     @Delete(':id')

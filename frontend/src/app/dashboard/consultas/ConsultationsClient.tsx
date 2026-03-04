@@ -30,6 +30,7 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import Cookies from "js-cookie";
+import { Pagination } from "@/components/ui/Pagination";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -262,27 +263,23 @@ export default function ConsultationsClient() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 transition-opacity">
+                      <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => setSelectedConsultation(item)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
+                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                          title="Ver Detalles"
                         >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => router.push(`/dashboard/consultas/${item.id}`)}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all cursor-pointer"
-                        >
-                          <Edit2 className="h-4 w-4" />
+                          <Eye className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => {
                             setConsultationToDelete(item.id);
                             setIsDeleteModalOpen(true);
                           }}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Eliminar"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                     </td>
@@ -302,29 +299,17 @@ export default function ConsultationsClient() {
             </table>
           </div>
 
-          {/* Pagination */}
           {meta.lastPage > 1 && (
             <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-tight">
                 Página {meta.page} de {meta.lastPage}
               </p>
               <div className="flex gap-2">
-                <Button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  variant="ghost"
-                  className="h-8 w-8 p-0 rounded-lg"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={() => setPage((p) => Math.min(meta.lastPage, p + 1))}
-                  disabled={page === meta.lastPage}
-                  variant="ghost"
-                  className="h-8 w-8 p-0 rounded-lg"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
+                <Pagination
+                  currentPage={page}
+                  totalPages={meta.lastPage}
+                  onPageChange={setPage}
+                />
               </div>
             </div>
           )}
@@ -332,7 +317,7 @@ export default function ConsultationsClient() {
 
 
         {/* View Details Modal */}
-        {selectedConsultation && !isEditing && (
+        {selectedConsultation && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
             <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300">
               <div className="p-10 space-y-8">

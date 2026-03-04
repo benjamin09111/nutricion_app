@@ -49,19 +49,37 @@ let CacheService = CacheService_1 = class CacheService {
         if (!this.cacheManager)
             return;
         const store = this.cacheManager.store;
-        if (!store || !store.keys) {
-            this.logger.warn('Cache store does not support keys() method for pattern invalidation');
-            return;
-        }
         try {
-            const keys = await store.keys(pattern);
+            if (!store || typeof store.keys !== 'function') {
+                this.logger.warn('Cache store does not support keys() method. Resetting entire cache as fallback.');
+                await this.reset();
+                return;
+            }
+            let keys = [];
+            try {
+                keys = await store.keys(pattern);
+            }
+            catch (e) {
+                keys = await store.keys();
+            }
+            if (!keys || keys.length === 0) {
+                const allKeys = await store.keys();
+                if (allKeys && allKeys.length > 0) {
+                    const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+                    keys = allKeys.filter((k) => regex.test(k));
+                }
+            }
             if (keys && keys.length > 0) {
-                await Promise.all(keys.map(key => this.cacheManager.del(key)));
+                await Promise.all(keys.map((key) => this.cacheManager.del(key)));
                 this.logger.log(`Invalidated ${keys.length} keys for pattern ${pattern}`);
+            }
+            else {
+                this.logger.log(`No keys found to invalidate for pattern ${pattern}`);
             }
         }
         catch (error) {
-            this.logger.error(`Error invalidating cache for pattern ${pattern}`, error);
+            this.logger.error(`Error invalidating cache for pattern ${pattern}. Forcing full cache wipe.`, error);
+            await this.reset();
         }
     }
     async reset() {

@@ -227,7 +227,10 @@ let FoodsService = class FoodsService {
             take: limit,
             orderBy: { name: 'asc' },
         });
-        return ingredients;
+        return ingredients.map((ing) => ({
+            ...ing,
+            isMine: ing.nutritionistId === nutritionistId && !!nutritionistId
+        }));
     }
     async togglePreference(ingredientId, userId, data) {
         console.log('[togglePreference] Processing for Account ID:', userId, 'Ingredient ID:', ingredientId);

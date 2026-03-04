@@ -2,38 +2,64 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
-  FileText,
-  Plus,
-  Search,
-  Filter,
-  Pencil,
-  Trash2,
-  CheckCircle2,
-  Sparkles,
-  Brain,
-  Activity,
-  Lightbulb,
-  HelpCircle,
-  X,
-  Save,
-  Layout,
-  ExternalLink,
-  ChevronDown,
-  MoreVertical,
-  Upload,
-  Globe,
-  User as UserIcon,
-  Loader2,
-  Image as ImageIcon,
+  FileText, Plus, Search, Filter, Pencil, Trash2, CheckCircle2,
+  Sparkles, Brain, Activity, Lightbulb, HelpCircle, X, Save,
+  Layout, ExternalLink, ChevronDown, MoreVertical, Upload, Globe,
+  User as UserIcon, Loader2, Image as ImageIcon, Bold, Italic, Palette, Copy
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Modal } from "@/components/ui/Modal";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { useAdmin } from "@/context/AdminContext";
+import { TagInput } from "@/components/ui/TagInput";
 import Cookies from "js-cookie";
+import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
+
+const CONSTRAINT_IDS = DEFAULT_CONSTRAINTS.map(c => c.id);
+
+const RichEditor = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (editorRef.current && value !== editorRef.current.innerHTML) {
+      editorRef.current.innerHTML = value || "";
+    }
+  }, [value]);
+
+  const execCmd = (command: string, arg?: string) => {
+    document.execCommand(command, false, arg);
+    if (editorRef.current) {
+      editorRef.current.focus();
+      onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  return (
+    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white focus-within:ring-2 focus-within:ring-emerald-500 transition-all">
+      <div className="flex flex-wrap items-center gap-1 p-2 border-b border-slate-100 bg-slate-50">
+        <button type="button" onClick={() => execCmd('bold')} className="p-1.5 hover:bg-slate-200 rounded text-slate-700 cursor-pointer" title="Negrita"><Bold className="w-4 h-4" /></button>
+        <button type="button" onClick={() => execCmd('italic')} className="p-1.5 hover:bg-slate-200 rounded text-slate-700 cursor-pointer" title="Cursiva"><Italic className="w-4 h-4" /></button>
+        <div className="w-px h-5 bg-slate-300 mx-1" />
+        <div className="flex items-center gap-1">
+          <Palette className="w-4 h-4 text-slate-400 mx-1" />
+          {["#0f172a", "#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899"].map(color => (
+            <button type="button" key={color} onClick={() => execCmd('foreColor', color)} className="w-5 h-5 rounded-full border border-black/10 hover:scale-110 transition-transform cursor-pointer" style={{ backgroundColor: color }} />
+          ))}
+        </div>
+      </div>
+      <div
+        ref={editorRef}
+        contentEditable
+        className="w-full min-h-[300px] p-4 outline-none text-slate-700 text-[15px] leading-relaxed"
+        onInput={(e) => onChange(e.currentTarget.innerHTML)}
+        onBlur={(e) => onChange(e.currentTarget.innerHTML)}
+      />
+    </div>
+  );
+};
 
 interface Resource {
   id: string;
@@ -41,50 +67,32 @@ interface Resource {
   content: string;
   category: string;
   tags: string[];
-  images: string[];
-  isPublic: boolean;
+  sources?: string;
   isDefault?: boolean;
   nutritionistId?: string | null;
+  createdAt?: string;
+  isMine?: boolean;
+  isPublic?: boolean;
 }
 
 const CATEGORIES = [
   { id: "all", label: "Todos", icon: Layout },
-  {
-    id: "mitos",
-    label: "Mitos vs Realidad",
-    icon: HelpCircle,
-    color: "text-amber-500",
-    bg: "bg-amber-50",
-  },
-  {
-    id: "habitos",
-    label: "Checklist de Hábitos",
-    icon: CheckCircle2,
-    color: "text-emerald-500",
-    bg: "bg-emerald-50",
-  },
-  {
-    id: "emocional",
-    label: "Nutrición Emocional",
-    icon: Brain,
-    color: "text-rose-500",
-    bg: "bg-rose-50",
-  },
-  {
-    id: "consejos",
-    label: "Consejos Prácticos",
-    icon: Lightbulb,
-    color: "text-blue-500",
-    bg: "bg-blue-50",
-  },
-  {
-    id: "ejercicios",
-    label: "Actividad Física",
-    icon: Activity,
-    color: "text-violet-500",
-    bg: "bg-violet-50",
-  },
+  { id: "mitos", label: "Mitos vs Realidad", icon: HelpCircle, color: "text-amber-500", bg: "bg-amber-50" },
+  { id: "habitos", label: "Checklist de Hábitos", icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-50" },
+  { id: "emocional", label: "Nutrición Emocional", icon: Brain, color: "text-rose-500", bg: "bg-rose-50" },
+  { id: "consejos", label: "Consejos Prácticos", icon: Lightbulb, color: "text-blue-500", bg: "bg-blue-50" },
+  { id: "ejercicios", label: "Actividad Física", icon: Activity, color: "text-violet-500", bg: "bg-violet-50" },
 ];
+
+interface ResourceBlock {
+  id: string;
+  text: string;
+  bold: boolean;
+  italic: boolean;
+  color: string;
+}
+
+const DEFAULT_COLORS = ["#0f172a", "#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899"];
 
 export function ResourcesClient() {
   const { isAdmin } = useAdmin();
@@ -93,56 +101,115 @@ export function ResourcesClient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [availableTags, setAvailableTags] = useState<string[]>([]);
-  const DEFAULT_CONSTRAINTS = [
-    "Diabético",
-    "Hipertensión",
-    "Vegetariano",
-    "Celiaco",
-    "Sin Gluten",
-  ];
+
+  // Tabs: 'library' | 'create'
+  const [activeTab, setActiveTab] = useState<"library" | "create">("library");
+
+  const DEFAULT_CONSTRAINTS = ["Diabético", "Hipertensión", "Vegetariano", "Celiaco", "Sin Gluten"];
 
   // Upload state
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingResource, setEditingResource] = useState<Resource | null>(null);
+  // Form state
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     content: "",
     category: "consejos",
     tags: [] as string[],
-    images: [] as string[],
-    isPublic: false,
+    sources: "",
     isGlobal: false,
+    isPublic: false,
   });
 
+  // Repositorio mixto antiguo-nuevo
+  const [isRawMode, setIsRawMode] = useState(false);
+  const [rawContent, setRawContent] = useState("");
+
+  const DEFAULT_SYSTEM_RESOURCES: Resource[] = [
+    {
+      id: "sys-1",
+      title: "La verdad sobre el ayuno intermitente",
+      content: "El ayuno intermitente no es una dieta, sino un patrón alimentario. Sus beneficios incluyen mejor sensibilidad a la insulina y reducción de la inflamación. Sin embargo, no es mágico ni apto para todos (ej. embarazadas, personas con TCA). Lo más importante sigue siendo la calidad de los alimentos en la ventana de ingesta.",
+      category: "mitos",
+      tags: ["Ayuno Intermitente", "Mitos"],
+      isDefault: true,
+      nutritionistId: null,
+      isMine: false,
+      isPublic: true
+    },
+    {
+      id: "sys-2",
+      title: "Checklist: Preparación para la semana (Meal Prep)",
+      content: "1. Define 2-3 fuentes de proteína (ej. pollo, huevos, tofu).\n2. Cocina una olla grande de carbohidratos complejos (ej. arroz integral, quinoa).\n3. Lava y pica vegetales para tener listos en el refrigerador.\n4. Organiza envases de vidrio herméticos.\n\nTener comida lista reduce la ansiedad y evita que pidas comida rápida.",
+      category: "habitos",
+      tags: ["Meal Prep", "Organización", "Hábitos"],
+      isDefault: true,
+      nutritionistId: null,
+      isMine: false,
+      isPublic: true
+    },
+    {
+      id: "sys-3",
+      title: "Cómo identificar el hambre real vs. hambre emocional",
+      content: "**Hambre Fisiológica:**\n- Aparece gradualmente.\n- Sientes un vacío en el estómago o ruidos.\n- Cualquier comida, incluso una manzana, te parece una buena opción.\n- Al comer te sientes satisfecho y puedes detenerte.\n\n**Hambre Emocional:**\n- Aparece de repente y se siente como una urgencia.\n- Deseas un alimento específico (normalmente dulce, salado crujiente o alto en grasas).\n- Sientes que el hambre está en la mente, no en el estómago.\n- A menudo lleva a comer en exceso y luego sentir culpa.",
+      category: "emocional",
+      tags: ["Hambre Emocional", "Mindful Eating", "Ansiedad"],
+      isDefault: true,
+      nutritionistId: null,
+      isMine: false,
+      isPublic: true
+    },
+    {
+      id: "sys-4",
+      title: "Guía de iniciación al entrenamiento de fuerza",
+      content: "El entrenamiento de fuerza es no negociable para una salud metabólica óptima a largo plazo.\n\n*Consejos para iniciar:*\n- Prioriza ejercicios multiarticulares (sentadillas, peso muerto, flexiones, remos).\n- Aprende bien la técnica antes de subir el peso.\n- Descansa 1-2 días entre sesiones del mismo grupo muscular.\n- Enfócate en la constancia, 2 a 3 días a la semana es un excelente comienzo.",
+      category: "ejercicios",
+      tags: ["Entrenamiento", "Fuerza", "Músculo", "Principiantes"],
+      isDefault: true,
+      nutritionistId: null,
+      isMine: false,
+      isPublic: true
+    },
+    {
+      id: "sys-5",
+      title: "Estrategias prácticas para consumir más vegetales",
+      content: "- **En el desayuno:** Agrega espinacas o champiñones a tus huevos revueltos.\n- **Salsas:** Licúa verduras (zanahoria, calabacín, cebolla) en la salsa de tomate de tus pastas.\n- **Snacks:** Palitos de zanahoria, apio o pepino con hummus.\n- **Sopas o cremas:** Excelente manera de incluir variedad de vegetales en invierno.",
+      category: "consejos",
+      tags: ["Vegetales", "NutriciónPráctica", "Ideas"],
+      isDefault: true,
+      nutritionistId: null,
+      isMine: false,
+      isPublic: true
+    }
+  ];
+
   const fetchResources = async (retries = 3) => {
-    setIsLoading(true);
+    if (retries === 3) setIsLoading(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-      const response = await fetch(`${apiUrl}/resources`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
+      const response = await fetch(`${apiUrl}/resources`, { headers: { Authorization: `Bearer ${token}` } });
       if (response.ok) {
         const data = await response.json();
-        setResources(data);
+        if (data.length === 0) {
+          setResources(DEFAULT_SYSTEM_RESOURCES);
+        } else {
+          setResources(data);
+        }
+        setIsLoading(false);
+        return;
       }
     } catch (error) {
-      if (retries > 0) {
-        setTimeout(() => fetchResources(retries - 1), 2000);
-      } else {
-        console.warn("Backend no disponible para cargar recursos aún.");
-      }
-    } finally {
-      if (retries === 0) setIsLoading(false);
+      console.error("Error fetching resources:", error);
+    }
+
+    if (retries > 0) {
+      setTimeout(() => fetchResources(retries - 1), 1000);
+    } else {
+      setResources(DEFAULT_SYSTEM_RESOURCES); // Fallback to defaults on complete failure to test UI
+      setIsLoading(false);
     }
   };
 
@@ -153,119 +220,87 @@ export function ResourcesClient() {
 
   const fetchTags = async () => {
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/tags`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetch(`${apiUrl}/tags`, { headers: { Authorization: `Bearer ${token}` } });
       if (response.ok) {
         const tagsData = await response.json();
         const backendTags = tagsData.map((t: any) => t.name);
-        setAvailableTags(
-          Array.from(new Set([...DEFAULT_CONSTRAINTS, ...backendTags])),
-        );
+        setAvailableTags(Array.from(new Set([...DEFAULT_CONSTRAINTS, ...backendTags])));
       } else {
         setAvailableTags(DEFAULT_CONSTRAINTS);
       }
     } catch (error) {
-      console.error("Error fetching tags", error);
       setAvailableTags(DEFAULT_CONSTRAINTS);
     }
   };
 
   const filteredResources = useMemo(() => {
     return resources.filter((res) => {
-      const matchesSearch =
-        res.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        res.content.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory =
-        activeCategory === "all" || res.category === activeCategory;
+      const matchesSearch = res.title.toLowerCase().includes(searchQuery.toLowerCase()) || res.content.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = activeCategory === "all" || res.category === activeCategory;
       return matchesSearch && matchesCategory;
     });
   }, [resources, searchQuery, activeCategory]);
 
-  const handleOpenModal = (resource?: Resource) => {
-    if (resource) {
-      setEditingResource(resource);
-      setFormData({
-        title: resource.title,
-        content: resource.content,
-        category: resource.category,
-        tags: resource.tags || [],
-        images: resource.images || [],
-        isPublic: resource.isPublic || false,
-        isGlobal: resource.nutritionistId === null,
-      });
-    } else {
-      setEditingResource(null);
-      setFormData({
-        title: "",
-        content: "",
-        category: "consejos",
-        tags: [],
-        images: [],
-        isPublic: false,
-        isGlobal: isAdmin,
-      });
-    }
-    setIsModalOpen(true);
+  const handleEdit = (resource: Resource) => {
+    setEditingId(resource.id);
+    setFormData({
+      title: resource.title,
+      category: resource.category,
+      tags: resource.tags || [],
+      sources: resource.sources || "",
+      isGlobal: resource.nutritionistId === null,
+      isPublic: resource.isPublic || false,
+      content: resource.content || "",
+    });
+
+    setIsRawMode(true);
+    setActiveTab("create");
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleClone = (resource: Resource) => {
+    setEditingId(null);
+    setFormData({
+      title: `[Copia] ${resource.title}`,
+      category: resource.category,
+      tags: resource.tags || [],
+      sources: resource.sources || "",
+      isGlobal: false,
+      isPublic: false,
+      content: resource.content || "",
+    });
 
-    setIsUploading(true);
-    try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    setIsRawMode(true);
+    setActiveTab("create");
+    toast.info("Recurso copiado. Puedes editarlo y guardarlo en tus Creaciones.");
+  };
 
-      const uploadForm = new FormData();
-      uploadForm.append("file", file);
-
-      const response = await fetch(`${apiUrl}/uploads/image`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: uploadForm,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setFormData((prev) => ({
-          ...prev,
-          images: [...prev.images, data.url],
-        }));
-        toast.success("Imagen subida correctamente");
-      } else {
-        toast.error("Error al subir la imagen");
-      }
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      toast.error("Error al subir la imagen");
-    } finally {
-      setIsUploading(false);
-    }
+  const resetForm = () => {
+    setEditingId(null);
+    setFormData({
+      title: "",
+      category: "consejos",
+      tags: [],
+      sources: "",
+      isGlobal: isAdmin,
+      isPublic: false,
+      content: "",
+    });
+    setIsRawMode(false);
   };
 
   const handleSave = async () => {
-    if (!formData.title || !formData.content) {
-      toast.error("Por favor completa el título y el contenido");
+    if (!formData.title || !formData.content.trim()) {
+      toast.error("Por favor completa el título y el texto del recurso");
       return;
     }
 
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-      const method = editingResource ? "PATCH" : "POST";
-      const url = editingResource
-        ? `${apiUrl}/resources/${editingResource.id}`
-        : `${apiUrl}/resources`;
+      const method = editingId ? "PATCH" : "POST";
+      const url = editingId ? `${apiUrl}/resources/${editingId}` : `${apiUrl}/resources`;
 
       const response = await fetch(url, {
         method,
@@ -277,44 +312,61 @@ export function ResourcesClient() {
       });
 
       if (response.ok) {
-        toast.success(
-          editingResource ? "Recurso actualizado" : "Recurso creado",
-        );
-        setIsModalOpen(false);
+        toast.success(editingId ? "Recurso actualizado" : "Recurso creado exitosamente");
         fetchResources();
+        resetForm();
+        setActiveTab("library");
       } else {
-        toast.error("Error al guardar el recurso");
+        const errText = await response.text();
+        toast.error(`Error al guardar: ${errText}`);
       }
     } catch (error) {
-      console.error("Error saving resource:", error);
-      toast.error("Error al guardar el recurso");
+      toast.error(`Error de red al guardar: ${error}`);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("¿Estás seguro de que quieres eliminar este recurso?")) return;
-
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
       const response = await fetch(`${apiUrl}/resources/${id}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-
       if (response.ok) {
         toast.success("Recurso eliminado");
         fetchResources();
       }
     } catch (error) {
-      console.error("Error deleting resource:", error);
       toast.error("Error al eliminar el recurso");
     }
   };
+
+  // Extra state for switch
+  const [viewFilter, setViewFilter] = useState<"system" | "mine">("system");
+
+  const filteredLibraryResources = useMemo(() => {
+    let list = filteredResources;
+    if (viewFilter === "system") {
+      list = list.filter(r => !r.isMine || r.isPublic);
+    } else {
+      list = list.filter(r => r.isMine);
+    }
+
+    // Sort logic: Global (system) resources first, then by date descending
+    return list.sort((a, b) => {
+      const aIsGlobal = a.nutritionistId === null;
+      const bIsGlobal = b.nutritionistId === null;
+
+      if (aIsGlobal && !bIsGlobal) return -1;
+      if (!aIsGlobal && bIsGlobal) return 1;
+
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA; // Descending
+    });
+  }, [filteredResources, viewFilter]);
 
   return (
     <ModuleLayout
@@ -323,406 +375,319 @@ export function ResourcesClient() {
       rightNavItems={[
         {
           id: "add",
-          icon: Plus,
-          label: "Nuevo Recurso",
-          variant: "emerald",
-          onClick: () => handleOpenModal(),
+          icon: activeTab === "library" ? Plus : Layout,
+          label: activeTab === "library" ? "Crear Nuevo" : "Ver Biblioteca",
+          variant: activeTab === "library" ? "emerald" : "slate",
+          onClick: () => {
+            if (activeTab === "library") {
+              resetForm();
+              setActiveTab("create");
+            } else {
+              setActiveTab("library");
+            }
+          },
         },
       ]}
     >
-      <div className="space-y-6 mt-6 pb-20">
-        {/* Search and Filters */}
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="relative w-full md:max-w-md group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
-            <Input
-              placeholder="Buscar recursos..."
-              className="h-12 pl-12 rounded-2xl border-slate-200 bg-white/50 backdrop-blur-sm focus:bg-white transition-all shadow-sm"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+      <div className="mt-6 flex border-b border-slate-200 mb-6 px-4">
+        <button
+          onClick={() => setActiveTab("library")}
+          className={cn(
+            "px-6 py-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 -mb-px",
+            activeTab === "library" ? "border-emerald-500 text-emerald-600 bg-emerald-50/50 rounded-t-xl" : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50 rounded-t-xl"
+          )}
+        >
+          <Layout className="h-4 w-4" />
+          Mi Biblioteca
+        </button>
+        <button
+          onClick={() => {
+            if (activeTab !== "create") {
+              resetForm();
+              setActiveTab("create");
+            }
+          }}
+          className={cn(
+            "px-6 py-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 -mb-px",
+            activeTab === "create" ? "border-emerald-500 text-emerald-600 bg-emerald-50/50 rounded-t-xl" : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50 rounded-t-xl"
+          )}
+        >
+          <Plus className="h-4 w-4" />
+          Crear Nuevo
+        </button>
+      </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 w-full md:w-auto scrollbar-hide">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border",
-                  activeCategory === cat.id
-                    ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-200"
-                    : "bg-white border-slate-100 text-slate-500 hover:border-slate-300",
-                )}
-              >
-                <cat.icon
-                  className={cn(
-                    "h-4 w-4",
-                    activeCategory === cat.id ? "text-white" : cat.color,
-                  )}
+      <div className="space-y-6 pb-20">
+        {activeTab === "library" && (
+          <>
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full md:max-w-md group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                <Input
+                  placeholder="Buscar recursos..."
+                  className="h-12 pl-12 rounded-2xl border-slate-200 bg-white/50 backdrop-blur-sm focus:bg-white transition-all shadow-sm"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                {cat.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Resources Grid - Original style */}
-        {isLoading ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div
-                key={i}
-                className="h-48 rounded-3xl bg-slate-50 animate-pulse border border-slate-100"
-              />
-            ))}
-          </div>
-        ) : filteredResources.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredResources.map((resource) => {
-              const catInfo =
-                CATEGORIES.find((c) => c.id === resource.category) ||
-                CATEGORIES[4];
-              const isGlobal = resource.nutritionistId === null;
-
-              return (
-                <div
-                  key={resource.id}
-                  className="group relative bg-white border border-slate-100 rounded-3xl overflow-hidden hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 flex flex-col h-full"
-                >
-                  <div className="p-6 flex-1 space-y-4">
-                    <div className="flex justify-between items-start">
-                      <div className={cn("p-3 rounded-2xl", catInfo.bg)}>
-                        <catInfo.icon
-                          className={cn("h-5 w-5", catInfo.color)}
-                        />
-                      </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleOpenModal(resource)}
-                          className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-emerald-600 transition-colors"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(resource.id)}
-                          className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-rose-600 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        {isGlobal && (
-                          <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-tighter text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
-                            <Globe className="h-2 w-2" /> Global
-                          </span>
-                        )}
-                        <h3 className="font-black text-slate-900 leading-tight">
-                          {resource.title}
-                        </h3>
-                      </div>
-                      <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed">
-                        {resource.content.replace(/[#*`]/g, "")}
-                      </p>
-                    </div>
-
-                    <div className="pt-4 flex flex-wrap gap-2">
-                      {resource.tags?.map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50 px-2 py-1 rounded-md"
-                        >
-                          #{tag}
-                        </span>
-                      ))}
-                      {resource.isPublic && !isGlobal && (
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500 bg-amber-50 px-2 py-1 rounded-md flex items-center gap-1">
-                          <Sparkles className="h-3 w-3" /> Público
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-50 flex items-center justify-between mt-auto">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        {catInfo.label}
-                      </span>
-                      {resource.images?.length > 0 && (
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600">
-                          <ImageIcon className="h-3 w-3" />{" "}
-                          {resource.images.length}
-                        </div>
-                      )}
-                    </div>
-                    <button className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1 hover:underline">
-                      Ver más <ExternalLink className="h-3 w-3" />
-                    </button>
-                  </div>
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 w-full md:w-auto scrollbar-hide">
+                <div className="bg-slate-100 p-1 rounded-xl flex items-center mr-4">
+                  <button
+                    onClick={() => setViewFilter("system")}
+                    className={cn(
+                      "px-4 py-2 rounded-lg text-xs font-bold transition-all",
+                      viewFilter === "system" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    )}
+                  >
+                    Sistema y Comunidad
+                  </button>
+                  <button
+                    onClick={() => setViewFilter("mine")}
+                    className={cn(
+                      "px-4 py-2 rounded-lg text-xs font-bold transition-all",
+                      viewFilter === "mine" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    )}
+                  >
+                    Mis Recursos
+                  </button>
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
-            <div className="h-20 w-20 bg-slate-50 rounded-full flex items-center justify-center">
-              <FileText className="h-10 w-10 text-slate-300" />
+              </div>
             </div>
+
+            {isLoading ? (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="h-48 rounded-3xl bg-slate-50 animate-pulse border border-slate-100" />)}
+              </div>
+            ) : filteredLibraryResources.length > 0 ? (
+              <div className="space-y-8">
+                {CATEGORIES.filter(c => c.id !== "all").map(catInfo => {
+                  const items = filteredLibraryResources.filter(r => r.category === catInfo.id).slice(0, 5);
+                  if (items.length === 0) return null;
+
+                  return (
+                    <div key={catInfo.id} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className={cn("p-2 rounded-xl", catInfo.bg)}>
+                          <catInfo.icon className={cn("h-4 w-4", catInfo.color)} />
+                        </div>
+                        <h3 className="font-black text-slate-900 tracking-tight text-lg">{catInfo.label}</h3>
+                      </div>
+
+                      <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide snap-x">
+                        {items.map((resource) => {
+                          const isGlobal = resource.nutritionistId === null;
+                          const isMine = resource.isMine;
+                          const isCommunity = !isGlobal && !isMine && resource.isPublic;
+
+                          return (
+                            <div key={resource.id} className="group min-w-[300px] w-[300px] sm:min-w-[350px] sm:w-[350px] relative bg-white border border-slate-100 rounded-3xl overflow-hidden hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 flex flex-col h-full snap-start shrink-0">
+                              <div className="p-6 flex-1 space-y-4">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex items-center gap-2">
+                                    {isGlobal && <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-tighter text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded"><Globe className="h-2 w-2" /> Global</span>}
+                                    {isCommunity && <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-tighter text-fuchsia-500 bg-fuchsia-50 px-1.5 py-0.5 rounded"><Globe className="h-2 w-2" /> Comunidad</span>}
+                                    {isMine && resource.isPublic && <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-tighter text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded"><CheckCircle2 className="h-2 w-2" /> Público</span>}
+                                  </div>
+                                  <div className="flex gap-1">
+                                    {isMine ? (
+                                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => handleEdit(resource)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-emerald-600 transition-colors cursor-pointer" title="Editar"><Pencil className="h-4 w-4" /></button>
+                                        <button onClick={() => handleDelete(resource.id)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-rose-600 transition-colors cursor-pointer" title="Eliminar"><Trash2 className="h-4 w-4" /></button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => handleClone(resource)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer" title="Añadir a Mis Creaciones"><Copy className="h-4 w-4" /></button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <h3 className="font-black text-slate-900 leading-tight">{resource.title}</h3>
+                                  <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed">{resource.content.replace(/[#*`]|<br\s*\/?>/g, " ").replace(/<[^>]*>?/gm, '')}</p>
+                                </div>
+                                <div className="pt-4 flex flex-wrap gap-2">
+                                  {resource.tags?.slice(0, 3).map((tag) => <span key={tag} className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50 px-2 py-1 rounded-md">#{tag}</span>)}
+                                  {resource.tags?.length > 3 && <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50 px-2 py-1 rounded-md">+{resource.tags.length - 3}</span>}
+                                </div>
+                              </div>
+                              <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-50 flex items-center justify-between mt-auto">
+                                <button onClick={() => handleEdit(resource)} className="cursor-pointer text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1 hover:underline">Ver Recurso Completo <ExternalLink className="h-3 w-3" /></button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
+                <div className="h-20 w-20 bg-slate-50 rounded-full flex items-center justify-center"><FileText className="h-10 w-10 text-slate-300" /></div>
+                <div className="space-y-1">
+                  <h3 className="font-black text-slate-900">
+                    {viewFilter === "system" ? "No hay recursos del sistema" : "No has creado recursos aún"}
+                  </h3>
+                  <p className="text-sm text-slate-500 max-w-xs">Intenta cambiar de filtro o añade un recurso nuevo al sistema.</p>
+                </div>
+                {(viewFilter === "system" || searchQuery !== "") && (
+                  <Button variant="outline" className="rounded-2xl font-bold border-slate-200" onClick={() => { setActiveCategory("all"); setSearchQuery(""); }}>Limpiar filtros de búsqueda</Button>
+                )}
+                {viewFilter === "mine" && (
+                  <Button className="rounded-2xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => { resetForm(); setActiveTab("create"); }}><Plus className="h-4 w-4 mr-2" />Crear mi primer recurso</Button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "create" && (
+          <div className="max-w-4xl mx-auto space-y-8 bg-white p-6 md:p-8 rounded-3xl border border-slate-100 shadow-sm animate-in fade-in zoom-in-95 duration-200">
             <div className="space-y-1">
-              <h3 className="font-black text-slate-900">
-                No hay recursos actualmente
-              </h3>
-              <p className="text-sm text-slate-500 max-w-xs">
-                No hemos encontrado nada, intenta ajustar la búsqueda o añade
-                uno nuevo al sistema.
-              </p>
+              <h2 className="text-2xl font-black text-slate-900">{editingId ? "Editar Recurso" : "Crear Nuevo Recurso"}</h2>
+              <p className="text-slate-500 text-sm">Diseña contenido educativo y asócialo a restricciones para que se agregue automáticamente al Entregable de tus pacientes.</p>
             </div>
-            <Button
-              variant="outline"
-              className="rounded-2xl font-bold border-slate-200"
-              onClick={() => {
-                setActiveCategory("all");
-                setSearchQuery("");
-              }}
-            >
-              Limpiar filtros
-            </Button>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Título del Recurso</label>
+                <Input
+                  placeholder="Ej: La verdad sobre el ayuno intermitente"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="rounded-xl border-slate-200 h-12 text-slate-900 bg-slate-50/50 focus:bg-white transition-colors text-sm font-medium"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Temática / Categoría</label>
+                <div className="relative">
+                  <select
+                    className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all outline-none appearance-none cursor-pointer"
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  >
+                    {CATEGORIES.filter((c) => c.id !== "all").map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6 pb-2 border-b border-slate-100">
+              <div className="space-y-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Etiqueta de Búsqueda (Global)</label>
+                  <p className="text-[10px] text-slate-400 font-medium">Ayuda a encontrar el recurso internamente.</p>
+                </div>
+                <TagInput
+                  value={formData.tags.filter(t => !CONSTRAINT_IDS.includes(t))}
+                  onChange={(newTags) => {
+                    const constraints = formData.tags.filter(t => CONSTRAINT_IDS.includes(t));
+                    setFormData({ ...formData, tags: [...constraints, ...newTags] });
+                  }}
+                  fetchSuggestionsUrl={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/tags`}
+                  hideTags={true}
+                  placeholder="Buscar o crear etiqueta..."
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex flex-col gap-1">
+                  <label className="flex items-center gap-2 text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                    Asociar a Restricción Específica
+                    <Sparkles className="h-3 w-3" />
+                  </label>
+                  <p className="text-[10px] text-slate-400 font-medium">Si enlazas una restricción, se adjuntará al PDF entregable.</p>
+                </div>
+                <TagInput
+                  value={formData.tags.filter(t => CONSTRAINT_IDS.includes(t))}
+                  onChange={(newConstraints) => {
+                    const generalTags = formData.tags.filter(t => !CONSTRAINT_IDS.includes(t));
+                    setFormData({ ...formData, tags: [...generalTags, ...newConstraints] });
+                  }}
+                  suggestions={CONSTRAINT_IDS}
+                  hideTags={true}
+                  placeholder="Buscar o crear restricción..."
+                  className="w-full"
+                />
+              </div>
+
+              {formData.tags?.length > 0 && (
+                <div className="md:col-span-2 flex flex-wrap gap-2 pt-2">
+                  {formData.tags.map((tag, index) => {
+                    const isConstraint = CONSTRAINT_IDS.includes(tag);
+                    return (
+                      <span key={index} className={cn("px-3 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-2 border shadow-sm animate-in zoom-in duration-200", isConstraint ? "bg-amber-50 text-amber-700 border-amber-100" : "bg-emerald-50 text-emerald-700 border-emerald-100")}>
+                        {tag}
+                        <X className={cn("h-3 w-3 cursor-pointer transition-colors", isConstraint ? "hover:text-amber-900" : "hover:text-emerald-900")} onClick={() => setFormData({ ...formData, tags: formData.tags.filter((_, i) => i !== index) })} />
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fuentes / Bibliografía (Opcional)</label>
+              <Input
+                placeholder="Añade referencias o enlaces para respaldar el recurso..."
+                value={formData.sources}
+                onChange={(e) => setFormData({ ...formData, sources: e.target.value })}
+                className="rounded-xl border-slate-200 h-11 text-slate-900 bg-slate-50/50 focus:bg-white text-sm"
+              />
+            </div>
+
+            <div className="space-y-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contenido Educativo</label>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setIsRawMode(!isRawMode)} className="text-[10px] font-bold text-blue-500 hover:text-blue-700 uppercase tracking-widest bg-blue-50 px-2 py-1 rounded">
+                    Modo actual: {isRawMode ? "Markdown/Plano" : "Constructor Visual"}
+                  </button>
+                </div>
+              </div>
+
+              {isRawMode ? (
+                <textarea
+                  className="w-full min-h-[300px] rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all outline-none resize-none leading-relaxed shadow-sm"
+                  placeholder="Puedes escribir en Markdown o pegar el contenido crudo aquí..."
+                  value={formData.content}
+                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                />
+              ) : (
+                <RichEditor
+                  value={formData.content}
+                  onChange={(val) => setFormData({ ...formData, content: val })}
+                />
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 py-4 border-t border-slate-100">
+              <div className="flex-1">
+                <h4 className="text-sm font-bold text-slate-900">Compartir con la comunidad</h4>
+                <p className="text-xs text-slate-500">Haz que este recurso aparezca en la bilbioteca global. Podrá ser visto y copiado por otros nutricionistas de NutriSaaS.</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer ml-3">
+                <input type="checkbox" className="sr-only peer" checked={formData.isPublic} onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })} />
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-6 mt-4 border-t border-slate-100">
+              <Button variant="ghost" className="rounded-xl font-bold text-slate-500 hover:bg-slate-100" onClick={() => setActiveTab("library")}>
+                Cancelar
+              </Button>
+              <Button className="bg-slate-900 text-white rounded-xl font-black px-8 py-6 gap-2 shadow-lg shadow-slate-900/10 hover:scale-[1.02] transition-transform" onClick={handleSave}>
+                <Save className="h-5 w-5" />
+                {editingId ? "Actualizar Recurso" : "Guardar Recurso"}
+              </Button>
+            </div>
           </div>
         )}
       </div>
-
-      {/* Modal for Add/Edit - Simple style but with Image Upload button */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={editingResource ? "Editar Recurso" : "Nuevo Recurso"}
-        className="max-w-3xl"
-      >
-        <div className="space-y-6 py-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Título
-              </label>
-              <Input
-                placeholder="Ej: La verdad sobre el ayuno intermitente"
-                value={formData.title}
-                onChange={(e) =>
-                  setFormData({ ...formData, title: e.target.value })
-                }
-                className="rounded-xl border-slate-200 h-11 text-slate-900"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Categoría
-              </label>
-              <select
-                className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 transition-all outline-none"
-                value={formData.category}
-                onChange={(e) =>
-                  setFormData({ ...formData, category: e.target.value })
-                }
-              >
-                {CATEGORIES.filter((c) => c.id !== "all").map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Image Upload Button & Preview */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              Biblioteca de Imágenes
-            </label>
-            <div className="flex flex-wrap gap-3">
-              {formData.images.map((img, idx) => (
-                <div
-                  key={idx}
-                  className="relative h-16 w-16 rounded-xl overflow-hidden border border-slate-200 group"
-                >
-                  <img src={img} className="h-full w-full object-cover" />
-                  <button
-                    onClick={() =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        images: prev.images.filter((_, i) => i !== idx),
-                      }))
-                    }
-                    className="absolute top-1 right-1 p-0.5 bg-white/90 rounded-lg text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="h-16 w-16 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-emerald-500 hover:text-emerald-500 transition-all"
-              >
-                {isUploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="h-4 w-4" />
-                )}
-                <span className="text-[8px] font-black uppercase mt-1">
-                  Añadir
-                </span>
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                className="hidden"
-                accept="image/*"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              Etiquetas / Restricciones Asociadas
-            </label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {formData.tags?.map((tag, index) => (
-                <span
-                  key={index}
-                  className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2"
-                >
-                  {tag}
-                  <X
-                    className="h-3 w-3 cursor-pointer"
-                    onClick={() => {
-                      setFormData({
-                        ...formData,
-                        tags: formData.tags.filter((_, i) => i !== index),
-                      });
-                    }}
-                  />
-                </span>
-              ))}
-            </div>
-            <datalist id="available-constraints">
-              {availableTags.map((tag) => (
-                <option key={tag} value={tag} />
-              ))}
-            </datalist>
-            <Input
-              list="available-constraints"
-              placeholder="Escribe o selecciona resticción y presiona Enter (ej: Diabético)"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  const value = (e.target as HTMLInputElement).value.trim();
-                  if (value && !formData.tags.includes(value)) {
-                    setFormData({
-                      ...formData,
-                      tags: [...formData.tags, value],
-                    });
-                    (e.target as HTMLInputElement).value = "";
-                  }
-                }
-              }}
-              className="rounded-xl border-slate-200 h-11 text-slate-900"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              Contenido (Markdown)
-            </label>
-            <textarea
-              className="w-full h-48 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 transition-all outline-none resize-none leading-relaxed"
-              placeholder="Escribe aquí el contenido educativo..."
-              value={formData.content}
-              onChange={(e) =>
-                setFormData({ ...formData, content: e.target.value })
-              }
-            />
-          </div>
-
-          <div className="flex gap-4">
-            <div className="flex-1 flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <Sparkles className="h-4 w-4 text-blue-600" />
-                </div>
-                <h4 className="text-[10px] font-black text-slate-900 uppercase">
-                  Público
-                </h4>
-              </div>
-              <button
-                onClick={() =>
-                  setFormData({ ...formData, isPublic: !formData.isPublic })
-                }
-                className={cn(
-                  "w-10 h-5 rounded-full transition-all relative",
-                  formData.isPublic ? "bg-emerald-500" : "bg-slate-300",
-                )}
-              >
-                <div
-                  className={cn(
-                    "absolute top-0.5 left-0.5 h-4 w-4 bg-white rounded-full transition-all",
-                    formData.isPublic ? "translate-x-5" : "",
-                  )}
-                />
-              </button>
-            </div>
-
-            {isAdmin && (
-              <div className="flex-1 flex items-center justify-between p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 bg-emerald-100 rounded-xl flex items-center justify-center">
-                    <Globe className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <h4 className="text-[10px] font-black text-slate-900 uppercase">
-                    Global
-                  </h4>
-                </div>
-                <button
-                  onClick={() =>
-                    setFormData({ ...formData, isGlobal: !formData.isGlobal })
-                  }
-                  className={cn(
-                    "w-10 h-5 rounded-full transition-all relative",
-                    formData.isGlobal ? "bg-emerald-600" : "bg-slate-300",
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "absolute top-0.5 left-0.5 h-4 w-4 bg-white rounded-full transition-all",
-                      formData.isGlobal ? "translate-x-5" : "",
-                    )}
-                  />
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-            <Button
-              variant="ghost"
-              className="rounded-xl font-bold text-slate-400"
-              onClick={() => setIsModalOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              className="bg-slate-900 text-white rounded-xl font-black px-8 gap-2 shadow-lg shadow-slate-200"
-              onClick={handleSave}
-            >
-              <Save className="h-4 w-4" />
-              Guardar
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </ModuleLayout>
   );
 }

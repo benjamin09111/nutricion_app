@@ -32,12 +32,14 @@ let ResourcesController = class ResourcesController {
     create(req, data) {
         const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role);
         const nutritionistId = isAdmin ? (data.isGlobal ? null : req.user.nutritionistId) : req.user.nutritionistId;
-        return this.resourcesService.create(nutritionistId, data);
+        const { isGlobal, ...restData } = data;
+        return this.resourcesService.create(nutritionistId, restData);
     }
     update(id, req, data) {
         const nutritionistId = req.user.nutritionistId;
         const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role);
-        return this.resourcesService.update(id, nutritionistId, isAdmin, data);
+        const { isGlobal, ...restData } = data;
+        return this.resourcesService.update(id, nutritionistId, isAdmin, restData);
     }
     remove(id, req) {
         const nutritionistId = req.user.nutritionistId;

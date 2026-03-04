@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, Plus, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -13,6 +13,7 @@ interface AddIngredientsToGroupModalProps {
   isOpen: boolean;
   onClose: () => void;
   groupId: string;
+  groupName?: string;
   allIngredients: Ingredient[];
   currentIngredientIds: string[];
   onIngredientsAdded: () => void;
@@ -23,22 +24,42 @@ export default function AddIngredientsToGroupModal({
   isOpen,
   onClose,
   groupId,
+  groupName,
   allIngredients,
   currentIngredientIds,
   onIngredientsAdded,
   onCreateNew,
 }: AddIngredientsToGroupModalProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (groupName && allIngredients.some(ing => ing.category?.name === groupName)) {
+        setSelectedCategory(groupName);
+      } else {
+        setSelectedCategory("ALL");
+      }
+    }
+  }, [isOpen, groupName, allIngredients]);
 
   const currentIdsSet = useMemo(
     () => new Set(currentIngredientIds),
     [currentIngredientIds],
   );
 
+  const categories = useMemo(() => {
+    const cats = new Set<string>();
+    allIngredients.forEach(ing => {
+      if (ing.category?.name) cats.add(ing.category.name);
+    });
+    return Array.from(cats).sort();
+  }, [allIngredients]);
+
   const filteredIngredients = useMemo(() => {
-    if (!searchTerm && allIngredients.length > 200) {
+    if (!searchTerm && selectedCategory === "ALL" && allIngredients.length > 200) {
       // If no search and many items, just show the first 50 to avoid heavy filter
       return allIngredients
         .filter((ing) => !currentIdsSet.has(ing.id))
@@ -48,8 +69,13 @@ export default function AddIngredientsToGroupModal({
     const term = searchTerm.toLowerCase();
     return allIngredients
       .filter((ing) => {
-        const isAlreadyInGroup = currentIdsSet.has(ing.id);
-        if (isAlreadyInGroup) return false;
+        if (currentIdsSet.has(ing.id)) return false;
+
+        if (selectedCategory !== "ALL" && ing.category?.name !== selectedCategory) {
+          return false;
+        }
+
+        if (!term) return true;
 
         const nameMatch = ing.name.toLowerCase().includes(term);
         const brandMatch = ing.brand?.name?.toLowerCase().includes(term);
@@ -57,7 +83,7 @@ export default function AddIngredientsToGroupModal({
         return nameMatch || brandMatch;
       })
       .slice(0, 50);
-  }, [allIngredients, currentIdsSet, searchTerm]);
+  }, [allIngredients, currentIdsSet, searchTerm, selectedCategory]);
 
   const handleToggleSelect = (id: string) => {
     const newSelected = new Set(selectedIds);
@@ -133,6 +159,17 @@ export default function AddIngredientsToGroupModal({
               autoFocus
             />
           </div>
+          <select
+            className="w-auto min-w-[160px] h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 shrink-0"
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            title="Filtrar por categoría"
+          >
+            <option value="ALL">Todas las categorías</option>
+            {categories.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
           {onCreateNew && (
             <Button
               variant="outline"

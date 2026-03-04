@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { Suspense } from "react";
 import FoodsClient from "./FoodsClient";
 import { Ingredient } from "@/features/foods";
 
@@ -44,7 +45,9 @@ export default async function FoodsPage() {
       </div>
 
       {/* Main Content: Filters + Table consolidated in Client Component */}
-      <FoodsClient initialData={ingredients} />
+      <Suspense fallback={<div className="p-8 text-center text-slate-500">Cargando ingredientes...</div>}>
+        <FoodsClient initialData={ingredients} />
+      </Suspense>
     </div>
   );
 }

@@ -54,7 +54,7 @@ description: General development rules for the project
 ## Design & Experience
 - **UX & Design**: Every button, link, or interactive element **MUST** have the `cursor-pointer` class. This is a non-negotiable standard for all interactive components.
 - **Visual Consistency**: Strictly follow the existing visual style and design patterns of the application.
-- **Modals & Overlays**: All modals, drawers, or overlays **MUST** close when clicking outside of their main content area (on the backdrop). This behavior is non-negotiable and must be implemented for every interactive overlay.
+- **Modals & Overlays**: All modals, drawers, or overlays **MUST NOT** close when clicking outside of their main content area (on the backdrop) or pressing Escape by default. This is to prevent accidental data loss. Users must explicitly click the "X" or a "Cancel" button to close the modal.
 
 ## SEO & Semantic HTML
 - **Semantic Tags**: Always prioritize semantic HTML tags (e.g., `<main>`, `<section>`, `<article>`, `<header>`, `<footer>`, `<nav>`, `<aside>`) over generic `<div>` containers. This improves SEO ranking and Google's understanding of the content structure.

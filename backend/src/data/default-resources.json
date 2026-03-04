@@ -1,0 +1,57 @@
+[
+    {
+        "title": "La verdad sobre el Ayuno Intermitente",
+        "category": "mitos",
+        "content": "**¿El ayuno intermitente es mágico para perder peso?**<br/><br/>No, el ayuno intermitente no tiene propiedades mágicas. *Su principal beneficio es ayudar a algunas personas a controlar su ingesta calórica limitando la ventana de tiempo en la que pueden comer.*<br/><br/>Si al final del día consumes más calorías de las que gastas, subirás de peso, independientemente de si ayunas 16 horas o no. Lo fundamental siempre será el déficit calórico y la calidad de los alimentos que eliges en tu ventana de alimentación.",
+        "tags": [
+            "Ayuno",
+            "Pérdida de Peso",
+            "Mitos"
+        ],
+        "sources": "https://www.nejm.org/doi/full/10.1056/NEJMoa2114833"
+    },
+    {
+        "title": "Checklist: Preparación para el Éxito",
+        "category": "habitos",
+        "content": "**Tu entorno determina tu éxito.** Antes de empezar la semana, asegúrate de cumplir con estos 3 puntos clave:<br/><br/>1. *Refrigerador limpio*: Elimina ultraprocesados tentadores que no sumen a tu objetivo.<br/>2. *Batch Cooking Básico*: Deja lavadas y picadas tus verduras, y al menos una fuente de carbohidratos (arroz, quinoa) lista en un tupper.<br/>3. *Botella visible*: Ten siempre a la vista una botella de agua de al menos 1 litro en tu espacio de trabajo.",
+        "tags": [
+            "Organización",
+            "Hábitos",
+            "Agua"
+        ],
+        "sources": "Hábitos Atómicos - James Clear"
+    },
+    {
+        "title": "Diferenciando el Hambre Real del Emocional",
+        "category": "emocional",
+        "content": "A veces comemos para alimentar nuestras emociones, no nuestro estómago. **¿Cómo diferenciarlos?**<br/><br/>*Hambre Físico:*<br/>- Aparece gradualmente.<br/>- Puedes satisfacerlo con cualquier alimento (incluso una manzana).<br/>- Te sientes satisfecho y te detienes.<br/>- No genera culpa posterior.<br/><br/>*Hambre Emocional:*<br/>- Aparece de golpe, como un antojo urgente.<br/>- Exige un alimento específico (usualmente dulce o graso).<br/>- Es difícil parar incluso estando lleno.<br/>- Suele dejar una sensación de culpa o vergüenza.<br/><br/>*Tip de acción:* Antes de ceder a un antojo urgente, toma un vaso de agua y espera 15 minutos. Si el hambre persiste y cualquier alimento te sirve, es físico.",
+        "tags": [
+            "Ansiedad",
+            "Atracones",
+            "Mindful Eating"
+        ],
+        "sources": "Asociación Americana de Psicología (APA) - Alimentación Emocional"
+    },
+    {
+        "title": "Cómo leer una etiqueta nutricional rápidamente",
+        "category": "consejos",
+        "content": "No necesitas ser un experto para elegir mejores productos. Fíjate en estos **3 puntos críticos** la próxima vez que vayas al supermercado:<br/><br/>1. **Los 3 primeros ingredientes:** Los ingredientes se ordenan de mayor a menor cantidad. Si el azúcar, jarabe o harinas refinadas están entre los primeros 3, busca otra opción.<br/>2. **Porción vs Envase:** Asegúrate de saber si las calorías que estás leyendo corresponden a todo el paquete o solo a un trocito (una porción).<br/>3. **Lista corta:** Como regla general, si un producto tiene más de 5 ingredientes y no puedes pronunciar la mitad de ellos, probablemente sea un ultraprocesado que convendría evitar en el día a día.",
+        "tags": [
+            "Supermercado",
+            "Etiquetado",
+            "Ultraprocesados"
+        ],
+        "sources": "Organización Mundial de la Salud (OMS) - Guías de etiquetado"
+    },
+    {
+        "title": "Pausas Activas para Trabajo de Oficina",
+        "category": "ejercicios",
+        "content": "Estar sentado 8 horas diarias contrarresta los beneficios de esa hora que pasaste en el gimnasio. **El sedentarismo es silencioso.**<br/><br/>*Implementa la regla 50/10:* Por cada 50 minutos de trabajo continuo, levántate 10 minutos.<br/><br/>*Circuito rápido de oficina:*<br/>- 10 sentadillas usando tu propia silla.<br/>- Estiramiento de cuello (suave hacia los lados y adelante).<br/>- 20 elevaciones de talones (pantorrillas) mientras esperas que hierva el agua del café.<br/>- Caminar mientras contestas llamadas de teléfono.",
+        "tags": [
+            "Sedentarismo",
+            "Oficina",
+            "Movilidad"
+        ],
+        "sources": "American College of Sports Medicine (ACSM)"
+    }
+]

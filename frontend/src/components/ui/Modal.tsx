@@ -9,6 +9,8 @@ interface ModalProps {
   title?: string;
   children: React.ReactNode;
   className?: string;
+  closeOnBackdropClick?: boolean;
+  closeOnEscape?: boolean;
 }
 
 export function Modal({
@@ -17,6 +19,8 @@ export function Modal({
   title,
   children,
   className,
+  closeOnBackdropClick = false,
+  closeOnEscape = false,
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -25,21 +29,25 @@ export function Modal({
   // Close on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && closeOnEscape) onClose();
     };
 
-    if (isOpen) {
+    if (isOpen && closeOnEscape) {
       document.addEventListener("keydown", handleEscape);
     }
 
     return () => {
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, closeOnEscape]);
 
   // Close on click outside (backdrop)
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+    if (
+      closeOnBackdropClick &&
+      modalRef.current &&
+      !modalRef.current.contains(e.target as Node)
+    ) {
       onClose();
     }
   };

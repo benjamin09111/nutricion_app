@@ -223,7 +223,11 @@ export class FoodsService {
             orderBy: { name: 'asc' },
         });
 
-        return ingredients;
+        // Add isMine property to each ingredient
+        return ingredients.map((ing: any) => ({
+            ...ing,
+            isMine: ing.nutritionistId === nutritionistId && !!nutritionistId
+        }));
     }
 
     async togglePreference(ingredientId: string, userId: string, data: {
