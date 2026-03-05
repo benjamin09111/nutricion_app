@@ -40,11 +40,10 @@ interface CreationsClientProps {
 
 export default function CreationsClient({ initialData }: CreationsClientProps) {
   const router = useRouter();
-  const [selectedType, setSelectedType] = useState<CreationType | "Todos">(
-    "Todos",
-  );
+  const [selectedType, setSelectedType] = useState<CreationType | "Todos">("Todos");
   const [selectedTag, setSelectedTag] = useState<string>("Todos");
   const [searchTerm, setSearchTerm] = useState("");
+  const [patientFilter, setPatientFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [localCreations, setLocalCreations] = useState<Creation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,6 +70,109 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [fullCreationData, setFullCreationData] = useState<any | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isExportingWord, setIsExportingWord] = useState(false);
+
+  // -- Fetch full creation data (shared by view and export) --
+  const fetchFullData = async (id: string): Promise<any | null> => {
+    try {
+      const token = Cookies.get("auth_token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
+      const response = await fetch(`${apiUrl}/creations/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) return await response.json();
+    } catch (e) {
+      console.error("Error fetching creation:", e);
+    }
+    return null;
+  };
+
+  // -- Build DietPdfData from full API response --
+  const buildDietData = (raw: any) => {
+    const foods: any[] = [];
+
+    // From foodSummary in metadata (new format)
+    if (raw.metadata?.foodSummary?.length) {
+      raw.metadata.foodSummary.forEach((f: any) => {
+        foods.push({
+          producto: f.name,
+          grupo: f.group || "Varios",
+          unidad: f.unit,
+          calorias: f.calories,
+          proteinas: f.proteins,
+          lipidos: f.lipids,
+          carbohidratos: f.carbs,
+        });
+      });
+    }
+    // Fallback: from content.manualAdditions
+    else if (raw.content?.manualAdditions?.length) {
+      raw.content.manualAdditions.forEach((f: any) => {
+        foods.push({
+          producto: f.producto,
+          grupo: f.grupo || "Varios",
+          unidad: f.unidad,
+          calorias: f.calorias,
+          proteinas: f.proteinas,
+          lipidos: f.lipidos,
+          carbohidratos: f.carbohidratos,
+        });
+      });
+    }
+
+    return {
+      dietName: raw.name,
+      dietTags: raw.tags || [],
+      activeConstraints: raw.content?.activeConstraints || [],
+      patientName: raw.metadata?.patientName || raw.content?.patientMeta?.fullName,
+      foods,
+    };
+  };
+
+  const handleExportPdf = async () => {
+    if (!selectedItem) return;
+    setIsExportingPdf(true);
+    try {
+      const raw = await fetchFullData(selectedItem.id);
+      if (!raw) { toast.error("No se pudo obtener los datos de la creación."); return; }
+      if (selectedItem.type === CreationType.DIET) {
+        const { downloadDietPdf } = await import("@/features/pdf/pdfExport");
+        await downloadDietPdf(buildDietData(raw));
+        toast.success("PDF descargado correctamente.");
+        setDownloadModalOpen(false);
+      } else {
+        toast.info("Exportación PDF para este tipo próximamente.");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Error al generar el PDF.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  const handleExportWord = async () => {
+    if (!selectedItem) return;
+    setIsExportingWord(true);
+    try {
+      const raw = await fetchFullData(selectedItem.id);
+      if (!raw) { toast.error("No se pudo obtener los datos de la creación."); return; }
+      if (selectedItem.type === CreationType.DIET) {
+        const { downloadDietDocx } = await import("@/features/pdf/wordExport");
+        await downloadDietDocx(buildDietData(raw));
+        toast.success("Word descargado correctamente.");
+        setDownloadModalOpen(false);
+      } else {
+        toast.info("Exportación Word para este tipo próximamente.");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Error al generar el Word.");
+    } finally {
+      setIsExportingWord(false);
+    }
+  };
 
   const handleDownloadClick = (item: Creation) => {
     setSelectedItem(item);
@@ -122,6 +224,8 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
             size: "N/A",
             format: item.format === "NATIVE" ? "JSON" : "PDF",
             tags: item.tags || [],
+            isPublic: item.isPublic || false,
+            patientName: item.metadata?.patientName || item.content?.patientMeta?.fullName || null,
           }));
           setLocalCreations(mappedData);
         }
@@ -145,17 +249,14 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
 
   const filteredData = useMemo(() => {
     return allData.filter((item) => {
-      const matchesSearch = item.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-      const matchesType =
-        selectedType === "Todos" || item.type === selectedType;
-      const matchesTag =
-        selectedTag === "Todos" ||
-        (item.tags && item.tags.includes(selectedTag));
-      return matchesSearch && matchesType && matchesTag;
+      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = selectedType === "Todos" || item.type === selectedType;
+      const matchesTag = selectedTag === "Todos" || (item.tags && item.tags.includes(selectedTag));
+      const matchesPatient = !patientFilter.trim() ||
+        ((item as any).patientName?.toLowerCase() ?? "").includes(patientFilter.toLowerCase());
+      return matchesSearch && matchesType && matchesTag && matchesPatient;
     });
-  }, [allData, searchTerm, selectedType, selectedTag]);
+  }, [allData, searchTerm, selectedType, selectedTag, patientFilter]);
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const paginatedData = filteredData.slice(
@@ -165,7 +266,7 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedType, selectedTag]);
+  }, [searchTerm, selectedType, selectedTag, patientFilter]);
 
   const getTypeIcon = (type: CreationType) => {
     switch (type) {
@@ -265,6 +366,30 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
             />
           </div>
 
+          {/* Filter by Patient */}
+          <div className="relative w-full md:w-52">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <Input
+              type="search"
+              placeholder="Filtrar por paciente..."
+              className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all w-full"
+              value={patientFilter}
+              onChange={(e) => setPatientFilter(e.target.value)}
+            />
+            {patientFilter && (
+              <button
+                onClick={() => setPatientFilter("")}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
           {/* Filter Type */}
           <div className="w-full md:w-48 relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -318,34 +443,22 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
           <table className="min-w-full divide-y divide-slate-100">
             <thead className="bg-slate-50/50 text-shadow-sm">
               <tr>
-                <th
-                  scope="col"
-                  className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100"
-                >
+                <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
                   Nombre
                 </th>
-                <th
-                  scope="col"
-                  className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100"
-                >
+                <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
+                  Paciente
+                </th>
+                <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
                   Etiquetas
                 </th>
-                <th
-                  scope="col"
-                  className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100"
-                >
+                <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
                   Tipo
                 </th>
-                <th
-                  scope="col"
-                  className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100"
-                >
+                <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
                   Fecha
                 </th>
-                <th
-                  scope="col"
-                  className="px-6 py-4 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100"
-                >
+                <th scope="col" className="px-6 py-4 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
                   Acciones
                 </th>
               </tr>
@@ -353,7 +466,7 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
             <tbody className="divide-y divide-slate-50 bg-white">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-24">
+                  <td colSpan={6} className="text-center py-24">
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <Loader2 className="h-10 w-10 text-emerald-500 animate-spin" />
                       <p className="text-sm font-bold text-slate-500">
@@ -370,23 +483,31 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div
-                          className={cn(
-                            "p-2 rounded-lg bg-slate-50 border border-slate-100",
-                            item.type === CreationType.DIET &&
-                            "group-hover:bg-blue-50 group-hover:border-blue-100",
-                            item.type === CreationType.SHOPPING_LIST &&
-                            "group-hover:bg-emerald-50 group-hover:border-emerald-100",
-                            item.type === CreationType.RECIPE &&
-                            "group-hover:bg-amber-50 group-hover:border-amber-100",
-                          )}
-                        >
+                        <div className={cn(
+                          "p-2 rounded-lg bg-slate-50 border border-slate-100",
+                          item.type === CreationType.DIET && "group-hover:bg-blue-50 group-hover:border-blue-100",
+                          item.type === CreationType.SHOPPING_LIST && "group-hover:bg-emerald-50 group-hover:border-emerald-100",
+                          item.type === CreationType.RECIPE && "group-hover:bg-amber-50 group-hover:border-amber-100",
+                        )}>
                           {getTypeIcon(item.type)}
                         </div>
                         <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">
                           {item.name}
                         </span>
                       </div>
+                    </td>
+                    {/* Paciente column */}
+                    <td className="px-6 py-4">
+                      {(item as any).patientName ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          {(item as any).patientName}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400 italic">Sin paciente</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1">
@@ -458,7 +579,7 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="text-center py-24">
+                  <td colSpan={6} className="text-center py-24">
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <div className="p-4 bg-slate-50 rounded-full">
                         <Folder className="h-8 w-8 text-slate-300" />
@@ -497,73 +618,72 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
           </div>
         </div>
       </div>
-      {/* Download Modal - Moved inside main container */}
       {downloadModalOpen && selectedItem && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200 cursor-default"
-          onClick={() => setDownloadModalOpen(false)}
         >
           <div
             className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-start">
-              <h3 className="font-bold text-slate-900 text-lg">
-                Exportar Creación
-              </h3>
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg">Exportar Creación</h3>
+                <p className="text-xs text-slate-400 mt-0.5">{selectedItem.name}</p>
+              </div>
               <button
                 onClick={() => setDownloadModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               <p className="text-sm text-slate-500">
-                ¿Cómo deseas descargar <strong>"{selectedItem.name}"</strong>?
+                Elige el formato de exportación:
               </p>
 
               <div className="grid grid-cols-2 gap-3">
+                {/* PDF */}
                 <button
-                  className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 hover:border-red-200 hover:bg-red-50 group transition-all"
-                  onClick={() => {
-                    /* Mock PDF DL */ setDownloadModalOpen(false);
-                  }}
+                  className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-200 hover:border-red-300 hover:bg-red-50 group transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleExportPdf}
+                  disabled={isExportingPdf || isExportingWord}
                 >
-                  <FileText className="h-6 w-6 text-slate-400 group-hover:text-red-500 mb-2 transition-colors" />
-                  <span className="text-xs font-bold text-slate-600 group-hover:text-red-700">
-                    PDF
+                  {isExportingPdf ? (
+                    <Loader2 className="h-7 w-7 text-red-400 animate-spin mb-2" />
+                  ) : (
+                    <FileText className="h-7 w-7 text-slate-300 group-hover:text-red-500 mb-2 transition-colors" />
+                  )}
+                  <span className="text-xs font-black text-slate-600 group-hover:text-red-700 uppercase tracking-wider">
+                    {isExportingPdf ? "Generando..." : "PDF"}
                   </span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">.pdf</span>
                 </button>
+
+                {/* Word */}
                 <button
-                  className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 hover:border-emerald-200 hover:bg-emerald-50 group transition-all"
-                  onClick={() => {
-                    /* Mock Excel DL */ setDownloadModalOpen(false);
-                  }}
+                  className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-200 hover:border-blue-300 hover:bg-blue-50 group transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleExportWord}
+                  disabled={isExportingPdf || isExportingWord}
                 >
-                  <FileText className="h-6 w-6 text-slate-400 group-hover:text-emerald-500 mb-2 transition-colors" />
-                  <span className="text-xs font-bold text-slate-600 group-hover:text-emerald-700">
-                    Excel
+                  {isExportingWord ? (
+                    <Loader2 className="h-7 w-7 text-blue-400 animate-spin mb-2" />
+                  ) : (
+                    <FileText className="h-7 w-7 text-slate-300 group-hover:text-blue-500 mb-2 transition-colors" />
+                  )}
+                  <span className="text-xs font-black text-slate-600 group-hover:text-blue-700 uppercase tracking-wider">
+                    {isExportingWord ? "Generando..." : "Word"}
                   </span>
-                </button>
-                <button
-                  className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 hover:border-blue-200 hover:bg-blue-50 group transition-all"
-                  onClick={() => {
-                    /* Mock Doc DL */ setDownloadModalOpen(false);
-                  }}
-                >
-                  <FileText className="h-6 w-6 text-slate-400 group-hover:text-blue-500 mb-2 transition-colors" />
-                  <span className="text-xs font-bold text-slate-600 group-hover:text-blue-700">
-                    Word
-                  </span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">.docx</span>
                 </button>
               </div>
 
               <div className="pt-2 border-t border-slate-100">
                 <Button
                   variant="outline"
-                  className="w-full border-dashed border-slate-300 text-slate-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50"
+                  className="w-full border-dashed border-slate-300 text-slate-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
                   onClick={() => {
                     setDownloadModalOpen(false);
                     handleEdit(selectedItem);

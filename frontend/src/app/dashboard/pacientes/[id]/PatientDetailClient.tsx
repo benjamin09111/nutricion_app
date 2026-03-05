@@ -149,6 +149,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     null,
   );
 
+  const [isDeletePatientConfirmOpen, setIsDeletePatientConfirmOpen] = useState(false);
+  const [isDeleteConsultationConfirmOpen, setIsDeleteConsultationConfirmOpen] = useState(false);
+  const [consultationToDelete, setConsultationToDelete] = useState<string | null>(null);
+
   const isAnyModalOpen =
     isMetricModalOpen || !!selectedConsultation || isEditMetricHistoryModalOpen;
   useScrollLock(isAnyModalOpen);
@@ -475,8 +479,16 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const handleSaveMetricsClick = () => {
     if (!patient) return;
 
+    // Validate metrics: Must have values if they have a label
+    const incompleteMetrics = metricForm.metrics.filter(m => m.label.trim() !== "" && (m.value === undefined || m.value === null || m.value.toString().trim() === ""));
+    if (incompleteMetrics.length > 0) {
+      toast.error(`La métrica "${incompleteMetrics[0].label}" debe tener un valor.`);
+      return;
+    }
+
+    // Filter out completely empty metrics
     const validMetrics = metricForm.metrics.filter(
-      (m) => m.label.trim() !== "" && m.value !== "",
+      (m) => m.label.trim() !== "" && m.value !== undefined && m.value !== null && m.value.toString().trim() !== "",
     );
 
     if (validMetrics.length === 0) {
@@ -513,7 +525,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         let mergedMetrics = [...(existingConsultation?.metrics || [])];
 
         const validMetrics = metricForm.metrics.filter(
-          (m) => m.label.trim() !== "" && m.value !== "",
+          (m) => m.label.trim() !== "" && m.value !== undefined && m.value !== null && m.value.toString().trim() !== "",
         );
 
         validMetrics.forEach((m) => {
@@ -569,7 +581,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             title: "Registro de Métricas Independiente",
             description: "Entrada manual de datos de seguimiento.",
             metrics: metricForm.metrics
-              .filter((m) => m.label.trim() !== "" && m.value !== "")
+              .filter((m) => m.label.trim() !== "" && m.value !== undefined && m.value !== null && m.value.toString().trim() !== "")
               .map((m) => ({
                 ...m,
                 key: normalizeMetricKey(m.label, m.key),
@@ -976,12 +988,6 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   };
 
   const handleDelete = async () => {
-    if (
-      !window.confirm(
-        "¿Estás seguro de que deseas eliminar este paciente? Esta acción es irreversible.",
-      )
-    )
-      return;
 
     try {
       const response = await fetch(`${apiUrl}/patients/${id}`, {
@@ -993,10 +999,12 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         toast.success("Paciente eliminado correctamente");
         router.push("/dashboard/pacientes");
       } else {
-        toast.error("Error al eliminar");
+        toast.error("Error al eliminar paciente");
       }
     } catch (error) {
       toast.error("Error de conexión");
+    } finally {
+      setIsDeletePatientConfirmOpen(false);
     }
   };
 
@@ -1151,7 +1159,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 </span>
               </Button>
               <Button
-                onClick={handleDelete}
+                onClick={() => setIsDeletePatientConfirmOpen(true)}
                 variant="ghost"
                 className="rounded-2xl h-14 w-14 p-0 text-slate-300 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-all"
                 title="Eliminar Paciente"
@@ -1734,23 +1742,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         <button
                           onClick={async (e) => {
                             e.stopPropagation();
-                            if (!window.confirm("¿Estás seguro de que deseas eliminar esta consulta? Se eliminarán también las métricas asociadas a ella.")) return;
-                            try {
-                              const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-                              const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-                              const response = await fetch(`${apiUrl}/consultations/${consultation.id}`, {
-                                method: "DELETE",
-                                headers: { Authorization: `Bearer ${token}` },
-                              });
-                              if (response.ok) {
-                                toast.success("Consulta eliminada");
-                                fetchConsultations();
-                              } else {
-                                toast.error("Error al eliminar consulta");
-                              }
-                            } catch (error) {
-                              toast.error("Error de red");
-                            }
+                            setConsultationToDelete(consultation.id);
+                            setIsDeleteConsultationConfirmOpen(true);
                           }}
                           className="p-3 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all cursor-pointer"
                           title="Eliminar consulta"
@@ -2476,12 +2469,59 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       {/* Modal Confirmación Borrar Métrica Completa */}
       <ConfirmationModal
         isOpen={isDeleteEntireMetricConfirmOpen}
-        onClose={() => setIsDeleteEntireMetricConfirmOpen(false)}
+        onClose={() => {
+          setIsDeleteEntireMetricConfirmOpen(false);
+          setMetricKeyToDelete(null);
+        }}
         onConfirm={handleDeleteEntireMetric}
         title={`¿Eliminar Historial de ${metricKeyToDelete ? getMetricInfo(metricKeyToDelete).label : ""}?`}
         description="Esta acción eliminará TODOS los registros históricos de esta métrica para este paciente (incluyendo el valor inicial si aplica). Esta acción no se puede deshacer."
         confirmText="Sí, eliminar todo"
         cancelText="Cancelar"
+        variant="destructive"
+      />
+
+      <ConfirmationModal
+        isOpen={isDeletePatientConfirmOpen}
+        onClose={() => setIsDeletePatientConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="¿Eliminar paciente?"
+        description="¿Estás seguro de que deseas eliminar este paciente? Esta acción es irreversible."
+        confirmText="Sí, eliminar"
+        variant="destructive"
+      />
+
+      <ConfirmationModal
+        isOpen={isDeleteConsultationConfirmOpen}
+        onClose={() => {
+          setIsDeleteConsultationConfirmOpen(false);
+          setConsultationToDelete(null);
+        }}
+        onConfirm={async () => {
+          if (!consultationToDelete) return;
+          try {
+            const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+            const response = await fetch(`${apiUrl}/consultations/${consultationToDelete}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (response.ok) {
+              toast.success("Consulta eliminada");
+              fetchConsultations();
+            } else {
+              toast.error("Error al eliminar consulta");
+            }
+          } catch (error) {
+            toast.error("Error de red");
+          } finally {
+            setIsDeleteConsultationConfirmOpen(false);
+            setConsultationToDelete(null);
+          }
+        }}
+        title="¿Eliminar consulta?"
+        description="¿Estás seguro de que deseas eliminar esta consulta? Se eliminarán también las métricas asociadas a ella."
+        confirmText="Sí, eliminar"
         variant="destructive"
       />
     </div >

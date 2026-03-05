@@ -12,6 +12,7 @@ export declare class CreatePatientDto {
     clinicalSummary?: string;
     nutritionalFocus?: string;
     fitnessGoals?: string;
+    likes?: string;
     tags?: string[];
     customVariables?: {
         key: string;

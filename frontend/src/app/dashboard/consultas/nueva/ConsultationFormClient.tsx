@@ -221,6 +221,16 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
             return;
         }
 
+        // Validate metrics: Must have values if they have a label
+        const incompleteMetrics = formData.metrics.filter(m => m.label.trim() !== "" && (m.value === undefined || m.value === null || m.value.toString().trim() === ""));
+        if (incompleteMetrics.length > 0) {
+            toast.error(`La métrica "${incompleteMetrics[0].label}" debe tener un valor.`);
+            return;
+        }
+
+        // Filter out completely empty metrics
+        const finalMetrics = formData.metrics.filter(m => m.label.trim() !== "" && m.value !== undefined && m.value !== null && m.value.toString().trim() !== "");
+
         setIsSaving(true);
         try {
             // 1. Save Consultation
@@ -228,7 +238,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
             const consultationUrl = id ? `${apiUrl}/consultations/${id}` : `${apiUrl}/consultations`;
             const consultationPayload = {
                 ...formData,
-                metrics: formData.metrics.map(m => ({
+                metrics: finalMetrics.map(m => ({
                     ...m,
                     key: normalizeMetricKey(m.label, m.key)
                 }))

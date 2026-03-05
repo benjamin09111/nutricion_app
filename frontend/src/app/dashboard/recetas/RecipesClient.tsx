@@ -36,6 +36,8 @@ import {
   User,
   UserPlus,
   AlertCircle,
+  FileUp,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -48,6 +50,7 @@ import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { useAdmin } from "@/context/AdminContext";
 import Cookies from "js-cookie";
+import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
 
 // -- Mock Types --
 
@@ -190,12 +193,30 @@ export default function RecipesClient() {
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
 
+  // -- Draft Restore Modal --
+  const [showDraftModal, setShowDraftModal] = useState(false);
+  const [draftMeta, setDraftMeta] = useState<{ label: string; date?: string }>({ label: "" });
+
   // -- Persistence: Draft Load/Save --
   useEffect(() => {
     const storedDraft = localStorage.getItem("nutri_active_draft");
-    if (storedDraft) {
+    const alreadyDecided = sessionStorage.getItem("nutri_recipes_draft_decided");
+    if (!alreadyDecided && storedDraft) {
       try {
         const draft = JSON.parse(storedDraft);
+        if (draft.recipes && draft.recipes.weekSlots) {
+          setDraftMeta({
+            label: `Recetas: plan semanal guardado`,
+            date: draft.recipes.updatedAt,
+          });
+          setShowDraftModal(true);
+          // Load patient anyway
+          const storedPatient = localStorage.getItem("nutri_patient");
+          if (storedPatient) {
+            try { setSelectedPatient(JSON.parse(storedPatient)); } catch (_) { }
+          }
+          return;
+        }
         if (draft.recipes) {
           if (draft.recipes.weekSlots) setWeekSlots(draft.recipes.weekSlots);
           if (draft.recipes.targets) {
@@ -438,48 +459,52 @@ export default function RecipesClient() {
       {
         id: "import-diet",
         icon: Library,
-        label: "Importar Dieta",
+        label: "Ver Dieta del Borrador",
         variant: "indigo",
-        onClick: () => toast.info("Funcionalidad próximamente..."),
+        onClick: () => {
+          const storedDraft = localStorage.getItem("nutri_active_draft");
+          if (!storedDraft) { toast.error("No hay borrador de dieta activo."); return; }
+          try {
+            const draft = JSON.parse(storedDraft);
+            const dietName = draft.diet?.name;
+            const count = draft.diet?.includedFoods?.length || 0;
+            const cartCount = draft.cart?.items?.length || 0;
+            toast.info(
+              dietName
+                ? `Dieta: "${dietName}" (${count} alimentos, ${cartCount} en carrito)`
+                : "No hay dieta guardada en el borrador.",
+              { duration: 4000 }
+            );
+          } catch { toast.error("Error leyendo el borrador."); }
+        },
       },
       {
         id: "link-patient",
         icon: User,
-        label: "Importar Paciente",
+        label: selectedPatient ? "Cambiar Paciente" : "Asignar Paciente",
         variant: "emerald",
-        onClick: () =>
-          toast.info("Módulo de importación de pacientes próximamente..."),
-      },
-      {
-        id: "sep-1",
-        icon: Library,
-        label: "",
-        onClick: () => {},
-        isSeparator: true,
-      },
-      {
-        id: "eval-ai",
-        icon: Sparkles,
-        label: "Evaluar con IA",
-        variant: "amber",
-        onClick: () =>
-          toast.info(
-            "Módulo de IA próximamente... Análisis clínico en desarrollo 🧠",
-          ),
-      },
-      {
-        id: "sep-2",
-        icon: Library,
-        label: "",
-        onClick: () => {},
-        isSeparator: true,
+        onClick: () => {
+          setIsImportPatientModalOpen(true);
+          fetchPatients();
+        },
       },
       {
         id: "save-draft",
         icon: Save,
         label: "Guardar Borrador",
         variant: "slate",
-        onClick: () => toast.success("Borrador guardado localmente"),
+        onClick: () => {
+          const storedDraft = localStorage.getItem("nutri_active_draft");
+          const draft = storedDraft ? JSON.parse(storedDraft) : {};
+          draft.recipes = {
+            weekSlots,
+            targets: { protein: targetProtein, calories: targetCalories, carbs: targetCarbs, fats: targetFats },
+            chronobiology: { wakeUpTime, sleepTime },
+            updatedAt: new Date().toISOString(),
+          };
+          localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+          toast.success("Borrador de recetas guardado.");
+        },
       },
       {
         id: "export-json",
@@ -489,6 +514,13 @@ export default function RecipesClient() {
         onClick: printJson,
       },
       {
+        id: "export-pdf",
+        icon: Download,
+        label: "Exportar PDF",
+        variant: "slate",
+        onClick: () => toast.info("PDF de recetas disponible en la etapa Entregable."),
+      },
+      {
         id: "reset",
         icon: RotateCcw,
         label: "Reiniciar Todo",
@@ -496,11 +528,57 @@ export default function RecipesClient() {
         onClick: resetRecipes,
       },
     ],
-    [printJson, resetRecipes],
+    [printJson, resetRecipes, selectedPatient, weekSlots, targetProtein, targetCalories, targetCarbs, targetFats, wakeUpTime, sleepTime],
   );
+
+  const handleKeepDraft = () => {
+    sessionStorage.setItem("nutri_recipes_draft_decided", "keep");
+    const storedDraft = localStorage.getItem("nutri_active_draft");
+    if (storedDraft) {
+      try {
+        const draft = JSON.parse(storedDraft);
+        if (draft.recipes) {
+          if (draft.recipes.weekSlots) setWeekSlots(draft.recipes.weekSlots);
+          if (draft.recipes.targets) {
+            setTargetProtein(draft.recipes.targets.protein);
+            setTargetCalories(draft.recipes.targets.calories);
+            setTargetCarbs(draft.recipes.targets.carbs);
+            setTargetFats(draft.recipes.targets.fats);
+          }
+          if (draft.recipes.chronobiology) {
+            setWakeUpTime(draft.recipes.chronobiology.wakeUpTime);
+            setSleepTime(draft.recipes.chronobiology.sleepTime);
+          }
+        }
+      } catch (_) { }
+    }
+    setShowDraftModal(false);
+  };
+
+  const handleDiscardDraft = () => {
+    sessionStorage.setItem("nutri_recipes_draft_decided", "discard");
+    const storedDraft = localStorage.getItem("nutri_active_draft");
+    if (storedDraft) {
+      try {
+        const draft = JSON.parse(storedDraft);
+        delete draft.recipes;
+        localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+      } catch (_) { }
+    }
+    resetRecipes();
+    setShowDraftModal(false);
+  };
 
   return (
     <>
+      <DraftRestoreModal
+        isOpen={showDraftModal}
+        moduleName="Recetas"
+        draftLabel={draftMeta.label}
+        draftDate={draftMeta.date}
+        onKeep={handleKeepDraft}
+        onDiscard={handleDiscardDraft}
+      />
       <ModuleLayout
         title="Estructura de Comidas"
         description="Convierte tu lista de compras en un plan de alimentación práctico."
@@ -510,6 +588,7 @@ export default function RecipesClient() {
           icon: GraduationCap,
           color: "text-emerald-600",
         }}
+        rightNavItems={actionDockItems}
         footer={
           <ModuleFooter>
             <div className="flex items-center gap-3">
@@ -525,16 +604,6 @@ export default function RecipesClient() {
             </div>
 
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                className="h-12 text-emerald-600 font-black gap-2 hover:bg-emerald-50 border-2 border-transparent hover:border-emerald-100 rounded-xl"
-                onClick={handlePatientLoad}
-              >
-                <UserPlus className="h-4 w-4" />
-                {selectedPatient
-                  ? selectedPatient.fullName || selectedPatient.name
-                  : "Asignar a un paciente"}
-              </Button>
 
               <Button
                 className="h-12 px-8 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-200 uppercase tracking-widest text-xs"
@@ -544,7 +613,7 @@ export default function RecipesClient() {
               </Button>
 
               <Button
-                onClick={() => router.push("/dashboard/entregable")}
+                onClick={() => router.push("/dashboard/entregable?flow=continue")}
                 className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-2xl shadow-emerald-200 transition-all hover:scale-[1.02] flex items-center gap-3 uppercase tracking-widest text-xs"
               >
                 CONTINUAR

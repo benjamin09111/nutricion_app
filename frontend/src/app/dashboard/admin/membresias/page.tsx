@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Crown, Plus, Edit2, Trash2, Check, X, Star } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
 
@@ -27,6 +28,9 @@ export default function MembershipsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<MembershipPlan>>({});
   const [isLoading, setIsLoading] = useState(false);
+
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState<string | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -90,13 +94,13 @@ export default function MembershipsPage() {
     }
   };
 
-  const deletePlan = async (id: string) => {
-    if (!confirm("¿Estás seguro de eliminar este plan?")) return;
+  const deletePlan = async () => {
+    if (!planToDelete) return;
 
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(`${API_URL}/memberships/${id}`, {
+      const response = await fetch(`${API_URL}/memberships/${planToDelete}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -108,6 +112,9 @@ export default function MembershipsPage() {
     } catch (error) {
       console.error(error);
       toast.error("Error al eliminar plan");
+    } finally {
+      setIsDeleteConfirmOpen(false);
+      setPlanToDelete(null);
     }
   };
 
@@ -200,11 +207,10 @@ export default function MembershipsPage() {
             return (
               <div
                 key={plan.id}
-                className={`rounded-xl border-2 bg-white shadow-sm overflow-hidden transition-all ${
-                  plan.isPopular
+                className={`rounded-xl border-2 bg-white shadow-sm overflow-hidden transition-all ${plan.isPopular
                     ? "border-indigo-500 ring-2 ring-indigo-200"
                     : "border-slate-200"
-                }`}
+                  }`}
               >
                 {/* Popular Badge */}
                 {plan.isPopular && (
@@ -388,7 +394,10 @@ export default function MembershipsPage() {
                         </Button>
                       </div>
                       <Button
-                        onClick={() => deletePlan(plan.id)}
+                        onClick={() => {
+                          setPlanToDelete(plan.id);
+                          setIsDeleteConfirmOpen(true);
+                        }}
                         variant="ghost"
                         className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer text-sm py-2"
                       >
@@ -411,6 +420,19 @@ export default function MembershipsPage() {
           })}
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => {
+          setIsDeleteConfirmOpen(false);
+          setPlanToDelete(null);
+        }}
+        onConfirm={deletePlan}
+        title="¿Eliminar plan?"
+        description="¿Estás seguro de eliminar este plan de membresía? Esta acción no se puede deshacer."
+        confirmText="Sí, eliminar"
+        variant="destructive"
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { X, Search, Globe, User as UserIcon, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "./Input";
 import Cookies from "js-cookie";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { DEFAULT_METRICS } from "@/lib/constants";
 
 interface Metric {
@@ -32,6 +33,9 @@ export function MetricTagInput({
     const [fetchedMetrics, setFetchedMetrics] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [metricToDelete, setMetricToDelete] = useState<any>(null);
 
     const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
 
@@ -221,9 +225,8 @@ export function MetricTagInput({
                                             type="button"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                if (confirm(`¿Eliminar permanently "${metric.name}"?`)) {
-                                                    handleDeleteGlobalMetric(metric);
-                                                }
+                                                setMetricToDelete(metric);
+                                                setIsDeleteConfirmOpen(true);
                                             }}
                                             className="p-3 text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover/item:opacity-100 cursor-pointer"
                                         >
@@ -254,6 +257,23 @@ export function MetricTagInput({
                     </span>
                 ))}
             </div>
+
+            <ConfirmationModal
+                isOpen={isDeleteConfirmOpen}
+                onClose={() => {
+                    setIsDeleteConfirmOpen(false);
+                    setMetricToDelete(null);
+                }}
+                onConfirm={() => {
+                    if (metricToDelete) handleDeleteGlobalMetric(metricToDelete);
+                    setIsDeleteConfirmOpen(false);
+                    setMetricToDelete(null);
+                }}
+                title="¿Eliminar métrica permanente?"
+                description={`¿Estás seguro de que deseas eliminar permanentemente la métrica "${metricToDelete?.name}"? Esta acción no se puede deshacer.`}
+                confirmText="Sí, eliminar"
+                variant="destructive"
+            />
         </div>
     );
 }

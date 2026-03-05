@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Trash2,
   Lock,
+  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -531,6 +532,9 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
       proteins: ingredient.proteins,
       carbs: ingredient.carbs,
       lipids: ingredient.lipids,
+      sugars: ingredient.sugars || 0,
+      fiber: ingredient.fiber || 0,
+      sodium: ingredient.sodium || 0,
     });
   };
 
@@ -573,6 +577,42 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     }
   };
 
+  const handleShareToggle = async (ingredient: Ingredient) => {
+    const token = Cookies.get("auth_token");
+    if (!token) return;
+
+    const newIsPublic = !ingredient.isPublic;
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
+      const response = await fetch(`${apiUrl}/foods/${ingredient.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isPublic: newIsPublic }),
+      });
+
+      if (!response.ok) throw new Error("Error al compartir");
+
+      setData((current) =>
+        current.map((item) =>
+          item.id === ingredient.id ? { ...item, isPublic: newIsPublic } : item,
+        ),
+      );
+
+      toast.success(
+        newIsPublic
+          ? "Ingrediente compartido con la comunidad 🌍"
+          : "Ingrediente dejado de compartir",
+      );
+    } catch (error) {
+      console.error("Share error:", error);
+      toast.error("No se pudo actualizar el estado de compartido");
+    }
+  };
+
   const handleInfoClick = (ingredient: Ingredient) => {
     setSelectedIngredient(ingredient);
     setIsDetailsModalOpen(true);
@@ -605,31 +645,38 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
           {/* Sub-tabs for Dieta base */}
           {activeTab === "Dieta base" && (
-            <div className="flex gap-2 p-1 bg-slate-50 border border-slate-100 rounded-lg w-fit">
-              <button
-                onClick={() => setBaseTab("app")}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2",
-                  baseTab === "app"
-                    ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200"
-                    : "text-slate-500 hover:text-slate-700",
-                )}
-              >
-                <BadgeCheck size={14} />
-                🏢 Oficiales App
-              </button>
-              <button
-                onClick={() => setBaseTab("community")}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2",
-                  baseTab === "community"
-                    ? "bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200"
-                    : "text-slate-500 hover:text-slate-700",
-                )}
-              >
-                <Users size={14} />
-                🌍 Comunidad Nutris
-              </button>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2 p-1 bg-slate-50 border border-slate-100 rounded-lg w-fit">
+                <button
+                  onClick={() => setBaseTab("app")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2",
+                    baseTab === "app"
+                      ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200"
+                      : "text-slate-500 hover:text-slate-700",
+                  )}
+                >
+                  <BadgeCheck size={14} />
+                  🏢 Oficiales App
+                </button>
+                <button
+                  onClick={() => setBaseTab("community")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2",
+                    baseTab === "community"
+                      ? "bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200"
+                      : "text-slate-500 hover:text-slate-700",
+                  )}
+                >
+                  <Users size={14} />
+                  🌍 Comunidad Nutris
+                </button>
+              </div>
+              {baseTab === "community" && (
+                <p className="text-[10px] text-slate-500 italic px-2">
+                  🌍 Explora ingredientes creados por otros nutris. Márcalos como favoritos ⭐ para agregarlos a tu propio catálogo.
+                </p>
+              )}
             </div>
           )}
 
@@ -1103,6 +1150,31 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                       >
                         Unidad {(activeTab === "Dieta base" && baseTab === "app") && "(100)"}
                       </th>
+                      {activeTab === "Mis creaciones" && (
+                        <>
+                          <th className="px-3 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 italic">
+                            Cals
+                          </th>
+                          <th className="px-3 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 italic">
+                            Prot
+                          </th>
+                          <th className="px-3 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 italic">
+                            Lip
+                          </th>
+                          <th className="px-3 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 italic">
+                            Carb
+                          </th>
+                          <th className="px-3 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 italic">
+                            Sug
+                          </th>
+                          <th className="px-3 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 italic">
+                            Fib
+                          </th>
+                          <th className="px-3 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 italic">
+                            Na
+                          </th>
+                        </>
+                      )}
                       {!(activeTab === "Dieta base" && baseTab === "app") && (
                         <th
                           scope="col"
@@ -1191,6 +1263,101 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                         <td className="px-6 py-4 text-sm text-center text-slate-500">
                           {ingredient.unit}
                         </td>
+                        {activeTab === "Mis creaciones" && (
+                          <>
+                            <td className="px-3 py-4 text-center">
+                              {editingId === ingredient.id ? (
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={editValues.calories}
+                                  onChange={(e) => setEditValues({ ...editValues, calories: Number(e.target.value) })}
+                                  className="h-8 text-xs w-16 mx-auto"
+                                />
+                              ) : (
+                                <span className="text-xs text-slate-600 font-medium">{ingredient.calories}</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-4 text-center">
+                              {editingId === ingredient.id ? (
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={editValues.proteins}
+                                  onChange={(e) => setEditValues({ ...editValues, proteins: Number(e.target.value) })}
+                                  className="h-8 text-xs w-16 mx-auto"
+                                />
+                              ) : (
+                                <span className="text-xs text-blue-600 font-bold">{ingredient.proteins}g</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-4 text-center">
+                              {editingId === ingredient.id ? (
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={editValues.lipids}
+                                  onChange={(e) => setEditValues({ ...editValues, lipids: Number(e.target.value) })}
+                                  className="h-8 text-xs w-16 mx-auto"
+                                />
+                              ) : (
+                                <span className="text-xs text-red-600 font-bold">{ingredient.lipids}g</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-4 text-center">
+                              {editingId === ingredient.id ? (
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={editValues.carbs}
+                                  onChange={(e) => setEditValues({ ...editValues, carbs: Number(e.target.value) })}
+                                  className="h-8 text-xs w-16 mx-auto"
+                                />
+                              ) : (
+                                <span className="text-xs text-emerald-600 font-bold">{ingredient.carbs}g</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-4 text-center">
+                              {editingId === ingredient.id ? (
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={editValues.sugars}
+                                  onChange={(e) => setEditValues({ ...editValues, sugars: Number(e.target.value) })}
+                                  className="h-8 text-xs w-16 mx-auto"
+                                />
+                              ) : (
+                                <span className="text-xs text-slate-500">{ingredient.sugars || 0}g</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-4 text-center">
+                              {editingId === ingredient.id ? (
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={editValues.fiber}
+                                  onChange={(e) => setEditValues({ ...editValues, fiber: Number(e.target.value) })}
+                                  className="h-8 text-xs w-16 mx-auto"
+                                />
+                              ) : (
+                                <span className="text-xs text-slate-500">{ingredient.fiber || 0}g</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-4 text-center">
+                              {editingId === ingredient.id ? (
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={editValues.sodium}
+                                  onChange={(e) => setEditValues({ ...editValues, sodium: Number(e.target.value) })}
+                                  className="h-8 text-xs w-16 mx-auto"
+                                />
+                              ) : (
+                                <span className="text-xs text-slate-500">{ingredient.sodium || 0}mg</span>
+                              )}
+                            </td>
+                          </>
+                        )}
                         {!(activeTab === "Dieta base" && baseTab === "app") && (
                           <td className="px-6 py-4">
                             <div className="flex flex-wrap gap-1 justify-center">
@@ -1304,6 +1471,26 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                                 >
                                   <Ban size={16} />
                                 </Button>
+                                {activeTab === "Mis creaciones" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleShareToggle(ingredient)}
+                                    className={cn(
+                                      "h-8 w-8 transition-colors",
+                                      ingredient.isPublic
+                                        ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50"
+                                        : "text-slate-400 hover:text-emerald-500 hover:bg-emerald-50",
+                                    )}
+                                    title={
+                                      ingredient.isPublic
+                                        ? "Dejar de compartir"
+                                        : "Compartir con la comunidad"
+                                    }
+                                  >
+                                    <Share2 size={16} />
+                                  </Button>
+                                )}
                               </>
                             )}
                           </div>

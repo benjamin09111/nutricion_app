@@ -37,16 +37,70 @@ const ingredientSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
   brand: z.string().min(1, "La marca es obligatoria"),
   category: z.string().min(1, "La categoría es obligatoria"),
-  price: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? undefined : Number(val)), z.number().optional()),
+  price: z.preprocess(
+    (val) =>
+      val === "" || (typeof val === "number" && Number.isNaN(val))
+        ? undefined
+        : Number(val),
+    z.number({ message: "El precio es obligatorio" }),
+  ),
   unit: z.string().min(1, "La unidad es obligatoria"),
-  amount: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? 100 : Number(val)), z.number().default(100)),
-  calories: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? 0 : Number(val)), z.number().default(0)),
-  proteins: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? 0 : Number(val)), z.number().default(0)),
-  lipids: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? 0 : Number(val)), z.number().default(0)),
-  carbs: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? 0 : Number(val)), z.number().default(0)),
-  sugars: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? undefined : Number(val)), z.number().optional()),
-  fiber: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? undefined : Number(val)), z.number().optional()),
-  sodium: z.preprocess((val) => (val === "" || (typeof val === 'number' && Number.isNaN(val)) ? undefined : Number(val)), z.number().optional()),
+  amount: z.preprocess(
+    (val) =>
+      val === "" || (typeof val === "number" && Number.isNaN(val))
+        ? undefined
+        : Number(val),
+    z.number({ message: "La cantidad base es obligatoria" }),
+  ),
+  calories: z.preprocess(
+    (val) =>
+      val === "" || (typeof val === "number" && Number.isNaN(val))
+        ? undefined
+        : Number(val),
+    z.number({ message: "Las calorías son obligatorias" }),
+  ),
+  proteins: z.preprocess(
+    (val) =>
+      val === "" || (typeof val === "number" && Number.isNaN(val))
+        ? undefined
+        : Number(val),
+    z.number({ message: "Las proteínas son obligatorias" }),
+  ),
+  lipids: z.preprocess(
+    (val) =>
+      val === "" || (typeof val === "number" && Number.isNaN(val))
+        ? undefined
+        : Number(val),
+    z.number({ message: "Los lípidos son obligatorios" }),
+  ),
+  carbs: z.preprocess(
+    (val) =>
+      val === "" || (typeof val === "number" && Number.isNaN(val))
+        ? undefined
+        : Number(val),
+    z.number({ message: "Los carbohidratos son obligatorios" }),
+  ),
+  sugars: z.preprocess(
+    (val) =>
+      val === "" || (typeof val === "number" && Number.isNaN(val))
+        ? undefined
+        : Number(val),
+    z.number({ message: "Los azúcares son obligatorios" }),
+  ),
+  fiber: z.preprocess(
+    (val) =>
+      val === "" || (typeof val === "number" && Number.isNaN(val))
+        ? undefined
+        : Number(val),
+    z.number({ message: "La fibra es obligatoria" }),
+  ),
+  sodium: z.preprocess(
+    (val) =>
+      val === "" || (typeof val === "number" && Number.isNaN(val))
+        ? undefined
+        : Number(val),
+    z.number({ message: "El sodio es obligatorio" }),
+  ),
   tags: z.array(z.string()).optional(),
 });
 
@@ -99,6 +153,9 @@ export default function CreateIngredientModal({
       proteins: 0,
       lipids: 0,
       carbs: 0,
+      sugars: 0,
+      fiber: 0,
+      sodium: 0,
       tags: [],
     },
   });
@@ -117,7 +174,7 @@ export default function CreateIngredientModal({
         },
         body: JSON.stringify({
           ...data,
-          isPublic: true, // Force public as per requirement
+          isPublic: false, // Default to private until shared manually
         }),
       });
 
@@ -128,7 +185,9 @@ export default function CreateIngredientModal({
 
       const newIngredient = await response.json();
 
-      toast.success("Ingrediente creado correctamente y añadido a favoritos.");
+      toast.success(
+        "Ingrediente creado correctamente. Puedes compartirlo desde 'Mis creaciones'.",
+      );
       reset();
       onSuccess(newIngredient);
       onClose();
@@ -221,7 +280,7 @@ export default function CreateIngredientModal({
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">
-                  Precio Referencial ($)
+                  Precio Referencial ($) *
                 </label>
                 <input
                   type="number"
@@ -340,38 +399,38 @@ export default function CreateIngredientModal({
               <div className="grid grid-cols-3 gap-4 pt-2">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-500">
-                    Azúcares (g)
+                    Azúcares (g) *
                   </label>
                   <input
                     type="number"
                     step="0.1"
                     {...register("sugars", { valueAsNumber: true })}
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 text-xs"
-                    placeholder="Opcional"
+                    placeholder="Obligatorio"
                   />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-500">
-                    Fibra (g)
+                    Fibra (g) *
                   </label>
                   <input
                     type="number"
                     step="0.1"
                     {...register("fiber", { valueAsNumber: true })}
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 text-xs"
-                    placeholder="Opcional"
+                    placeholder="Obligatorio"
                   />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-500">
-                    Sodio (mg)
+                    Sodio (mg) *
                   </label>
                   <input
                     type="number"
                     step="0.1"
                     {...register("sodium", { valueAsNumber: true })}
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 text-xs"
-                    placeholder="Opcional"
+                    placeholder="Obligatorio"
                   />
                 </div>
               </div>

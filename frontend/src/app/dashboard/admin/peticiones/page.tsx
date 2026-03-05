@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { cn } from "@/lib/utils";
 
 type RequestStatus = "PENDING" | "ACCEPTED" | "APPROVED" | "REJECTED";
@@ -51,6 +52,7 @@ export default function PeticionesPage() {
   const [activeTab, setActiveTab] = useState<RequestStatus | "ALL_ACCEPTED">(
     "PENDING",
   );
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   // Pagination State
   const [page, setPage] = useState(1);
@@ -153,12 +155,6 @@ export default function PeticionesPage() {
 
   const handleDelete = async () => {
     if (!selectedRequest) return;
-    if (
-      !confirm(
-        "¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.",
-      )
-    )
-      return;
 
     setIsUpdating(true);
     try {
@@ -383,7 +379,7 @@ export default function PeticionesPage() {
                     {/* Delete Button (Only for processed requests) */}
                     {selectedRequest.status !== "PENDING" && (
                       <button
-                        onClick={handleDelete}
+                        onClick={() => setIsDeleteConfirmOpen(true)}
                         className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 hover:bg-rose-100 hover:text-rose-600 transition-colors"
                         title="Eliminar registro"
                       >
@@ -575,6 +571,16 @@ export default function PeticionesPage() {
           )}
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="¿Eliminar petición de registro?"
+        description="¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer."
+        confirmText="Sí, eliminar"
+        variant="destructive"
+      />
     </div>
   );
 }

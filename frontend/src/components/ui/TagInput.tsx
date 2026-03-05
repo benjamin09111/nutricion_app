@@ -6,14 +6,16 @@ import { Input } from "./Input";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 interface TagInputProps {
   value: string[];
   onChange: (tags: string[]) => void;
   placeholder?: string;
   suggestions?: string[];
   className?: string;
-  fetchSuggestionsUrl?: string; // URL to fetch suggestions from
-  hideTags?: boolean; // If true, hides the selected tags below the input
+  fetchSuggestionsUrl?: string;
+  hideTags?: boolean;
+  disableDelete?: boolean; // If true, hides the delete button from suggestions dropdown
 }
 
 export function TagInput({
@@ -24,12 +26,16 @@ export function TagInput({
   className,
   fetchSuggestionsUrl,
   hideTags = false,
+  disableDelete = false,
 }: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [fetchedSuggestions, setFetchedSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [tagToDelete, setTagToDelete] = useState<string | null>(null);
 
   const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
 
@@ -156,7 +162,7 @@ export function TagInput({
   }, []);
 
   return (
-    <div className={cn("space-y-3", className)} ref={containerRef}>
+    <div className="space-y-3" ref={containerRef}>
       <div className="relative">
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -170,7 +176,10 @@ export function TagInput({
               onKeyDown={handleKeyDown}
               onFocus={() => setShowSuggestions(true)}
               placeholder={placeholder}
-              className="h-11 rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-medium text-sm"
+              className={cn(
+                "h-11 rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-medium text-sm",
+                className
+              )}
             />
             {isLoading && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -221,14 +230,13 @@ export function TagInput({
                       {isSystem ? "Sistema / Global" : "Creada por nutri"}
                     </span>
                   </button>
-                  {!isSystem && (
+                  {!isSystem && !disableDelete && (
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm(`¿Eliminar permanently "${suggestion}"?`)) {
-                          handleDeleteGlobalTag(suggestion);
-                        }
+                        setTagToDelete(suggestion);
+                        setIsDeleteConfirmOpen(true);
                       }}
                       className="p-3 text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover/item:opacity-100 cursor-pointer"
                     >
@@ -261,6 +269,23 @@ export function TagInput({
           ))}
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => {
+          setIsDeleteConfirmOpen(false);
+          setTagToDelete(null);
+        }}
+        onConfirm={() => {
+          if (tagToDelete) handleDeleteGlobalTag(tagToDelete);
+          setIsDeleteConfirmOpen(false);
+          setTagToDelete(null);
+        }}
+        title="¿Eliminar tag permanente?"
+        description={`¿Estás seguro de que deseas eliminar permanentemente el tag "${tagToDelete}"? Esta acción no se puede deshacer.`}
+        confirmText="Sí, eliminar"
+        variant="destructive"
+      />
     </div>
   );
 }
