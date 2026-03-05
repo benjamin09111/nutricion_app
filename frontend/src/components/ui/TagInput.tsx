@@ -13,8 +13,9 @@ interface TagInputProps {
   placeholder?: string;
   suggestions?: string[];
   className?: string;
-  fetchSuggestionsUrl?: string; // URL to fetch suggestions from
-  hideTags?: boolean; // If true, hides the selected tags below the input
+  fetchSuggestionsUrl?: string;
+  hideTags?: boolean;
+  disableDelete?: boolean; // If true, hides the delete button from suggestions dropdown
 }
 
 export function TagInput({
@@ -25,6 +26,7 @@ export function TagInput({
   className,
   fetchSuggestionsUrl,
   hideTags = false,
+  disableDelete = false,
 }: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -160,7 +162,7 @@ export function TagInput({
   }, []);
 
   return (
-    <div className={cn("space-y-3", className)} ref={containerRef}>
+    <div className="space-y-3" ref={containerRef}>
       <div className="relative">
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -174,7 +176,10 @@ export function TagInput({
               onKeyDown={handleKeyDown}
               onFocus={() => setShowSuggestions(true)}
               placeholder={placeholder}
-              className="h-11 rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-medium text-sm"
+              className={cn(
+                "h-11 rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-medium text-sm",
+                className
+              )}
             />
             {isLoading && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -225,7 +230,7 @@ export function TagInput({
                       {isSystem ? "Sistema / Global" : "Creada por nutri"}
                     </span>
                   </button>
-                  {!isSystem && (
+                  {!isSystem && !disableDelete && (
                     <button
                       type="button"
                       onClick={(e) => {
