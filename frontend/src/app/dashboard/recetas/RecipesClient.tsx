@@ -207,6 +207,24 @@ export default function RecipesClient() {
 
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
 
+  const buildRecipeIngredientHints = (
+    slotsByDay: Record<string, MealSlot[]>,
+  ): Array<{ name: string; weeklyHits: number }> => {
+    const counter = new Map<string, number>();
+    Object.values(slotsByDay).forEach((slots) => {
+      slots.forEach((slot) => {
+        slot.recipe?.ingredients?.forEach((ingredientName) => {
+          const key = ingredientName.toLowerCase().trim();
+          counter.set(key, (counter.get(key) || 0) + 1);
+        });
+      });
+    });
+    return Array.from(counter.entries()).map(([name, weeklyHits]) => ({
+      name,
+      weeklyHits,
+    }));
+  };
+
   // -- Persistence: Draft Load/Save --
   useEffect(() => {
     const storedDraft = localStorage.getItem("nutri_active_draft");
@@ -281,6 +299,7 @@ export default function RecipesClient() {
         wakeUpTime,
         sleepTime,
       },
+      ingredientHints: buildRecipeIngredientHints(weekSlots),
       updatedAt: new Date().toISOString(),
     };
 
@@ -540,6 +559,7 @@ export default function RecipesClient() {
             weekSlots,
             targets: { protein: targetProtein, calories: targetCalories, carbs: targetCarbs, fats: targetFats },
             chronobiology: { wakeUpTime, sleepTime },
+            ingredientHints: buildRecipeIngredientHints(weekSlots),
             updatedAt: new Date().toISOString(),
           };
           localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
@@ -668,8 +688,8 @@ export default function RecipesClient() {
         onDiscard={handleDiscardDraft}
       />
       <ModuleLayout
-        title="Estructura de Comidas"
-        description="Convierte tu lista de compras en un plan de alimentación práctico."
+        title="Recetas y Porciones"
+        description="Define cantidades, distribución por etapas y platos en base a ingredientes."
         step={{
           number: 3,
           label: "Planes & Recetas (AI)",
@@ -701,7 +721,7 @@ export default function RecipesClient() {
               </Button>
 
               <Button
-                onClick={() => router.push("/dashboard/entregable?flow=continue")}
+                onClick={() => router.push("/dashboard/carrito?flow=continue")}
                 className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-2xl shadow-emerald-200 transition-all hover:scale-[1.02] flex items-center gap-3 uppercase tracking-widest text-xs"
               >
                 CONTINUAR

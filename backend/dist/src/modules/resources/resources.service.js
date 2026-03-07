@@ -17,6 +17,29 @@ let ResourcesService = class ResourcesService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    extractVariables(content) {
+        const regex = /\^([a-zA-Z0-9_\- ]+)\^/g;
+        const variables = new Set();
+        let match = regex.exec(content);
+        while (match) {
+            variables.add(match[1].trim());
+            match = regex.exec(content);
+        }
+        return Array.from(variables);
+    }
+    enrichWithVariables(resource) {
+        return {
+            ...resource,
+            variablePlaceholders: this.extractVariables(resource.content || ''),
+        };
+    }
+    resolveVariables(content, inputs) {
+        const safeInputs = inputs || {};
+        return content.replace(/\^([a-zA-Z0-9_\- ]+)\^/g, (_full, key) => {
+            const normalizedKey = key.trim();
+            return safeInputs[normalizedKey] ?? `^${normalizedKey}^`;
+        });
+    }
     async findAll(nutritionistId, isAdmin) {
         const resources = await this.prisma.resource.findMany({
             where: {
@@ -28,23 +51,27 @@ let ResourcesService = class ResourcesService {
             },
             orderBy: { updatedAt: 'desc' },
         });
-        return resources.map(resource => ({
+        return resources.map(resource => this.enrichWithVariables({
             ...resource,
             isMine: resource.nutritionistId === nutritionistId
         }));
     }
     async findOne(id) {
-        return this.prisma.resource.findUnique({
+        const resource = await this.prisma.resource.findUnique({
             where: { id },
         });
+        if (!resource)
+            return null;
+        return this.enrichWithVariables(resource);
     }
     async create(nutritionistId, data) {
-        return this.prisma.resource.create({
+        const created = await this.prisma.resource.create({
             data: {
                 ...data,
                 nutritionistId,
             },
         });
+        return this.enrichWithVariables(created);
     }
     async update(id, nutritionistId, isAdmin, data) {
         const resource = await this.prisma.resource.findUnique({ where: { id } });
@@ -53,10 +80,11 @@ let ResourcesService = class ResourcesService {
         if (!isAdmin && resource.nutritionistId !== nutritionistId) {
             throw new Error('Unauthorized');
         }
-        return this.prisma.resource.update({
+        const updated = await this.prisma.resource.update({
             where: { id },
             data,
         });
+        return this.enrichWithVariables(updated);
     }
     async remove(id, nutritionistId, isAdmin) {
         const resource = await this.prisma.resource.findUnique({ where: { id } });

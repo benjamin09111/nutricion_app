@@ -16,6 +16,7 @@ exports.RecipesController = void 0;
 const common_1 = require("@nestjs/common");
 const recipes_service_1 = require("./recipes.service");
 const create_recipe_dto_1 = require("./dto/create-recipe.dto");
+const estimate_macros_dto_1 = require("./dto/estimate-macros.dto");
 const auth_guard_1 = require("../auth/guards/auth.guard");
 const http_cache_interceptor_1 = require("../../common/interceptors/http-cache.interceptor");
 const cache_manager_1 = require("@nestjs/cache-manager");
@@ -24,8 +25,18 @@ let RecipesController = class RecipesController {
     constructor(recipesService) {
         this.recipesService = recipesService;
     }
-    create(req, createRecipeDto) {
-        return this.recipesService.create(req.user.id, createRecipeDto);
+    async create(req, createRecipeDto) {
+        console.log('[RecipesController.create] req.user.id:', req?.user?.id);
+        try {
+            return await this.recipesService.create(req.user.id, createRecipeDto);
+        }
+        catch (err) {
+            console.error('[RecipesController.create] Error:', err?.message || err);
+            throw err;
+        }
+    }
+    estimateMacros(dto) {
+        return this.recipesService.estimateMacros(dto);
     }
     findAll(req) {
         return this.recipesService.findAll(req.user.id);
@@ -47,8 +58,15 @@ __decorate([
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, create_recipe_dto_1.CreateRecipeDto]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], RecipesController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)('estimate-macros'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [estimate_macros_dto_1.EstimateMacrosDto]),
+    __metadata("design:returntype", void 0)
+], RecipesController.prototype, "estimateMacros", null);
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Request)()),

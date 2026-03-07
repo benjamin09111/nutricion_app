@@ -1,10 +1,11 @@
-import { DishesClient } from "./DishesClient";
+import PlatosClient from "./PlatosClient";
 
 export const metadata = {
-  title: "Platos y Recetas | NutriSaaS",
-  description: "Gestiona tus platos y recetas personalizadas.",
+  title: "Platos | NutriSaaS",
+  description:
+    "Crea, reutiliza y comparte platos con aportes nutricionales para cumplir metas diarias.",
 };
 
-export default function RecipesPage() {
-  return <DishesClient />;
+export default function PlatosPage() {
+  return <PlatosClient />;
 }

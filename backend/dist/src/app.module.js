@@ -36,6 +36,7 @@ const resources_module_1 = require("./modules/resources/resources.module");
 const uploads_module_1 = require("./modules/uploads/uploads.module");
 const consultations_module_1 = require("./modules/consultations/consultations.module");
 const common_module_1 = require("./common/common.module");
+const diet_module_1 = require("./modules/diet/diet.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer
@@ -82,6 +83,7 @@ exports.AppModule = AppModule = __decorate([
             uploads_module_1.UploadsModule,
             consultations_module_1.ConsultationsModule,
             common_module_1.CommonModule,
+            diet_module_1.DietModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

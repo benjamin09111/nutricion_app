@@ -43,6 +43,11 @@ let ResourcesController = class ResourcesController {
         const { isGlobal, ...restData } = data;
         return this.resourcesService.create(nutritionistId, restData);
     }
+    resolveVariables(data) {
+        return {
+            resolvedContent: this.resourcesService.resolveVariables(data.content || '', data.inputs || {}),
+        };
+    }
     update(id, req, data) {
         const nutritionistId = req.user.nutritionistId;
         const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role);
@@ -93,6 +98,13 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], ResourcesController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)('resolve-variables'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], ResourcesController.prototype, "resolveVariables", null);
 __decorate([
     (0, common_1.Patch)(':id'),
     __param(0, (0, common_1.Param)('id')),

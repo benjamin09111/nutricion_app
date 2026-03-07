@@ -57,8 +57,8 @@ const groups: SidebarGroup[] = [
     title: "Principal",
     items: [
       { name: "Dieta", href: "/dashboard/dieta", icon: Utensils },
+      { name: "Recetas y Porciones", href: "/dashboard/recetas", icon: ChefHat },
       { name: "Carrito", href: "/dashboard/carrito", icon: ShoppingCart },
-      { name: "Recetas", href: "/dashboard/recetas", icon: ChefHat },
       { name: "Entregable", href: "/dashboard/entregable", icon: ClipboardCheck },
     ],
   },
@@ -68,6 +68,7 @@ const groups: SidebarGroup[] = [
       { name: "Creaciones", href: "/dashboard/creaciones", icon: Folder },
       { name: "Recursos", href: "/dashboard/recursos", icon: FileText },
       { name: "Detalles", href: "/dashboard/detalles", icon: FileText },
+      { name: "Platos", href: "/dashboard/platos", icon: ChefHat },
     ],
   },
   {

@@ -119,10 +119,12 @@ interface Resource {
   createdAt?: string;
   isMine?: boolean;
   isPublic?: boolean;
+  variablePlaceholders?: string[];
 }
 
 const CATEGORIES = [
   { id: "all", label: "Todos", icon: Layout },
+  { id: "portada", label: "Portada e Introducción", icon: FileText, color: "text-indigo-500", bg: "bg-indigo-50" },
   { id: "mitos", label: "Mitos vs Realidad", icon: HelpCircle, color: "text-amber-500", bg: "bg-amber-50" },
   { id: "habitos", label: "Checklist de Hábitos", icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-50" },
   { id: "emocional", label: "Nutrición Emocional", icon: Brain, color: "text-rose-500", bg: "bg-rose-50" },
@@ -139,6 +141,13 @@ interface ResourceBlock {
 }
 
 const DEFAULT_COLORS = ["#0f172a", "#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899"];
+const VARIABLE_SUGGESTIONS = [
+  "nombre paciente",
+  "edad paciente",
+  "objetivo principal",
+  "fecha",
+  "nombre nutricionista",
+];
 
 export function ResourcesClient() {
   const { isAdmin } = useAdmin();
@@ -183,6 +192,17 @@ export function ResourcesClient() {
   const [rawContent, setRawContent] = useState("");
 
   const DEFAULT_SYSTEM_RESOURCES: Resource[] = [
+    {
+      id: "sys-0",
+      title: "Portada e Introducción Base NutriSaaS",
+      content: "<h1>Bienvenida/o ^nombre paciente^</h1><p>Este plan fue preparado para acompañarte de forma práctica y cercana durante las próximas semanas.</p><p><strong>Objetivo principal:</strong> ^objetivo principal^</p><p><strong>Fecha de inicio:</strong> ^fecha^</p>",
+      category: "portada",
+      tags: ["Portada", "Introducción", "Plantilla"],
+      isDefault: true,
+      nutritionistId: null,
+      isMine: false,
+      isPublic: true
+    },
     {
       id: "sys-1",
       title: "La verdad sobre el ayuno intermitente",
@@ -435,6 +455,25 @@ export function ResourcesClient() {
     }
   };
 
+  const insertVariable = (variableKey: string) => {
+    const token = `^${variableKey}^`;
+    setFormData((prev) => ({
+      ...prev,
+      content: `${prev.content || ""} ${token}`.trim(),
+    }));
+  };
+
+  const detectedVariables = useMemo(() => {
+    const regex = /\^([a-zA-Z0-9_\- ]+)\^/g;
+    const matches = new Set<string>();
+    let match = regex.exec(formData.content || "");
+    while (match) {
+      matches.add(match[1].trim());
+      match = regex.exec(formData.content || "");
+    }
+    return Array.from(matches);
+  }, [formData.content]);
+
   const confirmDelete = (id: string) => {
     setResourceToDelete(id);
     setIsDeleteConfirmOpen(true);
@@ -462,14 +501,16 @@ export function ResourcesClient() {
   };
 
   // Extra state for switch
-  const [viewFilter, setViewFilter] = useState<"system" | "mine">("system");
+  const [viewFilter, setViewFilter] = useState<"system" | "mine" | "cover">("system");
 
   const filteredLibraryResources = useMemo(() => {
     let list = filteredResources;
     if (viewFilter === "system") {
       list = list.filter((r: Resource) => !r.isMine || r.isPublic);
-    } else {
+    } else if (viewFilter === "mine") {
       list = list.filter((r: Resource) => r.isMine);
+    } else {
+      list = list.filter((r: Resource) => r.category === "portada");
     }
 
     // Sort logic: Global (system) resources first, then by date descending
@@ -611,6 +652,15 @@ export function ResourcesClient() {
                   >
                     Mis Recursos
                   </button>
+                  <button
+                    onClick={() => setViewFilter("cover")}
+                    className={cn(
+                      "px-4 py-2 rounded-lg text-xs font-bold transition-all",
+                      viewFilter === "cover" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                    )}
+                  >
+                    Portada e Intro
+                  </button>
                 </div>
               </div>
             </div>
@@ -687,7 +737,11 @@ export function ResourcesClient() {
                 <div className="h-20 w-20 bg-slate-50 rounded-full flex items-center justify-center"><FileText className="h-10 w-10 text-slate-300" /></div>
                 <div className="space-y-1">
                   <h3 className="font-black text-slate-900">
-                    {viewFilter === "system" ? "No hay recursos del sistema" : "No has creado recursos aún"}
+                    {viewFilter === "system"
+                      ? "No hay recursos del sistema"
+                      : viewFilter === "mine"
+                        ? "No has creado recursos aún"
+                        : "No hay portadas disponibles"}
                   </h3>
                   <p className="text-sm text-slate-500 max-w-xs">Intenta cambiar de filtro o añade un recurso nuevo al sistema.</p>
                 </div>
@@ -810,6 +864,40 @@ export function ResourcesClient() {
                 value={formData.content}
                 onChange={(val) => setFormData({ ...formData, content: val })}
               />
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    Variables dinámicas
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Usa formato <code>^variable^</code> para personalizar el recurso por paciente.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {VARIABLE_SUGGESTIONS.map((variableKey) => (
+                    <button
+                      key={variableKey}
+                      type="button"
+                      onClick={() => insertVariable(variableKey)}
+                      className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                    >
+                      ^{variableKey}^
+                    </button>
+                  ))}
+                </div>
+                {detectedVariables.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {detectedVariables.map((variableKey) => (
+                      <span
+                        key={variableKey}
+                        className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700"
+                      >
+                        {`^${variableKey}^`}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-3 py-4 border-t border-slate-100">

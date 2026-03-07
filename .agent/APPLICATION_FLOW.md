@@ -31,31 +31,29 @@ The CRM layer.
 *   **Input**: `PatientId` + `FoodDatabase` (Filtered by Favorites & Deleted).
 *   **Process**:
     1.  **Requirements**: Select Pathologies (Diabetes, etc.) -> Filters `FoodDatabase`.
-    2.  **Calculation**: Auto-calculate macros/micros targets.
-    3.  **Selection**: Generate a "Base List" of recommended foods.
-    4.  **Customization**: Nutritionist edits the list using Templates or manual entry.
-*   **Output**: `DietDraft` (JSON containing selected foods, quantities, and structure).
+    2.  **Selection**: Generate and adjust a base list of allowed foods.
+    3.  **Validation**: Optional AI check for conflicts between selected foods and restrictions.
+*   **Output**: `DietDraft` (JSON with restrictions + allowed food base).
 
-### D. Lista de Compras (Shopping List) - Step 2
-*   **Input**: `DietDraft` (or Manual Import).
+### D. Recetas y Porciones (Recipes & Portions) - Step 2
+*   **Input**: `DietDraft`.
 *   **Process**:
-    1.  **Aggregation**: Consolidates foods from the Diet (e.g., "Oats" in Breakfast + "Oats" in Snack = Total Oats).
-    2.  **Projection**: Multiplies by "Days" (e.g., Buy for 7 days or 15 days).
-    3.  **Estimation**: Calculates approx. cost based on DB prices.
-*   **Output**: `ShoppingListDraft` (Categorized list: Dairy, Meat, Produce).
+    1.  **Meal Structure**: Defines stages (breakfast/lunch/dinner/snacks).
+    2.  **Quantification**: Assigns portions and frequencies for each selected food.
+    3.  **Dish Generation**: Generates dish ideas based on chosen ingredients and portions.
+    4.  **Supplements/Substitutes**: Adds practical alternatives where needed.
+*   **Output**: `RecipePortionDraft` (meal structure + portionized plan + ingredient hints).
 
-### E. Recetas (Recipes) - Step 3
-*   **Input**: `ShoppingListDraft` (Available Ingredients).
+### E. Carrito (Shopping List) - Step 3
+*   **Input**: `DietDraft` + `RecipePortionDraft`.
 *   **Process**:
-    1.  **Matching**: Finds/Generates recipes that *only* use ingredients from the Shopping List (or common pantry items).
-    2.  **Scheduling**:
-        *   User defines **Lifestyle** (Work 9-18, Sleep 23-07).
-        *   User defines **Frequency** (3 to 6 meals).
-        *   System slots recipes into specific times (Breakfast 08:00, Lunch 13:00).
-*   **Output**: `RecipePlanDraft`.
+    1.  **Aggregation**: Consolidates all required ingredients and total amounts.
+    2.  **Projection**: Multiplies by weekly/monthly planning window.
+    3.  **Editability**: Nutritionist can adjust items, quantities, and equivalents.
+*   **Output**: `ShoppingListDraft` (categorized shopping list generated from previous stages).
 
 ### F. Mis Creaciones (Deliverable) - Final Step
-*   **Input**: `DietDraft` + `ShoppingListDraft` + `RecipePlanDraft`.
+*   **Input**: `DietDraft` + `RecipePortionDraft` + `ShoppingListDraft`.
 *   **Process**:
     1.  **Merging**: Combines all drafts into a single, cohesive PDF/Web View.
     2.  **Finalization**: Marks the drafts as "Completed". Logs to `PatientHistory`.

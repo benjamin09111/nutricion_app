@@ -155,19 +155,21 @@ Creation of general base templates (e.g., "Vegan", "High Protein", "Low Cost").
 - **Custom Constraints**: Nutris can create their own specific constraints (e.g., "Diabético Tipo II"). If content is missing, AI generates reliable info with verified sources.
 - **Reusability**: These are the "Master Strategy Templates" (JSON) without specific human quantities.
 
-### Stage 2: Carrito (The Quantifier)
-Conversion of the strategy into tangible quantities based on a specific human.
+### Stage 2: Recetas y Porciones (The Quantifier + Implementation)
+Conversion of the strategy into practical execution based on a specific human.
 - **Patient Loading**: Import patient characteristics (Sex, Age, Height, Weight) AND personal tastes/dislikes (stored in CRM).
-- **Quantification**: Calculates grams, portions, and total buy quantities (using Weekly Frequency).
+- **Quantification**: Calculates grams and portions by meal stage (using Weekly Frequency).
 - **Nutritional Intelligence**: Shows real-time totals (Calories, Protein, Vitamins) per Day, Week, and Month.
 - **Optimization**: The Nutri can adjust quantities (e.g., 2kg -> 3kg) and the system updates the nutritional totals.
 - **Hormonal Cycle Intelligence**: For female patients, the system can adjust macro-targets and food suggestions based on their menstrual cycle phase (e.g., increasing complex carbs/magnesium during the luteal phase).
 - **Fitness Integration**: Add supplements or "fitness products" to fill gaps (Missing Proteins/Vitamins).
-- **Financial Control**: View estimated spending; optimize by swapping expensive items for cheaper alternatives or supplements.
+- **Dish Builder**: Generate dishes based on selected ingredients and portions, with AI suggestions.
+- **Supplements & Substitutes**: Include supplements and food substitutions directly in the practical plan.
+- **Financial Preview**: View estimated spending before generating final shopping list.
 - **Supermarket Intelligence (Future)**: Option to select specific retailers (Lider, Jumbo, etc.) to fetch real-time prices. *Status: Locked/In Development*.
 - **Cost-Benefit Intelligence**: Suggest the most efficient way to fill nutritional gaps. *Example*: "Missing 20g Protein: add 100g Chicken ($X) or 1 scoop Whey ($Y)?".
 - **Substitutes**: Handle "Don't like X, use Y" logic based on patient profile.
-- **Dynamic Equivalents**: In the Cart stage, the system suggests macro-equivalent swaps (e.g., Apple for Pear) based on price and availability, ensuring the plan remains elastic and cost-effective.
+- **Dynamic Equivalents**: Suggest macro-equivalent swaps (e.g., Apple for Pear) based on price and availability.
 
 ## 15. The "Híbrid" Philosophy
 - **Total Control**: Every module is editable. Nutris can add/remove foods or change portions at ANY stage.
@@ -186,14 +188,12 @@ A centralized hub for the nutritionist's educational and marketing assets.
 - **General Info & Filters**: Searchable library of nutritional knowledge.
 - **Precedence Rule**: If a Nutri has uploaded content for "Diabetes", it OVERRIDES common or AI-generated content in the final PDF.
 
-### Stage 3: Recetas (The Implementation)
-Generation of the daily/weekly eating plan using the Carrito's finalized data.
-- **Practicality**: Create calendars, meal schedules, and specific dish ideas/recipes.
-- **Nutrient Tracking**: Verify that daily targets (Protein/Calories) are met within the meal distribution (Breakfast, Lunch, Dinner).
-- **Flexibility**: Adjustable number of meals and variety of plates.
-- **Automation**: Automatic generator of dishes based on selected foods. The nutritionist can choose the number of meals per day, and the system automatically divides the portions.
-- **Customization**: Ability to swap a specific meal (e.g., a specific lunch) for another recipe, allowing the nutri to choose between full automation or manual control ("capricho del nutri").
-- **Emergency Jokers**: Pre-approved "quick/healthy" meal options (e.g., Tuna Bowl) using ingredients already in the Cart, for days when the patient cannot cook.
+### Stage 3: Carrito (The Shopping Engine)
+Automatic generation of what to buy and how much, based on Dieta + Recetas y Porciones.
+- **Aggregation**: Consolidates all required ingredients and total quantities.
+- **Editability**: The nutritionist can add/remove items and adjust quantities manually.
+- **Traceability**: Shows source as "Generated from Dieta + Recetas y Porciones".
+- **Cost Layer**: Maintains estimated cost view and equivalent swaps.
 
 ### Stage 4: Entregable (The Product)
 A premium, personalized PDF guide for the patient.

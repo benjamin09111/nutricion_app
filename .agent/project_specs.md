@@ -88,3 +88,14 @@ NutriSaaS es una plataforma integral para nutricionistas que combina gestión de
   - Flujo "Push" para recordatorios y motivación.
   - Personalización basada en el historial del paciente.
   - **Tecnología Sugerida**: n8n para flujos de conversación y triggers de WhatsApp.
+
+## Actualización de Arquitectura Core (2026)
+
+- Nuevo orden operativo del core:
+  1. **Dieta** (restricciones + alimentos base + validación IA)
+  2. **Recetas y Porciones** (cantidades, etapas del día, platos, suplementos/sustitutos)
+  3. **Carrito** (lista automática de compra desde Dieta + Recetas y Porciones)
+  4. **Entregable** (PDF único o agrupado, orden personalizado drag-and-drop)
+- Nuevo módulo en sidebar: **Platos** para crear, reutilizar y compartir platos con aportes nutricionales.
+- Recursos ahora soportan variables con formato `^variable^` para personalización por paciente.
+- Recursos incluyen vista dedicada de **Portada e Introducción** con plantilla base reutilizable.

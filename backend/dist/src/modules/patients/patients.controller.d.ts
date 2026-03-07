@@ -78,8 +78,8 @@ export declare class PatientsController {
             name: string;
             date: Date;
             laboratory: string | null;
-            notes: string | null;
             fileUrl: string | null;
+            notes: string | null;
             results: import("@prisma/client/runtime/library").JsonValue | null;
             patientId: string;
         }[];
@@ -156,8 +156,8 @@ export declare class PatientsController {
         name: string;
         date: Date;
         laboratory: string | null;
-        notes: string | null;
         fileUrl: string | null;
+        notes: string | null;
         results: import("@prisma/client/runtime/library").JsonValue | null;
         patientId: string;
     }>;

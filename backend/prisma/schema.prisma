@@ -427,6 +427,7 @@ model Recipe {
   sodium         Float?             @default(0)
   isPublic       Boolean            @default(false) @map("is_public")
   nutritionistId String?            @map("nutritionist_id")
+  metadata       Json?              // { tags: string[], mealSection?: string, customIngredientNames?: string[] }
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   ingredients    RecipeIngredient[]

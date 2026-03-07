@@ -2,7 +2,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 export declare class ResourcesService {
     private readonly prisma;
     constructor(prisma: PrismaService);
-    findAll(nutritionistId: string, isAdmin: boolean): Promise<{
+    private extractVariables;
+    private enrichWithVariables;
+    resolveVariables(content: string, inputs: Record<string, string>): string;
+    findAll(nutritionistId: string, isAdmin: boolean): Promise<({
         isMine: boolean;
         id: string;
         createdAt: Date;
@@ -15,8 +18,10 @@ export declare class ResourcesService {
         title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
-    }[]>;
-    findOne(id: string): Promise<{
+    } & {
+        variablePlaceholders: string[];
+    })[]>;
+    findOne(id: string): Promise<({
         id: string;
         createdAt: Date;
         updatedAt: Date;
@@ -28,7 +33,9 @@ export declare class ResourcesService {
         title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
-    } | null>;
+    } & {
+        variablePlaceholders: string[];
+    }) | null>;
     create(nutritionistId: string | null, data: {
         title: string;
         content: string;
@@ -49,6 +56,8 @@ export declare class ResourcesService {
         title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
+    } & {
+        variablePlaceholders: string[];
     }>;
     update(id: string, nutritionistId: string, isAdmin: boolean, data: {
         title?: string;
@@ -70,6 +79,8 @@ export declare class ResourcesService {
         title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
+    } & {
+        variablePlaceholders: string[];
     }>;
     remove(id: string, nutritionistId: string, isAdmin: boolean): Promise<{
         id: string;

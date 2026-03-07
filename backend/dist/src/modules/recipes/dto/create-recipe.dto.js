@@ -38,6 +38,26 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], RecipeIngredientDto.prototype, "brandSuggestion", void 0);
+class CustomIngredientDto {
+    name;
+    amount;
+    unit;
+}
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CustomIngredientDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CustomIngredientDto.prototype, "amount", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CustomIngredientDto.prototype, "unit", void 0);
 class CreateRecipeDto {
     name;
     description;
@@ -49,6 +69,11 @@ class CreateRecipeDto {
     proteins;
     carbs;
     lipids;
+    isPublic;
+    tags;
+    mealSection;
+    customIngredientNames;
+    customIngredients;
 }
 exports.CreateRecipeDto = CreateRecipeDto;
 __decorate([
@@ -69,6 +94,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.Min)(1),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreateRecipeDto.prototype, "portions", void 0);
 __decorate([
@@ -103,4 +129,33 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreateRecipeDto.prototype, "lipids", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateRecipeDto.prototype, "isPublic", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreateRecipeDto.prototype, "tags", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateRecipeDto.prototype, "mealSection", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreateRecipeDto.prototype, "customIngredientNames", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => CustomIngredientDto),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreateRecipeDto.prototype, "customIngredients", void 0);
 //# sourceMappingURL=create-recipe.dto.js.map

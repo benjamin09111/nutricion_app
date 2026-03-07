@@ -56,6 +56,24 @@ interface DietClientProps {
   initialFoods: MarketPrice[];
 }
 
+interface RestrictionConflict {
+  foodId: string;
+  foodName: string;
+  restriction: string;
+  reason: string;
+  severity: "low" | "medium" | "high";
+}
+
+interface DietVerificationResult {
+  ok: boolean;
+  source: "openai" | "heuristic";
+  checkedFoods: number;
+  checkedRestrictions: number;
+  conflicts: RestrictionConflict[];
+  safeFoods: string[];
+  summary: string;
+}
+
 const getUserDraftKey = () => {
   if (typeof window === "undefined") return "nutrisaas_diet_draft";
   try {
@@ -127,6 +145,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
   // -- Import Creation Modal State --
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
+  const [isVerifyingRestrictions, setIsVerifyingRestrictions] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<DietVerificationResult | null>(null);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [isLoadingDiets, setIsLoadingDiets] = useState(false);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [dietSearchQuery, setDietSearchQuery] = useState("");
@@ -847,6 +868,78 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }
   };
 
+  const handleVerifyRestrictions = async () => {
+    if (activeConstraints.length === 0) {
+      toast.error("Primero agrega al menos una restricción.");
+      return;
+    }
+    if (includedFoods.length === 0) {
+      toast.error("No hay alimentos en la dieta para verificar.");
+      return;
+    }
+
+    const validFoodIds = includedFoods
+      .map((food) => food.id)
+      .filter(
+        (foodId) =>
+          !!foodId &&
+          !foodId.startsWith("base-") &&
+          !foodId.startsWith("search-") &&
+          !foodId.startsWith("manual-") &&
+          !foodId.startsWith("override-"),
+      );
+
+    if (validFoodIds.length === 0) {
+      toast.error(
+        "Los alimentos actuales no tienen IDs válidos para validación automática.",
+      );
+      return;
+    }
+
+    setIsVerifyingRestrictions(true);
+    const toastId = toast.loading("Verificando compatibilidad con restricciones...");
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
+      const response = await fetch(`${apiUrl}/diet/verify-foods`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          restrictions: activeConstraints,
+          foodIds: validFoodIds,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo validar restricciones con IA.");
+      }
+
+      const result = (await response.json()) as DietVerificationResult;
+      setVerificationResult(result);
+      setIsVerificationModalOpen(true);
+
+      if (result.conflicts.length > 0) {
+        toast.warning(`Se detectaron ${result.conflicts.length} posibles conflictos.`, {
+          id: toastId,
+        });
+      } else {
+        toast.success("No se detectaron conflictos con las restricciones.", {
+          id: toastId,
+        });
+      }
+    } catch (error) {
+      console.error("Error verificando restricciones:", error);
+      toast.error("Error al verificar restricciones. Intenta nuevamente.", {
+        id: toastId,
+      });
+    } finally {
+      setIsVerifyingRestrictions(false);
+    }
+  };
+
   const handleContinue = () => {
     if (!dietName.trim()) {
       toast.error("Por favor, asigna un nombre a la dieta antes de continuar.");
@@ -873,8 +966,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
     // Mark cart session as decided so the draft modal doesn't appear when arriving via flow
     sessionStorage.setItem("nutri_cart_draft_decided", "keep");
-    toast.success("Progreso guardado. Pasando al Carrito de Compras...");
-    setTimeout(() => router.push("/dashboard/carrito"), 1000);
+    toast.success("Progreso guardado. Pasando a Recetas y Porciones...");
+    setTimeout(() => router.push("/dashboard/recetas"), 1000);
   };
 
   const confirmDeleteGroup = () => {
@@ -1436,6 +1529,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         onClick: saveAsDraft,
       },
       {
+        id: "verify-foods",
+        icon: AlertCircle,
+        label: isVerifyingRestrictions ? "Verificando..." : "Validar Restricciones",
+        variant: "slate",
+        onClick: handleVerifyRestrictions,
+      },
+      {
         id: "export-json",
         icon: FileCode,
         label: "Imprimir JSON",
@@ -1458,7 +1558,16 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         onClick: resetDiet,
       },
     ],
-    [saveAsDraft, printJson, resetDiet, selectedPatient, handleExportPdf, isExportingPdf],
+    [
+      saveAsDraft,
+      printJson,
+      resetDiet,
+      selectedPatient,
+      handleExportPdf,
+      isExportingPdf,
+      isVerifyingRestrictions,
+      handleVerifyRestrictions,
+    ],
   );
 
   const handleKeepDraft = () => {
@@ -1657,8 +1766,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             </div>
           </div>
         </div>
-
-      </div>
 
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -2579,6 +2686,69 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           </div>
         </div>
       )}
+
+      <Modal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        title="Validación de Restricciones"
+      >
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
+            <p className="text-xs font-black uppercase tracking-widest text-slate-500">
+              Resumen
+            </p>
+            <p className="text-sm font-bold text-slate-800 mt-1">
+              {verificationResult?.summary || "Sin resultado disponible."}
+            </p>
+            {verificationResult && (
+              <p className="text-xs text-slate-500 mt-2">
+                Motor: {verificationResult.source.toUpperCase()} | Alimentos:{" "}
+                {verificationResult.checkedFoods} | Restricciones:{" "}
+                {verificationResult.checkedRestrictions}
+              </p>
+            )}
+          </div>
+
+          {verificationResult?.conflicts?.length ? (
+            <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+              {verificationResult.conflicts.map((conflict, index) => (
+                <div
+                  key={`${conflict.foodId}-${conflict.restriction}-${index}`}
+                  className="p-3 rounded-xl border border-rose-200 bg-rose-50"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-black text-rose-700">
+                      {conflict.foodName}
+                    </p>
+                    <span
+                      className={cn(
+                        "text-[10px] font-black uppercase px-2 py-1 rounded",
+                        conflict.severity === "high"
+                          ? "bg-rose-200 text-rose-700"
+                          : conflict.severity === "medium"
+                            ? "bg-amber-200 text-amber-700"
+                            : "bg-blue-200 text-blue-700",
+                      )}
+                    >
+                      {conflict.severity}
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold text-slate-700 mt-1">
+                    Restricción: {conflict.restriction}
+                  </p>
+                  <p className="text-xs text-slate-600 mt-1">{conflict.reason}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50">
+              <p className="text-sm font-black text-emerald-700">
+                Todo OK: no se detectaron incompatibilidades directas.
+              </p>
+            </div>
+          )}
+        </div>
+      </Modal>
 
 
       {/* Import Patient Modal */}

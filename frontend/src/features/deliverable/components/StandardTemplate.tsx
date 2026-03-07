@@ -303,11 +303,25 @@ interface StandardTemplateProps {
 export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
   const { diet, patientMeta, cart, recipes } = data || {};
   const { selectedSections } = config || { selectedSections: [] };
+  const resourcePages = data?.deliverable?.resourcePages || [];
 
   const hasSection = (id: string) => selectedSections.includes(id);
+  const htmlToPdfText = (value: string) =>
+    (value || "")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<[^>]*>/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
 
   const patientName = patientMeta?.fullName || "Sin Asignar";
   const focus = patientMeta?.nutritionalFocus || diet?.name || "Plan Personalizado";
+  const coverResource = resourcePages.find((page: { title?: string }) =>
+    /portada|introducci/i.test(page.title || ""),
+  );
+  const coverIntroText = coverResource
+    ? htmlToPdfText(coverResource.content).slice(0, 280)
+    : null;
   const currentDate = new Date().toLocaleDateString("es-ES", {
     year: "numeric",
     month: "long",
@@ -326,8 +340,8 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
           <Text style={S.coverBrand}>NUTRICIÓN CONSCIENTE</Text>
           <Text style={S.coverTitle}>Bienvenid{patientMeta?.gender === 'feminine' ? 'a' : 'o'} a tu{"\n"}Plan Personalizado</Text>
           <Text style={S.coverSubtitle}>
-            Una guía creada especialmente para ti, enfocada en{"\n"}
-            escuchar a tu cuerpo y sanar desde la raíz.
+            {coverIntroText ||
+              "Una guía creada especialmente para ti, enfocada en escuchar a tu cuerpo y sanar desde la raíz."}
           </Text>
 
           <View style={S.coverPatientBox}>
@@ -518,6 +532,28 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
           </View>
         </Page>
       )}
+
+      {/* ─────────────────────────────────── RECURSOS EXTRA ─────────────────────────────────── */}
+      {resourcePages.map((page: { title: string; content: string }, index: number) => (
+        <Page size="A4" style={S.page} key={`extra-resource-${index}`}>
+          <View style={S.sectionHeader}>
+            <View>
+              <Text style={S.sectionHeaderTitle}>{page.title || "Recurso adicional"}</Text>
+              <Text style={S.sectionHeaderSubtitle}>Contenido personalizado reutilizable</Text>
+            </View>
+          </View>
+          <View style={{ backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 12, padding: 18 }}>
+            <Text style={{ fontSize: 11, color: "#334155", lineHeight: 1.6 }}>
+              {htmlToPdfText(page.content)}
+            </Text>
+          </View>
+
+          <View style={S.pageFooter} fixed>
+            <Text style={S.pageFooterText}>Recurso adicional · {patientName}</Text>
+            <Text style={S.pageFooterText}>NutriSaaS</Text>
+          </View>
+        </Page>
+      ))}
 
       {/* ────────────────────────── NOTA FINAL (SI NO HAY SECCIONES SELECCIONADAS) ────────────────────────── */}
       {selectedSections.length === 0 && (

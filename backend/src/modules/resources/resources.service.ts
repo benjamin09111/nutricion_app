@@ -5,6 +5,32 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class ResourcesService {
     constructor(private readonly prisma: PrismaService) { }
 
+    private extractVariables(content: string): string[] {
+        const regex = /\^([a-zA-Z0-9_\- ]+)\^/g;
+        const variables = new Set<string>();
+        let match: RegExpExecArray | null = regex.exec(content);
+        while (match) {
+            variables.add(match[1].trim());
+            match = regex.exec(content);
+        }
+        return Array.from(variables);
+    }
+
+    private enrichWithVariables<T extends { content: string }>(resource: T): T & { variablePlaceholders: string[] } {
+        return {
+            ...resource,
+            variablePlaceholders: this.extractVariables(resource.content || ''),
+        };
+    }
+
+    resolveVariables(content: string, inputs: Record<string, string>) {
+        const safeInputs = inputs || {};
+        return content.replace(/\^([a-zA-Z0-9_\- ]+)\^/g, (_full: string, key: string) => {
+            const normalizedKey = key.trim();
+            return safeInputs[normalizedKey] ?? `^${normalizedKey}^`;
+        });
+    }
+
     async findAll(nutritionistId: string, isAdmin: boolean) {
         const resources = await this.prisma.resource.findMany({
             where: {
@@ -17,25 +43,28 @@ export class ResourcesService {
             orderBy: { updatedAt: 'desc' },
         });
 
-        return resources.map(resource => ({
+        return resources.map(resource => this.enrichWithVariables({
             ...resource,
             isMine: resource.nutritionistId === nutritionistId
         }));
     }
 
     async findOne(id: string) {
-        return this.prisma.resource.findUnique({
+        const resource = await this.prisma.resource.findUnique({
             where: { id },
         });
+        if (!resource) return null;
+        return this.enrichWithVariables(resource);
     }
 
     async create(nutritionistId: string | null, data: { title: string; content: string; category: string; tags?: string[]; images?: any; isPublic?: boolean; sources?: string }) {
-        return this.prisma.resource.create({
+        const created = await this.prisma.resource.create({
             data: {
                 ...data,
                 nutritionistId,
             },
         });
+        return this.enrichWithVariables(created);
     }
 
     async update(id: string, nutritionistId: string, isAdmin: boolean, data: { title?: string; content?: string; category?: string; tags?: string[]; images?: any; isPublic?: boolean; sources?: string }) {
@@ -47,10 +76,11 @@ export class ResourcesService {
             throw new Error('Unauthorized');
         }
 
-        return this.prisma.resource.update({
+        const updated = await this.prisma.resource.update({
             where: { id },
             data,
         });
+        return this.enrichWithVariables(updated);
     }
 
     async remove(id: string, nutritionistId: string, isAdmin: boolean) {

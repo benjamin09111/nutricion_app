@@ -39,6 +39,13 @@ export class ResourcesController {
         return this.resourcesService.create(nutritionistId, restData);
     }
 
+    @Post('resolve-variables')
+    resolveVariables(@Body() data: { content: string; inputs: Record<string, string> }) {
+        return {
+            resolvedContent: this.resourcesService.resolveVariables(data.content || '', data.inputs || {}),
+        };
+    }
+
     @Patch(':id')
     update(@Param('id') id: string, @Request() req: any, @Body() data: any) {
         const nutritionistId = req.user.nutritionistId;

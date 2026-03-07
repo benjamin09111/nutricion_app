@@ -31,6 +31,8 @@ import {
   FileUp,
   RotateCcw,
   Library,
+  GripVertical,
+  Plus,
 } from "lucide-react";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { Button } from "@/components/ui/Button";
@@ -50,6 +52,21 @@ interface ExportPackage {
   id: string;
   name: string;
   sections: string[];
+  exportAs: "single" | "grouped";
+}
+
+interface ResourceTemplate {
+  id: string;
+  title: string;
+  content: string;
+  variablePlaceholders?: string[];
+}
+
+interface ResolvedResourcePage {
+  resourceId: string;
+  title: string;
+  content: string;
+  variables: Record<string, string>;
 }
 
 interface SectionItem {
@@ -59,6 +76,7 @@ interface SectionItem {
   icon: any;
   defaultSelected: boolean;
   category: "core" | "info";
+  contentType: "practical" | "theory";
   editable?: boolean;
 }
 
@@ -70,6 +88,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     icon: Layout,
     defaultSelected: true,
     category: "core",
+    contentType: "practical",
     editable: true,
   },
   {
@@ -79,6 +98,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     icon: ShoppingCart,
     defaultSelected: true,
     category: "core",
+    contentType: "practical",
   },
   {
     id: "patientInfo",
@@ -87,6 +107,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     icon: User,
     defaultSelected: true,
     category: "core",
+    contentType: "practical",
   },
   {
     id: "qrCode",
@@ -95,6 +116,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     icon: QrCode,
     defaultSelected: true,
     category: "core",
+    contentType: "practical",
   },
   {
     id: "recipes",
@@ -103,6 +125,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     icon: Clock,
     defaultSelected: true,
     category: "core",
+    contentType: "practical",
   },
   {
     id: "hormonalIntel",
@@ -111,6 +134,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     icon: Sparkles,
     defaultSelected: true,
     category: "core",
+    contentType: "practical",
   },
   {
     id: "pathologyInfo",
@@ -119,6 +143,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     icon: Info,
     defaultSelected: false,
     category: "info",
+    contentType: "theory",
   },
   {
     id: "exercises",
@@ -127,6 +152,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     icon: Activity,
     defaultSelected: false,
     category: "info",
+    contentType: "theory",
   },
   {
     id: "myths",
@@ -135,6 +161,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     icon: HelpCircle,
     defaultSelected: false,
     category: "info",
+    contentType: "theory",
   },
   {
     id: "faq",
@@ -143,6 +170,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     icon: HelpCircle,
     defaultSelected: false,
     category: "info",
+    contentType: "theory",
   },
   {
     id: "substitutes",
@@ -151,6 +179,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     icon: Apple,
     defaultSelected: false,
     category: "info",
+    contentType: "practical",
   },
   {
     id: "psychology",
@@ -159,6 +188,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     icon: Brain,
     defaultSelected: false,
     category: "info",
+    contentType: "theory",
   },
   {
     id: "habits",
@@ -167,6 +197,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     icon: ClipboardCheck,
     defaultSelected: false,
     category: "info",
+    contentType: "theory",
   },
   {
     id: "hungerReal",
@@ -175,6 +206,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     icon: Brain,
     defaultSelected: false,
     category: "info",
+    contentType: "theory",
   },
 ];
 
@@ -203,11 +235,18 @@ export default function DeliverableClient() {
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
+  const [resources, setResources] = useState<ResourceTemplate[]>([]);
+  const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
+  const [selectedResourceId, setSelectedResourceId] = useState("");
+  const [resourceVariables, setResourceVariables] = useState<Record<string, string>>({});
+  const [resolvedResourcePages, setResolvedResourcePages] = useState<ResolvedResourcePage[]>([]);
 
   // Export Wizard State
   const [isExportWizardOpen, setIsExportWizardOpen] = useState(false);
   const [exportMode, setExportMode] = useState<"single" | "advanced">("single");
   const [exportPackages, setExportPackages] = useState<ExportPackage[]>([]);
+  const [contentFilter, setContentFilter] = useState<"all" | "practical" | "theory">("all");
+  const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
 
   // Load project draft on mount
   useEffect(() => {
@@ -233,6 +272,17 @@ export default function DeliverableClient() {
           }
           if (draft.deliverable.includeLogo !== undefined) {
             setIncludeLogo(draft.deliverable.includeLogo);
+          }
+          if (Array.isArray(draft.deliverable.resourcePages)) {
+            setResolvedResourcePages(draft.deliverable.resourcePages);
+          }
+          if (Array.isArray(draft.deliverable.exportPackages)) {
+            setExportPackages(
+              draft.deliverable.exportPackages.map((pkg: ExportPackage) => ({
+                ...pkg,
+                exportAs: pkg.exportAs || "single",
+              }))
+            );
           }
         } else {
           // Defaults
@@ -266,11 +316,13 @@ export default function DeliverableClient() {
     draft.deliverable = {
       selectedSections,
       includeLogo,
+      exportPackages,
+      resourcePages: resolvedResourcePages,
       updatedAt: new Date().toISOString(),
     };
 
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
-  }, [selectedSections, includeLogo]);
+  }, [selectedSections, includeLogo, exportPackages, resolvedResourcePages]);
 
   // Load stored patient
   useEffect(() => {
@@ -316,6 +368,22 @@ export default function DeliverableClient() {
 
     return { ...section, disabled, description: finalDescription };
   });
+
+  const selectedSectionItems = selectedSections
+    .map((id) => availableSections.find((section) => section.id === id))
+    .filter(Boolean) as (SectionItem & { disabled?: boolean })[];
+
+  const moveSelectedSection = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const sourceIndex = selectedSections.indexOf(sourceId);
+    const targetIndex = selectedSections.indexOf(targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+
+    const next = [...selectedSections];
+    const [moved] = next.splice(sourceIndex, 1);
+    next.splice(targetIndex, 0, moved);
+    setSelectedSections(next);
+  };
 
   const handleExportSingle = async () => {
     setIsExporting(true);
@@ -387,31 +455,45 @@ export default function DeliverableClient() {
         return;
       }
 
-      // Procesa cada paquete en paralelo
-      await Promise.all(validPackages.map(async (pkg, index) => {
-        const config = {
-          includeLogo,
-          selectedSections: pkg.sections, // Solo renderiza estos
-        };
+      const tasks: { pkgName: string; sections: string[] }[] = [];
+      validPackages.forEach((pkg) => {
+        if (pkg.exportAs === "single") {
+          tasks.push({ pkgName: pkg.name, sections: pkg.sections });
+          return;
+        }
+        pkg.sections.forEach((sectionId) => {
+          const section = DELIVERABLE_SECTIONS.find((s) => s.id === sectionId);
+          tasks.push({
+            pkgName: `${pkg.name} - ${section?.label || sectionId}`,
+            sections: [sectionId],
+          });
+        });
+      });
 
-        const blob = await pdf(
-          <StandardTemplate data={draftData} config={config} />,
-        ).toBlob();
+      await Promise.all(
+        tasks.map(async (task, index) => {
+          const config = {
+            includeLogo,
+            selectedSections: task.sections,
+          };
 
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        // Simple download trigger to handle separation
-        a.download = `${pkg.name.replace(/ /g, "_")}_${Date.now()}.pdf`;
-        document.body.appendChild(a);
+          const blob = await pdf(
+            <StandardTemplate data={draftData} config={config} />,
+          ).toBlob();
 
-        // Timeout para que el navegador no bloquee multiples descargas simultaneas
-        setTimeout(() => {
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }, index * 800);
-      }));
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${task.pkgName.replace(/ /g, "_")}_${Date.now()}.pdf`;
+          document.body.appendChild(a);
+
+          setTimeout(() => {
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }, index * 800);
+        })
+      );
 
       toast.success("¡Paquetes PDF generados y descargados!", {
         id: "pdf-toast",
@@ -435,14 +517,14 @@ export default function DeliverableClient() {
     const defaultPackages: ExportPackage[] = [];
 
     if (coreSections.length > 0) {
-      defaultPackages.push({ id: crypto.randomUUID(), name: "Plan Principal", sections: coreSections });
+      defaultPackages.push({ id: crypto.randomUUID(), name: "Plan Práctico", sections: coreSections, exportAs: "single" });
     }
     if (infoSections.length > 0) {
-      defaultPackages.push({ id: crypto.randomUUID(), name: "Material Anexo", sections: infoSections });
+      defaultPackages.push({ id: crypto.randomUUID(), name: "Material Teórico", sections: infoSections, exportAs: "single" });
     }
 
     if (defaultPackages.length === 0) {
-      defaultPackages.push({ id: crypto.randomUUID(), name: "Documento en Blanco", sections: [] });
+      defaultPackages.push({ id: crypto.randomUUID(), name: "Documento en Blanco", sections: [], exportAs: "single" });
     }
 
     setExportPackages(defaultPackages);
@@ -455,9 +537,9 @@ export default function DeliverableClient() {
     const remainingSections = selectedSections.filter(id => !listSections.includes(id) && !recipeSections.includes(id));
 
     const presets: ExportPackage[] = [];
-    if (remainingSections.length > 0) presets.push({ id: crypto.randomUUID(), name: "Plan Clínico General", sections: remainingSections });
-    if (recipeSections.length > 0) presets.push({ id: crypto.randomUUID(), name: "Recetario y Minuta", sections: recipeSections });
-    if (listSections.length > 0) presets.push({ id: crypto.randomUUID(), name: "Lista del Supermercado", sections: listSections });
+    if (remainingSections.length > 0) presets.push({ id: crypto.randomUUID(), name: "Plan Clínico General", sections: remainingSections, exportAs: "single" });
+    if (recipeSections.length > 0) presets.push({ id: crypto.randomUUID(), name: "Recetario y Minuta", sections: recipeSections, exportAs: "single" });
+    if (listSections.length > 0) presets.push({ id: crypto.randomUUID(), name: "Lista del Supermercado", sections: listSections, exportAs: "single" });
 
     setExportPackages(presets);
   };
@@ -468,6 +550,76 @@ export default function DeliverableClient() {
       setIsSaving(false);
       toast.success("Guardado en mis creaciones correctamente.");
     }, 1000);
+  };
+
+  const extractVariablesFromContent = (content: string): string[] => {
+    const regex = /\^([a-zA-Z0-9_\- ]+)\^/g;
+    const variables = new Set<string>();
+    let match = regex.exec(content || "");
+    while (match) {
+      variables.add(match[1].trim());
+      match = regex.exec(content || "");
+    }
+    return Array.from(variables);
+  };
+
+  const fetchResources = async () => {
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/resources`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      setResources(data);
+    } catch (error) {
+      console.error("Error loading resources", error);
+    }
+  };
+
+  const openResourceModal = async () => {
+    await fetchResources();
+    setSelectedResourceId("");
+    setResourceVariables({});
+    setIsResourceModalOpen(true);
+  };
+
+  const addResolvedResourcePage = async () => {
+    if (!selectedResourceId) {
+      toast.error("Selecciona un recurso.");
+      return;
+    }
+    const resource = resources.find((item) => item.id === selectedResourceId);
+    if (!resource) return;
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const response = await fetch(`${apiBase}/resources/resolve-variables`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          content: resource.content,
+          inputs: resourceVariables,
+        }),
+      });
+      if (!response.ok) throw new Error("resolve failed");
+      const data = await response.json();
+      const page: ResolvedResourcePage = {
+        resourceId: resource.id,
+        title: resource.title,
+        content: data.resolvedContent || resource.content,
+        variables: resourceVariables,
+      };
+      setResolvedResourcePages((prev) => [...prev, page]);
+      setIsResourceModalOpen(false);
+      toast.success("Página extra agregada al entregable.");
+    } catch (error) {
+      console.error(error);
+      toast.error("No se pudo resolver variables del recurso.");
+    }
   };
 
   const handleEditSection = (e: React.MouseEvent, id: string) => {
@@ -620,6 +772,13 @@ export default function DeliverableClient() {
       label: "Subir PDF",
       variant: "slate",
       onClick: () => toast.info("Módulo de escaneo de PDF próximamente... 📄"),
+    },
+    {
+      id: "attach-resource-page",
+      icon: Plus,
+      label: "Agregar Recurso",
+      variant: "slate",
+      onClick: openResourceModal,
     },
     {
       id: "reset",
@@ -806,7 +965,7 @@ export default function DeliverableClient() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setExportPackages([...exportPackages, { id: crypto.randomUUID(), name: `Nuevo PDF ${exportPackages.length + 1}`, sections: [] }])}
+                    onClick={() => setExportPackages([...exportPackages, { id: crypto.randomUUID(), name: `Nuevo PDF ${exportPackages.length + 1}`, sections: [], exportAs: "single" }])}
                     className="text-xs h-8 text-emerald-600 border-emerald-200 hover:bg-emerald-50"
                   >
                     + Nuevo Archivo
@@ -833,6 +992,21 @@ export default function DeliverableClient() {
                       className="font-black text-emerald-900 border-slate-200 bg-slate-50 focus:bg-white"
                       placeholder="Nombre del archivo (Ej. Plan Clínico)"
                     />
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase">Modo de exportación</p>
+                      <select
+                        className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white text-slate-600 cursor-pointer"
+                        value={pkg.exportAs}
+                        onChange={(e) => {
+                          const newPkgs = [...exportPackages];
+                          newPkgs[pkgIndex].exportAs = e.target.value as "single" | "grouped";
+                          setExportPackages(newPkgs);
+                        }}
+                      >
+                        <option value="single">Un PDF para este grupo</option>
+                        <option value="grouped">Un PDF por cada módulo</option>
+                      </select>
+                    </div>
                     <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl min-h-[80px]">
                       <p className="text-[9px] font-bold text-slate-400 uppercase mb-2">Módulos en este archivo:</p>
                       <div className="flex flex-wrap gap-1.5">
@@ -890,6 +1064,67 @@ export default function DeliverableClient() {
               </div>
             </div>
           )}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isResourceModalOpen}
+        onClose={() => setIsResourceModalOpen(false)}
+        title="Agregar Recurso Personalizable"
+      >
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+              Recurso
+            </p>
+            <select
+              value={selectedResourceId}
+              onChange={(e) => {
+                const resourceId = e.target.value;
+                setSelectedResourceId(resourceId);
+                const selectedResource = resources.find((item) => item.id === resourceId);
+                const variables = extractVariablesFromContent(selectedResource?.content || "");
+                const initialInputs: Record<string, string> = {};
+                variables.forEach((variableKey) => {
+                  initialInputs[variableKey] = "";
+                });
+                setResourceVariables(initialInputs);
+              }}
+              className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+            >
+              <option value="">Selecciona recurso</option>
+              {resources.map((resource) => (
+                <option key={resource.id} value={resource.id}>
+                  {resource.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {Object.keys(resourceVariables).length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                Variables
+              </p>
+              {Object.keys(resourceVariables).map((variableKey) => (
+                <Input
+                  key={variableKey}
+                  placeholder={variableKey}
+                  value={resourceVariables[variableKey] || ""}
+                  onChange={(e) =>
+                    setResourceVariables((prev) => ({
+                      ...prev,
+                      [variableKey]: e.target.value,
+                    }))
+                  }
+                />
+              ))}
+            </div>
+          )}
+
+          <Button className="w-full bg-emerald-600 text-white h-11" onClick={addResolvedResourcePage}>
+            Guardar Página Extra
+          </Button>
         </div>
       </Modal>
 
@@ -973,8 +1208,104 @@ export default function DeliverableClient() {
             </div>
           </div>
 
+          <div className="p-6 rounded-3xl border border-slate-200 bg-white space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-900">
+                  Páginas Extra desde Recursos
+                </h4>
+                <p className="text-[11px] text-slate-500 font-medium mt-1">
+                  Agrega contenido reutilizable con variables personalizadas para este paciente.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="h-9 text-xs font-black uppercase"
+                onClick={openResourceModal}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Agregar
+              </Button>
+            </div>
+
+            {resolvedResourcePages.length > 0 ? (
+              <div className="space-y-2">
+                {resolvedResourcePages.map((page, index) => (
+                  <div
+                    key={`${page.resourceId}-${index}`}
+                    className="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3"
+                  >
+                    <div>
+                      <p className="text-sm font-black text-slate-900">{page.title}</p>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase">
+                        Variables: {Object.keys(page.variables || {}).length}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setResolvedResourcePages((prev) =>
+                          prev.filter((_, row) => row !== index),
+                        )
+                      }
+                      className="h-8 w-8 rounded-lg text-rose-500 hover:bg-rose-50"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 font-medium">
+                No has agregado páginas extra todavía.
+              </p>
+            )}
+          </div>
+
           {/* Main Selection Grid */}
           <div className="space-y-12">
+            <section className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                  <Layout className="h-5 w-5 text-indigo-600" />
+                </div>
+                <h3 className="font-black text-slate-800 text-sm uppercase tracking-widest">
+                  Orden del Entregable (Arrastra como Playlist)
+                </h3>
+              </div>
+              <div className="p-4 rounded-2xl border border-slate-200 bg-white space-y-2">
+                {selectedSectionItems.length === 0 && (
+                  <p className="text-xs text-slate-500 font-medium">
+                    Selecciona módulos para ordenar el entregable.
+                  </p>
+                )}
+                {selectedSectionItems.map((section) => (
+                  <div
+                    key={`order-${section.id}`}
+                    draggable
+                    onDragStart={() => setDraggingSectionId(section.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      if (!draggingSectionId) return;
+                      moveSelectedSection(draggingSectionId, section.id);
+                      setDraggingSectionId(null);
+                    }}
+                    onDragEnd={() => setDraggingSectionId(null)}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-indigo-300 transition-colors bg-slate-50/50"
+                  >
+                    <GripVertical className="h-4 w-4 text-slate-400" />
+                    <section.icon className="h-4 w-4 text-slate-600" />
+                    <span className="text-xs font-bold text-slate-800 flex-1">{section.label}</span>
+                    <span className={cn(
+                      "text-[10px] uppercase font-black px-2 py-1 rounded-md",
+                      section.contentType === "practical" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                    )}>
+                      {section.contentType === "practical" ? "Práctica" : "Teoría"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
             {/* Core Modules (Checked by default) */}
             <section className="space-y-6">
               <div className="flex items-center gap-3">
@@ -989,6 +1320,7 @@ export default function DeliverableClient() {
               <div className="flex flex-col gap-3">
                 {availableSections
                   .filter((s) => s.category === "core")
+                  .filter((s) => contentFilter === "all" || s.contentType === contentFilter)
                   .map((section) => (
                     <div
                       key={section.id}
@@ -1023,6 +1355,12 @@ export default function DeliverableClient() {
                         <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
                           {section.description}
                         </p>
+                        <span className={cn(
+                          "inline-flex mt-2 text-[9px] uppercase font-black px-2 py-0.5 rounded",
+                          section.contentType === "practical" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                        )}>
+                          {section.contentType === "practical" ? "Práctica" : "Teoría"}
+                        </span>
                       </div>
 
                       {section.editable &&
@@ -1064,11 +1402,38 @@ export default function DeliverableClient() {
                 <h3 className="font-black text-slate-800 text-sm uppercase tracking-widest">
                   Educación & Recursos Sugeridos
                 </h3>
+                <div className="ml-auto flex gap-2">
+                  <Button
+                    variant={contentFilter === "all" ? "default" : "ghost"}
+                    size="sm"
+                    className="h-8 text-[10px] uppercase font-black"
+                    onClick={() => setContentFilter("all")}
+                  >
+                    Todo
+                  </Button>
+                  <Button
+                    variant={contentFilter === "practical" ? "default" : "ghost"}
+                    size="sm"
+                    className="h-8 text-[10px] uppercase font-black"
+                    onClick={() => setContentFilter("practical")}
+                  >
+                    Práctica
+                  </Button>
+                  <Button
+                    variant={contentFilter === "theory" ? "default" : "ghost"}
+                    size="sm"
+                    className="h-8 text-[10px] uppercase font-black"
+                    onClick={() => setContentFilter("theory")}
+                  >
+                    Teoría
+                  </Button>
+                </div>
               </div>
 
               <div className="flex flex-col gap-3">
                 {availableSections
                   .filter((s) => s.category === "info")
+                  .filter((s) => contentFilter === "all" || s.contentType === contentFilter)
                   .map((section) => (
                     <div
                       key={section.id}
@@ -1110,6 +1475,12 @@ export default function DeliverableClient() {
                         >
                           {section.description}
                         </p>
+                        <span className={cn(
+                          "inline-flex mt-2 text-[9px] uppercase font-black px-2 py-0.5 rounded",
+                          section.contentType === "practical" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                        )}>
+                          {section.contentType === "practical" ? "Práctica" : "Teoría"}
+                        </span>
                       </div>
                       <div
                         className={cn(

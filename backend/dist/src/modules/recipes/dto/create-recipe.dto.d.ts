@@ -4,16 +4,26 @@ declare class RecipeIngredientDto {
     unit: string;
     brandSuggestion?: string;
 }
+declare class CustomIngredientDto {
+    name: string;
+    amount: number;
+    unit: string;
+}
 export declare class CreateRecipeDto {
     name: string;
     description?: string;
     preparation?: string;
-    portions: number;
+    portions?: number;
     portionSize?: number;
     ingredients?: RecipeIngredientDto[];
     calories?: number;
     proteins?: number;
     carbs?: number;
     lipids?: number;
+    isPublic?: boolean;
+    tags?: string[];
+    mealSection?: string;
+    customIngredientNames?: string[];
+    customIngredients?: CustomIngredientDto[];
 }
 export {};

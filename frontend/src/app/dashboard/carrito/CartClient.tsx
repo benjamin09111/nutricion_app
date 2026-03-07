@@ -169,6 +169,7 @@ export default function CartClient() {
   const [draftMeta, setDraftMeta] = useState<{ label: string; date?: string }>({ label: "" });
 
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
+  const [cartSourceLabel, setCartSourceLabel] = useState("Generado manualmente");
 
   // -- Equivalent Selector State --
   const [isEquivalentModalOpen, setIsEquivalentModalOpen] = useState(false);
@@ -208,12 +209,28 @@ export default function CartClient() {
           })();
 
         if (includedFoods && Array.isArray(includedFoods) && includedFoods.length > 0) {
+          const recipeHints: Array<{ name: string; weeklyHits: number }> =
+            draft.recipes?.ingredientHints || [];
+          setCartSourceLabel(
+            recipeHints.length > 0
+              ? "Generado desde Dieta + Recetas y Porciones"
+              : "Generado desde Dieta",
+          );
+
+          const hintForFood = (foodName: string) => {
+            const normalized = foodName.toLowerCase().trim();
+            const match = recipeHints.find((hint) =>
+              normalized.includes(hint.name) || hint.name.includes(normalized),
+            );
+            return match?.weeklyHits || 3;
+          };
+
           const cartItems: CartItem[] = includedFoods.map((f: any) => ({
             id: f.id || `food-${Math.random()}`,
             producto: f.producto,
             grupo: f.grupo,
             cantidadMes: 0,
-            frecuenciaSemanal: 3,
+            frecuenciaSemanal: hintForFood(f.producto),
             porcionGramos: 100,
             carbohidratosPor100g: f.carbohydrates || f.carbs || 0,
             grasasPor100g: f.lipids || f.lipidos || 0,
@@ -235,6 +252,9 @@ export default function CartClient() {
             ...item,
             cantidadMes: Number(((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2)),
           })));
+          if (recipeHints.length > 0) {
+            toast.success("Carrito generado usando Dieta + Recetas y Porciones.");
+          }
         }
       } catch (e) {
         console.error("Error loading cart draft", e);
@@ -785,10 +805,10 @@ export default function CartClient() {
 
   const handleFinalize = () => {
     saveCartToStorage();
-    // Mark recipes session as decided so the draft modal doesn't appear when arriving via flow
-    sessionStorage.setItem("nutri_recipes_draft_decided", "keep");
-    toast.success("Carrito finalizado. Generando recetas...");
-    setTimeout(() => router.push("/dashboard/recetas"), 1000);
+    // Mark deliverable session as decided so the draft modal doesn't appear when arriving via flow
+    sessionStorage.setItem("nutri_deliverable_draft_decided", "keep");
+    toast.success("Carrito finalizado. Pasando al Entregable...");
+    setTimeout(() => router.push("/dashboard/entregable"), 1000);
   };
 
   const printJson = () => {
@@ -1057,8 +1077,8 @@ export default function CartClient() {
       />
 
       <ModuleLayout
-        title="Carrito & Porciones"
-        description="Transforma la estrategia en una lista de compras exacta."
+        title="Carrito Inteligente"
+        description="Genera automáticamente la lista de compra desde Dieta y Recetas."
         step={{
           number: 2,
           label: "Cantidades & Compras",
@@ -1149,6 +1169,15 @@ export default function CartClient() {
           </ModuleFooter>
         }
       >
+        <div className="mb-4">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 border border-indigo-100">
+            <BookOpen className="h-4 w-4 text-indigo-600" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700">
+              {cartSourceLabel}
+            </span>
+          </div>
+        </div>
+
         {selectedPatient && (
           <div className="mb-6 animate-in slide-in-from-top duration-300">
             <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-[2.5rem] flex items-center justify-between shadow-sm">

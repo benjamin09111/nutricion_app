@@ -19,6 +19,20 @@ class RecipeIngredientDto {
     brandSuggestion?: string;
 }
 
+class CustomIngredientDto {
+    @IsString()
+    @IsNotEmpty()
+    name: string;
+
+    @IsNumber()
+    @Min(0)
+    amount: number;
+
+    @IsString()
+    @IsNotEmpty()
+    unit: string;
+}
+
 export class CreateRecipeDto {
     @IsString()
     @IsNotEmpty()
@@ -34,7 +48,8 @@ export class CreateRecipeDto {
 
     @IsNumber()
     @Min(1)
-    portions: number;
+    @IsOptional()
+    portions?: number;
 
     @IsNumber()
     @IsOptional()
@@ -62,4 +77,28 @@ export class CreateRecipeDto {
     @IsNumber()
     @IsOptional()
     lipids?: number;
+
+    @IsBoolean()
+    @IsOptional()
+    isPublic?: boolean;
+
+    @IsArray()
+    @IsString({ each: true })
+    @IsOptional()
+    tags?: string[];
+
+    @IsString()
+    @IsOptional()
+    mealSection?: string;
+
+    @IsArray()
+    @IsString({ each: true })
+    @IsOptional()
+    customIngredientNames?: string[];
+
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => CustomIngredientDto)
+    @IsOptional()
+    customIngredients?: CustomIngredientDto[];
 }

@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, UseInterceptors } from '@nestjs/common';
 import { RecipesService } from './recipes.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
+import { EstimateMacrosDto } from './dto/estimate-macros.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
 import { CacheTTL } from '@nestjs/cache-manager';
@@ -13,8 +14,19 @@ export class RecipesController {
     constructor(private readonly recipesService: RecipesService) { }
 
     @Post()
-    create(@Request() req: any, @Body() createRecipeDto: CreateRecipeDto) {
-        return this.recipesService.create(req.user.id, createRecipeDto);
+    async create(@Request() req: any, @Body() createRecipeDto: CreateRecipeDto) {
+        console.log('[RecipesController.create] req.user.id:', req?.user?.id);
+        try {
+            return await this.recipesService.create(req.user.id, createRecipeDto);
+        } catch (err) {
+            console.error('[RecipesController.create] Error:', err?.message || err);
+            throw err;
+        }
+    }
+
+    @Post('estimate-macros')
+    estimateMacros(@Body() dto: EstimateMacrosDto) {
+        return this.recipesService.estimateMacros(dto);
     }
 
     @Get()
