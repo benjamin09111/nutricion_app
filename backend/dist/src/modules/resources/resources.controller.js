@@ -26,6 +26,14 @@ let ResourcesController = class ResourcesController {
         const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role);
         return this.resourcesService.findAll(nutritionistId, isAdmin);
     }
+    getSections(req) {
+        return this.resourcesService.getSections(req.user.nutritionistId);
+    }
+    createSection(req, data) {
+        const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role);
+        const nutritionistId = isAdmin ? (data.isGlobal ? null : req.user.nutritionistId) : req.user.nutritionistId;
+        return this.resourcesService.createSection(nutritionistId, data);
+    }
     findOne(id) {
         return this.resourcesService.findOne(id);
     }
@@ -55,6 +63,21 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], ResourcesController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('sections'),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], ResourcesController.prototype, "getSections", null);
+__decorate([
+    (0, common_1.Post)('sections'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], ResourcesController.prototype, "createSection", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),

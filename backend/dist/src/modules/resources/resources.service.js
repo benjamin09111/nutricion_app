@@ -69,6 +69,38 @@ let ResourcesService = class ResourcesService {
             where: { id },
         });
     }
+    async getSections(nutritionistId) {
+        return this.prisma.resourceSection.findMany({
+            where: {
+                OR: [
+                    { nutritionistId },
+                    { nutritionistId: null },
+                ],
+            },
+            orderBy: { name: 'asc' },
+        });
+    }
+    async createSection(nutritionistId, data) {
+        const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+        const existing = await this.prisma.resourceSection.findFirst({
+            where: {
+                OR: [
+                    { slug },
+                    { name: data.name }
+                ]
+            }
+        });
+        if (existing) {
+            return existing;
+        }
+        return this.prisma.resourceSection.create({
+            data: {
+                ...data,
+                slug,
+                nutritionistId,
+            },
+        });
+    }
 };
 exports.ResourcesService = ResourcesService;
 exports.ResourcesService = ResourcesService = __decorate([

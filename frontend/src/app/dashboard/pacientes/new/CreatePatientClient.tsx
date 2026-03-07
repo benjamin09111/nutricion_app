@@ -316,6 +316,60 @@ export default function CreatePatientClient() {
                 onChange={(e) => updateDraft({ likes: e.target.value })}
               />
             </div>
+
+            {/* Panel Nutricional */}
+            <div className="space-y-2 md:col-span-2 pt-6 border-t border-slate-100">
+              <label className="text-xs font-semibold text-slate-500 ml-1 block mb-3">
+                Metas Nutricionales (Integración con Carrito)
+              </label>
+
+              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200">
+                {(() => {
+                  const vars = Array.isArray(draft.customVariables) ? draft.customVariables as any[] : [];
+                  const getCV = (key: string) => vars.find(v => v.key === key)?.value || "";
+
+                  const updateCV = (key: string, label: string, value: string, unit: string) => {
+                    const prev = Array.isArray(draft.customVariables) ? [...draft.customVariables as any[]] : [];
+                    const idx = prev.findIndex(v => v.key === key);
+                    if (idx >= 0) { prev[idx] = { key, label, value, unit }; }
+                    else { prev.push({ key, label, value, unit }); }
+                    updateDraft({ customVariables: prev });
+                  };
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-400">Calorías (kcal)</label>
+                          <Input type="number" value={getCV("targetCalories")} onChange={e => updateCV("targetCalories", "Calorías Meta", e.target.value, "kcal")} className="font-bold border-slate-200 bg-white" placeholder="Ej. 2000" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-400">Proteína (g)</label>
+                          <Input type="number" value={getCV("targetProtein")} onChange={e => updateCV("targetProtein", "Proteína Meta", e.target.value, "g")} className="font-bold border-slate-200 bg-white" placeholder="Ej. 150" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-400">Carbohidratos (g)</label>
+                          <Input type="number" value={getCV("targetCarbs")} onChange={e => updateCV("targetCarbs", "Carbohidratos Meta", e.target.value, "g")} className="font-bold border-slate-200 bg-white" placeholder="Ej. 200" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-400">Grasas (g)</label>
+                          <Input type="number" value={getCV("targetFats")} onChange={e => updateCV("targetFats", "Grasas Meta", e.target.value, "g")} className="font-bold border-slate-200 bg-white" placeholder="Ej. 60" />
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Temporalidad</label>
+                        <select value={getCV("targetTimeframe") || "dia"} onChange={e => updateCV("targetTimeframe", "Temporalidad", e.target.value, "")} className="w-full h-10 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 px-3 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none">
+                          <option value="dia">Diario</option>
+                          <option value="semana">Semanal</option>
+                          <option value="mes">Mensual</option>
+                        </select>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
           </div>
         </div>
 

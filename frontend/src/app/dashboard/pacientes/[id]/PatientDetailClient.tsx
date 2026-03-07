@@ -1518,6 +1518,83 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               </div>
             </div>
 
+            {/* Metas Nutricionales Panel */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative overflow-hidden group">
+              <h4 className="flex items-center gap-3 font-semibold text-emerald-600 text-xs mb-8" >
+                <Target className="w-4 h-4" />
+                Metas Nutricionales (Carrito)
+              </h4>
+
+              <div className="space-y-4">
+                {(() => {
+                  const dataSource = isEditing ? editForm.customVariables : patient.customVariables;
+                  const vars = Array.isArray(dataSource) ? dataSource as any[] : [];
+                  const getCV = (key: string) => vars.find(v => v.key === key)?.value || "";
+
+                  const updateCV = (key: string, label: string, value: string, unit: string) => {
+                    if (!isEditing) return;
+                    const prev = Array.isArray(editForm.customVariables) ? [...editForm.customVariables as any[]] : [];
+                    const idx = prev.findIndex(v => v.key === key);
+                    if (idx >= 0) { prev[idx] = { key, label, value, unit }; }
+                    else { prev.push({ key, label, value, unit }); }
+                    updateField("customVariables", prev);
+                  };
+
+                  return (
+                    <div className="space-y-4 relative z-10">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-400">Calorías (kcal)</label>
+                          {isEditing ? (
+                            <Input type="number" value={getCV("targetCalories")} onChange={e => updateCV("targetCalories", "Calorías Meta", e.target.value, "kcal")} className="font-bold border-slate-200" />
+                          ) : (
+                            <p className="font-bold text-amber-600">{getCV("targetCalories") || "No definido"}</p>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-400">Proteína (g)</label>
+                          {isEditing ? (
+                            <Input type="number" value={getCV("targetProtein")} onChange={e => updateCV("targetProtein", "Proteína Meta", e.target.value, "g")} className="font-bold border-slate-200" />
+                          ) : (
+                            <p className="font-bold text-emerald-600">{getCV("targetProtein") || "No definido"}</p>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-400">Carbohidratos (g)</label>
+                          {isEditing ? (
+                            <Input type="number" value={getCV("targetCarbs")} onChange={e => updateCV("targetCarbs", "Carbohidratos Meta", e.target.value, "g")} className="font-bold border-slate-200" />
+                          ) : (
+                            <p className="font-bold text-blue-600">{getCV("targetCarbs") || "No definido"}</p>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase text-slate-400">Grasas (g)</label>
+                          {isEditing ? (
+                            <Input type="number" value={getCV("targetFats")} onChange={e => updateCV("targetFats", "Grasas Meta", e.target.value, "g")} className="font-bold border-slate-200" />
+                          ) : (
+                            <p className="font-bold text-purple-600">{getCV("targetFats") || "No definido"}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Temporalidad</label>
+                        {isEditing ? (
+                          <select value={getCV("targetTimeframe") || "dia"} onChange={e => updateCV("targetTimeframe", "Temporalidad", e.target.value, "")} className="w-full h-10 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 px-3">
+                            <option value="dia">Diario</option>
+                            <option value="semana">Semanal</option>
+                            <option value="mes">Mensual</option>
+                          </select>
+                        ) : (
+                          <p className="font-bold text-slate-700 capitalize">{getCV("targetTimeframe") || "Diario"}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-8" >
               <div className="flex items-center justify-between" >
                 <div className="flex items-center gap-4 text-rose-600" >

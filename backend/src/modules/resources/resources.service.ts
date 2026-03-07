@@ -65,4 +65,42 @@ export class ResourcesService {
             where: { id },
         });
     }
+
+    async getSections(nutritionistId: string) {
+        return this.prisma.resourceSection.findMany({
+            where: {
+                OR: [
+                    { nutritionistId },
+                    { nutritionistId: null }, // System defaults
+                ],
+            },
+            orderBy: { name: 'asc' },
+        });
+    }
+
+    async createSection(nutritionistId: string | null, data: { name: string; icon?: string; color?: string; bg?: string }) {
+        const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+        // Check if exists
+        const existing = await this.prisma.resourceSection.findFirst({
+            where: {
+                OR: [
+                    { slug },
+                    { name: data.name }
+                ]
+            }
+        });
+
+        if (existing) {
+            return existing; // Return existing if already there
+        }
+
+        return this.prisma.resourceSection.create({
+            data: {
+                ...data,
+                slug,
+                nutritionistId,
+            },
+        });
+    }
 }

@@ -174,7 +174,7 @@ export default function CreateIngredientModal({
         },
         body: JSON.stringify({
           ...data,
-          isPublic: false, // Default to private until shared manually
+          isPublic: true, // Se crea como público por defecto según la regla de negocio
         }),
       });
 
@@ -186,7 +186,7 @@ export default function CreateIngredientModal({
       const newIngredient = await response.json();
 
       toast.success(
-        "Ingrediente creado correctamente. Puedes compartirlo desde 'Mis creaciones'.",
+        "Ingrediente creado correctamente y compartido con la comunidad 🌍",
       );
       reset();
       onSuccess(newIngredient);

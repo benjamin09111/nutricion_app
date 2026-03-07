@@ -17,6 +17,7 @@ import {
   Flame,
   Settings2,
   CheckCircle2,
+  Check,
   Info,
   Search,
   Filter,
@@ -51,6 +52,7 @@ import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { useAdmin } from "@/context/AdminContext";
 import Cookies from "js-cookie";
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
+import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 
 // -- Mock Types --
 
@@ -193,41 +195,57 @@ export default function RecipesClient() {
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
 
+  // -- Source and AI Generation Specs --
+  const [hasSourceData, setHasSourceData] = useState(false);
+  const [recommendedDishes, setRecommendedDishes] = useState<Recipe[]>([]);
+  const [isRecommendingModalOpen, setIsRecommendingModalOpen] = useState(false);
+  const [recipeSearchQuery, setRecipeSearchQuery] = useState("");
+
   // -- Draft Restore Modal --
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [draftMeta, setDraftMeta] = useState<{ label: string; date?: string }>({ label: "" });
+
+  const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
 
   // -- Persistence: Draft Load/Save --
   useEffect(() => {
     const storedDraft = localStorage.getItem("nutri_active_draft");
     const alreadyDecided = sessionStorage.getItem("nutri_recipes_draft_decided");
-    if (!alreadyDecided && storedDraft) {
+
+    if (storedDraft) {
       try {
         const draft = JSON.parse(storedDraft);
-        if (draft.recipes && draft.recipes.weekSlots) {
-          setDraftMeta({
-            label: `Recetas: plan semanal guardado`,
-            date: draft.recipes.updatedAt,
-          });
-          setShowDraftModal(true);
-          // Load patient anyway
-          const storedPatient = localStorage.getItem("nutri_patient");
-          if (storedPatient) {
-            try { setSelectedPatient(JSON.parse(storedPatient)); } catch (_) { }
-          }
-          return;
+        // Check if we have ingredients to work with
+        if (draft.diet || draft.cart) {
+          setHasSourceData(true);
         }
-        if (draft.recipes) {
-          if (draft.recipes.weekSlots) setWeekSlots(draft.recipes.weekSlots);
-          if (draft.recipes.targets) {
-            setTargetProtein(draft.recipes.targets.protein);
-            setTargetCalories(draft.recipes.targets.calories);
-            setTargetCarbs(draft.recipes.targets.carbs);
-            setTargetFats(draft.recipes.targets.fats);
+
+        if (!alreadyDecided) {
+          if (draft.recipes && draft.recipes.weekSlots) {
+            setDraftMeta({
+              label: `Recetas: plan semanal guardado`,
+              date: draft.recipes.updatedAt,
+            });
+            setShowDraftModal(true);
+            // Load patient anyway
+            const storedPatient = localStorage.getItem("nutri_patient");
+            if (storedPatient) {
+              try { setSelectedPatient(JSON.parse(storedPatient)); } catch (_) { }
+            }
+            return;
           }
-          if (draft.recipes.chronobiology) {
-            setWakeUpTime(draft.recipes.chronobiology.wakeUpTime);
-            setSleepTime(draft.recipes.chronobiology.sleepTime);
+          if (draft.recipes) {
+            if (draft.recipes.weekSlots) setWeekSlots(draft.recipes.weekSlots);
+            if (draft.recipes.targets) {
+              setTargetProtein(draft.recipes.targets.protein);
+              setTargetCalories(draft.recipes.targets.calories);
+              setTargetCarbs(draft.recipes.targets.carbs);
+              setTargetFats(draft.recipes.targets.fats);
+            }
+            if (draft.recipes.chronobiology) {
+              setWakeUpTime(draft.recipes.chronobiology.wakeUpTime);
+              setSleepTime(draft.recipes.chronobiology.sleepTime);
+            }
           }
         }
       } catch (e) {
@@ -344,22 +362,57 @@ export default function RecipesClient() {
   };
 
   // AI Generation Simulation
-  const handleGenerateAI = () => {
+  const handleGenerateAI = (mode: "day" | "week" = "day") => {
+    if (!hasSourceData) {
+      toast.error("Faltan ingredientes", {
+        description: "Debes importar una Dieta o Carrito primero para tener la base de alimentos."
+      });
+      return;
+    }
+
     setIsGenerating(true);
-    toast.success(`Optimizando plan para ${currentDay} con OpenAI...`, {
-      description: `Buscando la mayor diversidad de combinaciones para alcanzar ${targetProtein}g de proteína y ${targetCalories} kcal diarias.`,
-      duration: 3500,
+    const targetDayLabel = mode === "day" ? currentDay : "toda la semana";
+
+    toast.success(`Generando plan para ${targetDayLabel}...`, {
+      description: `Usando ingredientes de tu ${localStorage.getItem("nutri_active_draft")?.includes("cart") ? "Carrito" : "Dieta"} y tus ${recommendedDishes.length} recomendaciones.`,
+      duration: 4000,
     });
 
     setTimeout(() => {
-      const newSlots = currentSlots.map((slot) => ({
-        ...slot,
-        recipe: MOCK_RECIPES[Math.floor(Math.random() * MOCK_RECIPES.length)],
-      }));
-      setCurrentSlots(newSlots);
+      if (mode === "day") {
+        const newSlots = currentSlots.map((slot) => ({
+          ...slot,
+          recipe: MOCK_RECIPES[Math.floor(Math.random() * MOCK_RECIPES.length)],
+        }));
+        setCurrentSlots(newSlots);
+        toast.success(`¡Día ${currentDay} generado con éxito!`);
+      } else {
+        const newWeekSlots = { ...weekSlots };
+        days.forEach(day => {
+          newWeekSlots[day] = newWeekSlots[day].map(slot => ({
+            ...slot,
+            recipe: MOCK_RECIPES[Math.floor(Math.random() * MOCK_RECIPES.length)],
+          }));
+        });
+        setWeekSlots(newWeekSlots);
+        toast.success(`¡Plan semanal completo generado!`);
+      }
       setIsGenerating(false);
-      toast.success(`¡Plan del ${currentDay} generado con éxito!`);
-    }, 2500);
+    }, 3000);
+  };
+
+  const handleRecommendDish = (recipeJSON: string) => {
+    try {
+      const dish = JSON.parse(recipeJSON);
+      setRecommendedDishes(prev => [...prev, dish]);
+      toast.success(`"${dish.title}" agregado como sugerencia para la IA.`);
+    } catch (e) {
+      toast.error("Error al procesar el plato.");
+    }
+  };
+
+  const removeRecommendation = (id: string) => {
+    setRecommendedDishes(prev => prev.filter(d => d.id !== id));
   };
 
   const handleMealCountChange = (count: number) => {
@@ -457,31 +510,18 @@ export default function RecipesClient() {
   const actionDockItems: ActionDockItem[] = useMemo(
     () => [
       {
-        id: "import-diet",
+        id: "import-creation",
         icon: Library,
-        label: "Ver Dieta del Borrador",
+        label: "Importar Creación",
         variant: "indigo",
         onClick: () => {
-          const storedDraft = localStorage.getItem("nutri_active_draft");
-          if (!storedDraft) { toast.error("No hay borrador de dieta activo."); return; }
-          try {
-            const draft = JSON.parse(storedDraft);
-            const dietName = draft.diet?.name;
-            const count = draft.diet?.includedFoods?.length || 0;
-            const cartCount = draft.cart?.items?.length || 0;
-            toast.info(
-              dietName
-                ? `Dieta: "${dietName}" (${count} alimentos, ${cartCount} en carrito)`
-                : "No hay dieta guardada en el borrador.",
-              { duration: 4000 }
-            );
-          } catch { toast.error("Error leyendo el borrador."); }
+          setIsImportCreationModalOpen(true);
         },
       },
       {
         id: "link-patient",
         icon: User,
-        label: selectedPatient ? "Cambiar Paciente" : "Asignar Paciente",
+        label: selectedPatient ? "Cambiar Paciente" : "Importar Paciente",
         variant: "emerald",
         onClick: () => {
           setIsImportPatientModalOpen(true);
@@ -569,8 +609,56 @@ export default function RecipesClient() {
     setShowDraftModal(false);
   };
 
+  const handleImportCreation = (creation: any) => {
+    try {
+      const { type, content } = creation;
+
+      // Full RECIPE import
+      if (type === "RECIPE") {
+        if (content.weekSlots) setWeekSlots(content.weekSlots);
+        if (content.targets) {
+          setTargetProtein(content.targets.protein || 0);
+          setTargetCalories(content.targets.calories || 0);
+          setTargetCarbs(content.targets.carbs || 0);
+          setTargetFats(content.targets.fats || 0);
+        }
+        if (content.chronobiology) {
+          setWakeUpTime(content.chronobiology.wakeUpTime);
+          setSleepTime(content.chronobiology.sleepTime);
+        }
+        toast.success(`Plan de recetas "${creation.name}" importado.`);
+      }
+      // Partial import from DIET or CART (Sync targets)
+      else if (type === "DIET" || type === "SHOPPING_LIST") {
+        const targets = content.targets || content.nutritionalTargets || {};
+
+        // Try to find targets in content or handle calculated ones if available
+        const calories = targets.calories || targets.targetCalories || 0;
+        const protein = targets.protein || targets.targetProtein || 0;
+        const carbs = targets.carbs || targets.targetCarbs || 0;
+        const fats = targets.fats || targets.targetFats || 0;
+
+        if (calories > 0) setTargetCalories(calories);
+        if (protein > 0) setTargetProtein(protein);
+        if (carbs > 0) setTargetCarbs(carbs);
+        if (fats > 0) setTargetFats(fats);
+
+        toast.success(`Metas sincronizadas desde ${type === "DIET" ? "Dieta" : "Carrito"}: "${creation.name}"`);
+      }
+    } catch (e) {
+      console.error("Error importing creation", e);
+      toast.error("Error al importar la creación.");
+    }
+  };
+
   return (
     <>
+      <ImportCreationModal
+        isOpen={isImportCreationModalOpen}
+        onClose={() => setIsImportCreationModalOpen(false)}
+        onImport={handleImportCreation}
+        defaultType="RECIPE"
+      />
       <DraftRestoreModal
         isOpen={showDraftModal}
         moduleName="Recetas"
@@ -662,18 +750,32 @@ export default function RecipesClient() {
                 <ChevronLeft className="h-4 w-4" />
                 Ajustar Carrito
               </Button>
-              <Button
-                onClick={handleGenerateAI}
-                disabled={isGenerating}
-                className="bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black shadow-xl flex items-center gap-2 px-8 h-12"
-              >
-                {isGenerating ? (
-                  <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <Zap className="h-5 w-5 fill-amber-400 text-amber-400" />
-                )}
-                Auto-Generar {currentDay}
-              </Button>
+              <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-3xl border border-slate-200">
+                <Button
+                  onClick={() => handleGenerateAI("day")}
+                  disabled={isGenerating}
+                  className="bg-white hover:bg-slate-50 text-slate-900 rounded-2xl font-black shadow-sm flex items-center gap-2 px-6 h-10 border border-slate-200"
+                >
+                  {isGenerating ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                  ) : (
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                  )}
+                  Generar {currentDay}
+                </Button>
+                <Button
+                  onClick={() => handleGenerateAI("week")}
+                  disabled={isGenerating}
+                  className="bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black shadow-xl flex items-center gap-2 px-6 h-10"
+                >
+                  {isGenerating ? (
+                    <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Zap className="h-4 w-4 fill-amber-400 text-amber-400" />
+                  )}
+                  Generar Semana
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -906,6 +1008,70 @@ export default function RecipesClient() {
                   </div>
                 </div>
               </div>
+
+              {/* Recommendations (Favorite Dishes) */}
+              <section className="bg-white rounded-4xl border border-slate-200 p-8 space-y-6 shadow-sm border-l-4 border-l-amber-400">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-black text-slate-800 text-sm uppercase tracking-widest leading-none flex items-center gap-2">
+                      <ChefHat className="h-4 w-4 text-amber-500" />
+                      Ideas del Nutri
+                    </h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsRecommendingModalOpen(true)}
+                      className="h-8 w-8 p-0 rounded-full hover:bg-amber-50"
+                    >
+                      <Plus className="h-4 w-4 text-amber-600" />
+                    </Button>
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-400 italic">
+                    Platos favoritos que la IA usará como base.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {recommendedDishes.length === 0 ? (
+                    <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-4 text-center">
+                      <p className="text-[10px] font-bold text-slate-400">
+                        No hay platos recomendados aún.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {recommendedDishes.map((dish) => (
+                        <div
+                          key={dish.id}
+                          className="flex items-center justify-between p-3 bg-amber-50/50 border border-amber-100 rounded-xl group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="h-2 w-2 rounded-full bg-amber-400" />
+                            <span className="text-xs font-black text-amber-900">{dish.title}</span>
+                          </div>
+                          <button
+                            onClick={() => removeRecommendation(dish.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-rose-500"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {hasSourceData && (
+                    <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex gap-3">
+                      <div className="h-8 w-8 bg-emerald-100 rounded-lg flex items-center justify-center shrink-0">
+                        <Droplet className="h-4 w-4 text-emerald-600" />
+                      </div>
+                      <p className="text-[10px] font-bold text-emerald-700 leading-tight">
+                        Ingredientes cargados. La IA está lista para cocinar.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </section>
 
               {/* Configuration Controls */}
               <section className="bg-white rounded-4xl border border-slate-200 p-8 space-y-8 shadow-sm">
@@ -1182,6 +1348,93 @@ export default function RecipesClient() {
               </div>
             )}
           </div>
+        </div>
+      </Modal>
+
+      {/* Recommendations / Ideas del Nutri Modal */}
+      <Modal
+        isOpen={isRecommendingModalOpen}
+        onClose={() => setIsRecommendingModalOpen(false)}
+        title="Recomendar Platos a la IA"
+        className="max-w-xl"
+      >
+        <div className="p-2 space-y-6">
+          <p className="text-sm text-slate-500 font-medium">
+            Selecciona platos que te gustaría que la IA considere al momento de generar el plan.
+          </p>
+
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
+            <Input
+              placeholder="Escribe un plato o ingrediente..."
+              value={recipeSearchQuery}
+              onChange={(e) => setRecipeSearchQuery(e.target.value)}
+              className="pl-11 h-12 rounded-2xl border-slate-200 focus:border-amber-400 font-bold"
+              autoFocus
+            />
+          </div>
+
+          <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+            {MOCK_RECIPES
+              .filter(r => r.title.toLowerCase().includes(recipeSearchQuery.toLowerCase()))
+              .map((recipe) => {
+                const isSelected = recommendedDishes.some(d => d.id === recipe.id);
+                return (
+                  <div
+                    key={recipe.id}
+                    onClick={() => {
+                      if (!isSelected) {
+                        handleRecommendDish(JSON.stringify(recipe));
+                      } else {
+                        removeRecommendation(recipe.id);
+                      }
+                    }}
+                    className={cn(
+                      "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+                      isSelected
+                        ? "border-amber-400 bg-amber-50"
+                        : "border-slate-100 bg-slate-50/50 hover:border-amber-200 hover:bg-white"
+                    )}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={cn(
+                        "h-10 w-10 rounded-xl flex items-center justify-center text-xl shadow-sm border",
+                        isSelected ? "bg-white border-amber-200" : "bg-slate-100 border-slate-200"
+                      )}>
+                        🍳
+                      </div>
+                      <div>
+                        <h4 className="font-black text-slate-900 text-sm leading-none mb-1">
+                          {recipe.title}
+                        </h4>
+                        <div className="flex gap-2">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                            {recipe.calories} kcal
+                          </span>
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">•</span>
+                          <span className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">
+                            {recipe.protein}g prot
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className={cn(
+                      "h-6 w-6 rounded-full flex items-center justify-center transition-all",
+                      isSelected ? "bg-amber-400 text-white" : "bg-slate-200 text-slate-400 group-hover:bg-amber-100 group-hover:text-amber-500"
+                    )}>
+                      {isSelected ? <Check className="h-3.5 w-3.5 stroke-[4px]" /> : <Plus className="h-3.5 w-3.5" />}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+
+          <Button
+            onClick={() => setIsRecommendingModalOpen(false)}
+            className="w-full h-12 rounded-2xl bg-slate-900 text-white font-black shadow-xl"
+          >
+            Listo, usar como base
+          </Button>
         </div>
       </Modal>
     </>

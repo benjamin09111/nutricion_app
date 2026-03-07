@@ -30,7 +30,9 @@ import {
   Loader2,
   FileUp,
   RotateCcw,
+  Library,
 } from "lucide-react";
+import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -43,6 +45,12 @@ import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import Cookies from "js-cookie";
+
+interface ExportPackage {
+  id: string;
+  name: string;
+  sections: string[];
+}
 
 interface SectionItem {
   id: string;
@@ -189,12 +197,17 @@ export default function DeliverableClient() {
   const [showInitModal, setShowInitModal] = useState(false);
   const [hasDraftMemory, setHasDraftMemory] = useState(false);
 
-  // -- Import Patient Modal State --
   const [isImportPatientModalOpen, setIsImportPatientModalOpen] =
     useState(false);
   const [patients, setPatients] = useState<any[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
+  const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
+
+  // Export Wizard State
+  const [isExportWizardOpen, setIsExportWizardOpen] = useState(false);
+  const [exportMode, setExportMode] = useState<"single" | "advanced">("single");
+  const [exportPackages, setExportPackages] = useState<ExportPackage[]>([]);
 
   // Load project draft on mount
   useEffect(() => {
@@ -304,7 +317,7 @@ export default function DeliverableClient() {
     return { ...section, disabled, description: finalDescription };
   });
 
-  const handleExport = async () => {
+  const handleExportSingle = async () => {
     setIsExporting(true);
 
     try {
@@ -312,12 +325,10 @@ export default function DeliverableClient() {
         id: "pdf-toast",
       });
 
-      // Dynamically import heavy PDF library only when needed to avoid SSR bloat
       const { pdf } = await import("@react-pdf/renderer");
       const { StandardTemplate } =
         await import("@/features/deliverable/components/StandardTemplate");
 
-      // Leer JSON gigante de persistencia
       const storedDraft = localStorage.getItem("nutri_active_draft");
       const draftData = storedDraft ? JSON.parse(storedDraft) : {};
 
@@ -326,12 +337,10 @@ export default function DeliverableClient() {
         selectedSections,
       };
 
-      // Generar PDF 100% nativo desde React Component a Blob Memory
       const blob = await pdf(
         <StandardTemplate data={draftData} config={config} />,
       ).toBlob();
 
-      // Forzar descarga local
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -344,6 +353,7 @@ export default function DeliverableClient() {
       toast.success("¡PDF generado y descargado exitosamente!", {
         id: "pdf-toast",
       });
+      setIsExportWizardOpen(false);
     } catch (error) {
       console.error("Error generating PDF:", error);
       toast.error("Ocurrió un error al generar de PDF. Revisa la consola.", {
@@ -352,6 +362,104 @@ export default function DeliverableClient() {
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleExportAdvanced = async () => {
+    setIsExporting(true);
+    try {
+      toast.loading("Generando paquetes PDF separados...", {
+        id: "pdf-toast",
+      });
+
+      const { pdf } = await import("@react-pdf/renderer");
+      const { StandardTemplate } =
+        await import("@/features/deliverable/components/StandardTemplate");
+
+      const storedDraft = localStorage.getItem("nutri_active_draft");
+      const draftData = storedDraft ? JSON.parse(storedDraft) : {};
+
+      // Filter out empty packages
+      const validPackages = exportPackages.filter(p => p.sections.length > 0 && p.name.trim() !== "");
+
+      if (validPackages.length === 0) {
+        toast.error("Debes tener al menos un paquete con módulos seleccionados", { id: "pdf-toast" });
+        setIsExporting(false);
+        return;
+      }
+
+      // Procesa cada paquete en paralelo
+      await Promise.all(validPackages.map(async (pkg, index) => {
+        const config = {
+          includeLogo,
+          selectedSections: pkg.sections, // Solo renderiza estos
+        };
+
+        const blob = await pdf(
+          <StandardTemplate data={draftData} config={config} />,
+        ).toBlob();
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        // Simple download trigger to handle separation
+        a.download = `${pkg.name.replace(/ /g, "_")}_${Date.now()}.pdf`;
+        document.body.appendChild(a);
+
+        // Timeout para que el navegador no bloquee multiples descargas simultaneas
+        setTimeout(() => {
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, index * 800);
+      }));
+
+      toast.success("¡Paquetes PDF generados y descargados!", {
+        id: "pdf-toast",
+      });
+      setIsExportWizardOpen(false);
+    } catch (error) {
+      console.error("Error generating advanced PDFs:", error);
+      toast.error("Ocurrió un error al generar los PDF separados.", {
+        id: "pdf-toast",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const openExportWizard = () => {
+    // Inicializar paquetes avanzados por defecto
+    const coreSections = selectedSections.filter(id => DELIVERABLE_SECTIONS.find(s => s.id === id)?.category === "core");
+    const infoSections = selectedSections.filter(id => DELIVERABLE_SECTIONS.find(s => s.id === id)?.category === "info");
+
+    const defaultPackages: ExportPackage[] = [];
+
+    if (coreSections.length > 0) {
+      defaultPackages.push({ id: crypto.randomUUID(), name: "Plan Principal", sections: coreSections });
+    }
+    if (infoSections.length > 0) {
+      defaultPackages.push({ id: crypto.randomUUID(), name: "Material Anexo", sections: infoSections });
+    }
+
+    if (defaultPackages.length === 0) {
+      defaultPackages.push({ id: crypto.randomUUID(), name: "Documento en Blanco", sections: [] });
+    }
+
+    setExportPackages(defaultPackages);
+    setIsExportWizardOpen(true);
+  };
+
+  const setSplitQuickPreset = () => {
+    const listSections = selectedSections.filter(id => ['shoppingList', 'qrCode', 'substitutes'].includes(id));
+    const recipeSections = selectedSections.filter(id => ['recipes', 'hormonalIntel'].includes(id));
+    const remainingSections = selectedSections.filter(id => !listSections.includes(id) && !recipeSections.includes(id));
+
+    const presets: ExportPackage[] = [];
+    if (remainingSections.length > 0) presets.push({ id: crypto.randomUUID(), name: "Plan Clínico General", sections: remainingSections });
+    if (recipeSections.length > 0) presets.push({ id: crypto.randomUUID(), name: "Recetario y Minuta", sections: recipeSections });
+    if (listSections.length > 0) presets.push({ id: crypto.randomUUID(), name: "Lista del Supermercado", sections: listSections });
+
+    setExportPackages(presets);
   };
 
   const handleSaveToCreations = () => {
@@ -460,9 +568,18 @@ export default function DeliverableClient() {
 
   const actionDockItems: ActionDockItem[] = [
     {
+      id: "import-creation",
+      icon: Library,
+      label: "Importar Creación",
+      variant: "indigo",
+      onClick: () => {
+        setIsImportCreationModalOpen(true);
+      },
+    },
+    {
       id: "link-patient",
       icon: User,
-      label: selectedPatient ? "Cambiar Paciente" : "Asignar Paciente",
+      label: selectedPatient ? "Cambiar Paciente" : "Importar Paciente",
       variant: "emerald",
       onClick: () => {
         setIsImportPatientModalOpen(true);
@@ -495,7 +612,7 @@ export default function DeliverableClient() {
       icon: Download,
       label: "Exportar PDF",
       variant: "slate",
-      onClick: handleExport,
+      onClick: openExportWizard,
     },
     {
       id: "upload-pdf",
@@ -513,16 +630,54 @@ export default function DeliverableClient() {
     },
   ];
 
+  const handleImportCreation = (creation: any) => {
+    try {
+      const { type, content } = creation;
+      const storedDraft = localStorage.getItem("nutri_active_draft");
+      const draft = storedDraft ? JSON.parse(storedDraft) : {};
+
+      if (type === "DIET") {
+        draft.diet = content;
+        setHasDraftMemory(true);
+        toast.success(`Dieta "${creation.name}" importada al borrador.`);
+      } else if (type === "SHOPPING_LIST") {
+        draft.cart = content;
+        setHasCart(true);
+        toast.success(`Carrito "${creation.name}" importado al borrador.`);
+      } else if (type === "RECIPE") {
+        draft.recipes = content;
+        setHasRecipes(true);
+        toast.success(`Plan de recetas "${creation.name}" importado al borrador.`);
+      } else {
+        toast.error("Tipo de creación no reconocido para importar.");
+        return;
+      }
+
+      localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+      // Trigger a light reload or state update if needed
+      window.location.reload(); // Simple way to ensure all sections re-check draft
+    } catch (e) {
+      console.error("Error importing creation", e);
+      toast.error("Error al importar la creación.");
+    }
+  };
+
   return (
     <>
+      <ImportCreationModal
+        isOpen={isImportCreationModalOpen}
+        onClose={() => setIsImportCreationModalOpen(false)}
+        onImport={handleImportCreation}
+      />
       {/* Entry config modal */}
       <Modal
         isOpen={showInitModal}
         onClose={() => setShowInitModal(false)}
         title="Configuración Inicial del Entregable"
+        className="max-w-2xl"
       >
-        <div className="p-8 pb-12">
-          <p className="text-slate-500 mb-8 text-sm">
+        <div className="p-4 pb-8 space-y-6">
+          <p className="text-slate-500 text-sm font-medium">
             Si procedes de las etapas anteriores tu borrador se cargará automáticamente. De lo contrario, ¿Qué tipo de PDF te gustaría construir hoy?
           </p>
 
@@ -537,8 +692,10 @@ export default function DeliverableClient() {
               <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
                 <RotateCcw className="h-6 w-6 text-indigo-600" />
               </div>
-              <h4 className="font-black text-indigo-900 text-lg">Retomar Progreso Local</h4>
-              <p className="text-xs text-indigo-700/70 mt-2 font-medium">Reanuda tu sesión anterior o datos pre-cargados que tuvieras en esta pestaña (Dieta, Carrito, Pacientes).</p>
+              <h4 className="font-black text-indigo-900 text-lg">Retomar Progreso</h4>
+              <p className="text-xs text-indigo-700/70 mt-2 font-medium">
+                Reanuda tu sesión o datos en tu Navegador.
+              </p>
             </button>
 
             <button
@@ -548,10 +705,191 @@ export default function DeliverableClient() {
               <div className="h-12 w-12 bg-slate-100 group-hover:bg-slate-200 rounded-full flex items-center justify-center mb-4 transition-colors">
                 <Layout className="h-6 w-6 text-slate-600" />
               </div>
-              <h4 className="font-black text-slate-900 text-lg">Independiente (Desde Cero)</h4>
-              <p className="text-xs text-slate-500 mt-2 font-medium">Limpia toda la base, no asocia paciente. Genial para ensamblar PDFs genéricos, E-books, guías, o traer tus "Creaciones" predeterminadas.</p>
+              <h4 className="font-black text-slate-900 text-lg">Independiente</h4>
+              <p className="text-xs text-slate-500 mt-2 font-medium">
+                Limpia la base. Genial para ensamblar PDFs genéricos o importar.
+              </p>
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Export Wizard Modal */}
+      <Modal
+        isOpen={isExportWizardOpen}
+        onClose={() => setIsExportWizardOpen(false)}
+        title="Opciones de Exportación PDF"
+        className="max-w-4xl"
+      >
+        <div className="p-4 pb-8 space-y-6">
+          <p className="text-slate-500 text-sm font-medium">
+            ¿Cómo te gustaría entregarle el material a tu paciente?
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <button
+              onClick={() => setExportMode("single")}
+              className={cn(
+                "flex flex-col text-left p-4 border-2 rounded-2xl transition-all cursor-pointer",
+                exportMode === "single"
+                  ? "bg-indigo-50/50 border-indigo-500 shadow-sm"
+                  : "bg-white border-slate-200 hover:border-indigo-300"
+              )}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <FileText className={cn("h-5 w-5", exportMode === "single" ? "text-indigo-600" : "text-slate-400")} />
+                <h4 className={cn("font-black text-sm", exportMode === "single" ? "text-indigo-900" : "text-slate-700")}>Documento Único</h4>
+              </div>
+              <p className="text-xs text-slate-500 font-medium">
+                Genera 1 solo PDF largo que contiene todos los módulos seleccionados ({selectedSections.length}).
+              </p>
+            </button>
+
+            <button
+              onClick={() => {
+                setExportMode("advanced");
+                setSplitQuickPreset(); // Auto-fill on first switch
+              }}
+              className={cn(
+                "flex flex-col text-left p-4 border-2 rounded-2xl transition-all cursor-pointer",
+                exportMode === "advanced"
+                  ? "bg-emerald-50/50 border-emerald-500 shadow-sm"
+                  : "bg-white border-slate-200 hover:border-emerald-300"
+              )}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <Layout className={cn("h-5 w-5", exportMode === "advanced" ? "text-emerald-600" : "text-slate-400")} />
+                <h4 className={cn("font-black text-sm", exportMode === "advanced" ? "text-emerald-900" : "text-slate-700")}>Paquetes Separados</h4>
+              </div>
+              <p className="text-xs text-slate-500 font-medium">
+                Genera múltiples archivos PDF separados por temática (Ej: Recetario y Plan por separado).
+              </p>
+            </button>
+          </div>
+
+          <div className="h-px bg-slate-100 my-6" />
+
+          {/* SINGLE MODE CONTENT */}
+          {exportMode === "single" && (
+            <div className="space-y-4">
+              <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                <h4 className="font-bold text-slate-800 text-sm mb-2">Se incluirán {selectedSections.length} módulos:</h4>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {selectedSections.map(sid => {
+                    const moduleMatch = DELIVERABLE_SECTIONS.find(s => s.id === sid);
+                    if (!moduleMatch) return null;
+                    return (
+                      <div key={sid} className="px-3 py-1 bg-white border border-slate-200 rounded-md text-[10px] font-bold text-slate-600 uppercase">
+                        {moduleMatch.label}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button onClick={handleExportSingle} disabled={isExporting} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-8 h-12 uppercase tracking-widest text-xs font-black">
+                  {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+                  Exportar Documento Único
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ADVANCED MODE CONTENT */}
+          {exportMode === "advanced" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-slate-800 text-sm">Organiza tus Archivos:</h3>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={setSplitQuickPreset} className="text-xs h-8">Auto-Organizar</Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setExportPackages([...exportPackages, { id: crypto.randomUUID(), name: `Nuevo PDF ${exportPackages.length + 1}`, sections: [] }])}
+                    className="text-xs h-8 text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                  >
+                    + Nuevo Archivo
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                {exportPackages.map((pkg, pkgIndex) => (
+                  <div key={pkg.id} className="p-4 border-2 border-slate-200 rounded-2xl bg-white space-y-3 relative group">
+                    <button
+                      onClick={() => setExportPackages(exportPackages.filter(p => p.id !== pkg.id))}
+                      className="absolute -top-3 -right-3 bg-red-100 text-red-600 h-6 w-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                    <Input
+                      value={pkg.name}
+                      onChange={(e) => {
+                        const newPkgs = [...exportPackages];
+                        newPkgs[pkgIndex].name = e.target.value;
+                        setExportPackages(newPkgs);
+                      }}
+                      className="font-black text-emerald-900 border-slate-200 bg-slate-50 focus:bg-white"
+                      placeholder="Nombre del archivo (Ej. Plan Clínico)"
+                    />
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl min-h-[80px]">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-2">Módulos en este archivo:</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {pkg.sections.map(sid => {
+                          const moduleMatch = DELIVERABLE_SECTIONS.find(s => s.id === sid);
+                          if (!moduleMatch) return null;
+                          return (
+                            <div key={sid} className="flex items-center gap-1.5 px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-[9px] font-bold">
+                              {moduleMatch.label}
+                              <X
+                                className="h-3 w-3 cursor-pointer opacity-50 hover:opacity-100"
+                                onClick={() => {
+                                  const newPkgs = [...exportPackages];
+                                  newPkgs[pkgIndex].sections = newPkgs[pkgIndex].sections.filter(s => s !== sid);
+                                  setExportPackages(newPkgs);
+                                }}
+                              />
+                            </div>
+                          );
+                        })}
+                        {pkg.sections.length === 0 && <span className="text-xs text-slate-400 font-medium">Carpeta vacía</span>}
+                      </div>
+                    </div>
+
+                    {/* Add section dropdown */}
+                    <select
+                      className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white text-slate-600 cursor-pointer"
+                      onChange={(e) => {
+                        if (!e.target.value) return;
+                        if (pkg.sections.includes(e.target.value)) return;
+                        const newPkgs = [...exportPackages];
+                        newPkgs[pkgIndex].sections.push(e.target.value);
+                        setExportPackages(newPkgs);
+                        e.target.value = "";
+                      }}
+                      defaultValue=""
+                    >
+                      <option value="" disabled>+ Añadir módulo a este archivo...</option>
+                      {selectedSections.map(sid => {
+                        if (pkg.sections.includes(sid)) return null;
+                        const moduleMatch = DELIVERABLE_SECTIONS.find(s => s.id === sid);
+                        return <option key={`opt-${sid}`} value={sid}>{moduleMatch?.label}</option>
+                      })}
+                    </select>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-6">
+                <span className="text-xs text-slate-500 font-bold">Descargarás {exportPackages.length} archivos separados.</span>
+                <Button onClick={handleExportAdvanced} disabled={isExporting || exportPackages.length === 0} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-8 h-12 uppercase tracking-widest text-xs font-black">
+                  {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+                  Exportar Paquetes
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
 
@@ -571,7 +909,7 @@ export default function DeliverableClient() {
             <div className="flex items-center gap-3">
               <Button
                 className="h-12 px-8 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-200 uppercase tracking-widest text-xs flex items-center gap-2"
-                onClick={handleExport}
+                onClick={openExportWizard}
                 disabled={isExporting}
               >
                 {isExporting ? (

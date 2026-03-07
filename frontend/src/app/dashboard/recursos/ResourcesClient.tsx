@@ -148,6 +148,11 @@ export function ResourcesClient() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [availableTags, setAvailableTags] = useState<string[]>([]);
 
+  const [categories, setCategories] = useState<any[]>(CATEGORIES);
+  const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
+  const [newSectionName, setNewSectionName] = useState("");
+  const [isSavingSection, setIsSavingSection] = useState(false);
+
   // Tabs: 'library' | 'create'
   const [activeTab, setActiveTab] = useState<"library" | "create">("library");
 
@@ -266,7 +271,65 @@ export function ResourcesClient() {
   useEffect(() => {
     fetchResources();
     fetchTags();
+    fetchSections();
   }, []);
+
+  const fetchSections = async () => {
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const response = await fetch(`${apiUrl}/resources/sections`, { headers: { Authorization: `Bearer ${token}` } });
+      if (response.ok) {
+        const sectionsData = await response.json();
+        const mappedSections = sectionsData.map((s: any) => ({
+          id: s.slug,
+          label: s.name,
+          icon: Layout, // We can map dynamically if needed, fallback to Layout
+          color: s.color || "text-indigo-500",
+          bg: s.bg || "bg-indigo-50"
+        }));
+
+        // Merge with defaults, ensuring we don't repeat slugs
+        const defaultSlugs = CATEGORIES.map(c => c.id);
+        const customSections = mappedSections.filter((s: any) => !defaultSlugs.includes(s.id));
+        setCategories([...CATEGORIES, ...customSections]);
+      }
+    } catch (error) {
+      console.error("Error fetching sections:", error);
+    }
+  };
+
+  const handleCreateSection = async () => {
+    if (!newSectionName.trim()) return;
+    setIsSavingSection(true);
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const response = await fetch(`${apiUrl}/resources/sections`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: newSectionName, isGlobal: isAdmin }),
+      });
+
+      if (response.ok) {
+        const newSection = await response.json();
+        toast.success("Sección creada");
+        setFormData({ ...formData, category: newSection.slug });
+        setNewSectionName("");
+        setIsSectionModalOpen(false);
+        fetchSections();
+      } else {
+        toast.error("Error al crear la sección");
+      }
+    } catch (error) {
+      toast.error("Error de conexión");
+    } finally {
+      setIsSavingSection(false);
+    }
+  };
 
   const fetchTags = async () => {
     try {
@@ -558,7 +621,7 @@ export function ResourcesClient() {
               </div>
             ) : filteredLibraryResources.length > 0 ? (
               <div className="space-y-8">
-                {CATEGORIES.filter(c => c.id !== "all").map(catInfo => {
+                {categories.filter(c => c.id !== "all").map(catInfo => {
                   const items = filteredLibraryResources.filter(r => r.category === catInfo.id).slice(0, 5);
                   if (items.length === 0) return null;
 
@@ -657,14 +720,17 @@ export function ResourcesClient() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Temática / Categoría</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Temática / Categoría</label>
+                  <button type="button" onClick={() => setIsSectionModalOpen(true)} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 uppercase tracking-widest flex items-center gap-1"><Plus className="w-3 h-3" /> Nueva Sección</button>
+                </div>
                 <div className="relative">
                   <select
                     className="w-full h-12 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 transition-all outline-none appearance-none cursor-pointer"
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   >
-                    {CATEGORIES.filter((c) => c.id !== "all").map((cat) => (
+                    {categories.filter((c) => c.id !== "all").map((cat) => (
                       <option key={cat.id} value={cat.id}>{cat.label}</option>
                     ))}
                   </select>
@@ -769,6 +835,32 @@ export function ResourcesClient() {
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={isSectionModalOpen}
+        onClose={() => setIsSectionModalOpen(false)}
+        title="Nueva Sección de Recursos"
+      >
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-slate-500">Crea una nueva categoría para organizar tus recursos. Esta sección estará disponible para elegir en tus próximos recursos.</p>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nombre de la Sección</label>
+            <Input
+              placeholder="Ej: Protocolo de Suplementación"
+              value={newSectionName}
+              onChange={(e) => setNewSectionName(e.target.value)}
+              className="rounded-xl border-slate-200"
+            />
+          </div>
+          <div className="pt-4 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setIsSectionModalOpen(false)} className="rounded-xl">Cancelar</Button>
+            <Button onClick={handleCreateSection} disabled={!newSectionName.trim() || isSavingSection} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
+              {isSavingSection ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Guardar Sección
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </ModuleLayout>
   );
 }
