@@ -45,6 +45,7 @@ model Nutritionist {
   recipes               Recipe[]
   substitutes           Substitute[]
   resources             Resource[]
+  resourceSections      ResourceSection[]
   consultations         Consultation[]
   createdTags           Tag[]
   metricDefinitions     MetricDefinition[]
@@ -547,4 +548,21 @@ model Resource {
 
   @@index([nutritionistId])
   @@map("resources")
+}
+
+model ResourceSection {
+  id             String        @id @default(uuid())
+  nutritionistId String?       @map("nutritionist_id")
+  name           String        @unique
+  slug           String        @unique
+  icon           String?       @default("Layout")
+  color          String?       @default("text-emerald-500")
+  bg             String?       @default("bg-emerald-50")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  nutritionist   Nutritionist? @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+
+  @@index([nutritionistId])
+  @@map("resource_sections")
 }

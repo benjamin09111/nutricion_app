@@ -13,9 +13,31 @@ export declare class ResourcesController {
         isPublic: boolean;
         category: string;
         title: string;
-        sources: string | null;
         images: import("@prisma/client/runtime/library").JsonValue | null;
+        sources: string | null;
     }[]>;
+    getSections(req: any): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        nutritionistId: string | null;
+        slug: string;
+        icon: string | null;
+        color: string | null;
+        bg: string | null;
+    }[]>;
+    createSection(req: any, data: any): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        nutritionistId: string | null;
+        slug: string;
+        icon: string | null;
+        color: string | null;
+        bg: string | null;
+    }>;
     findOne(id: string): Promise<{
         id: string;
         createdAt: Date;
@@ -26,8 +48,8 @@ export declare class ResourcesController {
         isPublic: boolean;
         category: string;
         title: string;
-        sources: string | null;
         images: import("@prisma/client/runtime/library").JsonValue | null;
+        sources: string | null;
     } | null>;
     create(req: any, data: any): Promise<{
         id: string;
@@ -39,8 +61,8 @@ export declare class ResourcesController {
         isPublic: boolean;
         category: string;
         title: string;
-        sources: string | null;
         images: import("@prisma/client/runtime/library").JsonValue | null;
+        sources: string | null;
     }>;
     update(id: string, req: any, data: any): Promise<{
         id: string;
@@ -52,8 +74,8 @@ export declare class ResourcesController {
         isPublic: boolean;
         category: string;
         title: string;
-        sources: string | null;
         images: import("@prisma/client/runtime/library").JsonValue | null;
+        sources: string | null;
     }>;
     remove(id: string, req: any): Promise<{
         id: string;
@@ -65,7 +87,7 @@ export declare class ResourcesController {
         isPublic: boolean;
         category: string;
         title: string;
-        sources: string | null;
         images: import("@prisma/client/runtime/library").JsonValue | null;
+        sources: string | null;
     }>;
 }

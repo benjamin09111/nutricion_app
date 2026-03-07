@@ -30,6 +30,7 @@ import {
   AlertCircle,
   FileUp,
   Download,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -43,6 +44,7 @@ import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
+import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 
 
 interface CartItem {
@@ -56,9 +58,26 @@ interface CartItem {
   grasasPor100g: number;
   caloriasPor100g: number;
   proteinaPor100g: number;
+  sugarsPor100g: number;
+  fiberPor100g: number;
+  sodiumPor100g: number;
+  cholesterolPor100g?: number;
+  potassiumPor100g?: number;
+  vitaminAPor100g?: number;
+  vitaminCPor100g?: number;
+  calciumPor100g?: number;
+  ironPor100g?: number;
   precioPorUnidad: number;
   unidad: string;
 }
+
+export type ExtraTarget = {
+  id: string;
+  name: string;
+  target: number;
+  unit: string;
+  key: "sugars" | "fiber" | "sodium" | "cholesterol" | "potassium" | "vitaminA" | "vitaminC" | "calcium" | "iron"
+};
 
 const MOCK_CART_ITEMS: CartItem[] = [
   {
@@ -72,6 +91,9 @@ const MOCK_CART_ITEMS: CartItem[] = [
     proteinaPor100g: 31,
     carbohidratosPor100g: 0,
     grasasPor100g: 3.6,
+    sugarsPor100g: 0,
+    fiberPor100g: 0,
+    sodiumPor100g: 74,
     precioPorUnidad: 5500,
     unidad: "kg",
   },
@@ -86,6 +108,9 @@ const MOCK_CART_ITEMS: CartItem[] = [
     proteinaPor100g: 2.7,
     carbohidratosPor100g: 28,
     grasasPor100g: 0.3,
+    sugarsPor100g: 0.1,
+    fiberPor100g: 0.4,
+    sodiumPor100g: 1,
     precioPorUnidad: 1200,
     unidad: "kg",
   },
@@ -100,6 +125,9 @@ const MOCK_CART_ITEMS: CartItem[] = [
     proteinaPor100g: 0.3,
     carbohidratosPor100g: 14,
     grasasPor100g: 0.2,
+    sugarsPor100g: 10,
+    fiberPor100g: 2.4,
+    sodiumPor100g: 1,
     precioPorUnidad: 1500,
     unidad: "kg",
   },
@@ -108,8 +136,19 @@ const MOCK_CART_ITEMS: CartItem[] = [
 export default function CartClient() {
   const router = useRouter();
   const { role } = useAdmin();
-  const [items, setItems] = useState<CartItem[]>(MOCK_CART_ITEMS);
+  const [items, setItems] = useState<CartItem[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
+
+  const [cartTargets, setCartTargets] = useState({
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fats: 0,
+    timeframe: "dia" as "dia" | "semana" | "mes",
+    extras: [] as ExtraTarget[]
+  });
+  const [isEditingTargets, setIsEditingTargets] = useState(false);
+
   const [selectedMarket] = useState("Lider/Jumbo (Chile)");
   const [timeView, setTimeView] = useState<"dia" | "semana" | "mes">("semana");
   const [isReferenceOpen, setIsReferenceOpen] = useState(false);
@@ -128,6 +167,15 @@ export default function CartClient() {
   // -- Draft Restore Modal --
   const [showDraftModal, setShowDraftModal] = useState(false);
   const [draftMeta, setDraftMeta] = useState<{ label: string; date?: string }>({ label: "" });
+
+  const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
+
+  // -- Equivalent Selector State --
+  const [isEquivalentModalOpen, setIsEquivalentModalOpen] = useState(false);
+  const [selectedItemForEquivalent, setSelectedItemForEquivalent] = useState<CartItem | null>(null);
+  const [equivalentSearchQuery, setEquivalentSearchQuery] = useState("");
+  const [equivalentResults, setEquivalentResults] = useState<any[]>([]);
+  const [isSearchingEquivalents, setIsSearchingEquivalents] = useState(false);
 
   // -- Persistence: Draft Load/Save --
   useEffect(() => {
@@ -167,12 +215,21 @@ export default function CartClient() {
             cantidadMes: 0,
             frecuenciaSemanal: 3,
             porcionGramos: 100,
-            carbohidratosPor100g: f.carbohidratos || 0,
-            grasasPor100g: f.lipidos || 0,
-            caloriasPor100g: f.calorias || 0,
-            proteinaPor100g: f.proteinas || 0,
-            precioPorUnidad: f.precioPromedio || 1000,
-            unidad: f.unidad || "kg",
+            carbohidratosPor100g: f.carbohydrates || f.carbs || 0,
+            grasasPor100g: f.lipids || f.lipidos || 0,
+            caloriasPor100g: f.calories || f.calorias || 0,
+            proteinaPor100g: f.proteins || f.proteinas || 0,
+            sugarsPor100g: f.sugars || 0,
+            fiberPor100g: f.fiber || 0,
+            sodiumPor100g: f.sodium || 0,
+            cholesterolPor100g: f.cholesterol || 0,
+            potassiumPor100g: f.potassium || 0,
+            vitaminAPor100g: f.vitaminA || 0,
+            vitaminCPor100g: f.vitaminC || 0,
+            calciumPor100g: f.calcium || 0,
+            ironPor100g: f.iron || 0,
+            precioPorUnidad: f.price || f.precioPromedio || 1000,
+            unidad: f.unidad || f.unit || "kg",
           }));
           setItems(cartItems.map((item) => ({
             ...item,
@@ -187,7 +244,31 @@ export default function CartClient() {
     const storedPatient = localStorage.getItem("nutri_patient");
     if (storedPatient) {
       try {
-        setSelectedPatient(JSON.parse(storedPatient));
+        const parsed = JSON.parse(storedPatient);
+        setSelectedPatient(parsed);
+        if (parsed.customVariables && Array.isArray(parsed.customVariables)) {
+          const cvs = parsed.customVariables;
+          const getVal = (key: string) => Number(cvs.find((c: any) => c.key === key)?.value);
+          const hasVal = (key: string) => cvs.some((c: any) => c.key === key);
+
+          const presetKeys = ["targetCalories", "targetProtein", "targetCarbs", "targetFats", "targetTimeframe"];
+          const rawExtras = cvs.filter((c: any) => !presetKeys.includes(c.key) && c.key.startsWith("target_"));
+
+          setCartTargets({
+            calories: hasVal("targetCalories") ? getVal("targetCalories") : 0,
+            protein: hasVal("targetProtein") ? getVal("targetProtein") : 0,
+            carbs: hasVal("targetCarbs") ? getVal("targetCarbs") : 0,
+            fats: hasVal("targetFats") ? getVal("targetFats") : 0,
+            timeframe: cvs.find((c: any) => c.key === "targetTimeframe")?.value || "dia",
+            extras: rawExtras.map((e: any) => ({
+              id: e.key,
+              name: e.label,
+              target: Number(e.value),
+              unit: e.unit || "g",
+              key: e.key.replace("target_", "") as any
+            }))
+          });
+        }
       } catch (e) {
         console.error("Failed to parse stored patient", e);
       }
@@ -199,12 +280,14 @@ export default function CartClient() {
     const storedDraft = localStorage.getItem("nutri_active_draft");
     const draft = storedDraft ? JSON.parse(storedDraft) : {};
     draft.cart = {
+      ...draft.cart,
       items,
       selectedMarket,
+      targets: cartTargets,
       updatedAt: new Date().toISOString(),
     };
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
-  }, [items, selectedMarket]);
+  }, [items, selectedMarket, cartTargets]);
 
   // Totals logic
   const totals = useMemo(() => {
@@ -212,28 +295,55 @@ export default function CartClient() {
     let protein = 0;
     let carbs = 0;
     let fats = 0;
+    let sugars = 0;
+    let fiber = 0;
+    let sodium = 0;
+    let cholesterol = 0;
+    let potassium = 0;
+    let vitaminA = 0;
+    let vitaminC = 0;
+    let calcium = 0;
+    let iron = 0;
 
     items.forEach((item) => {
-      // Calculamos lo ingerido por día promedio basado en la frecuencia semanal
-      // (gramos_porcion * frecuencia) / 7
       const gramosDia = (item.porcionGramos * item.frecuenciaSemanal) / 7;
 
-      calories += (gramosDia * item.caloriasPor100g) / 100;
-      protein += (gramosDia * item.proteinaPor100g) / 100;
-      carbs += (gramosDia * item.carbohidratosPor100g) / 100;
-      fats += (gramosDia * item.grasasPor100g) / 100;
+      calories += (gramosDia * (item.caloriasPor100g || 0)) / 100;
+      protein += (gramosDia * (item.proteinaPor100g || 0)) / 100;
+      carbs += (gramosDia * (item.carbohidratosPor100g || 0)) / 100;
+      fats += (gramosDia * (item.grasasPor100g || 0)) / 100;
+      sugars += (gramosDia * (item.sugarsPor100g || 0)) / 100;
+      fiber += (gramosDia * (item.fiberPor100g || 0)) / 100;
+      sodium += (gramosDia * (item.sodiumPor100g || 0)) / 100;
+
+      // Otros y Vitaminas
+      cholesterol += (gramosDia * (item.cholesterolPor100g || 0)) / 100;
+      potassium += (gramosDia * (item.potassiumPor100g || 0)) / 100;
+      vitaminA += (gramosDia * (item.vitaminAPor100g || 0)) / 100;
+      vitaminC += (gramosDia * (item.vitaminCPor100g || 0)) / 100;
+      calcium += (gramosDia * (item.calciumPor100g || 0)) / 100;
+      iron += (gramosDia * (item.ironPor100g || 0)) / 100;
     });
 
-    const scale = (val: number) =>
-      Math.round(
-        val * (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30),
-      );
+    const scale = (val: number) => {
+      const result = val * (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30); // Using 30 for standard business month
+      return Number(result.toFixed(1)); // Keep 1 decimal for internal calculation
+    };
 
     return {
-      calories: scale(calories),
+      calories: Math.round(scale(calories)), // Calories usually rounded
       protein: scale(protein),
       carbs: scale(carbs),
       fats: scale(fats),
+      sugars: scale(sugars),
+      fiber: scale(fiber),
+      sodium: scale(sodium),
+      cholesterol: scale(cholesterol),
+      potassium: scale(potassium),
+      vitaminA: scale(vitaminA),
+      vitaminC: scale(vitaminC),
+      calcium: scale(calcium),
+      iron: scale(iron),
     };
   }, [items, timeView]);
 
@@ -353,6 +463,137 @@ export default function CartClient() {
     );
   };
 
+  const safeDiv = (val: number, fallback: number) => val > 0 ? val : fallback;
+
+  const handleExchangePortionChange = (item: CartItem, value: string) => {
+    const targetPortions = parseFloat(value);
+    // Allow empty during typing
+    if (isNaN(targetPortions)) return;
+
+    const {
+      carbohidratosPor100g = 0,
+      proteinaPor100g = 0,
+      grasasPor100g = 0,
+      grupo,
+    } = item;
+    const g = (grupo || "").toLowerCase();
+
+    let newGrams = 0;
+
+    if (g.includes("cereal") || g.includes("pan") || g.includes("legumbre") || g.includes("tubérculo")) {
+      newGrams = (targetPortions * 30 * 100) / safeDiv(carbohidratosPor100g, 1);
+    } else if (g.includes("fruta")) {
+      newGrams = (targetPortions * 15 * 100) / safeDiv(carbohidratosPor100g, 1);
+    } else if (g.includes("verdura")) {
+      const factor = g.includes("libre") ? 2.5 : 5;
+      newGrams = (targetPortions * factor * 100) / safeDiv(carbohidratosPor100g, 1);
+    } else if (g.includes("carne") || g.includes("huevo") || g.includes("pescado") || g.includes("proteína")) {
+      newGrams = (targetPortions * 11 * 100) / safeDiv(proteinaPor100g, 1);
+    } else if (g.includes("lácteo") || g.includes("leche") || g.includes("yogur")) {
+      newGrams = (targetPortions * 8 * 100) / safeDiv(proteinaPor100g, 1);
+    } else if (g.includes("grasa") || g.includes("aceite") || g.includes("frutos secos")) {
+      newGrams = (targetPortions * 20 * 100) / safeDiv(grasasPor100g, 1);
+    } else if (g.includes("azúcar") || g.includes("miel") || g.includes("mermelada")) {
+      newGrams = (targetPortions * 5 * 100) / safeDiv(carbohidratosPor100g, 1);
+    } else {
+      if (carbohidratosPor100g > proteinaPor100g && carbohidratosPor100g > grasasPor100g) {
+        newGrams = (targetPortions * 30 * 100) / safeDiv(carbohidratosPor100g, 1);
+      } else if (proteinaPor100g > carbohidratosPor100g && proteinaPor100g > grasasPor100g) {
+        newGrams = (targetPortions * 11 * 100) / safeDiv(proteinaPor100g, 1);
+      } else {
+        newGrams = (targetPortions * 20 * 100) / safeDiv(grasasPor100g, 1);
+      }
+    }
+
+    newGrams = Math.round(newGrams);
+
+    setItems((prev) =>
+      prev.map((i) => {
+        if (i.id === item.id) {
+          const newQty = Number(
+            ((newGrams * i.frecuenciaSemanal * 4) / 1000).toFixed(2),
+          );
+          return { ...i, porcionGramos: newGrams, cantidadMes: newQty };
+        }
+        return i;
+      }),
+    );
+  };
+
+  const handleSwapFood = (oldItemId: string, newFood: any) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id === oldItemId) {
+          // Calculate new grams based on old exchange portions to maintain the target
+          const oldExchangeVal = parseFloat(calculateExchangePortions(item).val);
+
+          const carbs = newFood.carbohydrates || newFood.carbs || 0;
+          const prot = newFood.proteins || newFood.proteinas || 0;
+          const fat = newFood.lipids || newFood.lipidos || 0;
+          const g = (newFood.grupo || "").toLowerCase();
+
+          let newGrams = 0;
+          if (g.includes("cereal") || g.includes("pan") || g.includes("legumbre") || g.includes("tubérculo")) {
+            newGrams = (oldExchangeVal * 30 * 100) / safeDiv(carbs, 1);
+          } else if (g.includes("fruta")) {
+            newGrams = (oldExchangeVal * 15 * 100) / safeDiv(carbs, 1);
+          } else if (g.includes("verdura")) {
+            const factor = g.includes("libre") ? 2.5 : 5;
+            newGrams = (oldExchangeVal * factor * 100) / safeDiv(carbs, 1);
+          } else if (g.includes("carne") || g.includes("huevo") || g.includes("pescado") || g.includes("proteína")) {
+            newGrams = (oldExchangeVal * 11 * 100) / safeDiv(prot, 1);
+          } else if (g.includes("lácteo") || g.includes("leche") || g.includes("yogur")) {
+            newGrams = (oldExchangeVal * 8 * 100) / safeDiv(prot, 1);
+          } else if (g.includes("grasa") || g.includes("aceite") || g.includes("frutos secos")) {
+            newGrams = (oldExchangeVal * 20 * 100) / safeDiv(fat, 1);
+          } else if (g.includes("azúcar") || g.includes("miel") || g.includes("mermelada")) {
+            newGrams = (oldExchangeVal * 5 * 100) / safeDiv(carbs, 1);
+          } else {
+            newGrams = (oldExchangeVal * 30 * 100) / safeDiv(carbs, 1);
+          }
+
+          newGrams = Math.round(newGrams);
+          const newQty = Number(((newGrams * item.frecuenciaSemanal * 4) / 1000).toFixed(2));
+
+          return {
+            ...item,
+            producto: newFood.producto,
+            carbohidratosPor100g: carbs,
+            proteinaPor100g: prot,
+            grasasPor100g: fat,
+            caloriasPor100g: newFood.calories || newFood.calorias || 0,
+            precioPorUnidad: newFood.price || newFood.precioPromedio || 1000,
+            porcionGramos: newGrams,
+            cantidadMes: newQty,
+          };
+        }
+        return item;
+      }),
+    );
+    setIsEquivalentModalOpen(false);
+    toast.success("Alimento intercambiado manteniendo porciones");
+  };
+
+  const searchEquivalents = async (query: string, group: string) => {
+    if (!query && !group) return;
+    setIsSearchingEquivalents(true);
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const response = await fetch(`${apiUrl}/foods/search?q=${encodeURIComponent(query)}&group=${encodeURIComponent(group)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setEquivalentResults(data);
+      }
+    } catch (e) {
+      console.error("Error searching equivalents", e);
+    } finally {
+      setIsSearchingEquivalents(false);
+    }
+  };
+
   const fetchPatients = async () => {
     setIsLoadingPatients(true);
     try {
@@ -376,6 +617,31 @@ export default function CartClient() {
   const handleSelectPatient = (patient: any) => {
     setSelectedPatient(patient);
     localStorage.setItem("nutri_patient", JSON.stringify(patient));
+
+    // Update cart targets in real time
+    if (patient.customVariables && Array.isArray(patient.customVariables)) {
+      const cvs = patient.customVariables;
+      const getVal = (key: string) => Number(cvs.find((c: any) => c.key === key)?.value);
+      const hasVal = (key: string) => cvs.some((c: any) => c.key === key);
+
+      const presetKeys = ["targetCalories", "targetProtein", "targetCarbs", "targetFats", "targetTimeframe"];
+      const rawExtras = cvs.filter((c: any) => !presetKeys.includes(c.key) && c.key.startsWith("target_"));
+
+      setCartTargets({
+        calories: hasVal("targetCalories") ? getVal("targetCalories") : 0,
+        protein: hasVal("targetProtein") ? getVal("targetProtein") : 0,
+        carbs: hasVal("targetCarbs") ? getVal("targetCarbs") : 0,
+        fats: hasVal("targetFats") ? getVal("targetFats") : 0,
+        timeframe: cvs.find((c: any) => c.key === "targetTimeframe")?.value || "dia",
+        extras: rawExtras.map((e: any) => ({
+          id: e.key,
+          name: e.label,
+          target: Number(e.value),
+          unit: e.unit || "g",
+          key: e.key.replace("target_", "") as any
+        }))
+      });
+    }
 
     // Sync metadata to global draft
     const storedDraft = localStorage.getItem("nutri_active_draft");
@@ -437,6 +703,15 @@ export default function CartClient() {
       grasasPor100g: food.lipids || 0,
       caloriasPor100g: food.calories || 0,
       proteinaPor100g: food.proteins || 0,
+      sugarsPor100g: food.sugars || 0,
+      fiberPor100g: food.fiber || 0,
+      sodiumPor100g: food.sodium || 0,
+      cholesterolPor100g: food.cholesterol || 0,
+      potassiumPor100g: food.potassium || 0,
+      vitaminAPor100g: food.vitaminA || 0,
+      vitaminCPor100g: food.vitaminC || 0,
+      calciumPor100g: food.calcium || 0,
+      ironPor100g: food.iron || 0,
       precioPorUnidad: food.price || 0,
       unidad: food.unit || "kg",
     };
@@ -497,8 +772,10 @@ export default function CartClient() {
     const storedDraft = localStorage.getItem("nutri_active_draft");
     const draft = storedDraft ? JSON.parse(storedDraft) : {};
     draft.cart = {
+      ...draft.cart,
       items: updatedItems || items,
       totals,
+      targets: cartTargets,
       selectedPatient,
       selectedMarket,
       updatedAt: new Date().toISOString(),
@@ -541,48 +818,18 @@ export default function CartClient() {
   const actionDockItems: ActionDockItem[] = useMemo(
     () => [
       {
-        id: "import-diet",
+        id: "import-creation",
         icon: Library,
-        label: "Cargar Alimentos de Dieta",
+        label: "Importar Creación",
         variant: "indigo",
         onClick: () => {
-          const storedDraft = localStorage.getItem("nutri_active_draft");
-          if (!storedDraft) { toast.error("No hay dieta guardada en el borrador."); return; }
-          try {
-            const draft = JSON.parse(storedDraft);
-            const includedFoods = draft.diet?.includedFoods;
-            if (!includedFoods || includedFoods.length === 0) {
-              toast.error("La dieta no tiene alimentos. Ve a Dieta primero.");
-              return;
-            }
-            const cartItems: CartItem[] = includedFoods.map((f: any) => ({
-              id: f.id || `food-${Date.now()}-${Math.random()}`,
-              producto: f.producto,
-              grupo: f.grupo,
-              cantidadMes: 0,
-              frecuenciaSemanal: 4,
-              porcionGramos: 100,
-              carbohidratosPor100g: f.carbohidratos || 0,
-              grasasPor100g: f.lipidos || 0,
-              caloriasPor100g: f.calorias || 0,
-              proteinaPor100g: f.proteinas || 0,
-              precioPorUnidad: f.precioPromedio || 0,
-              unidad: f.unidad || "kg",
-            }));
-            setItems(cartItems.map((item) => ({
-              ...item,
-              cantidadMes: Number(((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2)),
-            })));
-            toast.success(`${includedFoods.length} alimentos cargados desde la dieta.`);
-          } catch (e) {
-            toast.error("Error leyendo el borrador de dieta.");
-          }
+          setIsImportCreationModalOpen(true);
         },
       },
       {
         id: "link-patient",
         icon: User,
-        label: selectedPatient ? "Cambiar Paciente" : "Asignar Paciente",
+        label: selectedPatient ? "Cambiar Paciente" : "Importar Paciente",
         variant: "emerald",
         onClick: () => {
           setIsImportPatientModalOpen(true);
@@ -650,8 +897,156 @@ export default function CartClient() {
     setShowDraftModal(false);
   };
 
+  const handleImportCreation = (creation: any) => {
+    try {
+      const { type, content } = creation;
+
+      // If importing a DIET, we take the includedFoods
+      if (type === "DIET") {
+        // Look for foods in all possible locations for backward compatibility
+        const includedFoods = content.foods || content.includedFoods || content.manualAdditions || [];
+
+        if (includedFoods.length === 0) {
+          toast.error("La dieta importada no tiene alimentos reconocibles.");
+          return;
+        }
+
+        const cartItems: CartItem[] = includedFoods.map((f: any) => {
+          // Normalize group name
+          const groupName = f.grupo ||
+            f.group ||
+            (typeof f.category === 'string' ? f.category : f.category?.name) ||
+            "Varios";
+
+          return {
+            id: f.id || `food-${Date.now()}-${Math.random()}`,
+            producto: f.producto || f.name || "Alimento sin nombre",
+            grupo: groupName,
+            cantidadMes: 0,
+            frecuenciaSemanal: 4, // Default frequency
+            porcionGramos: 100,  // Default portion
+            carbohidratosPor100g: f.carbohidratos || f.carbohydrates || f.carbs || 0,
+            grasasPor100g: f.lipidos || f.lipids || f.grasas || 0,
+            caloriasPor100g: f.calorias || f.calories || 0,
+            proteinaPor100g: f.proteinas || f.proteins || 0,
+            sugarsPor100g: f.azucares || f.sugars || 0,
+            fiberPor100g: f.fibra || f.fiber || 0,
+            sodiumPor100g: f.sodio || f.sodium || 0,
+            cholesterolPor100g: f.colesterol || f.cholesterol || 0,
+            potassiumPor100g: f.potasio || f.potassium || 0,
+            vitaminAPor100g: f.vitaminaA || f.vitaminA || 0,
+            vitaminCPor100g: f.vitaminaC || f.vitaminC || 0,
+            calciumPor100g: f.calcio || f.calcium || 0,
+            ironPor100g: f.hierro || f.iron || 0,
+            precioPorUnidad: f.precioPromedio || f.price || 0,
+            unidad: f.unidad || f.unit || "kg",
+          };
+        });
+
+        setItems(cartItems.map((item) => ({
+          ...item,
+          cantidadMes: Number(((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2)),
+        })));
+        toast.success(`Dieta "${creation.name}" importada al carrito.`);
+      }
+      // If importing a SHOPPING_LIST (CART), we take the items directly
+      else if (type === "SHOPPING_LIST") {
+        if (content.items && Array.isArray(content.items)) {
+          setItems(content.items);
+          if (content.targets) setCartTargets(content.targets);
+          toast.success(`Carrito "${creation.name}" importado.`);
+        } else {
+          toast.error("El carrito importado no tiene el formato correcto.");
+        }
+      }
+      // If importing dynamic targets from RECIPE
+      else if (type === "RECIPE") {
+        if (content.targets) {
+          const t = content.targets;
+          setCartTargets(prev => ({
+            ...prev,
+            calories: t.calories || prev.calories,
+            protein: t.protein || prev.protein,
+            carbs: t.carbs || prev.carbs,
+            fats: t.fats || prev.fats,
+          }));
+          toast.success(`Metas sincronizadas desde Recetas: "${creation.name}"`);
+        } else {
+          toast.info(`La receta "${creation.name}" se importó, pero no tenía metas nutricionales.`);
+        }
+      }
+    } catch (e) {
+      console.error("Error importing creation", e);
+      toast.error("Ocurrió un error al importar la creación.");
+    }
+  };
+
   return (
     <>
+      <ImportCreationModal
+        isOpen={isImportCreationModalOpen}
+        onClose={() => setIsImportCreationModalOpen(false)}
+        onImport={handleImportCreation}
+        defaultType="SHOPPING_LIST"
+      />
+
+      <Modal
+        isOpen={isEquivalentModalOpen}
+        onClose={() => setIsEquivalentModalOpen(false)}
+        title="Intercambio de Equivalentes"
+      >
+        <div className="space-y-4">
+          <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl">
+            <p className="text-[10px] font-black text-indigo-900 uppercase tracking-widest mb-1">Original</p>
+            <p className="text-sm font-bold text-slate-700">{selectedItemForEquivalent?.producto}</p>
+            <p className="text-[10px] font-bold text-indigo-600 uppercase mt-1">{selectedItemForEquivalent?.grupo}</p>
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder={`Buscar en ${selectedItemForEquivalent?.grupo}...`}
+              value={equivalentSearchQuery}
+              onChange={(e) => {
+                setEquivalentSearchQuery(e.target.value);
+                searchEquivalents(e.target.value, selectedItemForEquivalent?.grupo || "");
+              }}
+              className="pl-11 h-12 rounded-xl border-slate-200 focus:border-indigo-500"
+            />
+          </div>
+
+          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+            {isSearchingEquivalents ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+              </div>
+            ) : (
+              equivalentResults.map((food) => (
+                <div
+                  key={food.id}
+                  onClick={() => handleSwapFood(selectedItemForEquivalent!.id, food)}
+                  className="p-4 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-indigo-50/30 transition-all cursor-pointer group flex items-center justify-between"
+                >
+                  <div>
+                    <p className="font-bold text-slate-900 text-sm">{food.producto}</p>
+                    <div className="flex gap-2 text-[10px] text-slate-500 font-bold uppercase mt-1">
+                      <span>{food.calories || food.calorias} kcal</span>
+                      <span>•</span>
+                      <span>P: {food.proteins || food.proteinas}g</span>
+                      <span>•</span>
+                      <span>C: {food.carbohydrates || food.carbs}g</span>
+                    </div>
+                  </div>
+                  <Plus className="h-4 w-4 text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              ))
+            )}
+            {!isSearchingEquivalents && equivalentResults.length === 0 && (
+              <p className="py-8 text-center text-sm text-slate-400 font-bold">No se encontraron equivalentes.</p>
+            )}
+          </div>
+        </div>
+      </Modal>
       <DraftRestoreModal
         isOpen={showDraftModal}
         moduleName="Carrito"
@@ -660,8 +1055,9 @@ export default function CartClient() {
         onKeep={handleKeepDraft}
         onDiscard={handleDiscardDraft}
       />
+
       <ModuleLayout
-        title="Carrito & Cuantificador"
+        title="Carrito & Porciones"
         description="Transforma la estrategia en una lista de compras exacta."
         step={{
           number: 2,
@@ -779,6 +1175,179 @@ export default function CartClient() {
           </div>
         )}
 
+        {/* Nutritional Targets Pane */}
+        <div className="bg-white rounded-[2.5rem] border border-slate-200 p-6 mb-6 shadow-sm overflow-hidden relative">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+              <Target className="w-4 h-4 text-emerald-500" />
+              Metas Nutricionales
+            </h3>
+            {isEditingTargets ? (
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" className="h-8 text-xs font-bold text-slate-500" onClick={() => setIsEditingTargets(false)}>Cerrar</Button>
+                <Button className="h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700" onClick={() => {
+                  setIsEditingTargets(false);
+                  // Optionally save targets back to patient if needed
+                  toast.success("Metas actualizadas para esta sesión de Carrito");
+                }}>Guardar</Button>
+              </div>
+            ) : (
+              <Button variant="ghost" className="h-8 text-[10px] uppercase font-black tracking-widest text-emerald-600 hover:bg-emerald-50" onClick={() => setIsEditingTargets(true)}>
+                Ajustar Metas
+              </Button>
+            )}
+          </div>
+
+          {isEditingTargets ? (
+            <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400">Calorías (kcal)</label>
+                  <Input type="number" value={cartTargets.calories} onChange={e => setCartTargets(p => ({ ...p, calories: Number(e.target.value) }))} className="font-black text-amber-600 border-slate-200" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400">Proteína (g)</label>
+                  <Input type="number" value={cartTargets.protein} onChange={e => setCartTargets(p => ({ ...p, protein: Number(e.target.value) }))} className="font-black text-emerald-600 border-slate-200" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400">Carbohidratos (g)</label>
+                  <Input type="number" value={cartTargets.carbs} onChange={e => setCartTargets(p => ({ ...p, carbs: Number(e.target.value) }))} className="font-black text-blue-600 border-slate-200" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400">Grasas (g)</label>
+                  <Input type="number" value={cartTargets.fats} onChange={e => setCartTargets(p => ({ ...p, fats: Number(e.target.value) }))} className="font-black text-purple-600 border-slate-200" />
+                </div>
+                <div className="space-y-1 col-span-2 md:col-span-4">
+                  <label className="text-[10px] font-black uppercase text-slate-400">Temporalidad Original de estas Metas</label>
+                  <select
+                    value={cartTargets.timeframe}
+                    onChange={e => setCartTargets(p => ({ ...p, timeframe: e.target.value as any }))}
+                    className="w-full h-10 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 px-3"
+                  >
+                    <option value="dia">Diario (Meta / Día)</option>
+                    <option value="semana">Semanal (Meta / Semana)</option>
+                    <option value="mes">Mensual (Meta / Mes)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-4">
+                <div className="flex items-center justify-between mb-4">
+                  <label className="text-[10px] font-black uppercase text-slate-400">Metas Adicionales</label>
+                  <Button variant="outline" className="h-7 text-[10px] uppercase font-black" onClick={() => {
+                    const newId = Date.now().toString();
+                    setCartTargets(p => ({ ...p, extras: [...p.extras, { id: newId, name: "Nueva Meta", target: 0, unit: "g", key: "sugars" }] }));
+                  }}>
+                    <Plus className="w-3 h-3 mr-1" /> Añadir
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {cartTargets.extras.map((extra, idx) => (
+                    <div key={extra.id} className="flex items-center gap-3">
+                      <Input value={extra.name} onChange={e => {
+                        const next = [...cartTargets.extras];
+                        next[idx].name = e.target.value;
+                        setCartTargets(p => ({ ...p, extras: next }));
+                      }} placeholder="Nombre (Ej: Fibra)" className="w-1/3 text-xs font-bold border-slate-200" />
+                      <select value={extra.key} onChange={e => {
+                        const next = [...cartTargets.extras];
+                        next[idx].key = e.target.value as any;
+                        setCartTargets(p => ({ ...p, extras: next }));
+                      }} className="w-1/4 h-10 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 px-3">
+                        <option value="sugars">Azúcares</option>
+                        <option value="fiber">Fibra</option>
+                        <option value="sodium">Sodio</option>
+                        <option value="cholesterol">Colesterol</option>
+                        <option value="potassium">Potasio</option>
+                        <option value="vitaminA">Vitamina A</option>
+                        <option value="vitaminC">Vitamina C</option>
+                        <option value="calcium">Calcio</option>
+                        <option value="iron">Hierro</option>
+                      </select>
+                      <Input type="number" value={extra.target} onChange={e => {
+                        const next = [...cartTargets.extras];
+                        next[idx].target = Number(e.target.value);
+                        setCartTargets(p => ({ ...p, extras: next }));
+                      }} className="w-24 text-center font-black" />
+                      <Input value={extra.unit} onChange={e => {
+                        const next = [...cartTargets.extras];
+                        next[idx].unit = e.target.value;
+                        setCartTargets(p => ({ ...p, extras: next }));
+                      }} placeholder="Und (g)" className="w-16 text-center text-xs font-bold" />
+                      <Button variant="ghost" className="text-rose-500 hover:bg-rose-50 p-2 h-auto" onClick={() => {
+                        const next = [...cartTargets.extras].filter((_, i) => i !== idx);
+                        setCartTargets(p => ({ ...p, extras: next }));
+                      }}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  {cartTargets.extras.length === 0 && (
+                    <p className="text-xs text-slate-400 font-medium italic">No hay metas adicionales. Añade una para trackear azúcares, sodio, fibra, etc.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+              <div className="space-y-1 border-r border-slate-100 pr-4">
+                <p className="text-[10px] font-black uppercase text-slate-400">Ver Datos</p>
+                <select
+                  value={timeView}
+                  onChange={e => setTimeView(e.target.value as any)}
+                  className="bg-transparent border-none text-slate-700 font-black focus:ring-0 p-0 hover:bg-slate-50 rounded"
+                >
+                  <option value="dia">Diario</option>
+                  <option value="semana">Semanal</option>
+                  <option value="mes">Mensual</option>
+                </select>
+              </div>
+
+              {[
+                { label: "Calorías", target: cartTargets.calories, val: totals.calories, unit: "kcal", color: "text-amber-500", rawKey: 'calories' },
+                { label: "Proteínas", target: cartTargets.protein, val: totals.protein, unit: "g", color: "text-emerald-500", rawKey: 'protein' },
+                { label: "Carbos", target: cartTargets.carbs, val: totals.carbs, unit: "g", color: "text-blue-500", rawKey: 'carbs' },
+                { label: "Grasas", target: cartTargets.fats, val: totals.fats, unit: "g", color: "text-purple-500", rawKey: 'fats' },
+                ...cartTargets.extras.map(e => ({
+                  label: e.name,
+                  target: e.target,
+                  val: totals[e.key as keyof typeof totals] || 0,
+                  unit: e.unit,
+                  color: "text-indigo-500",
+                  rawKey: e.key
+                }))
+              ].map((stat, idx) => {
+                // Normalize target based on TimeView. If Cart is viewing "semana" but Target is "dia", target * 7.
+                const factor = cartTargets.timeframe === "dia"
+                  ? (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30)
+                  : cartTargets.timeframe === "semana"
+                    ? (timeView === "dia" ? 1 / 7 : timeView === "semana" ? 1 : 30 / 7)
+                    : (timeView === "dia" ? 1 / 30 : timeView === "semana" ? 7 / 30 : 1);
+                const normalizedTarget = stat.target * factor;
+                const progress = normalizedTarget > 0 ? (stat.val / normalizedTarget) * 100 : 0;
+                const isOver = progress > 105;
+
+                return (
+                  <div key={idx} className="space-y-1.5 min-w-[100px]">
+                    <div className="flex justify-between items-end gap-2">
+                      <p className="text-[10px] font-black uppercase text-slate-500 truncate" title={stat.label}>{stat.label}</p>
+                      <span className="text-[9px] font-bold text-slate-400 whitespace-nowrap">
+                        {stat.rawKey === 'calories' ? Math.round(stat.val) : stat.val} {normalizedTarget > 0 ? `/ ${Math.round(normalizedTarget)}${stat.unit}` : stat.unit}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={cn("h-full transition-all duration-500", isOver ? "bg-rose-500" : stat.color.replace('text-', 'bg-'))}
+                        style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Header Controls */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
@@ -860,8 +1429,9 @@ export default function CartClient() {
                   <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">
                     Compra Mes
                   </th>
-                  <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest leading-tight">
                     Frecuencia / Pauta
+                    <p className="font-medium text-[8px] text-slate-400 normal-case tracking-normal mt-0.5">Calculados mediante UDD</p>
                   </th>
                   <th className="px-6 py-4 text-right"></th>
                 </tr>
@@ -891,8 +1461,21 @@ export default function CartClient() {
                               {item.producto.charAt(0)}
                             </div>
                             <div>
-                              <p className="font-bold text-slate-900 text-sm leading-none mb-1">
+                              <p className="font-bold text-slate-900 text-sm leading-none mb-1 flex items-center gap-2">
                                 {item.producto}
+                                <button
+                                  onClick={() => {
+                                    setSelectedItemForEquivalent(item);
+                                    setEquivalentSearchQuery("");
+                                    setEquivalentResults([]);
+                                    setIsEquivalentModalOpen(true);
+                                    searchEquivalents("", item.grupo);
+                                  }}
+                                  className="p-1 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all cursor-pointer"
+                                  title="Intercambiar por equivalente"
+                                >
+                                  <RotateCcw className="h-3 w-3" />
+                                </button>
                               </p>
                               <span className="text-[10px] uppercase font-bold text-slate-400">
                                 {item.grupo}
@@ -902,19 +1485,19 @@ export default function CartClient() {
                         </td>
                         <td className="px-6 py-5">
                           <div className="flex items-center justify-center gap-2">
-                            <div className="relative w-24">
+                            <div className="relative w-28">
                               <Input
-                                type="number"
-                                step="0.01"
-                                value={item.cantidadMes}
-                                onChange={(e) =>
-                                  handleQuantityChange(item.id, e.target.value)
+                                type="text"
+                                value={
+                                  item.unidad === 'kg' && item.cantidadMes < 1
+                                    ? Math.round(item.cantidadMes * 1000)
+                                    : item.cantidadMes
                                 }
-                                className="h-10 pr-8 text-center font-bold border-slate-200 rounded-xl bg-slate-50/50"
                                 readOnly
+                                className="h-10 pr-10 text-center font-black text-slate-700 border-slate-200 rounded-xl bg-slate-50/50"
                               />
                               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 pointer-events-none uppercase">
-                                {item.unidad}
+                                {item.unidad === 'kg' && item.cantidadMes < 1 ? 'g' : item.unidad}
                               </span>
                             </div>
                           </div>
@@ -957,7 +1540,7 @@ export default function CartClient() {
                                 </div>
                                 <div
                                   className={cn(
-                                    "px-1.5 py-0.5 rounded-lg border text-[9px] font-black flex items-center gap-1 min-w-[55px] justify-center shadow-sm whitespace-nowrap",
+                                    "px-1.5 py-0.5 rounded-lg border text-[9px] font-black flex items-center gap-1 min-w-[65px] justify-center shadow-sm",
                                     item.grupo.toLowerCase().includes("cereal") ||
                                       item.grupo
                                         .toLowerCase()
@@ -987,8 +1570,14 @@ export default function CartClient() {
                                           : "bg-indigo-50 text-indigo-700 border-indigo-100",
                                   )}
                                 >
-                                  {item.exchange.val}{" "}
-                                  <span className="opacity-50 text-[8px]">
+                                  <Input
+                                    type="number"
+                                    step="0.1"
+                                    value={item.exchange.val}
+                                    onChange={(e) => handleExchangePortionChange(item, e.target.value)}
+                                    className="h-6 w-10 p-0 text-center bg-transparent border-none shadow-none text-[10px] font-black focus-visible:ring-0"
+                                  />
+                                  <span className="opacity-50 text-[8px] uppercase tracking-tighter ml-1">
                                     {item.exchange.label}
                                   </span>
                                 </div>
@@ -1050,7 +1639,9 @@ export default function CartClient() {
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl hover:bg-white/20 transition-all cursor-pointer group">
+                <div
+                  className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl hover:bg-white/20 transition-all cursor-pointer group"
+                >
                   <p className="text-[10px] font-black text-emerald-300 uppercase mb-2">
                     Opción Natural
                   </p>
@@ -1062,7 +1653,9 @@ export default function CartClient() {
                     <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
-                <div className="bg-amber-500/10 border border-amber-500/40 p-4 rounded-2xl hover:bg-amber-500/20 transition-all cursor-pointer group relative">
+                <div
+                  className="bg-amber-500/10 border border-amber-500/40 p-4 rounded-2xl hover:bg-amber-500/20 transition-all cursor-pointer group relative"
+                >
                   <div className="absolute -top-2 -right-2 bg-amber-500 text-amber-950 text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg">
                     RECOMENDADO
                   </div>
@@ -1094,33 +1687,43 @@ export default function CartClient() {
               </div>
 
               <div className="w-full space-y-4">
+                {/* Calories */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[10px] font-black uppercase text-slate-400">
+                    <span>Calorías</span>
+                    <span>
+                      {totals.calories}kcal /{" "}
+                      {Math.round(cartTargets.calories * (cartTargets.timeframe === "dia" ? (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30) : (timeView === "dia" ? 1 / 7 : timeView === "semana" ? 1 : 30 / 7)))}kcal
+                    </span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                    <div
+                      className={cn(
+                        "h-full transition-all duration-1000 bg-amber-500",
+                      )}
+                      style={{
+                        width: `${Math.min(100, (totals.calories / Math.max(1, cartTargets.calories * (cartTargets.timeframe === "dia" ? (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30) : (timeView === "dia" ? 1 / 7 : timeView === "semana" ? 1 : 30 / 7)))) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
                 {/* Protein */}
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-[10px] font-black uppercase text-slate-400">
                     <span>Proteína</span>
                     <span>
                       {totals.protein}g /{" "}
-                      {(selectedPatient?.targetProtein || 160) *
-                        (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30)}
-                      g
+                      {Math.round(cartTargets.protein * (cartTargets.timeframe === "dia" ? (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30) : (timeView === "dia" ? 1 / 7 : timeView === "semana" ? 1 : 30 / 7)))}g
                     </span>
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                     <div
                       className={cn(
-                        "h-full transition-all duration-1000",
-                        totals.protein >=
-                          (selectedPatient?.targetProtein || 160) *
-                          (timeView === "dia"
-                            ? 1
-                            : timeView === "semana"
-                              ? 7
-                              : 30)
-                          ? "bg-emerald-500"
-                          : "bg-amber-500",
+                        "h-full transition-all duration-1000 bg-emerald-500",
                       )}
                       style={{
-                        width: `${Math.min(100, (totals.protein / ((selectedPatient?.targetProtein || 160) * (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30))) * 100)}%`,
+                        width: `${Math.min(100, (totals.protein / Math.max(1, cartTargets.protein * (cartTargets.timeframe === "dia" ? (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30) : (timeView === "dia" ? 1 / 7 : timeView === "semana" ? 1 : 30 / 7)))) * 100)}%`,
                       }}
                     />
                   </div>
@@ -1132,27 +1735,16 @@ export default function CartClient() {
                     <span>Carbohidratos</span>
                     <span>
                       {totals.carbs}g /{" "}
-                      {(selectedPatient?.targetCarbs || 300) *
-                        (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30)}
-                      g
+                      {Math.round(cartTargets.carbs * (cartTargets.timeframe === "dia" ? (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30) : (timeView === "dia" ? 1 / 7 : timeView === "semana" ? 1 : 30 / 7)))}g
                     </span>
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                     <div
                       className={cn(
-                        "h-full transition-all duration-1000",
-                        totals.carbs >=
-                          (selectedPatient?.targetCarbs || 300) *
-                          (timeView === "dia"
-                            ? 1
-                            : timeView === "semana"
-                              ? 7
-                              : 30)
-                          ? "bg-blue-500"
-                          : "bg-blue-300",
+                        "h-full transition-all duration-1000 bg-blue-500",
                       )}
                       style={{
-                        width: `${Math.min(100, (totals.carbs / ((selectedPatient?.targetCarbs || 300) * (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30))) * 100)}%`,
+                        width: `${Math.min(100, (totals.carbs / Math.max(1, cartTargets.carbs * (cartTargets.timeframe === "dia" ? (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30) : (timeView === "dia" ? 1 / 7 : timeView === "semana" ? 1 : 30 / 7)))) * 100)}%`,
                       }}
                     />
                   </div>
@@ -1164,27 +1756,16 @@ export default function CartClient() {
                     <span>Grasas</span>
                     <span>
                       {totals.fats}g /{" "}
-                      {(selectedPatient?.targetFats || 80) *
-                        (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30)}
-                      g
+                      {Math.round(cartTargets.fats * (cartTargets.timeframe === "dia" ? (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30) : (timeView === "dia" ? 1 / 7 : timeView === "semana" ? 1 : 30 / 7)))}g
                     </span>
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                     <div
                       className={cn(
-                        "h-full transition-all duration-1000",
-                        totals.fats >=
-                          (selectedPatient?.targetFats || 80) *
-                          (timeView === "dia"
-                            ? 1
-                            : timeView === "semana"
-                              ? 7
-                              : 30)
-                          ? "bg-purple-500"
-                          : "bg-purple-300",
+                        "h-full transition-all duration-1000 bg-purple-500",
                       )}
                       style={{
-                        width: `${Math.min(100, (totals.fats / ((selectedPatient?.targetFats || 80) * (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30))) * 100)}%`,
+                        width: `${Math.min(100, (totals.fats / Math.max(1, cartTargets.fats * (cartTargets.timeframe === "dia" ? (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30) : (timeView === "dia" ? 1 / 7 : timeView === "semana" ? 1 : 30 / 7)))) * 100)}%`,
                       }}
                     />
                   </div>
@@ -1335,7 +1916,7 @@ export default function CartClient() {
         <Modal
           isOpen={isAddFoodModalOpen}
           onClose={() => setIsAddFoodModalOpen(false)}
-          title="Añadir alimento adicional"
+          title="Importar Alimentos"
           className="max-w-md"
         >
           <div className="space-y-4 pt-4">

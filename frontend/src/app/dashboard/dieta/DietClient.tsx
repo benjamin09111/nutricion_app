@@ -50,6 +50,7 @@ import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
+import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 
 interface DietClientProps {
   initialFoods: MarketPrice[];
@@ -124,16 +125,14 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const [selectedFoodForInfo, setSelectedFoodForInfo] =
     useState<MarketPrice | null>(null);
 
-  // -- Import Diet Modal State --
-  const [isImportDietModalOpen, setIsImportDietModalOpen] = useState(false);
-  const [savedDiets, setSavedDiets] = useState<any[]>([]);
+  // -- Import Creation Modal State --
+  const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
   const [isLoadingDiets, setIsLoadingDiets] = useState(false);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [dietSearchQuery, setDietSearchQuery] = useState("");
 
   // -- Import Patient Modal State --
-  const [isImportPatientModalOpen, setIsImportPatientModalOpen] =
-    useState(false);
+  const [isImportPatientModalOpen, setIsImportPatientModalOpen] = useState(false);
   const [patients, setPatients] = useState<any[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
@@ -183,31 +182,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }
   };
 
-  const fetchSavedDiets = async (retries = 2) => {
-    setIsLoadingDiets(true);
-    try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/creations?type=DIET`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setSavedDiets(data);
-      }
-    } catch (e) {
-      if (retries > 0) {
-        setTimeout(() => fetchSavedDiets(retries - 1), 2000);
-      } else {
-        console.warn("No se pudieron cargar las dietas guardadas");
-      }
-    } finally {
-      setIsLoadingDiets(false);
-    }
-  };
+
 
   const fetchPatients = async () => {
     setIsLoadingPatients(true);
@@ -286,52 +261,82 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     toast.info("Paciente desvinculado de esta sesión");
   };
 
-  const handleImportDiet = (diet: any) => {
-    const { content } = diet;
-    if (!content) {
-      toast.error("Esta dieta no tiene contenido válido");
-      return;
+  const handleImportCreation = (creation: any) => {
+    try {
+      const { type, content } = creation;
+      if (!content) {
+        toast.error("Esta creación no tiene contenido válido");
+        return;
+      }
+
+      // Handle DIET import (full restoration)
+      if (type === "DIET") {
+        setDietName(creation.name || "");
+        setDietTags(creation.tags || []);
+        setActiveConstraints(content.activeConstraints || []);
+        setManualAdditions(content.manualAdditions || content.foods || []);
+        setCustomGroups(content.customGroups || []);
+        setCustomConstraints(content.customConstraints || []);
+
+        // Update food status mapping
+        if (content.foodStatus) {
+          setFoodStatus((prev) => ({ ...prev, ...content.foodStatus }));
+        }
+
+        // Backward compatibility for old formats
+        if (!content.foodStatus && content.categories) {
+          const recoveredManual: any[] = [];
+          const recoveredGroups: string[] = [];
+          const recoveredStatus: Record<string, any> = {};
+
+          Object.entries(content.categories).forEach(([groupName, foods]: [string, any]) => {
+            recoveredGroups.push(groupName);
+            if (Array.isArray(foods)) {
+              foods.forEach((f) => {
+                recoveredManual.push({ ...f, grupo: groupName });
+                recoveredStatus[f.producto] = "added";
+              });
+            }
+          });
+
+          if (recoveredManual.length > 0) setManualAdditions(recoveredManual);
+          if (recoveredGroups.length > 0) setCustomGroups(recoveredGroups);
+          setFoodStatus((prev) => ({ ...prev, ...recoveredStatus }));
+        }
+        toast.success(`Dieta "${creation.name}" importada.`);
+      }
+      // Handle Cart (SHOPPING_LIST) import into Diet
+      else if (type === "SHOPPING_LIST") {
+        if (content.items && Array.isArray(content.items)) {
+          const newAdditions = content.items.map((item: any) => ({
+            id: item.id,
+            producto: item.producto,
+            grupo: item.grupo || "Varios",
+            unidad: item.unidad || "kg",
+            precioPromedio: item.precioPorUnidad || 0,
+            calorias: item.caloriasPor100g || 0,
+            proteinas: item.proteinaPor100g || 0,
+            carbohidratos: item.carbohidratosPor100g || 0,
+            lipidos: item.grasasPor100g || 0,
+            isManual: true
+          }));
+
+          setManualAdditions(prev => [...prev, ...newAdditions]);
+
+          // Add groups if they don't exist
+          const uniqueGroups = Array.from(new Set(newAdditions.map((a: any) => a.grupo)));
+          setCustomGroups(prev => Array.from(new Set([...prev, ...uniqueGroups])) as string[]);
+
+          toast.success(`Alimentos importados desde el Carrito: "${creation.name}"`);
+        }
+      }
+
+      setIsImportCreationModalOpen(false);
+      setDietSearchQuery("");
+    } catch (e) {
+      console.error("Error importing creation", e);
+      toast.error("Error al importar la creación.");
     }
-
-    setDietName(diet.name || "");
-    setDietTags(diet.tags || []);
-    setActiveConstraints(content.activeConstraints || []);
-    setManualAdditions(content.manualAdditions || []);
-    setCustomGroups(content.customGroups || []);
-    setCustomConstraints(content.customConstraints || []);
-
-    // Compatibilidad: Si no tiene estados detallados pero tiene categorías (formato antiguo)
-    if (!content.foodStatus && content.categories) {
-      console.log("Recuperando dieta en formato antiguo...");
-      const recoveredManual: any[] = [];
-      const recoveredGroups: string[] = [];
-      const recoveredStatus: Record<string, any> = {};
-
-      Object.entries(content.categories).forEach(
-        ([groupName, foods]: [string, any]) => {
-          recoveredGroups.push(groupName);
-          if (Array.isArray(foods)) {
-            foods.forEach((f) => {
-              recoveredManual.push({ ...f, grupo: groupName });
-              recoveredStatus[f.producto] = "added";
-            });
-          }
-        },
-      );
-
-      if (recoveredManual.length > 0) setManualAdditions(recoveredManual);
-      if (recoveredGroups.length > 0) setCustomGroups(recoveredGroups);
-      setFoodStatus((prev) => ({ ...prev, ...recoveredStatus }));
-    }
-
-    // Actualizar estados de alimentos
-    if (content.foodStatus) {
-      setFoodStatus((prev) => ({ ...prev, ...content.foodStatus }));
-    }
-
-    setIsImportDietModalOpen(false);
-    setDietSearchQuery("");
-    toast.success(`Dieta "${diet.name}" importada correctamente`);
   };
 
   // Inicializar o cargar borrador o edición
@@ -435,7 +440,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
           try {
             const data = JSON.parse(text);
-            handleImportDiet(data);
+            handleImportCreation(data);
           } catch (parseError) {
             console.error("Error parseando JSON de la creación:", parseError);
           }
@@ -497,12 +502,14 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       const status = foodStatus[food.producto];
       if (status === "removed") return false;
 
+      // If it's a manual addition, it's always included (unless removed above)
       if (manualAdditions.some((ma) => ma.producto === food.producto)) {
         return true;
       }
 
-      if (status === "base" || status === "favorite" || status === "added") {
-        if (status === "base") {
+      // Base foods or favorites (including those without status yet)
+      if (!status || status === "base" || status === "favorite" || status === "added") {
+        if (!status || status === "base") {
           const normalizedConstraints = activeConstraints.map((c) =>
             c.toLowerCase(),
           );
@@ -747,6 +754,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       const token = Cookies.get("auth_token");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
 
+      const finalizedFoods = [...includedFoods];
+
       const response = await fetch(`${apiUrl}/creations`, {
         method: "POST",
         headers: {
@@ -756,13 +765,17 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         body: JSON.stringify({
           name: dietName,
           type: "DIET",
-          content: dietJson,
+          content: {
+            ...dietJson,
+            foods: finalizedFoods, // Finalized list for portability
+            includedFoods: finalizedFoods, // Alias for older import logic
+          },
           metadata: {
-            foodSummary: includedFoods.map((f) => ({
+            foodSummary: finalizedFoods.map((f) => ({
               name: f.producto,
               group: f.grupo,
             })),
-            foodCount: includedFoods.length,
+            foodCount: finalizedFoods.length,
             ...(selectedPatient ? { patientName: selectedPatient.fullName, patientId: selectedPatient.id } : {}),
           },
           tags: dietTags,
@@ -1231,7 +1244,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           if (newFavs.length > 0) {
             setFoodStatus((prev) => {
               const next = { ...prev };
-              newFavs.forEach((f) => { next[f.producto] = "favorite"; });
+              newFavs.forEach((f: any) => { next[f.producto] = "favorite"; });
               return next;
             });
           }
@@ -1390,13 +1403,12 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const actionDockItems: ActionDockItem[] = useMemo(
     () => [
       {
-        id: "import-diet",
+        id: "import-creation",
         icon: Library,
-        label: "Importar Dieta",
+        label: "Importar Creación",
         variant: "indigo",
         onClick: () => {
-          setIsImportDietModalOpen(true);
-          fetchSavedDiets();
+          setIsImportCreationModalOpen(true);
         },
       },
       {
@@ -1646,1106 +1658,1021 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-500" />
-              Dieta Base Generada
-            </h2>
-            <Button
-              onClick={applyNutritionistPreferences}
-              disabled={isApplyingPreferences}
-              className="h-10 px-6 bg-slate-900 text-white hover:bg-slate-800 border-none font-black text-sm rounded-xl gap-2 transition-all active:scale-95 shadow-lg shadow-slate-200"
-            >
-              {isApplyingPreferences ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Filter className="h-5 w-5" />
-              )}
-              Añadir favoritos y quitar no recomendados
-            </Button>
-          </div>
+      </div>
 
-          <div className="grid gap-6">
-            {Object.entries(allGroupsToRender).map(([name, foods]) => (
-              <div
-                key={name}
-                className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm"
-              >
-                <div className="bg-slate-50/80 p-4 border-b border-slate-100 flex justify-between items-center">
-                  <h3 className="font-bold text-slate-700 uppercase tracking-tight text-sm flex items-center gap-2">
-                    {name}
-                    <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-black">
-                      {foods.length}
-                    </span>
-                  </h3>
-                  <div className="flex gap-2">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-amber-500" />
+            Dieta Base Generada
+          </h2>
+          <Button
+            onClick={applyNutritionistPreferences}
+            disabled={isApplyingPreferences}
+            className="h-10 px-6 bg-slate-900 text-white hover:bg-slate-800 border-none font-black text-sm rounded-xl gap-2 transition-all active:scale-95 shadow-lg shadow-slate-200"
+          >
+            {isApplyingPreferences ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Filter className="h-5 w-5" />
+            )}
+            Añadir favoritos y quitar no recomendados
+          </Button>
+        </div>
+
+        <div className="grid gap-6">
+          {Object.entries(allGroupsToRender).map(([name, foods]) => (
+            <div
+              key={name}
+              className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm"
+            >
+              <div className="bg-slate-50/80 p-4 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="font-bold text-slate-700 uppercase tracking-tight text-sm flex items-center gap-2">
+                  {name}
+                  <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-black">
+                    {foods.length}
+                  </span>
+                </h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => openAddModal(name)}
+                    className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setGroupToDelete(name);
+                      setIsDeleteGroupConfirmOpen(true);
+                    }}
+                    className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg cursor-pointer"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {foods.map((food, idx) => (
+                  <div
+                    key={`${food.producto}-${idx}`}
+                    className="p-4 flex items-center justify-between group hover:bg-emerald-50/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-lg">
+                        🍽️
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 text-sm">
+                          {food.producto}
+                        </p>
+                        <div className="flex gap-2 text-xs text-slate-500 font-medium items-center flex-wrap">
+                          <span className="text-orange-600 font-bold">
+                            {food.calorias || 0} kcal
+                          </span>
+                          <span>•</span>
+                          <span className="text-blue-600">
+                            P: {food.proteinas || 0}g
+                          </span>
+                          <span>•</span>
+                          <span className="text-emerald-600">
+                            C: {food.carbohidratos || 0}g
+                          </span>
+                          <span>•</span>
+                          <span className="text-yellow-600">
+                            L: {food.lipidos || 0}g
+                          </span>
+                          {food.azucares !== undefined && food.azucares > 0 && (
+                            <>
+                              <span>•</span>
+                              <span className="text-slate-500">
+                                Az: {food.azucares}g
+                              </span>
+                            </>
+                          )}
+                          {food.fibra !== undefined && food.fibra > 0 && (
+                            <>
+                              <span>•</span>
+                              <span className="text-slate-500">
+                                Fib: {food.fibra}g
+                              </span>
+                            </>
+                          )}
+                          {food.sodio !== undefined && food.sodio > 0 && (
+                            <>
+                              <span>•</span>
+                              <span className="text-slate-500">
+                                Na: {food.sodio}mg
+                              </span>
+                            </>
+                          )}
+                          <button
+                            onClick={() => toggleFavorite(food)}
+                            className={cn(
+                              "flex items-center gap-1 transition-colors cursor-pointer",
+                              foodStatus[food.producto] === "favorite"
+                                ? "text-amber-500"
+                                : "text-slate-300 hover:text-amber-300",
+                            )}
+                          >
+                            <Star
+                              className={cn(
+                                "h-3 w-3",
+                                foodStatus[food.producto] === "favorite" &&
+                                "fill-current",
+                              )}
+                            />
+                            {foodStatus[food.producto] === "favorite" &&
+                              "Favorito"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedFoodForInfo(food);
+                          setIsFoodInfoModalOpen(true);
+                        }}
+                        className="p-2 text-slate-400 hover:text-indigo-600 rounded-xl cursor-pointer transition-colors"
+                      >
+                        <Info className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => removeFood(food.producto)}
+                        className="p-2 text-slate-400 hover:text-red-500 rounded-xl cursor-pointer"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  onClick={() => openAddModal(name)}
+                  className="w-full p-3 text-xs font-bold text-emerald-600 hover:bg-emerald-50 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  Añadir alimento a {name}
+                </button>
+              </div>
+            </div>
+          ))}
+
+          <button
+            onClick={() => setIsAddGroupModalOpen(true)}
+            className="w-full py-6 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 font-bold hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/10 cursor-pointer transition-all active:scale-[0.99]"
+          >
+            <Plus className="h-5 w-5 mx-auto mb-1" />
+            Añadir nueva categoría personalizada
+          </button>
+        </div>
+      </div>
+
+      <ConfirmationModal
+        isOpen={isDeleteGroupConfirmOpen}
+        onClose={() => setIsDeleteGroupConfirmOpen(false)}
+        onConfirm={confirmDeleteGroup}
+        title={`¿Eliminar grupo "${groupToDelete}"?`}
+        description="Esto quitará los alimentos de esta vista."
+      />
+
+      <Modal
+        isOpen={isAddFoodModalOpen}
+        onClose={() => setIsAddFoodModalOpen(false)}
+        title={`Añadir a "${activeGroupForAddition}"`}
+      >
+        <div className="space-y-4">
+          <Input
+            placeholder="Buscar..."
+            value={foodSearchQuery}
+            onChange={(e) => setFoodSearchQuery(e.target.value)}
+            autoFocus
+          />
+          <div className="space-y-1 max-h-60 overflow-y-auto">
+            {isSearchingFoods ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+                <p className="text-sm text-slate-400 font-medium">
+                  Buscando alimentos...
+                </p>
+              </div>
+            ) : searchResultFoods.length > 0 ? (
+              searchResultFoods.map((f) => (
+                <div
+                  key={f.id}
+                  className="w-full flex justify-between items-center p-3 hover:bg-slate-50 rounded-lg transition-colors group"
+                >
+                  <div className="flex-1">
+                    <p className="font-bold text-sm text-slate-900">
+                      {f.producto}
+                    </p>
+                    <div className="flex gap-2 text-xs text-slate-500 mt-0.5">
+                      <span className="text-orange-600 font-bold">
+                        {f.calorias || 0} kcal
+                      </span>
+                      <span>•</span>
+                      <span className="text-blue-600">
+                        P: {f.proteinas || 0}g
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => openAddModal(name)}
-                      className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedFoodForInfo(f);
+                        setIsFoodInfoModalOpen(true);
+                      }}
+                      className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleAddFromSearch(f)}
+                      className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                     >
                       <Plus className="h-4 w-4" />
                     </button>
-                    <button
-                      onClick={() => {
-                        setGroupToDelete(name);
-                        setIsDeleteGroupConfirmOpen(true);
-                      }}
-                      className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg cursor-pointer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
-                <div className="divide-y divide-slate-100">
-                  {foods.map((food, idx) => (
-                    <div
-                      key={`${food.producto}-${idx}`}
-                      className="p-4 flex items-center justify-between group hover:bg-emerald-50/30 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-lg">
-                          🍽️
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900 text-sm">
-                            {food.producto}
-                          </p>
-                          <div className="flex gap-2 text-xs text-slate-500 font-medium items-center flex-wrap">
-                            <span className="text-orange-600 font-bold">
-                              {food.calorias || 0} kcal
-                            </span>
-                            <span>•</span>
-                            <span className="text-blue-600">
-                              P: {food.proteinas || 0}g
-                            </span>
-                            <span>•</span>
-                            <span className="text-emerald-600">
-                              C: {food.carbohidratos || 0}g
-                            </span>
-                            <span>•</span>
-                            <span className="text-yellow-600">
-                              L: {food.lipidos || 0}g
-                            </span>
-                            {food.azucares !== undefined && food.azucares > 0 && (
-                              <>
-                                <span>•</span>
-                                <span className="text-slate-500">
-                                  Az: {food.azucares}g
-                                </span>
-                              </>
-                            )}
-                            {food.fibra !== undefined && food.fibra > 0 && (
-                              <>
-                                <span>•</span>
-                                <span className="text-slate-500">
-                                  Fib: {food.fibra}g
-                                </span>
-                              </>
-                            )}
-                            {food.sodio !== undefined && food.sodio > 0 && (
-                              <>
-                                <span>•</span>
-                                <span className="text-slate-500">
-                                  Na: {food.sodio}mg
-                                </span>
-                              </>
-                            )}
-                            <button
-                              onClick={() => toggleFavorite(food)}
-                              className={cn(
-                                "flex items-center gap-1 transition-colors cursor-pointer",
-                                foodStatus[food.producto] === "favorite"
-                                  ? "text-amber-500"
-                                  : "text-slate-300 hover:text-amber-300",
-                              )}
-                            >
-                              <Star
-                                className={cn(
-                                  "h-3 w-3",
-                                  foodStatus[food.producto] === "favorite" &&
-                                  "fill-current",
-                                )}
-                              />
-                              {foodStatus[food.producto] === "favorite" &&
-                                "Favorito"}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setSelectedFoodForInfo(food);
-                            setIsFoodInfoModalOpen(true);
-                          }}
-                          className="p-2 text-slate-400 hover:text-indigo-600 rounded-xl cursor-pointer transition-colors"
-                        >
-                          <Info className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => removeFood(food.producto)}
-                          className="p-2 text-slate-400 hover:text-red-500 rounded-xl cursor-pointer"
-                        >
-                          <X className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => openAddModal(name)}
-                    className="w-full p-3 text-xs font-bold text-emerald-600 hover:bg-emerald-50 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Añadir alimento a {name}
-                  </button>
-                </div>
+              ))
+            ) : foodSearchQuery.trim() ? (
+              <div className="py-6 text-center">
+                <p className="text-sm text-slate-400 mb-3">
+                  No se encontraron resultados.
+                </p>
+                <Button
+                  variant="outline"
+                  className="text-emerald-600"
+                  onClick={() => {
+                    const newItem: MarketPrice = {
+                      id: `manual-${Date.now()}`,
+                      producto: foodSearchQuery,
+                      grupo: activeGroupForAddition || "Varios",
+                      unidad: "unidad",
+                      precioPromedio: 0,
+                      calorias: 0,
+                      proteinas: 0,
+                      carbohidratos: 0,
+                      lipidos: 0,
+                      tags: [],
+                    };
+                    setManualAdditions((prev) => [...prev, newItem]);
+                    setFoodStatus((prev) => ({
+                      ...prev,
+                      [foodSearchQuery]: "added" as const,
+                    }));
+                    toast.success(`"${foodSearchQuery}" creado.`);
+                    setIsAddFoodModalOpen(false);
+                  }}
+                >
+                  Crear "{foodSearchQuery}" manualmente
+                </Button>
               </div>
-            ))}
-
-            <button
-              onClick={() => setIsAddGroupModalOpen(true)}
-              className="w-full py-6 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 font-bold hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/10 cursor-pointer transition-all active:scale-[0.99]"
-            >
-              <Plus className="h-5 w-5 mx-auto mb-1" />
-              Añadir nueva categoría personalizada
-            </button>
+            ) : (
+              <div className="py-12 text-center">
+                <Search className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                <p className="text-sm text-slate-400">
+                  Escribe para buscar alimentos...
+                </p>
+              </div>
+            )}
           </div>
         </div>
+      </Modal>
 
-        <ConfirmationModal
-          isOpen={isDeleteGroupConfirmOpen}
-          onClose={() => setIsDeleteGroupConfirmOpen(false)}
-          onConfirm={confirmDeleteGroup}
-          title={`¿Eliminar grupo "${groupToDelete}"?`}
-          description="Esto quitará los alimentos de esta vista."
-        />
-
-        <Modal
-          isOpen={isAddFoodModalOpen}
-          onClose={() => setIsAddFoodModalOpen(false)}
-          title={`Añadir a "${activeGroupForAddition}"`}
-        >
-          <div className="space-y-4">
-            <Input
-              placeholder="Buscar..."
-              value={foodSearchQuery}
-              onChange={(e) => setFoodSearchQuery(e.target.value)}
-              autoFocus
-            />
-            <div className="space-y-1 max-h-60 overflow-y-auto">
-              {isSearchingFoods ? (
-                <div className="py-12 flex flex-col items-center justify-center gap-3">
-                  <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-                  <p className="text-sm text-slate-400 font-medium">
-                    Buscando alimentos...
-                  </p>
-                </div>
-              ) : searchResultFoods.length > 0 ? (
-                searchResultFoods.map((f) => (
-                  <div
-                    key={f.id}
-                    className="w-full flex justify-between items-center p-3 hover:bg-slate-50 rounded-lg transition-colors group"
-                  >
-                    <div className="flex-1">
-                      <p className="font-bold text-sm text-slate-900">
-                        {f.producto}
-                      </p>
-                      <div className="flex gap-2 text-xs text-slate-500 mt-0.5">
-                        <span className="text-orange-600 font-bold">
-                          {f.calorias || 0} kcal
-                        </span>
-                        <span>•</span>
-                        <span className="text-blue-600">
-                          P: {f.proteinas || 0}g
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedFoodForInfo(f);
-                          setIsFoodInfoModalOpen(true);
-                        }}
-                        className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
-                      >
-                        <Info className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleAddFromSearch(f)}
-                        className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : foodSearchQuery.trim() ? (
-                <div className="py-6 text-center">
-                  <p className="text-sm text-slate-400 mb-3">
-                    No se encontraron resultados.
-                  </p>
-                  <Button
-                    variant="outline"
-                    className="text-emerald-600"
-                    onClick={() => {
-                      const newItem: MarketPrice = {
-                        id: `manual-${Date.now()}`,
-                        producto: foodSearchQuery,
-                        grupo: activeGroupForAddition || "Varios",
-                        unidad: "unidad",
-                        precioPromedio: 0,
-                        calorias: 0,
-                        proteinas: 0,
-                        carbohidratos: 0,
-                        lipidos: 0,
-                        tags: [],
-                      };
-                      setManualAdditions((prev) => [...prev, newItem]);
-                      setFoodStatus((prev) => ({
-                        ...prev,
-                        [foodSearchQuery]: "added" as const,
-                      }));
-                      toast.success(`"${foodSearchQuery}" creado.`);
-                      setIsAddFoodModalOpen(false);
-                    }}
-                  >
-                    Crear "{foodSearchQuery}" manualmente
-                  </Button>
-                </div>
-              ) : (
-                <div className="py-12 text-center">
-                  <Search className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-                  <p className="text-sm text-slate-400">
-                    Escribe para buscar alimentos...
-                  </p>
-                </div>
+      {/* Modal de Adición Inteligente */}
+      <Modal
+        isOpen={isSmartModalOpen}
+        onClose={() => setIsSmartModalOpen(false)}
+        title="Selección Inteligente"
+        className="sm:max-w-2xl"
+      >
+        <div className="space-y-6">
+          {/* Tabs */}
+          <div className="flex bg-slate-100 p-1 rounded-2xl">
+            <button
+              onClick={() => setSmartAddTab("favorites")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
+                smartAddTab === "favorites"
+                  ? "bg-white text-indigo-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700",
               )}
-            </div>
-          </div>
-        </Modal>
-
-        {/* Modal de Adición Inteligente */}
-        <Modal
-          isOpen={isSmartModalOpen}
-          onClose={() => setIsSmartModalOpen(false)}
-          title="Selección Inteligente"
-          className="sm:max-w-2xl"
-        >
-          <div className="space-y-6">
-            {/* Tabs */}
-            <div className="flex bg-slate-100 p-1 rounded-2xl">
-              <button
-                onClick={() => setSmartAddTab("favorites")}
+            >
+              <Star
                 className={cn(
-                  "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
-                  smartAddTab === "favorites"
-                    ? "bg-white text-indigo-600 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700",
+                  "h-4 w-4",
+                  smartAddTab === "favorites" && "fill-current",
                 )}
-              >
-                <Star
-                  className={cn(
-                    "h-4 w-4",
-                    smartAddTab === "favorites" && "fill-current",
-                  )}
-                />
-                Favoritos
-              </button>
-              <button
-                onClick={() => setSmartAddTab("groups")}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
-                  smartAddTab === "groups"
-                    ? "bg-white text-indigo-600 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700",
-                )}
-              >
-                <FolderPlus className="h-4 w-4" />
-                Mis Grupos
-              </button>
-              <button
-                onClick={() => setSmartAddTab("myproducts")}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
-                  smartAddTab === "myproducts"
-                    ? "bg-white text-indigo-600 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700",
-                )}
-              >
-                <Plus className="h-4 w-4" />
-                Mis Productos
-              </button>
-              <button
-                onClick={() => setSmartAddTab("search")}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
-                  smartAddTab === "search"
-                    ? "bg-white text-indigo-600 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700",
-                )}
-              >
-                <Search className="h-4 w-4" />
-                Buscar
-              </button>
-            </div>
-
-            {smartAddTab === "search" && (
-              <div className="px-1">
-                <Input
-                  placeholder="Buscar en toda la base de datos..."
-                  value={smartSearchQuery}
-                  onChange={(e) => setSmartSearchQuery(e.target.value)}
-                  className="h-12 rounded-xl bg-slate-50 border-slate-200 focus:border-indigo-500"
-                  autoFocus
-                />
-              </div>
-            )}
-
-            {/* Content */}
-            <div className="max-h-[400px] overflow-y-auto px-1 space-y-4">
-              {isLoadingSmart ? (
-                <div className="py-20 flex flex-col items-center justify-center gap-3">
-                  <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
-                  <p className="text-slate-400 font-bold text-sm">
-                    Cargando tus secretos culinarios...
-                  </p>
-                </div>
-              ) : smartAddTab === "favorites" ? (
-                smartFavorites.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {smartFavorites.map((f) => (
-                      <div
-                        key={f.id}
-                        onClick={() => toggleSmartSelection(f.id)}
-                        className={cn(
-                          "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
-                          selectedFoods.has(f.id)
-                            ? "border-indigo-500 bg-indigo-50/50"
-                            : "border-slate-100 bg-white hover:border-indigo-200",
-                        )}
-                      >
-                        <div className="flex-1">
-                          <p className="font-black text-slate-800 text-sm mb-1">
-                            {f.name}
-                          </p>
-                          <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-black uppercase">
-                            {f.category?.name || "Varios"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedFoodForInfo({
-                                id: f.id,
-                                producto: f.name,
-                                grupo: f.category?.name || "Varios",
-                                calorias: f.calories || 0,
-                                proteinas: f.proteins || 0,
-                                carbohidratos: f.carbs || 0,
-                                lipidos: f.lipids || 0,
-                                unidad: f.unit || "g",
-                                precioPromedio: f.price || 0,
-                                tags: f.tags?.map((t: any) => t.name) || [],
-                                ...(f as any),
-                              });
-                              setIsFoodInfoModalOpen(true);
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
-                          >
-                            <Info className="h-4 w-4" />
-                          </button>
-                          <div
-                            className={cn(
-                              "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
-                              selectedFoods.has(f.id)
-                                ? "bg-indigo-600 border-indigo-600 text-white"
-                                : "border-slate-200 group-hover:border-indigo-300",
-                            )}
-                          >
-                            {selectedFoods.has(f.id) && (
-                              <Plus className="h-4 w-4" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
-                    <Star className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-                    <p className="text-slate-400 font-bold text-sm px-10">
-                      No tienes alimentos favoritos marcados aún.
-                    </p>
-                  </div>
-                )
-              ) : smartAddTab === "groups" ? (
-                smartGroups.length > 0 ? (
-                  <div className="space-y-6">
-                    {smartGroups.map((group) => {
-                      const groupIngredientIds =
-                        (group.ingredients as any[])?.map(
-                          (rel: any) => (rel.ingredient as any)?.id as string,
-                        ) || [];
-                      const isAllSelected =
-                        groupIngredientIds.length > 0 &&
-                        groupIngredientIds.every((id) => selectedFoods.has(id));
-
-                      return (
-                        <div
-                          key={group.id}
-                          className="space-y-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100"
-                        >
-                          <div className="flex items-center justify-between px-1">
-                            <div className="flex items-center gap-2">
-                              <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
-                              <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">
-                                {group.name}
-                              </h4>
-                            </div>
-
-                            <button
-                              onClick={() => toggleGroupSelection(group.id)}
-                              className={cn(
-                                "text-[10px] font-black uppercase tracking-tighter px-3 py-1 rounded-lg transition-all border shadow-sm",
-                                isAllSelected
-                                  ? "bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100"
-                                  : "bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700",
-                              )}
-                            >
-                              {isAllSelected
-                                ? "Quitar todo el grupo"
-                                : "Seleccionar todo el grupo"}
-                            </button>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {group.ingredients?.map((rel: any) => (
-                              <div
-                                key={rel.ingredient?.id}
-                                onClick={() =>
-                                  toggleSmartSelection(rel.ingredient?.id)
-                                }
-                                className={cn(
-                                  "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
-                                  selectedFoods.has(rel.ingredient?.id)
-                                    ? "border-indigo-500 bg-indigo-50/50"
-                                    : "border-slate-100 bg-white hover:border-indigo-200",
-                                )}
-                              >
-                                <div className="flex-1">
-                                  <p className="font-black text-slate-800 text-sm mb-1">
-                                    {rel.ingredient?.name}
-                                  </p>
-                                  <span className="text-[10px] text-slate-400 font-bold">
-                                    {rel.amount || 100}{" "}
-                                    {rel.ingredient?.unit || rel.unit || "g"}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const ing = rel.ingredient;
-                                      setSelectedFoodForInfo({
-                                        id: ing?.id,
-                                        producto: ing?.name || "Desconocido",
-                                        grupo: ing?.category?.name || "Varios",
-                                        calorias: ing?.calories || 0,
-                                        proteinas: ing?.proteins || 0,
-                                        carbohidratos: ing?.carbs || 0,
-                                        lipidos: ing?.lipids || 0,
-                                        unidad: ing?.unit || "g",
-                                        precioPromedio: ing?.price || 0,
-                                        tags:
-                                          ing?.tags?.map((t: any) => t.name) ||
-                                          [],
-                                        ...(ing as any),
-                                      });
-                                      setIsFoodInfoModalOpen(true);
-                                    }}
-                                    className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
-                                  >
-                                    <Info className="h-4 w-4" />
-                                  </button>
-                                  <div
-                                    className={cn(
-                                      "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
-                                      selectedFoods.has(rel.ingredient?.id)
-                                        ? "bg-indigo-600 border-indigo-600 text-white"
-                                        : "border-slate-200 group-hover:border-indigo-300",
-                                    )}
-                                  >
-                                    {selectedFoods.has(rel.ingredient?.id) ? (
-                                      <Check className="h-4 w-4" />
-                                    ) : (
-                                      <Plus className="h-4 w-4 text-slate-300" />
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
-                    <FolderPlus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-                    <p className="text-slate-400 font-bold text-sm px-10">
-                      No has creado grupos de ingredientes aún.
-                    </p>
-                  </div>
-                )
-              ) : smartAddTab === "myproducts" ? (
-                smartMyProducts.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {smartMyProducts.map((f) => (
-                      <div
-                        key={f.id}
-                        onClick={() => toggleSmartSelection(f.id)}
-                        className={cn(
-                          "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
-                          selectedFoods.has(f.id)
-                            ? "border-indigo-500 bg-indigo-50/50"
-                            : "border-slate-100 bg-white hover:border-indigo-200",
-                        )}
-                      >
-                        <div className="flex-1">
-                          <p className="font-black text-slate-800 text-sm mb-1">
-                            {f.name}
-                          </p>
-                          <span className="text-[10px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded font-black uppercase">
-                            Creado por ti
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedFoodForInfo({
-                                id: f.id,
-                                producto: f.name,
-                                grupo: f.category?.name || "Varios",
-                                calorias: f.calories || 0,
-                                proteinas: f.proteins || 0,
-                                carbohidratos: f.carbs || 0,
-                                lipidos: f.lipids || 0,
-                                unidad: f.unit || "g",
-                                precioPromedio: f.price || 0,
-                                tags: f.tags?.map((t: any) => t.name) || [],
-                                ...(f as any),
-                              });
-                              setIsFoodInfoModalOpen(true);
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
-                          >
-                            <Info className="h-4 w-4" />
-                          </button>
-                          <div
-                            className={cn(
-                              "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
-                              selectedFoods.has(f.id)
-                                ? "bg-indigo-600 border-indigo-600 text-white"
-                                : "border-slate-200 group-hover:border-indigo-300",
-                            )}
-                          >
-                            {selectedFoods.has(f.id) && (
-                              <Plus className="h-4 w-4" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
-                    <Plus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-                    <p className="text-slate-400 font-bold text-sm px-10">
-                      No has creado productos personalizados aún.
-                    </p>
-                  </div>
-                )
-              ) : smartAddTab === "search" ? (
-                isSearchingInSmart ? (
-                  <div className="py-20 flex flex-col items-center justify-center gap-3">
-                    <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
-                    <p className="text-slate-400 font-bold text-sm">
-                      Escaneando base de datos...
-                    </p>
-                  </div>
-                ) : smartSearchResults.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {smartSearchResults.map((f) => (
-                      <div
-                        key={f.id}
-                        onClick={() => toggleSmartSelection(f.id)}
-                        className={cn(
-                          "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
-                          selectedFoods.has(f.id)
-                            ? "border-indigo-500 bg-indigo-50/50"
-                            : "border-slate-100 bg-white hover:border-indigo-200",
-                        )}
-                      >
-                        <div className="flex-1">
-                          <p className="font-black text-slate-800 text-sm mb-1">
-                            {f.name}
-                          </p>
-                          <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-black uppercase">
-                            {f.category?.name || "Varios"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedFoodForInfo({
-                                id: f.id,
-                                producto: f.name,
-                                grupo: f.category?.name || "Varios",
-                                calorias: f.calories || 0,
-                                proteinas: f.proteins || 0,
-                                carbohidratos: f.carbs || 0,
-                                lipidos: f.lipids || 0,
-                                unidad: f.unit || "g",
-                                precioPromedio: f.price || 0,
-                                tags: f.tags?.map((t: any) => t.name) || [],
-                                ...(f as any),
-                              });
-                              setIsFoodInfoModalOpen(true);
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
-                          >
-                            <Info className="h-4 w-4" />
-                          </button>
-                          <div
-                            className={cn(
-                              "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
-                              selectedFoods.has(f.id)
-                                ? "bg-indigo-600 border-indigo-600 text-white"
-                                : "border-slate-200 group-hover:border-indigo-300",
-                            )}
-                          >
-                            {selectedFoods.has(f.id) && (
-                              <Plus className="h-4 w-4" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : smartSearchQuery.trim() ? (
-                  <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
-                    <Search className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-                    <p className="text-slate-400 font-bold text-sm px-10">
-                      No se encontraron productos para "{smartSearchQuery}"
-                    </p>
-                  </div>
-                ) : (
-                  <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
-                    <Search className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-                    <p className="text-slate-400 font-bold text-sm px-10">
-                      Escribe algo para buscar en toda la base de datos...
-                    </p>
-                  </div>
-                )
-              ) : null}
-            </div>
-
-            {/* Footer Actions */}
-            <div className="flex items-center justify-between pt-6 border-t border-slate-100 mt-4">
-              <div className="text-xs">
-                <span className="text-slate-400 font-bold">Seleccionados: </span>
-                <span className="text-indigo-600 font-black">
-                  {selectedFoods.size} alimentos
-                </span>
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  variant="ghost"
-                  className="h-11 rounded-xl"
-                  onClick={() => setIsSmartModalOpen(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  className="h-11 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-lg shadow-indigo-100 flex items-center gap-2"
-                  onClick={handleSmartAddAll}
-                  disabled={selectedFoods.size === 0}
-                >
-                  <CheckCircle2 className="h-5 w-5" />
-                  Añadir todo(s)
-                </Button>
-              </div>
-            </div>
+              />
+              Favoritos
+            </button>
+            <button
+              onClick={() => setSmartAddTab("groups")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
+                smartAddTab === "groups"
+                  ? "bg-white text-indigo-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700",
+              )}
+            >
+              <FolderPlus className="h-4 w-4" />
+              Mis Grupos
+            </button>
+            <button
+              onClick={() => setSmartAddTab("myproducts")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
+                smartAddTab === "myproducts"
+                  ? "bg-white text-indigo-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700",
+              )}
+            >
+              <Plus className="h-4 w-4" />
+              Mis Productos
+            </button>
+            <button
+              onClick={() => setSmartAddTab("search")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all",
+                smartAddTab === "search"
+                  ? "bg-white text-indigo-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700",
+              )}
+            >
+              <Search className="h-4 w-4" />
+              Buscar
+            </button>
           </div>
-        </Modal>
 
-        {/* Food Info Modal - Side Panel */}
-        {isFoodInfoModalOpen && selectedFoodForInfo && (
-          <div className="fixed inset-0 z-100 flex items-center justify-start">
-            <div
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-              onClick={() => setIsFoodInfoModalOpen(false)}
-            />
-            <div className="relative w-full max-w-md h-full bg-white shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-300 z-10">
-              <div className="sticky top-0 bg-white border-b border-slate-200 p-6 z-10">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h2 className="text-xl font-black text-slate-900 mb-1">
-                      {selectedFoodForInfo.producto}
-                    </h2>
-                    <p className="text-sm text-slate-500 font-medium">
-                      {selectedFoodForInfo.grupo}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setIsFoodInfoModalOpen(false)}
-                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                  >
-                    <X className="h-5 w-5 text-slate-400" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6 space-y-6">
-                {/* Macronutrientes Principales */}
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
-                    Macronutrientes
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
-                      <p className="text-xs font-bold text-orange-600 mb-1">
-                        Calorías
-                      </p>
-                      <p className="text-2xl font-black text-orange-700">
-                        {selectedFoodForInfo.calorias || 0}
-                      </p>
-                      <p className="text-[10px] text-orange-500 font-medium">
-                        kcal
-                      </p>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                      <p className="text-xs font-bold text-blue-600 mb-1">
-                        Proteínas
-                      </p>
-                      <p className="text-2xl font-black text-blue-700">
-                        {selectedFoodForInfo.proteinas || 0}
-                      </p>
-                      <p className="text-[10px] text-blue-500 font-medium">
-                        gramos
-                      </p>
-                    </div>
-                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                      <p className="text-xs font-bold text-emerald-600 mb-1">
-                        Carbohidratos
-                      </p>
-                      <p className="text-2xl font-black text-emerald-700">
-                        {selectedFoodForInfo.carbohidratos || 0}
-                      </p>
-                      <p className="text-[10px] text-emerald-500 font-medium">
-                        gramos
-                      </p>
-                    </div>
-                    <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100">
-                      <p className="text-xs font-bold text-yellow-600 mb-1">
-                        Lípidos
-                      </p>
-                      <p className="text-2xl font-black text-yellow-700">
-                        {selectedFoodForInfo.lipidos || 0}
-                      </p>
-                      <p className="text-[10px] text-yellow-500 font-medium">
-                        gramos
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Micronutrientes y Otros */}
-                {((selectedFoodForInfo as any).azucares > 0 ||
-                  (selectedFoodForInfo as any).fibra > 0 ||
-                  (selectedFoodForInfo as any).sodio > 0) && (
-                    <div>
-                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
-                        Información Adicional
-                      </h3>
-                      <div className="space-y-2">
-                        {(selectedFoodForInfo as any).azucares > 0 && (
-                          <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                            <span className="text-sm font-bold text-slate-700">
-                              Azúcares
-                            </span>
-                            <span className="text-sm font-black text-slate-900">
-                              {(selectedFoodForInfo as any).azucares}g
-                            </span>
-                          </div>
-                        )}
-                        {(selectedFoodForInfo as any).fibra > 0 && (
-                          <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                            <span className="text-sm font-bold text-slate-700">
-                              Fibra
-                            </span>
-                            <span className="text-sm font-black text-slate-900">
-                              {(selectedFoodForInfo as any).fibra}g
-                            </span>
-                          </div>
-                        )}
-                        {(selectedFoodForInfo as any).sodio > 0 && (
-                          <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                            <span className="text-sm font-bold text-slate-700">
-                              Sodio
-                            </span>
-                            <span className="text-sm font-black text-slate-900">
-                              {(selectedFoodForInfo as any).sodio}mg
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                {/* Porción */}
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
-                    Porción de Referencia
-                  </h3>
-                  <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-                    <p className="text-sm font-bold text-indigo-600 mb-1">
-                      Unidad
-                    </p>
-                    <p className="text-lg font-black text-indigo-900">
-                      {selectedFoodForInfo.unidad || "g"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Precio */}
-                {selectedFoodForInfo.precioPromedio > 0 && (
-                  <div>
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
-                      Precio Estimado
-                    </h3>
-                    <div className="p-4 bg-green-50 rounded-xl border border-green-100">
-                      <p className="text-sm font-bold text-green-600 mb-1">
-                        Precio Promedio
-                      </p>
-                      <p className="text-lg font-black text-green-900">
-                        {formatCLP(selectedFoodForInfo.precioPromedio)}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Tags */}
-                {selectedFoodForInfo.tags &&
-                  selectedFoodForInfo.tags.length > 0 && (
-                    <div>
-                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
-                        Etiquetas
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedFoodForInfo.tags.map(
-                          (tag: string, idx: number) => (
-                            <span
-                              key={idx}
-                              className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full text-xs font-bold border border-slate-200"
-                            >
-                              #{tag}
-                            </span>
-                          ),
-                        )}
-                      </div>
-                    </div>
-                  )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Import Diet Modal */}
-        <Modal
-          isOpen={isImportDietModalOpen}
-          onClose={() => {
-            setIsImportDietModalOpen(false);
-            setDietSearchQuery("");
-          }}
-          title="Importar Dieta Base"
-        >
-          <div className="space-y-4">
-            <Input
-              placeholder="Buscar dieta..."
-              value={dietSearchQuery}
-              onChange={(e) => setDietSearchQuery(e.target.value)}
-              autoFocus
-            />
-
-            {isLoadingDiets && (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-              </div>
-            )}
-
-            <div className="space-y-3 max-h-[400px] overflow-y-auto">
-              {savedDiets
-                .filter(
-                  (diet) =>
-                    diet.name
-                      .toLowerCase()
-                      .includes(dietSearchQuery.toLowerCase()) ||
-                    diet.tags.some((tag: string) =>
-                      tag.toLowerCase().includes(dietSearchQuery.toLowerCase()),
-                    ),
-                )
-                .map((diet) => (
-                  <div
-                    key={diet.id}
-                    onClick={() => handleImportDiet(diet)}
-                    className="p-4 border-2 border-slate-200 rounded-xl hover:border-indigo-400 hover:bg-indigo-50/30 transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <h3 className="font-black text-slate-900 text-sm mb-1">
-                          {diet.name}
-                        </h3>
-                        <p className="text-xs text-slate-500 font-medium">
-                          {diet.foodCount} alimentos • Creada el{" "}
-                          {new Date(diet.createdAt).toLocaleDateString("es-ES")}
-                        </p>
-                      </div>
-                      <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-black uppercase">
-                        {diet.type}
-                      </span>
-                    </div>
-
-                    {diet.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {diet.tags.map((tag: string, idx: number) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold"
-                          >
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-              {!isLoadingDiets &&
-                savedDiets.filter(
-                  (diet) =>
-                    diet.name
-                      .toLowerCase()
-                      .includes(dietSearchQuery.toLowerCase()) ||
-                    diet.tags.some((tag: string) =>
-                      tag.toLowerCase().includes(dietSearchQuery.toLowerCase()),
-                    ),
-                ).length === 0 && (
-                  <div className="py-12 text-center">
-                    <Library className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-                    <p className="text-sm text-slate-400">
-                      {dietSearchQuery
-                        ? "No se encontraron dietas"
-                        : "No tienes dietas guardadas aún"}
-                    </p>
-                  </div>
-                )}
-            </div>
-          </div>
-        </Modal>
-
-        {/* Import Patient Modal */}
-        <Modal
-          isOpen={isImportPatientModalOpen}
-          onClose={() => {
-            setIsImportPatientModalOpen(false);
-            setPatientSearchQuery("");
-          }}
-          title="Vincular Paciente"
-        >
-          <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          {smartAddTab === "search" && (
+            <div className="px-1">
               <Input
-                placeholder="Buscar por nombre o email..."
-                value={patientSearchQuery}
-                onChange={(e) => setPatientSearchQuery(e.target.value)}
-                className="pl-11 h-12 rounded-xl border-slate-200 focus:border-indigo-500"
+                placeholder="Buscar en toda la base de datos..."
+                value={smartSearchQuery}
+                onChange={(e) => setSmartSearchQuery(e.target.value)}
+                className="h-12 rounded-xl bg-slate-50 border-slate-200 focus:border-indigo-500"
                 autoFocus
               />
             </div>
+          )}
 
-            {isLoadingPatients && (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+          {/* Content */}
+          <div className="max-h-[400px] overflow-y-auto px-1 space-y-4">
+            {isLoadingSmart ? (
+              <div className="py-20 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
+                <p className="text-slate-400 font-bold text-sm">
+                  Cargando tus secretos culinarios...
+                </p>
               </div>
-            )}
-
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1 text-left">
-              {patients
-                .filter(
-                  (patient) =>
-                    patient.fullName
-                      .toLowerCase()
-                      .includes(patientSearchQuery.toLowerCase()) ||
-                    (patient.email &&
-                      patient.email
-                        .toLowerCase()
-                        .includes(patientSearchQuery.toLowerCase())),
-                )
-                .map((patient) => (
-                  <div
-                    key={patient.id}
-                    onClick={() => handleSelectPatient(patient)}
-                    className="p-4 border-2 border-slate-200 rounded-2xl hover:border-emerald-400 hover:bg-emerald-50/30 transition-all cursor-pointer group flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 group-hover:bg-emerald-100 group-hover:border-emerald-200 transition-colors">
-                        <User className="h-5 w-5 text-slate-400 group-hover:text-emerald-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-black text-slate-900 text-sm">
-                          {patient.fullName}
-                        </h3>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
-                          {patient.email || "Sin email"} •{" "}
-                          {patient.weight
-                            ? `${patient.weight}kg`
-                            : "Peso no reg."}
+            ) : smartAddTab === "favorites" ? (
+              smartFavorites.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {smartFavorites.map((f) => (
+                    <div
+                      key={f.id}
+                      onClick={() => toggleSmartSelection(f.id)}
+                      className={cn(
+                        "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+                        selectedFoods.has(f.id)
+                          ? "border-indigo-500 bg-indigo-50/50"
+                          : "border-slate-100 bg-white hover:border-indigo-200",
+                      )}
+                    >
+                      <div className="flex-1">
+                        <p className="font-black text-slate-800 text-sm mb-1">
+                          {f.name}
                         </p>
+                        <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-black uppercase">
+                          {f.category?.name || "Varios"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFoodForInfo({
+                              id: f.id,
+                              producto: f.name,
+                              grupo: f.category?.name || "Varios",
+                              calorias: f.calories || 0,
+                              proteinas: f.proteins || 0,
+                              carbohidratos: f.carbs || 0,
+                              lipidos: f.lipids || 0,
+                              unidad: f.unit || "g",
+                              precioPromedio: f.price || 0,
+                              tags: f.tags?.map((t: any) => t.name) || [],
+                              ...(f as any),
+                            });
+                            setIsFoodInfoModalOpen(true);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                        >
+                          <Info className="h-4 w-4" />
+                        </button>
+                        <div
+                          className={cn(
+                            "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                            selectedFoods.has(f.id)
+                              ? "bg-indigo-600 border-indigo-600 text-white"
+                              : "border-slate-200 group-hover:border-indigo-300",
+                          )}
+                        >
+                          {selectedFoods.has(f.id) && (
+                            <Plus className="h-4 w-4" />
+                          )}
+                        </div>
                       </div>
                     </div>
-                    {patient.dietRestrictions &&
-                      Array.isArray(patient.dietRestrictions) &&
-                      patient.dietRestrictions.length > 0 && (
-                        <div className="flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3 text-rose-400" />
-                          <span className="text-[10px] font-black text-rose-500 uppercase tracking-tighter">
-                            {patient.dietRestrictions.length}
+                  ))}
+                </div>
+              ) : (
+                <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
+                  <Star className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                  <p className="text-slate-400 font-bold text-sm px-10">
+                    No tienes alimentos favoritos marcados aún.
+                  </p>
+                </div>
+              )
+            ) : smartAddTab === "groups" ? (
+              smartGroups.length > 0 ? (
+                <div className="space-y-6">
+                  {smartGroups.map((group) => {
+                    const groupIngredientIds =
+                      (group.ingredients as any[])?.map(
+                        (rel: any) => (rel.ingredient as any)?.id as string,
+                      ) || [];
+                    const isAllSelected =
+                      groupIngredientIds.length > 0 &&
+                      groupIngredientIds.every((id) => selectedFoods.has(id));
+
+                    return (
+                      <div
+                        key={group.id}
+                        className="space-y-3 bg-slate-50/50 p-3 rounded-2xl border border-slate-100"
+                      >
+                        <div className="flex items-center justify-between px-1">
+                          <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+                            <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">
+                              {group.name}
+                            </h4>
+                          </div>
+
+                          <button
+                            onClick={() => toggleGroupSelection(group.id)}
+                            className={cn(
+                              "text-[10px] font-black uppercase tracking-tighter px-3 py-1 rounded-lg transition-all border shadow-sm",
+                              isAllSelected
+                                ? "bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100"
+                                : "bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700",
+                            )}
+                          >
+                            {isAllSelected
+                              ? "Quitar todo el grupo"
+                              : "Seleccionar todo el grupo"}
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {group.ingredients?.map((rel: any) => (
+                            <div
+                              key={rel.ingredient?.id}
+                              onClick={() =>
+                                toggleSmartSelection(rel.ingredient?.id)
+                              }
+                              className={cn(
+                                "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+                                selectedFoods.has(rel.ingredient?.id)
+                                  ? "border-indigo-500 bg-indigo-50/50"
+                                  : "border-slate-100 bg-white hover:border-indigo-200",
+                              )}
+                            >
+                              <div className="flex-1">
+                                <p className="font-black text-slate-800 text-sm mb-1">
+                                  {rel.ingredient?.name}
+                                </p>
+                                <span className="text-[10px] text-slate-400 font-bold">
+                                  {rel.amount || 100}{" "}
+                                  {rel.ingredient?.unit || rel.unit || "g"}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const ing = rel.ingredient;
+                                    setSelectedFoodForInfo({
+                                      id: ing?.id,
+                                      producto: ing?.name || "Desconocido",
+                                      grupo: ing?.category?.name || "Varios",
+                                      calorias: ing?.calories || 0,
+                                      proteinas: ing?.proteins || 0,
+                                      carbohidratos: ing?.carbs || 0,
+                                      lipidos: ing?.lipids || 0,
+                                      unidad: ing?.unit || "g",
+                                      precioPromedio: ing?.price || 0,
+                                      tags:
+                                        ing?.tags?.map((t: any) => t.name) ||
+                                        [],
+                                      ...(ing as any),
+                                    });
+                                    setIsFoodInfoModalOpen(true);
+                                  }}
+                                  className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                                >
+                                  <Info className="h-4 w-4" />
+                                </button>
+                                <div
+                                  className={cn(
+                                    "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                                    selectedFoods.has(rel.ingredient?.id)
+                                      ? "bg-indigo-600 border-indigo-600 text-white"
+                                      : "border-slate-200 group-hover:border-indigo-300",
+                                  )}
+                                >
+                                  {selectedFoods.has(rel.ingredient?.id) ? (
+                                    <Check className="h-4 w-4" />
+                                  ) : (
+                                    <Plus className="h-4 w-4 text-slate-300" />
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
+                  <FolderPlus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                  <p className="text-slate-400 font-bold text-sm px-10">
+                    No has creado grupos de ingredientes aún.
+                  </p>
+                </div>
+              )
+            ) : smartAddTab === "myproducts" ? (
+              smartMyProducts.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {smartMyProducts.map((f) => (
+                    <div
+                      key={f.id}
+                      onClick={() => toggleSmartSelection(f.id)}
+                      className={cn(
+                        "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+                        selectedFoods.has(f.id)
+                          ? "border-indigo-500 bg-indigo-50/50"
+                          : "border-slate-100 bg-white hover:border-indigo-200",
+                      )}
+                    >
+                      <div className="flex-1">
+                        <p className="font-black text-slate-800 text-sm mb-1">
+                          {f.name}
+                        </p>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded font-black uppercase">
+                          Creado por ti
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFoodForInfo({
+                              id: f.id,
+                              producto: f.name,
+                              grupo: f.category?.name || "Varios",
+                              calorias: f.calories || 0,
+                              proteinas: f.proteins || 0,
+                              carbohidratos: f.carbs || 0,
+                              lipidos: f.lipids || 0,
+                              unidad: f.unit || "g",
+                              precioPromedio: f.price || 0,
+                              tags: f.tags?.map((t: any) => t.name) || [],
+                              ...(f as any),
+                            });
+                            setIsFoodInfoModalOpen(true);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                        >
+                          <Info className="h-4 w-4" />
+                        </button>
+                        <div
+                          className={cn(
+                            "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                            selectedFoods.has(f.id)
+                              ? "bg-indigo-600 border-indigo-600 text-white"
+                              : "border-slate-200 group-hover:border-indigo-300",
+                          )}
+                        >
+                          {selectedFoods.has(f.id) && (
+                            <Plus className="h-4 w-4" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
+                  <Plus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                  <p className="text-slate-400 font-bold text-sm px-10">
+                    No has creado productos personalizados aún.
+                  </p>
+                </div>
+              )
+            ) : smartAddTab === "search" ? (
+              isSearchingInSmart ? (
+                <div className="py-20 flex flex-col items-center justify-center gap-3">
+                  <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
+                  <p className="text-slate-400 font-bold text-sm">
+                    Escaneando base de datos...
+                  </p>
+                </div>
+              ) : smartSearchResults.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {smartSearchResults.map((f) => (
+                    <div
+                      key={f.id}
+                      onClick={() => toggleSmartSelection(f.id)}
+                      className={cn(
+                        "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+                        selectedFoods.has(f.id)
+                          ? "border-indigo-500 bg-indigo-50/50"
+                          : "border-slate-100 bg-white hover:border-indigo-200",
+                      )}
+                    >
+                      <div className="flex-1">
+                        <p className="font-black text-slate-800 text-sm mb-1">
+                          {f.name}
+                        </p>
+                        <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-black uppercase">
+                          {f.category?.name || "Varios"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFoodForInfo({
+                              id: f.id,
+                              producto: f.name,
+                              grupo: f.category?.name || "Varios",
+                              calorias: f.calories || 0,
+                              proteinas: f.proteins || 0,
+                              carbohidratos: f.carbs || 0,
+                              lipidos: f.lipids || 0,
+                              unidad: f.unit || "g",
+                              precioPromedio: f.price || 0,
+                              tags: f.tags?.map((t: any) => t.name) || [],
+                              ...(f as any),
+                            });
+                            setIsFoodInfoModalOpen(true);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                        >
+                          <Info className="h-4 w-4" />
+                        </button>
+                        <div
+                          className={cn(
+                            "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                            selectedFoods.has(f.id)
+                              ? "bg-indigo-600 border-indigo-600 text-white"
+                              : "border-slate-200 group-hover:border-indigo-300",
+                          )}
+                        >
+                          {selectedFoods.has(f.id) && (
+                            <Plus className="h-4 w-4" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : smartSearchQuery.trim() ? (
+                <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
+                  <Search className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                  <p className="text-slate-400 font-bold text-sm px-10">
+                    No se encontraron productos para "{smartSearchQuery}"
+                  </p>
+                </div>
+              ) : (
+                <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
+                  <Search className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                  <p className="text-slate-400 font-bold text-sm px-10">
+                    Escribe algo para buscar en toda la base de datos...
+                  </p>
+                </div>
+              )
+            ) : null}
+          </div>
+
+          {/* Footer Actions */}
+          <div className="flex items-center justify-between pt-6 border-t border-slate-100 mt-4">
+            <div className="text-xs">
+              <span className="text-slate-400 font-bold">Seleccionados: </span>
+              <span className="text-indigo-600 font-black">
+                {selectedFoods.size} alimentos
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="ghost"
+                className="h-11 rounded-xl"
+                onClick={() => setIsSmartModalOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                className="h-11 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-lg shadow-indigo-100 flex items-center gap-2"
+                onClick={handleSmartAddAll}
+                disabled={selectedFoods.size === 0}
+              >
+                <CheckCircle2 className="h-5 w-5" />
+                Añadir todo(s)
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Food Info Modal - Side Panel */}
+      {isFoodInfoModalOpen && selectedFoodForInfo && (
+        <div className="fixed inset-0 z-100 flex items-center justify-start">
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={() => setIsFoodInfoModalOpen(false)}
+          />
+          <div className="relative w-full max-w-md h-full bg-white shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-300 z-10">
+            <div className="sticky top-0 bg-white border-b border-slate-200 p-6 z-10">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 mb-1">
+                    {selectedFoodForInfo.producto}
+                  </h2>
+                  <p className="text-sm text-slate-500 font-medium">
+                    {selectedFoodForInfo.grupo}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsFoodInfoModalOpen(false)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="h-5 w-5 text-slate-400" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Macronutrientes Principales */}
+              <div>
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+                  Macronutrientes
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                    <p className="text-xs font-bold text-orange-600 mb-1">
+                      Calorías
+                    </p>
+                    <p className="text-2xl font-black text-orange-700">
+                      {selectedFoodForInfo.calorias || 0}
+                    </p>
+                    <p className="text-[10px] text-orange-500 font-medium">
+                      kcal
+                    </p>
+                  </div>
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                    <p className="text-xs font-bold text-blue-600 mb-1">
+                      Proteínas
+                    </p>
+                    <p className="text-2xl font-black text-blue-700">
+                      {selectedFoodForInfo.proteinas || 0}
+                    </p>
+                    <p className="text-[10px] text-blue-500 font-medium">
+                      gramos
+                    </p>
+                  </div>
+                  <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                    <p className="text-xs font-bold text-emerald-600 mb-1">
+                      Carbohidratos
+                    </p>
+                    <p className="text-2xl font-black text-emerald-700">
+                      {selectedFoodForInfo.carbohidratos || 0}
+                    </p>
+                    <p className="text-[10px] text-emerald-500 font-medium">
+                      gramos
+                    </p>
+                  </div>
+                  <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100">
+                    <p className="text-xs font-bold text-yellow-600 mb-1">
+                      Lípidos
+                    </p>
+                    <p className="text-2xl font-black text-yellow-700">
+                      {selectedFoodForInfo.lipidos || 0}
+                    </p>
+                    <p className="text-[10px] text-yellow-500 font-medium">
+                      gramos
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Micronutrientes y Otros */}
+              {((selectedFoodForInfo as any).azucares > 0 ||
+                (selectedFoodForInfo as any).fibra > 0 ||
+                (selectedFoodForInfo as any).sodio > 0) && (
+                  <div>
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+                      Información Adicional
+                    </h3>
+                    <div className="space-y-2">
+                      {(selectedFoodForInfo as any).azucares > 0 && (
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                          <span className="text-sm font-bold text-slate-700">
+                            Azúcares
+                          </span>
+                          <span className="text-sm font-black text-slate-900">
+                            {(selectedFoodForInfo as any).azucares}g
                           </span>
                         </div>
                       )}
+                      {(selectedFoodForInfo as any).fibra > 0 && (
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                          <span className="text-sm font-bold text-slate-700">
+                            Fibra
+                          </span>
+                          <span className="text-sm font-black text-slate-900">
+                            {(selectedFoodForInfo as any).fibra}g
+                          </span>
+                        </div>
+                      )}
+                      {(selectedFoodForInfo as any).sodio > 0 && (
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                          <span className="text-sm font-bold text-slate-700">
+                            Sodio
+                          </span>
+                          <span className="text-sm font-black text-slate-900">
+                            {(selectedFoodForInfo as any).sodio}mg
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ))}
+                )}
 
-              {!isLoadingPatients && patients.length === 0 && (
-                <div className="py-12 text-center">
-                  <UserPlus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-                  <p className="text-sm text-slate-400 font-bold">
-                    No se encontraron pacientes registrados.
+              {/* Porción */}
+              <div>
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+                  Porción de Referencia
+                </h3>
+                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                  <p className="text-sm font-bold text-indigo-600 mb-1">
+                    Unidad
+                  </p>
+                  <p className="text-lg font-black text-indigo-900">
+                    {selectedFoodForInfo.unidad || "g"}
                   </p>
                 </div>
+              </div>
+
+              {/* Precio */}
+              {selectedFoodForInfo.precioPromedio > 0 && (
+                <div>
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+                    Precio Estimado
+                  </h3>
+                  <div className="p-4 bg-green-50 rounded-xl border border-green-100">
+                    <p className="text-sm font-bold text-green-600 mb-1">
+                      Precio Promedio
+                    </p>
+                    <p className="text-lg font-black text-green-900">
+                      {formatCLP(selectedFoodForInfo.precioPromedio)}
+                    </p>
+                  </div>
+                </div>
               )}
+
+              {/* Tags */}
+              {selectedFoodForInfo.tags &&
+                selectedFoodForInfo.tags.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+                      Etiquetas
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedFoodForInfo.tags.map(
+                        (tag: string, idx: number) => (
+                          <span
+                            key={idx}
+                            className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full text-xs font-bold border border-slate-200"
+                          >
+                            #{tag}
+                          </span>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                )}
             </div>
           </div>
-        </Modal>
+        </div>
+      )}
 
-      </ModuleLayout>
+
+      {/* Import Patient Modal */}
+      <Modal
+        isOpen={isImportPatientModalOpen}
+        onClose={() => {
+          setIsImportPatientModalOpen(false);
+          setPatientSearchQuery("");
+        }}
+        title="Vincular Paciente"
+      >
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Buscar por nombre o email..."
+              value={patientSearchQuery}
+              onChange={(e) => setPatientSearchQuery(e.target.value)}
+              className="pl-11 h-12 rounded-xl border-slate-200 focus:border-indigo-500"
+              autoFocus
+            />
+          </div>
+
+          {isLoadingPatients && (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+            </div>
+          )}
+
+          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1 text-left">
+            {patients
+              .filter(
+                (patient) =>
+                  patient.fullName
+                    .toLowerCase()
+                    .includes(patientSearchQuery.toLowerCase()) ||
+                  (patient.email &&
+                    patient.email
+                      .toLowerCase()
+                      .includes(patientSearchQuery.toLowerCase())),
+              )
+              .map((patient) => (
+                <div
+                  key={patient.id}
+                  onClick={() => handleSelectPatient(patient)}
+                  className="p-4 border-2 border-slate-200 rounded-2xl hover:border-emerald-400 hover:bg-emerald-50/30 transition-all cursor-pointer group flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 group-hover:bg-emerald-100 group-hover:border-emerald-200 transition-colors">
+                      <User className="h-5 w-5 text-slate-400 group-hover:text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-slate-900 text-sm">
+                        {patient.fullName}
+                      </h3>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
+                        {patient.email || "Sin email"} •{" "}
+                        {patient.weight
+                          ? `${patient.weight}kg`
+                          : "Peso no reg."}
+                      </p>
+                    </div>
+                  </div>
+                  {patient.dietRestrictions &&
+                    Array.isArray(patient.dietRestrictions) &&
+                    patient.dietRestrictions.length > 0 && (
+                      <div className="flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3 text-rose-400" />
+                        <span className="text-[10px] font-black text-rose-500 uppercase tracking-tighter">
+                          {patient.dietRestrictions.length}
+                        </span>
+                      </div>
+                    )}
+                </div>
+              ))}
+
+            {!isLoadingPatients && patients.length === 0 && (
+              <div className="py-12 text-center">
+                <UserPlus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                <p className="text-sm text-slate-400 font-bold">
+                  No se encontraron pacientes registrados.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      <ImportCreationModal
+        isOpen={isImportCreationModalOpen}
+        onClose={() => setIsImportCreationModalOpen(false)}
+        onImport={handleImportCreation}
+        defaultType="DIET"
+      />
 
       {/* Create Group Modal */}
       <Modal
@@ -2821,8 +2748,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           </div>
         </div>
       </Modal>
-
-    </>
-  );
+    </ModuleLayout >
+  </>
+);
 }
 

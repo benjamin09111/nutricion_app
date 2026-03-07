@@ -22,6 +22,7 @@ import {
   Bot,
   Bell,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface SidebarItem {
@@ -39,24 +40,17 @@ interface SidebarGroup {
 
 const groups: SidebarGroup[] = [
   {
-    title: "General",
+    title: "Administración",
     items: [
       { name: "Pacientes", href: "/dashboard/pacientes", icon: Users },
-      {
-        name: "Mis Consultas",
-        href: "/dashboard/consultas",
-        icon: CalendarDays,
-      },
+      { name: "Consultas", href: "/dashboard/consultas", icon: CalendarDays },
+    ],
+  },
+  {
+    title: "Alimentos",
+    items: [
       { name: "Ingredientes", href: "/dashboard/alimentos", icon: Apple },
-      { name: "Mis Grupos", href: "/dashboard/alimentos?tab=Mis grupos", icon: FolderPlus },
-      {
-        name: "Platos",
-        href: "/dashboard/platos",
-        icon: Utensils,
-        locked: true,
-      }, // Locked as requested
-      { name: "Mis Creaciones", href: "/dashboard/creaciones", icon: Folder },
-      { name: "Detalles", href: "/dashboard/detalles", icon: FileText },
+      { name: "Grupos", href: "/dashboard/alimentos?tab=Mis grupos", icon: FolderPlus },
     ],
   },
   {
@@ -65,35 +59,30 @@ const groups: SidebarGroup[] = [
       { name: "Dieta", href: "/dashboard/dieta", icon: Utensils },
       { name: "Carrito", href: "/dashboard/carrito", icon: ShoppingCart },
       { name: "Recetas", href: "/dashboard/recetas", icon: ChefHat },
-      {
-        name: "Fitness",
-        href: "/dashboard/fitness",
-        icon: Dumbbell,
-        locked: true,
-      },
-      {
-        name: "Entregable",
-        href: "/dashboard/entregable",
-        icon: ClipboardCheck,
-      },
+      { name: "Entregable", href: "/dashboard/entregable", icon: ClipboardCheck },
     ],
   },
   {
     title: "Herramientas",
     items: [
+      { name: "Creaciones", href: "/dashboard/creaciones", icon: Folder },
       { name: "Recursos", href: "/dashboard/recursos", icon: FileText },
-      { name: "Agentes (IA)", href: "/dashboard/agentes", icon: Bot },
+      { name: "Detalles", href: "/dashboard/detalles", icon: FileText },
+    ],
+  },
+  {
+    title: "Agentes & IA",
+    items: [
+      { name: "Chatbots", href: "/dashboard/chatbots", icon: MessageCircle, locked: true },
+      { name: "Agentes", href: "/dashboard/agentes", icon: Bot, locked: true },
     ],
   },
   {
     title: "Ajustes",
     items: [
-      {
-        name: "Notificaciones",
-        href: "/dashboard/ajustes/notificaciones",
-        icon: Bell,
-      },
-      { name: "Feedback", href: "/dashboard/feedback", icon: MessageSquare },
+      { name: "Notificaciones", href: "/dashboard/ajustes/notificaciones", icon: Bell },
+      { name: "Feedback & Soporte", href: "/dashboard/feedback", icon: MessageSquare },
+      { name: "Tutoriales", href: "/dashboard/tutoriales", icon: PlayCircle, locked: true },
     ],
   },
 ];
@@ -124,18 +113,24 @@ export function Sidebar() {
                 {group.items.map((item) => {
                   const isActive = pathname === item.href;
                   const isLocked = item.locked;
-                  const isHidden = isLocked || item.name === "Agentes (IA)";
-
-                  if (isHidden) return null;
 
                   return (
                     <li key={item.name}>
                       <Link
-                        href={item.href}
+                        href={isLocked ? "#" : item.href}
+                        onClick={(e) => {
+                          if (isLocked) {
+                            e.preventDefault();
+                            toast.info("Próximamente", {
+                              description: `El módulo "${item.name}" estará disponible en futuras actualizaciones.`
+                            });
+                          }
+                        }}
                         className={cn(
                           isActive
                             ? "bg-slate-50 text-emerald-600 font-bold"
                             : "text-slate-600 hover:text-emerald-600 hover:bg-slate-50 font-medium",
+                          isLocked && "opacity-50 cursor-not-allowed grayscale",
                           "group flex gap-x-2 rounded-md p-2 leading-5 transition-colors items-center cursor-pointer",
                         )}
                       >
@@ -148,7 +143,10 @@ export function Sidebar() {
                           )}
                           aria-hidden="true"
                         />
-                        {item.name}
+                        <span className="flex-1">{item.name}</span>
+                        {isLocked && (
+                          <Lock className="h-3 w-3 text-slate-400" />
+                        )}
                       </Link>
                     </li>
                   );

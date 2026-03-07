@@ -32,6 +32,7 @@ export declare class PatientsService {
         clinicalSummary: string | null;
         nutritionalFocus: string | null;
         fitnessGoals: string | null;
+        likes: string | null;
         customVariables: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     findAll(nutritionistId: string, page?: number, limit?: number, search?: string, status?: string): Promise<{
@@ -54,6 +55,7 @@ export declare class PatientsService {
             clinicalSummary: string | null;
             nutritionalFocus: string | null;
             fitnessGoals: string | null;
+            likes: string | null;
             customVariables: import("@prisma/client/runtime/library").JsonValue | null;
         }[];
         meta: {
@@ -108,6 +110,7 @@ export declare class PatientsService {
         clinicalSummary: string | null;
         nutritionalFocus: string | null;
         fitnessGoals: string | null;
+        likes: string | null;
         customVariables: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     update(nutritionistId: string, id: string, updatePatientDto: UpdatePatientDto): Promise<{
@@ -129,6 +132,7 @@ export declare class PatientsService {
         clinicalSummary: string | null;
         nutritionalFocus: string | null;
         fitnessGoals: string | null;
+        likes: string | null;
         customVariables: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     remove(nutritionistId: string, id: string): Promise<{
@@ -150,6 +154,7 @@ export declare class PatientsService {
         clinicalSummary: string | null;
         nutritionalFocus: string | null;
         fitnessGoals: string | null;
+        likes: string | null;
         customVariables: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     addExam(nutritionistId: string, patientId: string, dto: CreateExamDto): Promise<{

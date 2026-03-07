@@ -569,6 +569,7 @@ function FoodTablePage({
     );
 }
 
+
 // ─── Main Document ────────────────────────────────────────────────────────────
 
 export function DietPdfDocument({ data }: { data: DietPdfData }) {

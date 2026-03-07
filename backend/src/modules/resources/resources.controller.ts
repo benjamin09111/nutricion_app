@@ -14,6 +14,18 @@ export class ResourcesController {
         return this.resourcesService.findAll(nutritionistId, isAdmin);
     }
 
+    @Get('sections')
+    getSections(@Request() req: any) {
+        return this.resourcesService.getSections(req.user.nutritionistId);
+    }
+
+    @Post('sections')
+    createSection(@Request() req: any, @Body() data: any) {
+        const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role);
+        const nutritionistId = isAdmin ? (data.isGlobal ? null : req.user.nutritionistId) : req.user.nutritionistId;
+        return this.resourcesService.createSection(nutritionistId, data);
+    }
+
     @Get(':id')
     findOne(@Param('id') id: string) {
         return this.resourcesService.findOne(id);

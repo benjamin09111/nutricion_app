@@ -210,8 +210,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
           // ONLY my own creations
           return !!ingredient.isMine;
         case "Dieta base":
-          // Dieta base is Global
-          const isBase = !pref?.isFavorite && !pref?.isNotRecommended;
+          // Dieta base is Global - We don't hide favorites here anymore so curators can see their own shared items
+          const isBase = !pref?.isNotRecommended;
           if (isBase) {
             if (baseTab === "app") {
               // Official App items are Global

@@ -63,12 +63,12 @@ export function Navbar() {
   const notificationRef = useRef<HTMLDivElement>(null);
   const daysLeft = trialEndsAt
     ? Math.max(
-        0,
-        Math.ceil(
-          (trialEndsAt.getTime() - new Date().getTime()) /
-            (1000 * 60 * 60 * 24),
-        ),
-      )
+      0,
+      Math.ceil(
+        (trialEndsAt.getTime() - new Date().getTime()) /
+        (1000 * 60 * 60 * 24),
+      ),
+    )
     : 0;
 
   const [userEmail, setUserEmail] = useState<string>("usuario@demo.com");
@@ -225,13 +225,26 @@ export function Navbar() {
             )}
           </div>
 
+          {/* Futuras Actualizaciones */}
+          <Link
+            href="/dashboard/actualizaciones"
+            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 hover:bg-emerald-100 hover:border-emerald-200 transition-all group"
+          >
+            <Sparkles className="h-4 w-4 text-emerald-500 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-black uppercase tracking-wider">
+              ¡Futuras actualizaciones!
+            </span>
+          </Link>
+
           {/* Subscription Status Indicator - Only for Nutris, not Admins */}
           {!isAdmin && (
-            <div className="hidden md:flex items-center gap-3 bg-linear-to-r from-emerald-50 to-white px-3 py-1.5 rounded-full border border-emerald-100/50 shadow-xs mr-2 group hover:border-emerald-200 transition-colors">
+            <div className="hidden lg:flex items-center gap-3 bg-linear-to-r from-slate-50 to-white px-3 py-1.5 rounded-full border border-slate-100 shadow-xs mr-2 transition-colors">
               <div className="flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-emerald-500 animate-pulse" />
-                <span className="text-xs font-bold text-emerald-800 uppercase tracking-wide">
-                  Prueba gratuita
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Plan Activo:
+                </span>
+                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                  {plan}
                 </span>
               </div>
             </div>
@@ -324,13 +337,13 @@ export function Navbar() {
                   >
                     {isAdminView
                       ? (() => {
-                          const user = JSON.parse(
-                            localStorage.getItem("user") || "{}",
-                          );
-                          if (user.role === "ADMIN_MASTER")
-                            return "Admin Master";
-                          return "Admin General";
-                        })()
+                        const user = JSON.parse(
+                          localStorage.getItem("user") || "{}",
+                        );
+                        if (user.role === "ADMIN_MASTER")
+                          return "Admin Master";
+                        return "Admin General";
+                      })()
                       : "Prueba gratuita"}
                   </p>
                 </div>

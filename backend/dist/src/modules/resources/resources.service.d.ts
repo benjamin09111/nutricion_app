@@ -13,8 +13,8 @@ export declare class ResourcesService {
         isPublic: boolean;
         category: string;
         title: string;
-        sources: string | null;
         images: import("@prisma/client/runtime/library").JsonValue | null;
+        sources: string | null;
     }[]>;
     findOne(id: string): Promise<{
         id: string;
@@ -26,8 +26,8 @@ export declare class ResourcesService {
         isPublic: boolean;
         category: string;
         title: string;
-        sources: string | null;
         images: import("@prisma/client/runtime/library").JsonValue | null;
+        sources: string | null;
     } | null>;
     create(nutritionistId: string | null, data: {
         title: string;
@@ -47,8 +47,8 @@ export declare class ResourcesService {
         isPublic: boolean;
         category: string;
         title: string;
-        sources: string | null;
         images: import("@prisma/client/runtime/library").JsonValue | null;
+        sources: string | null;
     }>;
     update(id: string, nutritionistId: string, isAdmin: boolean, data: {
         title?: string;
@@ -68,8 +68,8 @@ export declare class ResourcesService {
         isPublic: boolean;
         category: string;
         title: string;
-        sources: string | null;
         images: import("@prisma/client/runtime/library").JsonValue | null;
+        sources: string | null;
     }>;
     remove(id: string, nutritionistId: string, isAdmin: boolean): Promise<{
         id: string;
@@ -81,7 +81,34 @@ export declare class ResourcesService {
         isPublic: boolean;
         category: string;
         title: string;
-        sources: string | null;
         images: import("@prisma/client/runtime/library").JsonValue | null;
+        sources: string | null;
+    }>;
+    getSections(nutritionistId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        nutritionistId: string | null;
+        slug: string;
+        icon: string | null;
+        color: string | null;
+        bg: string | null;
+    }[]>;
+    createSection(nutritionistId: string | null, data: {
+        name: string;
+        icon?: string;
+        color?: string;
+        bg?: string;
+    }): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        nutritionistId: string | null;
+        slug: string;
+        icon: string | null;
+        color: string | null;
+        bg: string | null;
     }>;
 }
