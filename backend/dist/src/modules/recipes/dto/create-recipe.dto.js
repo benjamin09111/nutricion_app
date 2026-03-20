@@ -69,6 +69,8 @@ class CreateRecipeDto {
     proteins;
     carbs;
     lipids;
+    fiber;
+    sodium;
     isPublic;
     tags;
     mealSection;
@@ -129,6 +131,16 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreateRecipeDto.prototype, "lipids", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateRecipeDto.prototype, "fiber", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateRecipeDto.prototype, "sodium", void 0);
 __decorate([
     (0, class_validator_1.IsBoolean)(),
     (0, class_validator_1.IsOptional)(),

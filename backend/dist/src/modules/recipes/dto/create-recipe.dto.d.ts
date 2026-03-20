@@ -20,6 +20,8 @@ export declare class CreateRecipeDto {
     proteins?: number;
     carbs?: number;
     lipids?: number;
+    fiber?: number;
+    sodium?: number;
     isPublic?: boolean;
     tags?: string[];
     mealSection?: string;

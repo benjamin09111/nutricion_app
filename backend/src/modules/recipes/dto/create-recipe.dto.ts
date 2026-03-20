@@ -78,6 +78,14 @@ export class CreateRecipeDto {
     @IsOptional()
     lipids?: number;
 
+    @IsNumber()
+    @IsOptional()
+    fiber?: number;
+
+    @IsNumber()
+    @IsOptional()
+    sodium?: number;
+
     @IsBoolean()
     @IsOptional()
     isPublic?: boolean;

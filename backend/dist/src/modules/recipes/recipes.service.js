@@ -36,7 +36,7 @@ let RecipesService = class RecipesService {
             console.log('[RecipesService.create] nutritionistId:', nutritionistId);
             const { ingredients, tags, mealSection, customIngredientNames, customIngredients, ...data } = createDto;
             const metadata = (tags?.length || mealSection || customIngredientNames?.length || customIngredients?.length)
-                ? { tags: tags || [], mealSection: mealSection || null, customIngredientNames: customIngredientNames || [], customIngredients: customIngredients || [] }
+                ? JSON.parse(JSON.stringify({ tags: tags || [], mealSection: mealSection || null, customIngredientNames: customIngredientNames || [], customIngredients: customIngredients || [] }))
                 : undefined;
             const portions = data.portions ?? 1;
             let calcMacros = {
@@ -47,7 +47,7 @@ let RecipesService = class RecipesService {
                 fiber: 0,
                 sodium: 0
             };
-            if (ingredients && ingredients.length > 0 && (data.calories == null || data.proteins == null)) {
+            if (ingredients && ingredients.length > 0 && (data.calories == null || data.proteins == null || data.fiber == null || data.sodium == null)) {
                 const ingredientIds = ingredients.map(i => i.ingredientId);
                 const dbIngredients = await this.prisma.ingredient.findMany({
                     where: { id: { in: ingredientIds } }
@@ -56,6 +56,8 @@ let RecipesService = class RecipesService {
                 let totalProteins = 0;
                 let totalCarbs = 0;
                 let totalLipids = 0;
+                let totalFiber = 0;
+                let totalSodium = 0;
                 ingredients.forEach(ing => {
                     const dbIng = dbIngredients.find(d => d.id === ing.ingredientId);
                     if (dbIng) {
@@ -64,6 +66,8 @@ let RecipesService = class RecipesService {
                         totalProteins += dbIng.proteins * factor;
                         totalCarbs += dbIng.carbs * factor;
                         totalLipids += dbIng.lipids * factor;
+                        totalFiber += (dbIng.fiber ?? 0) * factor;
+                        totalSodium += (dbIng.sodium ?? 0) * factor;
                     }
                 });
                 if (data.calories == null)
@@ -74,6 +78,10 @@ let RecipesService = class RecipesService {
                     calcMacros.carbs = parseFloat((totalCarbs / portions).toFixed(2));
                 if (data.lipids == null)
                     calcMacros.lipids = parseFloat((totalLipids / portions).toFixed(2));
+                if (data.fiber == null)
+                    calcMacros.fiber = parseFloat((totalFiber / portions).toFixed(2));
+                if (data.sodium == null)
+                    calcMacros.sodium = parseFloat((totalSodium / portions).toFixed(2));
             }
             const recipe = await this.prisma.recipe.create({
                 data: {
@@ -87,8 +95,8 @@ let RecipesService = class RecipesService {
                     proteins: data.proteins ?? calcMacros.proteins,
                     carbs: data.carbs ?? calcMacros.carbs,
                     lipids: data.lipids ?? calcMacros.lipids,
-                    fiber: data.fiber,
-                    sodium: data.sodium,
+                    fiber: data.fiber ?? calcMacros.fiber,
+                    sodium: data.sodium ?? calcMacros.sodium,
                     isPublic: data.isPublic ?? false,
                     metadata: metadata,
                     ingredients: ingredients?.length
@@ -174,7 +182,7 @@ let RecipesService = class RecipesService {
             throw new common_1.ForbiddenException('Cannot edit public or others recipes');
         const { ingredients, tags, mealSection, customIngredientNames, customIngredients, ...data } = updateDto;
         const metadata = (tags?.length || mealSection || customIngredientNames?.length || customIngredients?.length)
-            ? { tags: tags || [], mealSection: mealSection || null, customIngredientNames: customIngredientNames || [], customIngredients: customIngredients || [] }
+            ? JSON.parse(JSON.stringify({ tags: tags || [], mealSection: mealSection || null, customIngredientNames: customIngredientNames || [], customIngredients: customIngredients || [] }))
             : null;
         const updateData = {
             name: data.name,
@@ -186,10 +194,10 @@ let RecipesService = class RecipesService {
             proteins: data.proteins,
             carbs: data.carbs,
             lipids: data.lipids,
-            fiber: data.fiber,
-            sodium: data.sodium,
+            fiber: data.fiber ?? undefined,
+            sodium: data.sodium ?? undefined,
             isPublic: data.isPublic,
-            metadata: metadata
+            metadata: metadata ?? undefined
         };
         if (ingredients) {
             updateData.ingredients = {
