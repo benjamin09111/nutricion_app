@@ -36,15 +36,23 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { formatCLP } from "@/lib/utils/currency";
 import { useAdmin } from "@/context/AdminContext";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
+import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
+import {
+  buildProjectAwarePath,
+  fetchCreation,
+  fetchProject,
+  saveCreation,
+  updateProject,
+} from "@/lib/workflow";
 
 
 interface CartItem {
@@ -135,6 +143,8 @@ const MOCK_CART_ITEMS: CartItem[] = [
 
 export default function CartClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectIdFromUrl = searchParams.get("project");
   const { role } = useAdmin();
   const [items, setItems] = useState<CartItem[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
@@ -177,9 +187,26 @@ export default function CartClient() {
   const [equivalentSearchQuery, setEquivalentSearchQuery] = useState("");
   const [equivalentResults, setEquivalentResults] = useState<any[]>([]);
   const [isSearchingEquivalents, setIsSearchingEquivalents] = useState(false);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(
+    projectIdFromUrl,
+  );
+  const [currentProjectName, setCurrentProjectName] = useState<string | null>(
+    null,
+  );
+  const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setCurrentProjectId(projectIdFromUrl);
+  }, [projectIdFromUrl]);
 
   // -- Persistence: Draft Load/Save --
   useEffect(() => {
+    if (projectIdFromUrl) {
+      return;
+    }
+
     const storedDraft = localStorage.getItem("nutri_active_draft");
     const alreadyDecided = sessionStorage.getItem("nutri_cart_draft_decided");
     if (!alreadyDecided && storedDraft) {
@@ -293,7 +320,50 @@ export default function CartClient() {
         console.error("Failed to parse stored patient", e);
       }
     }
-  }, []);
+  }, [projectIdFromUrl]);
+
+  useEffect(() => {
+    if (!projectIdFromUrl) return;
+
+    const loadProjectContext = async () => {
+      try {
+        const project = await fetchProject(projectIdFromUrl);
+        setCurrentProjectId(project.id);
+        setCurrentProjectName(project.name);
+        setCurrentProjectMode(project.mode);
+
+        if (project.patient) {
+          setSelectedPatient(project.patient);
+          localStorage.setItem("nutri_patient", JSON.stringify(project.patient));
+        }
+
+        if (project.activeCartCreationId) {
+          const creation = await fetchCreation(project.activeCartCreationId);
+          if (creation?.content?.items) {
+            setItems(creation.content.items);
+          }
+          if (creation?.content?.targets) {
+            setCartTargets(creation.content.targets);
+          }
+          if (creation?.content?.selectedMarket) {
+            setCartSourceLabel(`Proyecto: ${project.name}`);
+          }
+          return;
+        }
+
+        if (project.activeDietCreationId) {
+          const creation = await fetchCreation(project.activeDietCreationId);
+          handleImportCreation(creation);
+          setCartSourceLabel(`Generado desde proyecto ${project.name}`);
+        }
+      } catch (error) {
+        console.error("Error loading project cart context", error);
+        toast.error("No se pudo cargar el proyecto en Carrito.");
+      }
+    };
+
+    loadProjectContext();
+  }, [projectIdFromUrl]);
 
   // Auto-save to draft on changes — only update cart key, preserve diet/recipes
   useEffect(() => {
@@ -803,12 +873,71 @@ export default function CartClient() {
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
   };
 
-  const handleFinalize = () => {
+  const buildCartCreationPayload = (updatedItems?: CartItem[]) => {
+    const nextItems = updatedItems || items;
+    return {
+      name:
+        selectedPatient?.fullName
+          ? `Carrito ${selectedPatient.fullName}`
+          : `Carrito ${new Date().toLocaleDateString("es-CL")}`,
+      type: "SHOPPING_LIST" as const,
+      content: {
+        items: nextItems,
+        totals,
+        targets: cartTargets,
+        selectedPatient,
+        selectedMarket,
+        sourceLabel: cartSourceLabel,
+        updatedAt: new Date().toISOString(),
+      },
+      metadata: {
+        itemCount: nextItems.length,
+        totalCalories: totals.calories,
+        ...(selectedPatient
+          ? {
+              patientId: selectedPatient.id,
+              patientName: selectedPatient.fullName,
+            }
+          : {}),
+      },
+      tags: [],
+    };
+  };
+
+  const persistCartCreation = async (updatedItems?: CartItem[]) => {
+    const savedCreation = await saveCreation(buildCartCreationPayload(updatedItems));
+
+    if (currentProjectId) {
+      await updateProject(currentProjectId, {
+        activeCartCreationId: savedCreation.id,
+        patientId: selectedPatient?.id,
+        metadata: {
+          sourceModule: "cart",
+          lastCartSource: cartSourceLabel,
+        },
+      });
+    }
+
+    return savedCreation;
+  };
+
+  const handleFinalize = async () => {
     saveCartToStorage();
-    // Mark deliverable session as decided so the draft modal doesn't appear when arriving via flow
-    sessionStorage.setItem("nutri_deliverable_draft_decided", "keep");
-    toast.success("Carrito finalizado. Pasando al Entregable...");
-    setTimeout(() => router.push("/dashboard/entregable"), 1000);
+    try {
+      await persistCartCreation();
+      sessionStorage.setItem("nutri_deliverable_draft_decided", "keep");
+      toast.success("Carrito finalizado. Pasando al Entregable...");
+      setTimeout(
+        () =>
+          router.push(
+            buildProjectAwarePath("/dashboard/entregable", currentProjectId),
+          ),
+        1000,
+      );
+    } catch (error: any) {
+      console.error("Error finalizing cart", error);
+      toast.error(error?.message || "No se pudo guardar el carrito.");
+    }
   };
 
   const printJson = () => {
@@ -861,9 +990,14 @@ export default function CartClient() {
         icon: Save,
         label: "Guardar Borrador",
         variant: "slate",
-        onClick: () => {
+        onClick: async () => {
           saveCartToStorage();
-          toast.success("Borrador del carrito guardado.");
+          try {
+            await persistCartCreation();
+            toast.success("Carrito guardado correctamente.");
+          } catch (error: any) {
+            toast.error(error?.message || "No se pudo guardar el carrito.");
+          }
         },
       },
       {
@@ -888,7 +1022,7 @@ export default function CartClient() {
         onClick: clearCart,
       },
     ],
-    [saveCartToStorage, printJson, clearCart, selectedPatient],
+    [printJson, clearCart, selectedPatient, items, totals, cartTargets, currentProjectId, cartSourceLabel],
   );
 
   const handleKeepDraft = () => {
@@ -1154,7 +1288,15 @@ export default function CartClient() {
             <div className="flex gap-4">
               <Button
                 className="h-12 px-8 bg-slate-900"
-                onClick={() => saveCartToStorage()}
+                onClick={async () => {
+                  saveCartToStorage();
+                  try {
+                    await persistCartCreation();
+                    toast.success("Carrito guardado en Mis Creaciones.");
+                  } catch (error: any) {
+                    toast.error(error?.message || "No se pudo guardar el carrito.");
+                  }
+                }}
               >
                 Guardar Creación
               </Button>
@@ -1169,6 +1311,12 @@ export default function CartClient() {
           </ModuleFooter>
         }
       >
+        <WorkflowContextBanner
+          projectName={currentProjectName}
+          patientName={selectedPatient?.fullName || null}
+          mode={currentProjectMode}
+          moduleLabel="Carrito"
+        />
         <div className="mb-4">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 border border-indigo-100">
             <BookOpen className="h-4 w-4 text-indigo-600" />

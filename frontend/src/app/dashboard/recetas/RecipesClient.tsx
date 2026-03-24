@@ -43,16 +43,24 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { Modal } from "@/components/ui/Modal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
+import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { useAdmin } from "@/context/AdminContext";
 import Cookies from "js-cookie";
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
+import {
+  buildProjectAwarePath,
+  fetchCreation,
+  fetchProject,
+  saveCreation,
+  updateProject,
+} from "@/lib/workflow";
 
 // -- Mock Types --
 
@@ -128,6 +136,8 @@ const DEFAULT_SLOTS: MealSlot[] = [
 
 export default function RecipesClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectIdFromUrl = searchParams.get("project");
   const { role } = useAdmin();
 
   // -- State --
@@ -206,6 +216,19 @@ export default function RecipesClient() {
   const [draftMeta, setDraftMeta] = useState<{ label: string; date?: string }>({ label: "" });
 
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(
+    projectIdFromUrl,
+  );
+  const [currentProjectName, setCurrentProjectName] = useState<string | null>(
+    null,
+  );
+  const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setCurrentProjectId(projectIdFromUrl);
+  }, [projectIdFromUrl]);
 
   const buildRecipeIngredientHints = (
     slotsByDay: Record<string, MealSlot[]>,
@@ -227,6 +250,10 @@ export default function RecipesClient() {
 
   // -- Persistence: Draft Load/Save --
   useEffect(() => {
+    if (projectIdFromUrl) {
+      return;
+    }
+
     const storedDraft = localStorage.getItem("nutri_active_draft");
     const alreadyDecided = sessionStorage.getItem("nutri_recipes_draft_decided");
 
@@ -280,7 +307,39 @@ export default function RecipesClient() {
         console.error("Failed to parse stored patient", e);
       }
     }
-  }, []);
+  }, [projectIdFromUrl]);
+
+  useEffect(() => {
+    if (!projectIdFromUrl) return;
+
+    const loadProjectContext = async () => {
+      try {
+        const project = await fetchProject(projectIdFromUrl);
+        setCurrentProjectId(project.id);
+        setCurrentProjectName(project.name);
+        setCurrentProjectMode(project.mode);
+
+        if (project.patient) {
+          setSelectedPatient(project.patient);
+          localStorage.setItem("nutri_patient", JSON.stringify(project.patient));
+        }
+
+        if (project.activeDietCreationId || project.activeCartCreationId) {
+          setHasSourceData(true);
+        }
+
+        if (project.activeRecipeCreationId) {
+          const creation = await fetchCreation(project.activeRecipeCreationId);
+          handleImportCreation(creation);
+        }
+      } catch (error) {
+        console.error("Error loading project recipes context", error);
+        toast.error("No se pudo cargar el proyecto en Recetas.");
+      }
+    };
+
+    loadProjectContext();
+  }, [projectIdFromUrl]);
 
   // Auto-save to draft on changes
   useEffect(() => {
@@ -526,6 +585,57 @@ export default function RecipesClient() {
     toast.info("Plan semanal reiniciado.");
   };
 
+  const buildRecipesPayload = () => ({
+    name:
+      selectedPatient?.fullName
+        ? `Recetas ${selectedPatient.fullName}`
+        : `Recetas ${new Date().toLocaleDateString("es-CL")}`,
+    type: "RECIPE" as const,
+    content: {
+      weekSlots,
+      targets: {
+        protein: targetProtein,
+        calories: targetCalories,
+        carbs: targetCarbs,
+        fats: targetFats,
+      },
+      chronobiology: {
+        wakeUpTime,
+        sleepTime,
+      },
+      ingredientHints: buildRecipeIngredientHints(weekSlots),
+      updatedAt: new Date().toISOString(),
+    },
+    metadata: {
+      dayCount: Object.keys(weekSlots || {}).length,
+      recommendedDishCount: recommendedDishes.length,
+      ...(selectedPatient
+        ? {
+            patientId: selectedPatient.id,
+            patientName: selectedPatient.fullName,
+          }
+        : {}),
+    },
+    tags: [],
+  });
+
+  const persistRecipesCreation = async () => {
+    const savedCreation = await saveCreation(buildRecipesPayload());
+
+    if (currentProjectId) {
+      await updateProject(currentProjectId, {
+        activeRecipeCreationId: savedCreation.id,
+        patientId: selectedPatient?.id,
+        metadata: {
+          sourceModule: "recipes",
+          recipeDays: Object.keys(weekSlots || {}).length,
+        },
+      });
+    }
+
+    return savedCreation;
+  };
+
   const actionDockItems: ActionDockItem[] = useMemo(
     () => [
       {
@@ -552,7 +662,7 @@ export default function RecipesClient() {
         icon: Save,
         label: "Guardar Borrador",
         variant: "slate",
-        onClick: () => {
+        onClick: async () => {
           const storedDraft = localStorage.getItem("nutri_active_draft");
           const draft = storedDraft ? JSON.parse(storedDraft) : {};
           draft.recipes = {
@@ -563,7 +673,12 @@ export default function RecipesClient() {
             updatedAt: new Date().toISOString(),
           };
           localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
-          toast.success("Borrador de recetas guardado.");
+          try {
+            await persistRecipesCreation();
+            toast.success("Recetas guardadas correctamente.");
+          } catch (error: any) {
+            toast.error(error?.message || "No se pudieron guardar las recetas.");
+          }
         },
       },
       {
@@ -588,7 +703,7 @@ export default function RecipesClient() {
         onClick: resetRecipes,
       },
     ],
-    [printJson, resetRecipes, selectedPatient, weekSlots, targetProtein, targetCalories, targetCarbs, targetFats, wakeUpTime, sleepTime],
+    [printJson, resetRecipes, selectedPatient, weekSlots, targetProtein, targetCalories, targetCarbs, targetFats, wakeUpTime, sleepTime, currentProjectId, recommendedDishes.length],
   );
 
   const handleKeepDraft = () => {
@@ -715,13 +830,32 @@ export default function RecipesClient() {
 
               <Button
                 className="h-12 px-8 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-200 uppercase tracking-widest text-xs"
-                onClick={() => toast.success("Creación guardada exitosamente")}
+                onClick={async () => {
+                  try {
+                    await persistRecipesCreation();
+                    toast.success("Creación guardada exitosamente");
+                  } catch (error: any) {
+                    toast.error(error?.message || "No se pudieron guardar las recetas.");
+                  }
+                }}
               >
                 Guardar Creación
               </Button>
 
               <Button
-                onClick={() => router.push("/dashboard/carrito?flow=continue")}
+                onClick={async () => {
+                  try {
+                    await persistRecipesCreation();
+                    router.push(
+                      buildProjectAwarePath(
+                        "/dashboard/carrito?flow=continue",
+                        currentProjectId,
+                      ),
+                    );
+                  } catch (error: any) {
+                    toast.error(error?.message || "No se pudieron guardar las recetas.");
+                  }
+                }}
                 className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-2xl shadow-emerald-200 transition-all hover:scale-[1.02] flex items-center gap-3 uppercase tracking-widest text-xs"
               >
                 CONTINUAR
@@ -731,6 +865,12 @@ export default function RecipesClient() {
           </ModuleFooter>
         }
       >
+        <WorkflowContextBanner
+          projectName={currentProjectName}
+          patientName={selectedPatient?.fullName || null}
+          mode={currentProjectMode}
+          moduleLabel="Recetas"
+        />
         {selectedPatient && (
           <div className="mb-6 animate-in slide-in-from-top duration-300 mx-auto max-w-5xl">
             <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-[2.5rem] flex items-center justify-between shadow-sm">

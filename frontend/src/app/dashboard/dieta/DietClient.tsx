@@ -41,7 +41,7 @@ import { TagInput } from "@/components/ui/TagInput";
 import { MarketPrice, FoodGroup } from "@/features/foods";
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { formatCLP } from "@/lib/utils/currency";
@@ -51,6 +51,15 @@ import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
+import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
+import {
+  buildProjectAwarePath,
+  createProject,
+  fetchCreation,
+  fetchProject,
+  saveCreation,
+  updateProject,
+} from "@/lib/workflow";
 
 interface DietClientProps {
   initialFoods: MarketPrice[];
@@ -88,6 +97,8 @@ const getUserDraftKey = () => {
 
 export default function DietClient({ initialFoods }: DietClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectIdFromUrl = searchParams.get("project");
 
   // -- State --
   const [dietName, setDietName] = useState("");
@@ -157,8 +168,25 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const [patients, setPatients] = useState<any[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(
+    projectIdFromUrl,
+  );
+  const [isProjectLoading, setIsProjectLoading] = useState(
+    Boolean(projectIdFromUrl),
+  );
+  const [currentProjectName, setCurrentProjectName] = useState<string | null>(
+    null,
+  );
+  const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(
+    null,
+  );
 
   const favoritesEnabled = true; // Always enabled by request
+
+  useEffect(() => {
+    setCurrentProjectId(projectIdFromUrl);
+    setIsProjectLoading(Boolean(projectIdFromUrl));
+  }, [projectIdFromUrl]);
 
   const fetchAvailableTags = async (retries = 3) => {
     try {
@@ -201,6 +229,77 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     } catch (e) {
       console.error("Error creating global tag", e);
     }
+  };
+
+  const buildDietCreationPayload = () => {
+    const finalizedFoods = [...includedFoods];
+
+    return {
+      name: dietName,
+      type: "DIET" as const,
+      content: {
+        dietName,
+        dietTags,
+        activeConstraints,
+        foodStatus,
+        manualAdditions,
+        customGroups,
+        customConstraints,
+        favoritesEnabled,
+        timestamp: Date.now(),
+        foods: finalizedFoods,
+        includedFoods: finalizedFoods,
+      },
+      metadata: {
+        foodSummary: finalizedFoods.map((f) => ({
+          name: f.producto,
+          group: f.grupo,
+        })),
+        foodCount: finalizedFoods.length,
+        ...(selectedPatient
+          ? {
+              patientName: selectedPatient.fullName,
+              patientId: selectedPatient.id,
+            }
+          : {}),
+      },
+      tags: dietTags,
+    };
+  };
+
+  const ensureProjectForWorkflow = async (dietCreationId?: string) => {
+    if (currentProjectId) {
+      if (dietCreationId) {
+        await updateProject(currentProjectId, {
+          activeDietCreationId: dietCreationId,
+          patientId: selectedPatient?.id,
+          metadata: {
+            sourceModule: "diet",
+            lastDietName: dietName,
+          },
+        });
+      }
+      return currentProjectId;
+    }
+
+    const createdProject = await createProject({
+      name:
+        dietName?.trim() ||
+        (selectedPatient
+          ? `Plan de ${selectedPatient.fullName}`
+          : "Proyecto nutricional"),
+      patientId: selectedPatient?.id,
+      mode: selectedPatient ? "CLINICAL" : "GENERAL",
+      activeDietCreationId: dietCreationId,
+      metadata: {
+        sourceModule: "diet",
+        createdFrom: "diet-continue",
+      },
+    });
+
+    setCurrentProjectId(createdProject.id);
+    router.replace(buildProjectAwarePath("/dashboard/dieta", createdProject.id));
+    return createdProject.id as string;
   };
 
 
@@ -363,6 +462,11 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   // Inicializar o cargar borrador o edición
   // -- Persistence: Draft Load/Save --
   useEffect(() => {
+    if (projectIdFromUrl) {
+      fetchAvailableTags();
+      return;
+    }
+
     // If the user already decided about the draft in this session, skip the modal
     const alreadyDecided = sessionStorage.getItem("nutri_diet_draft_decided");
     if (!alreadyDecided) {
@@ -431,6 +535,11 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     initialFoods.forEach((f) => {
       statuses[f.producto] = "base";
     });
+
+    if (projectIdFromUrl) {
+      setFoodStatus(statuses);
+      return;
+    }
 
     const loadFromBackend = async (id: string, retries = 3) => {
       if (!id || id === "undefined" || id === "null") {
@@ -506,7 +615,38 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       }
     }
     setFoodStatus(statuses);
-  }, [initialFoods]);
+  }, [initialFoods, projectIdFromUrl]);
+
+  useEffect(() => {
+    if (!projectIdFromUrl) return;
+
+    const loadProjectContext = async () => {
+      setIsProjectLoading(true);
+      try {
+        const project = await fetchProject(projectIdFromUrl);
+        setCurrentProjectId(project.id);
+        setCurrentProjectName(project.name);
+        setCurrentProjectMode(project.mode);
+
+        if (project.patient) {
+          setSelectedPatient(project.patient);
+          localStorage.setItem("nutri_patient", JSON.stringify(project.patient));
+        }
+
+        if (project.activeDietCreationId) {
+          const creation = await fetchCreation(project.activeDietCreationId);
+          handleImportCreation(creation);
+        }
+      } catch (error) {
+        console.error("Error loading project diet context", error);
+        toast.error("No se pudo cargar el proyecto en Dieta.");
+      } finally {
+        setIsProjectLoading(false);
+      }
+    };
+
+    loadProjectContext();
+  }, [projectIdFromUrl]);
 
   // Alimentos incluidos
   const includedFoods = useMemo(() => {
@@ -756,56 +896,20 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       return;
     }
 
-    // Guardar estado actual en borrador
     saveAsDraft();
 
-    const dietJson = {
-      dietName,
-      dietTags,
-      activeConstraints,
-      foodStatus,
-      manualAdditions,
-      customGroups,
-      customConstraints,
-      favoritesEnabled,
-      timestamp: Date.now(),
-    };
-
     try {
-      const token = Cookies.get("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
+      const savedCreation = await saveCreation(buildDietCreationPayload());
 
-      const finalizedFoods = [...includedFoods];
-
-      const response = await fetch(`${apiUrl}/creations`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: dietName,
-          type: "DIET",
-          content: {
-            ...dietJson,
-            foods: finalizedFoods, // Finalized list for portability
-            includedFoods: finalizedFoods, // Alias for older import logic
-          },
+      if (currentProjectId) {
+        await updateProject(currentProjectId, {
+          activeDietCreationId: savedCreation.id,
+          patientId: selectedPatient?.id,
           metadata: {
-            foodSummary: finalizedFoods.map((f) => ({
-              name: f.producto,
-              group: f.grupo,
-            })),
-            foodCount: finalizedFoods.length,
-            ...(selectedPatient ? { patientName: selectedPatient.fullName, patientId: selectedPatient.id } : {}),
+            sourceModule: "diet",
+            lastDietName: dietName,
           },
-          tags: dietTags,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Error al guardar la creación");
+        });
       }
 
       toast.success(
@@ -940,7 +1044,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!dietName.trim()) {
       toast.error("Por favor, asigna un nombre a la dieta antes de continuar.");
       return;
@@ -964,10 +1068,23 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       updatedAt: new Date().toISOString(),
     };
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
-    // Mark cart session as decided so the draft modal doesn't appear when arriving via flow
-    sessionStorage.setItem("nutri_cart_draft_decided", "keep");
-    toast.success("Progreso guardado. Pasando a Recetas y Porciones...");
-    setTimeout(() => router.push("/dashboard/recetas"), 1000);
+
+    try {
+      const savedCreation = await saveCreation(buildDietCreationPayload());
+      const projectId = await ensureProjectForWorkflow(savedCreation.id);
+      sessionStorage.setItem("nutri_cart_draft_decided", "keep");
+      toast.success("Progreso guardado. Pasando a Recetas y Porciones...");
+      setTimeout(
+        () =>
+          router.push(buildProjectAwarePath("/dashboard/recetas", projectId)),
+        1000,
+      );
+    } catch (error: any) {
+      console.error("Error continuing from diet", error);
+      toast.error(
+        error?.message || "No se pudo preparar el proyecto para continuar.",
+      );
+    }
   };
 
   const confirmDeleteGroup = () => {
@@ -1662,6 +1779,12 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           </ModuleFooter>
         }
       >
+        <WorkflowContextBanner
+          projectName={currentProjectName}
+          patientName={selectedPatient?.fullName || null}
+          mode={currentProjectMode}
+          moduleLabel="Dieta"
+        />
         {selectedPatient && (
           <div className="mb-6 animate-in slide-in-from-top duration-300">
             <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-[2.5rem] flex items-center justify-between shadow-sm">

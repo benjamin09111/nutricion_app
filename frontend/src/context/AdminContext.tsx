@@ -42,6 +42,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           setViewMode("NUTRITIONIST");
+          if (window.location.pathname === "/dashboard") {
+            router.push("/dashboard/pacientes");
+          }
         }
       } catch (e) {
         console.error("Error parsing user role", e);

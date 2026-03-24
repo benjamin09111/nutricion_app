@@ -1,149 +1,136 @@
-
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
+import { loadPrismaEnv } from './load-prisma-env';
+
+loadPrismaEnv();
 
 const prisma = new PrismaClient();
 
-const FIXED_CATEGORIES = [
-    "Lácteos",
-    "Huevos",
-    "Carnes y Vísceras",
-    "Pescados y Mariscos",
-    "Semillas y Nueces",
-    "Cereales y Derivados",
-    "Papas",
-    "Grasas y Aceites",
-    "Verduras",
-    "Frutas",
-    "Azúcares y Miel",
-    "Alimentos Dulces",
-    "Postres de Leche",
-    "Jugos y Néctares",
-    "Refrescos en Polvo",
-    "Bebidas",
-    "Bebidas Alcohólicas",
-    "Productos Salados",
-    "Salsas",
-    "Especias",
-    "Endulzantes",
-    "Platos Preparados"
-];
-
 async function main() {
-    console.log('🔄 Start seeding ingredients and categories (NO DELETION)...');
+    console.log('Start seeding ingredients and categories (without deletion)...');
 
-    // 1. Seed Categories first (UPSERT)
-    console.log('📦 Seeding categories...');
-    for (const name of FIXED_CATEGORIES) {
+    const categoriesPath = path.resolve(__dirname, '../../categories.txt');
+    const ingredientsPath = path.resolve(__dirname, '../../ingredients.txt');
+
+    if (!fs.existsSync(categoriesPath)) {
+        throw new Error(`Categories file not found at ${categoriesPath}`);
+    }
+
+    if (!fs.existsSync(ingredientsPath)) {
+        throw new Error(`Ingredients file not found at ${ingredientsPath}`);
+    }
+
+    console.log('Seeding categories...');
+    const categoryNames = fs
+        .readFileSync(categoriesPath, 'utf-8')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+    for (const name of categoryNames) {
         await prisma.ingredientCategory.upsert({
             where: { name },
             update: {},
-            create: { name }
+            create: { name },
         });
     }
 
     const categories = await prisma.ingredientCategory.findMany();
-    const categoryMap = new Map(categories.map(c => [c.name, c.id]));
-    console.log(`✅ ${categories.length} categories ready.`);
+    const categoryMap = new Map(categories.map((category) => [category.name, category.id]));
 
-    // 2. Load ingredients from ingredients.txt
-    // Path is root of project
-    const ingredientsPath = path.resolve(__dirname, '../../../ingredients.txt');
-    console.log(`📂 Reading ingredients from: ${ingredientsPath}`);
+    console.log(`Categories ready: ${categories.length}`);
 
-    if (!fs.existsSync(ingredientsPath)) {
-        console.error(`❌ File not found at ${ingredientsPath}`);
-        return;
-    }
+    const lines = fs
+        .readFileSync(ingredientsPath, 'utf-8')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
 
-    const fileContent = fs.readFileSync(ingredientsPath, 'utf-8');
-    const lines = fileContent.split('\n').filter(line => line.trim() !== '');
-    console.log(`📊 Found ${lines.length} potential records.`);
+    console.log(`Ingredient rows found: ${lines.length}`);
 
-    const ingredientsData: any[] = [];
-    let skipCount = 0;
+    const parsedIngredients: Array<{
+        name: string;
+        categoryId: string;
+        calories: number;
+        proteins: number;
+        carbs: number;
+        lipids: number;
+        sugars: number;
+        fiber: number;
+        sodium: number;
+        unit: string;
+        amount: number;
+        price: number;
+        isPublic: true;
+        verified: true;
+    }> = [];
+    let skipped = 0;
 
     for (const line of lines) {
-        // Use a more robust CSV parser for commas inside names if necessary, 
-        // but looking at the file it seems plain.
         const cols = line.split(',');
-        if (cols.length < 10) {
-            console.warn(`⚠️ skipping invalid line: ${line}`);
+        if (cols.length < 12) {
+            skipped += 1;
             continue;
         }
 
         const name = cols[0].trim();
-        const csvCategory = cols[1].trim();
+        const categoryName = cols[1].trim();
+        const categoryId = categoryMap.get(categoryName);
 
-        const categoryId = categoryMap.get(csvCategory);
-
-        if (!categoryId) {
-            // Try to find a partial match if any
-            console.warn(`⚠️ Category not found for "${name}": "${csvCategory}"`);
-            skipCount++;
+        if (!name || !categoryId) {
+            skipped += 1;
             continue;
         }
 
-        const calories = parseFloat(cols[2]) || 0;
-        const proteins = parseFloat(cols[3]) || 0;
-        const carbs = parseFloat(cols[4]) || 0;
-        const lipids = parseFloat(cols[5]) || 0;
-        const sugars = parseFloat(cols[6]) || 0;
-        const fiber = parseFloat(cols[7]) || 0;
-        const sodium = parseFloat(cols[8]) || 0;
-        const unit = cols[9].trim();
-        const amount = parseFloat(cols[10]) || 100;
-        const price = parseInt(cols[11]) || 0;
-
-        ingredientsData.push({
+        parsedIngredients.push({
             name,
             categoryId,
-            calories,
-            proteins,
-            carbs,
-            lipids,
-            sugars,
-            fiber,
-            sodium,
-            unit,
-            amount,
-            price,
+            calories: parseFloat(cols[2]) || 0,
+            proteins: parseFloat(cols[3]) || 0,
+            carbs: parseFloat(cols[4]) || 0,
+            lipids: parseFloat(cols[5]) || 0,
+            sugars: parseFloat(cols[6]) || 0,
+            fiber: parseFloat(cols[7]) || 0,
+            sodium: parseFloat(cols[8]) || 0,
+            unit: cols[9].trim() || 'g',
+            amount: parseFloat(cols[10]) || 100,
+            price: parseInt(cols[11], 10) || 0,
             isPublic: true,
-            verified: true
+            verified: true,
         });
     }
 
-    // 3. Insert Ingredients using createMany with skipDuplicates: true
-    if (ingredientsData.length > 0) {
-        console.log(`🚀 Inserting ${ingredientsData.length} records into DB...`);
-        try {
-            // Note: skipDuplicates only works if there's a unique constraint that is hit.
-            // Since ingredient doesn't have a unique constraint on 'name', 
-            // we should manually check or use an upsert loop for safety if we want to avoid all duplicates.
-            // But usually the user wants to populate it once.
+    const existingIngredients = await prisma.ingredient.findMany({
+        select: { name: true },
+    });
+    const existingNames = new Set(
+        existingIngredients.map((ingredient) => ingredient.name.trim().toLowerCase()),
+    );
 
-            // For now, let's use createMany. If they run it twice it might double but it's faster.
-            // The user asked NOT to delete, so I will strictly add.
+    const missingIngredients = parsedIngredients.filter(
+        (ingredient) => !existingNames.has(ingredient.name.trim().toLowerCase()),
+    );
 
-            const result = await prisma.ingredient.createMany({
-                data: ingredientsData,
-                skipDuplicates: false, // We want to add them as requested
-            });
-            console.log(`✅ Successfully inserted ${result.count} ingredients.`);
-        } catch (e) {
-            console.error(`❌ Error inserting ingredients:`, e.message);
-        }
+    console.log(`New ingredients to insert: ${missingIngredients.length}`);
+
+    if (missingIngredients.length > 0) {
+        const result = await prisma.ingredient.createMany({
+            data: missingIngredients,
+            skipDuplicates: false,
+        });
+        console.log(`Inserted ingredients: ${result.count}`);
+    } else {
+        console.log('No new ingredients to insert.');
     }
 
-    console.log(`\n🎉 Process Finished!`);
-    console.log(`✅ Total inserted: ${ingredientsData.length}`);
-    console.log(`❌ Skipped: ${skipCount}`);
+    console.log(`Skipped rows: ${skipped}`);
+    console.log('Seeding finished.');
 }
 
 main()
-    .catch((e) => {
-        console.error(e);
+    .catch((error) => {
+        console.error(error);
         process.exit(1);
     })
     .finally(async () => {

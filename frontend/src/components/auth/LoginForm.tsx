@@ -48,7 +48,7 @@ export default function LoginForm() {
       ) {
         router.push("/dashboard/admin");
       } else {
-        router.push("/dashboard");
+        router.push("/dashboard/pacientes");
       }
     } catch (error: any) {
       console.error("Login error:", error);

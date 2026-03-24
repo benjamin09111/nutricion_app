@@ -1,0 +1,7 @@
+backend/.env
+backend/.env.localdev
+backend/.env.testing
+backend/.env.previous
+backend/backups/
+backend/prisma/generated/
+frontend/.env.local

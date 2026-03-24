@@ -40,8 +40,17 @@ export function TagInput({
   const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
 
   useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
     const fetchTags = async () => {
       if (!fetchSuggestionsUrl) {
+        setFetchedSuggestions([]);
+        return;
+      }
+
+      // Avoid noisy network errors while auth/session is still bootstrapping
+      if (!token) {
         setFetchedSuggestions([]);
         return;
       }
@@ -54,6 +63,7 @@ export function TagInput({
             : `${fetchSuggestionsUrl}?search=${encodeURIComponent(inputValue)}`;
 
         const response = await fetch(url, {
+          signal: controller.signal,
           headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
@@ -62,17 +72,34 @@ export function TagInput({
           const names = Array.isArray(data)
             ? data.map((t: any) => (typeof t === "string" ? t : t.name))
             : [];
-          setFetchedSuggestions(names);
+          if (isMounted) {
+            setFetchedSuggestions(names);
+          }
+        } else if (isMounted) {
+          setFetchedSuggestions([]);
         }
       } catch (error) {
-        console.error("Error fetching tag suggestions:", error);
+        // During local testing the backend may be temporarily unavailable.
+        // Keep the input usable without polluting the console for expected fetch failures.
+        if (
+          !(error instanceof DOMException && error.name === "AbortError") &&
+          isMounted
+        ) {
+          setFetchedSuggestions([]);
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     const timer = setTimeout(fetchTags, 300);
-    return () => clearTimeout(timer);
+    return () => {
+      isMounted = false;
+      controller.abort();
+      clearTimeout(timer);
+    };
   }, [inputValue, fetchSuggestionsUrl, token]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {

@@ -1,8 +1,11 @@
+import * as path from 'path';
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import * as path from 'path';
 import * as fs from 'fs';
 import * as XLSX from 'xlsx';
+import { loadPrismaEnv } from './load-prisma-env';
+
+loadPrismaEnv();
 
 const prisma = new PrismaClient();
 

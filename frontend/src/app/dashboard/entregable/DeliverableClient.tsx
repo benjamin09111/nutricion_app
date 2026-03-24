@@ -40,13 +40,20 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
+import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { PremiumGuard } from "@/components/common/PremiumGuard";
 import { useAdmin } from "@/context/AdminContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import Cookies from "js-cookie";
+import {
+  fetchCreation,
+  fetchProject,
+  saveCreation,
+  updateProject,
+} from "@/lib/workflow";
 
 interface ExportPackage {
   id: string;
@@ -212,6 +219,8 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
 
 export default function DeliverableClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectIdFromUrl = searchParams.get("project");
   const { role } = useAdmin();
   const [selectedSections, setSelectedSections] = useState<string[]>(
     DELIVERABLE_SECTIONS.filter((s) => s.defaultSelected).map((s) => s.id),
@@ -247,9 +256,91 @@ export default function DeliverableClient() {
   const [exportPackages, setExportPackages] = useState<ExportPackage[]>([]);
   const [contentFilter, setContentFilter] = useState<"all" | "practical" | "theory">("all");
   const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(
+    projectIdFromUrl,
+  );
+  const [currentProjectName, setCurrentProjectName] = useState<string | null>(
+    null,
+  );
+  const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setCurrentProjectId(projectIdFromUrl);
+  }, [projectIdFromUrl]);
 
   // Load project draft on mount
   useEffect(() => {
+    if (projectIdFromUrl) {
+      const loadProjectContext = async () => {
+        try {
+          const project = await fetchProject(projectIdFromUrl);
+          setCurrentProjectId(project.id);
+          setCurrentProjectName(project.name);
+          setCurrentProjectMode(project.mode);
+          setShowInitModal(false);
+
+          const draft: Record<string, any> = {};
+
+          if (project.patient) {
+            setSelectedPatient(project.patient);
+            localStorage.setItem("nutri_patient", JSON.stringify(project.patient));
+            draft.patientMeta = {
+              id: project.patient.id,
+              fullName: project.patient.fullName,
+              restrictions: project.patient.dietRestrictions || [],
+              weight: project.patient.weight,
+              height: project.patient.height,
+              updatedAt: new Date().toISOString(),
+            };
+          }
+
+          if (project.activeDietCreationId) {
+            const creation = await fetchCreation(project.activeDietCreationId);
+            draft.diet = creation.content;
+          }
+
+          if (project.activeCartCreationId) {
+            const creation = await fetchCreation(project.activeCartCreationId);
+            draft.cart = creation.content;
+            setHasCart(true);
+          }
+
+          if (project.activeRecipeCreationId) {
+            const creation = await fetchCreation(project.activeRecipeCreationId);
+            draft.recipes = creation.content;
+            setHasRecipes(true);
+          }
+
+          if (project.activeDeliverableCreationId) {
+            const creation = await fetchCreation(
+              project.activeDeliverableCreationId,
+            );
+            const deliverableContent = creation.content || {};
+            setSelectedSections(
+              deliverableContent.selectedSections ||
+                DELIVERABLE_SECTIONS.filter((s) => s.defaultSelected).map(
+                  (s) => s.id,
+                ),
+            );
+            setIncludeLogo(deliverableContent.includeLogo ?? true);
+            setExportPackages(deliverableContent.exportPackages || []);
+            setResolvedResourcePages(deliverableContent.resourcePages || []);
+            draft.deliverable = deliverableContent;
+          }
+
+          localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+        } catch (error) {
+          console.error("Error loading project deliverable context", error);
+          toast.error("No se pudo cargar el proyecto en Entregable.");
+        }
+      };
+
+      loadProjectContext();
+      return;
+    }
+
     let internalHasCart = false;
     let internalHasRecipes = false;
 
@@ -306,7 +397,7 @@ export default function DeliverableClient() {
 
     setHasCart(internalHasCart);
     setHasRecipes(internalHasRecipes);
-  }, []);
+  }, [projectIdFromUrl]);
 
   // Auto-save deliverable config to draft
   useEffect(() => {
@@ -544,12 +635,60 @@ export default function DeliverableClient() {
     setExportPackages(presets);
   };
 
-  const handleSaveToCreations = () => {
+  const handleSaveToCreations = async () => {
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      const storedDraft = localStorage.getItem("nutri_active_draft");
+      const draftData = storedDraft ? JSON.parse(storedDraft) : {};
+
+      const savedCreation = await saveCreation({
+        name:
+          selectedPatient?.fullName
+            ? `Entregable ${selectedPatient.fullName}`
+            : `Entregable ${new Date().toLocaleDateString("es-CL")}`,
+        type: "DELIVERABLE",
+        content: {
+          selectedSections,
+          includeLogo,
+          exportPackages,
+          resourcePages: resolvedResourcePages,
+          draftData,
+          updatedAt: new Date().toISOString(),
+        },
+        metadata: {
+          sectionCount: selectedSections.length,
+          hasCart,
+          hasRecipes,
+          ...(selectedPatient
+            ? {
+                patientId: selectedPatient.id,
+                patientName: selectedPatient.fullName,
+              }
+            : {}),
+        },
+        tags: [],
+      });
+
+      if (currentProjectId) {
+        await updateProject(currentProjectId, {
+          activeDeliverableCreationId: savedCreation.id,
+          patientId: selectedPatient?.id,
+          metadata: {
+            sourceModule: "deliverable",
+            selectedSections,
+          },
+        });
+      }
+
       toast.success("Guardado en mis creaciones correctamente.");
-    }, 1000);
+    } catch (error: any) {
+      console.error("Error saving deliverable creation", error);
+      toast.error(
+        error?.message || "No se pudo guardar el entregable.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const extractVariablesFromContent = (content: string): string[] => {
@@ -1158,6 +1297,12 @@ export default function DeliverableClient() {
           </ModuleFooter>
         }
       >
+        <WorkflowContextBanner
+          projectName={currentProjectName}
+          patientName={selectedPatient?.fullName || null}
+          mode={currentProjectMode}
+          moduleLabel="Entregable"
+        />
         <div className="space-y-12 mt-8">
           {/* Custom Options */}
           <div className="grid md:grid-cols-2 gap-6">

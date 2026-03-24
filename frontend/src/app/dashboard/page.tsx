@@ -1,19 +1,11 @@
-"use client";
+import DashboardHomeClient from "./DashboardHomeClient";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+export const metadata = {
+  title: "Principal | NutriSaaS",
+  description:
+    "Centro de trabajo para crear, retomar y avanzar proyectos clínicos.",
+};
 
 export default function DashboardPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace("/dashboard/pacientes");
-  }, [router]);
-
-  return (
-    <div className="flex h-96 items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-    </div>
-  );
+  return <DashboardHomeClient />;
 }

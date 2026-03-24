@@ -28,6 +28,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
 import { ConsultationsModule } from './modules/consultations/consultations.module';
 import { CommonModule } from './common/common.module';
 import { DietModule } from './modules/diet/diet.module';
+import { ProjectsModule } from './modules/projects/projects.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { DietModule } from './modules/diet/diet.module';
     ConsultationsModule,
     CommonModule,
     DietModule,
+    ProjectsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -7,6 +7,11 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "db:target": "node scripts/db-target.js",
+    "db:use:local": "node scripts/switch-db-profile.js --profile=localdev",
+    "db:use:testing": "node scripts/switch-db-profile.js --profile=testing",
+    "db:migrate:safe": "node scripts/safe-migrate.js",
+    "db:seed:catalog:safe": "node scripts/safe-seed-catalog.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
