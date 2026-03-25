@@ -16,9 +16,9 @@ model Account {
   status             AccountStatus    @default(PENDING)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
-  lastLoginAt        DateTime?        @map("last_login_at")
   plan               SubscriptionPlan @default(FREE)
   subscriptionEndsAt DateTime?        @map("subscription_ends_at")
+  lastLoginAt        DateTime?        @map("last_login_at") @db.Timestamptz(6)
   nutritionist       Nutritionist?
   payments           Payment[]
   subscription       Subscription?
@@ -37,20 +37,20 @@ model Nutritionist {
   settings              Json?                  @default("{}")
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
+  consultations         Consultation[]
+  creations             Creation[]
   ingredientGroups      IngredientGroup[]
   ingredientPreferences IngredientPreference[]
   customIngredients     Ingredient[]
-  creations             Creation[]
+  metricDefinitions     MetricDefinition[]
   account               Account                @relation(fields: [accountId], references: [id], onDelete: Cascade)
   patients              Patient[]
-  recipes               Recipe[]
-  substitutes           Substitute[]
-  resources             Resource[]
-  resourceSections      ResourceSection[]
-  consultations         Consultation[]
   projects              Project[]
+  recipes               Recipe[]
+  resourceSections      ResourceSection[]
+  resources             Resource[]
+  substitutes           Substitute[]
   createdTags           Tag[]
-  metricDefinitions     MetricDefinition[]
 
   @@map("nutritionists")
 }
@@ -58,7 +58,7 @@ model Nutritionist {
 model Substitute {
   id             String       @id @default(uuid())
   nutritionistId String       @map("nutritionist_id")
-  content        Json // The Source of Truth for common substitutes
+  content        Json
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
@@ -68,21 +68,21 @@ model Substitute {
 }
 
 model Creation {
-  id             String       @id @default(uuid())
-  nutritionistId String       @map("nutritionist_id")
-  name           String
-  type           String // DIET, RECIPE, SHOPPING_LIST
-  format         String       @default("NATIVE") // 'NATIVE' (JSON backed) | 'PDF' (External/Legacy)
-  content        Json // The Source of Truth
-  metadata       Json? // Summary fields for fast searching (calories, tags)
-  tags           String[]     @default([])
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
-  sourceProjectsAsDiet        Project[] @relation("ProjectDietCreation")
-  sourceProjectsAsRecipes     Project[] @relation("ProjectRecipeCreation")
-  sourceProjectsAsCart        Project[] @relation("ProjectCartCreation")
-  sourceProjectsAsDeliverable Project[] @relation("ProjectDeliverableCreation")
+  id                          String       @id @default(uuid())
+  nutritionistId              String       @map("nutritionist_id")
+  name                        String
+  type                        String
+  format                      String       @default("NATIVE")
+  content                     Json
+  metadata                    Json?
+  tags                        String[]     @default([])
+  createdAt                   DateTime     @default(now())
+  updatedAt                   DateTime     @updatedAt
+  nutritionist                Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  sourceProjectsAsCart        Project[]    @relation("ProjectCartCreation")
+  sourceProjectsAsDeliverable Project[]    @relation("ProjectDeliverableCreation")
+  sourceProjectsAsDiet        Project[]    @relation("ProjectDietCreation")
+  sourceProjectsAsRecipes     Project[]    @relation("ProjectRecipeCreation")
 
   @@index([nutritionistId])
   @@map("creations")
@@ -93,7 +93,7 @@ model Project {
   nutritionistId              String       @map("nutritionist_id")
   patientId                   String?      @map("patient_id")
   name                        String
-  description                 String?      @db.Text
+  description                 String?
   mode                        String       @default("CLINICAL")
   status                      String       @default("DRAFT")
   activeDietCreationId        String?      @map("active_diet_creation_id")
@@ -103,12 +103,12 @@ model Project {
   metadata                    Json?        @default("{}")
   createdAt                   DateTime     @default(now())
   updatedAt                   DateTime     @updatedAt
+  activeCartCreation          Creation?    @relation("ProjectCartCreation", fields: [activeCartCreationId], references: [id])
+  activeDeliverableCreation   Creation?    @relation("ProjectDeliverableCreation", fields: [activeDeliverableCreationId], references: [id])
+  activeDietCreation          Creation?    @relation("ProjectDietCreation", fields: [activeDietCreationId], references: [id])
+  activeRecipeCreation        Creation?    @relation("ProjectRecipeCreation", fields: [activeRecipeCreationId], references: [id])
   nutritionist                Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
-  patient                     Patient?     @relation(fields: [patientId], references: [id], onDelete: SetNull)
-  activeDietCreation          Creation?    @relation("ProjectDietCreation", fields: [activeDietCreationId], references: [id], onDelete: SetNull)
-  activeRecipeCreation        Creation?    @relation("ProjectRecipeCreation", fields: [activeRecipeCreationId], references: [id], onDelete: SetNull)
-  activeCartCreation          Creation?    @relation("ProjectCartCreation", fields: [activeCartCreationId], references: [id], onDelete: SetNull)
-  activeDeliverableCreation   Creation?    @relation("ProjectDeliverableCreation", fields: [activeDeliverableCreationId], references: [id], onDelete: SetNull)
+  patient                     Patient?     @relation(fields: [patientId], references: [id])
 
   @@index([nutritionistId])
   @@index([patientId])
@@ -116,30 +116,30 @@ model Project {
 }
 
 model Patient {
-  id             String       @id @default(uuid())
-  nutritionistId String       @map("nutritionist_id")
-  fullName       String       @map("full_name")
-  email          String?
-  phone          String?
-  documentId     String?      @map("document_id")
-  birthDate      DateTime?    @map("birth_date")
-  gender         String?
-  height         Float?
-  weight         Float?
-  dietRestrictions Json?        @map("diet_restrictions") @default("[]")
-  status         String?      @default("Active")
-  clinicalSummary String?     @db.Text
-  nutritionalFocus String?    @map("nutritional_focus")
-  fitnessGoals   String?      @map("fitness_goals")
-  likes          String?      @db.Text
-  tags           String[]     @default([])
-  customVariables Json?        @map("custom_variables") @default("[]")
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
-  consultations  Consultation[]
-  exams          PatientExam[]
-  projects       Project[]
+  id               String         @id @default(uuid())
+  nutritionistId   String         @map("nutritionist_id")
+  fullName         String         @map("full_name")
+  email            String?
+  phone            String?
+  documentId       String?        @map("document_id")
+  birthDate        DateTime?      @map("birth_date")
+  gender           String?
+  height           Float?
+  weight           Float?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  dietRestrictions Json?          @default("[]") @map("diet_restrictions")
+  clinicalSummary  String?
+  customVariables  Json?          @default("[]") @map("custom_variables")
+  fitnessGoals     String?        @map("fitness_goals")
+  nutritionalFocus String?        @map("nutritional_focus")
+  status           String?        @default("Active")
+  tags             String[]       @default([])
+  likes            String?
+  consultations    Consultation[]
+  exams            PatientExam[]
+  nutritionist     Nutritionist   @relation(fields: [nutritionistId], references: [id])
+  projects         Project[]
 
   @@map("patients")
 }
@@ -149,12 +149,12 @@ model PatientExam {
   patientId  String   @map("patient_id")
   name       String
   date       DateTime @default(now())
-  laboratory String? // Optional laboratory name
   fileUrl    String?  @map("file_url")
-  notes      String?  @db.Text
-  results    Json?    @default("{}") // Structured exam results: { "Glucose": { "value": 90, "unit": "mg/dL" }, ... }
+  notes      String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  laboratory String?
+  results    Json?    @default("{}")
   patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId])
@@ -162,18 +162,17 @@ model PatientExam {
 }
 
 model Consultation {
-  id             String   @id @default(uuid())
-  patientId      String   @map("patient_id")
-  nutritionistId String   @map("nutritionist_id")
-  date           DateTime @default(now())
+  id             String       @id @default(uuid())
+  patientId      String       @map("patient_id")
+  nutritionistId String       @map("nutritionist_id")
+  date           DateTime     @default(now())
   title          String
-  description    String?  @db.Text
-  metrics        Json?    @default("[]")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  patient      Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  nutritionist Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  description    String?
+  metrics        Json?        @default("[]")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  patient        Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId])
   @@index([nutritionistId])
@@ -234,10 +233,10 @@ model Tag {
   id               String                 @id @default(uuid())
   name             String                 @unique
   nutritionistId   String?                @map("nutritionist_id")
+  nutritionist     Nutritionist?          @relation(fields: [nutritionistId], references: [id])
   ingredients      Ingredient[]           @relation("GlobalTags")
   ingredientGroups IngredientGroup[]      @relation("GroupTags")
   preferences      IngredientPreference[] @relation("PersonalTags")
-  nutritionist     Nutritionist?          @relation(fields: [nutritionistId], references: [id])
 
   @@map("tags")
 }
@@ -461,9 +460,9 @@ model Recipe {
   sodium         Float?             @default(0)
   isPublic       Boolean            @default(false) @map("is_public")
   nutritionistId String?            @map("nutritionist_id")
-  metadata       Json?              // { tags: string[], mealSection?: string, customIngredientNames?: string[] }
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
+  metadata       Json?
   ingredients    RecipeIngredient[]
   nutritionist   Nutritionist?      @relation(fields: [nutritionistId], references: [id])
 
@@ -483,6 +482,54 @@ model RecipeIngredient {
   @@index([recipeId])
   @@index([ingredientId])
   @@map("recipe_ingredients")
+}
+
+model Announcement {
+  id          String   @id @default(uuid())
+  title       String
+  message     String
+  type        String   @default("info")
+  link        String?
+  targetRoles String[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("announcements")
+}
+
+model Resource {
+  id             String        @id @default(uuid())
+  nutritionistId String?       @map("nutritionist_id")
+  title          String
+  content        String
+  category       String
+  tags           String[]      @default([])
+  isPublic       Boolean       @default(false) @map("is_public")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  images         Json?         @default("[]")
+  sources        String?
+  nutritionist   Nutritionist? @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+
+  @@index([nutritionistId])
+  @@map("resources")
+}
+
+model ResourceSection {
+  id             String        @id @default(uuid())
+  nutritionistId String?       @map("nutritionist_id")
+  name           String        @unique
+  slug           String        @unique
+  icon           String?       @default("Layout")
+  color          String?       @default("text-emerald-500")
+  bg             String?       @default("bg-emerald-50")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  nutritionist   Nutritionist? @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+
+  @@index([nutritionistId])
+  @@map("resource_sections")
 }
 
 enum UserRole {
@@ -552,53 +599,4 @@ enum SubscriptionStatus {
   PAST_DUE
   CANCELED
   UNPAID
-}
-
-model Announcement {
-  id          String   @id @default(uuid())
-  title       String
-  message     String
-  type        String   @default("info")
-  link        String?
-  targetRoles String[] // ['ALL'], ['ADMIN'], ['NUTRITIONIST']
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("announcements")
-}
-
-model Resource {
-  id             String        @id @default(uuid())
-  nutritionistId String?       @map("nutritionist_id")
-  title          String
-  content        String       @db.Text
-  category       String       // 'mitos', 'consejos', 'ejercicios', 'habitos', 'emocional', etc.
-  tags           String[]     @default([]) // For auto-mapping to patient conditions
-  images         Json?        @default("[]") // Array of image URLs
-  sources        String?      @db.Text
-  isPublic       Boolean      @default(false) @map("is_public")
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  nutritionist   Nutritionist? @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
-
-  @@index([nutritionistId])
-  @@map("resources")
-}
-
-model ResourceSection {
-  id             String        @id @default(uuid())
-  nutritionistId String?       @map("nutritionist_id")
-  name           String        @unique
-  slug           String        @unique
-  icon           String?       @default("Layout")
-  color          String?       @default("text-emerald-500")
-  bg             String?       @default("bg-emerald-50")
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  nutritionist   Nutritionist? @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
-
-  @@index([nutritionistId])
-  @@map("resource_sections")
 }

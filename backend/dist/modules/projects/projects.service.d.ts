@@ -20,18 +20,6 @@ export declare class ProjectsService {
             weight: number | null;
             dietRestrictions: Prisma.JsonValue;
         } | null;
-        activeDietCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
-        activeRecipeCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
         activeCartCreation: {
             name: string;
             id: string;
@@ -39,6 +27,18 @@ export declare class ProjectsService {
             type: string;
         } | null;
         activeDeliverableCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeDietCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeRecipeCreation: {
             name: string;
             id: string;
             updatedAt: Date;
@@ -69,18 +69,6 @@ export declare class ProjectsService {
             weight: number | null;
             dietRestrictions: Prisma.JsonValue;
         } | null;
-        activeDietCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
-        activeRecipeCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
         activeCartCreation: {
             name: string;
             id: string;
@@ -88,6 +76,18 @@ export declare class ProjectsService {
             type: string;
         } | null;
         activeDeliverableCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeDietCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeRecipeCreation: {
             name: string;
             id: string;
             updatedAt: Date;
@@ -118,18 +118,6 @@ export declare class ProjectsService {
             weight: number | null;
             dietRestrictions: Prisma.JsonValue;
         } | null;
-        activeDietCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
-        activeRecipeCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
         activeCartCreation: {
             name: string;
             id: string;
@@ -137,6 +125,18 @@ export declare class ProjectsService {
             type: string;
         } | null;
         activeDeliverableCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeDietCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeRecipeCreation: {
             name: string;
             id: string;
             updatedAt: Date;
@@ -167,18 +167,6 @@ export declare class ProjectsService {
             weight: number | null;
             dietRestrictions: Prisma.JsonValue;
         } | null;
-        activeDietCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
-        activeRecipeCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
         activeCartCreation: {
             name: string;
             id: string;
@@ -186,6 +174,18 @@ export declare class ProjectsService {
             type: string;
         } | null;
         activeDeliverableCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeDietCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeRecipeCreation: {
             name: string;
             id: string;
             updatedAt: Date;

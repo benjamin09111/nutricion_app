@@ -56,9 +56,9 @@ export declare class AuthService {
         status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
-        lastLoginAt: Date | null;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
+        lastLoginAt: Date | null;
     }) | null>;
     resetAccountPassword(email: string): Promise<{
         success: boolean;

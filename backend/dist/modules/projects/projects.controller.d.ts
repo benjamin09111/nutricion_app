@@ -13,18 +13,6 @@ export declare class ProjectsController {
             weight: number | null;
             dietRestrictions: import("@prisma/client/runtime/library").JsonValue;
         } | null;
-        activeDietCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
-        activeRecipeCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
         activeCartCreation: {
             name: string;
             id: string;
@@ -32,6 +20,18 @@ export declare class ProjectsController {
             type: string;
         } | null;
         activeDeliverableCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeDietCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeRecipeCreation: {
             name: string;
             id: string;
             updatedAt: Date;
@@ -62,18 +62,6 @@ export declare class ProjectsController {
             weight: number | null;
             dietRestrictions: import("@prisma/client/runtime/library").JsonValue;
         } | null;
-        activeDietCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
-        activeRecipeCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
         activeCartCreation: {
             name: string;
             id: string;
@@ -81,6 +69,18 @@ export declare class ProjectsController {
             type: string;
         } | null;
         activeDeliverableCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeDietCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeRecipeCreation: {
             name: string;
             id: string;
             updatedAt: Date;
@@ -111,18 +111,6 @@ export declare class ProjectsController {
             weight: number | null;
             dietRestrictions: import("@prisma/client/runtime/library").JsonValue;
         } | null;
-        activeDietCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
-        activeRecipeCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
         activeCartCreation: {
             name: string;
             id: string;
@@ -130,6 +118,18 @@ export declare class ProjectsController {
             type: string;
         } | null;
         activeDeliverableCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeDietCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeRecipeCreation: {
             name: string;
             id: string;
             updatedAt: Date;
@@ -160,18 +160,6 @@ export declare class ProjectsController {
             weight: number | null;
             dietRestrictions: import("@prisma/client/runtime/library").JsonValue;
         } | null;
-        activeDietCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
-        activeRecipeCreation: {
-            name: string;
-            id: string;
-            updatedAt: Date;
-            type: string;
-        } | null;
         activeCartCreation: {
             name: string;
             id: string;
@@ -179,6 +167,18 @@ export declare class ProjectsController {
             type: string;
         } | null;
         activeDeliverableCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeDietCreation: {
+            name: string;
+            id: string;
+            updatedAt: Date;
+            type: string;
+        } | null;
+        activeRecipeCreation: {
             name: string;
             id: string;
             updatedAt: Date;

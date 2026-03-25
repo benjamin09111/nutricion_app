@@ -25,9 +25,9 @@ export declare class UsersController {
         status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
-        lastLoginAt: Date | null;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
+        lastLoginAt: Date | null;
     }>;
     updatePlan(id: string, body: {
         plan: string;
@@ -40,9 +40,9 @@ export declare class UsersController {
         status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
-        lastLoginAt: Date | null;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
+        lastLoginAt: Date | null;
     }>;
     resetUnpaidPlans(req: any): Promise<{
         updatedCount: number;
@@ -56,8 +56,8 @@ export declare class UsersController {
         status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
-        lastLoginAt: Date | null;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
+        lastLoginAt: Date | null;
     } | undefined>;
 }

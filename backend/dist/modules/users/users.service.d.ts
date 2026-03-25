@@ -36,9 +36,9 @@ export declare class UsersService {
         status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
-        lastLoginAt: Date | null;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
+        lastLoginAt: Date | null;
     }) | null>;
     update(id: string, data: {
         status?: AccountStatus;
@@ -53,9 +53,9 @@ export declare class UsersService {
         status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
-        lastLoginAt: Date | null;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
+        lastLoginAt: Date | null;
     }>;
     updatePlan(userId: string, plan: SubscriptionPlan, days?: number): Promise<{
         id: string;
@@ -65,9 +65,9 @@ export declare class UsersService {
         status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
-        lastLoginAt: Date | null;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
+        lastLoginAt: Date | null;
     }>;
     resetUnpaidPlans(): Promise<{
         updatedCount: number;
@@ -81,9 +81,9 @@ export declare class UsersService {
         status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
-        lastLoginAt: Date | null;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
+        lastLoginAt: Date | null;
     } | undefined>;
     countNutritionists(): Promise<number>;
 }
