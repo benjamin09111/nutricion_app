@@ -13,9 +13,10 @@ model Account {
   email              String           @unique
   password           String?
   role               UserRole         @default(NUTRITIONIST)
-  status             AccountStatus    @default(ACTIVE)
+  status             AccountStatus    @default(PENDING)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
+  lastLoginAt        DateTime?        @map("last_login_at")
   plan               SubscriptionPlan @default(FREE)
   subscriptionEndsAt DateTime?        @map("subscription_ends_at")
   nutritionist       Nutritionist?
@@ -498,6 +499,7 @@ enum AccountStatus {
   ACTIVE
   SUSPENDED
   PENDING
+  DELETED
 }
 
 enum SubscriptionPlan {

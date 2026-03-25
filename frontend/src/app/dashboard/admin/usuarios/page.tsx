@@ -82,6 +82,8 @@ export default function AdminUsersPage() {
     | "SUPERMARKET"
   >("NUTRITIONIST");
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [membershipPlans, setMembershipPlans] = useState<any[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState("");
 
   // Reset Password State
   const [resetEmail, setResetEmail] = useState("");
@@ -105,10 +107,25 @@ export default function AdminUsersPage() {
 
   // Fetch users when on 'admins' tab
   useEffect(() => {
+    fetchMembershipPlans();
     if (activeTab === "admins") {
       fetchUsers();
     }
   }, [activeTab]);
+
+  const fetchMembershipPlans = async () => {
+    try {
+      const response = await fetch(`${API_URL}/memberships/active`);
+      if (!response.ok) throw new Error("Error al cargar planes");
+      const data = await response.json();
+      setMembershipPlans(data);
+      if (data.length > 0) {
+        setSelectedPlanId(data[0].id);
+      }
+    } catch (error) {
+      console.error("Error fetching membership plans:", error);
+    }
+  };
 
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
@@ -231,6 +248,10 @@ export default function AdminUsersPage() {
           email: creationEmail,
           fullName: creationName,
           role: creationRole,
+          planId:
+            creationRole === "NUTRITIONIST" || creationRole === "ORGANIZATION"
+              ? selectedPlanId
+              : undefined,
         }),
       });
 
@@ -514,6 +535,37 @@ export default function AdminUsersPage() {
                       </select>
                     </div>
                   </div>
+
+                  {/* Plan Selection - Only for Nutritionists/Orgs */}
+                  {(creationRole === "NUTRITIONIST" ||
+                    creationRole === "ORGANIZATION") && (
+                    <div className="animate-in fade-in duration-300">
+                      <label className="block text-sm font-medium leading-6 text-slate-900 mb-1">
+                        Plan de Suscripción Inicial
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <Calendar className="h-4 w-4 text-slate-400" />
+                        </div>
+                        <select
+                          value={selectedPlanId}
+                          onChange={(e) => setSelectedPlanId(e.target.value)}
+                          className="block w-full rounded-md border-0 py-2.5 pl-10 pr-4 text-slate-900 ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white"
+                        >
+                          {membershipPlans.map((plan) => (
+                            <option key={plan.id} value={plan.id}>
+                              {plan.name} ({plan.billingPeriod})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <p className="mt-1 text-[10px] text-slate-500 italic">
+                        * Se creará una suscripción activa de 30 días para este
+                        plan.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="pt-2">
                     <Button
                       type="submit"

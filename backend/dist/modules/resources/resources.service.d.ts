@@ -14,8 +14,8 @@ export declare class ResourcesService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
         content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -29,8 +29,8 @@ export declare class ResourcesService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
         content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -52,8 +52,8 @@ export declare class ResourcesService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
         content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -75,8 +75,8 @@ export declare class ResourcesService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
         content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -90,8 +90,8 @@ export declare class ResourcesService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
         content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     }>;
@@ -101,9 +101,9 @@ export declare class ResourcesService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         icon: string | null;
         color: string | null;
-        slug: string;
         bg: string | null;
     }[]>;
     createSection(nutritionistId: string | null, data: {
@@ -117,9 +117,9 @@ export declare class ResourcesService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         icon: string | null;
         color: string | null;
-        slug: string;
         bg: string | null;
     }>;
 }

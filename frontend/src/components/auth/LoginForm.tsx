@@ -65,7 +65,35 @@ export default function LoginForm() {
     e.preventDefault();
     setIsModalSubmitting(true);
 
-    const type = activeModal === "reset" ? "PASSWORD_RESET" : "CONTACT";
+    // If it's a password reset, call the direct AUTH endpoint instead of SUPPORT
+    if (activeModal === "reset") {
+      try {
+        const response = await fetch(`${API_URL}/auth/reset-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: modalEmail }),
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.message || "Error al procesar la recuperación");
+        }
+
+        toast.success(data.message || "Nueva contraseña enviada por correo.");
+        setActiveModal(null);
+        setModalEmail("");
+      } catch (error: any) {
+        console.error("Reset password error:", error);
+        toast.error(error.message || "No se pudo procesar la recuperación.");
+      } finally {
+        setIsModalSubmitting(false);
+      }
+      return;
+    }
+
+    // Otherwise, keep the support request logic for CONTACT
+    const type = "CONTACT";
 
     try {
       const response = await fetch(`${API_URL}/support`, {
@@ -73,7 +101,7 @@ export default function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: modalEmail,
-          message: activeModal === "contact" ? modalMessage : undefined,
+          message: modalMessage,
           type: type,
         }),
       });
@@ -221,7 +249,7 @@ export default function LoginForm() {
               </h3>
               <p className="text-sm text-slate-500">
                 {activeModal === "reset"
-                  ? "Ingresa tu correo. Un administrador revisará tu solicitud y te enviará nuevas credenciales."
+                  ? "Ingresa tu correo. Te enviaremos nuevas credenciales de acceso de forma automática."
                   : "Envía un mensaje al equipo de administración."}
               </p>
             </div>

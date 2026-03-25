@@ -88,6 +88,8 @@ let MailService = class MailService {
                 context: {
                     fullName: data.fromEmail.split('@')[0],
                     email: data.fromEmail,
+                    phone: 'N/A',
+                    professionalId: 'N/A',
                     message: data.message,
                     specialty: `SOPORTE: ${data.type}`,
                     year: new Date().getFullYear(),
@@ -97,6 +99,23 @@ let MailService = class MailService {
         }
         catch (error) {
             console.error('❌ Error enviando notificación de soporte:', error);
+        }
+    }
+    async sendFeedbackConfirmation(email) {
+        try {
+            await this.mailerService.sendMail({
+                to: email,
+                subject: '💬 Recibimos tu feedback - NutriSaaS',
+                template: 'request-confirmation',
+                context: {
+                    name: 'Usuario',
+                    year: new Date().getFullYear(),
+                },
+            });
+            console.log(`✅ Confirmación de feedback enviada a: ${email}`);
+        }
+        catch (error) {
+            console.error('❌ Error enviando confirmación de feedback:', error);
         }
     }
     async sendRejectionEmail(email, fullName, adminMessage) {
@@ -135,6 +154,7 @@ let MailService = class MailService {
         }
         catch (error) {
             console.error('❌ Error enviando correo de recuperación:', error);
+            throw error;
         }
     }
 };

@@ -11,6 +11,8 @@ export declare class AuthController {
             id: string;
             email: string;
             role: import(".prisma/client").$Enums.UserRole;
+            plan: import(".prisma/client").$Enums.SubscriptionPlan;
+            planName: string;
             nutritionist: {
                 id: string;
                 fullName: string;

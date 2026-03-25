@@ -73,4 +73,28 @@ export class UsersController {
         }
         return this.usersService.resetUnpaidPlans();
     }
+
+    @Patch(':id/delete')
+    @UseGuards(AuthGuard('jwt'))
+    async softDelete(@Param('id') id: string, @Request() req: any) {
+        // Permissions check: must be at least some kind of admin
+        const requesterRole = req.user.role;
+        if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(requesterRole)) {
+            throw new UnauthorizedException('Solo personal autorizado puede realizar esta acción');
+        }
+
+        // Fetch the target user
+        const targetUser = await this.usersService.findOne(id);
+        if (!targetUser) {
+            throw new UnauthorizedException('Usuario no encontrado');
+        }
+
+        // SECURE RULE: Only ADMIN_MASTER can delete another Admin
+        const isTargetAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(targetUser.role);
+        if (isTargetAdmin && requesterRole !== 'ADMIN_MASTER') {
+            throw new UnauthorizedException('Solo un Admin Master puede eliminar a otros administradores');
+        }
+
+        return this.usersService.softDelete(id);
+    }
 }

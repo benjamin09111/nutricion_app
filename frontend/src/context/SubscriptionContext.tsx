@@ -8,6 +8,7 @@ export type SubscriptionStatus = "active" | "expired" | "cancelled";
 
 interface SubscriptionContextType {
   plan: SubscriptionPlan;
+  planName: string;
   status: SubscriptionStatus;
   trialEndsAt: Date | null;
   features: {
@@ -54,10 +55,34 @@ export function SubscriptionProvider({
 }) {
   // Default to 'free' as requested ("si es que no la tenemos")
   const [plan, setPlan] = useState<SubscriptionPlan>("free");
+  const [planName, setPlanName] = useState<string>("Plan Gratuito");
   const [status, setStatus] = useState<SubscriptionStatus>("active");
 
   // Default trial logic (only if plan is trial)
   const [trialEndsAt, setTrialEndsAt] = useState<Date | null>(null);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        if (user) {
+          if (user.plan) {
+            const backendPlan = user.plan.toLowerCase();
+            if (backendPlan === "free") setPlan("free");
+            else if (backendPlan === "pro" || backendPlan === "enterprise")
+              setPlan("pro");
+          }
+          if (user.planName) {
+            setPlanName(user.planName);
+          }
+        }
+      } catch (e) {
+        console.error("Error loading plan from storage", e);
+      }
+    }
+  }, []);
 
   // Effect to set trial date when switching to trial
   useEffect(() => {
@@ -98,6 +123,7 @@ export function SubscriptionProvider({
 
   const value = {
     plan,
+    planName,
     status,
     trialEndsAt,
     features: PLAN_FEATURES[plan] || PLAN_FEATURES.free,

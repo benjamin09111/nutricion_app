@@ -294,27 +294,54 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
 
     return (
         <div className="max-w-5xl mx-auto pb-24 animate-in fade-in duration-700">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-10">
-                <div className="flex items-center gap-6">
-                    <button
-                        onClick={() => router.back()}
-                        className="p-4 hover:bg-white rounded-2xl transition-all text-slate-400 hover:text-slate-900 border border-transparent hover:border-slate-100 shadow-sm cursor-pointer"
-                    >
-                        <ArrowLeft className="w-6 h-6" />
-                    </button>
-                    <div>
-                        <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
-                            {id ? "Editar Sesión" : "Nueva Consulta Clínica"}
-                        </h1>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                            {id ? "Actualiza los registros de la visita" : "Registra la evolución y ajustes del tratamiento"}
-                        </p>
+            <form onSubmit={handleSave}>
+                {/* Header Actions Rack */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                    <div className="flex items-center gap-6">
+                        <button
+                            type="button"
+                            onClick={() => router.back()}
+                            className="p-4 hover:bg-white rounded-2xl transition-all text-slate-400 hover:text-slate-900 border border-transparent hover:border-slate-100 shadow-sm cursor-pointer"
+                        >
+                            <ArrowLeft className="w-6 h-6" />
+                        </button>
+                        <div>
+                            <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
+                                {id ? "Editar Sesión" : "Nueva Consulta Clínica"}
+                            </h1>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+                                {id ? "Actualiza los registros de la visita" : "Registra la evolución y ajustes del tratamiento"}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => router.back()}
+                            className="h-12 px-6 rounded-2xl text-slate-400 font-bold hover:bg-slate-100 transition-all uppercase text-[10px] tracking-widest border border-slate-100"
+                        >
+                            CANCELAR
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={isSaving}
+                            className="h-12 px-8 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-200 transition-all active:scale-95 group flex items-center gap-3"
+                        >
+                            {isSaving ? (
+                                <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <>
+                                    <Save className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+                                    GUARDAR CONSULTA
+                                </>
+                            )}
+                        </Button>
                     </div>
                 </div>
-            </div>
 
-            <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 {/* Left Column: Consultation Main Data */}
                 <div className="space-y-10">
                     {/* Basic Info Card */}
@@ -352,7 +379,6 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                             className="w-full h-14 pl-14 pr-5 rounded-2xl bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-700 cursor-pointer shadow-sm"
                                             value={formData.date}
                                             onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                                            required
                                         />
                                     </div>
                                 </div>
@@ -360,7 +386,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
 
                             <div className="space-y-3">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                                    Título de la Sesión
+                                    Título de la Sesión <span className="text-rose-500">*</span>
                                 </label>
                                 <Input
                                     className="h-14 bg-white border-slate-200 rounded-2xl font-bold text-lg"
@@ -370,16 +396,16 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                     required
                                 />
                             </div>
-
                             <div className="space-y-3">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                                    Observaciones / Notas Clínicas
+                                    Observaciones / Notas Clínicas <span className="text-rose-500">*</span>
                                 </label>
                                 <textarea
                                     className="w-full h-40 rounded-3xl bg-white border border-slate-200 p-6 font-medium text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all resize-none shadow-sm"
                                     placeholder="Describe la evolución, cambios en el estilo de vida, adherencia al plan..."
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    required
                                 />
                             </div>
                         </div>
@@ -490,7 +516,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                 {/* Right Column: Patient Profile Update */}
                 <div className="space-y-10">
                     <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full">
-                        <div className="p-8 border-b border-slate-50 bg-slate-50/50 text-slate-900 flex-shrink-0">
+                        <div className="p-8 border-b border-slate-50 bg-slate-50/50 text-slate-900 shrink-0">
                             <h3 className="text-xl font-bold flex items-center gap-3">
                                 <User className="w-6 h-6 text-emerald-500" />
                                 Perfil del Paciente
@@ -548,6 +574,9 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                     <Activity className="w-4 h-4 text-rose-500" />
                                     Restricciones de Salud
                                 </h4>
+                                <p className="text-[10px] text-slate-400 font-medium ml-1">
+                                    Si no existe, créala apretando Enter
+                                </p>
                                 <TagInput
                                     value={patientForm.dietRestrictions}
                                     onChange={(tags) => setPatientForm({ ...patientForm, dietRestrictions: tags })}
@@ -563,6 +592,9 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                     <Hash className="w-4 h-4 text-emerald-500" />
                                     Etiquetas de Clasificación
                                 </h4>
+                                <p className="text-[10px] text-slate-400 font-medium ml-1">
+                                    Si no existe, créala apretando Enter
+                                </p>
                                 <TagInput
                                     value={patientForm.tags}
                                     onChange={(tags) => setPatientForm({ ...patientForm, tags: tags })}
@@ -624,31 +656,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                     </div>
                 </div>
 
-                {/* Unified Action Buttons Footer */}
-                <div className="lg:col-span-2 pt-10 flex flex-col md:flex-row items-center justify-center gap-6">
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => router.back()}
-                        className="w-full md:w-64 h-16 rounded-[24px] text-slate-400 font-bold hover:bg-slate-100 transition-all uppercase text-xs tracking-widest order-2 md:order-1"
-                    >
-                        CANCELAR
-                    </Button>
-                    <Button
-                        type="submit"
-                        disabled={isSaving}
-                        className="w-full md:w-96 h-16 bg-slate-900 hover:bg-slate-800 text-white rounded-[24px] font-black text-sm uppercase tracking-widest shadow-2xl shadow-slate-200 transition-all active:scale-95 group order-1 md:order-2"
-                    >
-                        {isSaving ? (
-                            <div className="h-6 w-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <>
-                                <Save className="w-5 h-5 mr-3 text-emerald-400 group-hover:scale-110 transition-transform" />
-                                GUARDAR CONSULTA COMPLETA
-                            </>
-                        )}
-                    </Button>
-                </div>
+                </div> {/* End Grid */}
             </form>
         </div>
     );

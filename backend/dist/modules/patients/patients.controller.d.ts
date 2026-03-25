@@ -65,11 +65,11 @@ export declare class PatientsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            description: string | null;
             date: Date;
             metrics: import("@prisma/client/runtime/library").JsonValue | null;
             patientId: string;
             title: string;
-            description: string | null;
         }[];
         exams: {
             name: string;

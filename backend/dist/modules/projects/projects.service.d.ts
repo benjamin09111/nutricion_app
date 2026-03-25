@@ -51,9 +51,9 @@ export declare class ProjectsService {
         status: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         mode: string;
         patientId: string | null;
-        description: string | null;
         metadata: Prisma.JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;
@@ -100,9 +100,9 @@ export declare class ProjectsService {
         status: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         mode: string;
         patientId: string | null;
-        description: string | null;
         metadata: Prisma.JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;
@@ -149,9 +149,9 @@ export declare class ProjectsService {
         status: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         mode: string;
         patientId: string | null;
-        description: string | null;
         metadata: Prisma.JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;
@@ -198,9 +198,9 @@ export declare class ProjectsService {
         status: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         mode: string;
         patientId: string | null;
-        description: string | null;
         metadata: Prisma.JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;

@@ -64,6 +64,8 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
+import jsPDF from "jspdf";
+import { domToPng } from "modern-screenshot";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -72,19 +74,20 @@ function cn(...inputs: ClassValue[]) {
 const METRIC_KEY_MAP: Record<string, string> = {
   peso: "weight",
   weight: "weight",
-  kg: "weight",
   grasa: "body_fat",
   grasa_corporal: "body_fat",
   body_fat: "body_fat",
+  "grasa_%": "body_fat",
   "%_grasa": "body_fat",
-  height: "weight",
-  cm: "weight",
   masa_muscular: "muscle_mass",
   muscle_mass: "muscle_mass",
   grasa_visceral: "visceral_fat",
   visceral_fat: "visceral_fat",
   cintura: "waist",
   waist: "waist",
+  estatura: "height",
+  altura: "height",
+  height: "height",
 };
 
 /**
@@ -116,6 +119,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConsultationsLoading, setIsConsultationsLoading] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("General");
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Patient>>({});
@@ -614,6 +619,15 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       return;
     }
 
+    // Check if it already exists in our local list to avoid extra requests
+    const exists = availableMetricSuggestions.find(
+      (s) => s.label.toLowerCase() === newMetric.name.toLowerCase()
+    );
+    if (exists) {
+      toast.info(`La métrica "${newMetric.name}" ya existe con la unidad "${exists.unit}". No es necesario crearla.`);
+      return;
+    }
+
     try {
       const response = await fetch(`${apiUrl}/metrics`, {
         method: "POST",
@@ -696,7 +710,6 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       toast.error("No se puede eliminar la métrica base del perfil");
       return;
     }
-
     try {
       const consultation = consultations.find((c) => c.id === record.id);
       if (!consultation) return;
@@ -705,21 +718,35 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         (_: any, idx: number) => idx !== record.metricIndex,
       );
 
-      const res = await fetch(`${apiUrl}/consultations/${record.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ metrics: newMetrics }),
-      });
+      let res: Response;
+      const isIndependentRegistry = consultation.title === "Registro de Métricas Independiente";
+
+      if (newMetrics.length === 0 && isIndependentRegistry) {
+        res = await fetch(`${apiUrl}/consultations/${record.id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        res = await fetch(`${apiUrl}/consultations/${record.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ metrics: newMetrics }),
+        });
+      }
 
       if (res.ok) {
-        const updated = await res.json();
-        setConsultations((prev) =>
-          prev.map((c) => (c.id === record.id ? updated : c)),
-        );
-        toast.success("Registro eliminado");
+        if (newMetrics.length === 0 && isIndependentRegistry) {
+          setConsultations((prev) => prev.filter((c) => c.id !== record.id));
+        } else {
+          const updated = await res.json();
+          setConsultations((prev) =>
+            prev.map((c) => (c.id === record.id ? updated : c)),
+          );
+        }
+        toast.success("Registro eliminado del historial");
       } else {
         toast.error("Error al eliminar el registro");
       }
@@ -822,8 +849,144 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     value: string,
   ) => {
     const newMetrics = [...metricForm.metrics];
-    newMetrics[index] = { ...newMetrics[index], [field]: value };
+    const updatedMetric = { ...newMetrics[index], [field]: value };
+
+    // Si cambiamos el label, verificamos si es una métrica conocida para bloquear la unidad
+    if (field === "label") {
+      const known = availableMetricSuggestions.find(
+        (s) =>
+          s.label.toLowerCase() === value.toLowerCase() ||
+          s.key === normalizeMetricKey(value, ""),
+      );
+      if (known) {
+        updatedMetric.unit = known.unit;
+        updatedMetric.key = known.key;
+      }
+    }
+
+    newMetrics[index] = updatedMetric;
     setMetricForm((prev) => ({ ...prev, metrics: newMetrics }));
+  };
+
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    try {
+      const doc = new jsPDF("p", "mm", "a4");
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 20;
+      let currentY = 20;
+
+      // 1. Cabecera
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.setTextColor(16, 185, 129); // Emerald-500
+      doc.text("INFORME DE EVOLUCIÓN", margin, currentY);
+      currentY += 10;
+
+      doc.setFontSize(14);
+      doc.setTextColor(51, 65, 85); // Slate-700
+      doc.text(`Paciente: ${patient?.fullName || "Sin Nombre"}`, margin, currentY);
+      currentY += 7;
+
+      const chartData = prepareChartData();
+      if (chartData.length > 0) {
+        const first = chartData[0].fullDate;
+        const last = chartData[chartData.length - 1].fullDate;
+        doc.setFontSize(10);
+        doc.setTextColor(148, 163, 184); // Slate-400
+        doc.text(`Periodo: ${first} - ${last}`, margin, currentY);
+        currentY += 15;
+      }
+
+      // 2. Resumen de Evolución (Texto)
+      doc.setFontSize(12);
+      doc.setTextColor(30, 41, 59);
+      doc.text("RESUMEN DE CAMBIOS", margin, currentY);
+      currentY += 8;
+      doc.setDrawColor(241, 245, 249);
+      doc.line(margin, currentY, pageWidth - margin, currentY);
+      currentY += 10;
+
+      const metricKeys = getAllMetricKeys();
+      for (const key of metricKeys) {
+        const info = getMetricInfo(key);
+        const filtered = chartData.filter((d) => d[key] !== undefined);
+        if (filtered.length >= 2) {
+          const first = filtered[0][key];
+          const last = filtered[filtered.length - 1][key];
+          const diff = (Number(last) - Number(first)).toFixed(1);
+          const color = Number(diff) < 0 ? [225, 29, 72] : [16, 185, 129]; // Red-600 or Emerald-500
+
+          doc.setFontSize(10);
+          doc.setTextColor(71, 85, 105);
+          doc.text(`${info.label}:`, margin, currentY);
+          
+          doc.setFont("helvetica", "normal");
+          doc.text(`Inicio: ${first}${info.unit} -> Final: ${last}${info.unit}`, margin + 60, currentY);
+          
+          doc.setFont("helvetica", "bold");
+          // @ts-ignore
+          doc.setTextColor(...color);
+          doc.text(`${Number(diff) > 0 ? "+" : ""}${diff}${info.unit}`, pageWidth - margin - 20, currentY, { align: "right" });
+          
+          currentY += 8;
+          if (currentY > 270) { doc.addPage(); currentY = 20; }
+        }
+      }
+
+      currentY += 15;
+
+      // 3. Gráficas (Imágenes)
+      for (const key of metricKeys) {
+        const container = document.getElementById(`export-chart-${key}`);
+        if (container) {
+          // Si estamos cerca del final de la página, saltar
+          if (currentY > 180) {
+            doc.addPage();
+            currentY = 20;
+          }
+
+          const imgData = await domToPng(container, {
+            scale: 2,
+            backgroundColor: "#ffffff",
+            filter: (node) => {
+              if (node instanceof HTMLElement && node.dataset.noExport) {
+                return false;
+              }
+              return true;
+            }
+          });
+
+          const info = getMetricInfo(key);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(12);
+          doc.setTextColor(30, 41, 59);
+          doc.text(`Gráfico: ${info.label} (${info.unit})`, margin, currentY);
+          currentY += 5;
+
+          const imgWidth = pageWidth - (margin * 2);
+          const { width, height } = container.getBoundingClientRect();
+          const imgHeight = (height * imgWidth) / width;
+
+          doc.addImage(imgData, "PNG", margin, currentY, imgWidth, imgHeight);
+          currentY += imgHeight + 15;
+        }
+      }
+
+      // Pie de página
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`Generado automáticamente por NutriSaaS - ${new Date().toLocaleDateString("es-ES")}`, margin, 285);
+
+      doc.save(`Evolucion_${(patient?.fullName || "Paciente").replace(/\s+/g, "_")}.pdf`);
+      toast.success("PDF generado correctamente");
+      setIsExportModalOpen(false);
+    } catch (error) {
+      console.error("PDF Error:", error);
+      toast.error("Error al generar el PDF");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const removeMetricFromForm = (index: number) => {
@@ -837,9 +1000,14 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     setIsDeleteEntireMetricConfirmOpen(false);
 
     const key = metricKeyToDelete;
-    const isWeight = key === "weight";
-
     try {
+      const isWeight = key === "weight";
+      const hasInCustomVars =
+        patient?.customVariables &&
+        (patient.customVariables as any[]).some(
+          (cv) => normalizeMetricKey(cv.label, cv.key) === key,
+        );
+
       // Identificar todas las consultas que contienen esta métrica
       const consultationsToUpdate = consultations.filter((c) =>
         (c.metrics || []).some(
@@ -847,7 +1015,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         ),
       );
 
-      if (consultationsToUpdate.length === 0 && !isWeight) {
+      if (consultationsToUpdate.length === 0 && !isWeight && !hasInCustomVars) {
         toast.info("No hay registros históricos para eliminar");
         setMetricKeyToDelete(null);
         return;
@@ -1137,7 +1305,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               {!isEditing && (
                 <Button
                   onClick={() =>
-                    router.push("/dashboard/consultas?patientId=" + patient.id)
+                    router.push("/dashboard/consultas/nueva?patientId=" + patient.id)
                   }
                   className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-semibold h-10 px-4 rounded-2xl shadow-sm transition-all hover:scale-[1.02] active:scale-95"
                 >
@@ -1157,14 +1325,6 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 <span className="text-[8px] bg-slate-200 px-1.5 py-0.5 rounded text-slate-500 ml-1">
                   FUTURO
                 </span>
-              </Button>
-              <Button
-                onClick={() => setIsDeletePatientConfirmOpen(true)}
-                variant="ghost"
-                className="rounded-2xl h-14 w-14 p-0 text-slate-300 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-all"
-                title="Eliminar Paciente"
-              >
-                <Trash2 className="w-5 h-5" />
               </Button>
             </>
           )}
@@ -1877,14 +2037,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() =>
-                    toast.info(
-                      "La exportación PDF estará disponible próximamente en la versión 1.2",
-                    )
-                  }
-                  className="flex items-center gap-2 px-5 py-3 bg-white text-slate-400 font-bold rounded-xl border border-slate-100 hover:bg-slate-50 hover:text-slate-600 transition-all cursor-pointer group/pdf"
+                  onClick={() => setIsExportModalOpen(true)}
+                  className="flex items-center gap-2 px-5 py-3 bg-white text-emerald-600 font-black rounded-xl border border-emerald-100 hover:bg-emerald-50 transition-all cursor-pointer group/pdf shadow-sm hover:shadow-md"
                 >
-                  <FileText className="w-4 h-4 text-slate-300 group-hover/pdf:text-emerald-500" />
+                  <FileText className="w-4 h-4 text-emerald-500" />
                   <span className="text-[10px] uppercase tracking-widest">
                     Exportar PDF
                   </span>
@@ -1951,6 +2107,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 return (
                   <div
                     key={key}
+                    id={`export-chart-${key}`}
                     className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm group"
                   >
                     <div className="flex items-center justify-between mb-8">
@@ -1978,6 +2135,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                             setEditingMetricKey(key);
                             setIsEditMetricHistoryModalOpen(true);
                           }}
+                          data-no-export="true"
                           className="p-3 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all active:scale-95 cursor-pointer border border-transparent hover:border-emerald-100"
                           title={`Editar historial de ${info.label}`}
                         >
@@ -1988,6 +2146,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                             setMetricKeyToDelete(key);
                             setIsDeleteEntireMetricConfirmOpen(true);
                           }}
+                          data-no-export="true"
                           className="p-3 bg-slate-50 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all active:scale-95 cursor-pointer border border-transparent hover:border-rose-100"
                           title={`Eliminar toda la métrica ${info.label}`}
                         >
@@ -2028,12 +2187,12 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                   >
                                     <stop
                                       offset="5%"
-                                      stopColor={info.color}
+                                      stopColor="#10b981"
                                       stopOpacity={0.3}
                                     />
                                     <stop
                                       offset="95%"
-                                      stopColor={info.color}
+                                      stopColor="#10b981"
                                       stopOpacity={0}
                                     />
                                   </linearGradient>
@@ -2085,7 +2244,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                 <Area
                                   type="monotone"
                                   dataKey={key}
-                                  stroke={info.color}
+                                  stroke="#10b981"
                                   strokeWidth={3}
                                   fillOpacity={1}
                                   fill={`url(#color-${key})`}
@@ -2340,30 +2499,52 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         <label className="text-[10px] font-semibold text-slate-400 uppercase ml-1">
                           Unidad
                         </label>
-                        <select
-                          value={m.unit}
-                          onChange={(e) =>
-                            updateMetricInForm(idx, "unit", e.target.value)
-                          }
-                          className="w-full rounded-xl border border-slate-200 h-11 text-slate-900 bg-white px-4 py-2 text-sm focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none font-bold cursor-pointer transition-shadow"
-                        >
-                          <option value="" disabled>
-                            Selecciona...
-                          </option>
-                          <option value="kg">kg (Kilogramos)</option>
-                          <option value="g">g (Gramos)</option>
-                          <option value="cm">cm (Centímetros)</option>
-                          <option value="mm">mm (Milímetros)</option>
-                          <option value="%">% (Porcentaje)</option>
-                          <option value="mg/dL">mg/dL</option>
-                          <option value="mmol/L">mmol/L</option>
-                          <option value="kcal">kcal</option>
-                          <option value="latidos/min">latidos/min</option>
-                          <option value="hrs">hrs</option>
-                          <option value="mins">mins</option>
-                          <option value="niveles">niveles (1-10)</option>
-                          <option value="unidades">unidades</option>
-                        </select>
+                        {(() => {
+                          const known = availableMetricSuggestions.find(
+                            (s) =>
+                              s.label.toLowerCase() === m.label.toLowerCase() ||
+                              s.key === normalizeMetricKey(m.label, m.key),
+                          );
+                          return (
+                            <div className="relative">
+                              <select
+                                value={m.unit}
+                                disabled={!!known}
+                                onChange={(e) =>
+                                  updateMetricInForm(idx, "unit", e.target.value)
+                                }
+                                className={cn(
+                                  "w-full rounded-xl border h-11 text-slate-900 bg-white px-4 py-2 text-sm focus:ring-4 outline-none font-bold cursor-pointer transition-shadow shadow-xs",
+                                  known
+                                    ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed"
+                                    : "border-slate-200 focus:ring-emerald-500/10 focus:border-emerald-500",
+                                )}
+                              >
+                                <option value="" disabled>
+                                  Selecciona...
+                                </option>
+                                <option value="kg">kg (Kilogramos)</option>
+                                <option value="g">g (Gramos)</option>
+                                <option value="cm">cm (Centímetros)</option>
+                                <option value="mm">mm (Milímetros)</option>
+                                <option value="%">% (Porcentaje)</option>
+                                <option value="mg/dL">mg/dL</option>
+                                <option value="mmol/L">mmol/L</option>
+                                <option value="kcal">kcal</option>
+                                <option value="latidos/min">latidos/min</option>
+                                <option value="hrs">hrs</option>
+                                <option value="mins">mins</option>
+                                <option value="niveles">niveles (1-10)</option>
+                                <option value="unidades">unidades</option>
+                              </select>
+                              {known && (
+                                <span className="absolute -top-6 right-0 text-[8px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 animate-in fade-in slide-in-from-right-2">
+                                  Unidad Oficial
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div className="col-span-1 pb-1">
                         <button
@@ -2469,43 +2650,85 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 Nombre de la Métrica
               </label>
-              <Input
-                placeholder="Ej: Circunferencia de Brazo, Pliegue Cutáneo..."
-                value={newMetric.name}
-                onChange={(e) =>
-                  setNewMetric({ ...newMetric, name: e.target.value })
-                }
-                className="rounded-xl border-slate-200 h-11 text-slate-900"
-              />
+              <div className="relative">
+                <Input
+                  placeholder="Ej: Circunferencia de Brazo, Pliegue Cutáneo..."
+                  value={newMetric.name}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const known = availableMetricSuggestions.find(s => s.label.toLowerCase() === val.toLowerCase());
+                    if (known) {
+                      setNewMetric({ ...newMetric, name: val, unit: known.unit });
+                    } else {
+                      setNewMetric({ ...newMetric, name: val });
+                    }
+                  }}
+                  className="rounded-xl border-slate-200 h-11 text-slate-900 pr-10"
+                />
+                {(() => {
+                  const known = availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase());
+                  return known ? (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="h-5 w-5 rounded-full bg-amber-100 flex items-center justify-center border border-amber-200" title="Esta métrica ya existe">
+                        <AlertCircle className="w-3 h-3 text-amber-600" />
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+              {(() => {
+                const known = availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase());
+                return known ? (
+                  <p className="text-[10px] font-bold text-amber-600 animate-in fade-in slide-in-from-top-1">
+                    Esta métrica ya está registrada en el sistema.
+                  </p>
+                ) : null;
+              })()}
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Unidad (Opcional)
+                Unidad {(() => {
+                  const known = availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase());
+                  return known ? "(Bloqueada)" : "(Opcional)";
+                })()}
               </label>
-              <select
-                value={newMetric.unit}
-                onChange={(e) =>
-                  setNewMetric({ ...newMetric, unit: e.target.value })
-                }
-                className="w-full rounded-xl border-slate-200 h-11 text-slate-900 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-300 transition-all font-medium"
-              >
-                <option value="" disabled>
-                  Selecciona una unidad...
-                </option>
-                <option value="kg">kg (Kilogramos)</option>
-                <option value="g">g (Gramos)</option>
-                <option value="cm">cm (Centímetros)</option>
-                <option value="mm">mm (Milímetros)</option>
-                <option value="%">% (Porcentaje)</option>
-                <option value="mg/dL">mg/dL</option>
-                <option value="mmol/L">mmol/L</option>
-                <option value="kcal">kcal</option>
-                <option value="latidos/min">latidos/min</option>
-                <option value="hrs">hrs</option>
-                <option value="mins">mins</option>
-                <option value="niveles">niveles (1-10)</option>
-                <option value="unidades">unidades</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={newMetric.unit}
+                  disabled={!!availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase())}
+                  onChange={(e) =>
+                    setNewMetric({ ...newMetric, unit: e.target.value })
+                  }
+                  className={cn(
+                    "w-full rounded-xl border h-11 text-slate-900 bg-white px-3 py-2 text-sm focus:ring-2 transition-all font-medium",
+                    !!availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase())
+                      ? "bg-slate-50 border-slate-100 text-slate-400 cursor-not-allowed"
+                      : "border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-300"
+                  )}
+                >
+                  <option value="" disabled>
+                    Selecciona una unidad...
+                  </option>
+                  <option value="kg">kg (Kilogramos)</option>
+                  <option value="g">g (Gramos)</option>
+                  <option value="cm">cm (Centímetros)</option>
+                  <option value="mm">mm (Milímetros)</option>
+                  <option value="%">% (Porcentaje)</option>
+                  <option value="mg/dL">mg/dL</option>
+                  <option value="mmol/L">mmol/L</option>
+                  <option value="kcal">kcal</option>
+                  <option value="latidos/min">latidos/min</option>
+                  <option value="hrs">hrs</option>
+                  <option value="mins">mins</option>
+                  <option value="niveles">niveles (1-10)</option>
+                  <option value="unidades">unidades</option>
+                </select>
+                {!!availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase()) && (
+                   <span className="absolute -top-6 right-0 text-[8px] font-black uppercase text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
+                    Utilizar unidad existente
+                   </span>
+                )}
+              </div>
             </div>
             <p className="text-xs text-slate-400 mt-2 font-medium">
               <Globe className="w-3 h-3 inline mr-1 text-emerald-500" />
@@ -2543,6 +2766,70 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         confirmText="Sí, sobreescribir"
         cancelText="Cancelar"
       />
+      {/* Modal de Exportación PDF con aviso de IA */}
+      <Modal
+        isOpen={isExportModalOpen}
+        onClose={() => !isExporting && setIsExportModalOpen(false)}
+        title="Exportar Informe de Progreso"
+      >
+        <div className="space-y-6 pt-2">
+          <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex gap-4 items-start">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+              <Zap className="w-6 h-6 animate-pulse" />
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Próximamente: Análisis por IA</h4>
+                En futuras actualizaciones, nuestro motor de IA realizará un análisis automático de estas tendencias para identificar patrones de éxito y áreas de mejora en el tratamiento de <strong>{patient?.fullName || "Paciente"}</strong>.
+            </div>
+          </div>
+
+          <div className="space-y-3">
+             <div className="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-xl">
+                <FileText className="w-5 h-5 text-slate-400" />
+                <div className="flex-1">
+                   <p className="text-[10px] font-black uppercase text-slate-400">Nombre del Archivo</p>
+                   <p className="text-xs font-bold text-slate-700">Evolucion_{(patient?.fullName || "Paciente").replace(/\s+/g, "_")}.pdf</p>
+                </div>
+             </div>
+             <div className="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-xl">
+                <CalendarDays className="w-5 h-5 text-slate-400" />
+                <div className="flex-1">
+                   <p className="text-[10px] font-black uppercase text-slate-400">Contenido</p>
+                   <p className="text-xs font-bold text-slate-700">Resumen textual + Gráficos de tendencia</p>
+                </div>
+             </div>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="ghost"
+              className="flex-1 h-12 rounded-xl font-bold text-slate-400"
+              onClick={() => setIsExportModalOpen(false)}
+              disabled={isExporting}
+            >
+              CANCELAR
+            </Button>
+            <Button
+              className="flex-2 h-12 bg-slate-900 text-white rounded-xl font-black text-[10px] tracking-widest shadow-xl shadow-slate-200 active:scale-95 transition-all flex items-center justify-center gap-2"
+              onClick={handleExportPDF}
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <>
+                  <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  GENERANDO...
+                </>
+              ) : (
+                <>
+                  <FileText className="w-4 h-4" />
+                  GENERAR INFORME PDF
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Modal Confirmación Borrar Métrica Completa */}
       <ConfirmationModal
         isOpen={isDeleteEntireMetricConfirmOpen}
@@ -2601,7 +2888,23 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         confirmText="Sí, eliminar"
         variant="destructive"
       />
-    </div >
+
+      {/* Footer / Danger Zone */}
+      <div className="pt-20 border-t border-slate-100 mt-20 flex flex-col items-center gap-4">
+        <p className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em]">
+          Ecosistema NutriSaaS v1.1
+        </p>
+        <button
+          onClick={() => setIsDeletePatientConfirmOpen(true)}
+          className="group flex items-center gap-3 px-6 py-3 text-slate-300 hover:text-rose-500 transition-all cursor-pointer opacity-30 hover:opacity-100"
+        >
+          <Trash2 className="w-4 h-4" />
+          <span className="text-[10px] font-black uppercase tracking-widest">
+            Eliminar Paciente
+          </span>
+        </button>
+      </div>
+    </div>
   );
 }
 

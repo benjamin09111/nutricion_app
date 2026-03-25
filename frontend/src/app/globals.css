@@ -41,3 +41,16 @@ body {
     animation-delay: 4s;
   }
 }
+
+/* Hide native reveal button in browsers (Microsoft Edge/IE) */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+}
+
+/* Hide default behavior in some webkit browsers if applicable */
+input[type="password"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}

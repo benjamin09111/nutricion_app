@@ -16,6 +16,7 @@ class CreateAccountDto {
     email;
     fullName;
     role;
+    planId;
 }
 exports.CreateAccountDto = CreateAccountDto;
 __decorate([
@@ -33,4 +34,9 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateAccountDto.prototype, "role", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateAccountDto.prototype, "planId", void 0);
 //# sourceMappingURL=create-account.dto.js.map

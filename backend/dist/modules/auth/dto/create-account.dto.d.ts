@@ -3,4 +3,5 @@ export declare class CreateAccountDto {
     email: string;
     fullName?: string;
     role?: UserRole;
+    planId?: string;
 }

@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Activity,
   Heart,
+  Plus,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -197,7 +198,19 @@ export default function CreatePatientClient() {
                 placeholder="Ej. Valentina Morales Lagos"
                 className="h-11 rounded-xl bg-slate-50/50 border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all"
                 value={draft.fullName}
-                onChange={(e) => updateDraft({ fullName: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const capitalized = val
+                    .split(" ")
+                    .map((word) =>
+                      word.length > 0
+                        ? word.charAt(0).toUpperCase() +
+                          word.slice(1).toLowerCase()
+                        : "",
+                    )
+                    .join(" ");
+                  updateDraft({ fullName: capitalized });
+                }}
               />
             </div>
 
@@ -280,6 +293,11 @@ export default function CreatePatientClient() {
             </div>
 
             <div className="space-y-2 md:col-span-2 pt-6 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-lg">
+                  Información Opcional (Editable posteriormente)
+                </h3>
+              </div>
               <label className="text-xs font-semibold text-slate-500 ml-1">
                 Propuesta de Foco Nutricional
               </label>
@@ -444,6 +462,11 @@ export default function CreatePatientClient() {
                   placeholder="Ej: Diabetes, Celiaco..."
                   className="mt-2"
                 />
+                <p className="text-[10px] text-slate-400 mt-2 italic flex items-center gap-1.5 ml-1 font-medium">
+                  <Plus className="w-3 h-3 text-emerald-500" />
+                  Si no existe, créala apretando
+                  <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-slate-600 font-bold">Enter</span>
+                </p>
               </div>
             </div>
           </div>
@@ -488,7 +511,7 @@ export default function CreatePatientClient() {
                 </label>
                 <textarea
                   className="w-full h-28 rounded-xl bg-slate-50/50 border border-slate-200 p-4 text-sm font-medium text-slate-700 focus:bg-white focus:border-emerald-300 focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
-                  placeholder="Antecedentes, motivo de consulta..."
+                  placeholder="Comentarios iniciales para tener en cuenta; ej: 'No come enlatados'"
                   value={draft.clinicalSummary || ""}
                   onChange={(e) =>
                     updateDraft({ clinicalSummary: e.target.value })

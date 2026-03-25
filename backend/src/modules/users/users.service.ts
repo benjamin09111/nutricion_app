@@ -11,7 +11,9 @@ export class UsersService {
      * The frontend should only receive prepared data and display it immediately.
      */
     async findAll(role?: any, search?: string) {
-        const where: any = {};
+        const where: any = {
+            status: { not: 'DELETED' as any }
+        };
 
         if (role) {
             if (Array.isArray(role)) {
@@ -53,7 +55,7 @@ export class UsersService {
             plan: acc.plan,
             subscriptionEndsAt: acc.subscriptionEndsAt,
             createdAt: acc.createdAt,
-            lastLogin: acc.updatedAt,
+            lastLogin: acc.lastLoginAt || acc.updatedAt,
             fullName: acc.nutritionist?.fullName || (
                 (acc.role as any) === 'ADMIN_MASTER' ? 'Admin Master' :
                     (acc.role as any) === 'ADMIN_GENERAL' ? 'Admin General' :
@@ -129,11 +131,35 @@ export class UsersService {
         };
     }
     /**
+     * Delete account (Soft Delete)
+     * Professional pattern: Rename email to free it up for reuse
+     */
+    async softDelete(id: string) {
+        const account = await this.prisma.account.findUnique({
+            where: { id },
+            select: { email: true }
+        });
+
+        if (!account) return;
+
+        // Append timestamp to avoid collisions if they delete multiple accounts with same email over time
+        const deletedEmail = `${account.email}.deleted.${Date.now()}`;
+
+        return this.prisma.account.update({
+            where: { id },
+            data: {
+                status: 'DELETED' as any,
+                email: deletedEmail
+            }
+        });
+    }
+
+    /**
      * Count total number of nutritionists
      */
     async countNutritionists() {
         return this.prisma.account.count({
-            where: { role: 'NUTRITIONIST' }
+            where: { role: 'NUTRITIONIST', status: { not: 'DELETED' as any } }
         });
     }
 }

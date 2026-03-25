@@ -11,8 +11,8 @@ export declare class ResourcesController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
         content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -24,9 +24,9 @@ export declare class ResourcesController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         icon: string | null;
         color: string | null;
-        slug: string;
         bg: string | null;
     }[]>;
     createSection(req: any, data: any): Promise<{
@@ -35,9 +35,9 @@ export declare class ResourcesController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        slug: string;
         icon: string | null;
         color: string | null;
-        slug: string;
         bg: string | null;
     }>;
     findOne(id: string): Promise<({
@@ -48,8 +48,8 @@ export declare class ResourcesController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
         content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -63,8 +63,8 @@ export declare class ResourcesController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
         content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -84,8 +84,8 @@ export declare class ResourcesController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
         content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -99,8 +99,8 @@ export declare class ResourcesController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
         content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     }>;

@@ -8,8 +8,8 @@ export declare class MembershipsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
         slug: string;
+        description: string | null;
         currency: string;
         billingPeriod: string;
         features: import("@prisma/client/runtime/library").JsonValue;
@@ -25,8 +25,8 @@ export declare class MembershipsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
         slug: string;
+        description: string | null;
         currency: string;
         billingPeriod: string;
         features: import("@prisma/client/runtime/library").JsonValue;
@@ -42,8 +42,8 @@ export declare class MembershipsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
         slug: string;
+        description: string | null;
         currency: string;
         billingPeriod: string;
         features: import("@prisma/client/runtime/library").JsonValue;
@@ -59,8 +59,8 @@ export declare class MembershipsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
         slug: string;
+        description: string | null;
         currency: string;
         billingPeriod: string;
         features: import("@prisma/client/runtime/library").JsonValue;
@@ -76,8 +76,8 @@ export declare class MembershipsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
         slug: string;
+        description: string | null;
         currency: string;
         billingPeriod: string;
         features: import("@prisma/client/runtime/library").JsonValue;
@@ -93,8 +93,8 @@ export declare class MembershipsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
         slug: string;
+        description: string | null;
         currency: string;
         billingPeriod: string;
         features: import("@prisma/client/runtime/library").JsonValue;
@@ -110,8 +110,8 @@ export declare class MembershipsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        description: string | null;
         slug: string;
+        description: string | null;
         currency: string;
         billingPeriod: string;
         features: import("@prisma/client/runtime/library").JsonValue;

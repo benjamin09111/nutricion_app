@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Settings,
   X,
+  Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -42,6 +43,7 @@ export default function AdminClientsPage() {
   // Modal states
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [durationDays, setDurationDays] = useState<number>(30);
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -165,6 +167,35 @@ export default function AdminClientsPage() {
     } catch (error) {
       console.error(error);
       toast.error("Error al aplicar configuración");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSoftDelete = async () => {
+    if (!selectedUser) return;
+    setIsUpdating(true);
+    try {
+      const token =
+        Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetch(
+        `${API_URL}/users/${selectedUser.id}/delete`,
+        {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      if (!response.ok) throw new Error("Error al eliminar usuario");
+
+      toast.success(
+        `Usuario ${selectedUser.fullName || selectedUser.email} marcado como eliminado`,
+      );
+      setShowDeleteModal(false);
+      fetchClients();
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al eliminar el usuario");
     } finally {
       setIsUpdating(false);
     }
@@ -424,16 +455,36 @@ export default function AdminClientsPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium ${client.status === "ACTIVE" ? "text-green-700" : "text-red-700"}`}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset",
+                            client.status === "ACTIVE"
+                              ? "bg-green-50 text-green-700 ring-green-600/20"
+                              : client.status === "PENDING"
+                                ? "bg-amber-50 text-amber-700 ring-amber-600/20"
+                                : "bg-red-50 text-red-700 ring-red-600/20",
+                          )}
                         >
                           <span
-                            className={`h-1.5 w-1.5 rounded-full ${client.status === "ACTIVE" ? "bg-green-600" : "bg-red-600"}`}
+                            className={cn(
+                              "h-1.5 w-1.5 rounded-full",
+                              client.status === "ACTIVE"
+                                ? "bg-green-600"
+                                : client.status === "PENDING"
+                                  ? "bg-amber-600"
+                                  : "bg-red-600",
+                            )}
                           />
-                          {client.status === "ACTIVE" ? "Activo" : "Inactivo"}
+                          {client.status === "ACTIVE"
+                            ? "Activo"
+                            : client.status === "PENDING"
+                              ? "Pendiente"
+                              : "Suspendido"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-slate-500 text-xs">
-                        {new Date(client.lastLogin).toLocaleDateString()}
+                        {client.lastLogin
+                          ? new Date(client.lastLogin).toLocaleDateString()
+                          : "-"}
                       </td>
                       <td className="px-6 py-4 relative actions-menu-container">
                         <button
@@ -460,6 +511,17 @@ export default function AdminClientsPage() {
                             >
                               <Settings className="h-3.5 w-3.5" />
                               Configurar
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedUser(client);
+                                setShowDeleteModal(true);
+                                setOpenMenuId(null);
+                              }}
+                              className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg transition-colors cursor-pointer border-t border-slate-100 mt-1 pt-2"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Eliminar
                             </button>
                           </div>
                         )}
@@ -602,6 +664,18 @@ export default function AdminClientsPage() {
         confirmText="Resetear Planes"
         cancelText="Cancelar"
         variant="warning"
+        isLoading={isUpdating}
+      />
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleSoftDelete}
+        title="Eliminar Cuenta"
+        message={`¿Estás seguro que deseas eliminar la cuenta de ${selectedUser?.fullName || selectedUser?.email}? El usuario no podrá volver a ingresar y su cuenta quedará marcada como eliminada.`}
+        confirmText="Eliminar Cuenta"
+        cancelText="Cancelar"
+        variant="danger"
         isLoading={isUpdating}
       />
     </div>

@@ -11,6 +11,7 @@ export declare class MailService {
         message: string;
         fromEmail: string;
     }): Promise<void>;
+    sendFeedbackConfirmation(email: string): Promise<void>;
     sendRejectionEmail(email: string, fullName: string, adminMessage?: string): Promise<void>;
     sendPasswordResetEmail(email: string, fullName: string, password: string): Promise<void>;
 }

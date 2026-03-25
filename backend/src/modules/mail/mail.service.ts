@@ -10,7 +10,7 @@ export class MailService {
             await this.mailerService.sendMail({
                 to: email,
                 subject: '🌿 ¡Bienvenido a NutriSaaS! Tus credenciales de acceso',
-                template: 'welcome', // template name without extension
+                template: 'welcome',
                 context: {
                     name: fullName,
                     email: email,
@@ -74,8 +74,10 @@ export class MailService {
                 subject: `💬 [${data.type}] ${data.subject}`,
                 template: 'admin-notification',
                 context: {
-                    fullName: data.fromEmail.split('@')[0], // Extract part of email as name
+                    fullName: data.fromEmail.split('@')[0],
                     email: data.fromEmail,
+                    phone: 'N/A',
+                    professionalId: 'N/A',
                     message: data.message,
                     specialty: `SOPORTE: ${data.type}`,
                     year: new Date().getFullYear(),
@@ -84,6 +86,23 @@ export class MailService {
             console.log(`✅ Notificación de soporte enviada al admin (${adminEmail})`);
         } catch (error) {
             console.error('❌ Error enviando notificación de soporte:', error);
+        }
+    }
+
+    async sendFeedbackConfirmation(email: string): Promise<void> {
+        try {
+            await this.mailerService.sendMail({
+                to: email,
+                subject: '💬 Recibimos tu feedback - NutriSaaS',
+                template: 'request-confirmation',
+                context: {
+                    name: 'Usuario',
+                    year: new Date().getFullYear(),
+                },
+            });
+            console.log(`✅ Confirmación de feedback enviada a: ${email}`);
+        } catch (error) {
+            console.error('❌ Error enviando confirmación de feedback:', error);
         }
     }
 
@@ -122,6 +141,7 @@ export class MailService {
             console.log(`✅ Correo de recuperación enviado a: ${email}`);
         } catch (error) {
             console.error('❌ Error enviando correo de recuperación:', error);
+            throw error;
         }
     }
 }

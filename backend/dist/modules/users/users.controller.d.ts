@@ -25,6 +25,7 @@ export declare class UsersController {
         status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
+        lastLoginAt: Date | null;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
     }>;
@@ -39,6 +40,7 @@ export declare class UsersController {
         status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
+        lastLoginAt: Date | null;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
     }>;
@@ -46,4 +48,16 @@ export declare class UsersController {
         updatedCount: number;
         message: string;
     }>;
+    softDelete(id: string, req: any): Promise<{
+        id: string;
+        email: string;
+        password: string | null;
+        role: import(".prisma/client").$Enums.UserRole;
+        status: import(".prisma/client").$Enums.AccountStatus;
+        createdAt: Date;
+        updatedAt: Date;
+        lastLoginAt: Date | null;
+        plan: import(".prisma/client").$Enums.SubscriptionPlan;
+        subscriptionEndsAt: Date | null;
+    } | undefined>;
 }

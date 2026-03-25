@@ -13,11 +13,11 @@ export declare class ConsultationsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         date: Date;
         metrics: import("@prisma/client/runtime/library").JsonValue | null;
         patientId: string;
         title: string;
-        description: string | null;
     }>;
     findAll(req: any, page?: string, limit?: string, search?: string, patientId?: string, type?: 'CLINICAL' | 'METRIC' | 'ALL'): Promise<{
         data: {
@@ -29,11 +29,11 @@ export declare class ConsultationsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            description: string | null;
             date: Date;
             metrics: import("@prisma/client/runtime/library").JsonValue | null;
             patientId: string;
             title: string;
-            description: string | null;
         }[];
         meta: {
             total: number;
@@ -50,11 +50,11 @@ export declare class ConsultationsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         date: Date;
         metrics: import("@prisma/client/runtime/library").JsonValue | null;
         patientId: string;
         title: string;
-        description: string | null;
     }>;
     update(req: any, id: string, updateConsultationDto: UpdateConsultationDto): Promise<{
         patient: {
@@ -65,21 +65,21 @@ export declare class ConsultationsController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         date: Date;
         metrics: import("@prisma/client/runtime/library").JsonValue | null;
         patientId: string;
         title: string;
-        description: string | null;
     }>;
     remove(req: any, id: string): Promise<{
         nutritionistId: string;
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         date: Date;
         metrics: import("@prisma/client/runtime/library").JsonValue | null;
         patientId: string;
         title: string;
-        description: string | null;
     }>;
 }

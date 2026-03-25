@@ -12,6 +12,9 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
@@ -224,8 +227,8 @@ export default function PatientsClient() {
           </p>
         </div>
 
-        <div className="bg-white shadow-sm border border-slate-200 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200 rounded-2xl overflow-hidden flex flex-col">
+          <div className="overflow-x-auto max-h-[calc(100vh-380px)] custom-scrollbar">
             <table className="min-w-full divide-y divide-slate-100">
               <thead className="bg-slate-50/50">
                 <tr>
@@ -365,36 +368,37 @@ export default function PatientsClient() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="relative group inline-block text-left">
-                          <button className="inline-flex justify-center w-full px-4 py-2 text-sm font-medium border border-slate-200 rounded-xl shadow-sm bg-white text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 cursor-pointer">
-                            Acciones
-                            <svg className="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
+                            className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer group/btn"
+                            title="Ver Expediente"
+                          >
+                            <Eye className="w-4.5 h-4.5 group-hover/btn:scale-110 transition-transform" />
+                          </button>
+                          
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/dashboard/pacientes/${patient.id}?edit=true`);
+                            }}
+                            className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all cursor-pointer group/btn"
+                            title="Editar Datos"
+                          >
+                            <Edit2 className="w-4.5 h-4.5 group-hover/btn:scale-110 transition-transform" />
                           </button>
 
-                          <div className="origin-top-right absolute right-0 mt-2 w-36 rounded-xl shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 border border-slate-100">
-                            <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                              <button
-                                onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
-                                className="w-full text-left block px-4 py-2 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 font-medium cursor-pointer"
-                                role="menuitem"
-                              >
-                                Ver
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPatientToDelete(patient.id);
-                                  setIsDeleteConfirmOpen(true);
-                                }}
-                                className="w-full text-left block px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 font-medium cursor-pointer"
-                                role="menuitem"
-                              >
-                                Eliminar
-                              </button>
-                            </div>
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPatientToDelete(patient.id);
+                              setIsDeleteConfirmOpen(true);
+                            }}
+                            className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer group/btn"
+                            title="Eliminar Paciente"
+                          >
+                            <Trash2 className="w-4.5 h-4.5 group-hover/btn:scale-110 transition-transform" />
+                          </button>
                         </div>
                       </td>
                     </tr>

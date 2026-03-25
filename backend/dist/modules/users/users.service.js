@@ -18,7 +18,9 @@ let UsersService = class UsersService {
         this.prisma = prisma;
     }
     async findAll(role, search) {
-        const where = {};
+        const where = {
+            status: { not: 'DELETED' }
+        };
         if (role) {
             if (Array.isArray(role)) {
                 where.role = { in: role };
@@ -57,7 +59,7 @@ let UsersService = class UsersService {
             plan: acc.plan,
             subscriptionEndsAt: acc.subscriptionEndsAt,
             createdAt: acc.createdAt,
-            lastLogin: acc.updatedAt,
+            lastLogin: acc.lastLoginAt || acc.updatedAt,
             fullName: acc.nutritionist?.fullName || (acc.role === 'ADMIN_MASTER' ? 'Admin Master' :
                 acc.role === 'ADMIN_GENERAL' ? 'Admin General' :
                     acc.role === 'ADMIN' ? 'Admin General' :
@@ -115,9 +117,25 @@ let UsersService = class UsersService {
             message: `${result.count} usuarios fueron cambiados a plan FREE`
         };
     }
+    async softDelete(id) {
+        const account = await this.prisma.account.findUnique({
+            where: { id },
+            select: { email: true }
+        });
+        if (!account)
+            return;
+        const deletedEmail = `${account.email}.deleted.${Date.now()}`;
+        return this.prisma.account.update({
+            where: { id },
+            data: {
+                status: 'DELETED',
+                email: deletedEmail
+            }
+        });
+    }
     async countNutritionists() {
         return this.prisma.account.count({
-            where: { role: 'NUTRITIONIST' }
+            where: { role: 'NUTRITIONIST', status: { not: 'DELETED' } }
         });
     }
 };

@@ -59,6 +59,21 @@ let UsersController = class UsersController {
         }
         return this.usersService.resetUnpaidPlans();
     }
+    async softDelete(id, req) {
+        const requesterRole = req.user.role;
+        if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(requesterRole)) {
+            throw new common_1.UnauthorizedException('Solo personal autorizado puede realizar esta acción');
+        }
+        const targetUser = await this.usersService.findOne(id);
+        if (!targetUser) {
+            throw new common_1.UnauthorizedException('Usuario no encontrado');
+        }
+        const isTargetAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(targetUser.role);
+        if (isTargetAdmin && requesterRole !== 'ADMIN_MASTER') {
+            throw new common_1.UnauthorizedException('Solo un Admin Master puede eliminar a otros administradores');
+        }
+        return this.usersService.softDelete(id);
+    }
 };
 exports.UsersController = UsersController;
 __decorate([
@@ -104,6 +119,15 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "resetUnpaidPlans", null);
+__decorate([
+    (0, common_1.Patch)(':id/delete'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "softDelete", null);
 exports.UsersController = UsersController = __decorate([
     (0, common_1.Controller)('users'),
     __metadata("design:paramtypes", [users_service_1.UsersService])

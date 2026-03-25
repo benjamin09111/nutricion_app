@@ -9,7 +9,7 @@ export declare class AuthService {
     private jwtService;
     private mailService;
     constructor(prisma: PrismaService, jwtService: JwtService, mailService: MailService);
-    createAccount(email: string, role: UserRole, fullName?: string, adminMessage?: string): Promise<{
+    createAccount(email: string, role: UserRole, fullName?: string, adminMessage?: string, planId?: string): Promise<{
         success: boolean;
         message: string;
     }>;
@@ -19,6 +19,8 @@ export declare class AuthService {
             id: string;
             email: string;
             role: import(".prisma/client").$Enums.UserRole;
+            plan: import(".prisma/client").$Enums.SubscriptionPlan;
+            planName: string;
             nutritionist: {
                 id: string;
                 fullName: string;
@@ -54,6 +56,7 @@ export declare class AuthService {
         status: import(".prisma/client").$Enums.AccountStatus;
         createdAt: Date;
         updatedAt: Date;
+        lastLoginAt: Date | null;
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
     }) | null>;

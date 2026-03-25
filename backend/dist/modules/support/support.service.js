@@ -48,6 +48,7 @@ let SupportService = class SupportService {
             message: data.message || 'Sin mensaje',
             fromEmail: data.email
         });
+        await this.mailService.sendFeedbackConfirmation(data.email);
         return request;
     }
     async findAll() {

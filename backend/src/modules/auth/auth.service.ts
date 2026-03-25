@@ -17,7 +17,7 @@ export class AuthService {
         private mailService: MailService,
     ) { }
 
-    async createAccount(email: string, role: UserRole, fullName: string = 'Usuario', adminMessage?: string) {
+    async createAccount(email: string, role: UserRole, fullName: string = 'Usuario', adminMessage?: string, planId?: string) {
         const normalizedEmail = email.toLowerCase().trim();
         const existingAccount = await this.prisma.account.findUnique({
             where: { email: normalizedEmail },
@@ -32,11 +32,37 @@ export class AuthService {
 
         try {
             await this.prisma.$transaction(async (tx) => {
+                // Determine the high-level plan enum
+                let subscriptionPlan: any = 'FREE';
+                let targetPlanId = planId;
+
+                const isNutritionist = ['NUTRITIONIST', 'ORGANIZATION', 'SUPPLEMENT_STORE', 'SUPERMARKET'].includes(role);
+
+                if (isNutritionist) {
+                    // Find the membership plan details
+                    let membershipPlan;
+                    if (targetPlanId) {
+                        membershipPlan = await tx.membershipPlan.findUnique({ where: { id: targetPlanId } });
+                    } else {
+                        // Default to the first active membership plan
+                        membershipPlan = await tx.membershipPlan.findFirst({
+                            where: { isActive: true },
+                            orderBy: { displayOrder: 'asc' }
+                        });
+                        targetPlanId = membershipPlan?.id;
+                    }
+
+                    if (membershipPlan) {
+                        subscriptionPlan = membershipPlan.slug.toUpperCase();
+                    }
+                }
+
                 const newAccount = await tx.account.create({
                     data: {
                         email: normalizedEmail,
                         password: hashedPassword,
                         role: role,
+                        plan: (role === 'NUTRITIONIST' || isNutritionist) ? subscriptionPlan : 'ENTERPRISE', // Admins get full access
                     },
                 });
 
@@ -46,6 +72,19 @@ export class AuthService {
                             accountId: newAccount.id,
                             fullName: fullName,
                         },
+                    });
+                }
+
+                // If it's a role that requires a subscription (Nutritionist, Org, etc.)
+                if (isNutritionist && targetPlanId) {
+                    await tx.subscription.create({
+                        data: {
+                            accountId: newAccount.id,
+                            planId: targetPlanId,
+                            status: 'ACTIVE', // Or TRIALING depending on business rules
+                            startDate: new Date(),
+                            endDate: new Date(new Date().setDate(new Date().getDate() + 30)), // 30 days default
+                        }
                     });
                 }
             });
@@ -71,7 +110,14 @@ export class AuthService {
         const normalizedEmail = email.toLowerCase().trim();
         const account = await this.prisma.account.findUnique({
             where: { email: normalizedEmail },
-            include: { nutritionist: true },
+            include: {
+                nutritionist: true,
+                subscription: {
+                    include: {
+                        plan: true
+                    }
+                }
+            },
         });
 
         if (!account || !account.password) {
@@ -83,6 +129,15 @@ export class AuthService {
         if (!isPasswordValid) {
             throw new UnauthorizedException('Credenciales inválidas');
         }
+
+        // Update status to ACTIVE and set last login timestamp
+        await this.prisma.account.update({
+            where: { id: account.id },
+            data: {
+                status: 'ACTIVE' as any,
+                lastLoginAt: new Date(),
+            },
+        });
 
         if (!account.nutritionist) {
             console.warn(`[AuthService] Warning: Account ${account.email} has no Nutritionist record. Role: ${account.role}`);
@@ -99,12 +154,32 @@ export class AuthService {
             expiresIn: loginDto.rememberMe ? '30d' : '24h'
         };
 
+        let planName = account.subscription?.plan?.name;
+        
+        // If no subscription record found specifically for this account, default to the first active plan if they are a nutritionist
+        if (!planName && account.role === 'NUTRITIONIST') {
+            const defaultPlan = await this.prisma.membershipPlan.findFirst({
+                where: { isActive: true },
+                orderBy: { displayOrder: 'asc' }
+            });
+            if (defaultPlan) {
+                planName = defaultPlan.name;
+            }
+        }
+
+        // Final fallbacks
+        if (!planName) {
+            planName = (['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(account.role) ? 'Full Access' : 'Plan Gratuito');
+        }
+
         return {
             access_token: this.jwtService.sign(payload, signOptions),
             user: {
                 id: account.id,
                 email: account.email,
                 role: account.role,
+                plan: account.plan,
+                planName,
                 nutritionist: account.nutritionist,
             },
         };
@@ -150,8 +225,12 @@ export class AuthService {
                 greetingName = 'Admin General';
             }
 
+            console.log(`[AuthService] Password updated in DB for ${normalizedEmail}. New random pass: ${password}`);
+
             // Use specific password reset email
+            console.log(`[AuthService] Triggering MailService.sendPasswordResetEmail for ${email}...`);
             await this.mailService.sendPasswordResetEmail(email, greetingName, password);
+            console.log(`[AuthService] MailService call finished for ${email}`);
 
             return {
                 success: true,

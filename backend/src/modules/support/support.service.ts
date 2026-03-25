@@ -40,6 +40,9 @@ export class SupportService {
             fromEmail: data.email
         });
 
+        // 3. Send confirmation to user
+        await this.mailService.sendFeedbackConfirmation(data.email);
+
         return request;
     }
 

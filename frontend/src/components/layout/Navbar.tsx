@@ -56,7 +56,7 @@ export function Navbar() {
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { isAdmin, isAdminView, toggleViewMode } = useAdmin();
-  const { plan, trialEndsAt } = useSubscription();
+  const { plan, planName, trialEndsAt } = useSubscription();
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
     useNotifications();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -244,7 +244,7 @@ export function Navbar() {
                   Plan Activo:
                 </span>
                 <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                  {plan}
+                  {planName.toUpperCase()}
                 </span>
               </div>
             </div>
@@ -344,7 +344,7 @@ export function Navbar() {
                           return "Admin Master";
                         return "Admin General";
                       })()
-                      : "Prueba gratuita"}
+                      : planName}
                   </p>
                 </div>
 

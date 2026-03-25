@@ -8,9 +8,9 @@ export declare class AnnouncementsService {
         message: string;
         createdAt: Date;
         updatedAt: Date;
+        isActive: boolean;
         type: string;
         title: string;
-        isActive: boolean;
         link: string | null;
         targetRoles: string[];
     }>;
@@ -19,9 +19,9 @@ export declare class AnnouncementsService {
         message: string;
         createdAt: Date;
         updatedAt: Date;
+        isActive: boolean;
         type: string;
         title: string;
-        isActive: boolean;
         link: string | null;
         targetRoles: string[];
     }[]>;

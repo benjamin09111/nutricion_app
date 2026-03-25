@@ -13,4 +13,8 @@ export class CreateAccountDto {
     @IsEnum(UserRole, { message: 'Rol inválido' })
     @IsOptional()
     role?: UserRole;
+
+    @IsString()
+    @IsOptional()
+    planId?: string;
 }

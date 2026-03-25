@@ -33,7 +33,13 @@ export class AuthController {
             throw new UnauthorizedException('Solo un Admin Master puede crear otras cuentas administrativas');
         }
 
-        return this.authService.createAccount(createAccountDto.email, targetRole, createAccountDto.fullName);
+        return this.authService.createAccount(
+            createAccountDto.email,
+            targetRole as any,
+            createAccountDto.fullName,
+            undefined,
+            createAccountDto.planId
+        );
     }
 
     @Post('reset-password')

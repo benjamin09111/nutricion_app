@@ -44,9 +44,9 @@ export declare class ProjectsController {
         status: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         mode: string;
         patientId: string | null;
-        description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;
@@ -93,9 +93,9 @@ export declare class ProjectsController {
         status: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         mode: string;
         patientId: string | null;
-        description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;
@@ -142,9 +142,9 @@ export declare class ProjectsController {
         status: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         mode: string;
         patientId: string | null;
-        description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;
@@ -191,9 +191,9 @@ export declare class ProjectsController {
         status: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
         mode: string;
         patientId: string | null;
-        description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;

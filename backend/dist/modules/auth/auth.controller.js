@@ -37,7 +37,7 @@ let AuthController = class AuthController {
         if (isTargetAdmin && requesterRole !== 'ADMIN_MASTER') {
             throw new common_1.UnauthorizedException('Solo un Admin Master puede crear otras cuentas administrativas');
         }
-        return this.authService.createAccount(createAccountDto.email, targetRole, createAccountDto.fullName);
+        return this.authService.createAccount(createAccountDto.email, targetRole, createAccountDto.fullName, undefined, createAccountDto.planId);
     }
     async resetPassword(body) {
         try {

@@ -29,6 +29,7 @@ import { ConsultationsModule } from './modules/consultations/consultations.modul
 import { CommonModule } from './common/common.module';
 import { DietModule } from './modules/diet/diet.module';
 import { ProjectsModule } from './modules/projects/projects.module';
+import { PermissionsModule } from './modules/permissions/permissions.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { ProjectsModule } from './modules/projects/projects.module';
     CommonModule,
     DietModule,
     ProjectsModule,
+    PermissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
