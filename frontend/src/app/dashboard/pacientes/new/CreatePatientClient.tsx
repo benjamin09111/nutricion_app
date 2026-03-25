@@ -118,13 +118,13 @@ export default function CreatePatientClient() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10 pb-24 animate-in fade-in duration-700">
+    <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-24 animate-in fade-in duration-700 px-1 sm:px-0">
       {/* Navigation Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <Button
           variant="ghost"
           onClick={() => router.back()}
-          className="group flex items-center gap-2 hover:bg-slate-100/50 rounded-xl px-4 py-2 transition-all"
+          className="group flex items-center gap-2 hover:bg-slate-100/50 rounded-xl px-4 py-2 transition-all w-fit"
         >
           <ArrowLeft className="h-4 w-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
           <span className="text-sm font-medium text-slate-500 group-hover:text-slate-800 transition-colors">
@@ -132,11 +132,11 @@ export default function CreatePatientClient() {
           </span>
         </Button>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button
             variant="ghost"
             onClick={() => setShowResetConfirm(true)}
-            className="h-10 px-4 text-slate-500 hover:text-rose-600 hover:bg-rose-50 font-medium rounded-xl transition-all gap-2 text-sm"
+            className="flex-1 sm:flex-none h-10 px-4 text-slate-500 hover:text-rose-600 hover:bg-rose-50 font-medium rounded-xl transition-all gap-2 text-sm"
           >
             <RotateCcw className="h-4 w-4" />
             Reiniciar
@@ -145,32 +145,32 @@ export default function CreatePatientClient() {
           <Button
             onClick={handleSaveClick}
             disabled={isSaving}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-10 px-6 rounded-xl shadow-sm transition-all flex items-center gap-2"
+            className="flex-2 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-10 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
           >
             {isSaving ? (
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <Save className="h-4 w-4" />
             )}
-            <span>{draft.id ? "Actualizar Ficha" : "Registrar Paciente"}</span>
+            <span>{draft.id ? "Actualizar Ficha" : "Registrar"}</span>
           </Button>
         </div>
       </div>
 
       {/* Main Branding */}
-      <div className="bg-slate-900 rounded-2xl p-8 relative overflow-hidden shadow-lg border border-slate-800">
+      <div className="bg-slate-900 rounded-2xl p-6 lg:p-8 relative overflow-hidden shadow-lg border border-slate-800">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-[80px] -translate-y-1/2 translate-x-1/2 rounded-full" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/5 blur-[60px] translate-y-1/2 -translate-x-1/2 rounded-full" />
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-6">
-          <div className="h-16 w-16 rounded-xl bg-linear-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-inner border border-emerald-400/20">
-            <User className="h-8 w-8 text-emerald-50" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-4 lg:gap-6">
+          <div className="h-12 w-12 lg:h-16 lg:w-16 rounded-xl bg-linear-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-inner border border-emerald-400/20">
+            <User className="h-6 w-6 lg:h-8 lg:w-8 text-emerald-50" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-white tracking-tight mb-1">
+            <h1 className="text-xl lg:text-2xl font-semibold text-white tracking-tight mb-1">
               Nueva Identidad Clínica
             </h1>
-            <p className="text-emerald-100/70 text-sm max-w-lg">
+            <p className="text-emerald-100/70 text-xs lg:text-sm max-w-lg">
               Crea un perfil detallado para un seguimiento nutricional
               estructurado.
             </p>
@@ -181,7 +181,7 @@ export default function CreatePatientClient() {
       {/* Form Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Panel 1: Personal Identification */}
-        <div className="lg:col-span-8 bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+        <div className="lg:col-span-8 bg-white p-6 lg:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center gap-3 px-1 border-b border-slate-100 pb-4">
             <User className="w-5 h-5 text-emerald-600" />
             <h2 className="text-lg font-semibold text-slate-800">

@@ -1218,13 +1218,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   return (
     <div className="max-w-6xl mx-auto space-y-10 pb-24 animate-in fade-in duration-700">
       {/* Header & Back Button */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1 lg:px-0">
+        <div className="flex items-center gap-4 lg:gap-6">
           <button
             onClick={() => router.push("/dashboard/pacientes")}
-            className="group p-4 hover:bg-white rounded-2xl transition-all text-slate-400 hover:text-slate-900 border border-transparent hover:border-slate-100 hover:shadow-xl hover:shadow-slate-200/50 cursor-pointer"
+            className="group p-3 lg:p-4 hover:bg-white rounded-2xl transition-all text-slate-400 hover:text-slate-900 border border-transparent hover:border-slate-100 hover:shadow-xl hover:shadow-slate-200/50 cursor-pointer shrink-0"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-5 h-5 lg:w-6 lg:h-6" />
           </button>
           <div>
             {patient.status === "Inactive" && (
@@ -1273,23 +1273,23 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           </div>
         </div>
 
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-2 sm:gap-4 w-full lg:w-auto">
           {isEditing ? (
             <>
               <Button
                 onClick={() => setIsEditing(false)}
                 variant="ghost"
-                className="rounded-2xl h-10 px-4 text-slate-400 font-semibold text-xs"
+                className="flex-1 sm:flex-none rounded-2xl h-11 lg:h-10 px-4 text-slate-400 font-semibold text-xs"
               >
-                <CloseIcon className="w-5 h-5 mr-3" />
+                <CloseIcon className="w-5 h-5 mr-2" />
                 Cancelar
               </Button>
               <Button
                 onClick={handleSave}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-10 px-4 rounded-2xl shadow-sm transition-all hover:scale-[1.02] active:scale-95"
+                className="flex-2 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-11 lg:h-10 px-6 rounded-2xl shadow-sm transition-all active:scale-95"
               >
-                <Save className="w-5 h-5 mr-3" />
-                GUARDAR CAMBIOS
+                <Save className="w-5 h-5 mr-2" />
+                GUARDAR
               </Button>
             </>
           ) : (
@@ -1297,20 +1297,20 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <Button
                 onClick={handleEdit}
                 variant="ghost"
-                className="rounded-2xl h-10 px-4 text-slate-400 hover:text-slate-900 hover:bg-white border border-transparent hover:border-slate-100 font-semibold text-xs"
+                className="flex-1 sm:flex-none rounded-2xl h-11 lg:h-10 px-4 text-slate-400 hover:text-slate-900 hover:bg-white border border-transparent hover:border-slate-100 font-semibold text-xs"
               >
-                <Edit2 className="w-4 h-4 mr-3" />
-                Editar Perfil
+                <Edit2 className="w-4 h-4 mr-2" />
+                Editar
               </Button>
               {!isEditing && (
                 <Button
                   onClick={() =>
                     router.push("/dashboard/consultas/nueva?patientId=" + patient.id)
                   }
-                  className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-semibold h-10 px-4 rounded-2xl shadow-sm transition-all hover:scale-[1.02] active:scale-95"
+                  className="flex-2 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-11 lg:h-10 px-6 rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
-                  <Plus className="w-5 h-5 mr-3" />
-                  NUEVA CONSULTA
+                  <Plus className="w-5 h-5" />
+                  CONSULTA
                 </Button>
               )}
               <Button
@@ -1332,7 +1332,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       </div>
 
       {/* Quick Metrics Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         {[
           {
             label: "Peso Actual",
@@ -1371,7 +1371,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         ].map((stat, i) => (
           <div
             key={i}
-            className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4 group hover:scale-[1.02] transition-all"
+            className="bg-white p-6 lg:p-8 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4 group hover:scale-[1.02] transition-all"
           >
             <div
               className={cn(
@@ -1419,22 +1419,19 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex gap-6 border-b border-slate-100 px-6">
+      <div className="flex p-1 bg-slate-100/50 rounded-2xl w-full lg:w-fit border border-slate-200 backdrop-blur-sm overflow-x-auto no-scrollbar scroll-smooth">
         {(["General", "Consultas", "Progreso"] as TabType[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={cn(
-              "pb-4 text-xs font-semibold transition-all relative flex items-center gap-2",
+              "px-6 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-300 cursor-pointer whitespace-nowrap flex-1 lg:flex-none",
               activeTab === tab
-                ? "text-slate-900"
-                : "text-slate-400 hover:text-slate-600 cursor-pointer",
+                ? "bg-white text-emerald-700 shadow-sm ring-1 ring-slate-200/50"
+                : "text-slate-500 hover:text-slate-700 hover:bg-white/50",
             )}
           >
             {tab}
-            {activeTab === tab && (
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 rounded-full animate-in slide-in-from-bottom-1" />
-            )}
           </button>
         ))}
       </div>
@@ -1443,19 +1440,19 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       {activeTab === "General" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-500">
           {/* Left Column: Clinical & Dietary */}
-          <div className="lg:col-span-8 space-y-10">
+          <div className="lg:col-span-8 space-y-6 lg:space-y-10">
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm shadow-slate-200/50 overflow-hidden">
-              <div className="p-6 border-b border-slate-50 bg-slate-50/20 flex items-center justify-between">
-                <h3 className="text-2xl font-semibold text-slate-900 flex items-center gap-4">
-                  <Activity className="w-8 h-8 text-emerald-500" />
+              <div className="p-5 lg:p-6 border-b border-slate-50 bg-slate-50/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <h3 className="text-xl lg:text-2xl font-semibold text-slate-900 flex items-center gap-3 lg:gap-4">
+                  <Activity className="w-6 h-6 lg:w-8 lg:h-8 text-emerald-500" />
                   Inteligencia Clínica
                 </h3>
-                <div className="px-5 py-2 bg-emerald-50 text-emerald-600 rounded-2xl text-xs font-semibold border border-emerald-100">
+                <div className="px-5 py-2 bg-emerald-50 text-emerald-600 rounded-2xl text-xs font-semibold border border-emerald-100 w-fit">
                   Sincronizado
                 </div>
               </div>
 
-              <div className="p-6 grid md:grid-cols-2 gap-12">
+              <div className="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
                 <div className="space-y-8">
                   <div className="space-y-4">
                     <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3">
@@ -1892,15 +1889,15 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       {/* Consultas Tab */}
       {activeTab === "Consultas" && (
-        <div className="space-y-10 animate-in slide-in-from-right-4 duration-500 px-6 py-2" >
-          <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between" >
-            <div >
-              <h2 className="text-2xl font-bold text-slate-900" > Historial Clínico </h2>
-              <p className="text-sm font-medium text-slate-400" > Visualiza y gestiona todas las consultas de este paciente </p>
+        <div className="space-y-6 lg:space-y-10 animate-in slide-in-from-right-4 duration-500 px-1 lg:px-6 py-2">
+          <div className="bg-white p-6 lg:p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <div>
+              <h2 className="text-xl lg:text-2xl font-bold text-slate-900">Historial Clínico</h2>
+              <p className="text-xs lg:text-sm font-medium text-slate-400">Visualiza y gestiona las consultas del paciente</p>
             </div>
             <Button
               onClick={() => router.push("/dashboard/consultas/nueva?patientId=" + patient.id)}
-              className="bg-slate-900 hover:bg-slate-800 text-white font-bold h-12 px-6 rounded-2xl shadow-lg transition-all active:scale-95"
+              className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white font-bold h-12 px-6 rounded-2xl shadow-lg transition-all active:scale-95"
             >
               <Plus className="w-5 h-5 mr-2" />
               NUEVA CONSULTA
@@ -1917,14 +1914,14 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 clinicalConsultations.map((consultation) => (
                   <div
                     key={consultation.id}
-                    className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group hover:scale-[1.01] transition-all cursor-pointer"
+                    className="bg-white p-5 lg:p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:scale-[1.01] transition-all cursor-pointer"
                     onClick={() => setSelectedConsultation(consultation)}
                   >
-                    <div className="flex items-center gap-6" >
-                      <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center group-hover:bg-emerald-50 group-hover:border-emerald-100 transition-colors" >
+                    <div className="flex items-center gap-4 lg:gap-6">
+                      <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 group-hover:bg-emerald-50 group-hover:border-emerald-100 transition-colors">
                         <CalendarDays className="w-6 h-6 text-slate-300 group-hover:text-emerald-500" />
                       </div>
-                      <div >
+                      <div>
                         <div className="text-xs font-semibold text-emerald-600 mb-1" >
                           {new Date(consultation.date).toLocaleDateString(
                             "es-ES",
@@ -2026,7 +2023,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         activeTab === "Progreso" && (
           <div className="space-y-10 animate-in zoom-in-95 duration-500">
             {/* Metrics Actions */}
-            <div className="flex justify-between items-center px-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
               <div>
                 <h3 className="text-xl font-semibold text-slate-900">
                   Seguimiento Biométrico
@@ -2035,10 +2032,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   Gestiona la evolución física del paciente
                 </p>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                 <button
                   onClick={() => setIsExportModalOpen(true)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white text-emerald-600 font-black rounded-xl border border-emerald-100 hover:bg-emerald-50 transition-all cursor-pointer group/pdf shadow-sm hover:shadow-md"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white text-emerald-600 font-black rounded-xl border border-emerald-100 hover:bg-emerald-50 transition-all cursor-pointer group/pdf shadow-sm hover:shadow-md"
                 >
                   <FileText className="w-4 h-4 text-emerald-500" />
                   <span className="text-[10px] uppercase tracking-widest">
@@ -2047,7 +2044,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 </button>
                 <button
                   onClick={() => setIsMetricModalOpen(true)}
-                  className="flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
                 >
                   <Plus className="w-5 h-5 text-emerald-400" />
                   Registrar Métrica
@@ -2056,7 +2053,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             </div>
 
             {/* Last Values Summary Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 px-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 lg:gap-6 px-2">
               {getAllMetricKeys().map((key) => {
                 const info = getMetricInfo(key);
                 const chartData = prepareChartData();
@@ -2108,11 +2105,11 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   <div
                     key={key}
                     id={`export-chart-${key}`}
-                    className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm group"
+                    className="bg-white rounded-2xl p-6 lg:p-8 border border-slate-200 shadow-sm group"
                   >
-                    <div className="flex items-center justify-between mb-8">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
                       <div className="space-y-1">
-                        <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-3">
+                        <h3 className="text-base lg:text-lg font-semibold text-slate-900 flex items-center gap-3">
                           <info.icon
                             className={cn(
                               "w-6 h-6",

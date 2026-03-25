@@ -76,6 +76,28 @@ export default function PatientsClient() {
     }
   };
 
+  const togglePatientStatus = async (patient: Patient) => {
+    const newStatus = patient.status === "Active" ? "Inactive" : "Active";
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const response = await fetch(`${apiUrl}/patients/${patient.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (response.ok) {
+        toast.success(`Estado actualizado a ${newStatus === "Active" ? "Activo" : "Inactivo"}`);
+        fetchPatients(0);
+      }
+    } catch (e) {
+      toast.error("Error al actualizar estado");
+    }
+  };
+
   const fetchPatients = async (retries = 3) => {
     setIsLoading(true);
     try {
@@ -165,14 +187,14 @@ export default function PatientsClient() {
       description="Gestiona los expedientes y progreso de tus pacientes de forma profesional."
       className="pb-8"
     >
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-        <div className="flex p-1 bg-slate-100/80 rounded-2xl w-fit border border-slate-200/50 backdrop-blur-sm">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+        <div className="flex p-1 bg-slate-100/80 rounded-2xl w-full lg:w-fit border border-slate-200/50 backdrop-blur-sm overflow-x-auto no-scrollbar scroll-smooth">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "px-6 py-2.5 text-sm font-bold rounded-xl transition-all duration-200 cursor-pointer",
+                "px-6 py-2.5 text-sm font-bold rounded-xl transition-all duration-200 cursor-pointer whitespace-nowrap flex-1 lg:flex-none",
                 activeTab === tab
                   ? "bg-white text-emerald-700 shadow-sm ring-1 ring-slate-200/50"
                   : "text-slate-500 hover:text-slate-700 hover:bg-white/50",
@@ -187,10 +209,10 @@ export default function PatientsClient() {
 
         <Button
           onClick={() => router.push("/dashboard/pacientes/new")}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-10 px-6 rounded-xl shadow-sm transition-all flex items-center gap-2"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-12 lg:h-10 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 w-full lg:w-fit group"
         >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Nuevo Paciente
+          <Plus className="h-5 w-5 lg:h-4 lg:w-4 group-hover:rotate-90 transition-transform" aria-hidden="true" />
+          <span className="text-sm">Nuevo Paciente</span>
         </Button>
       </div>
 
@@ -220,78 +242,38 @@ export default function PatientsClient() {
           <p className="text-xs font-medium text-slate-500 flex items-center gap-2">
             <User className="h-4 w-4" />
             Total:{" "}
-            <span className="text-emerald-600 font-semibold">
-              {meta.total}
-            </span>{" "}
+            <span className="text-emerald-600 font-semibold">{meta.total}</span>{" "}
             pacientes registrados
           </p>
         </div>
 
-        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200 rounded-2xl overflow-hidden flex flex-col">
+        {/* Desktop Table View */}
+        <div className="hidden lg:block bg-white shadow-xl shadow-slate-200/50 border border-slate-200 rounded-2xl overflow-hidden">
           <div className="overflow-x-auto max-h-[calc(100vh-380px)] custom-scrollbar">
             <table className="min-w-full divide-y divide-slate-100">
               <thead className="bg-slate-50/50">
                 <tr>
-                  <th
-                    scope="col"
-                    className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
-                  >
-                    Identidad del Paciente
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
-                  >
-                    Documento / Id
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider"
-                  >
-                    Estado
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider"
-                  >
-                    Acciones
-                  </th>
+                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Identidad del Paciente</th>
+                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Documento / Id</th>
+                  <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
+                  <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 bg-white">
                 {isLoading ? (
                   [1, 2, 3, 4, 5].map((i) => (
-                    <tr
-                      key={i}
-                      className="animate-pulse border-b border-slate-50 last:border-0"
-                    >
-                      <td className="px-6 py-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-slate-100 rounded-full" />
-                          <div className="space-y-2">
-                            <div className="h-4 w-32 bg-slate-100 rounded" />
-                            <div className="h-3 w-48 bg-slate-50 rounded" />
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-6">
-                        <div className="h-4 w-24 bg-slate-100 rounded" />
-                      </td>
-                      <td className="px-6 py-6">
-                        <div className="h-6 w-20 bg-slate-100 rounded-full mx-auto" />
-                      </td>
-                      <td className="px-6 py-6">
-                        <div className="h-8 w-8 bg-slate-100 rounded-lg ml-auto" />
-                      </td>
+                    <tr key={i} className="animate-pulse border-b border-slate-50 last:border-0">
+                      <td className="px-6 py-6"><div className="flex items-center gap-4"><div className="w-12 h-12 bg-slate-100 rounded-full" /><div className="space-y-2"><div className="h-4 w-32 bg-slate-100 rounded" /><div className="h-3 w-48 bg-slate-50 rounded" /></div></div></td>
+                      <td className="px-6 py-6"><div className="h-4 w-24 bg-slate-100 rounded" /></td>
+                      <td className="px-6 py-6"><div className="h-6 w-20 bg-slate-100 rounded-full mx-auto" /></td>
+                      <td className="px-6 py-6"><div className="h-8 w-8 bg-slate-100 rounded-lg ml-auto" /></td>
                     </tr>
                   ))
                 ) : filteredPatients.length > 0 ? (
                   filteredPatients.map((patient) => (
-                    <tr
-                      key={patient.id}
-                      onClick={() =>
-                        router.push(`/dashboard/pacientes/${patient.id}`)
-                      }
+                    <tr 
+                      key={patient.id} 
+                      onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
                       className="hover:bg-slate-50 transition-colors group cursor-pointer"
                     >
                       <td className="px-6 py-4">
@@ -302,139 +284,119 @@ export default function PatientsClient() {
                             </div>
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-semibold text-slate-900 leading-none mb-1">
-                              {patient.fullName}
-                            </div>
-                            <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                              <Mail className="w-3 h-3 text-slate-400" />
-                              {patient.email || "Sin correo"}
-                            </div>
+                            <div className="text-sm font-semibold text-slate-900 leading-none mb-1">{patient.fullName}</div>
+                            <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5"><Mail className="w-3 h-3 text-slate-400" />{patient.email || "Sin correo"}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center text-sm font-medium text-slate-600">
-                          {patient.documentId || "---"}
-                        </span>
+                        <span className="inline-flex items-center text-sm font-medium text-slate-600">{patient.documentId || "---"}</span>
                       </td>
                       <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-2">
                           <button
                             type="button"
-                            onClick={async () => {
-                              const newStatus = patient.status === "Active" ? "Inactive" : "Active";
-                              try {
-                                const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-                                const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-                                const response = await fetch(`${apiUrl}/patients/${patient.id}`, {
-                                  method: "PATCH",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                    Authorization: `Bearer ${token}`,
-                                  },
-                                  body: JSON.stringify({ status: newStatus }),
-                                });
-                                if (response.ok) {
-                                  toast.success(`Estado actualizado a ${newStatus === "Active" ? "Activo" : "Inactivo"}`);
-                                  fetchPatients(0);
-                                }
-                              } catch (e) {
-                                toast.error("Error al actualizar estado");
-                              }
-                            }}
+                            onClick={() => togglePatientStatus(patient)}
                             className={cn(
                               "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2",
                               patient.status !== "Inactive" ? "bg-emerald-500" : "bg-slate-300"
                             )}
                             role="switch"
-                            aria-checked={patient.status !== "Inactive"}
                           >
-                            <span className="sr-only">Alternar estado del paciente</span>
-                            <span
-                              className={cn(
-                                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
-                                patient.status !== "Inactive" ? "translate-x-4" : "translate-x-0"
-                              )}
-                            />
+                            <span className={cn(
+                              "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
+                              patient.status !== "Inactive" ? "translate-x-4" : "translate-x-0"
+                            )} />
                           </button>
-                          <span
-                            className={cn(
-                              "text-xs font-medium w-12 text-left",
-                              patient.status !== "Inactive" ? "text-emerald-700" : "text-slate-500"
-                            )}
-                          >
+                          <span className={cn("text-xs font-medium w-12 text-left", patient.status !== "Inactive" ? "text-emerald-700" : "text-slate-500")}>
                             {patient.status !== "Inactive" ? "Activo" : "Inactivo"}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
-                            className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer group/btn"
-                            title="Ver Expediente"
-                          >
-                            <Eye className="w-4.5 h-4.5 group-hover/btn:scale-110 transition-transform" />
-                          </button>
-                          
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/dashboard/pacientes/${patient.id}?edit=true`);
-                            }}
-                            className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all cursor-pointer group/btn"
-                            title="Editar Datos"
-                          >
-                            <Edit2 className="w-4.5 h-4.5 group-hover/btn:scale-110 transition-transform" />
-                          </button>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPatientToDelete(patient.id);
-                              setIsDeleteConfirmOpen(true);
-                            }}
-                            className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer group/btn"
-                            title="Eliminar Paciente"
-                          >
-                            <Trash2 className="w-4.5 h-4.5 group-hover/btn:scale-110 transition-transform" />
-                          </button>
+                          <button onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)} className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"><Eye className="w-4.5 h-4.5" /></button>
+                          <button onClick={() => router.push(`/dashboard/pacientes/${patient.id}?edit=true`)} className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Edit2 className="w-4.5 h-4.5" /></button>
+                          <button onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 className="w-4.5 h-4.5" /></button>
                         </div>
                       </td>
                     </tr>
                   ))
                 ) : (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="text-center py-20 bg-slate-50/50"
-                    >
-                      <div className="flex flex-col items-center justify-center space-y-4">
-                        <div className="h-16 w-16 bg-white rounded-2xl shadow-sm flex items-center justify-center border border-slate-200">
-                          <User className="h-8 w-8 text-slate-300" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-base font-semibold text-slate-700">
-                            Sin pacientes registrados
-                          </p>
-                          <p className="text-sm text-slate-500">
-                            No hay pacientes que coincidan con la búsqueda.
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          className="font-medium text-sm text-emerald-600 hover:text-emerald-700"
-                          onClick={resetPatients}
-                        >
-                          Limpiar filtros
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
+                  <tr><td colSpan={5} className="text-center py-20"><div className="flex flex-col items-center gap-4"><div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100"><User className="h-8 w-8 text-slate-300" /></div><p className="text-slate-500 font-medium">Sin pacientes registrados</p></div></td></tr>
                 )}
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="lg:hidden space-y-4">
+          {isLoading ? (
+            [1, 2, 3].map((i) => (
+              <div key={i} className="bg-white p-5 rounded-2xl border border-slate-200 animate-pulse space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 bg-slate-100 rounded-xl" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 w-3/4 bg-slate-100 rounded" />
+                    <div className="h-3 w-1/2 bg-slate-50 rounded" />
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : filteredPatients.length > 0 ? (
+            filteredPatients.map((patient) => (
+              <div 
+                key={patient.id} 
+                onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
+                className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm active:scale-[0.98] transition-all"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold border border-emerald-100">
+                      {patient.fullName.charAt(0)}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 line-clamp-1">{patient.fullName}</h3>
+                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                        <Mail className="w-3 h-3" /> {patient.email || "Sin correo"}
+                      </p>
+                    </div>
+                  </div>
+                  <div 
+                    className={cn(
+                      "px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider",
+                      patient.status !== "Inactive" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                    )}
+                  >
+                    {patient.status !== "Inactive" ? "Activo" : "Inactivo"}
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                  <div className="text-xs font-semibold text-slate-400">
+                    ID: <span className="text-slate-600 ml-1">{patient.documentId || "---"}</span>
+                  </div>
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => router.push(`/dashboard/pacientes/${patient.id}?edit=true`)} className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-lg">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }} className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 rounded-lg">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)} className="p-2 text-emerald-600 bg-emerald-50 rounded-lg ml-1 font-bold text-[10px] px-3 flex items-center gap-1 shadow-sm border border-emerald-100">
+                      VER FICHA <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
+              <User className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-500 font-medium">No se encontraron pacientes</p>
+            </div>
+          )}
         </div>
 
         {meta.lastPage > 1 && (

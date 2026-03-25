@@ -108,10 +108,6 @@ export default function CrearPlatoClient() {
       return;
     }
     const validSteps = preparationSteps.filter((s) => s.trim());
-    if (validSteps.length === 0) {
-      toast.error("Agrega al menos un paso en la forma de preparación.");
-      return;
-    }
 
     setIsSaving(true);
     try {
@@ -299,21 +295,19 @@ export default function CrearPlatoClient() {
             <label className="text-xs font-bold uppercase text-slate-500 tracking-wider">
               Aporte estimado por porción <span className="text-rose-500">*</span>
             </label>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isAiLoading}
-              onClick={handleRellenarConIA}
-              className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-            >
-              {isAiLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
+            <div title="Función bloqueada temporalmente">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={true}
+                onClick={handleRellenarConIA}
+                className="text-slate-400 border-slate-200 cursor-not-allowed bg-slate-50"
+              >
                 <Sparkles className="h-4 w-4 mr-2" />
-              )}
-              Rellenar con IA
-            </Button>
+                Rellenar con IA (Próximamente)
+              </Button>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Input
@@ -369,7 +363,7 @@ export default function CrearPlatoClient() {
 
         <div className="space-y-2">
           <label className="text-xs font-bold uppercase text-slate-500 tracking-wider">
-            Forma de preparación (pasos) <span className="text-rose-500">*</span>
+            Forma de preparación (pasos) <span className="text-slate-400 font-normal normal-case">(opcional)</span>
           </label>
           {preparationSteps.map((step, index) => (
             <div key={index} className="flex gap-2 items-center">

@@ -296,45 +296,45 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
         <div className="max-w-5xl mx-auto pb-24 animate-in fade-in duration-700">
             <form onSubmit={handleSave}>
                 {/* Header Actions Rack */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-                    <div className="flex items-center gap-6">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 lg:mb-10 px-1 lg:px-0">
+                    <div className="flex items-center gap-4 lg:gap-6">
                         <button
                             type="button"
                             onClick={() => router.back()}
-                            className="p-4 hover:bg-white rounded-2xl transition-all text-slate-400 hover:text-slate-900 border border-transparent hover:border-slate-100 shadow-sm cursor-pointer"
+                            className="p-3 lg:p-4 hover:bg-white rounded-2xl transition-all text-slate-400 hover:text-slate-900 border border-transparent hover:border-slate-100 shadow-sm cursor-pointer shrink-0"
                         >
-                            <ArrowLeft className="w-6 h-6" />
+                            <ArrowLeft className="w-5 h-5 lg:w-6 lg:h-6" />
                         </button>
                         <div>
-                            <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">
+                            <h1 className="text-xl lg:text-3xl font-black text-slate-900 uppercase tracking-tight">
                                 {id ? "Editar Sesión" : "Nueva Consulta Clínica"}
                             </h1>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+                            <p className="hidden sm:block text-[10px] lg:text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
                                 {id ? "Actualiza los registros de la visita" : "Registra la evolución y ajustes del tratamiento"}
                             </p>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 w-full lg:w-auto">
                         <Button
                             type="button"
                             variant="ghost"
                             onClick={() => router.back()}
-                            className="h-12 px-6 rounded-2xl text-slate-400 font-bold hover:bg-slate-100 transition-all uppercase text-[10px] tracking-widest border border-slate-100"
+                            className="flex-1 lg:flex-none h-12 px-6 rounded-2xl text-slate-400 font-bold hover:bg-slate-100 transition-all uppercase text-[10px] tracking-widest border border-slate-100"
                         >
                             CANCELAR
                         </Button>
                         <Button
                             type="submit"
                             disabled={isSaving}
-                            className="h-12 px-8 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-200 transition-all active:scale-95 group flex items-center gap-3"
+                            className="flex-2 lg:flex-none h-12 px-8 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-200 transition-all active:scale-95 group flex items-center justify-center gap-3"
                         >
                             {isSaving ? (
                                 <div className="h-5 w-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                             ) : (
                                 <>
                                     <Save className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
-                                    GUARDAR CONSULTA
+                                    <span>GUARDAR CONSULTA</span>
                                 </>
                             )}
                         </Button>
@@ -352,8 +352,8 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                 Detalles de la Sesión
                             </h3>
                         </div>
-                        <div className="p-8 space-y-8">
-                            <div className="grid md:grid-cols-2 gap-8">
+                        <div className="p-6 lg:p-8 space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-3">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                                         Paciente
@@ -424,7 +424,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                 </span>
                             </div>
                         </div>
-                        <div className="p-8 space-y-8">
+                        <div className="p-6 lg:p-8 space-y-8">
                             <div className="mb-6">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
                                     Añadir Métricas Rápidas
@@ -442,9 +442,9 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                     formData.metrics.map((m, idx) => (
                                         <div
                                             key={idx}
-                                            className="grid grid-cols-12 gap-4 items-end bg-slate-50 p-6 rounded-3xl border border-slate-100 group hover:border-emerald-200 transition-all"
+                                            className="flex flex-col md:grid md:grid-cols-12 gap-4 items-start md:items-end bg-slate-50 p-6 rounded-3xl border border-slate-100 group hover:border-emerald-200 transition-all"
                                         >
-                                            <div className="col-span-5 space-y-2">
+                                            <div className="w-full md:col-span-5 space-y-2">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                                                     Concepto
                                                 </label>
@@ -455,7 +455,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                     className="bg-white h-12 rounded-xl"
                                                 />
                                             </div>
-                                            <div className="col-span-3 space-y-2">
+                                            <div className="w-full md:col-span-3 space-y-2">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                                                     Valor
                                                 </label>
@@ -466,7 +466,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                     className="bg-white h-12 rounded-xl font-bold text-center"
                                                 />
                                             </div>
-                                            <div className="col-span-3 space-y-2">
+                                            <div className="w-full md:col-span-3 space-y-2">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                                                     Unidad
                                                 </label>
@@ -474,14 +474,14 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                     placeholder="kg, %, cm..."
                                                     value={m.unit || ""}
                                                     onChange={(e) => updateMetric(idx, "unit", e.target.value)}
-                                                    className="bg-white h-12 rounded-xl"
+                                                    className="bg-white h-12 rounded-xl text-slate-500 font-bold"
                                                 />
                                             </div>
-                                            <div className="col-span-1 pb-1">
+                                            <div className="w-full md:col-span-1 flex justify-end">
                                                 <button
                                                     type="button"
                                                     onClick={() => removeMetric(idx)}
-                                                    className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                                                    className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all h-fit"
                                                 >
                                                     <Trash2 className="w-5 h-5" />
                                                 </button>

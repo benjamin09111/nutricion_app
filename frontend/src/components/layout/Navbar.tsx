@@ -13,6 +13,7 @@ import {
   Crown,
   Bell,
   Sparkles,
+  Menu,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -51,7 +52,7 @@ function SubscriptionSwitcher() {
   );
 }
 
-export function Navbar() {
+export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -122,6 +123,15 @@ export function Navbar() {
           : "bg-white border-slate-200",
       )}
     >
+      <button
+        type="button"
+        className="-m-2.5 p-2.5 text-slate-700 lg:hidden cursor-pointer hover:bg-slate-50 rounded-lg transition-colors"
+        onClick={onMenuClick}
+      >
+        <span className="sr-only">Abrir menú</span>
+        <Menu className="h-6 w-6 text-slate-600" aria-hidden="true" />
+      </button>
+
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6 justify-end">
         <div className="flex items-center gap-x-4 lg:gap-x-6">
           {/* Notification Bell */}

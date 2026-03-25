@@ -32,10 +32,10 @@ export function ModuleLayout({
 }: ModuleLayoutProps) {
   return (
     <div
-      className={cn("max-w-5xl mx-auto space-y-8 pb-32 relative", className)}
+      className={cn("w-full max-w-5xl mx-auto space-y-6 lg:space-y-8 pb-32 relative", className)}
     >
       <div className="space-y-4">
-        <div className="space-y-1">
+        <div className="space-y-2">
           {step && (
             <div
               className={`flex items-center gap-2 text-[10px] bg-white w-fit px-2 py-1 rounded-full border border-slate-100 shadow-sm uppercase tracking-widest font-black ${step.color ? step.color : "text-emerald-600"}`}
@@ -49,10 +49,10 @@ export function ModuleLayout({
               {step.icon && <step.icon className="h-3 w-3 ml-2" />}
             </div>
           )}
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none">
             {title}
           </h1>
-          <p className="text-slate-500 font-medium">{description}</p>
+          <p className="text-sm sm:text-base text-slate-500 font-medium leading-relaxed">{description}</p>
         </div>
 
         {/* Right Navigation */}

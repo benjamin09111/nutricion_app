@@ -10,6 +10,7 @@ import {
   Globe,
   User,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
@@ -155,14 +156,30 @@ export default function PlatosClient() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 justify-between">
-          <Button
-            variant="default"
-            onClick={() => router.push("/dashboard/platos/nuevo")}
-            className="inline-flex items-center gap-2"
-          >
-            <ChefHat className="h-4 w-4" />
-            Crear plato
-          </Button>
+          <div className="flex items-center gap-3">
+            {activeTab === "mine" && (
+              <Button
+                variant="default"
+                onClick={() => router.push("/dashboard/platos/nuevo")}
+                className="inline-flex items-center gap-2"
+              >
+                <ChefHat className="h-4 w-4" />
+                Crear plato
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              onClick={() => {
+                // To be implemented in next prompt
+                toast.info("Generación de platos próximamente");
+              }}
+              className="inline-flex items-center gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+            >
+              <Sparkles className="h-4 w-4" />
+              Generación de platos
+            </Button>
+          </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
