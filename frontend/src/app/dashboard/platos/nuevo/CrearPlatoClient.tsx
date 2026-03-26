@@ -11,6 +11,8 @@ import {
   Save,
   Sparkles,
   Trash2,
+  Camera,
+  Image as ImageIcon
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -35,6 +37,7 @@ export default function CrearPlatoClient() {
     isPublic: false,
     tags: [] as string[],
     mealSection: "",
+    imageUrl: "",
   });
   const [preparationSteps, setPreparationSteps] = useState<string[]>([]);
   const [customIngredients, setCustomIngredients] = useState<
@@ -48,6 +51,40 @@ export default function CrearPlatoClient() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("La imagen es demasiado grande (máx 5MB)");
+      return;
+    }
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch(`${apiUrl}/uploads/image`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error("Error al subir imagen");
+
+      const data = await response.json();
+      setForm((prev) => ({ ...prev, imageUrl: data.url }));
+      toast.success("Imagen subida con éxito");
+    } catch (error) {
+      console.error(error);
+      toast.error("No se pudo subir la imagen");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const token = Cookies.get("auth_token") || "";
 
@@ -122,6 +159,7 @@ export default function CrearPlatoClient() {
       const payload = {
         name: form.name,
         preparation: preparationText,
+        imageUrl: form.imageUrl || undefined,
         portions: 1,
         isPublic: form.isPublic,
         tags: form.tags.length ? form.tags : undefined,
@@ -196,6 +234,76 @@ export default function CrearPlatoClient() {
             onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
             className="text-slate-900 font-medium"
           />
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-xs font-bold uppercase text-slate-500 tracking-wider flex items-center gap-2">
+            <Camera className="h-4 w-4 text-emerald-600" />
+            Imagen del Plato <span className="text-slate-400 font-normal normal-case">(opcional)</span>
+          </label>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <input
+                  type="file"
+                  id="recipe-image-upload-page"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={isUploading}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-dashed border-2 hover:border-emerald-500 hover:bg-emerald-50 transition-all flex flex-col items-center gap-2 py-8 h-auto"
+                  onClick={() => document.getElementById('recipe-image-upload-page')?.click()}
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+                  ) : (
+                    <Camera className="h-6 w-6 text-slate-400" />
+                  )}
+                  <span className="text-xs font-bold text-slate-600">
+                    {isUploading ? "Subiendo..." : "Subir Imagen de tu computadora"}
+                  </span>
+                </Button>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">O pega una URL</p>
+                <Input
+                  value={form.imageUrl}
+                  onChange={(e) => setForm(prev => ({ ...prev, imageUrl: e.target.value }))}
+                  placeholder="https://ejemplo.com/imagen.jpg"
+                  className="text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="relative w-full h-44 rounded-3xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center group">
+              {form.imageUrl ? (
+                <img
+                  src={form.imageUrl}
+                  alt="Vista previa"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div className="text-center space-y-2">
+                  <ImageIcon className="h-10 w-10 text-slate-200 mx-auto" />
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest px-4">Vista previa de la imagen</p>
+                </div>
+              )}
+              {isUploading && (
+                <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
+                   <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="space-y-2">

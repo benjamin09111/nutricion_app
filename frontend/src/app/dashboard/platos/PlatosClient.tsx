@@ -34,6 +34,7 @@ type RecipeSummary = {
   calories: number;
   isPublic: boolean;
   isMine?: boolean;
+  imageUrl?: string;
   nutritionist?: { fullName?: string };
   metadata?: RecipeMetadata | null;
 };
@@ -255,6 +256,23 @@ export default function PlatosClient() {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     ) : null}
+                  </div>
+
+                  {/* Image Section */}
+                  <div className="relative w-full h-44 rounded-2xl overflow-hidden bg-slate-100 border border-slate-100 shadow-inner group-hover:shadow-md transition-shadow">
+                    <img
+                      src={recipe.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop"}
+                      alt={recipe.name}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop";
+                      }}
+                    />
+                    {!recipe.imageUrl && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[2px]">
+                         <ChefHat className="h-10 w-10 text-slate-400 opacity-20" />
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex gap-2 flex-wrap">

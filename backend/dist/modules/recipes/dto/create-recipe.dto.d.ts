@@ -25,6 +25,7 @@ export declare class CreateRecipeDto {
     isPublic?: boolean;
     tags?: string[];
     mealSection?: string;
+    imageUrl?: string;
     customIngredientNames?: string[];
     customIngredients?: CustomIngredientDto[];
 }

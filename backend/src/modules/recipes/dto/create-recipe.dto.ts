@@ -99,6 +99,10 @@ export class CreateRecipeDto {
     @IsOptional()
     mealSection?: string;
 
+    @IsString()
+    @IsOptional()
+    imageUrl?: string;
+
     @IsArray()
     @IsString({ each: true })
     @IsOptional()

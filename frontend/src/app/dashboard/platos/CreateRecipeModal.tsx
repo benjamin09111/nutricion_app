@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
-import { Plus, Trash2, Search, ChefHat, Info, Flame } from "lucide-react";
+import { Plus, Trash2, Search, ChefHat, Info, Flame, Image as ImageIcon, Camera, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Types
@@ -23,6 +23,7 @@ interface Ingredient {
 interface CreateRecipeForm {
   name: string;
   description?: string;
+  imageUrl?: string;
   portions: number;
   ingredients: {
     ingredientId: string;
@@ -30,6 +31,7 @@ interface CreateRecipeForm {
     amount: number;
     unit: string;
     brandSuggestion?: string;
+    imageUrl?: string;
     // Helper macros for live calc
     calories: number;
     proteins: number;
@@ -72,6 +74,42 @@ export function CreateRecipeModal({
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Ingredient[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("La imagen es demasiado grande (máx 5MB)");
+      return;
+    }
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const token = Cookies.get("auth_token");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
+      const response = await fetch(`${apiUrl}/uploads/image`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error("Error al subir imagen");
+
+      const data = await response.json();
+      setValue("imageUrl", data.url);
+      toast.success("Imagen subida con éxito");
+    } catch (error) {
+      console.error(error);
+      toast.error("No se pudo subir la imagen");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   // Watch values for macro calc
   const watchedIngredients = watch("ingredients");
@@ -231,6 +269,72 @@ export function CreateRecipeModal({
             className="w-full min-h-[80px] px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 placeholder:text-slate-400"
             placeholder="Opcional: Instrucciones breves..."
           />
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+            <Camera className="h-4 w-4 text-emerald-600" />
+            Imagen del Plato
+          </label>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <p className="text-xs text-slate-500 font-medium">Subir desde tu equipo o pegar una URL</p>
+              <div className="flex gap-2">
+                <input
+                  type="file"
+                  id="recipe-image-upload"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={isUploading}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-dashed border-2 hover:border-emerald-500 hover:bg-emerald-50 transition-all flex items-center gap-2 py-6"
+                  onClick={() => document.getElementById('recipe-image-upload')?.click()}
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4" />
+                  )}
+                  {isUploading ? "Subiendo..." : "Subir Imagen"}
+                </Button>
+              </div>
+              <Input
+                {...register("imageUrl")}
+                placeholder="Pegar URL de imagen..."
+                className="text-xs"
+              />
+            </div>
+
+            <div className="relative w-full h-32 rounded-2xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center">
+              {watch("imageUrl") ? (
+                <img
+                  src={watch("imageUrl")}
+                  alt="Vista previa"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div className="text-center space-y-1">
+                  <ImageIcon className="h-8 w-8 text-slate-300 mx-auto" />
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Sin imagen</p>
+                </div>
+              )}
+              {isUploading && (
+                <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
+                   <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Ingredient Search */}
