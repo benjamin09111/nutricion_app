@@ -29,7 +29,7 @@ let UploadsController = class UploadsController {
 };
 exports.UploadsController = UploadsController;
 __decorate([
-    (0, common_1.Post)('image'),
+    (0, common_1.Post)(),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
         storage: (0, multer_1.diskStorage)({
             destination: './uploads',
@@ -39,13 +39,13 @@ __decorate([
             },
         }),
         fileFilter: (req, file, callback) => {
-            if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
-                return callback(new Error('Only image files are allowed!'), false);
+            if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/)) {
+                return callback(new Error('Only image and PDF files are allowed!'), false);
             }
             callback(null, true);
         },
         limits: {
-            fileSize: 5 * 1024 * 1024,
+            fileSize: 10 * 1024 * 1024,
         },
     })),
     __param(0, (0, common_1.UploadedFile)()),

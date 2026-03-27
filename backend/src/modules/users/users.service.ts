@@ -86,6 +86,27 @@ export class UsersService {
     }
 
     /**
+     * Update nutritionist settings (stored as JSON)
+     */
+    async updateMySettings(accountId: string, settingsData: any) {
+        const nutritionist = await this.prisma.nutritionist.findUnique({
+            where: { accountId }
+        });
+
+        if (!nutritionist) {
+            throw new Error('Perfil de nutricionista no encontrado');
+        }
+
+        const currentSettings = (nutritionist.settings as Record<string, any>) || {};
+        const newSettings = { ...currentSettings, ...settingsData };
+
+        return this.prisma.nutritionist.update({
+            where: { accountId },
+            data: { settings: newSettings }
+        });
+    }
+
+    /**
      * Update user's subscription plan
      */
     async updatePlan(userId: string, plan: SubscriptionPlan, days?: number) {

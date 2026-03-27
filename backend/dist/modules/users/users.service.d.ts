@@ -18,13 +18,13 @@ export declare class UsersService {
     findOne(id: string): Promise<({
         nutritionist: {
             id: string;
+            fullName: string;
+            phone: string | null;
+            professionalId: string | null;
+            specialty: string | null;
             createdAt: Date;
             updatedAt: Date;
             accountId: string;
-            fullName: string;
-            professionalId: string | null;
-            specialty: string | null;
-            phone: string | null;
             avatarUrl: string | null;
             settings: import("@prisma/client/runtime/library").JsonValue | null;
         } | null;
@@ -56,6 +56,18 @@ export declare class UsersService {
         plan: import(".prisma/client").$Enums.SubscriptionPlan;
         subscriptionEndsAt: Date | null;
         lastLoginAt: Date | null;
+    }>;
+    updateMySettings(accountId: string, settingsData: any): Promise<{
+        id: string;
+        fullName: string;
+        phone: string | null;
+        professionalId: string | null;
+        specialty: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        accountId: string;
+        avatarUrl: string | null;
+        settings: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     updatePlan(userId: string, plan: SubscriptionPlan, days?: number): Promise<{
         id: string;

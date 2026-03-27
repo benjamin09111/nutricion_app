@@ -7,7 +7,7 @@ import { AuthGuard } from '../auth/guards/auth.guard';
 @Controller('uploads')
 @UseGuards(AuthGuard)
 export class UploadsController {
-    @Post('image')
+    @Post()
     @UseInterceptors(
         FileInterceptor('file', {
             storage: diskStorage({
@@ -18,19 +18,17 @@ export class UploadsController {
                 },
             }),
             fileFilter: (req: any, file: any, callback: any) => {
-                if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
-                    return callback(new Error('Only image files are allowed!'), false);
+                if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/)) {
+                    return callback(new Error('Only image and PDF files are allowed!'), false);
                 }
                 callback(null, true);
             },
             limits: {
-                fileSize: 5 * 1024 * 1024, // 5MB
+                fileSize: 10 * 1024 * 1024, // 10MB for PDFs
             },
         }),
     )
     uploadFile(@UploadedFile() file: any) {
-        // Generate the public URL
-        // In production, this should be the absolute URL or a cloud storage URL
         const baseUrl = process.env.API_URL || 'http://localhost:3001';
         return {
             url: `${baseUrl}/uploads/${file.filename}`,

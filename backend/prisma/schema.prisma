@@ -12,6 +12,7 @@ model Account {
   id                 String           @id @default(uuid())
   email              String           @unique
   password           String?
+
   role               UserRole         @default(NUTRITIONIST)
   status             AccountStatus    @default(PENDING)
   createdAt          DateTime         @default(now())
@@ -476,6 +477,7 @@ model RecipeIngredient {
   ingredientId    String     @map("ingredient_id")
   amount          Float
   unit            String
+  isMain          Boolean    @default(true) @map("is_main")
   brandSuggestion String?    @map("brand_suggestion")
   ingredient      Ingredient @relation(fields: [ingredientId], references: [id])
   recipe          Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
@@ -510,6 +512,8 @@ model Resource {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   images         Json?         @default("[]")
+  format         String        @default("HTML")
+  fileUrl        String?       @map("file_url")
   sources        String?
   nutritionist   Nutritionist? @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
 

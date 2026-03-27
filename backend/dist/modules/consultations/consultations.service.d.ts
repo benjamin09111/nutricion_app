@@ -16,8 +16,8 @@ export declare class ConsultationsService {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         date: Date;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         patientId: string;
         title: string;
     }>;
@@ -32,8 +32,8 @@ export declare class ConsultationsService {
             createdAt: Date;
             updatedAt: Date;
             description: string | null;
-            metrics: import("@prisma/client/runtime/library").JsonValue | null;
             date: Date;
+            metrics: import("@prisma/client/runtime/library").JsonValue | null;
             patientId: string;
             title: string;
         }[];
@@ -53,8 +53,8 @@ export declare class ConsultationsService {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         date: Date;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         patientId: string;
         title: string;
     }>;
@@ -68,8 +68,8 @@ export declare class ConsultationsService {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         date: Date;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         patientId: string;
         title: string;
     }>;
@@ -80,8 +80,8 @@ export declare class ConsultationsService {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         date: Date;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         patientId: string;
         title: string;
     }>;

@@ -7,9 +7,6 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, error, ...props }, ref) => {
-    const inputValue =
-      props.value === undefined && props.onChange ? "" : props.value;
-
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       // Prevent spaces in number inputs
       if (type === "number" && e.key === " ") {
@@ -31,7 +28,6 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
         ref={ref}
         {...props}
-        value={inputValue}
         onKeyDown={handleKeyDown}
       />
     );

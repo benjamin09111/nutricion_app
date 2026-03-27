@@ -84,6 +84,20 @@ let UsersService = class UsersService {
             },
         });
     }
+    async updateMySettings(accountId, settingsData) {
+        const nutritionist = await this.prisma.nutritionist.findUnique({
+            where: { accountId }
+        });
+        if (!nutritionist) {
+            throw new Error('Perfil de nutricionista no encontrado');
+        }
+        const currentSettings = nutritionist.settings || {};
+        const newSettings = { ...currentSettings, ...settingsData };
+        return this.prisma.nutritionist.update({
+            where: { accountId },
+            data: { settings: newSettings }
+        });
+    }
     async updatePlan(userId, plan, days) {
         const updateData = { plan };
         if (days && days > 0) {

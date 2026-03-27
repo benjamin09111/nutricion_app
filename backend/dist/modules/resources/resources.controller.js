@@ -59,6 +59,9 @@ let ResourcesController = class ResourcesController {
         const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role);
         return this.resourcesService.remove(id, nutritionistId, isAdmin);
     }
+    extractText(data) {
+        return this.resourcesService.extractTextFromPdf(data.fileUrl);
+    }
 };
 exports.ResourcesController = ResourcesController;
 __decorate([
@@ -122,6 +125,13 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], ResourcesController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Post)('extract-text'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], ResourcesController.prototype, "extractText", null);
 exports.ResourcesController = ResourcesController = __decorate([
     (0, common_1.Controller)('resources'),
     (0, common_1.UseGuards)(auth_guard_1.AuthGuard),

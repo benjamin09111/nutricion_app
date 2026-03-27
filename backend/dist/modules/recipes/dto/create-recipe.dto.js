@@ -17,6 +17,7 @@ class RecipeIngredientDto {
     amount;
     unit;
     brandSuggestion;
+    isMain;
 }
 __decorate([
     (0, class_validator_1.IsString)(),
@@ -38,6 +39,11 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], RecipeIngredientDto.prototype, "brandSuggestion", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], RecipeIngredientDto.prototype, "isMain", void 0);
 class CustomIngredientDto {
     name;
     amount;

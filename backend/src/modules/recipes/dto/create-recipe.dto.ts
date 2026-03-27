@@ -17,6 +17,10 @@ class RecipeIngredientDto {
     @IsString()
     @IsOptional()
     brandSuggestion?: string;
+
+    @IsBoolean()
+    @IsOptional()
+    isMain?: boolean;
 }
 
 class CustomIngredientDto {

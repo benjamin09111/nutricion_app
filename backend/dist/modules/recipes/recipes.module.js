@@ -11,14 +11,15 @@ const common_1 = require("@nestjs/common");
 const recipes_service_1 = require("./recipes.service");
 const recipes_controller_1 = require("./recipes.controller");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const recipe_matching_service_1 = require("./recipe-matching.service");
 let RecipesModule = class RecipesModule {
 };
 exports.RecipesModule = RecipesModule;
 exports.RecipesModule = RecipesModule = __decorate([
     (0, common_1.Module)({
         controllers: [recipes_controller_1.RecipesController],
-        providers: [recipes_service_1.RecipesService, prisma_service_1.PrismaService],
-        exports: [recipes_service_1.RecipesService],
+        providers: [recipes_service_1.RecipesService, prisma_service_1.PrismaService, recipe_matching_service_1.RecipeMatchingService],
+        exports: [recipes_service_1.RecipesService, recipe_matching_service_1.RecipeMatchingService],
     })
 ], RecipesModule);
 //# sourceMappingURL=recipes.module.js.map

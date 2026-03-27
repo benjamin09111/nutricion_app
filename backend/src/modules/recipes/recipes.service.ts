@@ -105,7 +105,8 @@ export class RecipesService {
                             ingredientId: ing.ingredientId,
                             amount: ing.amount,
                             unit: ing.unit,
-                            brandSuggestion: ing.brandSuggestion
+                            brandSuggestion: ing.brandSuggestion,
+                            isMain: ing.isMain ?? true
                         }))
                     } : undefined
             },
@@ -118,6 +119,8 @@ export class RecipesService {
 
         await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'recipes');
         await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+        await this.cacheService.invalidateNutritionistPrefix(userId, 'recipes');
+        await this.cacheService.invalidateNutritionistPrefix(userId, 'dashboard');
         console.log('[RecipesService.create] Success, recipe id:', recipe.id);
         return recipe;
         } catch (err) {
@@ -138,7 +141,14 @@ export class RecipesService {
                 },
                 include: {
                     _count: { select: { ingredients: true } },
-                    nutritionist: { select: { fullName: true } }
+                    nutritionist: { select: { fullName: true } },
+                    ingredients: {
+                        include: {
+                            ingredient: {
+                                select: { name: true }
+                            }
+                        }
+                    }
                 },
                 orderBy: { updatedAt: 'desc' }
             });
@@ -219,7 +229,8 @@ export class RecipesService {
                     ingredientId: ing.ingredientId,
                     amount: ing.amount,
                     unit: ing.unit,
-                    brandSuggestion: ing.brandSuggestion
+                    brandSuggestion: ing.brandSuggestion,
+                    isMain: ing.isMain ?? true
                 }))
             };
         }
@@ -232,6 +243,8 @@ export class RecipesService {
 
         await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'recipes');
         await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+        await this.cacheService.invalidateNutritionistPrefix(userId, 'recipes');
+        await this.cacheService.invalidateNutritionistPrefix(userId, 'dashboard');
         return updated;
     }
 
@@ -298,6 +311,8 @@ export class RecipesService {
 
         await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'recipes');
         await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+        await this.cacheService.invalidateNutritionistPrefix(userId, 'recipes');
+        await this.cacheService.invalidateNutritionistPrefix(userId, 'dashboard');
         return deleted;
     }
 }

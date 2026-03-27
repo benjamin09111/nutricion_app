@@ -66,7 +66,7 @@ const groups: SidebarGroup[] = [
     title: "Herramientas",
     items: [
       { name: "Creaciones", href: "/dashboard/creaciones", icon: Folder },
-      { name: "Recursos", href: "/dashboard/recursos", icon: FileText },
+      { name: "Recursos & Material", href: "/dashboard/recursos", icon: FileText },
       { name: "Detalles", href: "/dashboard/detalles", icon: FileText },
       { name: "Platos", href: "/dashboard/platos", icon: ChefHat },
     ],

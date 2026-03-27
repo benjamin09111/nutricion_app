@@ -28,6 +28,9 @@ let UsersController = class UsersController {
     findAll(role, search) {
         return this.usersService.findAll(role, search);
     }
+    async updateMySettings(req, body) {
+        return this.usersService.updateMySettings(req.user.id, body);
+    }
     async update(id, body, req) {
         const requesterRole = req.user.role;
         if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(requesterRole)) {
@@ -91,6 +94,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Patch)('me/settings'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "updateMySettings", null);
 __decorate([
     (0, common_1.Patch)(':id'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),

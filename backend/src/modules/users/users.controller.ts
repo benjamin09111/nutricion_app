@@ -20,6 +20,12 @@ export class UsersController {
         return this.usersService.findAll(role, search);
     }
 
+    @Patch('me/settings')
+    @UseGuards(AuthGuard('jwt'))
+    async updateMySettings(@Request() req: any, @Body() body: any) {
+        return this.usersService.updateMySettings(req.user.id, body);
+    }
+
     @Patch(':id')
     @UseGuards(AuthGuard('jwt'))
     async update(@Param('id') id: string, @Body() body: any, @Request() req: any) {

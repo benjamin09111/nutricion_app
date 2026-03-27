@@ -7,13 +7,18 @@ export declare class IngredientGroupsService {
     private cacheService;
     constructor(prisma: PrismaService, cacheService: CacheService);
     create(nutritionistId: string, createDto: CreateIngredientGroupDto): Promise<{
+        tags: {
+            name: string;
+            nutritionistId: string | null;
+            id: string;
+        }[];
         entries: ({
             ingredient: {
+                name: string;
                 brand: {
                     name: string;
                     id: string;
                 } | null;
-                name: string;
                 id: string;
             };
         } & {
@@ -24,11 +29,6 @@ export declare class IngredientGroupsService {
             ingredientId: string;
             groupId: string;
         })[];
-        tags: {
-            name: string;
-            nutritionistId: string | null;
-            id: string;
-        }[];
         _count: {
             entries: number;
         };
@@ -86,6 +86,11 @@ export declare class IngredientGroupsService {
             unit: string | null;
             entryId: string;
         }[];
+        tags: {
+            name: string;
+            nutritionistId: string | null;
+            id: string;
+        }[];
         entries: ({
             ingredient: {
                 brand: {
@@ -134,11 +139,6 @@ export declare class IngredientGroupsService {
             ingredientId: string;
             groupId: string;
         })[];
-        tags: {
-            name: string;
-            nutritionistId: string | null;
-            id: string;
-        }[];
         _count: {
             entries: number;
         };
@@ -200,6 +200,11 @@ export declare class IngredientGroupsService {
             unit: string | null;
             entryId: string;
         }[];
+        tags: {
+            name: string;
+            nutritionistId: string | null;
+            id: string;
+        }[];
         nutritionist: {
             id: string;
         };
@@ -256,11 +261,6 @@ export declare class IngredientGroupsService {
             ingredientId: string;
             groupId: string;
         })[];
-        tags: {
-            name: string;
-            nutritionistId: string | null;
-            id: string;
-        }[];
         name: string;
         nutritionistId: string;
         id: string;

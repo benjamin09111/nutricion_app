@@ -17,6 +17,18 @@ export declare class UsersController {
         fullName: string;
         patientCount: number;
     }[]>;
+    updateMySettings(req: any, body: any): Promise<{
+        id: string;
+        fullName: string;
+        phone: string | null;
+        professionalId: string | null;
+        specialty: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        accountId: string;
+        avatarUrl: string | null;
+        settings: import("@prisma/client/runtime/library").JsonValue | null;
+    }>;
     update(id: string, body: any, req: any): Promise<{
         id: string;
         email: string;

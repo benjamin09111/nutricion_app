@@ -297,15 +297,33 @@ interface StandardTemplateProps {
   config: {
     includeLogo: boolean;
     selectedSections: string[];
+    brandSettings?: {
+      primaryColorHex?: string;
+      brandBackgroundUrl?: string;
+    };
   };
 }
 
 export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
   const { diet, patientMeta, cart, recipes } = data || {};
-  const { selectedSections } = config || { selectedSections: [] };
+  const { selectedSections, brandSettings } = config || { selectedSections: [] };
+  const { brandBackgroundUrl, primaryColorHex } = brandSettings || {};
   const resourcePages = data?.deliverable?.resourcePages || [];
 
+  const BackgroundImage = () => {
+    if (!brandBackgroundUrl) return null;
+    return (
+      <Image 
+        src={brandBackgroundUrl} 
+        style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: -10 }} 
+        fixed
+      />
+    );
+  };
+
   const hasSection = (id: string) => selectedSections.includes(id);
+  const colorOverride = primaryColorHex ? { color: primaryColorHex } : {};
+
   const htmlToPdfText = (value: string) =>
     (value || "")
       .replace(/<br\s*\/?>/gi, "\n")
@@ -336,9 +354,10 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
     >
       {/* ──────────────────────────────────── PORTADA ──────────────────────────────────── */}
       <Page size="A4" style={S.coverPage}>
+        <BackgroundImage />
         <View style={S.coverContent}>
-          <Text style={S.coverBrand}>NUTRICIÓN CONSCIENTE</Text>
-          <Text style={S.coverTitle}>Bienvenid{patientMeta?.gender === 'feminine' ? 'a' : 'o'} a tu{"\n"}Plan Personalizado</Text>
+          <Text style={[S.coverBrand, colorOverride]}>NUTRICIÓN CONSCIENTE</Text>
+          <Text style={[S.coverTitle, colorOverride]}>Bienvenid{patientMeta?.gender === 'feminine' ? 'a' : 'o'} a tu{"\n"}Plan Personalizado</Text>
           <Text style={S.coverSubtitle}>
             {coverIntroText ||
               "Una guía creada especialmente para ti, enfocada en escuchar a tu cuerpo y sanar desde la raíz."}
@@ -346,7 +365,7 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
 
           <View style={S.coverPatientBox}>
             <Text style={S.coverPatientLabel}>Preparado con dedicación para</Text>
-            <Text style={S.coverPatientName}>{patientName}</Text>
+            <Text style={[S.coverPatientName, colorOverride]}>{patientName}</Text>
             <Text style={S.coverDate}>{currentDate}</Text>
           </View>
         </View>
@@ -355,9 +374,10 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
       {/* ────────────────────────────────── DATOS DEL PACIENTE ────────────────────────────────── */}
       {hasSection("patientInfo") && patientMeta && (
         <Page size="A4" style={S.page}>
+          <BackgroundImage />
           <View style={S.sectionHeader}>
             <View>
-              <Text style={S.sectionHeaderTitle}>Un mapa para conocerte</Text>
+              <Text style={[S.sectionHeaderTitle, colorOverride]}>Un mapa para conocerte</Text>
               <Text style={S.sectionHeaderSubtitle}>Tus metas y punto de partida</Text>
             </View>
           </View>
@@ -408,9 +428,10 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
       {/* ──────────────────────────────── LISTA DE COMPRAS (CARRITO) ──────────────────────────────── */}
       {hasSection("shoppingList") && cart?.items && cart.items.length > 0 && (
         <Page size="A4" style={S.page}>
+          <BackgroundImage />
           <View style={S.sectionHeader}>
             <View>
-              <Text style={S.sectionHeaderTitle}>Sugerencias de Supermercado</Text>
+              <Text style={[S.sectionHeaderTitle, colorOverride]}>Sugerencias de Supermercado</Text>
               <Text style={S.sectionHeaderSubtitle}>Todo lo que necesitas, sin complicaciones</Text>
             </View>
           </View>
@@ -470,9 +491,10 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
       {/* ───────────────────────────────── PLAN DE RECETAS (MINUTA) ───────────────────────────────── */}
       {hasSection("recipes") && recipes?.weekSlots && (
         <Page size="A4" style={S.page}>
+          <BackgroundImage />
           <View style={S.sectionHeader}>
             <View>
-              <Text style={S.sectionHeaderTitle}>Tu Nutrición Día a Día</Text>
+              <Text style={[S.sectionHeaderTitle, colorOverride]}>Tu Nutrición Día a Día</Text>
               <Text style={S.sectionHeaderSubtitle}>Estructura flexible para guiarte sin estrés</Text>
             </View>
           </View>
@@ -536,9 +558,10 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
       {/* ─────────────────────────────────── RECURSOS EXTRA ─────────────────────────────────── */}
       {resourcePages.map((page: { title: string; content: string }, index: number) => (
         <Page size="A4" style={S.page} key={`extra-resource-${index}`}>
+          <BackgroundImage />
           <View style={S.sectionHeader}>
             <View>
-              <Text style={S.sectionHeaderTitle}>{page.title || "Recurso adicional"}</Text>
+              <Text style={[S.sectionHeaderTitle, colorOverride]}>{page.title || "Recurso adicional"}</Text>
               <Text style={S.sectionHeaderSubtitle}>Contenido personalizado reutilizable</Text>
             </View>
           </View>
@@ -558,6 +581,7 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
       {/* ────────────────────────── NOTA FINAL (SI NO HAY SECCIONES SELECCIONADAS) ────────────────────────── */}
       {selectedSections.length === 0 && (
         <Page size="A4" style={S.page}>
+          <BackgroundImage />
           <Text style={{ fontSize: 14, color: "#64748b", textAlign: "center", marginTop: "50%" }}>
             El PDF ha sido generado sin secciones seleccionadas.
           </Text>

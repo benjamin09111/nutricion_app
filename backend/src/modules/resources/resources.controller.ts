@@ -60,4 +60,9 @@ export class ResourcesController {
         const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role);
         return this.resourcesService.remove(id, nutritionistId, isAdmin);
     }
+
+    @Post('extract-text')
+    extractText(@Body() data: { fileUrl: string }) {
+        return this.resourcesService.extractTextFromPdf(data.fileUrl);
+    }
 }

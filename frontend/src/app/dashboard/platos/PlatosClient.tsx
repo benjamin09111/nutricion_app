@@ -37,6 +37,7 @@ type RecipeSummary = {
   imageUrl?: string;
   nutritionist?: { fullName?: string };
   metadata?: RecipeMetadata | null;
+  ingredients?: { isMain: boolean; ingredient: { name: string } }[];
 };
 
 const MEAL_SECTIONS = [
@@ -85,8 +86,11 @@ export default function PlatosClient() {
 
   const filteredRecipes = useMemo(() => {
     return recipes.filter((r) => {
+      // "Mis Platos" shows only dishes created by the user
       if (activeTab === "mine" && !r.isMine) return false;
-      if (activeTab === "community" && r.isMine) return false;
+      // "Comunidad" shows only public dishes (including those from the user)
+      if (activeTab === "community" && !r.isPublic) return false;
+
       const meta = r.metadata;
       const tags = meta?.tags ?? [];
       const mealSection = meta?.mealSection ?? "";
@@ -172,8 +176,7 @@ export default function PlatosClient() {
             <Button
               variant="outline"
               onClick={() => {
-                // To be implemented in next prompt
-                toast.info("Generación de platos próximamente");
+                toast.info("Generación de platos con IA próximamente");
               }}
               className="inline-flex items-center gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
             >
@@ -302,6 +305,18 @@ export default function PlatosClient() {
                     )}
                   </div>
 
+                  {recipe.ingredients && recipe.ingredients.some(i => i.isMain) && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Base</span>
+                      <p className="text-xs font-bold text-slate-700 line-clamp-1">
+                        {recipe.ingredients
+                          .filter(i => i.isMain)
+                          .map(i => i.ingredient.name)
+                          .join(", ")}
+                      </p>
+                    </div>
+                  )}
+
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
                         <p className="font-black text-slate-700">{recipe.calories} kcal</p>
@@ -313,11 +328,15 @@ export default function PlatosClient() {
                       </div>
                     </div>
 
-                  {fromCommunity && (
+                  {recipe.isMine ? (
+                    <p className="text-[10px] text-emerald-600 font-black uppercase tracking-wider">
+                      Creado por mí
+                    </p>
+                  ) : fromCommunity ? (
                     <p className="text-[10px] text-slate-500 font-bold uppercase">
                       Compartido por: {recipe.nutritionist?.fullName || "Comunidad"}
                     </p>
-                  )}
+                  ) : null}
                 </div>
               );
             })}

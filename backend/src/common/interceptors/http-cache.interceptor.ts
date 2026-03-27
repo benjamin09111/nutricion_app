@@ -24,9 +24,12 @@ export class HttpCacheInterceptor extends CacheInterceptor {
 
         // Si tenemos un usuario autenticado, incluimos su ID en la llave del caché
         // Esto evita que nutricionistas distintos vean datos cargados en caché por otros
+        const userId = request.user?.id;
         const nutritionistId = request.user?.nutritionistId;
-        const cacheKey = nutritionistId
-            ? `${nutritionistId}:${httpAdapter.getRequestUrl(request)}`
+        const userIdentifier = nutritionistId || userId;
+
+        const cacheKey = userIdentifier
+            ? `${userIdentifier}:${httpAdapter.getRequestUrl(request)}`
             : httpAdapter.getRequestUrl(request);
 
         return cacheKey;

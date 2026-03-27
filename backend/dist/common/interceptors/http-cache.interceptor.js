@@ -22,9 +22,11 @@ let HttpCacheInterceptor = class HttpCacheInterceptor extends cache_manager_1.Ca
         if (requestMethod !== 'GET') {
             return undefined;
         }
+        const userId = request.user?.id;
         const nutritionistId = request.user?.nutritionistId;
-        const cacheKey = nutritionistId
-            ? `${nutritionistId}:${httpAdapter.getRequestUrl(request)}`
+        const userIdentifier = nutritionistId || userId;
+        const cacheKey = userIdentifier
+            ? `${userIdentifier}:${httpAdapter.getRequestUrl(request)}`
             : httpAdapter.getRequestUrl(request);
         return cacheKey;
     }

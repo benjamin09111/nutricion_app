@@ -2,16 +2,21 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, 
 import { RecipesService } from './recipes.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { EstimateMacrosDto } from './dto/estimate-macros.dto';
+import { CompatibleRecipesDto } from './dto/compatible-recipes.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
 import { CacheTTL } from '@nestjs/cache-manager';
+import { RecipeMatchingService } from './recipe-matching.service';
 
 @Controller('recipes')
 @UseGuards(AuthGuard)
 @UseInterceptors(HttpCacheInterceptor)
 @CacheTTL(300000) // 5 minutes
 export class RecipesController {
-    constructor(private readonly recipesService: RecipesService) { }
+    constructor(
+        private readonly recipesService: RecipesService,
+        private readonly recipeMatchingService: RecipeMatchingService
+    ) { }
 
     @Post()
     async create(@Request() req: any, @Body() createRecipeDto: CreateRecipeDto) {
@@ -27,6 +32,13 @@ export class RecipesController {
     @Post('estimate-macros')
     estimateMacros(@Body() dto: EstimateMacrosDto) {
         return this.recipesService.estimateMacros(dto);
+    }
+
+    @Post('compatible')
+    findCompatible(@Request() req: any, @Body() dto: CompatibleRecipesDto) {
+        // The endpoint is compatible with users, so we use their ID
+        const nutritionistId = req.user.nutritionistId || req.user.id;
+        return this.recipeMatchingService.findCompatibleRecipes(nutritionistId, dto.ingredientNames, dto.restrictions);
     }
 
     @Get()

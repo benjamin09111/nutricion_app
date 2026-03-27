@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import {
@@ -12,7 +12,9 @@ import {
   Sparkles,
   Trash2,
   Camera,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Search,
+  Check
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -32,6 +34,8 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
 
 export default function CrearPlatoClient() {
   const router = useRouter();
+  const token = Cookies.get("auth_token") || "";
+  
   const [form, setForm] = useState({
     name: "",
     isPublic: false,
@@ -49,9 +53,56 @@ export default function CrearPlatoClient() {
     carbs: 0,
     lipids: 0,
   });
+  const [mainIngredients, setMainIngredients] = useState<
+    { id: string; name: string; amount: number; unit: string }[]
+  >([]);
+  const [foodSearch, setFoodSearch] = useState("");
+  const [foodSuggestions, setFoodSuggestions] = useState<any[]>([]);
+  const [isSearchingFoods, setIsSearchingFoods] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    if (foodSearch.trim().length < 2) {
+      setFoodSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingFoods(true);
+      try {
+        const res = await fetch(`${apiUrl}/foods?search=${encodeURIComponent(foodSearch)}&limit=5`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // API returns an array or { items: [] } depending on version. 
+          // Based on service it returns an array directly after mapping.
+          setFoodSuggestions(Array.isArray(data) ? data : data.items || []);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsSearchingFoods(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [foodSearch, token]);
+
+  const addMainIngredient = (food: any) => {
+    if (mainIngredients.find(i => i.id === food.id)) {
+      toast.error("Este alimento ya está agregado como principal.");
+      return;
+    }
+    setMainIngredients(prev => [
+      ...prev,
+      { id: food.id, name: food.name, amount: 100, unit: food.unit || "g" }
+    ]);
+    setFoodSearch("");
+    setFoodSuggestions([]);
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -85,8 +136,6 @@ export default function CrearPlatoClient() {
       setIsUploading(false);
     }
   };
-
-  const token = Cookies.get("auth_token") || "";
 
   const handleRellenarConIA = async () => {
     const validIngredients = customIngredients
@@ -140,8 +189,10 @@ export default function CrearPlatoClient() {
       return;
     }
     const validCustom = customIngredients.filter((i) => i.name.trim());
-    if (validCustom.length === 0) {
-      toast.error("Agrega al menos un ingrediente.");
+    const validMain = mainIngredients.filter((i) => i.name.trim());
+
+    if (validCustom.length === 0 && validMain.length === 0) {
+      toast.error("Agrega al menos un ingrediente (principal u opcional).");
       return;
     }
     const validSteps = preparationSteps.filter((s) => s.trim());
@@ -169,7 +220,12 @@ export default function CrearPlatoClient() {
           amount: i.amount || 0,
           unit: i.unit.trim() || "g",
         })),
-        ingredients: [] as { ingredientId: string; amount: number; unit: string }[],
+        ingredients: validMain.map((i) => ({
+          ingredientId: i.id,
+          amount: i.amount || 0,
+          unit: i.unit.trim() || "g",
+          isMain: true
+        })),
         calories: customAporte.calories,
         proteins: customAporte.proteins,
         carbs: customAporte.carbs,
@@ -336,15 +392,99 @@ export default function CrearPlatoClient() {
           </select>
         </div>
 
-        <div className="space-y-2">
+        {/* Alimentos Principales (Database) */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase text-slate-500 tracking-wider flex items-center gap-2">
+              Alimentos Principales (Base de datos) <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder="Buscar alimentos (pasta, arroz, pollo...)"
+                  value={foodSearch}
+                  onChange={(e) => setFoodSearch(e.target.value)}
+                  className="pl-9 h-11"
+                />
+                {isSearchingFoods && (
+                  <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-emerald-500" />
+                )}
+              </div>
+
+              {foodSuggestions.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto overflow-x-hidden">
+                  {foodSuggestions.map((food) => (
+                    <button
+                      key={food.id}
+                      onClick={() => addMainIngredient(food)}
+                      className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center justify-between group transition-colors"
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-slate-900 group-hover:text-emerald-600 transition-colors">{food.name}</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{food.category?.name || "General"}</span>
+                      </div>
+                      <Plus className="h-4 w-4 text-slate-300 group-hover:text-emerald-500" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {mainIngredients.map((ing, index) => (
+              <div key={ing.id} className="flex gap-2 items-center animate-in slide-in-from-left-2 duration-300">
+                <div className="flex-1 h-11 border border-emerald-100 bg-emerald-50/30 rounded-xl px-4 flex items-center">
+                  <span className="text-sm font-bold text-slate-700">{ing.name}</span>
+                </div>
+                <Input
+                  type="number"
+                  placeholder="Cant."
+                  value={ing.amount || ""}
+                  onChange={(e) => {
+                    const next = [...mainIngredients];
+                    next[index] = { ...next[index], amount: Number(e.target.value) || 0 };
+                    setMainIngredients(next);
+                  }}
+                  className="w-20 h-11 text-slate-900 font-medium"
+                />
+                <Input
+                  placeholder="g"
+                  value={ing.unit}
+                  onChange={(e) => {
+                    const next = [...mainIngredients];
+                    next[index] = { ...next[index], unit: e.target.value };
+                    setMainIngredients(next);
+                  }}
+                  className="w-16 h-11 text-slate-900 font-medium"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 p-2 h-10 w-10 shrink-0"
+                  onClick={() =>
+                    setMainIngredients((prev) => prev.filter((_, i) => i !== index))
+                  }
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Alimentos Opcionales (Manual) */}
+        <div className="space-y-3 pt-4 border-t border-slate-100">
           <label className="text-xs font-bold uppercase text-slate-500 tracking-wider">
-            Ingredientes (personalizados) <span className="text-rose-500">*</span>
+            Alimentos Opcionales / Condimentos (Manual) <span className="text-slate-400 font-normal normal-case">(opcional)</span>
           </label>
+          <p className="text-[10px] text-slate-400 -mt-1 pb-2">Agrega especias, salsas o toques adicionales que no son la base del plato.</p>
           {customIngredients.map((ing, index) => (
             <div key={index} className="flex gap-2 items-center">
               <Input
                 className="flex-1 min-w-0 text-slate-900 font-medium"
-                placeholder="Nombre del ingrediente"
+                placeholder="Ej. Sal, pimienta, orégano..."
                 value={ing.name}
                 onChange={(e) => {
                   const next = [...customIngredients];
@@ -389,12 +529,12 @@ export default function CrearPlatoClient() {
             type="button"
             variant="outline"
             onClick={() =>
-              setCustomIngredients((prev) => [...prev, { name: "", amount: 100, unit: "g" }])
+              setCustomIngredients((prev) => [...prev, { name: "", amount: 1, unit: "pizca" }])
             }
-            className="w-full"
+            className="w-full border-dashed border-slate-300 text-slate-500 hover:text-slate-700"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Agregar ingrediente
+            Agregar alimento opcional
           </Button>
         </div>
 

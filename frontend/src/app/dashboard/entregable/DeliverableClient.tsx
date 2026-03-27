@@ -491,9 +491,14 @@ export default function DeliverableClient() {
       const storedDraft = localStorage.getItem("nutri_active_draft");
       const draftData = storedDraft ? JSON.parse(storedDraft) : {};
 
+      const userStr = localStorage.getItem("user");
+      const userObj = userStr ? JSON.parse(userStr) : null;
+      const brandSettings = userObj?.nutritionist?.settings || {};
+
       const config = {
         includeLogo,
         selectedSections,
+        brandSettings,
       };
 
       const blob = await pdf(
@@ -563,9 +568,14 @@ export default function DeliverableClient() {
 
       await Promise.all(
         tasks.map(async (task, index) => {
+          const userStr = localStorage.getItem("user");
+          const userObj = userStr ? JSON.parse(userStr) : null;
+          const brandSettings = userObj?.nutritionist?.settings || {};
+
           const config = {
             includeLogo,
             selectedSections: task.sections,
+            brandSettings,
           };
 
           const blob = await pdf(

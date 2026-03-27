@@ -3,8 +3,8 @@ export declare class CreationsController {
     private readonly creationsService;
     constructor(creationsService: CreationsService);
     create(req: any, data: any): Promise<{
-        tags: string[];
         name: string;
+        tags: string[];
         nutritionistId: string;
         id: string;
         createdAt: Date;
@@ -15,8 +15,8 @@ export declare class CreationsController {
         format: string;
     }>;
     findAll(req: any, type?: string): Promise<{
-        tags: string[];
         name: string;
+        tags: string[];
         nutritionistId: string;
         id: string;
         createdAt: Date;
@@ -28,8 +28,8 @@ export declare class CreationsController {
     }[]>;
     getTags(req: any): Promise<any[]>;
     findOne(req: any, id: string): Promise<{
-        tags: string[];
         name: string;
+        tags: string[];
         nutritionistId: string;
         id: string;
         createdAt: Date;

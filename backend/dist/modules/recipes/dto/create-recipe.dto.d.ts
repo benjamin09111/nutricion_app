@@ -3,6 +3,7 @@ declare class RecipeIngredientDto {
     amount: number;
     unit: string;
     brandSuggestion?: string;
+    isMain?: boolean;
 }
 declare class CustomIngredientDto {
     name: string;
