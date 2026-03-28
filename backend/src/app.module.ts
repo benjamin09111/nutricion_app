@@ -24,7 +24,6 @@ import { CreationsModule } from './modules/creations/creations.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { SubstitutesModule } from './modules/substitutes/substitutes.module';
 import { ResourcesModule } from './modules/resources/resources.module';
-import { UploadsModule } from './modules/uploads/uploads.module';
 import { ConsultationsModule } from './modules/consultations/consultations.module';
 import { CommonModule } from './common/common.module';
 import { DietModule } from './modules/diet/diet.module';
@@ -65,7 +64,6 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
     TagsModule,
     SubstitutesModule,
     ResourcesModule,
-    UploadsModule,
     ConsultationsModule,
     CommonModule,
     DietModule,

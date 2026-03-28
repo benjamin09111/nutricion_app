@@ -74,42 +74,7 @@ export function CreateRecipeModal({
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Ingredient[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("La imagen es demasiado grande (máx 5MB)");
-      return;
-    }
-
-    setIsUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      const token = Cookies.get("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const response = await fetch(`${apiUrl}/uploads/image`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error("Error al subir imagen");
-
-      const data = await response.json();
-      setValue("imageUrl", data.url);
-      toast.success("Imagen subida con éxito");
-    } catch (error) {
-      console.error(error);
-      toast.error("No se pudo subir la imagen");
-    } finally {
-      setIsUploading(false);
-    }
-  };
+  // Image handled via URL
 
   // Watch values for macro calc
   const watchedIngredients = watch("ingredients");
@@ -279,58 +244,36 @@ export function CreateRecipeModal({
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <p className="text-xs text-slate-500 font-medium">Subir desde tu equipo o pegar una URL</p>
-              <div className="flex gap-2">
-                <input
-                  type="file"
-                  id="recipe-image-upload"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  disabled={isUploading}
+              <p className="text-xs text-slate-500 font-medium pb-1">Pega la URL de una imagen para este plato</p>
+              <div className="relative">
+                <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  {...register("imageUrl")}
+                  placeholder="https://ejemplo.com/comida.jpg"
+                  className="pl-9 text-sm"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full border-dashed border-2 hover:border-emerald-500 hover:bg-emerald-50 transition-all flex items-center gap-2 py-6"
-                  onClick={() => document.getElementById('recipe-image-upload')?.click()}
-                  disabled={isUploading}
-                >
-                  {isUploading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Camera className="h-4 w-4" />
-                  )}
-                  {isUploading ? "Subiendo..." : "Subir Imagen"}
-                </Button>
               </div>
-              <Input
-                {...register("imageUrl")}
-                placeholder="Pegar URL de imagen..."
-                className="text-xs"
-              />
+              <p className="text-[10px] text-slate-400 leading-relaxed italic pt-1">
+                * Si no agregas una imagen, usaremos una por defecto.
+              </p>
             </div>
 
-            <div className="relative w-full h-32 rounded-2xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center">
+            <div className="relative w-full h-36 rounded-2xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center shadow-inner group transition-all hover:bg-slate-100">
               {watch("imageUrl") ? (
                 <img
                   src={watch("imageUrl")}
                   alt="Vista previa"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
+                    (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop";
                   }}
                 />
               ) : (
-                <div className="text-center space-y-1">
-                  <ImageIcon className="h-8 w-8 text-slate-300 mx-auto" />
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Sin imagen</p>
-                </div>
-              )}
-              {isUploading && (
-                <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
-                   <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+                <div className="text-center space-y-2">
+                  <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100 inline-block">
+                    <ImageIcon className="h-6 w-6 text-slate-300" />
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest px-2">Sin imagen personalizada</p>
                 </div>
               )}
             </div>

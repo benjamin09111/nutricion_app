@@ -20,9 +20,12 @@ const path_1 = require("path");
 const auth_guard_1 = require("../auth/guards/auth.guard");
 let UploadsController = class UploadsController {
     uploadFile(file) {
+        console.log('[UploadsController] File received:', file?.filename || 'No file');
         const baseUrl = process.env.API_URL || 'http://localhost:3001';
+        const url = `${baseUrl}/uploads/${file.filename}`;
+        console.log('[UploadsController] Returning URL:', url);
         return {
-            url: `${baseUrl}/uploads/${file.filename}`,
+            url,
             filename: file.filename,
         };
     }

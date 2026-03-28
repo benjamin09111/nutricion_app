@@ -192,11 +192,14 @@ export class RecipesService {
         return recipe;
     }
 
-    async update(id: string, userId: string, updateDto: CreateRecipeDto) {
+    async update(id: string, userId: string, userRole: string, updateDto: CreateRecipeDto) {
         const nutritionistId = await this.getNutritionistId(userId);
         const recipe = await this.findOne(id, userId);
 
-        if (recipe.nutritionistId !== nutritionistId) throw new ForbiddenException('Cannot edit public or others recipes');
+        const isAdmin = userRole && ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(userRole);
+        if (!isAdmin && recipe.nutritionistId !== nutritionistId) {
+            throw new ForbiddenException('Cannot edit public or others recipes');
+        }
 
         const { ingredients, tags, mealSection, customIngredientNames, customIngredients, ...data } = updateDto;
 
@@ -301,11 +304,14 @@ export class RecipesService {
         }
     }
 
-    async remove(id: string, userId: string) {
+    async remove(id: string, userId: string, userRole: string) {
         const nutritionistId = await this.getNutritionistId(userId);
         const recipe = await this.findOne(id, userId);
 
-        if (recipe.nutritionistId !== nutritionistId) throw new ForbiddenException('Cannot delete public or others recipes');
+        const isAdmin = userRole && ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(userRole);
+        if (!isAdmin && recipe.nutritionistId !== nutritionistId) {
+            throw new ForbiddenException('Cannot delete public or others recipes');
+        }
 
         const deleted = await this.prisma.recipe.delete({ where: { id } });
 

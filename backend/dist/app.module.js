@@ -33,7 +33,6 @@ const creations_module_1 = require("./modules/creations/creations.module");
 const tags_module_1 = require("./modules/tags/tags.module");
 const substitutes_module_1 = require("./modules/substitutes/substitutes.module");
 const resources_module_1 = require("./modules/resources/resources.module");
-const uploads_module_1 = require("./modules/uploads/uploads.module");
 const consultations_module_1 = require("./modules/consultations/consultations.module");
 const common_module_1 = require("./common/common.module");
 const diet_module_1 = require("./modules/diet/diet.module");
@@ -82,7 +81,6 @@ exports.AppModule = AppModule = __decorate([
             tags_module_1.TagsModule,
             substitutes_module_1.SubstitutesModule,
             resources_module_1.ResourcesModule,
-            uploads_module_1.UploadsModule,
             consultations_module_1.ConsultationsModule,
             common_module_1.CommonModule,
             diet_module_1.DietModule,

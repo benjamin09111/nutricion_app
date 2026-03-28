@@ -11,8 +11,7 @@ import * as express from 'express';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Serve static files from 'uploads'
-  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+  // app.use('/uploads', ...); // Removed manual upload serving
 
   // Security
   // app.use(helmet()); // Temporarily disabled to debug connectivity

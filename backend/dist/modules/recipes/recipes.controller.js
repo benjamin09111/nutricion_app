@@ -53,10 +53,10 @@ let RecipesController = class RecipesController {
         return this.recipesService.findOne(id, req.user.id);
     }
     update(req, id, updateRecipeDto) {
-        return this.recipesService.update(id, req.user.id, updateRecipeDto);
+        return this.recipesService.update(id, req.user.id, req.user.role, updateRecipeDto);
     }
     remove(req, id) {
-        return this.recipesService.remove(id, req.user.id);
+        return this.recipesService.remove(id, req.user.id, req.user.role);
     }
 };
 exports.RecipesController = RecipesController;

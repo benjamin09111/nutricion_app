@@ -14,20 +14,18 @@ import {
   Camera,
   Image as ImageIcon,
   Search,
-  Check
+  Check,
+  Info
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { TagInput } from "@/components/ui/TagInput";
+import mealSectionsData from "@/content/meal-sections.json";
 
 const MEAL_SECTIONS = [
   { value: "", label: "Sin sección" },
-  { value: "desayuno", label: "Desayuno" },
-  { value: "almuerzo", label: "Almuerzo" },
-  { value: "once", label: "Once" },
-  { value: "cena", label: "Cena" },
-  { value: "merienda", label: "Merienda" },
+  ...mealSectionsData,
 ] as const;
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
@@ -38,7 +36,7 @@ export default function CrearPlatoClient() {
   
   const [form, setForm] = useState({
     name: "",
-    isPublic: false,
+    isPublic: true,
     tags: [] as string[],
     mealSection: "",
     imageUrl: "",
@@ -61,7 +59,6 @@ export default function CrearPlatoClient() {
   const [isSearchingFoods, setIsSearchingFoods] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (foodSearch.trim().length < 2) {
@@ -104,38 +101,7 @@ export default function CrearPlatoClient() {
     setFoodSuggestions([]);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("La imagen es demasiado grande (máx 5MB)");
-      return;
-    }
-
-    setIsUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      const response = await fetch(`${apiUrl}/uploads/image`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error("Error al subir imagen");
-
-      const data = await response.json();
-      setForm((prev) => ({ ...prev, imageUrl: data.url }));
-      toast.success("Imagen subida con éxito");
-    } catch (error) {
-      console.error(error);
-      toast.error("No se pudo subir la imagen");
-    } finally {
-      setIsUploading(false);
-    }
-  };
+  const [imageSearch, setImageSearch] = useState("");
 
   const handleRellenarConIA = async () => {
     const validIngredients = customIngredients
@@ -186,6 +152,10 @@ export default function CrearPlatoClient() {
   const saveDish = async () => {
     if (!form.name.trim()) {
       toast.error("Nombre del plato es obligatorio.");
+      return;
+    }
+    if (!form.mealSection) {
+      toast.error("Debes seleccionar una hora de comida.");
       return;
     }
     const validCustom = customIngredients.filter((i) => i.name.trim());
@@ -280,6 +250,21 @@ export default function CrearPlatoClient() {
           <h1 className="text-xl font-bold text-slate-900">Crear Plato</h1>
         </div>
 
+        {/* Tutorial / Description */}
+        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex gap-3 animate-in fade-in slide-in-from-top-2 duration-500">
+          <div className="bg-white p-2 rounded-xl border border-emerald-100 h-fit text-emerald-600 shadow-sm shrink-0">
+            <Info size={18} />
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
+              Consejo para crear platos efectivos
+            </p>
+            <p className="text-[11px] leading-relaxed text-emerald-700/80 font-medium italic">
+              "Recuerda que al crear un plato, priorizamos que tenga la menor cantidad de ingredientes, sea simple y fácil de preparar. Para una buena organización de la página, los principales ingredientes debes indicarlos, todo plato se puede reducir a, por ejemplo, Arroz y Pollo."
+            </p>
+          </div>
+        </div>
+
         <div className="space-y-2">
           <label className="text-xs font-bold uppercase text-slate-500 tracking-wider">
             Nombre del plato <span className="text-rose-500">*</span>
@@ -292,70 +277,47 @@ export default function CrearPlatoClient() {
           />
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           <label className="text-xs font-bold uppercase text-slate-500 tracking-wider flex items-center gap-2">
             <Camera className="h-4 w-4 text-emerald-600" />
-            Imagen del Plato <span className="text-slate-400 font-normal normal-case">(opcional)</span>
+            Imagen del Plato
           </label>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <div className="flex gap-2">
-                <input
-                  type="file"
-                  id="recipe-image-upload-page"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  disabled={isUploading}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full border-dashed border-2 hover:border-emerald-500 hover:bg-emerald-50 transition-all flex flex-col items-center gap-2 py-8 h-auto"
-                  onClick={() => document.getElementById('recipe-image-upload-page')?.click()}
-                  disabled={isUploading}
-                >
-                  {isUploading ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
-                  ) : (
-                    <Camera className="h-6 w-6 text-slate-400" />
-                  )}
-                  <span className="text-xs font-bold text-slate-600">
-                    {isUploading ? "Subiendo..." : "Subir Imagen de tu computadora"}
-                  </span>
-                </Button>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">O pega una URL</p>
+              <p className="text-xs text-slate-500 font-medium">Pega una URL de imagen para el plato</p>
+              <div className="relative">
+                <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                  value={form.imageUrl}
-                  onChange={(e) => setForm(prev => ({ ...prev, imageUrl: e.target.value }))}
+                  className="pl-9 h-11 text-sm border-slate-200 focus:border-emerald-500 transition-all"
                   placeholder="https://ejemplo.com/imagen.jpg"
-                  className="text-xs"
+                  value={form.imageUrl}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, imageUrl: e.target.value }))
+                  }
                 />
               </div>
+              <p className="text-[10px] text-slate-400 leading-relaxed italic">
+                * Si no agregas una imagen, se usará una por defecto que se verá profesional en el plan.
+              </p>
             </div>
 
-            <div className="relative w-full h-44 rounded-3xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center group">
+            <div className="relative w-full h-44 rounded-3xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center group shadow-inner">
               {form.imageUrl ? (
                 <img
                   src={form.imageUrl}
                   alt="Vista previa"
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
+                    (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop";
                   }}
                 />
               ) : (
                 <div className="text-center space-y-2">
-                  <ImageIcon className="h-10 w-10 text-slate-200 mx-auto" />
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest px-4">Vista previa de la imagen</p>
-                </div>
-              )}
-              {isUploading && (
-                <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
-                   <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                  <div className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 inline-block">
+                    <ImageIcon className="h-6 w-6 text-slate-400" />
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Sin imagen personalizada</p>
                 </div>
               )}
             </div>
@@ -375,16 +337,17 @@ export default function CrearPlatoClient() {
 
         <div className="space-y-2">
           <label className="text-xs font-bold uppercase text-slate-500 tracking-wider">
-            Hora de comida <span className="text-slate-400 font-normal normal-case">(opcional)</span>
+            Hora de comida <span className="text-rose-500">*</span>
           </label>
           <select
-            className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 font-medium"
+            className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none"
             value={form.mealSection}
             onChange={(e) =>
               setForm((prev) => ({ ...prev, mealSection: e.target.value }))
             }
           >
-            {MEAL_SECTIONS.map((s) => (
+            <option value="">Selecciona hora de comida...</option>
+            {MEAL_SECTIONS.filter(s => s.value !== "").map((s) => (
               <option key={s.value} value={s.value}>
                 {s.label}
               </option>
@@ -649,19 +612,27 @@ export default function CrearPlatoClient() {
           </Button>
         </div>
 
-        <label className="flex items-center justify-between p-4 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50/50">
-          <span className="text-xs font-bold uppercase tracking-widest text-slate-600 inline-flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-indigo-500" />
-            Compartir en comunidad
-          </span>
-          <input
-            type="checkbox"
-            checked={form.isPublic}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, isPublic: e.target.checked }))
-            }
-          />
-        </label>
+        <div className="space-y-3">
+          <label className="flex items-center justify-between p-4 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50/50 transition-colors shadow-sm">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-600 inline-flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-indigo-500" />
+              Compartir en comunidad (Público)
+            </span>
+            <input
+              type="checkbox"
+              className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+              checked={form.isPublic}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, isPublic: e.target.checked }))
+              }
+            />
+          </label>
+          {!form.isPublic && (
+            <p className="text-[11px] font-medium text-amber-600 italic px-2 animate-in fade-in slide-in-from-top-1 duration-300">
+              * Entendemos que prefieras mantenerlo en privado, pero ¡agradeceríamos mucho tu aporte a la comunidad de la aplicación! Al compartirlo, otros nutris también podrán usarlo.
+            </p>
+          )}
+        </div>
 
         <Button
           onClick={saveDish}

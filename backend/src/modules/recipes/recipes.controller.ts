@@ -53,11 +53,11 @@ export class RecipesController {
 
     @Patch(':id')
     update(@Request() req: any, @Param('id') id: string, @Body() updateRecipeDto: CreateRecipeDto) {
-        return this.recipesService.update(id, req.user.id, updateRecipeDto);
+        return this.recipesService.update(id, req.user.id, req.user.role, updateRecipeDto);
     }
 
     @Delete(':id')
     remove(@Request() req: any, @Param('id') id: string) {
-        return this.recipesService.remove(id, req.user.id);
+        return this.recipesService.remove(id, req.user.id, req.user.role);
     }
 }

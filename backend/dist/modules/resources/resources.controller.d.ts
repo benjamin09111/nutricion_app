@@ -4,74 +4,74 @@ export declare class ResourcesController {
     constructor(resourcesService: ResourcesService);
     findAll(req: any): Promise<({
         isMine: boolean;
-        id: string;
-        nutritionistId: string | null;
-        title: string;
-        content: string;
         category: string;
         tags: string[];
         isPublic: boolean;
+        nutritionistId: string | null;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
-        images: import("@prisma/client/runtime/library").JsonValue | null;
-        format: string;
         fileUrl: string | null;
+        content: string;
+        format: string;
+        title: string;
+        images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
         variablePlaceholders: string[];
     })[]>;
     getSections(req: any): Promise<{
-        id: string;
+        name: string;
         nutritionistId: string | null;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         slug: string;
         icon: string | null;
         color: string | null;
         bg: string | null;
     }[]>;
     createSection(req: any, data: any): Promise<{
-        id: string;
+        name: string;
         nutritionistId: string | null;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
         slug: string;
         icon: string | null;
         color: string | null;
         bg: string | null;
     }>;
     findOne(id: string): Promise<({
-        id: string;
-        nutritionistId: string | null;
-        title: string;
-        content: string;
         category: string;
         tags: string[];
         isPublic: boolean;
+        nutritionistId: string | null;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
-        images: import("@prisma/client/runtime/library").JsonValue | null;
-        format: string;
         fileUrl: string | null;
+        content: string;
+        format: string;
+        title: string;
+        images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
         variablePlaceholders: string[];
     }) | null>;
     create(req: any, data: any): Promise<{
-        id: string;
-        nutritionistId: string | null;
-        title: string;
-        content: string;
         category: string;
         tags: string[];
         isPublic: boolean;
+        nutritionistId: string | null;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
-        images: import("@prisma/client/runtime/library").JsonValue | null;
-        format: string;
         fileUrl: string | null;
+        content: string;
+        format: string;
+        title: string;
+        images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
         variablePlaceholders: string[];
@@ -83,35 +83,35 @@ export declare class ResourcesController {
         resolvedContent: string;
     };
     update(id: string, req: any, data: any): Promise<{
-        id: string;
-        nutritionistId: string | null;
-        title: string;
-        content: string;
         category: string;
         tags: string[];
         isPublic: boolean;
+        nutritionistId: string | null;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
-        images: import("@prisma/client/runtime/library").JsonValue | null;
-        format: string;
         fileUrl: string | null;
+        content: string;
+        format: string;
+        title: string;
+        images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
         variablePlaceholders: string[];
     }>;
     remove(id: string, req: any): Promise<{
-        id: string;
-        nutritionistId: string | null;
-        title: string;
-        content: string;
         category: string;
         tags: string[];
         isPublic: boolean;
+        nutritionistId: string | null;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
-        images: import("@prisma/client/runtime/library").JsonValue | null;
-        format: string;
         fileUrl: string | null;
+        content: string;
+        format: string;
+        title: string;
+        images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     }>;
     extractText(data: {

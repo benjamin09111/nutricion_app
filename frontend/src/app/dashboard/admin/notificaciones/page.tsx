@@ -7,7 +7,7 @@ import {
 } from "@/context/NotificationsContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Bell, Send, CheckCircle2, RotateCcw } from "lucide-react";
+import { Bell, Send, CheckCircle2, RotateCcw, Lock } from "lucide-react";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
 
@@ -179,6 +179,26 @@ export default function AdminNotificationsPage() {
               >
                 Administradores
               </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 p-4 bg-slate-50/50 rounded-xl border border-slate-200/60 opacity-60 cursor-not-allowed group transition-all relative overflow-hidden">
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-slate-700">
+                  Enviar copia por correo electrónico
+                </span>
+                <span className="bg-slate-200 text-slate-600 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                  Próximamente
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Notifica a cada nutricionista directamente en su bandeja de
+                entrada personal.
+              </p>
+            </div>
+            <div className="p-2.5 bg-white rounded-xl border border-slate-200 text-slate-400 shadow-sm group-hover:bg-slate-50 transition-colors">
+              <Lock size={18} />
             </div>
           </div>
 

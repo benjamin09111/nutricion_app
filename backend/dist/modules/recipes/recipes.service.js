@@ -186,11 +186,13 @@ let RecipesService = class RecipesService {
         }
         return recipe;
     }
-    async update(id, userId, updateDto) {
+    async update(id, userId, userRole, updateDto) {
         const nutritionistId = await this.getNutritionistId(userId);
         const recipe = await this.findOne(id, userId);
-        if (recipe.nutritionistId !== nutritionistId)
+        const isAdmin = userRole && ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(userRole);
+        if (!isAdmin && recipe.nutritionistId !== nutritionistId) {
             throw new common_1.ForbiddenException('Cannot edit public or others recipes');
+        }
         const { ingredients, tags, mealSection, customIngredientNames, customIngredients, ...data } = updateDto;
         const metadata = (tags?.length || mealSection || customIngredientNames?.length || customIngredients?.length)
             ? JSON.parse(JSON.stringify({ tags: tags || [], mealSection: mealSection || null, customIngredientNames: customIngredientNames || [], customIngredients: customIngredients || [] }))
@@ -283,11 +285,13 @@ let RecipesService = class RecipesService {
             throw new common_1.BadRequestException('Configura tu API key de OpenAI para usar esta función.');
         }
     }
-    async remove(id, userId) {
+    async remove(id, userId, userRole) {
         const nutritionistId = await this.getNutritionistId(userId);
         const recipe = await this.findOne(id, userId);
-        if (recipe.nutritionistId !== nutritionistId)
+        const isAdmin = userRole && ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(userRole);
+        if (!isAdmin && recipe.nutritionistId !== nutritionistId) {
             throw new common_1.ForbiddenException('Cannot delete public or others recipes');
+        }
         const deleted = await this.prisma.recipe.delete({ where: { id } });
         await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'recipes');
         await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');

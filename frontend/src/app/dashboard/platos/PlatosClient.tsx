@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { cn } from "@/lib/utils";
+import { useAdmin } from "@/context/AdminContext";
 import {
   ChefHat,
   Loader2,
@@ -11,10 +12,14 @@ import {
   User,
   Trash2,
   Sparkles,
+  Search,
+  ArrowUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import mealSectionsData from "@/content/meal-sections.json";
 
 type RecipeMetadata = {
   tags?: string[];
@@ -42,23 +47,23 @@ type RecipeSummary = {
 
 const MEAL_SECTIONS = [
   { value: "", label: "Sin sección" },
-  { value: "desayuno", label: "Desayuno" },
-  { value: "almuerzo", label: "Almuerzo" },
-  { value: "once", label: "Once" },
-  { value: "cena", label: "Cena" },
-  { value: "merienda", label: "Merienda" },
+  ...mealSectionsData,
 ] as const;
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
 
 export default function PlatosClient() {
   const router = useRouter();
+  const { isAdmin } = useAdmin();
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"mine" | "community">("mine");
 
   const [filterTag, setFilterTag] = useState<string>("");
   const [filterMealSection, setFilterMealSection] = useState<string>("");
+  const [searchName, setSearchName] = useState<string>("");
+  const [searchIngredient, setSearchIngredient] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>("newest");
 
   const token = Cookies.get("auth_token") || "";
 
@@ -85,11 +90,25 @@ export default function PlatosClient() {
   }, [token]);
 
   const filteredRecipes = useMemo(() => {
-    return recipes.filter((r) => {
+    let result = recipes.filter((r) => {
       // "Mis Platos" shows only dishes created by the user
       if (activeTab === "mine" && !r.isMine) return false;
       // "Comunidad" shows only public dishes (including those from the user)
       if (activeTab === "community" && !r.isPublic) return false;
+
+      // Filter by name
+      if (searchName && !r.name.toLowerCase().includes(searchName.toLowerCase()))
+        return false;
+
+      // Filter by ingredient
+      if (searchIngredient) {
+        const hasIngredient = r.ingredients?.some((i) =>
+          i.ingredient.name
+            .toLowerCase()
+            .includes(searchIngredient.toLowerCase())
+        );
+        if (!hasIngredient) return false;
+      }
 
       const meta = r.metadata;
       const tags = meta?.tags ?? [];
@@ -98,7 +117,24 @@ export default function PlatosClient() {
       if (filterMealSection && mealSection !== filterMealSection) return false;
       return true;
     });
-  }, [recipes, activeTab, filterTag, filterMealSection]);
+
+    // Sorting
+    return result.sort((a, b) => {
+      if (sortBy === "calories_asc") return a.calories - b.calories;
+      if (sortBy === "calories_desc") return b.calories - a.calories;
+      if (sortBy === "protein_asc") return a.proteins - b.proteins;
+      if (sortBy === "protein_desc") return b.proteins - a.proteins;
+      return 0; // default (newest handled by API order usually)
+    });
+  }, [
+    recipes,
+    activeTab,
+    filterTag,
+    filterMealSection,
+    searchName,
+    searchIngredient,
+    sortBy,
+  ]);
 
   const allTags = useMemo(() => {
     const set = new Set<string>();
@@ -160,64 +196,106 @@ export default function PlatosClient() {
           </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 justify-between">
-          <div className="flex items-center gap-3">
-            {activeTab === "mine" && (
-              <Button
-                variant="default"
-                onClick={() => router.push("/dashboard/platos/nuevo")}
-                className="inline-flex items-center gap-2"
-              >
-                <ChefHat className="h-4 w-4" />
-                Crear plato
-              </Button>
-            )}
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-4 justify-between">
+            <div className="flex items-center gap-3">
+              {activeTab === "mine" && (
+                <Button
+                  variant="default"
+                  onClick={() => router.push("/dashboard/platos/nuevo")}
+                  className="inline-flex items-center gap-2"
+                >
+                  <ChefHat className="h-4 w-4" />
+                  Crear plato
+                </Button>
+              )}
 
-            <Button
-              variant="outline"
-              onClick={() => {
-                toast.info("Generación de platos con IA próximamente");
-              }}
-              className="inline-flex items-center gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-            >
-              <Sparkles className="h-4 w-4" />
-              Generación de platos
-            </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  toast.info("Generación de platos con IA próximamente");
+                }}
+                className="inline-flex items-center gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              >
+                <Sparkles className="h-4 w-4" />
+                Generación de platos
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 border border-slate-200 rounded-lg pr-3 bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all overflow-hidden group">
+                <div className="h-9 px-3 bg-slate-50 border-r border-slate-200 flex items-center group-focus-within:bg-emerald-50 transition-colors">
+                  <ArrowUpDown className="h-4 w-4 text-slate-400 group-focus-within:text-emerald-500" />
+                </div>
+                <select
+                  className="bg-transparent h-9 text-xs font-bold text-slate-600 uppercase tracking-wider focus:outline-none cursor-pointer pr-1"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                >
+                  <option value="newest">Más recientes</option>
+                  <option value="calories_asc">Menores kcal</option>
+                  <option value="calories_desc">Mayores kcal</option>
+                  <option value="protein_asc">Menores prot.</option>
+                  <option value="protein_desc">Mayores prot.</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Tag
+                </span>
+                <select
+                  className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                  value={filterTag}
+                  onChange={(e) => setFilterTag(e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  {allTags.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Hora
+                </span>
+                <select
+                  className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                  value={filterMealSection}
+                  onChange={(e) => setFilterMealSection(e.target.value)}
+                >
+                  <option value="">Todas</option>
+                  {MEAL_SECTIONS.filter(s => s.value !== "").map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Filtrar por tag
-              </span>
-              <select
-                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 font-medium"
-                value={filterTag}
-                onChange={(e) => setFilterTag(e.target.value)}
-              >
-                <option value="">Todos</option>
-                {allTags.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Buscar por nombre..."
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+                className="pl-9 bg-white border-slate-200 focus:bg-white h-11 transition-all"
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Hora de comida
-              </span>
-              <select
-                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 font-medium"
-                value={filterMealSection}
-                onChange={(e) => setFilterMealSection(e.target.value)}
-              >
-                {MEAL_SECTIONS.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
+            <div className="relative">
+              <ChefHat className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Filtrar por ingrediente base..."
+                value={searchIngredient}
+                onChange={(e) => setSearchIngredient(e.target.value)}
+                className="pl-9 bg-white border-slate-200 focus:bg-white h-11 transition-all"
+              />
             </div>
           </div>
         </div>
@@ -250,7 +328,7 @@ export default function PlatosClient() {
                           : "Sin preparación"}
                       </p>
                     </div>
-                    {recipe.isMine ? (
+                    {(recipe.isMine || isAdmin) ? (
                       <Button
                         variant="ghost"
                         onClick={() => deleteDish(recipe.id)}

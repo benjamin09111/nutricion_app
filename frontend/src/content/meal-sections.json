@@ -1,0 +1,10 @@
+[
+  { "value": "desayuno", "label": "Desayuno" },
+  { "value": "merienda", "label": "Merienda" },
+  { "value": "almuerzo", "label": "Almuerzo" },
+  { "value": "once", "label": "Once" },
+  { "value": "cena", "label": "Cena" },
+  { "value": "once_desayuno", "label": "Once o desayuno" },
+  { "value": "snack_saludable", "label": "Snack saludable" },
+  { "value": "postre", "label": "Postre" }
+]
