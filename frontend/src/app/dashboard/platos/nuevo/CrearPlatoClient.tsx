@@ -33,7 +33,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
 export default function CrearPlatoClient() {
   const router = useRouter();
   const token = Cookies.get("auth_token") || "";
-  
+
   const [form, setForm] = useState({
     name: "",
     isPublic: true,
@@ -172,9 +172,9 @@ export default function CrearPlatoClient() {
       const preparationText =
         preparationSteps.filter((s) => s.trim()).length > 0
           ? preparationSteps
-              .filter((s) => s.trim())
-              .map((s, i) => `${i + 1}. ${s.trim()}`)
-              .join("\n")
+            .filter((s) => s.trim())
+            .map((s, i) => `${i + 1}. ${s.trim()}`)
+            .join("\n")
           : undefined;
 
       const payload = {
@@ -282,7 +282,7 @@ export default function CrearPlatoClient() {
             <Camera className="h-4 w-4 text-emerald-600" />
             Imagen del Plato
           </label>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
               <p className="text-xs text-slate-500 font-medium">Pega una URL de imagen para el plato</p>
@@ -361,6 +361,9 @@ export default function CrearPlatoClient() {
             <label className="text-xs font-bold uppercase text-slate-500 tracking-wider flex items-center gap-2">
               Alimentos Principales (Base de datos) <span className="text-rose-500">*</span>
             </label>
+            <div className="text-xs text-black font-normal normal-case">
+              Si no encuentras el alimento, inclúyelo en Alimentos opcionales. Si es un alimento importante, ve a Ingredientes y ¡crealo por ti mismo para ayudar a la comunidad!
+            </div>
             <div className="relative">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

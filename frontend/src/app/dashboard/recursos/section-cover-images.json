@@ -1,0 +1,14 @@
+{
+  "default": { "label": "Recurso general", "imageUrl": "", "gradientFrom": "#0f172a", "gradientTo": "#334155" },
+  "portada": { "label": "Inicio del entregable", "imageUrl": "", "gradientFrom": "#4338ca", "gradientTo": "#7c3aed" },
+  "mitos": { "label": "Educacion y claridad", "imageUrl": "", "gradientFrom": "#b45309", "gradientTo": "#f59e0b" },
+  "habitos": { "label": "Cambios sostenibles", "imageUrl": "", "gradientFrom": "#047857", "gradientTo": "#34d399" },
+  "salud-mental": { "label": "Bienestar integral", "imageUrl": "", "gradientFrom": "#be185d", "gradientTo": "#fb7185" },
+  "salud-intestinal": { "label": "Digestivo y balance", "imageUrl": "", "gradientFrom": "#c2410c", "gradientTo": "#fb923c" },
+  "deporte": { "label": "Energia y rendimiento", "imageUrl": "", "gradientFrom": "#6d28d9", "gradientTo": "#a78bfa" },
+  "maternidad": { "label": "Acompanamiento materno", "imageUrl": "", "gradientFrom": "#db2777", "gradientTo": "#f9a8d4" },
+  "rendimiento": { "label": "Foco y productividad", "imageUrl": "", "gradientFrom": "#ca8a04", "gradientTo": "#facc15" },
+  "consejos": { "label": "Aplicacion practica", "imageUrl": "", "gradientFrom": "#0369a1", "gradientTo": "#38bdf8" },
+  "faq": { "label": "Solucion de dudas", "imageUrl": "", "gradientFrom": "#0e7490", "gradientTo": "#22d3ee" },
+  "otro": { "label": "Contenido complementario", "imageUrl": "", "gradientFrom": "#475569", "gradientTo": "#94a3b8" }
+}

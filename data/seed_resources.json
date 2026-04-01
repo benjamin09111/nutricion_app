@@ -1,0 +1,394 @@
+{
+    "resources": [
+        {
+            "title": "Fundamentos del Plan Nutricional",
+            "content": "<h2>Objetivos Estratégicos</h2><p>Este programa ha sido estructurado para alcanzar la meta de <strong>{OBJETIVO_PRINCIPAL}</strong>. Se basa en la densidad nutricional y la flexibilidad metabólica, priorizando alimentos de origen natural y minimizando procesados.</p><h3>Pilares del Éxito</h3><ul><li><strong>Adherencia:</strong> No es una dieta temporal, es un cambio de patrón alimentario.</li><li><strong>Calidad sobre cantidad:</strong> Priorizamos el aporte de micronutrientes para regular el hambre real.</li></ul>",
+            "category": "portada",
+            "tags": [
+                "Metodología",
+                "Planificación",
+                "Nutrición"
+            ],
+            "sources": "Evidencia en Nutrición Basada en la Ciencia",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Fisiología del Gasto Energético",
+            "content": "<h2>El Mito de las Calorías 'Vacías'</h2><p>El cuerpo humano no es una calculadora, sino un laboratorio químico. El consumo de ultraprocesados genera picos de insulina que bloquean la quema de grasa (lipólisis).</p><h3>Hechos Científicos</h3><ul><li>El orden de ingesta (vegetales, luego proteínas, luego carbohidratos) reduce la respuesta glucémica.</li><li>El edulcorante, aunque no aporta calorías, puede alterar la microbiota y el umbral del sabor dulce.</li></ul>",
+            "category": "mitos",
+            "tags": [
+                "Fisiología",
+                "Metabolismo",
+                "Insulina"
+            ],
+            "sources": "Journal of Clinical Endocrinology & Metabolism",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Arquitectura de la Comida Saludable",
+            "content": "<h2>Distribución de Macronutrientes</h2><p>Para optimizar la saciedad y el rendimiento de <strong>{NOMBRE_PACIENTE}</strong>, cada plato principal debe seguir esta proporción visual:</p><ul><li><strong>Vegetales (50%):</strong> Aportan fibra, agua y fitonutrientes esenciales.</li><li><strong>Proteína de calidad (25%):</strong> Crucial para la síntesis muscular y el efecto térmico de los alimentos.</li><li><strong>Carbohidratos complejos (25%):</strong> Energía de liberación lenta para mantener la estabilidad glucémica.</li></ul>",
+            "category": "habitos",
+            "tags": [
+                "PlatoSaludable",
+                "Porciones",
+                "Nutrientes"
+            ],
+            "sources": "Harvard Healthy Eating Plate",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Nutrición y Sistema Nervioso",
+            "content": "<h2>Eje Intestino-Cerebro</h2><p>La salud mental está intrínsecamente ligada a la microbiota intestinal. Un estado inflamatorio crónico derivado de la mala alimentación puede aumentar los niveles de cortisol.</p><h3>Nutrientes Críticos</h3><ul><li><strong>Omega-3 (DHA/EPA):</strong> Función estructural en las neuronas.</li><li><strong>Magnesio:</strong> Cofactor en más de 300 reacciones enzimáticas, incluyendo la relajación muscular y del sistema nervioso.</li></ul>",
+            "category": "salud-mental",
+            "tags": [
+                "Psiconutrición",
+                "Microbiota",
+                "Cortisol"
+            ],
+            "sources": "Nutritional Neuroscience Journal",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Microbiota y Barrera Intestinal",
+            "content": "<h2>Salud Digestiva</h2><p>Un intestino 'permeable' permite el paso de toxinas al torrente sanguíneo. Para proteger la barrera intestinal, se deben incluir alimentos prebióticos y probióticos.</p><h3>Estrategia Pro-Microbiota</h3><ul><li><strong>Fibra fermentable:</strong> Almidón resistente (papa cocida y enfriada), legumbres y cebolla.</li><li><strong>Polifenoles:</strong> Frutos rojos, cacao >85% y té verde.</li></ul>",
+            "category": "salud-intestinal",
+            "tags": [
+                "Digestión",
+                "Probióticos",
+                "Inflamación"
+            ],
+            "sources": "Asociación Científica Internacional de Probióticos",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Crononutrición y Rendimiento",
+            "content": "<h2>Timing Nutricional en el Deporte</h2><p>El cuerpo procesa los nutrientes de forma distinta según el ritmo circadiano y la actividad física realizada.</p><h3>Ventanas Metabólicas</h3><ul><li><strong>Pre-entrenamiento:</strong> Foco en glucógeno de rápida disponibilidad sin exceso de fibra.</li><li><strong>Post-entrenamiento:</strong> Co-ingesta de aminoácidos y carbohidratos para activar la vía mTOR de recuperación muscular.</li></ul>",
+            "category": "deporte",
+            "tags": [
+                "Rendimiento",
+                "Deporte",
+                "Crononutrición"
+            ],
+            "sources": "International Society of Sports Nutrition (ISSN)",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Programación Metabólica en el Embarazo",
+            "content": "<h2>Nutrientes para el Desarrollo Fetal</h2><p>La alimentación materna durante la gestación modula la expresión genética del bebé. Los requerimientos de ciertos micronutrientes se duplican sin necesidad de duplicar el aporte calórico total.</p><h3>Prioridades</h3><ul><li><strong>Colina:</strong> Esencial para el desarrollo del hipocampo (memoria).</li><li><strong>Yodo y Hierro:</strong> Críticos para la función tiroidea y el transporte de oxígeno.</li></ul>",
+            "category": "maternidad",
+            "tags": [
+                "Gestación",
+                "Epigenética",
+                "Maternidad"
+            ],
+            "sources": "WHO Antenatal Care Guidelines",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Bioquímica de la Energía Laboral",
+            "content": "<h2>Evitando el Letargo Post-Prandial</h2><p>La caída de energía después de comer se debe generalmente a un exceso de carbohidratos simples que provocan una hipoglucemia reactiva.</p><h3>Optimización Cognitiva</h3><ul><li><strong>Hidratación:</strong> Una caída del 2% en la hidratación reduce la concentración en un 20%.</li><li><strong>Grasas Saludables:</strong> El cerebro es mayoritariamente grasa; el consumo de aguacate, nueces y aceite de oliva virgen extra mejora la fluidez cognitiva.</li></ul>",
+            "category": "rendimiento",
+            "tags": [
+                "Enfoque",
+                "Energía",
+                "Productividad"
+            ],
+            "sources": "European Food Safety Authority (EFSA)",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Gestión de Entornos Obesogénicos",
+            "content": "<h2>Alimentación Social</h2><p>El entorno moderno está diseñado para el consumo excesivo. Mantener el objetivo de <strong>{OBJETIVO_PRINCIPAL}</strong> fuera de casa requiere estrategias de control ambiental.</p><h3>Tácticas Prácticas</h3><ul><li><strong>Saciedad Previa:</strong> Ingerir una fuente de fibra o proteína antes de eventos sociales reduce la impulsividad.</li><li><strong>Regla del Alcohol:</strong> Alternar cada copa de alcohol con dos vasos de agua para mitigar el impacto metabólico.</li></ul>",
+            "category": "consejos",
+            "tags": [
+                "Entorno",
+                "Social",
+                "Habilidades"
+            ],
+            "sources": "Psicología de la Alimentación",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Identificación de Ultraprocesados",
+            "content": "<h2>Análisis de Etiquetado</h2><p>El marketing nutricional suele ocultar ingredientes perjudiciales bajo nombres técnicos.</p><h3>Alertas en Ingredientes</h3><ul><li><strong>Aceites refinados:</strong> Palma, girasol alto oleico o soja (pro-inflamatorios).</li><li><strong>Azúcares ocultos:</strong> Jarabe de maltitol, dextrosa, concentrados de zumo.</li><li><strong>Aditivos:</strong> Potenciadores del sabor (E-621) que alteran los mecanismos de saciedad.</li></ul>",
+            "category": "otro",
+            "tags": [
+                "Etiquetado",
+                "CompraSaludable",
+                "Procesados"
+            ],
+            "sources": "Food Standards Agency (FSA)",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Bioquímica de la Saciedad",
+            "content": "<h2>Hormonas del Hambre: Leptina y Grelina</h2><p>El control del peso para el objetivo de <strong>{OBJETIVO_PRINCIPAL}</strong> depende del equilibrio hormonal. La falta de sueño eleva la grelina (hambre) y reduce la leptina (saciedad).</p><h3>Estrategias de Control</h3><ul><li><strong>Masticación:</strong> El cerebro tarda 20 minutos en registrar la señal de saciedad.</li><li><strong>Proteína matutina:</strong> Reduce los niveles de grelina durante el resto del día.</li></ul>",
+            "category": "portada",
+            "tags": [
+                "Hormonas",
+                "Saciedad",
+                "Fisiología"
+            ],
+            "sources": "Endocrine Society - Appetite Regulation",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Mito: El ayuno intermitente pierde músculo",
+            "content": "<h2>Autofagia y Masa Muscular</h2><p>Existe el temor de que periodos sin comer consuman el tejido muscular. La evidencia muestra que, manteniendo el aporte de proteína, el ayuno protege la masa muscular vía elevación de la hormona del crecimiento.</p><h3>Clarificación Técnica</h3><ul><li>El músculo se pierde por déficit calórico extremo o inactividad, no por la ventana de alimentación.</li><li>El ayuno mejora la sensibilidad a la insulina, facilitando la partición de nutrientes.</li></ul>",
+            "category": "mitos",
+            "tags": [
+                "Ayuno",
+                "Músculo",
+                "Insulina"
+            ],
+            "sources": "New England Journal of Medicine",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Técnicas de Cocción y Densidad Nutricional",
+            "content": "<h2>Preservación de Vitaminas</h2><p>La forma en que <strong>{NOMBRE_PACIENTE}</strong> prepara los alimentos altera su valor nutricional final.</p><h3>Jerarquía de Cocción</h3><ul><li><strong>Vapor:</strong> Máxima retención de vitaminas hidrosolubles (C y grupo B).</li><li><strong>Salteado rápido (Wok):</strong> Mantiene la integridad de los polifenoles.</li><li><strong>Hervido prolongado:</strong> Gran pérdida de nutrientes si no se consume el caldo.</li></ul>",
+            "category": "habitos",
+            "tags": [
+                "Cocina",
+                "Nutrientes",
+                "Técnicas"
+            ],
+            "sources": "Journal of Food Science",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Vitamina D: Más que una Vitamina",
+            "content": "<h2>Función Inmune y Hormonal</h2><p>Actuando como una pro-hormona, la Vitamina D es clave en la expresión de más de 200 genes. Bajos niveles se asocian con fatiga y depresión estacional.</p><h3>Optimización</h3><ul><li><strong>Exposición Solar:</strong> 15-20 minutos diarios son la fuente principal.</li><li><strong>Sinergia:</strong> Debe consumirse con grasas para su absorción y, idealmente, con Vitamina K2 para la salud ósea.</li></ul>",
+            "category": "salud-mental",
+            "tags": [
+                "VitaminaD",
+                "Inmunidad",
+                "Hormonas"
+            ],
+            "sources": "Vitamin D Council / NIH",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Inflamación de Bajo Grado",
+            "content": "<h2>El impacto de los Ácidos Grasos</h2><p>Una dieta moderna suele tener un ratio Omega-6/Omega-3 muy desequilibrado (20:1), lo que promueve inflamación sistémica.</p><h3>Corrección del Ratio</h3><ul><li><strong>Reducir:</strong> Aceites de semillas refinados y harinas blancas.</li><li><strong>Aumentar:</strong> Pescado azul pequeño (sardinas, boquerones), nueces y semillas de lino.</li></ul>",
+            "category": "salud-intestinal",
+            "tags": [
+                "Inflamación",
+                "Omega3",
+                "SaludCelular"
+            ],
+            "sources": "American Heart Association",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Suplementación Basada en Evidencia",
+            "content": "<h2>Creatina y Rendimiento Cognitivo/Físico</h2><p>Es uno de los suplementos más estudiados. No solo mejora la resíntesis de ATP (energía) en el músculo, sino también en el cerebro.</p><h3>Uso Seguro</h3><ul><li><strong>Dosis:</strong> 0.05g por kg de peso corporal al día.</li><li><strong>Beneficio:</strong> Mejora la fuerza explosiva y la recuperación post-esfuerzo para <strong>{OBJETIVO_PRINCIPAL}</strong>.</li></ul>",
+            "category": "deporte",
+            "tags": [
+                "Suplementos",
+                "Creatina",
+                "Fuerza"
+            ],
+            "sources": "Journal of the International Society of Sports Nutrition",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Nutrición en el Postparto",
+            "content": "<h2>Recuperación de Reservas</h2><p>Tras el parto, el cuerpo de <strong>{NOMBRE_PACIENTE}</strong> necesita reponer nutrientes críticos que fueron transferidos al bebé durante el tercer trimestre.</p><h3>Foco Nutricional</h3><ul><li><strong>Calcio y Fósforo:</strong> Reposición de la densidad ósea.</li><li><strong>Hidratación:</strong> Especialmente crítica si hay lactancia materna exclusiva.</li><li><strong>Colágeno y Vitamina C:</strong> Apoyo a la reparación de tejidos conectivos.</li></ul>",
+            "category": "maternidad",
+            "tags": [
+                "Postparto",
+                "Lactancia",
+                "Recuperación"
+            ],
+            "sources": "Academy of Nutrition and Dietetics",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Higiene del Sueño y Metabolismo",
+            "content": "<h2>El Ritmo Circadiano</h2><p>Dormir menos de 7 horas altera la sensibilidad a la insulina de forma equivalente a envejecer 10 años metabólicamente.</p><h3>Protocolo Nocturno</h3><ul><li><strong>Bloqueo de Luz Azul:</strong> 2 horas antes de dormir para permitir la liberación de melatonina.</li><li><strong>Temperatura:</strong> Una habitación fresca mejora la calidad del sueño profundo.</li></ul>",
+            "category": "rendimiento",
+            "tags": [
+                "Sueño",
+                "Melatonina",
+                "Metabolismo"
+            ],
+            "sources": "Sleep Foundation / Science Daily",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Sustituciones Inteligentes",
+            "content": "<h2>Reducción de Carga Glucémica</h2><p>Pequeños cambios en la cocina impactan significativamente en <strong>{OBJETIVO_PRINCIPAL}</strong> sin sacrificar volumen.</p><h3>Intercambios Eficientes</h3><ul><li>Arroz blanco por <strong>arroz de coliflor</strong> o arroz integral.</li><li>Pasta de trigo por <strong>pasta de legumbres</strong> (más fibra y proteína).</li><li>Harina de trigo por <strong>harina de almendras</strong> en preparaciones horneadas.</li></ul>",
+            "category": "consejos",
+            "tags": [
+                "CocinaSaludable",
+                "Sustituciones",
+                "Tips"
+            ],
+            "sources": "Culinary Medicine Guidelines",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Antinutrientes: Realidad vs. Alarma",
+            "content": "<h2>Lectinas, Fitatos y Oxalatos</h2><p>Muchos alimentos saludables contienen 'antinutrientes' que pueden inhibir la absorción de minerales si no se preparan correctamente.</p><h3>Neutralización</h3><ul><li><strong>Remojo (12-24h):</strong> Reduce drásticamente los fitatos en legumbres.</li><li><strong>Cocción:</strong> Destruye la mayoría de las lectinas.</li><li><strong>Variedad:</strong> Rotar vegetales de hoja verde evita el exceso de oxalatos.</li></ul>",
+            "category": "otro",
+            "tags": [
+                "SeguridadAlimentaria",
+                "Legumbres",
+                "Nutrición"
+            ],
+            "sources": "Harvard T.H. Chan School of Public Health",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "¿Por qué no baja mi peso si estoy cumpliendo el plan?",
+            "content": "<h2>Peso vs. Composición Corporal</h2><p>Es común experimentar estancamientos en la báscula, pero esto no significa que no haya pérdida de grasa. El peso es una métrica voluble que no distingue entre agua, músculo y tejido adiposo.</p><h3>Causas Comunes de Fluctuación</h3><ul><li><strong>Retención hídrica:</strong> El estrés, el ciclo menstrual o un entrenamiento intenso de fuerza pueden inflamar el músculo y retener agua temporalmente.</li><li><strong>Ganancia muscular:</strong> Si estás entrenando, puedes estar perdiendo grasa y ganando músculo simultáneamente (recomposición corporal).</li><li><strong>Contenido intestinal:</strong> El peso varía según la ingesta de fibra y la hidratación del día anterior.</li></ul><p><strong>Recomendación:</strong> Prioriza las medidas corporales y cómo te queda la ropa sobre el número de la báscula.</p>",
+            "category": "faq",
+            "tags": [
+                "PreguntasFrecuentes",
+                "Peso",
+                "GrasaCorporal"
+            ],
+            "sources": "Journal of Nutrition and Metabolism",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "¿Qué hago si tengo un evento social y no puedo seguir la dieta?",
+            "content": "<h2>Flexibilidad y Protocolo de Daños</h2><p>El objetivo de <strong>{OBJETIVO_PRINCIPAL}</strong> no se arruina por una comida fuera del plan, sino por la mentalidad de 'todo o nada'.</p><h3>Estrategias de Gestión</h3><ul><li><strong>Compensación inteligente:</strong> No saltes comidas previas (esto genera más hambre); prioriza una ingesta alta en proteína y fibra antes de salir.</li><li><strong>Elección selectiva:</strong> Disfruta de aquello que realmente valga la pena y mantén las porciones bajo control en los acompañamientos (pan, patatas fritas, etc.).</li><li><strong>Retorno inmediato:</strong> La siguiente comida tras el evento debe ser 100% alineada con tu plan. El cuerpo gestiona bien los excesos puntuales, pero no la inconsistencia crónica.</li></ul>",
+            "category": "faq",
+            "tags": [
+                "VidaSocial",
+                "Adherencia",
+                "Estrategia"
+            ],
+            "sources": "Psicología de la Alimentación y Conducta",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "¿Es normal sentir hambre o ansiedad los primeros días?",
+            "content": "<h2>Adaptación Metabólica y Hormonal</h2><p>Al iniciar un cambio de hábitos hacia <strong>{OBJETIVO_PRINCIPAL}</strong>, el cuerpo atraviesa un periodo de ajuste en sus señales de hambre.</p><h3>Qué está ocurriendo</h3><ul><li><strong>Ajuste de Insulina:</strong> Si antes consumías muchos procesados, tus niveles de insulina están bajando, lo que puede causar hambre temporal mientras tu cuerpo aprende a usar sus reservas de grasa.</li><li><strong>Hambre Hedónica:</strong> Tu cerebro echa de menos el estímulo de dopamina de alimentos altamente palatables.</li><li><strong>Solución:</strong> Aumenta el consumo de agua y vegetales de hoja verde (fibra). Esta sensación suele desaparecer entre el día 4 y el 7 del nuevo plan.</li></ul>",
+            "category": "faq",
+            "tags": [
+                "Ansiedad",
+                "Hambre",
+                "Adaptación"
+            ],
+            "sources": "Physiology & Behavior Journal",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Distribución Proteica y Síntesis Muscular",
+            "content": "<h2>El Umbral de Leucina</h2><p>Para maximizar el objetivo de <strong>{OBJETIVO_PRINCIPAL}</strong>, no solo importa el total diario de proteína, sino cómo se distribuye. La síntesis de proteína muscular (MPS) requiere alcanzar un 'umbral' de leucina en cada comida.</p><h3>Recomendaciones Técnicas</h3><ul><li><strong>Dosis por comida:</strong> Entre 0.25g y 0.40g de proteína por kg de peso corporal por ingesta.</li><li><strong>Frecuencia:</strong> Realizar entre 3 y 5 ingestas proteicas al día para mantener la MPS elevada.</li><li><strong>Calidad:</strong> Priorizar fuentes con perfil completo de aminoácidos (suero de leche, huevo, carnes magras o combinaciones de legumbres/cereales).</li></ul>",
+            "category": "deporte",
+            "tags": [
+                "Proteína",
+                "Hipertrofia",
+                "Aminoácidos"
+            ],
+            "sources": "Journal of the International Society of Sports Nutrition",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Mito: El exceso de proteína daña el riñón",
+            "content": "<h2>Función Renal en Sujetos Sanos</h2><p>Uno de los mitos más persistentes es que una dieta alta en proteínas causa insuficiencia renal. La evidencia científica actual desmiente esta afirmación en individuos sin patologías previas.</p><h3>Evidencia Actual</h3><ul><li>Estudios en atletas con ingestas de hasta 2.8g/kg de peso no muestran alteraciones en la filtración glomerular ni en marcadores de daño renal.</li><li><strong>Aclaración:</strong> El aumento de urea o creatinina en analíticas puede ser una respuesta normal al entrenamiento de fuerza y no una patología.</li></ul>",
+            "category": "mitos",
+            "tags": [
+                "SaludRenal",
+                "MitosDeporte",
+                "Seguridad"
+            ],
+            "sources": "Journal of Nutrition and Metabolism",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "La Ventana Anabólica: ¿Realidad o Ficción?",
+            "content": "<h2>Timing Post-Entrenamiento</h2><p>La idea de que se debe consumir proteína en los 30 minutos posteriores al ejercicio para no 'perder el músculo' ha sido matizada por la ciencia moderna.</p><h3>Contexto Metabólico</h3><ul><li>La 'ventana' es mucho más amplia (hasta 24-48 horas después del esfuerzo).</li><li><strong>Prioridad:</strong> Lo más crítico para <strong>{NOMBRE_PACIENTE}</strong> es el total de proteína al final del día.</li><li><strong>Excepción:</strong> El timing es crucial solo si se realizan dos sesiones de entrenamiento el mismo día con menos de 8 horas de separación.</li></ul>",
+            "category": "deporte",
+            "tags": [
+                "Entrenamiento",
+                "PostEntreno",
+                "Fisiología"
+            ],
+            "sources": "Brad Schoenfeld et al. - Evidence-based Practice",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Suplementación con Proteína de Suero (Whey)",
+            "content": "<h2>¿Es necesaria la suplementación?</h2><p>El batido de proteína es simplemente una herramienta de conveniencia, no un producto mágico. Ayuda a <strong>{NOMBRE_PACIENTE}</strong> a alcanzar sus requerimientos cuando la comida sólida no es práctica.</p><h3>Tipos de Whey</h3><ul><li><strong>Concentrado:</strong> 70-80% proteína, contiene algo de lactosa y grasa. Calidad-precio óptima.</li><li><strong>Aislado (Isolate):</strong> >90% proteína, casi sin lactosa. Ideal para digestiones sensibles o etapas de definición estricta.</li><li><strong>Hidrolizado:</strong> Pre-digerido para una absorción ultra rápida, aunque rara vez necesario para usuarios no competitivos.</li></ul>",
+            "category": "deporte",
+            "tags": [
+                "Suplementos",
+                "WheyProtein",
+                "Nutrición"
+            ],
+            "sources": "ISSN Exercise & Sports Nutrition Review",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Proteína y Saciedad en Pérdida de Grasa",
+            "content": "<h2>Efecto Térmico de los Alimentos (TEF)</h2><p>Para el objetivo de <strong>{OBJETIVO_PRINCIPAL}</strong>, la proteína es el macronutriente más eficiente debido a su impacto en el gasto energético y el control del apetito.</p><h3>Ventajas Metabólicas</h3><ul><li><strong>Gasto por Digestión:</strong> El cuerpo gasta hasta un 20-30% de las calorías de la proteína solo en procesarla (frente al 5-10% de carbohidratos/grasas).</li><li><strong>Control Glucémico:</strong> La co-ingesta de proteína con carbohidratos reduce el índice glucémico de la comida, evitando picos de hambre posteriores.</li></ul>",
+            "category": "rendimiento",
+            "tags": [
+                "Saciante",
+                "Metabolismo",
+                "GastoEnergético"
+            ],
+            "sources": "American Journal of Clinical Nutrition",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Proteínas de Origen Vegetal en el Atleta",
+            "content": "<h2>Biodisponibilidad y Aminoácidos</h2><p>Es posible ganar masa muscular con una dieta basada en plantas, pero requiere una planificación más técnica para compensar aminoácidos limitantes.</p><h3>Estrategias Veganas</h3><ul><li><strong>Combinación:</strong> Mezclar legumbres (ricas en lisina) con cereales (ricos en metionina) para obtener una proteína completa.</li><li><strong>Leucina:</strong> Las fuentes vegetales suelen ser bajas en este aminoácido clave; se recomienda aumentar ligeramente la dosis total por comida para compensarlo.</li></ul>",
+            "category": "deporte",
+            "tags": [
+                "Vegano",
+                "PlantBased",
+                "Músculo"
+            ],
+            "sources": "Sports Medicine Journal",
+            "isPublic": true,
+            "format": "HTML"
+        },
+        {
+            "title": "Recuperación Nocturna: Proteína antes de dormir",
+            "content": "<h2>Caseína y Ayuno Nocturno</h2><p>El periodo de sueño es la ventana de ayuno más larga del día. Consumir proteína antes de pernoctar puede ser beneficioso para la recuperación de <strong>{NOMBRE_PACIENTE}</strong>.</p><h3>Protocolo Nocturno</h3><ul><li>Consumir 30-40g de una proteína de absorción lenta (como la caseína presente en el queso batido o suplemento) 30 min antes de dormir.</li><li><strong>Beneficio:</strong> Mantiene los niveles de aminoácidos estables en sangre durante la noche, favoreciendo la reparación muscular tras entrenamientos intensos.</li></ul>",
+            "category": "deporte",
+            "tags": [
+                "Descanso",
+                "Caseína",
+                "Recuperación"
+            ],
+            "sources": "Luc van Loon - Protein Ingestion before Sleep",
+            "isPublic": true,
+            "format": "HTML"
+        }
+    ]
+}

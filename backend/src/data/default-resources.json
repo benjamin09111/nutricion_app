@@ -1,57 +1,107 @@
 [
-    {
-        "title": "La verdad sobre el Ayuno Intermitente",
-        "category": "mitos",
-        "content": "**¿El ayuno intermitente es mágico para perder peso?**<br/><br/>No, el ayuno intermitente no tiene propiedades mágicas. *Su principal beneficio es ayudar a algunas personas a controlar su ingesta calórica limitando la ventana de tiempo en la que pueden comer.*<br/><br/>Si al final del día consumes más calorías de las que gastas, subirás de peso, independientemente de si ayunas 16 horas o no. Lo fundamental siempre será el déficit calórico y la calidad de los alimentos que eliges en tu ventana de alimentación.",
-        "tags": [
-            "Ayuno",
-            "Pérdida de Peso",
-            "Mitos"
-        ],
-        "sources": "https://www.nejm.org/doi/full/10.1056/NEJMoa2114833"
-    },
-    {
-        "title": "Checklist: Preparación para el Éxito",
-        "category": "habitos",
-        "content": "**Tu entorno determina tu éxito.** Antes de empezar la semana, asegúrate de cumplir con estos 3 puntos clave:<br/><br/>1. *Refrigerador limpio*: Elimina ultraprocesados tentadores que no sumen a tu objetivo.<br/>2. *Batch Cooking Básico*: Deja lavadas y picadas tus verduras, y al menos una fuente de carbohidratos (arroz, quinoa) lista en un tupper.<br/>3. *Botella visible*: Ten siempre a la vista una botella de agua de al menos 1 litro en tu espacio de trabajo.",
-        "tags": [
-            "Organización",
-            "Hábitos",
-            "Agua"
-        ],
-        "sources": "Hábitos Atómicos - James Clear"
-    },
-    {
-        "title": "Diferenciando el Hambre Real del Emocional",
-        "category": "emocional",
-        "content": "A veces comemos para alimentar nuestras emociones, no nuestro estómago. **¿Cómo diferenciarlos?**<br/><br/>*Hambre Físico:*<br/>- Aparece gradualmente.<br/>- Puedes satisfacerlo con cualquier alimento (incluso una manzana).<br/>- Te sientes satisfecho y te detienes.<br/>- No genera culpa posterior.<br/><br/>*Hambre Emocional:*<br/>- Aparece de golpe, como un antojo urgente.<br/>- Exige un alimento específico (usualmente dulce o graso).<br/>- Es difícil parar incluso estando lleno.<br/>- Suele dejar una sensación de culpa o vergüenza.<br/><br/>*Tip de acción:* Antes de ceder a un antojo urgente, toma un vaso de agua y espera 15 minutos. Si el hambre persiste y cualquier alimento te sirve, es físico.",
-        "tags": [
-            "Ansiedad",
-            "Atracones",
-            "Mindful Eating"
-        ],
-        "sources": "Asociación Americana de Psicología (APA) - Alimentación Emocional"
-    },
-    {
-        "title": "Cómo leer una etiqueta nutricional rápidamente",
-        "category": "consejos",
-        "content": "No necesitas ser un experto para elegir mejores productos. Fíjate en estos **3 puntos críticos** la próxima vez que vayas al supermercado:<br/><br/>1. **Los 3 primeros ingredientes:** Los ingredientes se ordenan de mayor a menor cantidad. Si el azúcar, jarabe o harinas refinadas están entre los primeros 3, busca otra opción.<br/>2. **Porción vs Envase:** Asegúrate de saber si las calorías que estás leyendo corresponden a todo el paquete o solo a un trocito (una porción).<br/>3. **Lista corta:** Como regla general, si un producto tiene más de 5 ingredientes y no puedes pronunciar la mitad de ellos, probablemente sea un ultraprocesado que convendría evitar en el día a día.",
-        "tags": [
-            "Supermercado",
-            "Etiquetado",
-            "Ultraprocesados"
-        ],
-        "sources": "Organización Mundial de la Salud (OMS) - Guías de etiquetado"
-    },
-    {
-        "title": "Pausas Activas para Trabajo de Oficina",
-        "category": "ejercicios",
-        "content": "Estar sentado 8 horas diarias contrarresta los beneficios de esa hora que pasaste en el gimnasio. **El sedentarismo es silencioso.**<br/><br/>*Implementa la regla 50/10:* Por cada 50 minutos de trabajo continuo, levántate 10 minutos.<br/><br/>*Circuito rápido de oficina:*<br/>- 10 sentadillas usando tu propia silla.<br/>- Estiramiento de cuello (suave hacia los lados y adelante).<br/>- 20 elevaciones de talones (pantorrillas) mientras esperas que hierva el agua del café.<br/>- Caminar mientras contestas llamadas de teléfono.",
-        "tags": [
-            "Sedentarismo",
-            "Oficina",
-            "Movilidad"
-        ],
-        "sources": "American College of Sports Medicine (ACSM)"
-    }
+  {
+    "title": "Bienvenida al cambio paso a paso",
+    "category": "portada",
+    "content": "<h1>Hola {NOMBRE_PACIENTE}</h1><p>Este material fue preparado para ayudarte a comer mejor sin complicarte.</p><p>No necesitas hacerlo perfecto. La idea es avanzar con cambios simples que si puedas mantener en tu vida diaria.</p><p><strong>Enfoque de este plan:</strong> {OBJETIVO_PRINCIPAL}</p>",
+    "tags": ["Portada", "Inicio", "Base"],
+    "sources": "Contenido base de la plataforma"
+  },
+  {
+    "title": "Antes de empezar",
+    "category": "portada",
+    "content": "<p>Lee esto con calma y usa solo lo que de verdad te sirva.</p><p>Si un consejo no encaja con tu rutina, se puede ajustar. Comer mejor no se trata de sufrir, sino de encontrar una forma mas ordenada y realista de cuidarte.</p>",
+    "tags": ["Introduccion", "Inicio", "Acompanamiento"],
+    "sources": "Contenido base de la plataforma"
+  },
+  {
+    "title": "Comer bien no significa comer perfecto",
+    "category": "mitos",
+    "content": "<p>Si un dia comes algo mas pesado, no arruinaste nada.</p><p>Lo que cambia tu salud no es una comida aislada, sino lo que haces la mayor parte del tiempo.</p><p>La meta no es vivir a dieta. La meta es tener una forma de comer que puedas sostener sin culpa.</p>",
+    "tags": ["Mitos", "Culpa", "Dia a dia"],
+    "sources": "Mensaje educativo general"
+  },
+  {
+    "title": "Bajar de peso no depende de pasar hambre",
+    "category": "mitos",
+    "content": "<p>Pasar muchas horas sin comer no siempre ayuda y muchas veces termina en ansiedad o atracones.</p><p>Para muchas personas funciona mejor ordenar horarios, comer con mas calma y elegir comidas que realmente llenen.</p><p>Si vives con hambre todo el dia, ese plan no te esta ayudando.</p>",
+    "tags": ["Mitos", "Hambre", "Saciedad"],
+    "sources": "Mensaje educativo general"
+  },
+  {
+    "title": "Tu semana mejora si dejas dos cosas listas",
+    "category": "habitos",
+    "content": "<p>No necesitas cocinar todo el domingo.</p><p>Con dejar una proteina lista y verduras lavadas ya te ahorras muchas malas decisiones en la semana.</p><p>Mientras mas facil te quede comer bien, mas probable es que lo hagas.</p>",
+    "tags": ["Habitos", "Organizacion", "Rutina"],
+    "sources": "Mensaje educativo general"
+  },
+  {
+    "title": "Tomar agua es mas facil si la ves",
+    "category": "habitos",
+    "content": "<p>Muchas personas no toman agua por olvido, no por falta de ganas.</p><p>Deja una botella cerca de ti, llena, y a la vista.</p><p>Ese gesto simple suele ayudar mas que prometerse cosas grandes que despues no se cumplen.</p>",
+    "tags": ["Habitos", "Agua", "Facil"],
+    "sources": "Mensaje educativo general"
+  },
+  {
+    "title": "Si comes por ansiedad, primero pausa",
+    "category": "salud-mental",
+    "content": "<p>A veces no tienes hambre; estas cansado, estresado o buscando consuelo.</p><p>Antes de ir por comida, prueba una pausa corta: toma agua, respira, camina un minuto o cambia de lugar.</p><p>No siempre va a funcionar, pero te ayuda a distinguir si necesitas comida o descanso.</p>",
+    "tags": ["Salud mental", "Ansiedad", "Pausa"],
+    "sources": "Mensaje educativo general"
+  },
+  {
+    "title": "Tu guata suele agradecer lo simple",
+    "category": "salud-intestinal",
+    "content": "<p>Si te sientes pesado, inflamado o con molestias frecuentes, no siempre necesitas algo raro o caro.</p><p>Muchas veces ayuda comer mas lento, repetir menos alimentos ultraprocesados y agregar de a poco frutas, verduras y agua.</p><p>Los cambios chicos y constantes suelen caer mejor que hacer todo de golpe.</p>",
+    "tags": ["Digestivo", "Inflamacion", "Simple"],
+    "sources": "Mensaje educativo general"
+  },
+  {
+    "title": "Si haces ejercicio, no llegues vacio",
+    "category": "deporte",
+    "content": "<p>Entrenar con demasiada hambre puede hacer que te sientas sin energia o termines comiendo cualquier cosa despues.</p><p>Muchas personas andan mejor con una colacion sencilla antes o con una comida ordenada despues.</p><p>No hace falta algo perfecto; hace falta algo que te ayude a rendir y recuperarte mejor.</p>",
+    "tags": ["Deporte", "Energia", "Colacion"],
+    "sources": "Mensaje educativo general"
+  },
+  {
+    "title": "En embarazo o lactancia, menos presion y mas orden",
+    "category": "maternidad",
+    "content": "<p>En esta etapa no necesitas una dieta de moda. Necesitas comer de forma regular, hidratarte y resolver lo posible con amabilidad contigo misma.</p><p>Si un dia no sale perfecto, no pasa nada.</p><p>Lo importante es sostener una base simple que te cuide a ti y tambien al bebe.</p>",
+    "tags": ["Maternidad", "Lactancia", "Cuidado"],
+    "sources": "Mensaje educativo general"
+  },
+  {
+    "title": "Para concentrarte mejor, no te saltes comidas",
+    "category": "rendimiento",
+    "content": "<p>Cuando pasas demasiadas horas sin comer, muchas veces baja la energia, la paciencia y la concentracion.</p><p>No necesitas snacks todo el dia, pero si una estructura minima para no llegar destruido a la tarde.</p><p>Comer mas ordenado tambien ayuda a pensar con mas claridad.</p>",
+    "tags": ["Rendimiento", "Foco", "Energia"],
+    "sources": "Mensaje educativo general"
+  },
+  {
+    "title": "En el supermercado, compra menos pelea",
+    "category": "consejos",
+    "content": "<p>Si llenas la casa de productos que te tientan todo el tiempo, despues dependeras de tu fuerza de voluntad.</p><p>Es mas facil ayudarte desde la compra: menos cosas que te desordenan y mas opciones simples para resolver comidas reales.</p><p>Lo ideal no es resistir todo el dia. Lo ideal es dejarte el camino mas facil.</p>",
+    "tags": ["Consejos", "Compra", "Orden"],
+    "sources": "Mensaje educativo general"
+  },
+  {
+    "title": "Armar un plato simple ya suma mucho",
+    "category": "consejos",
+    "content": "<p>No necesitas contar todo para mejorar.</p><p>Una idea facil: intenta que tu comida tenga algo que te llene, algo fresco y algo que te de energia.</p><p>Cuando un plato se ve mas equilibrado, normalmente tambien te deja mejor durante el resto del dia.</p>",
+    "tags": ["Consejos", "Plato", "Simple"],
+    "sources": "Mensaje educativo general"
+  },
+  {
+    "title": "Y si no tengo tiempo para cocinar",
+    "category": "faq",
+    "content": "<p>No hace falta cocinar elaborado para comer mejor.</p><p>Puedes resolver con combinaciones simples: yogurt con fruta, pan con huevo, arroz ya hecho con atun, ensalada lista con pollo, o colaciones practicas que no te hagan caer en cualquier cosa.</p><p>La idea es tener opciones reales para tus dias ocupados.</p>",
+    "tags": ["FAQ", "Tiempo", "Vida real"],
+    "sources": "Preguntas frecuentes de pacientes"
+  },
+  {
+    "title": "Y si me salgo del plan",
+    "category": "faq",
+    "content": "<p>No necesitas empezar de cero.</p><p>La siguiente comida es una nueva oportunidad para retomar, sin castigos ni compensaciones raras.</p><p>Lo que mas ayuda no es exigirte mas; es volver rapido a una rutina que si puedas sostener.</p>",
+    "tags": ["FAQ", "Retomar", "Constancia"],
+    "sources": "Preguntas frecuentes de pacientes"
+  }
 ]

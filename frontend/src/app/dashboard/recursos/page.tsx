@@ -1,9 +1,9 @@
 import { ResourcesClient } from "./ResourcesClient";
 
 export const metadata = {
-  title: "Recursos del Entregable | NutriSaaS",
+  title: "Biblioteca | NutriSaaS",
   description:
-    "Gestiona los contenidos educativos que se incluyen en el entregable final de tus pacientes.",
+    "Gestiona recursos de plataforma, comunidad y recursos propios para tu entregable.",
 };
 
 export default function RecursosPage() {

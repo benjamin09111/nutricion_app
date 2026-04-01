@@ -1,0 +1,46 @@
+{
+    "resources": [
+        {
+            "title": "Protocolo de SOS: Control de Atracones Nocturnos",
+            "content": "<h2>Estrategia de Intervención Inmediata</h2><p>Este protocolo es para esos momentos de alta ansiedad por la noche que hemos comentado en sesión. Para proteger tu objetivo de <strong>{OBJETIVO_PRINCIPAL}</strong>, sigue este orden antes de abrir la despensa:</p><ul><li><strong>Hidratación Isotónica:</strong> Bebe 300ml de agua con un toque de limón y una pizca de sal (muchas veces la sed se disfraza de hambre).</li><li><strong>Distracción Cognitiva:</strong> Realiza una actividad manual por 10 minutos (leer, ordenar, respiración diafragmática).</li><li><strong>El Snack de Seguridad:</strong> Si el hambre persiste, consume 1 huevo cocido o 10 almendras. La proteína y grasa frenarán la señal de hambre de forma real, a diferencia de los carbohidratos simples.</li></ul>",
+            "category": "salud-mental",
+            "tags": [
+                "Ansiedad",
+                "Privado",
+                "Control"
+            ],
+            "sources": "Protocolo Interno de Consulta Nutricional",
+            "isPublic": false,
+            "format": "HTML",
+            "nutritionistId": "1b3d18be-7096-4ebc-8296-42c4a1382142"
+        },
+        {
+            "title": "Ajuste de Carga de Hidratos para Días de No Entreno",
+            "content": "<h2>Periodización Nutricional Personalizada</h2><p>Como parte de nuestro seguimiento, <strong>{NOMBRE_PACIENTE}</strong>, los días que no realices actividad física intensa aplicaremos este ajuste en tu plato:</p><ul><li><strong>Reducción de Almidones:</strong> Disminuiremos la porción de arroz/pasta/patata a la mitad de lo habitual.</li><li><strong>Aumento de Grasas Saludables:</strong> Añadiremos media porción extra de aguacate o AOVE para mantener la saciedad.</li><li><strong>Foco en Vegetales Crucíferos:</strong> Brócoli o coliflor para aumentar el volumen gástrico sin elevar la carga glucémica en reposo.</li></ul>",
+            "category": "deporte",
+            "tags": [
+                "Periodización",
+                "Metabolismo",
+                "Personalizado"
+            ],
+            "sources": "Guía Clínica de Composición Corporal",
+            "isPublic": false,
+            "format": "HTML",
+            "nutritionistId": "1b3d18be-7096-4ebc-8296-42c4a1382142"
+        },
+        {
+            "title": "Interpretación de tu Analítica Sanguínea",
+            "content": "<h2>Entendiendo tus marcadores actuales</h2><p>Este recurso te ayudará a entender por qué estamos priorizando ciertos alimentos en tu plan tras revisar tus resultados de laboratorio.</p><h3>Marcadores Clave</h3><ul><li><strong>Glucemia en ayunas:</strong> Buscamos estabilidad para evitar la fatiga que mencionaste en la consulta del <strong>{FECHA_CONSULTA}</strong>.</li><li><strong>Perfil Lipídico:</strong> La relación entre HDL y Triglicéridos es lo que más nos importa para tu salud cardiovascular.</li><li><strong>Ferritina:</strong> Si está baja, priorizaremos el protocolo de hierro + Vitamina C que diseñé para ti.</li></ul>",
+            "category": "otro",
+            "tags": [
+                "Analíticas",
+                "Salud",
+                "Exclusivo"
+            ],
+            "sources": "Criterios de Medicina Funcional",
+            "isPublic": false,
+            "format": "HTML",
+            "nutritionistId": "1b3d18be-7096-4ebc-8296-42c4a1382142"
+        }
+    ]
+}
