@@ -16,7 +16,7 @@ interface AddIngredientsToGroupModalProps {
   groupName?: string;
   allIngredients: Ingredient[];
   currentIngredientIds: string[];
-  onIngredientsAdded: () => void;
+  onIngredientsAdded: (ingredientIds: string[]) => void;
   onCreateNew?: () => void;
 }
 
@@ -117,7 +117,7 @@ export default function AddIngredientsToGroupModal({
 
       if (res.ok) {
         toast.success(`${selectedIds.size} ingredientes añadidos`);
-        onIngredientsAdded();
+        onIngredientsAdded(Array.from(selectedIds));
         handleClose();
       } else {
         toast.error("Error al añadir ingredientes");
@@ -198,7 +198,7 @@ export default function AddIngredientsToGroupModal({
                   className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 gap-2 mx-auto"
                 >
                   <Plus size={16} />
-                  Crear "{searchTerm || "Nuevo"}"
+                  Crear &quot;{searchTerm || "Nuevo"}&quot;
                 </Button>
               )}
             </div>

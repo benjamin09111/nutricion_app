@@ -94,6 +94,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
 
     // Form State - Patient Clinical Info (to be updated)
     const [patientForm, setPatientForm] = useState({
+        height: "",
         nutritionalFocus: "",
         fitnessGoals: "",
         likes: "",
@@ -132,6 +133,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
         } else {
             setPatientData(null);
             setPatientForm({
+                height: "",
                 nutritionalFocus: "",
                 fitnessGoals: "",
                 likes: "",
@@ -150,7 +152,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
             });
             if (response.ok) {
                 const result = await response.json();
-                setPatients(result.data.map((p: any) => ({ id: p.id, fullName: p.fullName })));
+                setPatients((result.data as Array<{ id: string; fullName: string }>).map((p) => ({ id: p.id, fullName: p.fullName })));
             }
         } catch (error) {
             console.error("Error fetching patients", error);
@@ -171,6 +173,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                 // Only autocomplete if we are creating a new consultation
                 // or if the form is currently empty for these fields
                 setPatientForm({
+                    height: data.height ? String(data.height) : "",
                     nutritionalFocus: data.nutritionalFocus || "",
                     fitnessGoals: data.fitnessGoals || "",
                     likes: data.likes || "",
@@ -254,10 +257,15 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
 
             // 2. Update Patient Record (Clinical info)
             // Check if data changed to avoid redundant requests
+            const patientPayload = {
+                ...patientForm,
+                height: patientForm.height.trim() ? Number(patientForm.height) : null,
+            };
+
             const pResponse = await fetch(`${apiUrl}/patients/${formData.patientId}`, {
                 method: "PATCH",
                 headers: getAuthHeaders(),
-                body: JSON.stringify(patientForm),
+                body: JSON.stringify(patientPayload),
             });
 
             if (!pResponse.ok) throw new Error("Error updating patient profile");
@@ -526,6 +534,32 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                             </p>
                         </div>
                         <div className="p-8 space-y-10 flex-1">
+                            <div className="space-y-4">
+                                <h4 className="flex items-center gap-3 font-black text-slate-900 text-[10px] uppercase tracking-widest">
+                                    <Activity className="w-4 h-4 text-emerald-500" />
+                                    Estatura Actual
+                                </h4>
+                                <div className="rounded-2xl bg-slate-50 p-4">
+                                    <div className="flex items-center gap-3">
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            step="0.1"
+                                            className="h-14 bg-white border-slate-200 rounded-2xl font-bold text-lg"
+                                            placeholder="Ej: 168"
+                                            value={patientForm.height}
+                                            onChange={(e) => setPatientForm({ ...patientForm, height: e.target.value })}
+                                        />
+                                        <span className="shrink-0 rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-500 border border-slate-200">
+                                            cm
+                                        </span>
+                                    </div>
+                                    <p className="mt-3 text-[11px] text-slate-500">
+                                        Modificala aqui si el paciente subio o bajo de estatura, sin salir de la consulta.
+                                    </p>
+                                </div>
+                            </div>
+
                             {/* Nutritional Focus */}
                             <div className="space-y-4">
                                 <h4 className="flex items-center gap-3 font-black text-slate-900 text-[10px] uppercase tracking-widest">

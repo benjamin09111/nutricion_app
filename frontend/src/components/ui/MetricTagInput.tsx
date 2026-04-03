@@ -1,4 +1,4 @@
-import { useState, KeyboardEvent, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { X, Search, Globe, User as UserIcon, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -11,11 +11,13 @@ interface Metric {
     key: string;
     name: string;
     unit: string;
+    id?: string;
+    isSystem?: boolean;
 }
 
 interface MetricTagInputProps {
-    value: any[];
-    onChange: (metrics: any[]) => void;
+    value: Array<{ key?: string; label: string; unit?: string }>;
+    onChange: (metrics: Array<{ key?: string; label: string; unit?: string }>) => void;
     registeredKeys?: string[]; // Keys of metrics already present in patient history
     placeholder?: string;
     className?: string;
@@ -30,12 +32,12 @@ export function MetricTagInput({
 }: MetricTagInputProps) {
     const [inputValue, setInputValue] = useState("");
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [fetchedMetrics, setFetchedMetrics] = useState<any[]>([]);
+    const [fetchedMetrics, setFetchedMetrics] = useState<Metric[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-    const [metricToDelete, setMetricToDelete] = useState<any>(null);
+    const [metricToDelete, setMetricToDelete] = useState<Metric | null>(null);
 
     const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
 
@@ -66,7 +68,7 @@ export function MetricTagInput({
         return () => clearTimeout(timer);
     }, [inputValue, token]);
 
-    const addMetric = (metric: any) => {
+    const addMetric = (metric: Metric) => {
         const isDuplicate = value.some((m) => m.key === metric.key);
         if (!isDuplicate) {
             onChange([...value, { key: metric.key, label: metric.name, unit: metric.unit }]);
@@ -82,7 +84,7 @@ export function MetricTagInput({
         onChange(value.filter((m) => !m.key || m.key !== key));
     };
 
-    const handleDeleteGlobalMetric = async (metric: any) => {
+    const handleDeleteGlobalMetric = async (metric: Metric) => {
         try {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
             const response = await fetch(`${apiUrl}/metrics/${metric.id}`, {
@@ -110,9 +112,6 @@ export function MetricTagInput({
         ...DEFAULT_METRICS.map(m => ({ ...m, isSystem: true })),
         ...fetchedMetrics.map(m => ({ ...m, isSystem: false }))
     ].filter((m, index, self) => {
-        // Exclusion: "peso" is auto-added
-        if (m.name.toLowerCase() === "peso") return false;
-
         // Remove duplicates by key (prioritize system)
         const isFirstAppearance = index === self.findIndex((t) => t.key === m.key);
         if (!isFirstAppearance) return false;

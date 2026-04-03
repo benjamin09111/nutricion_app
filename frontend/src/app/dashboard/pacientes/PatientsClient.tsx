@@ -10,8 +10,6 @@ import {
   FileCode,
   RotateCcw,
   ArrowRight,
-  ChevronLeft,
-  ChevronRight,
   Eye,
   Edit2,
   Trash2,
@@ -20,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Patient, PatientsResponse } from "@/features/patients";
+import { TagInput } from "@/components/ui/TagInput";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
@@ -39,6 +38,10 @@ export default function PatientsClient() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [documentIdFilter, setDocumentIdFilter] = useState("");
+  const [classificationTags, setClassificationTags] = useState<string[]>([]);
+  const [startDateFilter, setStartDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({
     total: 0,
@@ -110,6 +113,12 @@ export default function PatientsClient() {
         limit: "10",
         ...(searchTerm && { search: searchTerm }),
         ...(activeTab !== "Todos" && { status: activeTab }),
+        ...(documentIdFilter && { documentId: documentIdFilter }),
+        ...(classificationTags.length > 0 && {
+          tags: classificationTags.join(","),
+        }),
+        ...(startDateFilter && { startDate: startDateFilter }),
+        ...(endDateFilter && { endDate: endDateFilter }),
       });
 
       const response = await fetch(`${apiUrl}/patients?${queryParams}`, {
@@ -141,7 +150,15 @@ export default function PatientsClient() {
       searchTerm ? 400 : 0,
     );
     return () => clearTimeout(timer);
-  }, [searchTerm, page, activeTab]);
+  }, [
+    searchTerm,
+    documentIdFilter,
+    classificationTags,
+    startDateFilter,
+    endDateFilter,
+    page,
+    activeTab,
+  ]);
 
   const printJson = () => {
     console.group("📊 PATIENTS DATA");
@@ -156,8 +173,12 @@ export default function PatientsClient() {
 
   const resetPatients = () => {
     setSearchTerm("");
+    setDocumentIdFilter("");
+    setClassificationTags([]);
+    setStartDateFilter("");
+    setEndDateFilter("");
+    setActiveTab("Todos");
     setPage(1);
-    fetchPatients();
     toast.info("Lista de pacientes reiniciada.");
   };
 
@@ -192,7 +213,10 @@ export default function PatientsClient() {
           {tabs.map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab);
+                setPage(1);
+              }}
               className={cn(
                 "px-6 py-2.5 text-sm font-bold rounded-xl transition-all duration-200 cursor-pointer whitespace-nowrap flex-1 lg:flex-none",
                 activeTab === tab
@@ -217,23 +241,114 @@ export default function PatientsClient() {
       </div>
 
       <div className="relative mb-8 group">
-        <div className="absolute inset-0 bg-linear-to-r from-emerald-500/5 to-blue-500/5 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <div className="relative bg-white p-2 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-2">
-          <div className="pl-4">
-            <Search className="h-5 w-5 text-slate-400" />
-          </div>
-          <Input
-            type="search"
-            placeholder="Buscar por nombre, correo o documento..."
-            className="border-none bg-transparent h-10 text-sm focus-visible:ring-0 placeholder:text-slate-400 font-medium"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {isLoading && (
-            <div className="pr-4">
-              <RotateCcw className="h-4 w-4 text-emerald-500 animate-spin" />
+        <div className="absolute inset-0 bg-linear-to-r from-emerald-500/5 to-blue-500/5 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="relative bg-white p-4 lg:p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="pl-2">
+              <Search className="h-5 w-5 text-slate-400" />
             </div>
-          )}
+            <Input
+              type="search"
+              placeholder="Buscar por nombre, correo o documento..."
+              className="border-none bg-transparent h-10 text-sm focus-visible:ring-0 placeholder:text-slate-400 font-medium"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
+            />
+            {isLoading && (
+              <div className="pr-2">
+                <RotateCcw className="h-4 w-4 text-emerald-500 animate-spin" />
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
+                Rut / ID
+              </label>
+              <Input
+                type="text"
+                placeholder="Ej: 12.345.678-9"
+                value={documentIdFilter}
+                onChange={(e) => {
+                  setDocumentIdFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="h-11 rounded-2xl bg-slate-50 border-slate-200"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
+                Fecha Desde
+              </label>
+              <div className="relative">
+                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <Input
+                  type="date"
+                  value={startDateFilter}
+                  onChange={(e) => {
+                    setStartDateFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-11 pl-11 rounded-2xl bg-slate-50 border-slate-200"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
+                Fecha Hasta
+              </label>
+              <div className="relative">
+                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <Input
+                  type="date"
+                  value={endDateFilter}
+                  min={startDateFilter || undefined}
+                  onChange={(e) => {
+                    setEndDateFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-11 pl-11 rounded-2xl bg-slate-50 border-slate-200"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
+                Etiquetas de Clasificación
+              </label>
+              <TagInput
+                value={classificationTags}
+                onChange={(tags) => {
+                  setClassificationTags(tags);
+                  setPage(1);
+                }}
+                fetchSuggestionsUrl={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/tags`}
+                placeholder="Filtrar por etiquetas..."
+                className="rounded-2xl bg-slate-50 border-slate-200"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <p className="text-xs font-medium text-slate-500">
+              {meta.filteredTotal} resultado{meta.filteredTotal === 1 ? "" : "s"} con los filtros actuales
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={resetPatients}
+              className="h-10 px-4 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50"
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Limpiar filtros
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -302,6 +417,7 @@ export default function PatientsClient() {
                               patient.status !== "Inactive" ? "bg-emerald-500" : "bg-slate-300"
                             )}
                             role="switch"
+                            aria-checked={patient.status !== "Inactive"}
                           >
                             <span className={cn(
                               "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",

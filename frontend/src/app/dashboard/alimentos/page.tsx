@@ -9,7 +9,7 @@ async function getIngredients(): Promise<any[]> {
   const token = cookieStore.get("auth_token")?.value;
 
   try {
-    const res = await fetch(`${apiUrl}/foods?limit=1000`, {
+    const res = await fetch(`${apiUrl}/foods?tab=app&limit=5000`, {
       cache: "no-store",
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

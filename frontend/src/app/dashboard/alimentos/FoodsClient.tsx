@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Search,
   Star,
@@ -27,7 +27,7 @@ import { Ingredient } from "@/features/foods";
 import { formatCLP } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/ui/Pagination";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import CreateIngredientModal from "./CreateIngredientModal";
 import IngredientDetailsModal from "./IngredientDetailsModal";
 import { useScrollLock } from "@/hooks/useScrollLock";
@@ -52,11 +52,12 @@ interface FoodsClientProps {
 }
 
 export default function FoodsClient({ initialData }: FoodsClientProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab") as IngredientTab | null;
 
   const [data, setData] = useState<Ingredient[]>(initialData);
+  const [catalogPool, setCatalogPool] = useState<Ingredient[]>(initialData);
+  const [isLoadingIngredients, setIsLoadingIngredients] = useState(false);
   const [activeTab, setActiveTab] = useState<IngredientTab>(tabParam || "Dieta base");
 
   useEffect(() => {
@@ -108,7 +109,88 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
   useEffect(() => {
     setData(initialData);
+    setCatalogPool(initialData);
   }, [initialData]);
+
+  const getApiUrl = () =>
+    process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
+
+  const getToken = () =>
+    Cookies.get("auth_token") || localStorage.getItem("auth_token");
+
+  const canEditIngredient = (ingredient: Ingredient | null | undefined) =>
+    Boolean(ingredient?.isMine);
+
+  const getBackendTab = useCallback(() => {
+    switch (activeTab) {
+      case "Favoritos":
+        return "favorites";
+      case "No recomendados":
+        return "not_recommended";
+      case "Con tags":
+        return "tagged";
+      case "Mis creaciones":
+        return "mine";
+      case "Dieta base":
+        return baseTab === "community" ? "community" : "app";
+      default:
+        return "all";
+    }
+  }, [activeTab, baseTab]);
+
+  const fetchIngredients = useCallback(async () => {
+    if (activeTab === "Mis grupos") return;
+
+    const token = getToken();
+    if (!token) return;
+
+    setIsLoadingIngredients(true);
+    try {
+      const queryParams = new URLSearchParams({
+        tab: getBackendTab(),
+        limit: "5000",
+        ...(searchTerm.trim() && { search: searchTerm.trim() }),
+        ...(selectedCategory !== "Todos" && { category: selectedCategory }),
+        ...(selectedTag !== "Todos" && { tag: selectedTag }),
+      });
+
+      const res = await fetch(`${getApiUrl()}/foods?${queryParams.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        throw new Error("Error al cargar ingredientes");
+      }
+
+      const result = await res.json();
+      setData(Array.isArray(result) ? result : []);
+    } catch (error) {
+      console.error("Error fetching ingredients:", error);
+      toast.error("No se pudo cargar el catálogo de ingredientes");
+    } finally {
+      setIsLoadingIngredients(false);
+    }
+  }, [activeTab, getBackendTab, searchTerm, selectedCategory, selectedTag]);
+
+  const fetchCatalogPool = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${getApiUrl()}/foods?limit=5000`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        throw new Error("Error al cargar catálogo base");
+      }
+
+      const result = await res.json();
+      setCatalogPool(Array.isArray(result) ? result : []);
+    } catch (error) {
+      console.error("Error fetching ingredient pool:", error);
+    }
+  }, []);
 
   const fetchGroups = async () => {
     const token = Cookies.get("auth_token");
@@ -138,26 +220,71 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    fetchCatalogPool();
+  }, [fetchCatalogPool]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchIngredients();
+    }, searchTerm.trim() ? 250 : 0);
+
+    return () => clearTimeout(timer);
+  }, [fetchIngredients, searchTerm]);
+
+  const ingredientHasAnyTag = (ingredient: Ingredient) => {
+    const preferenceTags = ingredient.preferences?.[0]?.tags || [];
+    return (ingredient.tags?.length || 0) > 0 || preferenceTags.length > 0;
+  };
+
+  const filterOptionSource = useMemo(() => {
+    if (activeTab === "Mis creaciones") {
+      return data.filter((ingredient) => !!ingredient.isMine);
+    }
+
+    if (activeTab === "Con tags") {
+      return data.filter(
+        (ingredient) => !!ingredient.isMine && ingredientHasAnyTag(ingredient),
+      );
+    }
+
+    return data;
+  }, [data, activeTab]);
+
   const categories = useMemo(
     () => [
       "Todos",
       ...Array.from(
         new Set(
-          data.filter((d) => d.category?.name).map((d) => d.category.name),
+          filterOptionSource
+            .filter((d) => d.category?.name)
+            .map((d) => d.category.name),
         ),
       ),
     ],
-    [data],
+    [filterOptionSource],
   );
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
-    data.forEach((d) => {
+    filterOptionSource.forEach((d) => {
       d.tags?.forEach((t) => tags.add(t.name));
       d.preferences?.[0]?.tags?.forEach((t) => tags.add(t.name));
     });
     return ["Todos", ...Array.from(tags)];
-  }, [data]);
+  }, [filterOptionSource]);
+
+  useEffect(() => {
+    if (!categories.includes(selectedCategory)) {
+      setSelectedCategory("Todos");
+    }
+  }, [categories, selectedCategory]);
+
+  useEffect(() => {
+    if (!allTags.includes(selectedTag)) {
+      setSelectedTag("Todos");
+    }
+  }, [allTags, selectedTag]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -173,62 +300,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     setGroupCurrentPage(1);
   }, [selectedGroup?.id]);
 
-  const filteredIngredients = useMemo(() => {
-    return data.filter((ingredient) => {
-      const matchesSearch =
-        ingredient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (ingredient.brand?.name &&
-          ingredient.brand.name
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()));
-
-      const matchesCategory =
-        selectedCategory === "Todos" ||
-        ingredient.category?.name === selectedCategory;
-
-      const pref = ingredient.preferences?.[0];
-      const combinedTagsNames = [
-        ...(ingredient.tags?.map((t) => t.name) || []),
-        ...(pref?.tags?.map((t) => t.name) || []),
-      ];
-      const matchesTag =
-        selectedTag === "Todos" || combinedTagsNames.includes(selectedTag);
-
-      if (!matchesSearch || !matchesCategory || !matchesTag) return false;
-
-      switch (activeTab) {
-        case "Favoritos":
-          // Favorites are always private (my preferences)
-          return pref?.isFavorite;
-        case "No recomendados":
-          // No recommended are always private (my preferences)
-          return pref?.isNotRecommended;
-        case "Con tags":
-          // Combined Tags can be Global (App + Community)
-          return combinedTagsNames.length > 0;
-        case "Mis creaciones":
-          // ONLY my own creations
-          return !!ingredient.isMine;
-        case "Dieta base":
-          // Dieta base is Global - We don't hide favorites here anymore so curators can see their own shared items
-          const isBase = !pref?.isNotRecommended;
-          if (isBase) {
-            if (baseTab === "app") {
-              // Official App items are Global
-              return !!ingredient.verified || !ingredient.nutritionistId;
-            } else {
-              // Community items are Global (others' public creations)
-              return !ingredient.verified && !!ingredient.nutritionistId;
-            }
-          }
-          return false;
-        case "Mis grupos":
-          return false;
-        default:
-          return true;
-      }
-    });
-  }, [data, searchTerm, selectedCategory, selectedTag, activeTab, baseTab]);
+  const filteredIngredients = useMemo(() => data, [data]);
 
   const totalPages = Math.ceil(filteredIngredients.length / itemsPerPage);
   const paginatedIngredients = useMemo(() => {
@@ -307,6 +379,62 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     }
   };
 
+  const mergeIngredientsIntoSelectedGroup = (
+    groupId: string,
+    ingredientIds: string[],
+  ) => {
+    if (!selectedGroup || selectedGroup.id !== groupId || ingredientIds.length === 0) {
+      return;
+    }
+
+    const existingIds = new Set(
+      (selectedGroup.ingredients || []).map((rel: any) => rel.ingredient.id),
+    );
+
+    const ingredientRelations = ingredientIds
+      .map((ingredientId) => data.find((ingredient) => ingredient.id === ingredientId))
+      .filter((ingredient): ingredient is Ingredient => !!ingredient)
+      .filter((ingredient) => !existingIds.has(ingredient.id))
+      .map((ingredient) => ({
+        ingredient,
+        amount: ingredient.amount || 100,
+        unit: ingredient.unit || "g",
+        brandSuggestion: ingredient.brand?.name || null,
+        entryId: `local-${ingredient.id}`,
+      }));
+
+    if (ingredientRelations.length === 0) return;
+
+    setSelectedGroup((prev: any) => {
+      if (!prev || prev.id !== groupId) return prev;
+      return {
+        ...prev,
+        ingredients: [...(prev.ingredients || []), ...ingredientRelations],
+      };
+    });
+
+    setGroups((prev) =>
+      prev.map((group) => {
+        if (group.id !== groupId) return group;
+
+        const currentCount =
+          group._count?.ingredients ??
+          group._count?.entries ??
+          group.ingredients?.length ??
+          0;
+
+        return {
+          ...group,
+          _count: {
+            ...group._count,
+            ingredients: currentCount + ingredientRelations.length,
+            entries: currentCount + ingredientRelations.length,
+          },
+        };
+      }),
+    );
+  };
+
   const handleDeleteGroup = (groupId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setGroupToDelete(groupId);
@@ -378,8 +506,17 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
           setGroups((prev) =>
             prev.map((g) => {
               if (g.id === groupId) {
-                const newCount = Math.max(0, (g._count?.ingredients || 0) - 1);
-                return { ...g, _count: { ...g._count, ingredients: newCount } };
+                const currentCount =
+                  g._count?.ingredients ?? g._count?.entries ?? 0;
+                const newCount = Math.max(0, currentCount - 1);
+                return {
+                  ...g,
+                  _count: {
+                    ...g._count,
+                    ingredients: newCount,
+                    entries: newCount,
+                  },
+                };
               }
               return g;
             }),
@@ -396,16 +533,16 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
   const handleCreateIngredientSuccess = async (newIngredient?: any) => {
     if (newIngredient) {
-      setData((prev) => [
+      setCatalogPool((prev) => [
         {
           ...newIngredient,
           isMine: true,
-          preferences: newIngredient.preferences || [{ isFavorite: true, isNotRecommended: false, isHidden: false }],
+          preferences: newIngredient.preferences || [],
         },
-        ...prev,
+        ...prev.filter((ingredient) => ingredient.id !== newIngredient.id),
       ]);
     }
-    router.refresh();
+    await Promise.all([fetchIngredients(), fetchCatalogPool()]);
 
     if (targetGroupIdForNewIngredient && newIngredient) {
       const token = Cookies.get("auth_token");
@@ -428,10 +565,10 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
         if (res.ok) {
           toast.success("Ingrediente creado y añadido al grupo 🚀");
-          // Refresh group details if we are still viewing it
-          if (selectedGroup?.id === targetGroupIdForNewIngredient) {
-            handleGroupClick(targetGroupIdForNewIngredient);
-          }
+          mergeIngredientsIntoSelectedGroup(targetGroupIdForNewIngredient, [
+            newIngredient.id,
+          ]);
+          fetchGroups();
         }
       } catch (error) {
         console.error("Error adding new ingredient to group:", error);
@@ -513,6 +650,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         message = "Preferencia eliminada";
 
       toast.success(message);
+      await Promise.all([fetchIngredients(), fetchCatalogPool()]);
     } catch (error: any) {
       console.error("Toggle preference error:", error);
       setData(previousData); // Rollback
@@ -521,6 +659,11 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   };
 
   const handleStartEdit = (ingredient: Ingredient) => {
+    if (!canEditIngredient(ingredient)) {
+      toast.error("Solo puedes editar ingredientes creados por ti.");
+      return;
+    }
+
     setEditingId(ingredient.id);
     setEditValues({
       name: ingredient.name,
@@ -547,6 +690,18 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     const token = Cookies.get("auth_token");
     if (!token) return;
 
+    const ingredientToEdit =
+      data.find((ingredient) => ingredient.id === id) ||
+      catalogPool.find((ingredient) => ingredient.id === id) ||
+      null;
+
+    if (!canEditIngredient(ingredientToEdit)) {
+      setEditingId(null);
+      setEditValues({});
+      toast.error("Solo puedes editar ingredientes creados por ti.");
+      return;
+    }
+
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
       const response = await fetch(`${apiUrl}/foods/${id}`, {
@@ -571,6 +726,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
       toast.success("Ingrediente actualizado");
       setEditingId(null);
+      await Promise.all([fetchIngredients(), fetchCatalogPool()]);
     } catch (error) {
       console.error("Update error:", error);
       toast.error("No se pudo actualizar el ingrediente");
@@ -607,6 +763,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
           ? "Ingrediente compartido con la comunidad 🌍"
           : "Ingrediente dejado de compartir",
       );
+      await Promise.all([fetchIngredients(), fetchCatalogPool()]);
     } catch (error) {
       console.error("Share error:", error);
       toast.error("No se pudo actualizar el estado de compartido");
@@ -1010,7 +1167,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                             {group.name}
                           </h3>
                           <p className="text-xs text-slate-500">
-                            {group._count?.ingredients || 0} ingredientes
+                            {(group._count?.ingredients ?? group._count?.entries ?? 0)} ingredientes
                           </p>
                         </div>
                       </div>
@@ -1110,6 +1267,12 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                 </span>{" "}
                 ingredientes
               </p>
+              {isLoadingIngredients && (
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                  <div className="h-3.5 w-3.5 rounded-full border-2 border-emerald-100 border-t-emerald-500 animate-spin" />
+                  Actualizando
+                </div>
+              )}
             </div>
             <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 sm:rounded-2xl overflow-hidden">
               <div className="overflow-x-auto">
@@ -1198,7 +1361,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                         className="hover:bg-slate-50/50 transition-colors group"
                       >
                         <td className="px-6 py-4">
-                          {editingId === ingredient.id ? (
+                          {editingId === ingredient.id &&
+                          canEditIngredient(ingredient) ? (
                             <Input
                               value={editValues.name}
                               onChange={(e) =>
@@ -1222,7 +1386,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                         </td>
                         {!(activeTab === "Dieta base" && baseTab === "app") && (
                           <td className="px-6 py-4 text-sm text-slate-500">
-                            {editingId === ingredient.id ? (
+                            {editingId === ingredient.id &&
+                            canEditIngredient(ingredient) ? (
                               <Input
                                 value={editValues.brand}
                                 onChange={(e) =>
@@ -1244,7 +1409,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm text-right font-medium text-slate-600">
-                          {editingId === ingredient.id ? (
+                          {editingId === ingredient.id &&
+                          canEditIngredient(ingredient) ? (
                             <Input
                               type="number"
                               value={editValues.price}
@@ -1266,7 +1432,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                         {activeTab === "Mis creaciones" && (
                           <>
                             <td className="px-3 py-4 text-center">
-                              {editingId === ingredient.id ? (
+                              {editingId === ingredient.id &&
+                              canEditIngredient(ingredient) ? (
                                 <Input
                                   type="number"
                                   step="0.1"
@@ -1279,7 +1446,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                               )}
                             </td>
                             <td className="px-3 py-4 text-center">
-                              {editingId === ingredient.id ? (
+                              {editingId === ingredient.id &&
+                              canEditIngredient(ingredient) ? (
                                 <Input
                                   type="number"
                                   step="0.1"
@@ -1292,7 +1460,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                               )}
                             </td>
                             <td className="px-3 py-4 text-center">
-                              {editingId === ingredient.id ? (
+                              {editingId === ingredient.id &&
+                              canEditIngredient(ingredient) ? (
                                 <Input
                                   type="number"
                                   step="0.1"
@@ -1305,7 +1474,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                               )}
                             </td>
                             <td className="px-3 py-4 text-center">
-                              {editingId === ingredient.id ? (
+                              {editingId === ingredient.id &&
+                              canEditIngredient(ingredient) ? (
                                 <Input
                                   type="number"
                                   step="0.1"
@@ -1318,7 +1488,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                               )}
                             </td>
                             <td className="px-3 py-4 text-center">
-                              {editingId === ingredient.id ? (
+                              {editingId === ingredient.id &&
+                              canEditIngredient(ingredient) ? (
                                 <Input
                                   type="number"
                                   step="0.1"
@@ -1331,7 +1502,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                               )}
                             </td>
                             <td className="px-3 py-4 text-center">
-                              {editingId === ingredient.id ? (
+                              {editingId === ingredient.id &&
+                              canEditIngredient(ingredient) ? (
                                 <Input
                                   type="number"
                                   step="0.1"
@@ -1344,7 +1516,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                               )}
                             </td>
                             <td className="px-3 py-4 text-center">
-                              {editingId === ingredient.id ? (
+                              {editingId === ingredient.id &&
+                              canEditIngredient(ingredient) ? (
                                 <Input
                                   type="number"
                                   step="0.1"
@@ -1380,7 +1553,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                         )}
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            {editingId === ingredient.id ? (
+                            {editingId === ingredient.id &&
+                            canEditIngredient(ingredient) ? (
                               <>
                                 <Button
                                   variant="ghost"
@@ -1417,14 +1591,17 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                                 >
                                   <Tag size={16} />
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleStartEdit(ingredient)}
-                                  className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
-                                >
-                                  <Pencil size={16} />
-                                </Button>
+                                {canEditIngredient(ingredient) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleStartEdit(ingredient)}
+                                    className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                                    title="Editar ingrediente"
+                                  >
+                                    <Pencil size={16} />
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -1537,11 +1714,14 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
           onClose={() => setIsAddIngredientModalOpen(false)}
           groupId={selectedGroup.id}
           groupName={selectedGroup.name}
-          allIngredients={data} // Pass all available ingredients
+          allIngredients={catalogPool}
           currentIngredientIds={
             selectedGroup.ingredients?.map((r: any) => r.ingredient.id) || []
           }
-          onIngredientsAdded={() => handleGroupClick(selectedGroup.id)} // Refresh group details
+          onIngredientsAdded={(ingredientIds) => {
+            mergeIngredientsIntoSelectedGroup(selectedGroup.id, ingredientIds);
+            fetchGroups();
+          }}
           onCreateNew={() => {
             setTargetGroupIdForNewIngredient(selectedGroup.id);
             setIsAddIngredientModalOpen(false);
@@ -1674,28 +1854,9 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         onClose={() => setIsTagsModalOpen(false)}
         ingredient={selectedIngredientForTags}
         availableTags={allTags.filter((t) => t !== "Todos")}
-        onSuccess={(updatedTags) => {
-          if (selectedIngredientForTags) {
-            setData((current) =>
-              current.map((item) => {
-                if (item.id === selectedIngredientForTags.id) {
-                  // Mock updated tags behavior
-                  const newTags = updatedTags.map((name: string) => ({
-                    id: name,
-                    name,
-                  }));
-                  return {
-                    ...item,
-                    // In a real app we might reload data, but here we just optimistically update preferences or tags
-                    // For now, let's just trigger a toast
-                  };
-                }
-                return item;
-              }),
-            );
-            toast.success("Tags actualizados");
-            router.refresh();
-          }
+        onSuccess={async () => {
+          toast.success("Tags actualizados");
+          await Promise.all([fetchIngredients(), fetchCatalogPool()]);
         }}
       />
     </div>

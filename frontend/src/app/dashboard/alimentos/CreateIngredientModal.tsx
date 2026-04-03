@@ -1,20 +1,14 @@
 "use client";
 
-import { Fragment, useState } from "react";
-import {
-  Dialog,
-  DialogPanel,
-  DialogTitle,
-  Transition,
-  TransitionChild,
-} from "@headlessui/react";
+import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { X, Save, Loader2, Plus, AlertCircle } from "lucide-react";
+import { Save, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { TagInput } from "@/components/ui/TagInput";
 import Cookies from "js-cookie";
+import { Ingredient } from "@/features/foods";
 
 interface IngredientFormValues {
   name: string;
@@ -107,7 +101,7 @@ const ingredientSchema = z.object({
 interface CreateIngredientModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (ingredient?: any) => void;
+  onSuccess: (ingredient?: Ingredient) => void;
   availableTags?: string[];
 }
 
@@ -146,7 +140,7 @@ export default function CreateIngredientModal({
     reset,
     formState: { errors },
   } = useForm<IngredientFormValues>({
-    resolver: zodResolver(ingredientSchema) as any,
+    resolver: zodResolver(ingredientSchema),
     defaultValues: {
       amount: 100,
       unit: "g",
@@ -174,7 +168,7 @@ export default function CreateIngredientModal({
         },
         body: JSON.stringify({
           ...data,
-          isPublic: true, // Se crea como público por defecto según la regla de negocio
+          isPublic: false,
         }),
       });
 
@@ -185,9 +179,7 @@ export default function CreateIngredientModal({
 
       const newIngredient = await response.json();
 
-      toast.success(
-        "Ingrediente creado correctamente y compartido con la comunidad 🌍",
-      );
+      toast.success("Ingrediente creado correctamente");
       reset();
       onSuccess(newIngredient);
       onClose();
@@ -212,7 +204,7 @@ export default function CreateIngredientModal({
     >
       <div className="flex flex-col max-h-[80vh]">
         <p className="text-sm text-slate-500 mb-6">
-          Se creará como público y se añadirá a tus favoritos automáticamente.
+          Se creará dentro de tus ingredientes. Si quieres, luego puedes compartirlo con la comunidad desde &quot;Mis creaciones&quot;.
         </p>
 
         <div className="overflow-y-auto flex-1 pr-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">

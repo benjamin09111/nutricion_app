@@ -252,7 +252,7 @@ export default function CreatePatientClient() {
               <Input
                 placeholder="12.345.678-9"
                 className="h-11 rounded-xl bg-slate-50/50 border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                value={draft.documentId}
+                value={draft.documentId || ""}
                 onChange={(e) => updateDraft({ documentId: e.target.value })}
               />
             </div>

@@ -107,6 +107,59 @@ const normalizeMetricKey = (label: string = "", key?: string) => {
   return METRIC_KEY_MAP[normalizedLabel] || key || normalizedLabel;
 };
 
+const INDEPENDENT_METRICS_REGISTRY_TITLE = "registro de metricas independiente";
+
+const normalizeText = (value: string = "") =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const isIndependentMetricsConsultation = (
+  consultation: Pick<Consultation, "title">,
+) => normalizeText(consultation.title).includes(INDEPENDENT_METRICS_REGISTRY_TITLE);
+
+const toDateOnly = (value?: string | Date | null) => {
+  if (!value) return "";
+
+  if (typeof value === "string") {
+    const isoLike = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (isoLike?.[1]) return isoLike[1];
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+
+  const year = parsed.getUTCFullYear();
+  const month = String(parsed.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const formatDateOnlyForLocale = (
+  value: string | Date,
+  options: Intl.DateTimeFormatOptions,
+) => {
+  const dateOnly = toDateOnly(value);
+  if (!dateOnly) return "";
+
+  const [year, month, day] = dateOnly.split("-").map(Number);
+  if (!year || !month || !day) return "";
+
+  // Mediodía UTC para evitar desfases de huso horario al formatear.
+  const stableDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  return stableDate.toLocaleDateString("es-ES", options);
+};
+
+const getTodayDateInputValue = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 interface PatientDetailClientProps {
   id: string;
 }
@@ -132,7 +185,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     string | null
   >(null);
   const [metricForm, setMetricForm] = useState({
-    date: new Date().toISOString().split("T")[0],
+    date: getTodayDateInputValue(),
     metrics: [] as Metric[],
   });
   const [isEditMetricHistoryModalOpen, setIsEditMetricHistoryModalOpen] =
@@ -164,6 +217,15 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
   const prepareChartData = () => {
     const dataPoints: any[] = [];
+    const hasHistoricalWeight = Array.isArray(consultations)
+      ? consultations.some((c) =>
+          Array.isArray(c.metrics)
+            ? c.metrics.some(
+                (m) => normalizeMetricKey(m.label, m.key) === "weight",
+              )
+            : false,
+        )
+      : false;
 
     // 1. Añadir registro base del perfil del paciente si existe
     if (patient) {
@@ -180,7 +242,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       };
 
       let hasBaselineData = false;
-      if (patient.weight) {
+      if (patient.weight && !hasHistoricalWeight) {
         baseline["weight"] = patient.weight;
         hasBaselineData = true;
       }
@@ -193,16 +255,18 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       const consultationPoints = [...consultations]
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         .map((c) => {
+          const dateOnly = toDateOnly(c.date);
           const data: any = {
-            date: new Date(c.date).toLocaleDateString("es-ES", {
+            date: formatDateOnlyForLocale(dateOnly, {
               day: "2-digit",
               month: "short",
             }),
-            fullDate: new Date(c.date).toLocaleDateString("es-ES", {
+            fullDate: formatDateOnlyForLocale(dateOnly, {
               day: "2-digit",
               month: "2-digit",
               year: "numeric",
             }),
+            sortDate: dateOnly,
           };
           if (Array.isArray(c.metrics)) {
             c.metrics.forEach((m) => {
@@ -226,20 +290,20 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     }
 
     return dataPoints.sort((a, b) => {
-      // Analizar fecha de fullDate (formato DD/MM/YYYY o similar localizado)
-      const parseDate = (dateStr: string) => {
-        const [d, m, y] = dateStr.split("/").map(Number);
-        return new Date(y, m - 1, d);
+      const toTimestamp = (dateOnly: string) => {
+        const [year, month, day] = dateOnly.split("-").map(Number);
+        if (!year || !month || !day) return 0;
+        return Date.UTC(year, month - 1, day, 12, 0, 0);
       };
 
       const dateA = a.isBaseline
-        ? new Date(patient?.createdAt || 0)
-        : parseDate(a.fullDate);
+        ? toDateOnly(patient?.createdAt || "")
+        : (a.sortDate as string);
       const dateB = b.isBaseline
-        ? new Date(patient?.createdAt || 0)
-        : parseDate(b.fullDate);
+        ? toDateOnly(patient?.createdAt || "")
+        : (b.sortDate as string);
 
-      return dateA.getTime() - dateB.getTime();
+      return toTimestamp(dateA) - toTimestamp(dateB);
     });
   };
 
@@ -463,7 +527,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
   const clinicalConsultations = useMemo(() => {
     return consultations.filter(
-      (c) => c.title !== "Registro de Métricas Independiente",
+      (c) => !isIndependentMetricsConsultation(c),
     );
   }, [consultations]);
 
@@ -479,6 +543,37 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     if (!patient) return;
     setEditForm(patient);
     setIsEditing(true);
+  };
+
+  const resetMetricForm = (metrics: Metric[] = []) => {
+    setMetricForm({
+      date: getTodayDateInputValue(),
+      metrics,
+    });
+  };
+
+  const createMetricDraft = (metricKey: string): Metric => {
+    const info = getMetricInfo(metricKey);
+    return {
+      key: metricKey,
+      label: info.label,
+      unit: info.unit,
+      value: "",
+    };
+  };
+
+  const openMetricLogger = (metricKey?: string) => {
+    resetMetricForm(metricKey ? [createMetricDraft(metricKey)] : []);
+    setConflictingConsultationId(null);
+    setIsOverwriteConfirmOpen(false);
+    setIsMetricModalOpen(true);
+  };
+
+  const closeMetricLogger = () => {
+    setIsMetricModalOpen(false);
+    setConflictingConsultationId(null);
+    setIsOverwriteConfirmOpen(false);
+    resetMetricForm();
   };
 
   const handleSaveMetricsClick = () => {
@@ -501,13 +596,29 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       return;
     }
 
-    const conflict = consultations.find(
-      (c) => c.date.split("T")[0] === metricForm.date,
+    const existingSameDayConsultation = consultations.find(
+      (c) =>
+        isIndependentMetricsConsultation(c) &&
+        toDateOnly(c.date) === metricForm.date,
     );
 
-    if (conflict) {
-      setConflictingConsultationId(conflict.id);
-      setIsOverwriteConfirmOpen(true);
+    if (existingSameDayConsultation) {
+      const existingMetricKeys = new Set(
+        (existingSameDayConsultation.metrics || []).map((metric) =>
+          normalizeMetricKey(metric.label, metric.key),
+        ),
+      );
+      const hasOverlappingMetric = validMetrics.some((metric) =>
+        existingMetricKeys.has(normalizeMetricKey(metric.label, metric.key)),
+      );
+
+      if (hasOverlappingMetric) {
+        setConflictingConsultationId(existingSameDayConsultation.id);
+        setIsOverwriteConfirmOpen(true);
+        return;
+      }
+
+      executeSaveMetrics(existingSameDayConsultation.id);
     } else {
       executeSaveMetrics();
     }
@@ -527,7 +638,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         const existingConsultation = consultations.find(
           (c) => c.id === updateConsultationId,
         );
-        let mergedMetrics = [...(existingConsultation?.metrics || [])];
+        const mergedMetrics = [...(existingConsultation?.metrics || [])];
 
         const validMetrics = metricForm.metrics.filter(
           (m) => m.label.trim() !== "" && m.value !== undefined && m.value !== null && m.value.toString().trim() !== "",
@@ -563,11 +674,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
         if (response.ok) {
           toast.success("Métricas actualizadas correctamente");
-          setIsMetricModalOpen(false);
-          setMetricForm({
-            date: new Date().toISOString().split("T")[0],
-            metrics: [],
-          });
+          closeMetricLogger();
+          setConflictingConsultationId(null);
           await Promise.all([fetchConsultations(), fetchPatient()]);
         } else {
           toast.error("Error al actualizar métricas");
@@ -597,12 +705,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         if (response.ok) {
           const newConsultation = await response.json();
           toast.success("Métricas registradas correctamente");
-          setIsMetricModalOpen(false);
+          closeMetricLogger();
+          setConflictingConsultationId(null);
           setConsultations((prev) => [newConsultation, ...prev]);
-          setMetricForm({
-            date: new Date().toISOString().split("T")[0],
-            metrics: [],
-          });
           await Promise.all([fetchConsultations(), fetchPatient()]);
         } else {
           toast.error("Error al guardar métricas");
@@ -667,9 +772,16 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     if (!editingMetricKey) return [];
 
     const history: any[] = [];
+    const hasHistoricalWeight = consultations.some((c) =>
+      Array.isArray(c.metrics)
+        ? c.metrics.some(
+            (m) => normalizeMetricKey(m.label, m.key) === "weight",
+          )
+        : false,
+    );
 
     // 1. Registro base del perfil
-    if (editingMetricKey === "weight" && patient?.weight) {
+    if (editingMetricKey === "weight" && patient?.weight && !hasHistoricalWeight) {
       history.push({
         id: "baseline-weight",
         date: patient.createdAt || new Date().toISOString(),
@@ -707,8 +819,29 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
   const onDeleteMetricRecord = async (record: any) => {
     if (record.isBaseline) {
-      toast.error("No se puede eliminar la métrica base del perfil");
-      return;
+      try {
+        const res = await fetch(`${apiUrl}/patients/${id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ weight: null }),
+        });
+
+        if (res.ok) {
+          const updated = await res.json();
+          setPatient(updated);
+          toast.success("Registro base de peso eliminado");
+          return;
+        }
+
+        toast.error("Error al eliminar el registro base");
+        return;
+      } catch {
+        toast.error("Error de conexión");
+        return;
+      }
     }
     try {
       const consultation = consultations.find((c) => c.id === record.id);
@@ -719,7 +852,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       );
 
       let res: Response;
-      const isIndependentRegistry = consultation.title === "Registro de Métricas Independiente";
+      const isIndependentRegistry =
+        isIndependentMetricsConsultation(consultation);
 
       if (newMetrics.length === 0 && isIndependentRegistry) {
         res = await fetch(`${apiUrl}/consultations/${record.id}`, {
@@ -762,24 +896,62 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   ) => {
     try {
       if (record.isBaseline) {
-        const field = "weight";
-        const res = await fetch(`${apiUrl}/patients/${id}`, {
+        const parsedWeight = parseFloat(newValue.replace(",", "."));
+        if (Number.isNaN(parsedWeight)) {
+          toast.error("Ingresa un valor de peso valido");
+          return;
+        }
+
+        const baselineDate = new Date(record.date).toISOString().split("T")[0];
+        const editedDate = new Date(newDate).toISOString().split("T")[0];
+        const changedDate = baselineDate !== editedDate;
+
+        // Always keep patient current weight in sync.
+        const profileRes = await fetch(`${apiUrl}/patients/${id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            [field]: parseFloat(newValue.replace(",", ".")),
-          }),
+          body: JSON.stringify({ weight: parsedWeight }),
         });
-        if (res.ok) {
-          const updated = await res.json();
-          setPatient(updated);
-          toast.success("Valor del perfil actualizado");
-        } else {
-          toast.error("Error al actualizar perfil");
+
+        if (!profileRes.ok) {
+          toast.error("Error al actualizar peso del perfil");
+          return;
         }
+
+        // If date changed, convert baseline into an editable historical record.
+        if (changedDate) {
+          const consultationRes = await fetch(`${apiUrl}/consultations`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              patientId: id,
+              date: newDate,
+              title: "Registro de Métricas Independiente",
+              description: "Entrada manual de datos de seguimiento.",
+              metrics: [{ key: "weight", label: "Peso", value: parsedWeight.toString(), unit: "kg" }],
+            }),
+          });
+
+          if (!consultationRes.ok) {
+            toast.error("Error al guardar el nuevo registro histórico de peso");
+            return;
+          }
+        }
+
+        const updated = await profileRes.json();
+        setPatient(updated);
+        await fetchConsultations();
+        toast.success(
+          changedDate
+            ? "Peso actualizado y convertido a registro histórico editable"
+            : "Valor del perfil actualizado",
+        );
       } else {
         const consultation = consultations.find((c) => c.id === record.id);
         if (!consultation) return;
@@ -1030,7 +1202,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         // Si la consulta es un "Registro de Métricas Independiente" y ahora quedó vacía, la eliminamos por completo
         if (
           newMetrics.length === 0 &&
-          c.title === "Registro de Métricas Independiente"
+          isIndependentMetricsConsultation(c)
         ) {
           return fetch(`${apiUrl}/consultations/${c.id}`, {
             method: "DELETE",
@@ -2043,7 +2215,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   </span>
                 </button>
                 <button
-                  onClick={() => setIsMetricModalOpen(true)}
+                  onClick={() => openMetricLogger()}
                   className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
                 >
                   <Plus className="w-5 h-5 text-emerald-400" />
@@ -2098,8 +2270,28 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               {getAllMetricKeys().map((key) => {
                 const info = getMetricInfo(key);
                 const chartData = prepareChartData();
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const hasData = chartData.some((d) => d[key] !== undefined);
+                const filteredData = chartData.filter((d) => d[key] !== undefined);
+                const firstPoint = filteredData.length > 0 ? filteredData[0] : null;
+                const latestPoint =
+                  filteredData.length > 0 ? filteredData[filteredData.length - 1] : null;
+
+                const firstValueRaw = firstPoint ? Number(firstPoint[key]) : null;
+                const latestValueRaw = latestPoint ? Number(latestPoint[key]) : null;
+                const hasValidFirst = firstValueRaw !== null && Number.isFinite(firstValueRaw);
+                const hasValidLast = latestValueRaw !== null && Number.isFinite(latestValueRaw);
+                const diffRaw =
+                  hasValidFirst && hasValidLast ? latestValueRaw - firstValueRaw : null;
+
+                const formatMetricValue = (value: number | null) => {
+                  if (value === null || !Number.isFinite(value)) return "---";
+                  if (Number.isInteger(value)) return value.toString();
+                  return value.toFixed(2).replace(/\.?0+$/, "");
+                };
+
+                const diffDisplay =
+                  diffRaw === null || !Number.isFinite(diffRaw)
+                    ? "---"
+                    : `${diffRaw > 0 ? "+" : ""}${formatMetricValue(diffRaw)}`;
 
                 return (
                   <div
@@ -2125,8 +2317,76 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         <p className="text-xs font-semibold text-slate-400 opacity-80">
                           Tendencia histórica ({info.unit})
                         </p>
+                        <div className="grid grid-cols-3 gap-2 mt-3">
+                          <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight min-h-[18px]">
+                              Primer valor
+                            </p>
+                            <div className="flex items-baseline gap-1 flex-wrap mt-2">
+                              <span className="text-sm font-black text-slate-700 leading-none">
+                                {formatMetricValue(firstValueRaw)}
+                              </span>
+                              <span className="text-[10px] text-slate-400 leading-none">
+                                {info.unit}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight min-h-[18px]">
+                              Último valor
+                            </p>
+                            <div className="flex items-baseline gap-1 flex-wrap mt-2">
+                              <span className="text-sm font-black text-slate-700 leading-none">
+                                {formatMetricValue(latestValueRaw)}
+                              </span>
+                              <span className="text-[10px] text-slate-400 leading-none">
+                                {info.unit}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight min-h-[18px]">
+                              Diferencia
+                            </p>
+                            <div
+                              className={cn(
+                                "flex items-baseline gap-1 flex-wrap mt-2",
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "text-sm font-black leading-none",
+                                  diffRaw === null || !Number.isFinite(diffRaw)
+                                    ? "text-slate-500"
+                                    : diffRaw > 0
+                                      ? "text-emerald-600"
+                                      : diffRaw < 0
+                                        ? "text-rose-600"
+                                        : "text-slate-700",
+                                )}
+                              >
+                                {diffDisplay}
+                              </span>
+                              <span
+                                className={cn(
+                                  "text-[10px] text-slate-400 leading-none",
+                                )}
+                              >
+                                {info.unit}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                       <div className="flex gap-2">
+                        <button
+                          onClick={() => openMetricLogger(key)}
+                          data-no-export="true"
+                          className="p-3 bg-emerald-50 text-emerald-600 hover:text-white hover:bg-emerald-600 rounded-xl transition-all active:scale-95 cursor-pointer border border-emerald-100"
+                          title={`Registrar ${info.label} rápidamente`}
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => {
                             setEditingMetricKey(key);
@@ -2154,14 +2414,6 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
                     <div className="h-[300px] w-full">
                       {(() => {
-                        const filteredData = chartData.filter(
-                          (d) => d[key] !== undefined,
-                        );
-                        const latestPoint =
-                          filteredData.length > 0
-                            ? filteredData[filteredData.length - 1]
-                            : null;
-
                         if (filteredData.length >= 2) {
                           return (
                             <ResponsiveContainer width="100%" height="100%">
@@ -2393,7 +2645,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   </p>
                 </div>
                 <button
-                  onClick={() => setIsMetricModalOpen(false)}
+                  onClick={closeMetricLogger}
                   className="p-3 bg-white rounded-xl text-slate-400 hover:text-slate-600 transition-all border border-slate-100 shadow-sm cursor-pointer"
                 >
                   <CloseIcon className="w-6 h-6" />
@@ -2558,7 +2810,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
               <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-end gap-4 shrink-0">
                 <button
-                  onClick={() => setIsMetricModalOpen(false)}
+                  onClick={closeMetricLogger}
                   className="px-6 py-3 bg-white text-slate-500 font-semibold rounded-xl border border-slate-200 hover:bg-slate-50 transition-all cursor-pointer"
                 >
                   CANCELAR
@@ -2756,7 +3008,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       {/* Modal Confirmación Sobreescribir Métrica */}
       <ConfirmationModal
         isOpen={isOverwriteConfirmOpen}
-        onClose={() => setIsOverwriteConfirmOpen(false)}
+        onClose={() => {
+          setIsOverwriteConfirmOpen(false);
+          setConflictingConsultationId(null);
+        }}
         onConfirm={confirmSaveMetrics}
         title="¿Sobreescribir Valores?"
         description="Ya existe un registro con esta fecha. Los valores nuevos reemplazarán a los existentes para las métricas que coincidan. Las demás métricas de esa fecha se mantendrán intactas."
@@ -2963,12 +3218,6 @@ function MetricRecordRow({
         <Input
           type="date"
           value={date}
-          disabled={record.isBaseline}
-          title={
-            record.isBaseline
-              ? "La fecha inicial corresponde a la creación del perfil"
-              : ""
-          }
           onChange={(e) => setDate(e.target.value)}
           className="h-12 bg-slate-50/50 border border-slate-200 focus:bg-white font-bold"
         />
@@ -2993,18 +3242,11 @@ function MetricRecordRow({
       <div className="flex flex-col justify-end pb-1 h-full gap-3">
         <button
           onClick={() => setIsDeleteConfirmOpen(true)}
-          disabled={record.isBaseline}
           className={cn(
             "p-3 rounded-xl transition-all cursor-pointer group/trash",
-            record.isBaseline
-              ? "bg-slate-50 text-slate-200 cursor-not-allowed"
-              : "bg-slate-50 text-slate-400 hover:bg-rose-500 hover:text-white shadow-sm",
+            "bg-slate-50 text-slate-400 hover:bg-rose-500 hover:text-white shadow-sm",
           )}
-          title={
-            record.isBaseline
-              ? "No se puede eliminar el registro inicial"
-              : "Eliminar este registro"
-          }
+          title="Eliminar este registro"
         >
           <Trash2 className="w-5 h-5" />
         </button>

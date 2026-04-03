@@ -83,6 +83,78 @@ interface DietVerificationResult {
   summary: string;
 }
 
+interface DietPatient {
+  id?: string;
+  fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  documentId?: string | null;
+  birthDate?: string | null;
+  gender?: string | null;
+  height?: number | null;
+  weight?: number | null;
+  dietRestrictions?: string[];
+  clinicalSummary?: string | null;
+  customVariables?: unknown;
+  fitnessGoals?: string | null;
+  nutritionalFocus?: string | null;
+  status?: string | null;
+  tags?: string[];
+  consultations?: any[];
+  exams?: any[];
+  [key: string]: unknown;
+}
+
+const normalizeStringArray = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    const trimmedValue = value.trim();
+    if (!trimmedValue) return [];
+
+    try {
+      const parsedValue = JSON.parse(trimmedValue);
+      if (Array.isArray(parsedValue)) {
+        return parsedValue
+          .filter((item): item is string => typeof item === "string")
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+    } catch (_) { }
+
+    return trimmedValue
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const normalizePatient = (patient: any): DietPatient => ({
+  ...patient,
+  fullName: patient?.fullName || "Paciente sin nombre",
+  dietRestrictions: normalizeStringArray(patient?.dietRestrictions),
+  tags: normalizeStringArray(patient?.tags),
+});
+
+const extractPatients = (payload: any): DietPatient[] => {
+  if (Array.isArray(payload)) {
+    return payload.map(normalizePatient);
+  }
+
+  if (Array.isArray(payload?.data)) {
+    return payload.data.map(normalizePatient);
+  }
+
+  return [];
+};
+
 const getUserDraftKey = () => {
   if (typeof window === "undefined") return "nutrisaas_diet_draft";
   try {
@@ -165,8 +237,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
   // -- Import Patient Modal State --
   const [isImportPatientModalOpen, setIsImportPatientModalOpen] = useState(false);
-  const [patients, setPatients] = useState<any[]>([]);
+  const [patients, setPatients] = useState<DietPatient[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+  const [patientsError, setPatientsError] = useState<string | null>(null);
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(
     projectIdFromUrl,
@@ -188,12 +261,16 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     setIsProjectLoading(Boolean(projectIdFromUrl));
   }, [projectIdFromUrl]);
 
+  const getApiUrl = () =>
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+  const getAuthToken = () =>
+    Cookies.get("auth_token") || localStorage.getItem("auth_token") || "";
+
   const fetchAvailableTags = async (retries = 3) => {
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/tags`, {
+      const token = getAuthToken();
+      const response = await fetch(`${getApiUrl()}/tags`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -212,10 +289,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
   const createGlobalTag = async (tagName: string) => {
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/tags`, {
+      const token = getAuthToken();
+      const response = await fetch(`${getApiUrl()}/tags`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -302,29 +377,157 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     return createdProject.id as string;
   };
 
+  const fetchPatientDetail = async (
+    patientId: string,
+  ): Promise<DietPatient | null> => {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error("No se encontró una sesión activa.");
+    }
 
+    const response = await fetch(`${getApiUrl()}/patients/${patientId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
 
-  const fetchPatients = async () => {
-    setIsLoadingPatients(true);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        errorText || "No se pudo cargar el detalle completo del paciente.",
+      );
+    }
+
+    const patient = await response.json();
+    return normalizePatient(patient);
+  };
+
+  const hydratePatient = async (
+    patient: DietPatient | null | undefined,
+  ): Promise<DietPatient | null> => {
+    if (!patient) return null;
+
+    const normalizedPatient = normalizePatient(patient);
+    if (!normalizedPatient.id) return normalizedPatient;
+
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/patients`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setPatients(data.data || []);
+      return await fetchPatientDetail(normalizedPatient.id);
+    } catch (error) {
+      console.warn("No se pudo hidratar el paciente en Dieta.", error);
+      return normalizedPatient;
+    }
+  };
+
+  const applySelectedPatient = (
+    patient: DietPatient,
+    options?: { showToast?: boolean },
+  ) => {
+    const normalizedPatient = normalizePatient(patient);
+    const shouldShowToast = options?.showToast ?? true;
+
+    setSelectedPatient(normalizedPatient);
+    localStorage.setItem("nutri_patient", JSON.stringify(normalizedPatient));
+
+    const restrictions = Array.isArray(normalizedPatient.dietRestrictions)
+      ? normalizedPatient.dietRestrictions
+      : [];
+    const validRestrictions = restrictions.filter(
+      (r: string) => r && r.trim() !== "",
+    );
+    const newConstraints = Array.from(
+      new Set([...activeConstraints, ...validRestrictions]),
+    );
+
+    setActiveConstraints(newConstraints);
+
+    const storedDraft = localStorage.getItem("nutri_active_draft");
+    let draft = storedDraft ? JSON.parse(storedDraft) : {};
+
+    draft.patientMeta = {
+      id: normalizedPatient.id,
+      fullName: normalizedPatient.fullName,
+      restrictions: validRestrictions,
+      nutritionalFocus: normalizedPatient.nutritionalFocus,
+      fitnessGoals: normalizedPatient.fitnessGoals,
+      birthDate: normalizedPatient.birthDate,
+      weight: normalizedPatient.weight,
+      height: normalizedPatient.height,
+      gender: normalizedPatient.gender,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (!draft.diet) draft.diet = {};
+    draft.diet.activeConstraints = newConstraints;
+
+    localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+
+    if (shouldShowToast) {
+      if (validRestrictions.length > 0) {
+        toast.success(`Paciente vinculado: ${normalizedPatient.fullName}`, {
+          description: `${validRestrictions.length} restricciones sincronizadas automáticamente.`,
+        });
+      } else {
+        toast.success(`Paciente vinculado: ${normalizedPatient.fullName}`);
       }
+    }
+
+    setIsImportPatientModalOpen(false);
+    setPatientSearchQuery("");
+    setPatientsError(null);
+  };
+
+
+
+  const fetchPatients = async (search = "", retries = 2) => {
+    setIsLoadingPatients(true);
+    setPatientsError(null);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error("No se encontró una sesión activa.");
+      }
+
+      const queryParams = new URLSearchParams({
+        page: "1",
+        limit: "1000",
+        ...(search.trim() && { search: search.trim() }),
+      });
+
+      const response = await fetch(`${getApiUrl()}/patients?${queryParams}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          errorText || "No se pudieron cargar los pacientes registrados.",
+        );
+      }
+
+      const data = await response.json();
+      setPatients(extractPatients(data));
     } catch (e) {
+      if (retries > 0) {
+        setTimeout(() => {
+          void fetchPatients(search, retries - 1);
+        }, 1200);
+        return;
+      }
+
       console.error("Error fetching patients", e);
+      setPatients([]);
+      setPatientsError(
+        e instanceof Error
+          ? e.message
+          : "No se pudieron cargar tus pacientes en este momento.",
+      );
+      toast.error("No se pudieron cargar tus pacientes.");
     } finally {
       setIsLoadingPatients(false);
     }
   };
 
-  const handleSelectPatient = (patient: any) => {
+  const handleSelectPatientLegacy = (patient: any) => {
     setSelectedPatient(patient);
     localStorage.setItem("nutri_patient", JSON.stringify(patient));
 
@@ -373,6 +576,26 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
     setIsImportPatientModalOpen(false);
     setPatientSearchQuery("");
+  };
+
+  const handleSelectPatient = async (patient: DietPatient) => {
+    setIsLoadingPatients(true);
+    try {
+      const hydratedPatient = await hydratePatient(patient);
+      if (!hydratedPatient) {
+        throw new Error("No se pudo preparar el paciente seleccionado.");
+      }
+
+      applySelectedPatient(hydratedPatient);
+    } catch (error) {
+      console.error("Error selecting patient", error);
+      handleSelectPatientLegacy(normalizePatient(patient));
+      toast.warning(
+        "Se vinculó el paciente, pero no fue posible traer todo su expediente completo.",
+      );
+    } finally {
+      setIsLoadingPatients(false);
+    }
   };
 
   const handleUnlinkPatient = () => {
@@ -492,7 +715,12 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     const storedPatient = localStorage.getItem("nutri_patient");
     if (storedPatient) {
       try {
-        setSelectedPatient(JSON.parse(storedPatient));
+        const parsedPatient = normalizePatient(JSON.parse(storedPatient));
+        void hydratePatient(parsedPatient).then((hydratedPatient) => {
+          if (!hydratedPatient) return;
+          setSelectedPatient(hydratedPatient);
+          localStorage.setItem("nutri_patient", JSON.stringify(hydratedPatient));
+        });
       } catch (e) {
         console.error("Failed to parse stored patient", e);
       }
@@ -629,8 +857,16 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         setCurrentProjectMode(project.mode);
 
         if (project.patient) {
-          setSelectedPatient(project.patient);
-          localStorage.setItem("nutri_patient", JSON.stringify(project.patient));
+          const hydratedPatient = await hydratePatient(
+            normalizePatient(project.patient),
+          );
+          if (hydratedPatient) {
+            setSelectedPatient(hydratedPatient);
+            localStorage.setItem(
+              "nutri_patient",
+              JSON.stringify(hydratedPatient),
+            );
+          }
         }
 
         if (project.activeDietCreationId) {
@@ -647,6 +883,16 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
     loadProjectContext();
   }, [projectIdFromUrl]);
+
+  useEffect(() => {
+    if (!isImportPatientModalOpen) return;
+
+    const timer = setTimeout(() => {
+      void fetchPatients(patientSearchQuery);
+    }, patientSearchQuery ? 250 : 0);
+
+    return () => clearTimeout(timer);
+  }, [isImportPatientModalOpen, patientSearchQuery]);
 
   // Alimentos incluidos
   const includedFoods = useMemo(() => {
@@ -1628,7 +1874,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         variant: "emerald",
         onClick: () => {
           setIsImportPatientModalOpen(true);
-          fetchPatients();
+          setPatientsError(null);
         },
       },
       {
@@ -1710,7 +1956,14 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }
     const storedPatient = localStorage.getItem("nutri_patient");
     if (storedPatient) {
-      try { setSelectedPatient(JSON.parse(storedPatient)); } catch (_) { }
+      try {
+        const parsedPatient = normalizePatient(JSON.parse(storedPatient));
+        void hydratePatient(parsedPatient).then((hydratedPatient) => {
+          if (!hydratedPatient) return;
+          setSelectedPatient(hydratedPatient);
+          localStorage.setItem("nutri_patient", JSON.stringify(hydratedPatient));
+        });
+      } catch (_) { }
     }
     setShowDraftModal(false);
     fetchAvailableTags();
@@ -1731,6 +1984,23 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     setShowDraftModal(false);
     fetchAvailableTags();
   };
+
+  const filteredPatients = useMemo(() => {
+    const normalizedQuery = patientSearchQuery.trim().toLowerCase();
+    if (!normalizedQuery) return patients;
+
+    return patients.filter((patient) => {
+      const fullName = patient.fullName?.toLowerCase() || "";
+      const email = patient.email?.toLowerCase() || "";
+      const documentId = String(patient.documentId || "").toLowerCase();
+
+      return (
+        fullName.includes(normalizedQuery) ||
+        email.includes(normalizedQuery) ||
+        documentId.includes(normalizedQuery)
+      );
+    });
+  }, [patientSearchQuery, patients]);
 
   return (
     <>
@@ -2880,6 +3150,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         onClose={() => {
           setIsImportPatientModalOpen(false);
           setPatientSearchQuery("");
+          setPatientsError(null);
         }}
         title="Vincular Paciente"
       >
@@ -2887,7 +3158,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
-              placeholder="Buscar por nombre o email..."
+              placeholder="Buscar por nombre, email o Rut/ID..."
               value={patientSearchQuery}
               onChange={(e) => setPatientSearchQuery(e.target.value)}
               className="pl-11 h-12 rounded-xl border-slate-200 focus:border-indigo-500"
@@ -2902,21 +3173,10 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           )}
 
           <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1 text-left">
-            {patients
-              .filter(
-                (patient) =>
-                  patient.fullName
-                    .toLowerCase()
-                    .includes(patientSearchQuery.toLowerCase()) ||
-                  (patient.email &&
-                    patient.email
-                      .toLowerCase()
-                      .includes(patientSearchQuery.toLowerCase())),
-              )
-              .map((patient) => (
+            {filteredPatients.map((patient) => (
                 <div
                   key={patient.id}
-                  onClick={() => handleSelectPatient(patient)}
+                  onClick={() => void handleSelectPatient(patient)}
                   className="p-4 border-2 border-slate-200 rounded-2xl hover:border-emerald-400 hover:bg-emerald-50/30 transition-all cursor-pointer group flex items-center justify-between"
                 >
                   <div className="flex items-center gap-4">
@@ -2948,11 +3208,25 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 </div>
               ))}
 
-            {!isLoadingPatients && patients.length === 0 && (
+            {!isLoadingPatients && patientsError && (
+              <div className="py-12 text-center">
+                <AlertCircle className="h-10 w-10 text-rose-300 mx-auto mb-3" />
+                <p className="text-sm text-rose-500 font-bold">
+                  No pudimos cargar tus pacientes.
+                </p>
+                <p className="text-xs text-slate-500 mt-2 max-w-xs mx-auto">
+                  {patientsError}
+                </p>
+              </div>
+            )}
+
+            {!isLoadingPatients && !patientsError && filteredPatients.length === 0 && (
               <div className="py-12 text-center">
                 <UserPlus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
                 <p className="text-sm text-slate-400 font-bold">
-                  No se encontraron pacientes registrados.
+                  {patientSearchQuery.trim()
+                    ? "No encontramos pacientes con ese criterio."
+                    : "No se encontraron pacientes registrados."}
                 </p>
               </div>
             )}
