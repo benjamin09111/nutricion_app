@@ -14,4 +14,6 @@ export interface Creation {
   format: "PDF" | "Excel" | "JSON" | "Doc";
   tags?: string[];
   isPublic?: boolean;
+  description?: string;
+  patientName?: string | null;
 }

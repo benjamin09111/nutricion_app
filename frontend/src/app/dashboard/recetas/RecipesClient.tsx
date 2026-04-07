@@ -47,6 +47,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { Modal } from "@/components/ui/Modal";
+import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
@@ -217,6 +218,8 @@ export default function RecipesClient() {
   const [draftMeta, setDraftMeta] = useState<{ label: string; date?: string }>({ label: "" });
 
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
+  const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
+  const [creationDescription, setCreationDescription] = useState("");
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(
     projectIdFromUrl,
   );
@@ -585,7 +588,7 @@ export default function RecipesClient() {
     toast.info("Plan semanal reiniciado.");
   };
 
-  const buildRecipesPayload = () => ({
+  const buildRecipesPayload = (description?: string) => ({
     name:
       selectedPatient?.fullName
         ? `Recetas ${selectedPatient.fullName}`
@@ -607,6 +610,9 @@ export default function RecipesClient() {
       updatedAt: new Date().toISOString(),
     },
     metadata: {
+      ...(description?.trim()
+        ? { description: description.trim() }
+        : {}),
       dayCount: Object.keys(weekSlots || {}).length,
       recommendedDishCount: recommendedDishes.length,
       ...(selectedPatient
@@ -619,8 +625,8 @@ export default function RecipesClient() {
     tags: [],
   });
 
-  const persistRecipesCreation = async () => {
-    const savedCreation = await saveCreation(buildRecipesPayload());
+  const persistRecipesCreation = async (description?: string) => {
+    const savedCreation = await saveCreation(buildRecipesPayload(description));
 
     if (currentProjectId) {
       await updateProject(currentProjectId, {
@@ -662,24 +668,7 @@ export default function RecipesClient() {
         icon: Save,
         label: "Guardar Borrador",
         variant: "slate",
-        onClick: async () => {
-          const storedDraft = localStorage.getItem("nutri_active_draft");
-          const draft = storedDraft ? JSON.parse(storedDraft) : {};
-          draft.recipes = {
-            weekSlots,
-            targets: { protein: targetProtein, calories: targetCalories, carbs: targetCarbs, fats: targetFats },
-            chronobiology: { wakeUpTime, sleepTime },
-            ingredientHints: buildRecipeIngredientHints(weekSlots),
-            updatedAt: new Date().toISOString(),
-          };
-          localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
-          try {
-            await persistRecipesCreation();
-            toast.success("Recetas guardadas correctamente.");
-          } catch (error: any) {
-            toast.error(error?.message || "No se pudieron guardar las recetas.");
-          }
-        },
+        onClick: () => setIsSaveCreationModalOpen(true),
       },
       {
         id: "export-json",
@@ -1597,6 +1586,39 @@ export default function RecipesClient() {
           </Button>
         </div>
       </Modal>
+      <SaveCreationModal
+        isOpen={isSaveCreationModalOpen}
+        onClose={() => setIsSaveCreationModalOpen(false)}
+        onConfirm={async () => {
+          const storedDraft = localStorage.getItem("nutri_active_draft");
+          const draft = storedDraft ? JSON.parse(storedDraft) : {};
+          draft.recipes = {
+            weekSlots,
+            targets: {
+              protein: targetProtein,
+              calories: targetCalories,
+              carbs: targetCarbs,
+              fats: targetFats,
+            },
+            chronobiology: { wakeUpTime, sleepTime },
+            ingredientHints: buildRecipeIngredientHints(weekSlots),
+            updatedAt: new Date().toISOString(),
+          };
+          localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+          try {
+            await persistRecipesCreation(creationDescription);
+            toast.success("Recetas guardadas correctamente.");
+            setIsSaveCreationModalOpen(false);
+            setCreationDescription("");
+          } catch (error: any) {
+            toast.error(error?.message || "No se pudieron guardar las recetas.");
+          }
+        }}
+        description={creationDescription}
+        onDescriptionChange={setCreationDescription}
+        title="Guardar recetas"
+        subtitle="Añade una breve descripción para reconocer estas recetas más tarde."
+      />
     </>
   );
 }

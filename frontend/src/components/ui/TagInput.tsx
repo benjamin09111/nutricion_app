@@ -218,9 +218,9 @@ export function TagInput({
 
         {/* Suggestions Dropdown */}
         {showSuggestions && allSuggestions.length > 0 && (
-          <div className="fixed sm:absolute z-50 w-full sm:w-[calc(100%+0px)] mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl shadow-slate-200/50 max-h-64 overflow-auto animate-in fade-in slide-in-from-top-2 duration-300">
-            <div className="p-2 border-b border-slate-50 bg-slate-50/50">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-3">
+          <div className="fixed inset-x-4 sm:inset-x-auto sm:absolute z-50 mt-2 bg-white border border-slate-200/80 rounded-2xl shadow-2xl shadow-slate-200/50 max-h-72 overflow-auto animate-in fade-in slide-in-from-top-2 duration-200 sm:w-full">
+            <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/80">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
                 Sugerencias Globales
               </p>
             </div>
@@ -231,31 +231,46 @@ export function TagInput({
               return (
                 <div
                   key={suggestion}
-                  className="w-full transition-all border-b border-slate-50 last:border-0 flex items-center group/item hover:bg-emerald-50"
+                  className="w-full transition-colors border-b border-slate-100 last:border-0 flex items-center group/item hover:bg-slate-50"
                 >
                   <button
                     type="button"
                     onClick={() => addTag(suggestion)}
-                    className="flex-1 text-left px-5 py-3 text-sm text-slate-700 group-hover/item:text-emerald-700 font-semibold flex items-center justify-between cursor-pointer"
+                    className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 cursor-pointer"
+                    title={isSystem ? "Tag del sistema" : "Tag creado por nutri"}
                   >
-                    <div className="flex items-center gap-3">
-                      {isSystem ? (
-                        <Globe className="w-3.5 h-3.5 text-blue-400 group-hover/item:text-blue-500" />
-                      ) : (
-                        <UserIcon className="w-3.5 h-3.5 text-slate-300 group-hover/item:text-emerald-400" />
-                      )}
-                      {suggestion}
-                    </div>
-                    <span
+                    <div
                       className={cn(
-                        "text-[9px] font-black uppercase tracking-tight px-2 py-1 rounded-lg",
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border",
                         isSystem
-                          ? "text-blue-400 bg-blue-50 group-hover/item:text-blue-600 group-hover/item:bg-blue-100/50"
-                          : "text-slate-300 bg-slate-50 group-hover/item:text-emerald-500 group-hover/item:bg-emerald-100/50",
+                          ? "border-blue-100 bg-blue-50 text-blue-500"
+                          : "border-emerald-100 bg-emerald-50 text-emerald-500",
                       )}
                     >
-                      {isSystem ? "Sistema / Global" : "Creada por nutri"}
-                    </span>
+                      {isSystem ? (
+                        <Globe className="w-3.5 h-3.5" />
+                      ) : (
+                        <UserIcon className="w-3.5 h-3.5" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-semibold text-slate-700">
+                        {suggestion}
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400">
+                        {isSystem ? (
+                          <>
+                            <Globe className="h-3 w-3" />
+                            <span>Sistema</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserIcon className="h-3 w-3" />
+                            <span>Nutri</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </button>
                   {!isSystem && !disableDelete && (
                     <button
@@ -265,7 +280,8 @@ export function TagInput({
                         setTagToDelete(suggestion);
                         setIsDeleteConfirmOpen(true);
                       }}
-                      className="p-3 text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover/item:opacity-100 cursor-pointer"
+                      className="mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-colors opacity-0 group-hover/item:opacity-100 cursor-pointer"
+                      title="Eliminar tag"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

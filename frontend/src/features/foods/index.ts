@@ -36,6 +36,7 @@ export interface Ingredient {
   verified: boolean;
   nutritionistId?: string | null;
   isMine?: boolean;
+  isDraft?: boolean;
 
   // Personalization
   preferences?: {
@@ -81,6 +82,7 @@ export interface MarketPrice {
   fibra?: number;
   sodio?: number;
   tags?: string[];
+  isDraft?: boolean;
 }
 
 export enum FoodGroup {

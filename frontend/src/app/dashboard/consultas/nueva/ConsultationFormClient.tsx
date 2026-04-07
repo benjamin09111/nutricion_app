@@ -26,7 +26,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
-import { MetricTagInput } from "@/components/ui/MetricTagInput";
+import { MetricTagInput } from "@/components/ui/metric-tag-input";
 import { TagInput } from "@/components/ui/TagInput";
 import { toast } from "sonner";
 import Cookies from "js-cookie";

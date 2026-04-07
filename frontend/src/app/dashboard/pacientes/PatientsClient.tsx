@@ -6,6 +6,7 @@ import {
   User,
   Calendar,
   Mail,
+  Heart,
   Plus,
   FileCode,
   RotateCcw,
@@ -31,6 +32,16 @@ import { fetchApi, getApiUrl } from "@/lib/api-base";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+function formatRestrictions(restrictions?: string[]) {
+  if (!Array.isArray(restrictions) || restrictions.length === 0) {
+    return [];
+  }
+
+  return restrictions
+    .map((restriction) => restriction.trim())
+    .filter(Boolean);
 }
 
 type PatientTab = "Todos" | "Activos" | "Inactivos";
@@ -368,6 +379,7 @@ export default function PatientsClient() {
                 <tr>
                   <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Identidad del Paciente</th>
                   <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Documento / Id</th>
+                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Restricciones Médicas</th>
                   <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
                   <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
                 </tr>
@@ -378,12 +390,18 @@ export default function PatientsClient() {
                     <tr key={i} className="animate-pulse border-b border-slate-50 last:border-0">
                       <td className="px-6 py-6"><div className="flex items-center gap-4"><div className="w-12 h-12 bg-slate-100 rounded-full" /><div className="space-y-2"><div className="h-4 w-32 bg-slate-100 rounded" /><div className="h-3 w-48 bg-slate-50 rounded" /></div></div></td>
                       <td className="px-6 py-6"><div className="h-4 w-24 bg-slate-100 rounded" /></td>
+                      <td className="px-6 py-6"><div className="h-10 w-44 bg-slate-100 rounded-2xl" /></td>
                       <td className="px-6 py-6"><div className="h-6 w-20 bg-slate-100 rounded-full mx-auto" /></td>
                       <td className="px-6 py-6"><div className="h-8 w-8 bg-slate-100 rounded-lg ml-auto" /></td>
                     </tr>
                   ))
                 ) : filteredPatients.length > 0 ? (
-                  filteredPatients.map((patient) => (
+                  filteredPatients.map((patient) => {
+                    const restrictions = formatRestrictions(patient.dietRestrictions);
+                    const visibleRestrictions = restrictions.slice(0, 2);
+                    const remainingRestrictions = restrictions.length - visibleRestrictions.length;
+
+                    return (
                     <tr 
                       key={patient.id} 
                       onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
@@ -404,6 +422,28 @@ export default function PatientsClient() {
                       </td>
                       <td className="px-6 py-4">
                         <span className="inline-flex items-center text-sm font-medium text-slate-600">{patient.documentId || "---"}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {restrictions.length > 0 ? (
+                          <div className="flex flex-wrap items-center gap-2 max-w-[280px]">
+                            {visibleRestrictions.map((restriction) => (
+                              <span
+                                key={restriction}
+                                className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700"
+                              >
+                                <Heart className="h-3 w-3" />
+                                <span className="truncate max-w-[180px]">{restriction}</span>
+                              </span>
+                            ))}
+                            {remainingRestrictions > 0 && (
+                              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
+                                +{remainingRestrictions}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs font-medium text-slate-400">Sin restricciones</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-2">
@@ -435,7 +475,7 @@ export default function PatientsClient() {
                         </div>
                       </td>
                     </tr>
-                  ))
+                  )})
                 ) : (
                   <tr><td colSpan={5} className="text-center py-20"><div className="flex flex-col items-center gap-4"><div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100"><User className="h-8 w-8 text-slate-300" /></div><p className="text-slate-500 font-medium">Sin pacientes registrados</p></div></td></tr>
                 )}
@@ -459,7 +499,12 @@ export default function PatientsClient() {
               </div>
             ))
           ) : filteredPatients.length > 0 ? (
-            filteredPatients.map((patient) => (
+            filteredPatients.map((patient) => {
+              const restrictions = formatRestrictions(patient.dietRestrictions);
+              const visibleRestrictions = restrictions.slice(0, 2);
+              const remainingRestrictions = restrictions.length - visibleRestrictions.length;
+
+              return (
               <div 
                 key={patient.id} 
                 onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
@@ -486,6 +531,32 @@ export default function PatientsClient() {
                     {patient.status !== "Inactive" ? "Activo" : "Inactivo"}
                   </div>
                 </div>
+
+                <div className="mb-4">
+                  <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    Restricciones Médicas
+                  </p>
+                  {restrictions.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {visibleRestrictions.map((restriction) => (
+                        <span
+                          key={restriction}
+                          className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700"
+                        >
+                          <Heart className="h-3 w-3" />
+                          {restriction}
+                        </span>
+                      ))}
+                      {remainingRestrictions > 0 && (
+                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
+                          +{remainingRestrictions}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs font-medium text-slate-400">Sin restricciones</p>
+                  )}
+                </div>
                 
                 <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                   <div className="text-xs font-semibold text-slate-400">
@@ -504,7 +575,7 @@ export default function PatientsClient() {
                   </div>
                 </div>
               </div>
-            ))
+            )})
           ) : (
             <div className="bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
               <User className="w-12 h-12 text-slate-300 mx-auto mb-4" />

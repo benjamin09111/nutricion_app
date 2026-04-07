@@ -11,6 +11,7 @@ export interface ActionDockItem {
   onClick: () => void;
   variant?: "indigo" | "emerald" | "amber" | "rose" | "slate";
   isSeparator?: boolean;
+  disabled?: boolean;
 }
 
 interface ActionDockProps {
@@ -51,9 +52,13 @@ export function ActionDock({ items, className }: ActionDockProps) {
             <button
               key={item.id}
               onClick={item.onClick}
+              disabled={item.disabled}
               className={cn(
-                "p-4 rounded-full transition-all group relative cursor-pointer",
+                "p-4 rounded-full transition-all group relative",
                 variantStyles[item.variant || "slate"],
+                item.disabled
+                  ? "cursor-not-allowed opacity-45 hover:bg-slate-50"
+                  : "cursor-pointer",
               )}
             >
               <Icon className="h-6 w-6 group-hover:scale-110 transition-transform" />

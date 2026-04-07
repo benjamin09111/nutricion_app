@@ -15,4 +15,5 @@ export declare class CreateFoodDto {
     tags?: string[];
     ingredients?: string;
     isPublic?: boolean;
+    isDraft?: boolean;
 }

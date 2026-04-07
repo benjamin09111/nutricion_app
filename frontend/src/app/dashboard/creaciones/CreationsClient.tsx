@@ -5,6 +5,7 @@ import {
   Search,
   Download,
   Eye,
+  Info,
   Trash2,
   Edit,
   FileText,
@@ -66,6 +67,7 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
   // Modal State
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Creation | null>(null);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -179,6 +181,11 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
     setDownloadModalOpen(true);
   };
 
+  const handleInfoClick = (item: Creation) => {
+    setSelectedItem(item);
+    setInfoModalOpen(true);
+  };
+
   const handleViewClick = async (item: Creation) => {
     setSelectedItem(item);
     setViewModalOpen(true);
@@ -223,6 +230,10 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
             tags: item.tags || [],
             isPublic: item.isPublic || false,
             patientName: item.metadata?.patientName || item.content?.patientMeta?.fullName || null,
+            description:
+              typeof item.metadata?.description === "string"
+                ? item.metadata.description
+                : "",
           }));
           setLocalCreations(mappedData);
         }
@@ -541,6 +552,13 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
+                          onClick={() => handleInfoClick(item)}
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+                          title="Más info"
+                        >
+                          <Info className="h-4 w-4" />
+                        </button>
+                        <button
                           onClick={() => handleViewClick(item)}
                           className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
                           title="Previsualizar"
@@ -693,6 +711,70 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
           </div>
         </div>
       )}
+      <Modal
+        isOpen={infoModalOpen}
+        onClose={() => {
+          setInfoModalOpen(false);
+          setSelectedItem(null);
+        }}
+        title="Información de la creación"
+      >
+        <div className="space-y-4">
+          {selectedItem ? (
+            <>
+              <div className="space-y-2">
+                <p className="text-lg font-black text-slate-900">
+                  {selectedItem.name}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset",
+                      getTypeStyles(selectedItem.type),
+                    )}
+                  >
+                    {selectedItem.type}
+                  </span>
+                  {selectedItem.patientName ? (
+                    <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-700 ring-1 ring-inset ring-indigo-200">
+                      {selectedItem.patientName}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                  Descripción
+                </p>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                  {selectedItem.description?.trim() ||
+                    "Esta creación no tiene descripción guardada."}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                  Fecha
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-700">
+                  {selectedItem.createdAt}
+                </p>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  className="rounded-xl border-slate-200 text-slate-600"
+                  onClick={() => setInfoModalOpen(false)}
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </>
+          ) : null}
+        </div>
+      </Modal>
       {/* View Modal */}
       <Modal
         isOpen={viewModalOpen}
@@ -728,6 +810,12 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                   <h3 className="text-lg font-black text-slate-900 leading-tight">
                     {fullCreationData.name}
                   </h3>
+                  {typeof fullCreationData.metadata?.description === "string" &&
+                  fullCreationData.metadata.description.trim() ? (
+                    <p className="max-w-2xl text-sm leading-6 text-slate-600">
+                      {fullCreationData.metadata.description}
+                    </p>
+                  ) : null}
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {fullCreationData.tags?.map((tag: string) => (
                       <span

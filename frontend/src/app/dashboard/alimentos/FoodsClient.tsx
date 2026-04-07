@@ -45,6 +45,7 @@ type IngredientTab =
   | "Favoritos"
   | "No recomendados"
   | "Con tags"
+  | "Borradores"
   | "Mis creaciones"
   | "Mis grupos";
 
@@ -127,6 +128,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         return "not_recommended";
       case "Con tags":
         return "tagged";
+      case "Borradores":
+        return "drafts";
       case "Mis creaciones":
         return "mine";
       case "Dieta base":
@@ -245,6 +248,10 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
       );
     }
 
+    if (activeTab === "Borradores") {
+      return data.filter((ingredient) => !!ingredient.isDraft);
+    }
+
     return data;
   }, [data, activeTab]);
 
@@ -351,6 +358,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     "Favoritos",
     "No recomendados",
     "Con tags",
+    "Borradores",
     "Mis creaciones",
     "Mis grupos",
   ];
@@ -693,6 +701,11 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
       return;
     }
 
+    const updatePayload = {
+      ...editValues,
+      ...(ingredientToEdit?.isDraft ? { isDraft: false } : {}),
+    };
+
     try {
       const response = await fetchApi(`/foods/${id}`, {
         method: "PATCH",
@@ -700,7 +713,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(editValues),
+        body: JSON.stringify(updatePayload),
       });
 
       if (!response.ok) throw new Error("Error al actualizar");
@@ -714,8 +727,13 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         ),
       );
 
-      toast.success("Ingrediente actualizado");
+      toast.success(
+        ingredientToEdit?.isDraft
+          ? "Borrador completado correctamente"
+          : "Ingrediente actualizado",
+      );
       setEditingId(null);
+      setEditValues({});
       await Promise.all([fetchIngredients(), fetchCatalogPool()]);
     } catch (error) {
       console.error("Update error:", error);
@@ -832,6 +850,14 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
               <Info className="w-3 h-3 text-emerald-600" />
               <span className="text-[10px] font-medium text-emerald-700">
                 Fuente: Tabla de Composición de Alimentos INTA (2018)
+              </span>
+            </div>
+          )}
+          {activeTab === "Borradores" && (
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-100 rounded-lg">
+              <Info className="w-3 h-3 text-amber-600" />
+              <span className="text-[10px] font-medium text-amber-700">
+                Estos ingredientes se crearon rápido desde Dieta y aún necesitan completar su información nutricional.
               </span>
             </div>
           )}
@@ -1302,7 +1328,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                       >
                         Unidad {(activeTab === "Dieta base" && baseTab === "app") && "(100)"}
                       </th>
-                      {activeTab === "Mis creaciones" && (
+                      {(activeTab === "Mis creaciones" ||
+                        activeTab === "Borradores") && (
                         <>
                           <th className="px-3 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 italic">
                             Cals
@@ -1367,6 +1394,11 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                               <span className="text-sm font-medium text-slate-900">
                                 {ingredient.name}
                               </span>
+                              {ingredient.isDraft && (
+                                <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200">
+                                  Borrador
+                                </span>
+                              )}
                               {ingredient.verified && (
                                 <BadgeCheck className="w-4 h-4 text-emerald-500" />
                               )}
@@ -1418,7 +1450,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                         <td className="px-6 py-4 text-sm text-center text-slate-500">
                           {ingredient.unit}
                         </td>
-                        {activeTab === "Mis creaciones" && (
+                        {(activeTab === "Mis creaciones" ||
+                          activeTab === "Borradores") && (
                           <>
                             <td className="px-3 py-4 text-center">
                               {editingId === ingredient.id &&

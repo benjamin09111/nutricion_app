@@ -62,4 +62,8 @@ export class CreateFoodDto {
     @IsBoolean()
     @IsOptional()
     isPublic?: boolean;
+
+    @IsBoolean()
+    @IsOptional()
+    isDraft?: boolean;
 }

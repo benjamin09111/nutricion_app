@@ -35,6 +35,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -181,6 +182,8 @@ export default function CartClient() {
 
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
   const [cartSourceLabel, setCartSourceLabel] = useState("Generado manualmente");
+  const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
+  const [creationDescription, setCreationDescription] = useState("");
 
   // -- Equivalent Selector State --
   const [isEquivalentModalOpen, setIsEquivalentModalOpen] = useState(false);
@@ -871,7 +874,10 @@ export default function CartClient() {
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
   };
 
-  const buildCartCreationPayload = (updatedItems?: CartItem[]) => {
+  const buildCartCreationPayload = (
+    updatedItems?: CartItem[],
+    description?: string,
+  ) => {
     const nextItems = updatedItems || items;
     return {
       name:
@@ -889,6 +895,9 @@ export default function CartClient() {
         updatedAt: new Date().toISOString(),
       },
       metadata: {
+        ...(description?.trim()
+          ? { description: description.trim() }
+          : {}),
         itemCount: nextItems.length,
         totalCalories: totals.calories,
         ...(selectedPatient
@@ -902,8 +911,13 @@ export default function CartClient() {
     };
   };
 
-  const persistCartCreation = async (updatedItems?: CartItem[]) => {
-    const savedCreation = await saveCreation(buildCartCreationPayload(updatedItems));
+  const persistCartCreation = async (
+    updatedItems?: CartItem[],
+    description?: string,
+  ) => {
+    const savedCreation = await saveCreation(
+      buildCartCreationPayload(updatedItems, description),
+    );
 
     if (currentProjectId) {
       await updateProject(currentProjectId, {
@@ -988,15 +1002,7 @@ export default function CartClient() {
         icon: Save,
         label: "Guardar Borrador",
         variant: "slate",
-        onClick: async () => {
-          saveCartToStorage();
-          try {
-            await persistCartCreation();
-            toast.success("Carrito guardado correctamente.");
-          } catch (error: any) {
-            toast.error(error?.message || "No se pudo guardar el carrito.");
-          }
-        },
+        onClick: () => setIsSaveCreationModalOpen(true),
       },
       {
         id: "export-json",
@@ -1286,15 +1292,7 @@ export default function CartClient() {
             <div className="flex gap-4">
               <Button
                 className="h-12 px-8 bg-slate-900"
-                onClick={async () => {
-                  saveCartToStorage();
-                  try {
-                    await persistCartCreation();
-                    toast.success("Carrito guardado en Mis Creaciones.");
-                  } catch (error: any) {
-                    toast.error(error?.message || "No se pudo guardar el carrito.");
-                  }
-                }}
+                onClick={() => setIsSaveCreationModalOpen(true)}
               >
                 Guardar Creación
               </Button>
@@ -2233,6 +2231,25 @@ export default function CartClient() {
             </div>
           </div>
         </Modal>
+        <SaveCreationModal
+          isOpen={isSaveCreationModalOpen}
+          onClose={() => setIsSaveCreationModalOpen(false)}
+          onConfirm={async () => {
+            saveCartToStorage();
+            try {
+              await persistCartCreation(undefined, creationDescription);
+              toast.success("Carrito guardado en Mis Creaciones.");
+              setIsSaveCreationModalOpen(false);
+              setCreationDescription("");
+            } catch (error: any) {
+              toast.error(error?.message || "No se pudo guardar el carrito.");
+            }
+          }}
+          description={creationDescription}
+          onDescriptionChange={setCreationDescription}
+          title="Guardar carrito"
+          subtitle="Añade una breve descripción para identificar este carrito después."
+        />
       </ModuleLayout>
     </>
   );

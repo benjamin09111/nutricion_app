@@ -56,7 +56,7 @@ import {
 } from "@/features/consultations";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { MetricTagInput } from "@/components/ui/MetricTagInput";
+import { MetricTagInput } from "@/components/ui/metric-tag-input";
 import { Modal } from "@/components/ui/Modal";
 import { TagInput } from "@/components/ui/TagInput";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";

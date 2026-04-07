@@ -6,7 +6,12 @@ import { CacheService } from '../../common/services/cache.service';
 export declare class FoodsService {
     private readonly prisma;
     private readonly cacheService;
+    private readonly draftMarker;
     constructor(prisma: PrismaService, cacheService: CacheService);
+    private parseDraftIngredientField;
+    private buildDraftIngredientField;
+    private resolveIngredientNotesForWrite;
+    private serializeIngredient;
     private resolveNutritionist;
     private findIngredientWithRelations;
     private assertIngredientOwnership;

@@ -12,10 +12,72 @@ import { CacheService } from '../../common/services/cache.service';
 
 @Injectable()
 export class FoodsService {
+    private readonly draftMarker = '__NUTRI_DIET_DRAFT__';
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly cacheService: CacheService
     ) { }
+
+    private parseDraftIngredientField(rawValue?: string | null) {
+        const value = typeof rawValue === 'string' ? rawValue : '';
+        const isDraft = value.includes(this.draftMarker);
+        const cleaned = value
+            .replace(this.draftMarker, '')
+            .trim();
+
+        return {
+            isDraft,
+            cleanedIngredients: cleaned || null,
+        };
+    }
+
+    private buildDraftIngredientField(
+        baseIngredients?: string | null,
+        isDraft?: boolean,
+    ) {
+        const cleaned = typeof baseIngredients === 'string' ? baseIngredients.trim() : '';
+
+        if (isDraft) {
+            return cleaned
+                ? `${this.draftMarker}\n${cleaned}`
+                : this.draftMarker;
+        }
+
+        return cleaned || null;
+    }
+
+    private resolveIngredientNotesForWrite(params: {
+        existingIngredients?: string | null;
+        incomingIngredients?: string | null;
+        isDraft?: boolean;
+    }) {
+        const { cleanedIngredients, isDraft: existingIsDraft } = this.parseDraftIngredientField(
+            params.existingIngredients,
+        );
+
+        const nextIsDraft =
+            typeof params.isDraft === 'boolean' ? params.isDraft : existingIsDraft;
+        const nextIngredients =
+            params.incomingIngredients !== undefined
+                ? params.incomingIngredients
+                : cleanedIngredients;
+
+        return this.buildDraftIngredientField(nextIngredients, nextIsDraft);
+    }
+
+    private serializeIngredient(ingredient: any, nutritionistId?: string) {
+        const { cleanedIngredients, isDraft } = this.parseDraftIngredientField(
+            ingredient.ingredients,
+        );
+
+        return {
+            ...ingredient,
+            ingredients: cleanedIngredients,
+            isDraft,
+            isMine: ingredient.nutritionistId === nutritionistId && !!nutritionistId,
+        };
+    }
 
     private async resolveNutritionist(accountId?: string) {
         if (!accountId) return null;
@@ -84,7 +146,7 @@ export class FoodsService {
     }
 
     async create(createFoodDto: CreateFoodDto, userId: string) {
-        const { brand, category, tags, isPublic, ...rest } = createFoodDto;
+        const { brand, category, tags, isPublic, isDraft, ingredients, ...rest } = createFoodDto;
 
         // Find nutritionist profile from Account ID
         const nutritionist = await (this.prisma as any).nutritionist.findUnique({
@@ -120,6 +182,7 @@ export class FoodsService {
             const ingredient = await tx.ingredient.create({
                 data: {
                     ...rest,
+                    ingredients: this.buildDraftIngredientField(ingredients, isDraft),
                     brand: brandRecord ? { connect: { id: brandRecord.id } } : undefined,
                     category: { connect: { id: categoryRecord.id } },
                     tags: {
@@ -141,7 +204,7 @@ export class FoodsService {
 
         await this.cacheService.invalidateNutritionistPrefix(nutritionist.id, 'foods');
         await this.cacheService.invalidateNutritionistPrefix(nutritionist.id, 'dashboard');
-        return ingredient;
+        return this.serializeIngredient(ingredient, nutritionist.id);
     }
 
     async findAll(params: {
@@ -161,10 +224,26 @@ export class FoodsService {
         const andClauses: Prisma.IngredientWhereInput[] = [];
 
         switch (tab) {
+            case 'drafts':
+                if (!nutritionistId) return [];
+                andClauses.push({ nutritionistId });
+                andClauses.push({
+                    ingredients: {
+                        contains: this.draftMarker,
+                    },
+                });
+                break;
             case 'mine':
             case 'created':
                 if (!nutritionistId) return [];
                 andClauses.push({ nutritionistId });
+                andClauses.push({
+                    NOT: {
+                        ingredients: {
+                            contains: this.draftMarker,
+                        },
+                    },
+                });
                 break;
             case 'favorites':
                 if (!nutritionistId) return [];
@@ -177,6 +256,13 @@ export class FoodsService {
                         },
                     },
                 });
+                andClauses.push({
+                    NOT: {
+                        ingredients: {
+                            contains: this.draftMarker,
+                        },
+                    },
+                });
                 break;
             case 'not_recommended':
                 if (!nutritionistId) return [];
@@ -186,6 +272,13 @@ export class FoodsService {
                             nutritionistId,
                             isNotRecommended: true,
                             isHidden: false,
+                        },
+                    },
+                });
+                andClauses.push({
+                    NOT: {
+                        ingredients: {
+                            contains: this.draftMarker,
                         },
                     },
                 });
@@ -205,6 +298,13 @@ export class FoodsService {
                             },
                         },
                     ],
+                });
+                andClauses.push({
+                    NOT: {
+                        ingredients: {
+                            contains: this.draftMarker,
+                        },
+                    },
                 });
                 break;
             case 'app':
@@ -233,6 +333,13 @@ export class FoodsService {
                         }
                         : { isPublic: true },
                 );
+                andClauses.push({
+                    NOT: {
+                        ingredients: {
+                            contains: this.draftMarker,
+                        },
+                    },
+                });
                 break;
         }
 
@@ -306,10 +413,7 @@ export class FoodsService {
         });
 
         // Add isMine property to each ingredient
-        return ingredients.map((ing: any) => ({
-            ...ing,
-            isMine: ing.nutritionistId === nutritionistId && !!nutritionistId
-        }));
+        return ingredients.map((ing: any) => this.serializeIngredient(ing, nutritionistId));
     }
 
     async togglePreference(ingredientId: string, userId: string, data: {
@@ -419,10 +523,7 @@ export class FoodsService {
             throw new ForbiddenException('No tienes permisos para ver este ingrediente');
         }
 
-        return {
-            ...ingredient,
-            isMine: ingredient.nutritionistId === nutritionistId && !!nutritionistId,
-        };
+        return this.serializeIngredient(ingredient, nutritionistId);
     }
 
     async update(id: string, updateFoodDto: UpdateFoodDto, requesterAccountId: string) {
@@ -436,7 +537,7 @@ export class FoodsService {
 
         this.assertIngredientOwnership(existing, nutritionistId);
 
-        const { brand, category, tags, ...rest } = updateFoodDto;
+        const { brand, category, tags, ingredients, isDraft, ...rest } = updateFoodDto;
 
         const brandRecord = brand ? await this.getOrCreateBrand(brand) : undefined;
         const categoryRecord = category ? await this.getOrCreateCategory(category) : undefined;
@@ -446,18 +547,33 @@ export class FoodsService {
             where: { id },
             data: {
                 ...rest,
+                ingredients: this.resolveIngredientNotesForWrite({
+                    existingIngredients: existing.ingredients,
+                    incomingIngredients: ingredients,
+                    isDraft,
+                }),
                 ...(brandRecord && { brand: { connect: { id: brandRecord.id } } }),
                 ...(categoryRecord && { category: { connect: { id: categoryRecord.id } } }),
                 ...(tagRecords && { tags: { set: tagRecords.map(t => ({ id: t.id })) } }),
+            },
+            include: {
+                brand: true,
+                category: true,
+                tags: true,
+                ...(nutritionistId
+                    ? {
+                        preferences: {
+                            where: { nutritionistId },
+                            include: { tags: true },
+                        },
+                    }
+                    : {}),
             },
         });
 
         await this.cacheService.invalidateNutritionistPrefix(existing.nutritionistId, 'foods');
         await this.cacheService.invalidateNutritionistPrefix(existing.nutritionistId, 'dashboard');
-        return {
-            ...ingredient,
-            isMine: true,
-        };
+        return this.serializeIngredient(ingredient, nutritionistId);
     }
 
     async remove(id: string, requesterAccountId: string) {

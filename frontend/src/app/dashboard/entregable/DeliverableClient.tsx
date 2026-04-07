@@ -47,6 +47,7 @@ import { useAdmin } from "@/context/AdminContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
+import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 import {
@@ -238,6 +239,8 @@ export default function DeliverableClient() {
   const [includeLogo, setIncludeLogo] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
+  const [creationDescription, setCreationDescription] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
 
   // Track available modules
@@ -655,7 +658,7 @@ export default function DeliverableClient() {
     setExportPackages(presets);
   };
 
-  const handleSaveToCreations = async () => {
+  const handleSaveToCreations = async (description?: string) => {
     setIsSaving(true);
     try {
       const storedDraft = localStorage.getItem("nutri_active_draft");
@@ -676,6 +679,9 @@ export default function DeliverableClient() {
           updatedAt: new Date().toISOString(),
         },
         metadata: {
+          ...(description?.trim()
+            ? { description: description.trim() }
+            : {}),
           sectionCount: selectedSections.length,
           hasCart,
           hasRecipes,
@@ -701,6 +707,8 @@ export default function DeliverableClient() {
       }
 
       toast.success("Guardado en mis creaciones correctamente.");
+      setIsSaveCreationModalOpen(false);
+      setCreationDescription("");
     } catch (error: any) {
       console.error("Error saving deliverable creation", error);
       toast.error(
@@ -919,7 +927,7 @@ export default function DeliverableClient() {
       icon: Save,
       label: "Guardar Creación",
       variant: "slate",
-      onClick: handleSaveToCreations,
+      onClick: () => setIsSaveCreationModalOpen(true),
     },
     {
       id: "print-json",
@@ -1771,6 +1779,16 @@ export default function DeliverableClient() {
           </div>
         </div>
       </Modal >
+      <SaveCreationModal
+        isOpen={isSaveCreationModalOpen}
+        onClose={() => setIsSaveCreationModalOpen(false)}
+        onConfirm={() => handleSaveToCreations(creationDescription)}
+        description={creationDescription}
+        onDescriptionChange={setCreationDescription}
+        title="Guardar entregable"
+        subtitle="Añade una breve descripción para identificar este entregable dentro de Mis creaciones."
+        isSaving={isSaving}
+      />
     </>
   );
 }

@@ -13,7 +13,7 @@ interface StepIndicator {
 
 interface ModuleLayoutProps {
   title: string;
-  description: string;
+  description: React.ReactNode;
   step?: StepIndicator;
   rightNavItems?: ActionDockItem[];
   footer?: React.ReactNode;
@@ -52,7 +52,9 @@ export function ModuleLayout({
           <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none">
             {title}
           </h1>
-          <p className="text-sm sm:text-base text-slate-500 font-medium leading-relaxed">{description}</p>
+          <div className="text-sm sm:text-base text-slate-500 font-medium leading-relaxed">
+            {description}
+          </div>
         </div>
 
         {/* Right Navigation */}

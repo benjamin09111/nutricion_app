@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
+import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import {
   Search,
   Loader2,
@@ -16,10 +17,10 @@ import {
   Info,
   BookOpen,
   Library,
+  Pencil,
   Trash2,
   FolderPlus,
   GraduationCap,
-  Save,
   ArrowRight,
   X,
   Brain,
@@ -49,7 +50,6 @@ import Cookies from "js-cookie";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
-import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import {
@@ -156,6 +156,69 @@ const extractPatients = (payload: any): DietPatient[] => {
   return [];
 };
 
+const normalizeConstraintText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const DEFAULT_CONSTRAINT_ALIASES = new Map(
+  DEFAULT_CONSTRAINTS.flatMap((constraint) => {
+    const normalizedId = normalizeConstraintText(constraint.id);
+    const aliases = [normalizedId];
+
+    if (normalizedId === "sin gluten") aliases.push("gluten");
+    if (normalizedId === "celiaco") aliases.push("celiaco", "celiaca");
+    if (normalizedId === "diabetico") aliases.push("diabetico", "diabetica");
+    if (normalizedId === "hipertension") aliases.push("hipertension");
+    if (normalizedId === "vegetariano") aliases.push("vegetariano", "vegetariana");
+
+    return aliases.map((alias) => [alias, constraint.id] as const);
+  }),
+);
+
+const normalizeConstraintList = (constraints: string[]) =>
+  Array.from(
+    new Set(
+      constraints
+        .filter((constraint): constraint is string => typeof constraint === "string")
+        .map((constraint) => constraint.trim())
+        .filter(Boolean)
+        .map((constraint) => {
+          const normalized = normalizeConstraintText(constraint);
+          return DEFAULT_CONSTRAINT_ALIASES.get(normalized) || constraint.trim();
+        }),
+    ),
+  );
+
+const normalizeGroupName = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+const mapIngredientToMarketPrice = (
+  ingredient: any,
+  overrideGroup?: string,
+): MarketPrice => ({
+  id: ingredient.id,
+  producto: ingredient.name,
+  grupo: overrideGroup || ingredient.category?.name || "Varios",
+  unidad: ingredient.unit || "g",
+  precioPromedio: ingredient.price || 0,
+  calorias: ingredient.calories || 0,
+  proteinas: ingredient.proteins || 0,
+  carbohidratos: ingredient.carbs || 0,
+  lipidos: ingredient.lipids || 0,
+  azucares: ingredient.sugars || 0,
+  fibra: ingredient.fiber || 0,
+  sodio: ingredient.sodium || 0,
+  tags: ingredient.tags?.map((tag: any) => tag.name) || [],
+  isDraft: !!ingredient.isDraft,
+});
+
 const getUserDraftKey = () => {
   if (typeof window === "undefined") return "nutrisaas_diet_draft";
   try {
@@ -201,12 +264,31 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const [newGroupNameInput, setNewGroupNameInput] = useState("");
   const [searchResultFoods, setSearchResultFoods] = useState<MarketPrice[]>([]);
   const [isSearchingFoods, setIsSearchingFoods] = useState(false);
+  const [isCreatingManualFood, setIsCreatingManualFood] = useState(false);
   const [isApplyingPreferences, setIsApplyingPreferences] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-
-  // -- Draft Restore Modal --
-  const [showDraftModal, setShowDraftModal] = useState(false);
-  const [draftMeta, setDraftMeta] = useState<{ label: string; date?: string }>({ label: "" });
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isExportConfirmOpen, setIsExportConfirmOpen] = useState(false);
+  const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
+  const [creationDescription, setCreationDescription] = useState("");
+  const [isDraftFoodEditorOpen, setIsDraftFoodEditorOpen] = useState(false);
+  const [draftFoodToEdit, setDraftFoodToEdit] = useState<MarketPrice | null>(
+    null,
+  );
+  const [draftFoodValues, setDraftFoodValues] = useState({
+    amount: 100,
+    unit: "g",
+    calories: 0,
+    proteins: 0,
+    carbs: 0,
+    lipids: 0,
+    azucares: 0,
+    fibra: 0,
+    sodio: 0,
+  });
+  const [isSavingDraftFood, setIsSavingDraftFood] = useState(false);
+  const [isContinueDraftWarningOpen, setIsContinueDraftWarningOpen] =
+    useState(false);
 
   // -- Smart Add State --
   const [isSmartModalOpen, setIsSmartModalOpen] = useState(false);
@@ -256,6 +338,18 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   );
 
   const favoritesEnabled = true; // Always enabled by request
+  const selectedDefaultConstraintIds = new Set(
+    activeConstraints
+      .map((constraint) => {
+        const normalizedConstraint = normalizeConstraintText(constraint);
+        return (
+          DEFAULT_CONSTRAINT_ALIASES.get(normalizedConstraint) ?? constraint
+        );
+      })
+      .filter((constraint) =>
+        DEFAULT_CONSTRAINTS.some((item) => item.id === constraint),
+      ),
+  );
 
   useEffect(() => {
     setCurrentProjectId(projectIdFromUrl);
@@ -306,7 +400,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }
   };
 
-  const buildDietCreationPayload = () => {
+  const buildDietCreationPayload = (description?: string) => {
     const finalizedFoods = [...includedFoods];
 
     return {
@@ -326,6 +420,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         includedFoods: finalizedFoods,
       },
       metadata: {
+        ...(description?.trim()
+          ? { description: description.trim() }
+          : {}),
         foodSummary: finalizedFoods.map((f) => ({
           name: f.producto,
           group: f.grupo,
@@ -430,9 +527,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     const restrictions = Array.isArray(normalizedPatient.dietRestrictions)
       ? normalizedPatient.dietRestrictions
       : [];
-    const validRestrictions = restrictions.filter(
-      (r: string) => r && r.trim() !== "",
-    );
+    const validRestrictions = normalizeConstraintList(restrictions);
     const newConstraints = Array.from(
       new Set([...activeConstraints, ...validRestrictions]),
     );
@@ -535,9 +630,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     const restrictions = Array.isArray(patient.dietRestrictions)
       ? patient.dietRestrictions
       : [];
-    const validRestrictions = restrictions.filter(
-      (r: string) => r && r.trim() !== "",
-    );
+    const validRestrictions = normalizeConstraintList(restrictions);
     const newConstraints = Array.from(
       new Set([...activeConstraints, ...validRestrictions]),
     );
@@ -600,7 +693,22 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
   const handleUnlinkPatient = () => {
     setSelectedPatient(null);
+    setActiveConstraints([]);
     localStorage.removeItem("nutri_patient");
+
+    const storedDraft = localStorage.getItem("nutri_active_draft");
+    if (storedDraft) {
+      try {
+        const draft = JSON.parse(storedDraft);
+        delete draft.patientMeta;
+        if (draft.diet) {
+          draft.diet.activeConstraints = [];
+        }
+        localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+      } catch (_) { }
+    }
+
+    saveDraft({ activeConstraints: [] });
     toast.info("Paciente desvinculado de esta sesión");
   };
 
@@ -682,34 +790,10 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }
   };
 
-  // Inicializar o cargar borrador o edición
-  // -- Persistence: Draft Load/Save --
   useEffect(() => {
     if (projectIdFromUrl) {
       fetchAvailableTags();
       return;
-    }
-
-    // If the user already decided about the draft in this session, skip the modal
-    const alreadyDecided = sessionStorage.getItem("nutri_diet_draft_decided");
-    if (!alreadyDecided) {
-      const storedDraft = localStorage.getItem("nutri_active_draft");
-      if (storedDraft) {
-        try {
-          const draft = JSON.parse(storedDraft);
-          // If there's a named diet draft, ask the user what to do
-          if (draft.diet && draft.diet.name) {
-            setDraftMeta({
-              label: `Dieta: ${draft.diet.name}`,
-              date: draft.diet.updatedAt,
-            });
-            setShowDraftModal(true);
-            return; // Wait for user decision
-          }
-        } catch (e) {
-          console.error("Error loading diet draft", e);
-        }
-      }
     }
 
     const storedPatient = localStorage.getItem("nutri_patient");
@@ -728,33 +812,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
     fetchAvailableTags();
   }, []);
-
-  // Auto-save to draft
-  useEffect(() => {
-    const storedDraft = localStorage.getItem("nutri_active_draft");
-    let draft = storedDraft ? JSON.parse(storedDraft) : {};
-
-    draft.diet = {
-      name: dietName,
-      tags: dietTags,
-      activeConstraints,
-      manualAdditions,
-      customGroups,
-      customConstraints,
-      foodStatus,
-      updatedAt: new Date().toISOString(),
-    };
-
-    localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
-  }, [
-    dietName,
-    dietTags,
-    activeConstraints,
-    manualAdditions,
-    customGroups,
-    customConstraints,
-    foodStatus,
-  ]);
 
   // Original load logic wrapper
   useEffect(() => {
@@ -823,7 +880,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       return;
     }
 
-    const savedDraft = localStorage.getItem(getUserDraftKey());
+    const savedDraft = sessionStorage.getItem(getUserDraftKey());
     if (savedDraft) {
       try {
         const draft = JSON.parse(savedDraft);
@@ -1014,7 +1071,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         favoritesEnabled,
         timestamp: Date.now(),
       };
-      localStorage.setItem(currentDraftKey, JSON.stringify(draft));
+      sessionStorage.setItem(currentDraftKey, JSON.stringify(draft));
     } catch (e) {
       console.error("Error saving draft", e);
     }
@@ -1137,8 +1194,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       return;
     }
 
-    saveAsDraft();
-
     try {
       const savedCreation = await saveCreation(buildDietCreationPayload());
 
@@ -1174,7 +1229,51 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }
   };
 
-  const handleExportPdf = async () => {
+  const handleSaveWithDescription = async () => {
+    try {
+      const savedCreation = await saveCreation(
+        buildDietCreationPayload(creationDescription),
+      );
+
+      if (currentProjectId) {
+        await updateProject(currentProjectId, {
+          activeDietCreationId: savedCreation.id,
+          patientId: selectedPatient?.id,
+          metadata: {
+            sourceModule: "diet",
+            lastDietName: dietName,
+          },
+        });
+      }
+
+      toast.success(
+        `Dieta "${dietName}" guardada correctamente en Mis Creaciones.`,
+        {
+          description:
+            "Las restricciones seleccionadas generarán contenido educativo automáticamente.",
+          action: {
+            label: "Ir a Creaciones",
+            onClick: () => router.push("/dashboard/creaciones"),
+          },
+          duration: 5000,
+        },
+      );
+      fetchAvailableTags();
+      setIsSaveCreationModalOpen(false);
+      setCreationDescription("");
+    } catch (error: any) {
+      console.error("Error saving creation:", error);
+      toast.error(
+        error.message || "No se pudo guardar la creación en la base de datos.",
+      );
+    }
+  };
+
+  const hasIngredientInteraction =
+    manualAdditions.length > 0 ||
+    Object.values(foodStatus).some((status) => status !== "base");
+
+  const performExportPdf = async () => {
     if (!includedFoods.length) {
       toast.error("No hay alimentos en la dieta para exportar.");
       return;
@@ -1213,7 +1312,26 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }
   };
 
+  const handleExportPdf = async () => {
+    if (!dietName.trim()) {
+      toast.error("Asigna un nombre a la dieta antes de exportar.");
+      return;
+    }
+    if (!includedFoods.length) {
+      toast.error("No hay alimentos en la dieta para exportar.");
+      return;
+    }
+    if (!hasIngredientInteraction) {
+      setIsExportConfirmOpen(true);
+      return;
+    }
+    await performExportPdf();
+  };
+
   const handleVerifyRestrictions = async () => {
+    toast.info("La validación de restricciones estará disponible próximamente.");
+    return;
+
     if (activeConstraints.length === 0) {
       toast.error("Primero agrega al menos una restricción.");
       return;
@@ -1284,13 +1402,15 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }
   };
 
-  const handleContinue = async () => {
+  const draftFoodsPendingCompletion = includedFoods.filter(
+    (food) => !!food.isDraft,
+  );
+
+  const continueToRecipes = async () => {
     if (!dietName.trim()) {
       toast.error("Por favor, asigna un nombre a la dieta antes de continuar.");
       return;
     }
-    // Guardar estado actual antes de continuar
-    saveAsDraft();
     // Mark cart session as decided so the draft modal doesn't appear when arriving via flow
     // Save includedFoods into the shared draft so Carrito can read it directly
     const storedDraft = localStorage.getItem("nutri_active_draft");
@@ -1325,6 +1445,20 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         error?.message || "No se pudo preparar el proyecto para continuar.",
       );
     }
+  };
+
+  const handleContinue = async () => {
+    if (!dietName.trim()) {
+      toast.error("Por favor, asigna un nombre a la dieta antes de continuar.");
+      return;
+    }
+
+    if (draftFoodsPendingCompletion.length > 0) {
+      setIsContinueDraftWarningOpen(true);
+      return;
+    }
+
+    await continueToRecipes();
   };
 
   const confirmDeleteGroup = () => {
@@ -1383,8 +1517,18 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         );
         if (res.ok) {
           const data = await res.json();
+          const normalizedTargetGroup = normalizeGroupName(
+            activeGroupForAddition || "Varios",
+          );
+          const filteredByGroup = data.filter((ing: any) => {
+            const ingredientGroup = normalizeGroupName(
+              ing.category?.name || "Varios",
+            );
+            return ingredientGroup === normalizedTargetGroup;
+          });
+
           setSearchResultFoods(
-            data.map((ing: any) => ({
+            filteredByGroup.map((ing: any) => ({
               id: ing.id,
               producto: ing.name,
               grupo: ing.category?.name || "Varios",
@@ -1395,6 +1539,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               carbohidratos: ing.carbs || 0,
               lipidos: ing.lipids || 0,
               tags: ing.tags?.map((t: any) => t.name) || [],
+              isDraft: !!ing.isDraft,
             })),
           );
         }
@@ -1407,7 +1552,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
     const timeoutId = setTimeout(fetchFoods, 300);
     return () => clearTimeout(timeoutId);
-  }, [isAddFoodModalOpen, foodSearchQuery]);
+  }, [isAddFoodModalOpen, foodSearchQuery, activeGroupForAddition]);
 
   useEffect(() => {
     if (smartAddTab !== "search" || !smartSearchQuery.trim()) {
@@ -1474,25 +1619,69 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     toast.info("Datos impresos en consola.");
   };
 
-  const resetDiet = () => {
+  const createBaseFoodStatus = () => {
+    const nextStatus: Record<string, "base"> = {};
+    initialFoods.forEach((food) => {
+      nextStatus[food.producto] = "base";
+    });
+    return nextStatus;
+  };
+
+  const clearDietDraftStorage = () => {
+    sessionStorage.removeItem(getUserDraftKey());
+    localStorage.removeItem("nutri_patient");
+
+    const storedDraft = localStorage.getItem("nutri_active_draft");
+    if (storedDraft) {
+      try {
+        const draft = JSON.parse(storedDraft);
+        delete draft.diet;
+        delete draft.patientMeta;
+
+        if (Object.keys(draft).length === 0) {
+          localStorage.removeItem("nutri_active_draft");
+        } else {
+          localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+        }
+      } catch (_) {
+        localStorage.removeItem("nutri_active_draft");
+      }
+    }
+
+    sessionStorage.removeItem("nutri_diet_draft_decided");
+    sessionStorage.removeItem("nutri_cart_draft_decided");
+  };
+
+  const resetDietState = () => {
     setDietName("");
     setDietTags([]);
     setActiveConstraints([]);
+    setFoodStatus(createBaseFoodStatus() as any);
     setManualAdditions([]);
     setCustomGroups([]);
     setCustomConstraints([]);
-    localStorage.removeItem(getUserDraftKey());
-    const st: Record<string, "base"> = {};
-    initialFoods.forEach((f) => {
-      st[f.producto] = "base";
-    });
-    setFoodStatus(st as any);
-    toast.success("Dieta reiniciada.");
+    setSelectedPatient(null);
+    setVerificationResult(null);
+    setIsVerificationModalOpen(false);
+    setIsImportPatientModalOpen(false);
+    setIsImportCreationModalOpen(false);
+    setShowInfoModal(false);
+    setShowSupplementsDrawer(false);
+    setFoodSearchQuery("");
+    setSearchResultFoods([]);
+    setSmartSearchQuery("");
+    setSmartSearchResults([]);
+    setSelectedFoods(new Set());
+    setPatientSearchQuery("");
+    setDietSearchQuery("");
+    setIsResetConfirmOpen(false);
+    setIsExportConfirmOpen(false);
   };
 
-  const saveAsDraft = () => {
-    saveDraft();
-    toast.success("Borrador guardado.");
+  const resetDiet = () => {
+    clearDietDraftStorage();
+    resetDietState();
+    toast.success("Dieta reiniciada.");
   };
 
   const handlePatientLoad = () => {
@@ -1525,6 +1714,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const openAddModal = (groupName: string) => {
     setActiveGroupForAddition(groupName);
     setFoodSearchQuery("");
+    setSearchResultFoods([]);
     setIsAddFoodModalOpen(true);
   };
 
@@ -1564,6 +1754,82 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     setIsAddFoodModalOpen(false);
   };
 
+  const openDraftFoodEditor = (food: MarketPrice) => {
+    setDraftFoodToEdit(food);
+    setDraftFoodValues({
+      amount: 100,
+      unit: food.unidad || "g",
+      calories: Number(food.calorias || 0),
+      proteins: Number(food.proteinas || 0),
+      carbs: Number(food.carbohidratos || 0),
+      lipids: Number(food.lipidos || 0),
+      azucares: Number(food.azucares || 0),
+      fibra: Number(food.fibra || 0),
+      sodio: Number(food.sodio || 0),
+    });
+    setIsDraftFoodEditorOpen(true);
+  };
+
+  const handleSaveDraftFood = async () => {
+    if (!draftFoodToEdit?.id) return;
+
+    const token = Cookies.get("auth_token");
+    if (!token) {
+      toast.error("No se encontró una sesión activa.");
+      return;
+    }
+
+    setIsSavingDraftFood(true);
+    try {
+      const response = await fetchApi(`/foods/${draftFoodToEdit.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amount: Number(draftFoodValues.amount || 0),
+          unit: draftFoodValues.unit || "g",
+          calories: Number(draftFoodValues.calories || 0),
+          proteins: Number(draftFoodValues.proteins || 0),
+          carbs: Number(draftFoodValues.carbs || 0),
+          lipids: Number(draftFoodValues.lipids || 0),
+          sugars: Number(draftFoodValues.azucares || 0),
+          fiber: Number(draftFoodValues.fibra || 0),
+          sodium: Number(draftFoodValues.sodio || 0),
+          isDraft: false,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo actualizar el alimento.");
+      }
+
+      const updatedIngredient = await response.json();
+      const updatedFood = mapIngredientToMarketPrice(
+        updatedIngredient,
+        draftFoodToEdit.grupo,
+      );
+
+      setManualAdditions((prev) =>
+        prev.map((food) =>
+          food.id === draftFoodToEdit.id ? { ...food, ...updatedFood } : food,
+        ),
+      );
+      setIsDraftFoodEditorOpen(false);
+      setDraftFoodToEdit(null);
+      toast.success("Alimento completado correctamente.");
+    } catch (error: any) {
+      console.error("Error updating draft ingredient", error);
+      toast.error(
+        error?.message ||
+          "No se pudo guardar la información nutricional del alimento.",
+      );
+    } finally {
+      setIsSavingDraftFood(false);
+    }
+  };
+
   const handleCreateGroup = () => {
     const name = newGroupNameInput.trim();
     if (!name) return toast.error("Nombre vacío.");
@@ -1572,15 +1838,193 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     setCustomGroups((prev) => [...prev, name]);
     setNewGroupNameInput("");
     setIsAddGroupModalOpen(false);
-    setActiveGroupForAddition(name);
-    setIsAddFoodModalOpen(true);
     toast.success(`Grupo "${name}" creado.`);
+  };
+
+  const showPreferenceChangeToasts = (
+    title: string,
+    items: string[],
+    variant: "success" | "info" = "info",
+  ) => {
+    if (items.length === 0) return;
+
+    const chunks: string[][] = [];
+    for (let index = 0; index < items.length; index += 5) {
+      chunks.push(items.slice(index, index + 5));
+    }
+
+    chunks.forEach((chunk, chunkIndex) => {
+      const toastTitle =
+        chunks.length > 1 ? `${title} (${chunkIndex + 1}/${chunks.length})` : title;
+
+      toast[variant](toastTitle, {
+        description: chunk.join(", "),
+        duration: 5000,
+      });
+    });
   };
 
   const applyNutritionistPreferences = async () => {
     setIsApplyingPreferences(true);
     const token = Cookies.get("auth_token");
     try {
+      const normalizeName = (value: string) => value.toLowerCase().trim();
+      const response = await fetchApi(`/foods?limit=1000`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        toast.error("Error al cargar preferencias.");
+        return;
+      }
+
+      const allFoods = await response.json();
+      const favorites = allFoods.filter(
+        (food: any) => food.preferences?.[0]?.isFavorite,
+      );
+      const notRecommended = allFoods
+        .filter((food: any) => food.preferences?.[0]?.isNotRecommended)
+        .map((food: any) => food.name);
+
+      const currentFoodStatus: Record<
+        string,
+        "base" | "favorite" | "removed" | "added"
+      > = { ...foodStatus };
+      const nextFoodStatus: Record<
+        string,
+        "base" | "favorite" | "removed" | "added"
+      > = { ...foodStatus };
+      const nextManualAdditions = [...manualAdditions];
+
+      const initialByName = new Map(
+        initialFoods.map((food) => [normalizeName(food.producto), food]),
+      );
+      const manualByName = new Map(
+        manualAdditions.map((food) => [normalizeName(food.producto), food]),
+      );
+      const existingNames = new Set([
+        ...initialFoods.map((food) => normalizeName(food.producto)),
+        ...manualAdditions.map((food) => normalizeName(food.producto)),
+      ]);
+      const notRecommendedSet = new Set(
+        notRecommended.map((name: string) => normalizeName(name)),
+      );
+
+      const removedFoods: string[] = [];
+      const addedFoods: string[] = [];
+      const favoritedFoods: string[] = [];
+
+      notRecommended.forEach((name: string) => {
+        const normalizedName = normalizeName(name);
+        const baseMatch = initialByName.get(normalizedName);
+        const manualMatch = manualByName.get(normalizedName);
+        const targetName = baseMatch?.producto || manualMatch?.producto;
+
+        if (!targetName) return;
+
+        if (nextFoodStatus[targetName] !== "removed") {
+          nextFoodStatus[targetName] = "removed";
+          removedFoods.push(targetName);
+        }
+      });
+
+      favorites.forEach((favorite: any) => {
+        const normalizedName = normalizeName(favorite.name);
+
+        if (notRecommendedSet.has(normalizedName)) {
+          return;
+        }
+
+        const baseMatch = initialByName.get(normalizedName);
+        const manualMatch = manualByName.get(normalizedName);
+
+        if (baseMatch) {
+          if (currentFoodStatus[baseMatch.producto] !== "favorite") {
+            favoritedFoods.push(baseMatch.producto);
+          }
+          nextFoodStatus[baseMatch.producto] = "favorite";
+          return;
+        }
+
+        if (manualMatch) {
+          if (currentFoodStatus[manualMatch.producto] !== "favorite") {
+            favoritedFoods.push(manualMatch.producto);
+          }
+          nextFoodStatus[manualMatch.producto] = "favorite";
+          return;
+        }
+
+        if (existingNames.has(normalizedName)) {
+          return;
+        }
+
+        const newFavorite = {
+          id: favorite.id,
+          producto: favorite.name,
+          grupo: favorite.category?.name || "Varios",
+          calorias: favorite.calories || 0,
+          proteinas: favorite.proteins || 0,
+          carbohidratos: favorite.carbs || 0,
+          lipidos: favorite.lipids || 0,
+          unidad: favorite.unit || "g",
+          precioPromedio: favorite.price || 0,
+          tags: favorite.tags?.map((tag: any) => tag.name) || [],
+        };
+
+        nextManualAdditions.push(newFavorite);
+        existingNames.add(normalizedName);
+        nextFoodStatus[newFavorite.producto] = "favorite";
+        addedFoods.push(newFavorite.producto);
+      });
+
+      setFoodStatus(nextFoodStatus);
+      setManualAdditions(nextManualAdditions);
+      saveDraft({
+        foodStatus: nextFoodStatus,
+        manualAdditions: nextManualAdditions,
+      });
+
+      const uniqueAddedFoods = Array.from(new Set(addedFoods));
+      const uniqueRemovedFoods = Array.from(new Set(removedFoods));
+      const uniqueFavoritedFoods = Array.from(
+        new Set(
+          favoritedFoods.filter(
+            (foodName) => !uniqueAddedFoods.includes(foodName),
+          ),
+        ),
+      );
+
+      if (
+        uniqueAddedFoods.length === 0 &&
+        uniqueRemovedFoods.length === 0 &&
+        uniqueFavoritedFoods.length === 0
+      ) {
+        toast.success("Preferencias aplicadas", {
+          description: "No hubo cambios visibles en los ingredientes actuales.",
+        });
+      } else {
+        toast.success("Preferencias aplicadas ✨", {
+          description: `Agregados: ${uniqueAddedFoods.length} · Favoritos: ${uniqueFavoritedFoods.length} · Eliminados: ${uniqueRemovedFoods.length}`,
+        });
+        showPreferenceChangeToasts(
+          "Ingredientes agregados",
+          uniqueAddedFoods,
+          "success",
+        );
+        showPreferenceChangeToasts(
+          "Ingredientes marcados como favoritos",
+          uniqueFavoritedFoods,
+          "success",
+        );
+        showPreferenceChangeToasts(
+          "Ingredientes eliminados",
+          uniqueRemovedFoods,
+          "info",
+        );
+      }
+
+      return;
+
       // Agregamos limit=1000 para asegurar que traemos todos los alimentos configurados por el nutri
       const res = await fetchApi(`/foods?limit=1000`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -1601,6 +2045,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           noRecomendadosCount: notRec.length,
           nombresNoRecomendados: notRec,
         });
+
+        const removedFoods: string[] = [];
+        let addedFoods: string[] = [];
 
         setFoodStatus((prev) => {
           const next: Record<
@@ -1623,11 +2070,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 `DEBUG - Quitando de dieta base: ${baseMatch.producto} (coincide con no recomendado: ${name})`,
               );
               next[baseMatch.producto] = "removed";
+              removedFoods.push(baseMatch.producto);
             } else if (manualMatch) {
               console.log(
                 `DEBUG - Quitando de adiciones manuales: ${manualMatch.producto} (coincide con no recomendado: ${name})`,
               );
               next[manualMatch.producto] = "removed";
+              removedFoods.push(manualMatch.producto);
             } else {
               console.log(
                 `DEBUG - No recomendado "${name}" no se encontró en la dieta actual (ni base ni manual).`,
@@ -1687,6 +2136,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               tags: f.tags?.map((t: any) => t.name) || [],
             }));
 
+          addedFoods = newFavs.map((f: any) => f.producto);
+
           // Mark newly-added favorites as "favorite" in foodStatus
           if (newFavs.length > 0) {
             setFoodStatus((prev) => {
@@ -1698,7 +2149,27 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
           return [...prev, ...newFavs];
         });
-        toast.success("Preferencias aplicadas ✨");
+        const uniqueRemovedFoods = Array.from(new Set(removedFoods));
+
+        if (addedFoods.length === 0 && uniqueRemovedFoods.length === 0) {
+          toast.success("Preferencias aplicadas", {
+            description: "No hubo cambios visibles en los ingredientes actuales.",
+          });
+        } else {
+          toast.success("Preferencias aplicadas ✨", {
+            description: `Agregados: ${addedFoods.length} · Eliminados: ${uniqueRemovedFoods.length}`,
+          });
+          showPreferenceChangeToasts(
+            "Ingredientes agregados",
+            addedFoods,
+            "success",
+          );
+          showPreferenceChangeToasts(
+            "Ingredientes eliminados",
+            uniqueRemovedFoods,
+            "info",
+          );
+        }
       }
     } catch (e) {
       toast.error("Error al cargar preferencias.");
@@ -1720,6 +2191,16 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         setSmartFavorites(
           allFoods.filter((f: any) => f.preferences?.[0]?.isFavorite),
         );
+      }
+
+      const myProductsRes = await fetchApi(`/foods?tab=mine&limit=1000`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (myProductsRes.ok) {
+        const myProducts = await myProductsRes.json();
+        setSmartMyProducts(myProducts);
+      } else {
+        setSmartMyProducts([]);
       }
 
       // Fetch Groups
@@ -1841,7 +2322,20 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       return [...prev, ...actuallyNew];
     });
 
-    toast.success(`${foodsToAdd.length} alimentos añadidos a la dieta 🚀`);
+    const groupedSummary = Array.from(
+      new Set(
+        foodsToAdd
+          .map((food) => food.grupo || "Varios")
+          .filter(Boolean),
+      ),
+    );
+
+    toast.success(`${foodsToAdd.length} alimentos añadidos a la dieta`, {
+      description:
+        groupedSummary.length > 0
+          ? `Se ubicaron automáticamente en: ${groupedSummary.join(", ")}.`
+          : "Se ubicaron automáticamente en sus secciones.",
+    });
     setIsSmartModalOpen(false);
     setSelectedFoods(new Set());
   };
@@ -1875,18 +2369,12 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         isSeparator: true,
       },
       {
-        id: "save-draft",
-        icon: Save,
-        label: "Guardar Borrador",
-        variant: "slate",
-        onClick: saveAsDraft,
-      },
-      {
         id: "verify-foods",
         icon: AlertCircle,
-        label: isVerifyingRestrictions ? "Verificando..." : "Validar Restricciones",
+        label: "Validar Restricciones (Próximamente)",
         variant: "slate",
         onClick: handleVerifyRestrictions,
+        disabled: true,
       },
       {
         id: "export-json",
@@ -1908,11 +2396,10 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         icon: RotateCcw,
         label: "Reiniciar Todo",
         variant: "rose",
-        onClick: resetDiet,
+        onClick: () => setIsResetConfirmOpen(true),
       },
     ],
     [
-      saveAsDraft,
       printJson,
       resetDiet,
       selectedPatient,
@@ -1922,58 +2409,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       handleVerifyRestrictions,
     ],
   );
-
-  const handleKeepDraft = () => {
-    sessionStorage.setItem("nutri_diet_draft_decided", "keep");
-    // Load the draft data
-    const storedDraft = localStorage.getItem("nutri_active_draft");
-    if (storedDraft) {
-      try {
-        const draft = JSON.parse(storedDraft);
-        if (draft.diet) {
-          setDietName(draft.diet.name || "");
-          setDietTags(draft.diet.tags || []);
-          setActiveConstraints(draft.diet.activeConstraints || []);
-          setManualAdditions(draft.diet.manualAdditions || []);
-          setCustomGroups(draft.diet.customGroups || []);
-          setCustomConstraints(draft.diet.customConstraints || []);
-          if (draft.diet.foodStatus)
-            setFoodStatus((prev) => ({ ...prev, ...draft.diet.foodStatus }));
-        }
-      } catch (e) {
-        console.error("Error restoring draft", e);
-      }
-    }
-    const storedPatient = localStorage.getItem("nutri_patient");
-    if (storedPatient) {
-      try {
-        const parsedPatient = normalizePatient(JSON.parse(storedPatient));
-        void hydratePatient(parsedPatient).then((hydratedPatient) => {
-          if (!hydratedPatient) return;
-          setSelectedPatient(hydratedPatient);
-          localStorage.setItem("nutri_patient", JSON.stringify(hydratedPatient));
-        });
-      } catch (_) { }
-    }
-    setShowDraftModal(false);
-    fetchAvailableTags();
-  };
-
-  const handleDiscardDraft = () => {
-    sessionStorage.setItem("nutri_diet_draft_decided", "discard");
-    // Clear only diet data from draft, keep patient/other
-    const storedDraft = localStorage.getItem("nutri_active_draft");
-    if (storedDraft) {
-      try {
-        const draft = JSON.parse(storedDraft);
-        delete draft.diet;
-        localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
-      } catch (_) { }
-    }
-    localStorage.removeItem(getUserDraftKey());
-    setShowDraftModal(false);
-    fetchAvailableTags();
-  };
 
   const filteredPatients = useMemo(() => {
     const normalizedQuery = patientSearchQuery.trim().toLowerCase();
@@ -1994,17 +2429,60 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
   return (
     <>
-      <DraftRestoreModal
-        isOpen={showDraftModal}
-        moduleName="Dieta"
-        draftLabel={draftMeta.label}
-        draftDate={draftMeta.date}
-        onKeep={handleKeepDraft}
-        onDiscard={handleDiscardDraft}
+      <ConfirmationModal
+        isOpen={isResetConfirmOpen}
+        onClose={() => setIsResetConfirmOpen(false)}
+        onConfirm={resetDiet}
+        title="¿Reiniciar dieta?"
+        description="Se borrará todo el avance local de este módulo y volverás a empezar desde cero."
+        confirmText="Sí, reiniciar"
+        variant="destructive"
+      />
+      <ConfirmationModal
+        isOpen={isExportConfirmOpen}
+        onClose={() => setIsExportConfirmOpen(false)}
+        onConfirm={() => {
+          setIsExportConfirmOpen(false);
+          void performExportPdf();
+        }}
+        title="¿Exportar PDF ahora?"
+        description="Todavía no hiciste cambios en ingredientes. Si fue un clic accidental, puedes volver atrás antes de generar el PDF."
+        confirmText="Sí, exportar"
+      />
+      <ConfirmationModal
+        isOpen={isContinueDraftWarningOpen}
+        onClose={() => setIsContinueDraftWarningOpen(false)}
+        onConfirm={() => {
+          setIsContinueDraftWarningOpen(false);
+          void continueToRecipes();
+        }}
+        title="Hay alimentos con informaciÃ³n pendiente"
+        description={`Todavía tienes ${draftFoodsPendingCompletion.length} alimento${draftFoodsPendingCompletion.length === 1 ? "" : "s"} creado${draftFoodsPendingCompletion.length === 1 ? "" : "s"} como borrador, sin sus características nutricionales completas. Si continúas ahora, los cálculos de la siguiente etapa pueden quedar imprecisos.`}
+        confirmText="Continuar igual"
       />
       <ModuleLayout
         title="Diseñador de Dieta General"
-        description="Define la estructura base y restricciones para tu paciente."
+        description={
+          <div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 px-5 py-4 shadow-sm">
+            <p className="text-sm font-semibold text-slate-700">
+              Aquí defines, de forma simple y general, los alimentos que consumirá tu paciente.
+            </p>
+            <div className="mt-3 grid gap-2 text-sm text-slate-600">
+              <div className="flex items-start gap-2">
+                <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
+                <span>Tu objetivo es elegir los alimentos que consumirá tu paciente.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
+                <span>Hazlo de manera muy general, sin especificar aún cantidades exactas ni detalles finos.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
+                <span>Piensa primero en los alimentos que realmente consumirá en su día a día.</span>
+              </div>
+            </div>
+          </div>
+        }
         step={{
           number: 1,
           label: "Estrategia & Base",
@@ -2026,7 +2504,16 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             </Button>
 
             <div className="flex gap-3">
-              <Button className="h-12 px-8 bg-slate-900" onClick={handleSave}>
+              <Button
+                className="h-12 px-8 bg-slate-900"
+                onClick={() => {
+                  if (!dietName.trim()) {
+                    toast.error("Por favor, asigna un nombre a la dieta.");
+                    return;
+                  }
+                  setIsSaveCreationModalOpen(true);
+                }}
+              >
                 Guardar Creación
               </Button>
               <Button
@@ -2118,8 +2605,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               <TagInput
                 value={activeConstraints}
                 onChange={(newTags) => {
-                  setActiveConstraints(newTags);
-                  saveDraft({ activeConstraints: newTags });
+                  const normalizedTags = normalizeConstraintList(newTags);
+                  setActiveConstraints(normalizedTags);
+                  saveDraft({ activeConstraints: normalizedTags });
                 }}
                 fetchSuggestionsUrl={`${resolveApiUrl()}/tags`}
                 placeholder="Buscar o añadir restricción..."
@@ -2128,20 +2616,18 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               />
 
               <div className="flex flex-wrap gap-2">
-                {DEFAULT_CONSTRAINTS.map((constraint) => (
+                {DEFAULT_CONSTRAINTS.filter(
+                  (constraint) =>
+                    !selectedDefaultConstraintIds.has(constraint.id),
+                ).map((constraint) => (
                   <button
                     key={constraint.id}
                     onClick={() => toggleConstraint(constraint.id)}
                     className={cn(
                       "px-4 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer flex items-center gap-2",
-                      activeConstraints.includes(constraint.id)
-                        ? "bg-rose-50 border-rose-500 text-rose-700 shadow-sm"
-                        : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 shadow-sm",
+                      "bg-white border-slate-200 text-slate-500 hover:border-slate-300 shadow-sm",
                     )}
                   >
-                    {activeConstraints.includes(constraint.id) && (
-                      <CheckCircle2 className="h-3 w-3" />
-                    )}
                     {constraint.label}
                   </button>
                 ))}
@@ -2212,9 +2698,16 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         🍽️
                       </div>
                       <div>
-                        <p className="font-bold text-slate-900 text-sm">
-                          {food.producto}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-slate-900 text-sm">
+                            {food.producto}
+                          </p>
+                          {food.isDraft && (
+                            <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200">
+                              Borrador
+                            </span>
+                          )}
+                        </div>
                         <div className="flex gap-2 text-xs text-slate-500 font-medium items-center flex-wrap">
                           <span className="text-orange-600 font-bold">
                             {food.calorias || 0} kcal
@@ -2255,29 +2748,19 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                               </span>
                             </>
                           )}
-                          <button
-                            onClick={() => toggleFavorite(food)}
-                            className={cn(
-                              "flex items-center gap-1 transition-colors cursor-pointer",
-                              foodStatus[food.producto] === "favorite"
-                                ? "text-amber-500"
-                                : "text-slate-300 hover:text-amber-300",
-                            )}
-                          >
-                            <Star
-                              className={cn(
-                                "h-3 w-3",
-                                foodStatus[food.producto] === "favorite" &&
-                                "fill-current",
-                              )}
-                            />
-                            {foodStatus[food.producto] === "favorite" &&
-                              "Favorito"}
-                          </button>
                         </div>
                       </div>
                     </div>
                     <div className="flex gap-2">
+                      {food.isDraft && (
+                        <button
+                          onClick={() => openDraftFoodEditor(food)}
+                          className="p-2 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl cursor-pointer transition-colors"
+                          title="Completar información nutricional"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           setSelectedFoodForInfo(food);
@@ -2393,29 +2876,83 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 <Button
                   variant="outline"
                   className="text-emerald-600"
-                  onClick={() => {
-                    const newItem: MarketPrice = {
-                      id: `manual-${Date.now()}`,
-                      producto: foodSearchQuery,
-                      grupo: activeGroupForAddition || "Varios",
-                      unidad: "unidad",
-                      precioPromedio: 0,
-                      calorias: 0,
-                      proteinas: 0,
-                      carbohidratos: 0,
-                      lipidos: 0,
-                      tags: [],
-                    };
-                    setManualAdditions((prev) => [...prev, newItem]);
-                    setFoodStatus((prev) => ({
-                      ...prev,
-                      [foodSearchQuery]: "added" as const,
-                    }));
-                    toast.success(`"${foodSearchQuery}" creado.`);
-                    setIsAddFoodModalOpen(false);
+                  disabled={isCreatingManualFood}
+                  onClick={async () => {
+                    const token = Cookies.get("auth_token");
+                    if (!token) {
+                      toast.error("No se encontró una sesión activa.");
+                      return;
+                    }
+
+                    setIsCreatingManualFood(true);
+                    try {
+                      const response = await fetchApi("/foods", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                          name: foodSearchQuery.trim(),
+                          brand: "Sin marca",
+                          category: activeGroupForAddition || "Varios",
+                          price: 0,
+                          unit: "g",
+                          amount: 100,
+                          calories: 0,
+                          proteins: 0,
+                          carbs: 0,
+                          lipids: 0,
+                          sugars: 0,
+                          fiber: 0,
+                          sodium: 0,
+                          tags: [],
+                          isPublic: false,
+                          isDraft: true,
+                        }),
+                      });
+
+                      if (!response.ok) {
+                        const errorData = await response
+                          .json()
+                          .catch(() => ({}));
+                        throw new Error(
+                          errorData.message ||
+                            "No se pudo crear el alimento borrador.",
+                        );
+                      }
+
+                      const createdIngredient = await response.json();
+                      const newItem = mapIngredientToMarketPrice(
+                        createdIngredient,
+                        activeGroupForAddition || "Varios",
+                      );
+
+                      setManualAdditions((prev) => [...prev, newItem]);
+                      setFoodStatus((prev) => ({
+                        ...prev,
+                        [newItem.producto]: "added" as const,
+                      }));
+                      toast.success(
+                        `"${newItem.producto}" creado como borrador.`,
+                      );
+                      setIsAddFoodModalOpen(false);
+                      setFoodSearchQuery("");
+                      setSearchResultFoods([]);
+                    } catch (error: any) {
+                      console.error("Error creating draft ingredient", error);
+                      toast.error(
+                        error?.message ||
+                          "No se pudo crear el alimento manual.",
+                      );
+                    } finally {
+                      setIsCreatingManualFood(false);
+                    }
                   }}
                 >
-                  Crear "{foodSearchQuery}" manualmente
+                  {isCreatingManualFood
+                    ? "Creando borrador..."
+                    : `Crear "${foodSearchQuery}" como borrador`}
                 </Button>
               </div>
             ) : (
@@ -3305,6 +3842,181 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           </div>
         </div>
       </Modal>
+      <Modal
+        isOpen={isDraftFoodEditorOpen}
+        onClose={() => setIsDraftFoodEditorOpen(false)}
+        title={`Completar "${draftFoodToEdit?.producto || "alimento"}"`}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500">
+            Completa la información nutricional base para que los cálculos de las siguientes etapas sean correctos.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+                Cantidad base
+              </label>
+              <Input
+                type="number"
+                value={draftFoodValues.amount}
+                onChange={(e) =>
+                  setDraftFoodValues((prev) => ({
+                    ...prev,
+                    amount: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+                Unidad
+              </label>
+              <Input
+                value={draftFoodValues.unit}
+                onChange={(e) =>
+                  setDraftFoodValues((prev) => ({
+                    ...prev,
+                    unit: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+                Calorías
+              </label>
+              <Input
+                type="number"
+                value={draftFoodValues.calories}
+                onChange={(e) =>
+                  setDraftFoodValues((prev) => ({
+                    ...prev,
+                    calories: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+                Proteínas
+              </label>
+              <Input
+                type="number"
+                value={draftFoodValues.proteins}
+                onChange={(e) =>
+                  setDraftFoodValues((prev) => ({
+                    ...prev,
+                    proteins: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+                Carbohidratos
+              </label>
+              <Input
+                type="number"
+                value={draftFoodValues.carbs}
+                onChange={(e) =>
+                  setDraftFoodValues((prev) => ({
+                    ...prev,
+                    carbs: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+                Lípidos
+              </label>
+              <Input
+                type="number"
+                value={draftFoodValues.lipids}
+                onChange={(e) =>
+                  setDraftFoodValues((prev) => ({
+                    ...prev,
+                    lipids: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+                Azúcares
+              </label>
+              <Input
+                type="number"
+                value={draftFoodValues.azucares}
+                onChange={(e) =>
+                  setDraftFoodValues((prev) => ({
+                    ...prev,
+                    azucares: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+                Fibra
+              </label>
+              <Input
+                type="number"
+                value={draftFoodValues.fibra}
+                onChange={(e) =>
+                  setDraftFoodValues((prev) => ({
+                    ...prev,
+                    fibra: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+            <div className="col-span-2 space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+                Sodio
+              </label>
+              <Input
+                type="number"
+                value={draftFoodValues.sodio}
+                onChange={(e) =>
+                  setDraftFoodValues((prev) => ({
+                    ...prev,
+                    sodio: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              className="border-slate-200"
+              onClick={() => setIsDraftFoodEditorOpen(false)}
+              disabled={isSavingDraftFood}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={handleSaveDraftFood}
+              disabled={isSavingDraftFood}
+            >
+              {isSavingDraftFood ? "Guardando..." : "Guardar información"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      <SaveCreationModal
+        isOpen={isSaveCreationModalOpen}
+        onClose={() => setIsSaveCreationModalOpen(false)}
+        onConfirm={handleSaveWithDescription}
+        description={creationDescription}
+        onDescriptionChange={setCreationDescription}
+        title="Guardar dieta"
+        subtitle="Añade una breve descripción para reconocer esta dieta dentro de Mis creaciones."
+      />
     </ModuleLayout >
   </>
 );

@@ -3,8 +3,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateExamDto } from './dto/create-exam.dto';
-import { TagsService } from '../tags/tags.service';
-import { MetricsService } from '../metrics/metrics.service';
 
 import { CacheService } from '../../common/services/cache.service';
 
@@ -12,42 +10,10 @@ import { CacheService } from '../../common/services/cache.service';
 export class PatientsService {
     constructor(
         private prisma: PrismaService,
-        private tagsService: TagsService,
-        private metricsService: MetricsService,
         private cacheService: CacheService
     ) { }
 
-    private async processTags(tags: string[], nutritionistId: string) {
-        if (!tags || tags.length === 0) return;
-        for (const tag of tags) {
-            await this.tagsService.findOrCreate(tag, nutritionistId);
-        }
-    }
-
-    private async processMetrics(metrics: { key: string; label: string; unit: string }[], nutritionistId: string) {
-        if (!metrics || metrics.length === 0) return;
-        for (const metric of metrics) {
-            await this.metricsService.findOrCreate({
-                key: metric.key,
-                name: metric.label,
-                unit: metric.unit
-            }, nutritionistId);
-        }
-    }
-
     async create(nutritionistId: string, createPatientDto: CreatePatientDto) {
-        if (createPatientDto.dietRestrictions) {
-            await this.processTags(createPatientDto.dietRestrictions, nutritionistId);
-        }
-
-        if (createPatientDto.tags) {
-            await this.processTags(createPatientDto.tags, nutritionistId);
-        }
-
-        if (createPatientDto.customVariables) {
-            await this.processMetrics(createPatientDto.customVariables as any[], nutritionistId);
-        }
-
         const patient = await this.prisma.patient.create({
             data: {
                 ...createPatientDto,
@@ -172,18 +138,6 @@ export class PatientsService {
     async update(nutritionistId: string, id: string, updatePatientDto: UpdatePatientDto) {
         // Run check ownership first
         await this.findOne(nutritionistId, id);
-
-        if (updatePatientDto.dietRestrictions) {
-            await this.processTags(updatePatientDto.dietRestrictions, nutritionistId);
-        }
-
-        if (updatePatientDto.tags) {
-            await this.processTags(updatePatientDto.tags, nutritionistId);
-        }
-
-        if (updatePatientDto.customVariables) {
-            await this.processMetrics(updatePatientDto.customVariables as any[], nutritionistId);
-        }
 
         const patient = await this.prisma.patient.update({
             where: { id },

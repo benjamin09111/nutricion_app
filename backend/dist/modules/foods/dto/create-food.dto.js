@@ -28,6 +28,7 @@ class CreateFoodDto {
     tags;
     ingredients;
     isPublic;
+    isDraft;
 }
 exports.CreateFoodDto = CreateFoodDto;
 __decorate([
@@ -108,4 +109,9 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], CreateFoodDto.prototype, "isPublic", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateFoodDto.prototype, "isDraft", void 0);
 //# sourceMappingURL=create-food.dto.js.map
