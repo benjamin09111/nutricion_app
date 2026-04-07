@@ -5,7 +5,7 @@ export declare class FoodsController {
     private readonly foodsService;
     constructor(foodsService: FoodsService);
     create(createFoodDto: CreateFoodDto, req: any): Promise<any>;
-    findAll(req: any, search?: string, category?: string, tab?: string, page?: string, limit?: string): Promise<any>;
+    findAll(req: any, search?: string, category?: string, tag?: string, tab?: string, page?: string, limit?: string): Promise<any>;
     updatePreferences(id: string, req: any, data: {
         isFavorite?: boolean;
         isNotRecommended?: boolean;
@@ -13,7 +13,7 @@ export declare class FoodsController {
         tags?: string[];
     }): Promise<any>;
     getMarketPrices(limit?: string): Promise<import("./dto/market-price.dto").MarketPriceDto[]>;
-    findOne(id: string): Promise<any>;
-    update(id: string, updateFoodDto: UpdateFoodDto): Promise<any>;
-    remove(id: string): Promise<any>;
+    findOne(id: string, req: any): Promise<any>;
+    update(id: string, updateFoodDto: UpdateFoodDto, req: any): Promise<any>;
+    remove(id: string, req: any): Promise<any>;
 }

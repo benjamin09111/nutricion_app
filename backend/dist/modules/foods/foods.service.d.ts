@@ -7,6 +7,9 @@ export declare class FoodsService {
     private readonly prisma;
     private readonly cacheService;
     constructor(prisma: PrismaService, cacheService: CacheService);
+    private resolveNutritionist;
+    private findIngredientWithRelations;
+    private assertIngredientOwnership;
     private getOrCreateBrand;
     private getOrCreateCategory;
     private getOrCreateTags;
@@ -15,6 +18,7 @@ export declare class FoodsService {
         nutritionistAccountId?: string;
         search?: string;
         category?: string;
+        tag?: string;
         tab?: string;
         page?: number;
         limit?: number;
@@ -25,8 +29,8 @@ export declare class FoodsService {
         isHidden?: boolean;
         tags?: string[];
     }): Promise<any>;
-    findOne(id: string): Promise<any>;
-    update(id: string, updateFoodDto: UpdateFoodDto): Promise<any>;
-    remove(id: string): Promise<any>;
+    findOne(id: string, requesterAccountId: string): Promise<any>;
+    update(id: string, updateFoodDto: UpdateFoodDto, requesterAccountId: string): Promise<any>;
+    remove(id: string, requesterAccountId: string): Promise<any>;
     getMarketPrices(limit?: number): Promise<MarketPriceDto[]>;
 }

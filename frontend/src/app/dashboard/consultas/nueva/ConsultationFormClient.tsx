@@ -35,6 +35,7 @@ import { Metric } from "@/features/consultations";
 import { Patient } from "@/features/patients";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { fetchApi, getApiUrl } from "@/lib/api-base";
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -103,7 +104,6 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
         tags: [] as string[],
     });
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
     const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
 
     const getAuthHeaders = () => ({
@@ -147,7 +147,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const fetchPatients = async () => {
         setIsPatientsLoading(true);
         try {
-            const response = await fetch(`${apiUrl}/patients?limit=1000`, {
+            const response = await fetchApi(`/patients?limit=1000`, {
                 headers: getAuthHeaders(),
             });
             if (response.ok) {
@@ -164,7 +164,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const fetchPatientData = async (pId: string) => {
         setIsPatientDataLoading(true);
         try {
-            const response = await fetch(`${apiUrl}/patients/${pId}`, {
+            const response = await fetchApi(`/patients/${pId}`, {
                 headers: getAuthHeaders(),
             });
             if (response.ok) {
@@ -192,7 +192,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const fetchConsultation = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${apiUrl}/consultations/${id}`, {
+            const response = await fetchApi(`/consultations/${id}`, {
                 headers: getAuthHeaders(),
             });
             if (response.ok) {
@@ -238,7 +238,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
         try {
             // 1. Save Consultation
             const consultationMethod = id ? "PATCH" : "POST";
-            const consultationUrl = id ? `${apiUrl}/consultations/${id}` : `${apiUrl}/consultations`;
+            const consultationUrl = id ? `/consultations/${id}` : "/consultations";
             const consultationPayload = {
                 ...formData,
                 metrics: finalMetrics.map(m => ({
@@ -247,7 +247,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                 }))
             };
 
-            const cResponse = await fetch(consultationUrl, {
+            const cResponse = await fetchApi(consultationUrl, {
                 method: consultationMethod,
                 headers: getAuthHeaders(),
                 body: JSON.stringify(consultationPayload),
@@ -262,7 +262,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                 height: patientForm.height.trim() ? Number(patientForm.height) : null,
             };
 
-            const pResponse = await fetch(`${apiUrl}/patients/${formData.patientId}`, {
+            const pResponse = await fetchApi(`/patients/${formData.patientId}`, {
                 method: "PATCH",
                 headers: getAuthHeaders(),
                 body: JSON.stringify(patientPayload),
@@ -614,7 +614,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                 <TagInput
                                     value={patientForm.dietRestrictions}
                                     onChange={(tags) => setPatientForm({ ...patientForm, dietRestrictions: tags })}
-                                    fetchSuggestionsUrl={`${apiUrl}/tags`}
+                                    fetchSuggestionsUrl={`${getApiUrl()}/tags`}
                                     className="bg-slate-50 border-none rounded-2xl min-h-[56px] p-2"
                                     placeholder="Ej: Celiaquía, Diabetes..."
                                 />
@@ -632,7 +632,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                 <TagInput
                                     value={patientForm.tags}
                                     onChange={(tags) => setPatientForm({ ...patientForm, tags: tags })}
-                                    fetchSuggestionsUrl={`${apiUrl}/tags`}
+                                    fetchSuggestionsUrl={`${getApiUrl()}/tags`}
                                     className="bg-slate-50 border-none rounded-2xl min-h-[56px] p-2"
                                     placeholder="Ej: #Deportista, #Vegano..."
                                 />

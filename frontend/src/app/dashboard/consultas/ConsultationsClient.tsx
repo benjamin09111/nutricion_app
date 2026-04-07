@@ -31,6 +31,7 @@ import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import Cookies from "js-cookie";
 import { Pagination } from "@/components/ui/Pagination";
+import { fetchApi } from "@/lib/api-base";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -60,8 +61,6 @@ export default function ConsultationsClient() {
   const isAnyModalOpen = !!selectedConsultation || isDeleteModalOpen;
   useScrollLock(isAnyModalOpen);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
   const getAuthHeaders = () => {
     const token =
       Cookies.get("auth_token") || localStorage.getItem("auth_token");
@@ -82,7 +81,7 @@ export default function ConsultationsClient() {
         ...(patientIdFromQuery && { patientId: patientIdFromQuery }),
       });
 
-      const response = await fetch(`${apiUrl}/consultations?${queryParams}`, {
+      const response = await fetchApi(`/consultations?${queryParams}`, {
         headers: getAuthHeaders(),
       });
 
@@ -118,8 +117,8 @@ export default function ConsultationsClient() {
     if (!consultationToDelete) return;
 
     try {
-      const response = await fetch(
-        `${apiUrl}/consultations/${consultationToDelete}`,
+      const response = await fetchApi(
+        `/consultations/${consultationToDelete}`,
         {
           method: "DELETE",
           headers: getAuthHeaders(),

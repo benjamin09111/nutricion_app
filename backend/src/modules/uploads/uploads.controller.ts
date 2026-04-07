@@ -28,9 +28,16 @@ export class UploadsController {
             },
         }),
     )
-    uploadFile(@UploadedFile() file: any) {
+    uploadFile(@UploadedFile() file: any, @Request() req: any) {
         console.log('[UploadsController] File received:', file?.filename || 'No file');
-        const baseUrl = process.env.API_URL || 'http://localhost:3001';
+        const forwardedProto = req.headers['x-forwarded-proto'];
+        const protocol = process.env.API_URL
+            ? null
+            : Array.isArray(forwardedProto)
+                ? forwardedProto[0]
+                : forwardedProto || req.protocol || 'http';
+        const host = req.get?.('host') || req.headers.host;
+        const baseUrl = process.env.API_URL || `${protocol}://${host}`;
         const url = `${baseUrl}/uploads/${file.filename}`;
         console.log('[UploadsController] Returning URL:', url);
         return {

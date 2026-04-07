@@ -18,6 +18,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fetchApi } from "@/lib/api-base";
 
 interface SidebarItem {
   name: string;
@@ -98,9 +99,7 @@ export function AdminSidebar() {
           Cookies.get("auth_token") || localStorage.getItem("auth_token");
         if (!token) return; // Don't fetch if no token
 
-        const API_URL =
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-        const res = await fetch(`${API_URL}/requests/count/pending`, {
+        const res = await fetchApi(`/requests/count/pending`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {

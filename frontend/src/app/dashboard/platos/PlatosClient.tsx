@@ -20,6 +20,7 @@ import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import mealSectionsData from "@/content/meal-sections.json";
+import { fetchApi } from "@/lib/api-base";
 
 type RecipeMetadata = {
   tags?: string[];
@@ -50,8 +51,6 @@ const MEAL_SECTIONS = [
   ...mealSectionsData,
 ] as const;
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-
 export default function PlatosClient() {
   const router = useRouter();
   const { isAdmin } = useAdmin();
@@ -69,7 +68,7 @@ export default function PlatosClient() {
 
   const fetchRecipes = async () => {
     try {
-      const response = await fetch(`${apiUrl}/recipes`, {
+      const response = await fetchApi("/recipes", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) return;
@@ -144,7 +143,7 @@ export default function PlatosClient() {
 
   const deleteDish = async (id: string) => {
     try {
-      const response = await fetch(`${apiUrl}/recipes/${id}`, {
+      const response = await fetchApi(`/recipes/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { cn } from "@/lib/utils";
+import { fetchApi } from "@/lib/api-base";
 
 type RequestStatus = "PENDING" | "ACCEPTED" | "APPROVED" | "REJECTED";
 
@@ -64,8 +65,6 @@ export default function PeticionesPage() {
     rejected: 0,
   });
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchRequests(1);
@@ -88,8 +87,8 @@ export default function PeticionesPage() {
         queryParams.append("search", searchTerm);
       }
 
-      const response = await fetch(
-        `${API_URL}/requests?${queryParams.toString()}`,
+      const response = await fetchApi(
+        `/requests?${queryParams.toString()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
@@ -116,8 +115,8 @@ export default function PeticionesPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(
-        `${API_URL}/requests/${selectedRequest.id}/status`,
+      const response = await fetchApi(
+        `/requests/${selectedRequest.id}/status`,
         {
           method: "PATCH",
           headers: {
@@ -160,8 +159,8 @@ export default function PeticionesPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(
-        `${API_URL}/requests/${selectedRequest.id}`,
+      const response = await fetchApi(
+        `/requests/${selectedRequest.id}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },

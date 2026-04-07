@@ -1,12 +1,11 @@
 import { supabase } from "@/lib/supabase";
 import { LoginFormData } from "@/lib/schemas/auth";
 import Cookies from "js-cookie";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+import { fetchApi } from "@/lib/api-base";
 
 export const authService = {
   async signIn(credentials: LoginFormData) {
-    const response = await fetch(`${API_URL}/auth/login`, {
+    const response = await fetchApi(`/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(credentials),
@@ -51,7 +50,7 @@ export const authService = {
     const token =
       Cookies.get("auth_token") || localStorage.getItem("auth_token");
 
-    const response = await fetch(`${API_URL}/auth/update-password`, {
+    const response = await fetchApi(`/auth/update-password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

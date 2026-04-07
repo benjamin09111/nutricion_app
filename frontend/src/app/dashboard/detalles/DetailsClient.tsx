@@ -27,6 +27,7 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { cn } from "@/lib/utils";
+import { fetchApi } from "@/lib/api-base";
 
 import { DEFAULT_CONSTRAINTS, DEFAULT_METRICS } from "@/lib/constants";
 
@@ -62,9 +63,7 @@ export default function DetailsClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-      const response = await fetch(`${apiUrl}/tags`, {
+      const response = await fetchApi("/tags", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -95,9 +94,7 @@ export default function DetailsClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-      const response = await fetch(`${apiUrl}/metrics`, {
+      const response = await fetchApi("/metrics", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -153,9 +150,7 @@ export default function DetailsClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-      const response = await fetch(`${apiUrl}/tags`, {
+      const response = await fetchApi("/tags", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -197,11 +192,9 @@ export default function DetailsClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
       const backendTag = serverTags.find((t: any) => t.name === tagName);
       if (backendTag && backendTag.id) {
-        const delReq = await fetch(`${apiUrl}/tags/${backendTag.id}`, {
+        const delReq = await fetchApi(`/tags/${backendTag.id}`, {
           method: "DELETE",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -236,9 +229,7 @@ export default function DetailsClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-      const response = await fetch(`${apiUrl}/metrics`, {
+      const response = await fetchApi("/metrics", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -273,9 +264,7 @@ export default function DetailsClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-      const response = await fetch(`${apiUrl}/metrics/${metricToDelete.id}`, {
+      const response = await fetchApi(`/metrics/${metricToDelete.id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,

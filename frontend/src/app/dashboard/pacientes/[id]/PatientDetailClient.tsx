@@ -66,6 +66,7 @@ import { toast } from "sonner";
 import Cookies from "js-cookie";
 import jsPDF from "jspdf";
 import { domToPng } from "modern-screenshot";
+import { fetchApi, getApiUrl } from "@/lib/api-base";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -395,12 +396,11 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   };
 
   const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
   const fetchPatient = async (retries = 3) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${apiUrl}/patients/${id}`, {
+      const response = await fetchApi(`/patients/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -425,8 +425,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const fetchConsultations = async () => {
     setIsConsultationsLoading(true);
     try {
-      const response = await fetch(
-        `${apiUrl}/consultations?patientId=${id}&limit=50&type=ALL&t=${Date.now()}`,
+      const response = await fetchApi(
+        `/consultations?patientId=${id}&limit=50&type=ALL&t=${Date.now()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
@@ -445,7 +445,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
   const fetchGlobalMetrics = async () => {
     try {
-      const response = await fetch(`${apiUrl}/metrics`, {
+      const response = await fetchApi(`/metrics`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -660,8 +660,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           }
         });
 
-        const response = await fetch(
-          `${apiUrl}/consultations/${updateConsultationId}`,
+        const response = await fetchApi(
+          `/consultations/${updateConsultationId}`,
           {
             method: "PATCH",
             headers: {
@@ -682,7 +682,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         }
       } else {
         // POST nuevo
-        const response = await fetch(`${apiUrl}/consultations`, {
+        const response = await fetchApi(`/consultations`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -734,7 +734,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     }
 
     try {
-      const response = await fetch(`${apiUrl}/metrics`, {
+      const response = await fetchApi(`/metrics`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -820,7 +820,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const onDeleteMetricRecord = async (record: any) => {
     if (record.isBaseline) {
       try {
-        const res = await fetch(`${apiUrl}/patients/${id}`, {
+        const res = await fetchApi(`/patients/${id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -856,12 +856,12 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         isIndependentMetricsConsultation(consultation);
 
       if (newMetrics.length === 0 && isIndependentRegistry) {
-        res = await fetch(`${apiUrl}/consultations/${record.id}`, {
+        res = await fetchApi(`/consultations/${record.id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
         });
       } else {
-        res = await fetch(`${apiUrl}/consultations/${record.id}`, {
+        res = await fetchApi(`/consultations/${record.id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -907,7 +907,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         const changedDate = baselineDate !== editedDate;
 
         // Always keep patient current weight in sync.
-        const profileRes = await fetch(`${apiUrl}/patients/${id}`, {
+        const profileRes = await fetchApi(`/patients/${id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -923,7 +923,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
         // If date changed, convert baseline into an editable historical record.
         if (changedDate) {
-          const consultationRes = await fetch(`${apiUrl}/consultations`, {
+          const consultationRes = await fetchApi(`/consultations`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -962,7 +962,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           value: newValue,
         };
 
-        const res = await fetch(`${apiUrl}/consultations/${record.id}`, {
+        const res = await fetchApi(`/consultations/${record.id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -1204,15 +1204,15 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           newMetrics.length === 0 &&
           isIndependentMetricsConsultation(c)
         ) {
-          return fetch(`${apiUrl}/consultations/${c.id}`, {
+          return fetchApi(`/consultations/${c.id}`, {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },
           });
         }
 
         // Si no está vacía o es una consulta clínica real, solo removemos la métrica específica
-        return fetch(`${apiUrl}/consultations/${c.id}`, {
-          method: "PATCH",
+          return fetchApi(`/consultations/${c.id}`, {
+            method: "PATCH",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -1244,7 +1244,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       if (needsPatientUpdate) {
         updatePromises.push(
-          fetch(`${apiUrl}/patients/${id}`, {
+          fetchApi(`/patients/${id}`, {
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
@@ -1301,7 +1301,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         customVariables: editForm.customVariables || undefined,
       };
 
-      const response = await fetch(`${apiUrl}/patients/${id}`, {
+      const response = await fetchApi(`/patients/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -1330,7 +1330,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const handleDelete = async () => {
 
     try {
-      const response = await fetch(`${apiUrl}/patients/${id}`, {
+      const response = await fetchApi(`/patients/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -1353,7 +1353,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     const newStatus = patient.status === "Active" ? "Inactive" : "Active";
 
     try {
-      const response = await fetch(`${apiUrl}/patients/${id}`, {
+      const response = await fetchApi(`/patients/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -1693,7 +1693,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           onChange={(tags) =>
                             updateField("dietRestrictions", tags)
                           }
-                          fetchSuggestionsUrl={`${apiUrl}/tags`}
+                          fetchSuggestionsUrl={`${getApiUrl()}/tags`}
                           className="mt-2"
                           placeholder="Agregar restricción..."
                         />
@@ -1734,7 +1734,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           onChange={(tags) =>
                             updateField("tags", tags)
                           }
-                          fetchSuggestionsUrl={`${apiUrl}/tags`}
+                          fetchSuggestionsUrl={`${getApiUrl()}/tags`}
                           className="mt-2"
                           placeholder="Ej: #Deportista, #Vegano..."
                         />
@@ -3117,8 +3117,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           if (!consultationToDelete) return;
           try {
             const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-            const response = await fetch(`${apiUrl}/consultations/${consultationToDelete}`, {
+            const response = await fetchApi(`/consultations/${consultationToDelete}`, {
               method: "DELETE",
               headers: { Authorization: `Bearer ${token}` },
             });

@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { fetchApi } from "@/lib/api-base";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -50,8 +51,6 @@ export default function AdminClientsPage() {
   const [selectedPlan, setSelectedPlan] = useState<string>("");
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
   useEffect(() => {
     fetchMembershipPlans();
     fetchClients();
@@ -75,7 +74,7 @@ export default function AdminClientsPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(`${API_URL}/memberships`, {
+      const response = await fetchApi(`/memberships`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Error al cargar planes");
@@ -108,10 +107,10 @@ export default function AdminClientsPage() {
       }
 
       const url = searchTerm
-        ? `${API_URL}/users?role=${role}&search=${searchTerm}`
-        : `${API_URL}/users?role=${role}`;
+        ? `/users?role=${role}&search=${searchTerm}`
+        : `/users?role=${role}`;
 
-      const response = await fetch(url, {
+      const response = await fetchApi(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -145,7 +144,7 @@ export default function AdminClientsPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(`${API_URL}/users/${selectedUser.id}/plan`, {
+      const response = await fetchApi(`/users/${selectedUser.id}/plan`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -178,8 +177,8 @@ export default function AdminClientsPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(
-        `${API_URL}/users/${selectedUser.id}/delete`,
+      const response = await fetchApi(
+        `/users/${selectedUser.id}/delete`,
         {
           method: "PATCH",
           headers: { Authorization: `Bearer ${token}` },
@@ -206,7 +205,7 @@ export default function AdminClientsPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(`${API_URL}/users/reset-unpaid-plans`, {
+      const response = await fetchApi(`/users/reset-unpaid-plans`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });

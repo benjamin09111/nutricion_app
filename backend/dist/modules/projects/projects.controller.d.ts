@@ -40,12 +40,12 @@ export declare class ProjectsController {
     } & {
         name: string;
         nutritionistId: string;
+        mode: string;
         id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        mode: string;
         patientId: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         activeDietCreationId: string | null;
@@ -89,12 +89,12 @@ export declare class ProjectsController {
     } & {
         name: string;
         nutritionistId: string;
+        mode: string;
         id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        mode: string;
         patientId: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         activeDietCreationId: string | null;
@@ -138,12 +138,12 @@ export declare class ProjectsController {
     } & {
         name: string;
         nutritionistId: string;
+        mode: string;
         id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        mode: string;
         patientId: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         activeDietCreationId: string | null;
@@ -187,12 +187,12 @@ export declare class ProjectsController {
     } & {
         name: string;
         nutritionistId: string;
+        mode: string;
         id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        mode: string;
         patientId: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         activeDietCreationId: string | null;

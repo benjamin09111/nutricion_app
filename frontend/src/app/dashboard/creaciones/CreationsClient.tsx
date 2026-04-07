@@ -29,6 +29,7 @@ import { Creation, CreationType } from "@/features/creations";
 import { Pagination } from "@/components/ui/Pagination";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { fetchApi } from "@/lib/api-base";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -77,8 +78,7 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
   const fetchFullData = async (id: string): Promise<any | null> => {
     try {
       const token = Cookies.get("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const response = await fetch(`${apiUrl}/creations/${id}`, {
+      const response = await fetchApi(`/creations/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) return await response.json();
@@ -185,8 +185,7 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
     setIsLoadingDetails(true);
     try {
       const token = Cookies.get("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const response = await fetch(`${apiUrl}/creations/${item.id}`, {
+      const response = await fetchApi(`/creations/${item.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -205,9 +204,7 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
       setIsLoading(true);
       try {
         const token = Cookies.get("auth_token");
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-        const response = await fetch(`${apiUrl}/creations`, {
+        const response = await fetchApi("/creations", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
@@ -327,8 +324,7 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
 
     try {
       const token = Cookies.get("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const response = await fetch(`${apiUrl}/creations/${itemToDelete}`, {
+      const response = await fetchApi(`/creations/${itemToDelete}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

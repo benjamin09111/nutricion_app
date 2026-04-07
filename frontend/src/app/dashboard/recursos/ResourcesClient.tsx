@@ -28,6 +28,7 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { useAdmin } from "@/context/AdminContext";
 import { cn } from "@/lib/utils";
+import { fetchApi } from "@/lib/api-base";
 
 import sectionCoverImages from "./section-cover-images.json";
 
@@ -50,7 +51,6 @@ interface Resource {
   fileUrl?: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const FAVORITES_KEY = "resource-favorites-v1";
 const CATEGORIES = [
   { id: "all", label: "Todas las secciones" },
@@ -151,7 +151,9 @@ export function ResourcesClient() {
     setIsLoading(true);
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const res = await fetch(`${API_URL}/resources`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetchApi("/resources", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = res.ok ? await res.json() : [];
       setResources(data.length ? data : DEFAULT_SYSTEM_RESOURCES);
     } catch {
@@ -164,7 +166,9 @@ export function ResourcesClient() {
   async function fetchTags() {
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const res = await fetch(`${API_URL}/tags`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetchApi("/tags", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = res.ok ? await res.json() : [];
       setAvailableTags(
         Array.from(
@@ -200,7 +204,10 @@ export function ResourcesClient() {
     if (!resourceToDelete) return;
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      await fetch(`${API_URL}/resources/${resourceToDelete.id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      await fetchApi(`/resources/${resourceToDelete.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       toast.success("Recurso eliminado.");
       setResourceToDelete(null);
       fetchResources();

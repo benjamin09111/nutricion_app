@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { Plus, Trash2, Search, ChefHat, Info, Flame, Image as ImageIcon, Camera, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fetchApi } from "@/lib/api-base";
 
 // Types
 interface Ingredient {
@@ -91,9 +92,7 @@ export function CreateRecipeModal({
       setIsSearching(true);
       try {
         const token = Cookies.get("auth_token");
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-        const response = await fetch(`${apiUrl}/foods?search=${searchTerm}`, {
+        const response = await fetchApi(`/foods?search=${encodeURIComponent(searchTerm)}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
@@ -161,8 +160,7 @@ export function CreateRecipeModal({
         })),
       };
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const response = await fetch(`${apiUrl}/recipes`, {
+      const response = await fetchApi("/recipes", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

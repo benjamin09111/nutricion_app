@@ -27,6 +27,7 @@ import { ActionDockItem } from "@/components/ui/ActionDock";
 import Cookies from "js-cookie";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { fetchApi, getApiUrl } from "@/lib/api-base";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -60,8 +61,7 @@ export default function PatientsClient() {
     if (!patientToDelete) return;
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/patients/${patientToDelete}`, {
+      const response = await fetchApi(`/patients/${patientToDelete}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -83,8 +83,7 @@ export default function PatientsClient() {
     const newStatus = patient.status === "Active" ? "Inactive" : "Active";
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/patients/${patient.id}`, {
+      const response = await fetchApi(`/patients/${patient.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -106,7 +105,6 @@ export default function PatientsClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
       const queryParams = new URLSearchParams({
         page: page.toString(),
@@ -121,7 +119,7 @@ export default function PatientsClient() {
         ...(endDateFilter && { endDate: endDateFilter }),
       });
 
-      const response = await fetch(`${apiUrl}/patients?${queryParams}`, {
+      const response = await fetchApi(`/patients?${queryParams}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -328,7 +326,7 @@ export default function PatientsClient() {
                   setClassificationTags(tags);
                   setPage(1);
                 }}
-                fetchSuggestionsUrl={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/tags`}
+                fetchSuggestionsUrl={`${getApiUrl()}/tags`}
                 placeholder="Filtrar por etiquetas..."
                 className="rounded-2xl bg-slate-50 border-slate-200"
               />

@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import Cookies from "js-cookie";
 import appConfig from "@/content/config.json";
+import { fetchApi } from "@/lib/api-base";
 
 type Tab = "templates" | "create" | "admin" | "history" | "automation";
 type CommunicationType = "email" | "announcement";
@@ -108,11 +109,8 @@ export default function MessagesPage() {
       try {
         const token =
           Cookies.get("auth_token") || localStorage.getItem("auth_token");
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-        const res = await fetch(
-          `${apiUrl}/users?role=${role}&search=${searchQuery}`,
+        const res = await fetchApi(
+          `/users?role=${role}&search=${searchQuery}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },

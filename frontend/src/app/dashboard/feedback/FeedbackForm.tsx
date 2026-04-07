@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { fetchApi } from "@/lib/api-base";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -65,8 +66,8 @@ export function FeedbackForm() {
         type: data.type.toUpperCase(),
       };
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/support/feedback`,
+      const response = await fetchApi(
+        `/support/feedback`,
         {
           method: "POST",
           headers: {

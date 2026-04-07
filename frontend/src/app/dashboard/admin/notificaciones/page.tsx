@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { Bell, Send, CheckCircle2, RotateCcw, Lock } from "lucide-react";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
+import { fetchApi } from "@/lib/api-base";
 
 export default function AdminNotificationsPage() {
   const { addNotification } = useNotifications();
@@ -49,8 +50,7 @@ export default function AdminNotificationsPage() {
     }
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const res = await fetch(`${apiUrl}/announcements`, {
+      const res = await fetchApi(`/announcements`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

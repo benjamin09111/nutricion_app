@@ -22,13 +22,12 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { TagInput } from "@/components/ui/TagInput";
 import mealSectionsData from "@/content/meal-sections.json";
+import { fetchApi } from "@/lib/api-base";
 
 const MEAL_SECTIONS = [
   { value: "", label: "Sin sección" },
   ...mealSectionsData,
 ] as const;
-
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
 
 export default function CrearPlatoClient() {
   const router = useRouter();
@@ -69,7 +68,7 @@ export default function CrearPlatoClient() {
     const timer = setTimeout(async () => {
       setIsSearchingFoods(true);
       try {
-        const res = await fetch(`${apiUrl}/foods?search=${encodeURIComponent(foodSearch)}&limit=5`, {
+        const res = await fetchApi(`/foods?search=${encodeURIComponent(foodSearch)}&limit=5`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -113,7 +112,7 @@ export default function CrearPlatoClient() {
     }
     setIsAiLoading(true);
     try {
-      const res = await fetch(`${apiUrl}/recipes/estimate-macros`, {
+      const res = await fetchApi("/recipes/estimate-macros", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

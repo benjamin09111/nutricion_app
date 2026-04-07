@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import * as fs from 'fs';
 import * as XLSX from 'xlsx';
 import { loadPrismaEnv } from './load-prisma-env';
+import { replaceDefaultResources } from './resource-seed';
 
 loadPrismaEnv();
 
@@ -245,6 +246,10 @@ async function main() {
     });
   }
   console.log('✅ Seeded default clinical restrictions as tags.');
+
+  // 6. Seed default platform resources
+  console.log('📚 Replacing default platform resources...');
+  await replaceDefaultResources(prisma);
 
   console.log('🏁 Seeding finished.');
 }

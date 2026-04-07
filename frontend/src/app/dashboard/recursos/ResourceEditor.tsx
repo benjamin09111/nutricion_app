@@ -20,8 +20,7 @@ import { TagInput } from "@/components/ui/TagInput";
 import { NutriDocsEditor } from "@/components/ui/NutriDocsEditor";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { cn } from "@/lib/utils";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+import { fetchApi } from "@/lib/api-base";
 const CATEGORIES = [
   { id: "portada", label: "Portada e introduccion" },
   { id: "mitos", label: "Mitos vs realidad" },
@@ -89,7 +88,7 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
   async function fetchTags() {
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const res = await fetch(`${API_URL}/tags`, {
+      const res = await fetchApi(`/tags`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = res.ok ? await res.json() : [];
@@ -115,7 +114,7 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
     data.append("file", file);
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const res = await fetch(`${API_URL}/uploads`, {
+      const res = await fetchApi(`/uploads`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: data,
@@ -134,7 +133,7 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
     if (!formData.fileUrl) return toast.error("Sube primero un PDF.");
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const res = await fetch(`${API_URL}/resources/extract-text`, {
+      const res = await fetchApi(`/resources/extract-text`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -163,10 +162,10 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const method = editingId ? "PATCH" : "POST";
       const url = editingId
-        ? `${API_URL}/resources/${editingId}`
-        : `${API_URL}/resources`;
+        ? `/resources/${editingId}`
+        : `/resources`;
 
-      const res = await fetch(url, {
+      const res = await fetchApi(url, {
         method,
         headers: {
           "Content-Type": "application/json",

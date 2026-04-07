@@ -1,4 +1,5 @@
 import Cookies from "js-cookie";
+import { fetchApi, getApiUrl } from "@/lib/api-base";
 
 type WorkflowCreationType =
   | "DIET"
@@ -28,7 +29,7 @@ export interface WorkflowProject {
 }
 
 export const getWorkflowApiUrl = () =>
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  getApiUrl();
 
 export const getWorkflowAuthHeaders = (
   extraHeaders: Record<string, string> = {},
@@ -41,7 +42,7 @@ export const getWorkflowAuthHeaders = (
 };
 
 export async function fetchProject(projectId: string): Promise<WorkflowProject> {
-  const response = await fetch(`${getWorkflowApiUrl()}/projects/${projectId}`, {
+  const response = await fetchApi(`/projects/${projectId}`, {
     headers: getWorkflowAuthHeaders(),
   });
 
@@ -53,7 +54,7 @@ export async function fetchProject(projectId: string): Promise<WorkflowProject> 
 }
 
 export async function createProject(payload: Record<string, unknown>) {
-  const response = await fetch(`${getWorkflowApiUrl()}/projects`, {
+  const response = await fetchApi(`/projects`, {
     method: "POST",
     headers: getWorkflowAuthHeaders({
       "Content-Type": "application/json",
@@ -73,7 +74,7 @@ export async function updateProject(
   projectId: string,
   payload: Record<string, unknown>,
 ) {
-  const response = await fetch(`${getWorkflowApiUrl()}/projects/${projectId}`, {
+  const response = await fetchApi(`/projects/${projectId}`, {
     method: "PATCH",
     headers: getWorkflowAuthHeaders({
       "Content-Type": "application/json",
@@ -90,8 +91,8 @@ export async function updateProject(
 }
 
 export async function fetchCreation(creationId: string) {
-  const response = await fetch(
-    `${getWorkflowApiUrl()}/creations/${creationId}`,
+  const response = await fetchApi(
+    `/creations/${creationId}`,
     {
       headers: getWorkflowAuthHeaders(),
     },
@@ -111,7 +112,7 @@ export async function saveCreation(payload: {
   metadata?: Record<string, unknown>;
   tags?: string[];
 }) {
-  const response = await fetch(`${getWorkflowApiUrl()}/creations`, {
+  const response = await fetchApi(`/creations`, {
     method: "POST",
     headers: getWorkflowAuthHeaders({
       "Content-Type": "application/json",

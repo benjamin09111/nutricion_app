@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { X, Save, FolderPlus, Loader2 } from "lucide-react";
+import { Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { TagInput } from "@/components/ui/TagInput"; // Assuming TagInput is reusable and exported
+import { fetchApi, getApiUrl } from "@/lib/api-base";
 
 type CreateGroupForm = {
   name: string;
@@ -45,8 +46,7 @@ export default function CreateGroupModal({
     }
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const response = await fetch(`${apiUrl}/ingredient-groups`, {
+      const response = await fetchApi("/ingredient-groups", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -119,7 +119,7 @@ export default function CreateGroupModal({
             value={tags}
             onChange={setTags}
             placeholder="Escribe y presiona Enter..."
-            fetchSuggestionsUrl={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/tags`}
+            fetchSuggestionsUrl={`${getApiUrl()}/tags`}
           />
           <p className="text-xs text-slate-400 mt-1">
             Ayudan a filtrar y organizar tus grupos.

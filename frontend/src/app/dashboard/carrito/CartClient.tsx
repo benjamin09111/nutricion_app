@@ -36,6 +36,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { toast } from "sonner";
+import { fetchApi } from "@/lib/api-base";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { formatCLP } from "@/lib/utils/currency";
@@ -669,8 +670,7 @@ export default function CartClient() {
     setIsSearchingEquivalents(true);
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/foods/search?q=${encodeURIComponent(query)}&group=${encodeURIComponent(group)}`, {
+      const response = await fetchApi(`/foods/search?q=${encodeURIComponent(query)}&group=${encodeURIComponent(group)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -689,8 +689,7 @@ export default function CartClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/patients`, {
+      const response = await fetchApi(`/patients`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -831,10 +830,9 @@ export default function CartClient() {
       setIsSearchingFoods(true);
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
       try {
-        const res = await fetch(
-          `${apiUrl}/foods?search=${foodSearchQuery}&limit=10`,
+        const res = await fetchApi(
+          `/foods?search=${foodSearchQuery}&limit=10`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },

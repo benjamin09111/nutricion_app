@@ -35,7 +35,7 @@ export declare class PatientsService {
         likes: string | null;
         customVariables: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
-    findAll(nutritionistId: string, page?: number, limit?: number, search?: string, status?: string): Promise<{
+    findAll(nutritionistId: string, page?: number, limit?: number, search?: string, status?: string, documentId?: string, tags?: string, startDate?: string, endDate?: string): Promise<{
         data: {
             tags: string[];
             nutritionistId: string;

@@ -19,9 +19,16 @@ const multer_1 = require("multer");
 const path_1 = require("path");
 const auth_guard_1 = require("../auth/guards/auth.guard");
 let UploadsController = class UploadsController {
-    uploadFile(file) {
+    uploadFile(file, req) {
         console.log('[UploadsController] File received:', file?.filename || 'No file');
-        const baseUrl = process.env.API_URL || 'http://localhost:3001';
+        const forwardedProto = req.headers['x-forwarded-proto'];
+        const protocol = process.env.API_URL
+            ? null
+            : Array.isArray(forwardedProto)
+                ? forwardedProto[0]
+                : forwardedProto || req.protocol || 'http';
+        const host = req.get?.('host') || req.headers.host;
+        const baseUrl = process.env.API_URL || `${protocol}://${host}`;
         const url = `${baseUrl}/uploads/${file.filename}`;
         console.log('[UploadsController] Returning URL:', url);
         return {
@@ -52,8 +59,9 @@ __decorate([
         },
     })),
     __param(0, (0, common_1.UploadedFile)()),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], UploadsController.prototype, "uploadFile", null);
 exports.UploadsController = UploadsController = __decorate([

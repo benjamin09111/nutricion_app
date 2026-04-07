@@ -64,7 +64,7 @@ let PatientsService = class PatientsService {
         await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
         return patient;
     }
-    async findAll(nutritionistId, page = 1, limit = 20, search, status) {
+    async findAll(nutritionistId, page = 1, limit = 20, search, status, documentId, tags, startDate, endDate) {
         const skip = (page - 1) * limit;
         const where = {
             nutritionistId,
@@ -78,6 +78,29 @@ let PatientsService = class PatientsService {
                 { email: { contains: search, mode: 'insensitive' } },
                 { documentId: { contains: search, mode: 'insensitive' } },
             ];
+        }
+        if (documentId) {
+            where.documentId = { contains: documentId, mode: 'insensitive' };
+        }
+        const parsedTags = tags
+            ?.split(',')
+            .map((tag) => tag.trim())
+            .filter(Boolean);
+        if (parsedTags && parsedTags.length > 0) {
+            where.tags = { hasSome: parsedTags };
+        }
+        if (startDate || endDate) {
+            where.createdAt = {};
+            if (startDate) {
+                const start = new Date(startDate);
+                start.setHours(0, 0, 0, 0);
+                where.createdAt.gte = start;
+            }
+            if (endDate) {
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                where.createdAt.lte = end;
+            }
         }
         const [filteredTotal, total, activeCount, inactiveCount, data] = await Promise.all([
             this.prisma.patient.count({ where }),

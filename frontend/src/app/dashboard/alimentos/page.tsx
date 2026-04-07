@@ -2,14 +2,14 @@ import { cookies } from "next/headers";
 import { Suspense } from "react";
 import FoodsClient from "./FoodsClient";
 import { Ingredient } from "@/features/foods";
+import { fetchApi } from "@/lib/api-base";
 
-async function getIngredients(): Promise<any[]> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
+async function getIngredients(): Promise<Ingredient[]> {
   const cookieStore = await cookies();
   const token = cookieStore.get("auth_token")?.value;
 
   try {
-    const res = await fetch(`${apiUrl}/foods?tab=app&limit=5000`, {
+    const res = await fetchApi("/foods?tab=app&limit=5000", {
       cache: "no-store",
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

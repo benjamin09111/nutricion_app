@@ -47,12 +47,12 @@ export declare class ProjectsService {
     } & {
         name: string;
         nutritionistId: string;
+        mode: string;
         id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        mode: string;
         patientId: string | null;
         metadata: Prisma.JsonValue | null;
         activeDietCreationId: string | null;
@@ -96,12 +96,12 @@ export declare class ProjectsService {
     } & {
         name: string;
         nutritionistId: string;
+        mode: string;
         id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        mode: string;
         patientId: string | null;
         metadata: Prisma.JsonValue | null;
         activeDietCreationId: string | null;
@@ -145,12 +145,12 @@ export declare class ProjectsService {
     } & {
         name: string;
         nutritionistId: string;
+        mode: string;
         id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        mode: string;
         patientId: string | null;
         metadata: Prisma.JsonValue | null;
         activeDietCreationId: string | null;
@@ -194,12 +194,12 @@ export declare class ProjectsService {
     } & {
         name: string;
         nutritionistId: string;
+        mode: string;
         id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-        mode: string;
         patientId: string | null;
         metadata: Prisma.JsonValue | null;
         activeDietCreationId: string | null;

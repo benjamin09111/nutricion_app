@@ -26,6 +26,10 @@ export class PatientsController {
         @Query('limit') limit?: string,
         @Query('search') search?: string,
         @Query('status') status?: string,
+        @Query('documentId') documentId?: string,
+        @Query('tags') tags?: string,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
     ) {
         return this.patientsService.findAll(
             req.user.nutritionistId,
@@ -33,6 +37,10 @@ export class PatientsController {
             limit ? +limit : 20,
             search,
             status,
+            documentId,
+            tags,
+            startDate,
+            endDate,
         );
     }
 

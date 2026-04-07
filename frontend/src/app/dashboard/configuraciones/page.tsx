@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { authService } from "@/features/auth/services/auth.service";
 import { toast } from "sonner";
+import { fetchApi } from "@/lib/api-base";
 
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -88,8 +89,7 @@ export default function SettingsPage() {
     setIsSavingBranding(true);
     try {
       const token = localStorage.getItem("auth_token");
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${API_URL}/users/me/settings`, {
+      const response = await fetchApi(`/users/me/settings`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

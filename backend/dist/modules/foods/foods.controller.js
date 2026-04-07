@@ -28,11 +28,12 @@ let FoodsController = class FoodsController {
     create(createFoodDto, req) {
         return this.foodsService.create(createFoodDto, req.user.id);
     }
-    findAll(req, search, category, tab, page, limit) {
+    findAll(req, search, category, tag, tab, page, limit) {
         return this.foodsService.findAll({
             nutritionistAccountId: req.user.id,
             search,
             category,
+            tag,
             tab,
             page: page ? +page : 1,
             limit: limit ? +limit : 20,
@@ -44,14 +45,14 @@ let FoodsController = class FoodsController {
     getMarketPrices(limit) {
         return this.foodsService.getMarketPrices(limit ? Number(limit) : 7);
     }
-    findOne(id) {
-        return this.foodsService.findOne(id);
+    findOne(id, req) {
+        return this.foodsService.findOne(id, req.user.id);
     }
-    update(id, updateFoodDto) {
-        return this.foodsService.update(id, updateFoodDto);
+    update(id, updateFoodDto, req) {
+        return this.foodsService.update(id, updateFoodDto, req.user.id);
     }
-    remove(id) {
-        return this.foodsService.remove(id);
+    remove(id, req) {
+        return this.foodsService.remove(id, req.user.id);
     }
 };
 exports.FoodsController = FoodsController;
@@ -70,11 +71,12 @@ __decorate([
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Query)('search')),
     __param(2, (0, common_1.Query)('category')),
-    __param(3, (0, common_1.Query)('tab')),
-    __param(4, (0, common_1.Query)('page')),
-    __param(5, (0, common_1.Query)('limit')),
+    __param(3, (0, common_1.Query)('tag')),
+    __param(4, (0, common_1.Query)('tab')),
+    __param(5, (0, common_1.Query)('page')),
+    __param(6, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], FoodsController.prototype, "findAll", null);
 __decorate([
@@ -96,24 +98,30 @@ __decorate([
 ], FoodsController.prototype, "getMarketPrices", null);
 __decorate([
     (0, common_1.Get)(':id'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], FoodsController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Patch)(':id'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_food_dto_1.UpdateFoodDto]),
+    __metadata("design:paramtypes", [String, update_food_dto_1.UpdateFoodDto, Object]),
     __metadata("design:returntype", void 0)
 ], FoodsController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], FoodsController.prototype, "remove", null);
 exports.FoodsController = FoodsController = __decorate([

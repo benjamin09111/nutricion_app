@@ -60,6 +60,7 @@ import {
   saveCreation,
   updateProject,
 } from "@/lib/workflow";
+import { fetchApi, getApiUrl as resolveApiUrl } from "@/lib/api-base";
 
 interface DietClientProps {
   initialFoods: MarketPrice[];
@@ -261,8 +262,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     setIsProjectLoading(Boolean(projectIdFromUrl));
   }, [projectIdFromUrl]);
 
-  const getApiUrl = () =>
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  const getApiUrl = () => resolveApiUrl();
 
   const getAuthToken = () =>
     Cookies.get("auth_token") || localStorage.getItem("auth_token") || "";
@@ -270,7 +270,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const fetchAvailableTags = async (retries = 3) => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`${getApiUrl()}/tags`, {
+      const response = await fetchApi(`/tags`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -290,7 +290,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const createGlobalTag = async (tagName: string) => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`${getApiUrl()}/tags`, {
+      const response = await fetchApi(`/tags`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -385,7 +385,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       throw new Error("No se encontró una sesión activa.");
     }
 
-    const response = await fetch(`${getApiUrl()}/patients/${patientId}`, {
+    const response = await fetchApi(`/patients/${patientId}`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
@@ -492,7 +492,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         ...(search.trim() && { search: search.trim() }),
       });
 
-      const response = await fetch(`${getApiUrl()}/patients?${queryParams}`, {
+      const response = await fetchApi(`/patients?${queryParams}`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       });
@@ -778,10 +778,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       try {
         const token =
           Cookies.get("auth_token") || localStorage.getItem("auth_token");
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-        const response = await fetch(`${apiUrl}/creations/${id}`, {
+        const response = await fetchApi(`/creations/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -1095,13 +1092,11 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     const token = Cookies.get("auth_token");
     if (token) {
       try {
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
         let targetId = food.id;
 
         if (food.id && food.id.startsWith("base-")) {
-          const res = await fetch(
-            `${apiUrl}/foods?search=${encodeURIComponent(productName)}&limit=1`,
+          const res = await fetchApi(
+            `/foods?search=${encodeURIComponent(productName)}&limit=1`,
             {
               headers: { Authorization: `Bearer ${token}` },
             },
@@ -1121,7 +1116,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           !targetId.startsWith("search-") &&
           !targetId.startsWith("manual-")
         ) {
-          await fetch(`${apiUrl}/foods/${targetId}/preferences`, {
+          await fetchApi(`/foods/${targetId}/preferences`, {
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
@@ -1250,8 +1245,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     const toastId = toast.loading("Verificando compatibilidad con restricciones...");
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const response = await fetch(`${apiUrl}/diet/verify-foods`, {
+      const response = await fetchApi(`/diet/verify-foods`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1380,10 +1374,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     const fetchFoods = async () => {
       setIsSearchingFoods(true);
       const token = Cookies.get("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
       try {
-        const res = await fetch(
-          `${apiUrl}/foods?search=${foodSearchQuery}&limit=20`,
+        const res = await fetchApi(
+          `/foods?search=${foodSearchQuery}&limit=20`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },
@@ -1426,10 +1419,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     const fetchFoods = async () => {
       setIsSearchingInSmart(true);
       const token = Cookies.get("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
       try {
-        const res = await fetch(
-          `${apiUrl}/foods?search=${smartSearchQuery}&limit=20`,
+        const res = await fetchApi(
+          `/foods?search=${smartSearchQuery}&limit=20`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },
@@ -1588,10 +1580,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const applyNutritionistPreferences = async () => {
     setIsApplyingPreferences(true);
     const token = Cookies.get("auth_token");
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
     try {
       // Agregamos limit=1000 para asegurar que traemos todos los alimentos configurados por el nutri
-      const res = await fetch(`${apiUrl}/foods?limit=1000`, {
+      const res = await fetchApi(`/foods?limit=1000`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -1719,10 +1710,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const fetchSmartAddData = async () => {
     setIsLoadingSmart(true);
     const token = Cookies.get("auth_token");
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
     try {
       // Fetch All Foods for Favorites
-      const foodsRes = await fetch(`${apiUrl}/foods?limit=1000`, {
+      const foodsRes = await fetchApi(`/foods?limit=1000`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (foodsRes.ok) {
@@ -1733,7 +1723,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       }
 
       // Fetch Groups
-      const groupsRes = await fetch(`${apiUrl}/ingredient-groups`, {
+      const groupsRes = await fetchApi(`/ingredient-groups`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (groupsRes.ok) {
@@ -2108,7 +2098,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   }
                   saveDraft({ dietTags: newTags });
                 }}
-                fetchSuggestionsUrl={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/tags`}
+                fetchSuggestionsUrl={`${resolveApiUrl()}/tags`}
                 placeholder="Añadir tags (Keto, Vegano...)"
                 suggestions={availableTags}
                 className="min-h-[56px] rounded-2xl border-slate-200 bg-slate-50/80 shadow-sm"
@@ -2131,7 +2121,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   setActiveConstraints(newTags);
                   saveDraft({ activeConstraints: newTags });
                 }}
-                fetchSuggestionsUrl={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/tags`}
+                fetchSuggestionsUrl={`${resolveApiUrl()}/tags`}
                 placeholder="Buscar o añadir restricción..."
                 suggestions={availableTags}
                 disableDelete={true}

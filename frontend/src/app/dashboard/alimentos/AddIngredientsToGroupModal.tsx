@@ -8,6 +8,7 @@ import { Ingredient } from "@/features/foods";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { Modal } from "@/components/ui/Modal";
+import { fetchApi } from "@/lib/api-base";
 
 interface AddIngredientsToGroupModalProps {
   isOpen: boolean;
@@ -102,9 +103,8 @@ export default function AddIngredientsToGroupModal({
     if (!token) return;
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const res = await fetch(
-        `${apiUrl}/ingredient-groups/${groupId}/ingredients`,
+      const res = await fetchApi(
+        `/ingredient-groups/${groupId}/ingredients`,
         {
           method: "POST",
           headers: {

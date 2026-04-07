@@ -24,6 +24,7 @@ export class FoodsController {
         @Request() req: any,
         @Query('search') search?: string,
         @Query('category') category?: string,
+        @Query('tag') tag?: string,
         @Query('tab') tab?: string,
         @Query('page') page?: string,
         @Query('limit') limit?: string,
@@ -32,6 +33,7 @@ export class FoodsController {
             nutritionistAccountId: req.user.id,
             search,
             category,
+            tag,
             tab,
             page: page ? +page : 1,
             limit: limit ? +limit : 20,
@@ -59,17 +61,20 @@ export class FoodsController {
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.foodsService.findOne(id);
+    @UseGuards(AuthGuard('jwt'))
+    findOne(@Param('id') id: string, @Request() req: any) {
+        return this.foodsService.findOne(id, req.user.id);
     }
 
     @Patch(':id')
-    update(@Param('id') id: string, @Body() updateFoodDto: UpdateFoodDto) {
-        return this.foodsService.update(id, updateFoodDto);
+    @UseGuards(AuthGuard('jwt'))
+    update(@Param('id') id: string, @Body() updateFoodDto: UpdateFoodDto, @Request() req: any) {
+        return this.foodsService.update(id, updateFoodDto, req.user.id);
     }
 
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.foodsService.remove(id);
+    @UseGuards(AuthGuard('jwt'))
+    remove(@Param('id') id: string, @Request() req: any) {
+        return this.foodsService.remove(id, req.user.id);
     }
 }

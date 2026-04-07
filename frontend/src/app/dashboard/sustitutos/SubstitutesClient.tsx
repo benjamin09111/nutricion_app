@@ -18,6 +18,7 @@ import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
+import { fetchApi } from "@/lib/api-base";
 
 interface SubstituteEntry {
   id: string;
@@ -40,8 +41,7 @@ export function SubstitutesClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/substitutes`, {
+      const response = await fetchApi(`/substitutes`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -91,8 +91,7 @@ export function SubstitutesClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/substitutes`, {
+      const response = await fetchApi(`/substitutes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

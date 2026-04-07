@@ -45,7 +45,18 @@ async function bootstrap() {
   // app.useGlobalInterceptors(new LoggingInterceptor()); // Middleware now handles logging
 
   const port = process.env.PORT || 3001;
-  await app.listen(port);
-  console.log(`Application is running on: ${await app.getUrl()}`);
+  try {
+    await app.listen(port);
+    console.log(`Application is running on: ${await app.getUrl()}`);
+  } catch (error: any) {
+    if (error.code === 'EADDRINUSE') {
+      const secondaryPort = process.env.SECONDARY_PORT || 3002;
+      console.warn(`Port ${port} is in use, trying secondary port ${secondaryPort}...`);
+      await app.listen(secondaryPort);
+      console.log(`Application is running on: ${await app.getUrl()}`);
+    } else {
+      throw error;
+    }
+  }
 }
 bootstrap();

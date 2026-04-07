@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
+import { fetchApi } from "@/lib/api-base";
 
 interface UserData {
   id: string;
@@ -89,8 +90,6 @@ export default function AdminUsersPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [isResetting, setIsResetting] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
   // Get current user role from token
   useEffect(() => {
     const token =
@@ -115,7 +114,7 @@ export default function AdminUsersPage() {
 
   const fetchMembershipPlans = async () => {
     try {
-      const response = await fetch(`${API_URL}/memberships/active`);
+      const response = await fetchApi(`/memberships/active`);
       if (!response.ok) throw new Error("Error al cargar planes");
       const data = await response.json();
       setMembershipPlans(data);
@@ -132,8 +131,7 @@ export default function AdminUsersPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const url = `${API_URL}/users?role=ALL_ADMINS`;
-      const response = await fetch(url, {
+      const response = await fetchApi(`/users?role=ALL_ADMINS`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Error al cargar usuarios");
@@ -194,7 +192,7 @@ export default function AdminUsersPage() {
           ? { status: confirmAction.targetValue }
           : { role: confirmAction.targetValue };
 
-      const response = await fetch(`${API_URL}/users/${selectedUser.id}`, {
+      const response = await fetchApi(`/users/${selectedUser.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -238,7 +236,7 @@ export default function AdminUsersPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(`${API_URL}/auth/create-account`, {
+      const response = await fetchApi(`/auth/create-account`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -275,7 +273,7 @@ export default function AdminUsersPage() {
     setIsResetting(true);
 
     try {
-      const response = await fetch(`${API_URL}/auth/reset-password`, {
+      const response = await fetchApi(`/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: resetEmail }),

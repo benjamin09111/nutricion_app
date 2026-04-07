@@ -61,6 +61,7 @@ import {
   saveCreation,
   updateProject,
 } from "@/lib/workflow";
+import { fetchApi } from "@/lib/api-base";
 
 // -- Mock Types --
 
@@ -378,8 +379,7 @@ export default function RecipesClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/patients`, {
+      const response = await fetchApi(`/patients`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {

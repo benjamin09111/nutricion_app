@@ -26,6 +26,7 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { cn } from "@/lib/utils";
 import { DEFAULT_METRICS } from "@/lib/constants";
 import Cookies from "js-cookie";
+import { fetchApi, getApiUrl } from "@/lib/api-base";
 
 export default function CreatePatientClient() {
   const router = useRouter();
@@ -56,12 +57,9 @@ export default function CreatePatientClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
       const method = draft.id ? "PATCH" : "POST";
-      const url = draft.id
-        ? `${apiUrl}/patients/${draft.id}`
-        : `${apiUrl}/patients`;
+      const url = draft.id ? `/patients/${draft.id}` : "/patients";
 
       // Clean payload to match precisely backend CreatePatientDto
       const payload: any = {
@@ -87,7 +85,7 @@ export default function CreatePatientClient() {
         customVariables: draft.customVariables || [],
       };
 
-      const response = await fetch(url, {
+      const response = await fetchApi(url, {
         method,
         headers: {
           "Content-Type": "application/json",
@@ -458,7 +456,7 @@ export default function CreatePatientClient() {
                 <TagInput
                   value={draft.dietRestrictions || []}
                   onChange={(tags) => updateDraft({ dietRestrictions: tags })}
-                  fetchSuggestionsUrl={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/tags`}
+                  fetchSuggestionsUrl={`${getApiUrl()}/tags`}
                   placeholder="Ej: Diabetes, Celiaco..."
                   className="mt-2"
                 />

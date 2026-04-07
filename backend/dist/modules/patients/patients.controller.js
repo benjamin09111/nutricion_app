@@ -29,8 +29,8 @@ let PatientsController = class PatientsController {
     create(req, createPatientDto) {
         return this.patientsService.create(req.user.nutritionistId, createPatientDto);
     }
-    findAll(req, page, limit, search, status) {
-        return this.patientsService.findAll(req.user.nutritionistId, page ? +page : 1, limit ? +limit : 20, search, status);
+    findAll(req, page, limit, search, status, documentId, tags, startDate, endDate) {
+        return this.patientsService.findAll(req.user.nutritionistId, page ? +page : 1, limit ? +limit : 20, search, status, documentId, tags, startDate, endDate);
     }
     findOne(req, id) {
         return this.patientsService.findOne(req.user.nutritionistId, id);
@@ -61,8 +61,12 @@ __decorate([
     __param(2, (0, common_1.Query)('limit')),
     __param(3, (0, common_1.Query)('search')),
     __param(4, (0, common_1.Query)('status')),
+    __param(5, (0, common_1.Query)('documentId')),
+    __param(6, (0, common_1.Query)('tags')),
+    __param(7, (0, common_1.Query)('startDate')),
+    __param(8, (0, common_1.Query)('endDate')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], PatientsController.prototype, "findAll", null);
 __decorate([

@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateFoodDto } from './dto/create-food.dto';
 import { UpdateFoodDto } from './dto/update-food.dto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -16,6 +16,38 @@ export class FoodsService {
         private readonly prisma: PrismaService,
         private readonly cacheService: CacheService
     ) { }
+
+    private async resolveNutritionist(accountId?: string) {
+        if (!accountId) return null;
+        return (this.prisma as any).nutritionist.findUnique({
+            where: { accountId },
+        });
+    }
+
+    private async findIngredientWithRelations(id: string, nutritionistId?: string) {
+        return (this.prisma as any).ingredient.findUnique({
+            where: { id },
+            include: {
+                brand: true,
+                category: true,
+                tags: true,
+                ...(nutritionistId
+                    ? {
+                        preferences: {
+                            where: { nutritionistId },
+                            include: { tags: true },
+                        },
+                    }
+                    : {}),
+            },
+        });
+    }
+
+    private assertIngredientOwnership(ingredient: any, nutritionistId?: string) {
+        if (!nutritionistId || ingredient.nutritionistId !== nutritionistId) {
+            throw new ForbiddenException('No tienes permisos para modificar este ingrediente');
+        }
+    }
 
     private async getOrCreateBrand(name?: string) {
         if (!name) return null;
@@ -52,7 +84,7 @@ export class FoodsService {
     }
 
     async create(createFoodDto: CreateFoodDto, userId: string) {
-        const { brand, category, tags, ...rest } = createFoodDto;
+        const { brand, category, tags, isPublic, ...rest } = createFoodDto;
 
         // Find nutritionist profile from Account ID
         const nutritionist = await (this.prisma as any).nutritionist.findUnique({
@@ -93,7 +125,7 @@ export class FoodsService {
                     tags: {
                         connect: tagRecords.map(t => ({ id: t.id })),
                     },
-                    isPublic: true,
+                    isPublic: isPublic ?? false,
                     verified: false,
                     nutritionist: { connect: { id: nutritionist.id } },
                 },
@@ -101,15 +133,6 @@ export class FoodsService {
                     brand: true,
                     category: true,
                     tags: true,
-                },
-            });
-
-            await tx.ingredientPreference.create({
-                data: {
-                    nutritionist: { connect: { id: nutritionist.id } },
-                    ingredient: { connect: { id: ingredient.id } },
-                    isFavorite: true, // Auto-favorite own creations? User didn't specify, but usually yes.
-                    isHidden: false,
                 },
             });
 
@@ -125,75 +148,131 @@ export class FoodsService {
         nutritionistAccountId?: string;
         search?: string;
         category?: string;
+        tag?: string;
         tab?: string;
         page?: number;
         limit?: number;
     }) {
-        const { nutritionistAccountId, search, category, tab = 'all', page = 1, limit = 20 } = params;
+        const { nutritionistAccountId, search, category, tag, tab = 'all', page = 1, limit = 20 } = params;
 
-        let nutritionistId: string | undefined;
-        if (nutritionistAccountId) {
-            const nutritionist = await (this.prisma as any).nutritionist.findUnique({
-                where: { accountId: nutritionistAccountId },
-            });
-            nutritionistId = nutritionist?.id;
+        const nutritionist = await this.resolveNutritionist(nutritionistAccountId);
+        const nutritionistId = nutritionist?.id;
+
+        const andClauses: Prisma.IngredientWhereInput[] = [];
+
+        switch (tab) {
+            case 'mine':
+            case 'created':
+                if (!nutritionistId) return [];
+                andClauses.push({ nutritionistId });
+                break;
+            case 'favorites':
+                if (!nutritionistId) return [];
+                andClauses.push({
+                    preferences: {
+                        some: {
+                            nutritionistId,
+                            isFavorite: true,
+                            isHidden: false,
+                        },
+                    },
+                });
+                break;
+            case 'not_recommended':
+                if (!nutritionistId) return [];
+                andClauses.push({
+                    preferences: {
+                        some: {
+                            nutritionistId,
+                            isNotRecommended: true,
+                            isHidden: false,
+                        },
+                    },
+                });
+                break;
+            case 'tagged':
+                if (!nutritionistId) return [];
+                andClauses.push({ nutritionistId });
+                andClauses.push({
+                    OR: [
+                        { tags: { some: {} } },
+                        {
+                            preferences: {
+                                some: {
+                                    nutritionistId,
+                                    tags: { some: {} },
+                                },
+                            },
+                        },
+                    ],
+                });
+                break;
+            case 'app':
+                andClauses.push({
+                    verified: true,
+                    isPublic: true,
+                });
+                break;
+            case 'community':
+                andClauses.push({
+                    verified: false,
+                    isPublic: true,
+                    nutritionistId: { not: null },
+                });
+                if (nutritionistId) {
+                    andClauses.push({
+                        nutritionistId: { not: nutritionistId },
+                    });
+                }
+                break;
+            default:
+                andClauses.push(
+                    nutritionistId
+                        ? {
+                            OR: [{ isPublic: true }, { nutritionistId }],
+                        }
+                        : { isPublic: true },
+                );
+                break;
         }
 
-        const whereClause: any = {};
-
-        // 1. Tab-based filtering
-        if (tab === 'created' && nutritionistId) {
-            whereClause.nutritionistId = nutritionistId;
-        } else if (tab === 'favorites' && nutritionistId) {
-            whereClause.preferences = {
-                some: {
-                    nutritionistId,
-                    isFavorite: true,
-                },
-            };
-        } else if (tab === 'not_recommended' && nutritionistId) {
-            whereClause.preferences = {
-                some: {
-                    nutritionistId,
-                    isNotRecommended: true,
-                },
-            };
-        } else if (tab === 'app') {
-            // "Ingredientes de la App" -> Verified/System ingredients
-            // Using verified=true as proxy for "System/App" ingredients.
-            // Adjust if seeding logic differs.
-            whereClause.verified = true;
-            whereClause.isPublic = true;
-        } else if (tab === 'community') {
-            // "Ingredientes de Nutricionistas" -> Public but not verified (yet)
-            whereClause.verified = false;
-            whereClause.isPublic = true;
-            whereClause.nutritionistId = { not: null };
-        } else {
-            // 'all' tab (default fallback): Show public foods OR my created foods (if any remaining logic uses 'all')
-            whereClause.OR = [
-                { isPublic: true },
-                ...(nutritionistId ? [{ nutritionistId }] : []),
-            ];
-        }
-
-        // 2. Additional filters
         if (search) {
-            whereClause.name = { contains: search, mode: 'insensitive' };
+            andClauses.push({
+                OR: [
+                    { name: { contains: search, mode: 'insensitive' } },
+                    { brand: { name: { contains: search, mode: 'insensitive' } } },
+                ],
+            });
         }
 
-        if (category) {
-            // Filter by category name
-            whereClause.category = {
-                name: { contains: category, mode: 'insensitive' }
-            };
+        if (category && category !== 'Todos') {
+            andClauses.push({
+                category: {
+                    name: { contains: category, mode: 'insensitive' },
+                },
+            });
         }
 
-        // 3. Hide completely hidden foods for this nutritionist
+        if (tag && tag !== 'Todos') {
+            andClauses.push({
+                OR: [
+                    { tags: { some: { name: { equals: tag, mode: Prisma.QueryMode.insensitive } } } },
+                    ...(nutritionistId
+                        ? [{
+                            preferences: {
+                                some: {
+                                    nutritionistId,
+                                    tags: { some: { name: { equals: tag, mode: Prisma.QueryMode.insensitive } } },
+                                },
+                            },
+                        }]
+                        : []),
+                ],
+            });
+        }
+
         if (nutritionistId) {
-            const originalWhere = { ...whereClause };
-            whereClause.AND = [
-                originalWhere,
+            andClauses.push(
                 {
                     preferences: {
                         none: {
@@ -202,8 +281,11 @@ export class FoodsService {
                         },
                     },
                 },
-            ];
+            );
         }
+
+        const whereClause: Prisma.IngredientWhereInput =
+            andClauses.length > 0 ? { AND: andClauses } : {};
 
         const ingredients = await (this.prisma as any).ingredient.findMany({
             where: whereClause,
@@ -320,18 +402,40 @@ export class FoodsService {
         }
     }
 
-    async findOne(id: string) {
-        return (this.prisma as any).ingredient.findUnique({
-            where: { id },
-            include: {
-                brand: true,
-                category: true,
-                tags: true,
-            },
-        });
+    async findOne(id: string, requesterAccountId: string) {
+        const nutritionist = await this.resolveNutritionist(requesterAccountId);
+        const nutritionistId = nutritionist?.id;
+        const ingredient = await this.findIngredientWithRelations(id, nutritionistId);
+
+        if (!ingredient) {
+            throw new NotFoundException('Ingrediente no encontrado');
+        }
+
+        const canAccess =
+            ingredient.isPublic ||
+            (nutritionistId ? ingredient.nutritionistId === nutritionistId : false);
+
+        if (!canAccess) {
+            throw new ForbiddenException('No tienes permisos para ver este ingrediente');
+        }
+
+        return {
+            ...ingredient,
+            isMine: ingredient.nutritionistId === nutritionistId && !!nutritionistId,
+        };
     }
 
-    async update(id: string, updateFoodDto: UpdateFoodDto) {
+    async update(id: string, updateFoodDto: UpdateFoodDto, requesterAccountId: string) {
+        const nutritionist = await this.resolveNutritionist(requesterAccountId);
+        const nutritionistId = nutritionist?.id;
+        const existing = await (this.prisma as any).ingredient.findUnique({ where: { id } });
+
+        if (!existing) {
+            throw new NotFoundException('Ingrediente no encontrado');
+        }
+
+        this.assertIngredientOwnership(existing, nutritionistId);
+
         const { brand, category, tags, ...rest } = updateFoodDto;
 
         const brandRecord = brand ? await this.getOrCreateBrand(brand) : undefined;
@@ -348,22 +452,30 @@ export class FoodsService {
             },
         });
 
-        if (ingredient.nutritionistId) {
-            await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'foods');
-            await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'dashboard');
-        }
-        return ingredient;
+        await this.cacheService.invalidateNutritionistPrefix(existing.nutritionistId, 'foods');
+        await this.cacheService.invalidateNutritionistPrefix(existing.nutritionistId, 'dashboard');
+        return {
+            ...ingredient,
+            isMine: true,
+        };
     }
 
-    async remove(id: string) {
+    async remove(id: string, requesterAccountId: string) {
+        const nutritionist = await this.resolveNutritionist(requesterAccountId);
+        const nutritionistId = nutritionist?.id;
         const ingredient = await (this.prisma as any).ingredient.findUnique({ where: { id } });
+
+        if (!ingredient) {
+            throw new NotFoundException('Ingrediente no encontrado');
+        }
+
+        this.assertIngredientOwnership(ingredient, nutritionistId);
+
         const result = await (this.prisma as any).ingredient.delete({
             where: { id },
         });
-        if (ingredient?.nutritionistId) {
-            await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'foods');
-            await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'dashboard');
-        }
+        await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'foods');
+        await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'dashboard');
         return result;
     }
 

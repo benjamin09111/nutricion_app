@@ -48,6 +48,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import Cookies from "js-cookie";
+import { fetchApi } from "@/lib/api-base";
 import {
   fetchCreation,
   fetchProject,
@@ -216,6 +217,15 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     contentType: "theory",
   },
 ];
+
+const getBlankDeliverableSections = () =>
+  DELIVERABLE_SECTIONS.filter(
+    (section) =>
+      section.defaultSelected &&
+      !["shoppingList", "qrCode", "recipes", "patientInfo", "hormonalIntel"].includes(
+        section.id,
+      ),
+  ).map((section) => section.id);
 
 export default function DeliverableClient() {
   const router = useRouter();
@@ -715,7 +725,7 @@ export default function DeliverableClient() {
   const fetchResources = async () => {
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/resources`, {
+      const response = await fetchApi(`/resources`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) return;
@@ -742,8 +752,7 @@ export default function DeliverableClient() {
     if (!resource) return;
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiBase}/resources/resolve-variables`, {
+      const response = await fetchApi(`/resources/resolve-variables`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -789,8 +798,7 @@ export default function DeliverableClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/patients`, {
+      const response = await fetchApi(`/patients`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -851,8 +859,10 @@ export default function DeliverableClient() {
   };
 
   const resetDeliverable = () => {
-    setSelectedSections(DELIVERABLE_SECTIONS.filter(s => s.defaultSelected && !['shoppingList', 'qrCode', 'recipes', 'patientInfo', 'hormonalIntel'].includes(s.id)).map(s => s.id));
+    setSelectedSections(getBlankDeliverableSections());
     setIncludeLogo(true);
+    setResolvedResourcePages([]);
+    setExportPackages([]);
     toast.info("Configuración del entregable reiniciada.");
   };
 
@@ -861,8 +871,18 @@ export default function DeliverableClient() {
     localStorage.removeItem("nutri_patient");
     setHasCart(false);
     setHasRecipes(false);
+    setHasDraftMemory(false);
     setSelectedPatient(null);
-    setSelectedSections(DELIVERABLE_SECTIONS.filter(s => s.defaultSelected && !['shoppingList', 'qrCode', 'recipes', 'patientInfo', 'hormonalIntel'].includes(s.id)).map(s => s.id));
+    setSelectedSections(getBlankDeliverableSections());
+    setIncludeLogo(true);
+    setResolvedResourcePages([]);
+    setExportPackages([]);
+    setSelectedResourceId("");
+    setResourceVariables({});
+    setIsImportPatientModalOpen(false);
+    setIsImportCreationModalOpen(false);
+    setIsResourceModalOpen(false);
+    setIsExportWizardOpen(false);
     setShowInitModal(false);
     toast.success("Proyecto en blanco iniciado.");
   };

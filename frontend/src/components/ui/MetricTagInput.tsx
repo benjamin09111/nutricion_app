@@ -6,6 +6,7 @@ import { Input } from "./Input";
 import Cookies from "js-cookie";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { DEFAULT_METRICS } from "@/lib/constants";
+import { fetchApi } from "@/lib/api-base";
 
 interface Metric {
     key: string;
@@ -43,14 +44,17 @@ export function MetricTagInput({
 
     useEffect(() => {
         const fetchMetrics = async () => {
+            if (!token) {
+                setFetchedMetrics([]);
+                return;
+            }
             setIsLoading(true);
             try {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
                 const url = inputValue.trim() === ""
-                    ? `${apiUrl}/metrics?limit=10`
-                    : `${apiUrl}/metrics?search=${encodeURIComponent(inputValue)}`;
+                    ? `/metrics?limit=10`
+                    : `/metrics?search=${encodeURIComponent(inputValue)}`;
 
-                const response = await fetch(url, {
+                const response = await fetchApi(url, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 if (response.ok) {
@@ -86,8 +90,7 @@ export function MetricTagInput({
 
     const handleDeleteGlobalMetric = async (metric: Metric) => {
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-            const response = await fetch(`${apiUrl}/metrics/${metric.id}`, {
+            const response = await fetchApi(`/metrics/${metric.id}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` },
             });

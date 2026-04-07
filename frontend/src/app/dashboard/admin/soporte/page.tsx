@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
+import { fetchApi } from "@/lib/api-base";
 
 interface SupportRequest {
   id: string;
@@ -23,8 +24,6 @@ interface SupportRequest {
 export default function AdminSupportPage() {
   const [requests, setRequests] = useState<SupportRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
   useEffect(() => {
     fetchRequests();
   }, []);
@@ -34,7 +33,7 @@ export default function AdminSupportPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(`${API_URL}/support`, {
+      const response = await fetchApi(`/support`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Error al cargar solicitudes");
@@ -52,7 +51,7 @@ export default function AdminSupportPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(`${API_URL}/support/${id}/resolve`, {
+      const response = await fetchApi(`/support/${id}/resolve`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });

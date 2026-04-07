@@ -38,6 +38,7 @@ import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import ManageTagsModal from "./ManageTagsModal";
 import CreateGroupModal from "./CreateGroupModal";
 import AddIngredientsToGroupModal from "./AddIngredientsToGroupModal";
+import { fetchApi } from "@/lib/api-base";
 
 type IngredientTab =
   | "Dieta base"
@@ -112,9 +113,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     setCatalogPool(initialData);
   }, [initialData]);
 
-  const getApiUrl = () =>
-    process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-
   const getToken = () =>
     Cookies.get("auth_token") || localStorage.getItem("auth_token");
 
@@ -154,7 +152,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         ...(selectedTag !== "Todos" && { tag: selectedTag }),
       });
 
-      const res = await fetch(`${getApiUrl()}/foods?${queryParams.toString()}`, {
+      const res = await fetchApi(`/foods?${queryParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -177,7 +175,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     if (!token) return;
 
     try {
-      const res = await fetch(`${getApiUrl()}/foods?limit=5000`, {
+      const res = await fetchApi("/foods?limit=5000", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -197,8 +195,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     if (!token) return;
     setIsLoadingGroups(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const res = await fetch(`${apiUrl}/ingredient-groups`, {
+      const res = await fetchApi("/ingredient-groups", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -363,8 +360,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     if (!token) return;
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const res = await fetch(`${apiUrl}/ingredient-groups/${groupId}`, {
+      const res = await fetchApi(`/ingredient-groups/${groupId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -447,8 +443,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     if (!token) return;
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const res = await fetch(`${apiUrl}/ingredient-groups/${groupToDelete}`, {
+      const res = await fetchApi(`/ingredient-groups/${groupToDelete}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -476,9 +471,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     if (!token) return;
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const res = await fetch(
-        `${apiUrl}/ingredient-groups/${groupId}/ingredients`,
+      const res = await fetchApi(
+        `/ingredient-groups/${groupId}/ingredients`,
         {
           method: "DELETE",
           headers: {
@@ -549,10 +543,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
       if (!token) return;
 
       try {
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-        const res = await fetch(
-          `${apiUrl}/ingredient-groups/${targetGroupIdForNewIngredient}/ingredients`,
+        const res = await fetchApi(
+          `/ingredient-groups/${targetGroupIdForNewIngredient}/ingredients`,
           {
             method: "POST",
             headers: {
@@ -612,9 +604,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     );
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const response = await fetch(
-        `${apiUrl}/foods/${ingredientId}/preferences`,
+      const response = await fetchApi(
+        `/foods/${ingredientId}/preferences`,
         {
           method: "PATCH",
           headers: {
@@ -703,8 +694,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     }
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const response = await fetch(`${apiUrl}/foods/${id}`, {
+      const response = await fetchApi(`/foods/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -740,8 +730,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     const newIsPublic = !ingredient.isPublic;
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-      const response = await fetch(`${apiUrl}/foods/${ingredient.id}`, {
+      const response = await fetchApi(`/foods/${ingredient.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

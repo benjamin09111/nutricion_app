@@ -7,6 +7,7 @@ import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { fetchApi } from "@/lib/api-base";
 interface TagInputProps {
   value: string[];
   onChange: (tags: string[]) => void;
@@ -138,8 +139,7 @@ export function TagInput({
 
   const handleDeleteGlobalTag = async (tagName: string) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${apiUrl}/tags/${encodeURIComponent(tagName)}`, {
+      const response = await fetchApi(`/tags/${encodeURIComponent(tagName)}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

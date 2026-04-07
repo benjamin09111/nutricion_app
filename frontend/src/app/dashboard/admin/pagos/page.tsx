@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { Modal } from "@/components/ui/Modal";
+import { fetchApi } from "@/lib/api-base";
 
 interface Transaction {
   id: string;
@@ -54,8 +55,6 @@ export default function AdminPaymentsPage() {
   const [customAmount, setCustomAmount] = useState<number | "">("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
   useEffect(() => {
     fetchData();
   }, []);
@@ -74,8 +73,8 @@ export default function AdminPaymentsPage() {
       const headers = { Authorization: `Bearer ${token}` };
 
       const [pRes, sRes] = await Promise.all([
-        fetch(`${API_URL}/payments`, { headers }),
-        fetch(`${API_URL}/payments/stats`, { headers }),
+        fetchApi(`/payments`, { headers }),
+        fetchApi(`/payments/stats`, { headers }),
       ]);
 
       if (pRes.ok) setTransactions(await pRes.json());
@@ -95,8 +94,8 @@ export default function AdminPaymentsPage() {
       const headers = { Authorization: `Bearer ${token}` };
 
       const [uRes, pRes] = await Promise.all([
-        fetch(`${API_URL}/users?role=NUTRITIONIST`, { headers }),
-        fetch(`${API_URL}/memberships`, { headers }),
+        fetchApi(`/users?role=NUTRITIONIST`, { headers }),
+        fetchApi(`/memberships`, { headers }),
       ]);
 
       if (uRes.ok) setUsers(await uRes.json());
@@ -137,7 +136,7 @@ export default function AdminPaymentsPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const res = await fetch(`${API_URL}/payments/simulate`, {
+      const res = await fetchApi(`/payments/simulate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

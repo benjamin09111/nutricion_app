@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { TagInput } from "@/components/ui/TagInput";
 import { Ingredient } from "@/features/foods";
+import { fetchApi, getApiUrl } from "@/lib/api-base";
 
 interface ManageTagsModalProps {
   isOpen: boolean;
@@ -51,10 +52,8 @@ export default function ManageTagsModal({
 
     try {
       const token = Cookies.get("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-
-      const response = await fetch(
-        `${apiUrl}/foods/${ingredient.id}/preferences`,
+      const response = await fetchApi(
+        `/foods/${ingredient.id}/preferences`,
         {
           method: "PATCH",
           headers: {
@@ -75,9 +74,13 @@ export default function ManageTagsModal({
       toast.success("Tags actualizados correctamente");
       onSuccess(tags);
       onClose();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error updating tags:", error);
-      toast.error(error.message || "No se pudieron guardar los tags");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudieron guardar los tags",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -139,7 +142,7 @@ export default function ManageTagsModal({
                       suggestions={availableTags}
                       placeholder="Escribe para buscar o crear..."
                       className="w-full"
-                      fetchSuggestionsUrl={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/tags`}
+                      fetchSuggestionsUrl={`${getApiUrl()}/tags`}
                     />
                     <p className="text-xs text-slate-400 mt-2">
                       Estos tags te ayudarán a filtrar y encontrar este

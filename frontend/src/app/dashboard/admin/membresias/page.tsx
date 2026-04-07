@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
+import { fetchApi } from "@/lib/api-base";
 
 interface MembershipPlan {
   id: string;
@@ -32,8 +33,6 @@ export default function MembershipsPage() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [planToDelete, setPlanToDelete] = useState<string | null>(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
   useEffect(() => {
     fetchPlans();
   }, []);
@@ -43,7 +42,7 @@ export default function MembershipsPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(`${API_URL}/memberships`, {
+      const response = await fetchApi(`/memberships`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Error al cargar planes");
@@ -73,7 +72,7 @@ export default function MembershipsPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(`${API_URL}/memberships/${editingId}`, {
+      const response = await fetchApi(`/memberships/${editingId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -100,7 +99,7 @@ export default function MembershipsPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(`${API_URL}/memberships/${planToDelete}`, {
+      const response = await fetchApi(`/memberships/${planToDelete}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -155,7 +154,7 @@ export default function MembershipsPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetch(`${API_URL}/memberships`, {
+      const response = await fetchApi(`/memberships`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

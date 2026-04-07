@@ -5,8 +5,7 @@ import { useParams } from "next/navigation";
 import Cookies from "js-cookie";
 import { Loader2 } from "lucide-react";
 import { ResourceEditor } from "../../ResourceEditor";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+import { fetchApi } from "@/lib/api-base";
 
 export default function EditarRecursoPage() {
   const { id } = useParams();
@@ -20,7 +19,7 @@ export default function EditarRecursoPage() {
   async function fetchResource() {
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const res = await fetch(`${API_URL}/resources/${id}`, {
+      const res = await fetchApi(`/resources/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();

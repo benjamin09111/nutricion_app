@@ -13,17 +13,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import Cookies from "js-cookie";
 import { useEffect } from "react";
+import { fetchApi } from "@/lib/api-base";
 
 // API Fetcher
 const fetchStats = async () => {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
   const token =
     Cookies.get("auth_token") ||
     (typeof window !== "undefined" ? localStorage.getItem("auth_token") : null);
 
   console.log(
     "[Dashboard] Fetching stats from:",
-    `${API_URL}/metrics/admin/dashboard`,
+    `/metrics/admin/dashboard`,
   );
   console.log("[Dashboard] Token detected:", !!token);
 
@@ -33,7 +33,7 @@ const fetchStats = async () => {
   }
 
   try {
-    const res = await fetch(`${API_URL}/metrics/admin/dashboard`, {
+    const res = await fetchApi(`/metrics/admin/dashboard`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -112,11 +112,9 @@ export default function AdminDashboardPage() {
 
   const triggerCalculation = async () => {
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      await fetch(`${API_URL}/metrics/force-calculate`, {
+      await fetchApi(`/metrics/force-calculate`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });

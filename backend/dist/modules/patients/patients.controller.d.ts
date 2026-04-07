@@ -27,7 +27,7 @@ export declare class PatientsController {
         likes: string | null;
         customVariables: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
-    findAll(req: any, page?: string, limit?: string, search?: string, status?: string): Promise<{
+    findAll(req: any, page?: string, limit?: string, search?: string, status?: string, documentId?: string, tags?: string, startDate?: string, endDate?: string): Promise<{
         data: {
             tags: string[];
             nutritionistId: string;

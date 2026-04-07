@@ -7,6 +7,7 @@ import { Loader2, Search, Library, Tag as TagIcon, X } from "lucide-react";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { fetchApi } from "@/lib/api-base";
 
 interface Creation {
     id: string;
@@ -46,14 +47,13 @@ export function ImportCreationModal({
         setLoading(true);
         try {
             const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-            let url = `${apiUrl}/creations`;
+            let url = "/creations";
             if (filterType !== "ALL") {
                 url += `?type=${filterType}`;
             }
 
-            const response = await fetch(url, {
+            const response = await fetchApi(url, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 

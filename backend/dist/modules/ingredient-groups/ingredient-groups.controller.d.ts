@@ -52,8 +52,8 @@ export declare class IngredientGroupsController {
                 preferences: {
                     nutritionistId: string;
                     isFavorite: boolean;
-                    isNotRecommended: boolean;
                     isHidden: boolean;
+                    isNotRecommended: boolean;
                     id: string;
                     ingredientId: string;
                 }[];
@@ -102,8 +102,8 @@ export declare class IngredientGroupsController {
                 preferences: {
                     nutritionistId: string;
                     isFavorite: boolean;
-                    isNotRecommended: boolean;
                     isHidden: boolean;
+                    isNotRecommended: boolean;
                     id: string;
                     ingredientId: string;
                 }[];
@@ -166,8 +166,8 @@ export declare class IngredientGroupsController {
                 preferences: {
                     nutritionistId: string;
                     isFavorite: boolean;
-                    isNotRecommended: boolean;
                     isHidden: boolean;
+                    isNotRecommended: boolean;
                     id: string;
                     ingredientId: string;
                 }[];
@@ -224,8 +224,8 @@ export declare class IngredientGroupsController {
                 preferences: {
                     nutritionistId: string;
                     isFavorite: boolean;
-                    isNotRecommended: boolean;
                     isHidden: boolean;
+                    isNotRecommended: boolean;
                     id: string;
                     ingredientId: string;
                 }[];

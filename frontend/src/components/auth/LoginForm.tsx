@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { authService } from "@/features/auth/services/auth.service";
 import { toast } from "sonner";
+import { fetchApi } from "@/lib/api-base";
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -37,8 +38,6 @@ export default function LoginForm() {
   });
 
   const router = useRouter();
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
     try {
@@ -68,7 +67,7 @@ export default function LoginForm() {
     // If it's a password reset, call the direct AUTH endpoint instead of SUPPORT
     if (activeModal === "reset") {
       try {
-        const response = await fetch(`${API_URL}/auth/reset-password`, {
+        const response = await fetchApi(`/auth/reset-password`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: modalEmail }),
@@ -96,7 +95,7 @@ export default function LoginForm() {
     const type = "CONTACT";
 
     try {
-      const response = await fetch(`${API_URL}/support`, {
+      const response = await fetchApi(`/support`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

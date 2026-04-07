@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { toast } from "sonner";
+import { fetchApi } from "@/lib/api-base";
 
 export default function LandingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,9 +35,7 @@ export default function LandingPage() {
   useEffect(() => {
     const fetchCount = async (retries = 3) => {
       try {
-        const API_URL =
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-        const res = await fetch(`${API_URL}/users/count/nutritionists`);
+        const res = await fetchApi(`/users/count/nutritionists`);
         if (res.ok) {
           const data = await res.json();
           setNutriCount(data.count);
@@ -60,9 +59,7 @@ export default function LandingPage() {
     setIsSubmitting(true);
 
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(`${API_URL}/requests`, {
+      const response = await fetchApi(`/requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -370,9 +367,7 @@ function PricingSection() {
   useEffect(() => {
     const fetchPlans = async (retries = 3) => {
       try {
-        const API_URL =
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-        const res = await fetch(`${API_URL}/memberships/active`);
+        const res = await fetchApi(`/memberships/active`);
         if (res.ok) {
           const data = await res.json();
           setPlans(data);

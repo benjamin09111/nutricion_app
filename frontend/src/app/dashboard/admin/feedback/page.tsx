@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { fetchApi } from "@/lib/api-base";
 
 interface Feedback {
   id: string;
@@ -50,8 +51,8 @@ export default function AdminFeedbackPage() {
     setIsLoading(true);
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/support`,
+      const response = await fetchApi(
+        `/support`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -80,8 +81,8 @@ export default function AdminFeedbackPage() {
   const handleResolve = async (id: string) => {
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/support/${id}/resolve`,
+      const response = await fetchApi(
+        `/support/${id}/resolve`,
         {
           method: "PATCH",
           headers: {
@@ -104,8 +105,8 @@ export default function AdminFeedbackPage() {
     if (!feedbackToDelete) return;
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/support/${feedbackToDelete}`,
+      const response = await fetchApi(
+        `/support/${feedbackToDelete}`,
         {
           method: "DELETE",
           headers: {

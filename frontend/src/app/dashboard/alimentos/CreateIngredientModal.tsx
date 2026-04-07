@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { TagInput } from "@/components/ui/TagInput";
 import Cookies from "js-cookie";
 import { Ingredient } from "@/features/foods";
+import { fetchApi, getApiUrl } from "@/lib/api-base";
 
 interface IngredientFormValues {
   name: string;
@@ -158,9 +159,7 @@ export default function CreateIngredientModal({
     setIsSubmitting(true);
     try {
       const token = Cookies.get("auth_token");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001";
-
-      const response = await fetch(`${apiUrl}/foods`, {
+      const response = await fetchApi("/foods", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -442,7 +441,7 @@ export default function CreateIngredientModal({
                     value={field.value || []}
                     onChange={(newTags) => field.onChange(newTags)}
                     suggestions={availableTags}
-                    fetchSuggestionsUrl={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/tags`}
+                fetchSuggestionsUrl={`${getApiUrl()}/tags`}
                   />
                 )}
               />
