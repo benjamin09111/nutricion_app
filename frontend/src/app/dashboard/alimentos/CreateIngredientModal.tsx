@@ -15,7 +15,6 @@ interface IngredientFormValues {
   name: string;
   brand: string;
   category: string;
-  price?: number;
   unit: string;
   amount: number;
   calories: number;
@@ -32,13 +31,6 @@ const ingredientSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
   brand: z.string().min(1, "La marca es obligatoria"),
   category: z.string().min(1, "La categoría es obligatoria"),
-  price: z.preprocess(
-    (val) =>
-      val === "" || (typeof val === "number" && Number.isNaN(val))
-        ? undefined
-        : Number(val),
-    z.number({ message: "El precio es obligatorio" }),
-  ),
   unit: z.string().min(1, "La unidad es obligatoria"),
   amount: z.preprocess(
     (val) =>
@@ -167,6 +159,7 @@ export default function CreateIngredientModal({
         },
         body: JSON.stringify({
           ...data,
+          price: 0,
           isPublic: false,
         }),
       });
@@ -269,17 +262,6 @@ export default function CreateIngredientModal({
                 )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">
-                  Precio Referencial ($) *
-                </label>
-                <input
-                  type="number"
-                  {...register("price", { valueAsNumber: true })}
-                  className="w-full px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm"
-                  placeholder="0"
-                />
-              </div>
             </div>
 
             {/* Portions */}

@@ -243,9 +243,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     }
 
     if (activeTab === "Con tags") {
-      return data.filter(
-        (ingredient) => !!ingredient.isMine && ingredientHasAnyTag(ingredient),
-      );
+      return data.filter((ingredient) => ingredientHasAnyTag(ingredient));
     }
 
     if (activeTab === "Borradores") {
@@ -637,6 +635,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         );
       }
 
+      await Promise.all([fetchIngredients(), fetchCatalogPool()]);
+
       // Custom Toast Message
       let message = "Preferencia actualizada";
       if (updates.isFavorite) message = "Añadido a Favoritos ⭐";
@@ -785,8 +785,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   return (
     <div className="space-y-6">
       {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 flex-col gap-3">
           {/* Main Tabs Switcher */}
           <div className="flex p-1 bg-slate-100/80 rounded-2xl w-fit border border-slate-200/50 backdrop-blur-sm overflow-x-auto max-w-full">
             {tabs.map((tab) => {
@@ -810,7 +810,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
           {/* Sub-tabs for Dieta base */}
           {activeTab === "Dieta base" && (
             <div className="flex flex-col gap-2">
-              <div className="flex gap-2 p-1 bg-slate-50 border border-slate-100 rounded-lg w-fit">
+              <div className="flex max-w-full flex-wrap gap-2 p-1 bg-slate-50 border border-slate-100 rounded-lg w-fit">
                 <button
                   onClick={() => setBaseTab("app")}
                   className={cn(
@@ -846,31 +846,31 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
           {/* Source Attribution */}
           {activeTab === "Dieta base" && baseTab === "app" && (
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50/50 border border-emerald-100 rounded-lg">
+            <div className="flex max-w-full items-start gap-1.5 px-3 py-1 bg-emerald-50/50 border border-emerald-100 rounded-lg">
               <Info className="w-3 h-3 text-emerald-600" />
-              <span className="text-[10px] font-medium text-emerald-700">
+              <span className="text-[10px] font-medium text-emerald-700 break-words">
                 Fuente: Tabla de Composición de Alimentos INTA (2018)
               </span>
             </div>
           )}
           {activeTab === "Borradores" && (
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-100 rounded-lg">
+            <div className="flex max-w-full items-start gap-1.5 px-3 py-1 bg-amber-50 border border-amber-100 rounded-lg">
               <Info className="w-3 h-3 text-amber-600" />
-              <span className="text-[10px] font-medium text-amber-700">
+              <span className="text-[10px] font-medium text-amber-700 break-words">
                 Estos ingredientes se crearon rápido desde Dieta y aún necesitan completar su información nutricional.
               </span>
             </div>
           )}
         </div>
 
-        <div className="flex gap-2">
+        <div className="w-full lg:w-auto">
           {activeTab === "Mis grupos" ? (
-            <div className="flex gap-2">
+            <div className="flex w-full flex-wrap gap-2 lg:justify-end">
               {selectedGroup && (
                 <Button
                   variant="outline"
                   onClick={() => setSelectedGroup(null)}
-                  className="gap-2 border-slate-200 text-slate-600 hover:bg-slate-50"
+                  className="w-full justify-center gap-2 border-slate-200 text-slate-600 hover:bg-slate-50 sm:w-auto"
                 >
                   <ChevronLeft size={16} />
                   Volver
@@ -878,28 +878,28 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
               )}
               <Button
                 onClick={() => setIsCreateGroupModalOpen(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-sm shadow-indigo-100"
+                className="w-full justify-center bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-sm shadow-indigo-100 sm:w-auto"
               >
                 <FolderPlus size={18} />
                 Nueva Agrupación
               </Button>
             </div>
           ) : (
-            <div className="flex gap-2">
+            <div className="flex w-full flex-wrap gap-2 lg:justify-end">
               <Button
                 onClick={() => {
                   setActiveTab("Mis grupos");
                   setIsCreateGroupModalOpen(true);
                 }}
                 variant="outline"
-                className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 gap-2"
+                className="w-full justify-center border-indigo-200 text-indigo-600 hover:bg-indigo-50 gap-2 sm:w-auto"
               >
                 <FolderPlus size={18} />
                 Nueva Agrupación
               </Button>
               <Button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-sm shadow-emerald-100"
+                className="w-full justify-center bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-sm shadow-emerald-100 sm:w-auto"
               >
                 <Plus size={18} />
                 Nuevo Ingrediente
@@ -1318,12 +1318,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-4 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100"
-                      >
-                        Precio
-                      </th>
-                      <th
-                        scope="col"
                         className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 italic"
                       >
                         Unidad {(activeTab === "Dieta base" && baseTab === "app") && "(100)"}
@@ -1428,24 +1422,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
                             {ingredient.category?.name || "General"}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-right font-medium text-slate-600">
-                          {editingId === ingredient.id &&
-                          canEditIngredient(ingredient) ? (
-                            <Input
-                              type="number"
-                              value={editValues.price}
-                              onChange={(e) =>
-                                setEditValues({
-                                  ...editValues,
-                                  price: Number(e.target.value),
-                                })
-                              }
-                              className="h-8 text-sm w-20 ml-auto"
-                            />
-                          ) : (
-                            `$${ingredient.price?.toLocaleString("es-CL")}`
-                          )}
                         </td>
                         <td className="px-6 py-4 text-sm text-center text-slate-500">
                           {ingredient.unit}
@@ -1780,21 +1756,13 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
               </button>
             </div>
             <div className="p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
                     Categoría
                   </p>
                   <p className="font-semibold text-slate-700">
                     {selectedIngredient.category?.name || "-"}
-                  </p>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                    Precio
-                  </p>
-                  <p className="font-semibold text-emerald-600 text-lg">
-                    ${selectedIngredient.price?.toLocaleString("es-CL")}
                   </p>
                 </div>
               </div>

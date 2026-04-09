@@ -1,7 +1,6 @@
 import { useState, KeyboardEvent, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { X, Plus, Globe, User as UserIcon, Trash2 } from "lucide-react";
-import { Button } from "./Button";
+import { X, Globe, User as UserIcon, Trash2 } from "lucide-react";
 import { Input } from "./Input";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
@@ -17,6 +16,7 @@ interface TagInputProps {
   fetchSuggestionsUrl?: string;
   hideTags?: boolean;
   disableDelete?: boolean; // If true, hides the delete button from suggestions dropdown
+  includeSystemSuggestions?: boolean;
 }
 
 export function TagInput({
@@ -28,6 +28,7 @@ export function TagInput({
   fetchSuggestionsUrl,
   hideTags = false,
   disableDelete = false,
+  includeSystemSuggestions = true,
 }: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -160,7 +161,9 @@ export function TagInput({
   };
 
   // Combine manual suggestions with fetched ones and system defaults
-  const systemSuggestions = DEFAULT_CONSTRAINTS.map((c) => c.id);
+  const systemSuggestions = includeSystemSuggestions
+    ? DEFAULT_CONSTRAINTS.map((c) => c.id)
+    : [];
   const allMatchingSuggestions = Array.from(
     new Set([...suggestions, ...systemSuggestions, ...fetchedSuggestions]),
   ).filter(

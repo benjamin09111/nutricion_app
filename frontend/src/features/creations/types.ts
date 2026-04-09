@@ -16,4 +16,5 @@ export interface Creation {
   isPublic?: boolean;
   description?: string;
   patientName?: string | null;
+  filterTags?: string[];
 }

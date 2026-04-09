@@ -60,7 +60,7 @@ import {
   saveCreation,
   updateProject,
 } from "@/lib/workflow";
-import { fetchApi, getApiUrl as resolveApiUrl } from "@/lib/api-base";
+import { fetchApi } from "@/lib/api-base";
 
 interface DietClientProps {
   initialFoods: MarketPrice[];
@@ -316,6 +316,10 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [isLoadingDiets, setIsLoadingDiets] = useState(false);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [pendingTagCreation, setPendingTagCreation] = useState<{
+    name: string;
+    type: "classification" | "constraint";
+  } | null>(null);
   const [dietSearchQuery, setDietSearchQuery] = useState("");
 
   // -- Import Patient Modal State --
@@ -356,10 +360,24 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     setIsProjectLoading(Boolean(projectIdFromUrl));
   }, [projectIdFromUrl]);
 
-  const getApiUrl = () => resolveApiUrl();
-
   const getAuthToken = () =>
     Cookies.get("auth_token") || localStorage.getItem("auth_token") || "";
+
+  const hasTagInList = (list: string[], tagName: string) =>
+    list.some((tag) => tag.trim().toLowerCase() === tagName.trim().toLowerCase());
+
+  const findNewlyAddedTag = (previousTags: string[], nextTags: string[]) =>
+    nextTags.find((tag) => !hasTagInList(previousTags, tag));
+
+  const availableClassificationTags = useMemo(
+    () => availableTags.filter((tag) => tag.startsWith("#")),
+    [availableTags],
+  );
+
+  const availableConstraintTags = useMemo(
+    () => availableTags.filter((tag) => !tag.startsWith("#")),
+    [availableTags],
+  );
 
   const fetchAvailableTags = async (retries = 3) => {
     try {
@@ -394,9 +412,14 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       });
       if (response.ok) {
         fetchAvailableTags();
+        toast.success(`"${tagName}" fue creado en Detalles.`);
+      } else {
+        const errorData = await response.json().catch(() => null);
+        toast.error(errorData?.message || "No se pudo crear el tag en Detalles.");
       }
     } catch (e) {
       console.error("Error creating global tag", e);
+      toast.error("Error al crear el tag en Detalles.");
     }
   };
 
@@ -2460,6 +2483,26 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         description={`Todavía tienes ${draftFoodsPendingCompletion.length} alimento${draftFoodsPendingCompletion.length === 1 ? "" : "s"} creado${draftFoodsPendingCompletion.length === 1 ? "" : "s"} como borrador, sin sus características nutricionales completas. Si continúas ahora, los cálculos de la siguiente etapa pueden quedar imprecisos.`}
         confirmText="Continuar igual"
       />
+      <ConfirmationModal
+        isOpen={!!pendingTagCreation}
+        onClose={() => setPendingTagCreation(null)}
+        onConfirm={() => {
+          if (pendingTagCreation) {
+            void createGlobalTag(pendingTagCreation.name);
+          }
+          setPendingTagCreation(null);
+        }}
+        title="¿Crear también en Detalles?"
+        description={
+          pendingTagCreation
+            ? pendingTagCreation.type === "classification"
+              ? `El tag "${pendingTagCreation.name}" se agregó a esta dieta, pero todavía no existe en Detalles. ¿Quieres crearlo también como etiqueta de clasificación global?`
+              : `La restricción "${pendingTagCreation.name}" se agregó a esta dieta, pero todavía no existe en Detalles. ¿Quieres crearla también como restricción global?`
+            : ""
+        }
+        confirmText="Sí, crear en Detalles"
+        cancelText="No, solo usar aquí"
+      />
       <ModuleLayout
         title="Diseñador de Dieta General"
         description={
@@ -2579,15 +2622,21 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 value={dietTags}
                 onChange={(newTags) => {
                   setDietTags(newTags);
-                  const latest = newTags[newTags.length - 1];
-                  if (latest && !availableTags.includes(latest)) {
-                    createGlobalTag(latest);
+                  const latest = findNewlyAddedTag(dietTags, newTags);
+                  if (
+                    latest &&
+                    !hasTagInList(availableClassificationTags, latest)
+                  ) {
+                    setPendingTagCreation({
+                      name: latest,
+                      type: "classification",
+                    });
                   }
                   saveDraft({ dietTags: newTags });
                 }}
-                fetchSuggestionsUrl={`${resolveApiUrl()}/tags`}
                 placeholder="Añadir tags (Keto, Vegano...)"
-                suggestions={availableTags}
+                suggestions={availableClassificationTags}
+                includeSystemSuggestions={false}
                 className="min-h-[56px] rounded-2xl border-slate-200 bg-slate-50/80 shadow-sm"
               />
             </div>
@@ -2607,11 +2656,24 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 onChange={(newTags) => {
                   const normalizedTags = normalizeConstraintList(newTags);
                   setActiveConstraints(normalizedTags);
+                  const latest = findNewlyAddedTag(
+                    activeConstraints,
+                    normalizedTags,
+                  );
+                  if (
+                    latest &&
+                    !hasTagInList(availableConstraintTags, latest) &&
+                    !DEFAULT_CONSTRAINTS.some((constraint) => constraint.id === latest)
+                  ) {
+                    setPendingTagCreation({
+                      name: latest,
+                      type: "constraint",
+                    });
+                  }
                   saveDraft({ activeConstraints: normalizedTags });
                 }}
-                fetchSuggestionsUrl={`${resolveApiUrl()}/tags`}
                 placeholder="Buscar o añadir restricción..."
-                suggestions={availableTags}
+                suggestions={availableConstraintTags}
                 disableDelete={true}
               />
 

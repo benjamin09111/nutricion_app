@@ -28,6 +28,7 @@ import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { Creation, CreationType } from "@/features/creations";
 import { Pagination } from "@/components/ui/Pagination";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { fetchApi } from "@/lib/api-base";
@@ -216,25 +217,34 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
         });
         if (response.ok) {
           const data = await response.json();
-          const mappedData = data.map((item: any) => ({
-            id: item.id,
-            name: item.name,
-            type: mapBackendTypeToFrontend(item.type),
-            createdAt: new Date(item.createdAt).toLocaleDateString("es-ES", {
-              day: "2-digit",
-              month: "short",
-              year: "numeric",
-            }),
-            size: "N/A",
-            format: item.format === "NATIVE" ? "JSON" : "PDF",
-            tags: item.tags || [],
-            isPublic: item.isPublic || false,
-            patientName: item.metadata?.patientName || item.content?.patientMeta?.fullName || null,
-            description:
-              typeof item.metadata?.description === "string"
-                ? item.metadata.description
-                : "",
-          }));
+          const mappedData = data.map((item: any) => {
+            const contentConstraints = Array.isArray(item.content?.activeConstraints)
+              ? item.content.activeConstraints
+              : [];
+            const allFilterTags = Array.from(
+              new Set([...(item.tags || []), ...contentConstraints]),
+            );
+            return {
+              id: item.id,
+              name: item.name,
+              type: mapBackendTypeToFrontend(item.type),
+              createdAt: new Date(item.createdAt).toLocaleDateString("es-ES", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              }),
+              size: "N/A",
+              format: item.format === "NATIVE" ? "JSON" : "PDF",
+              tags: item.tags || [],
+              filterTags: allFilterTags,
+              isPublic: item.isPublic || false,
+              patientName: item.metadata?.patientName || item.content?.patientMeta?.fullName || null,
+              description:
+                typeof item.metadata?.description === "string"
+                  ? item.metadata.description
+                  : "",
+            };
+          });
           setLocalCreations(mappedData);
         }
       } catch (error) {
@@ -251,7 +261,9 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
 
   const allTags = useMemo(() => {
     const tags = new Set<string>();
-    allData.forEach((item) => item.tags?.forEach((tag) => tags.add(tag)));
+    allData.forEach((item) =>
+      (item.filterTags || item.tags || []).forEach((tag) => tags.add(tag)),
+    );
     return Array.from(tags);
   }, [allData]);
 
@@ -259,7 +271,9 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
     return allData.filter((item) => {
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = selectedType === "Todos" || item.type === selectedType;
-      const matchesTag = selectedTag === "Todos" || (item.tags && item.tags.includes(selectedTag));
+      const matchesTag =
+        selectedTag === "Todos" ||
+        ((item.filterTags || item.tags || []).includes(selectedTag));
       const matchesPatient = !patientFilter.trim() ||
         ((item as any).patientName?.toLowerCase() ?? "").includes(patientFilter.toLowerCase());
       return matchesSearch && matchesType && matchesTag && matchesPatient;
@@ -417,22 +431,20 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
           </div>
 
           {/* Filter Tags */}
-          <div className="w-full md:w-48 relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+          <div className="w-full md:w-64 relative">
+            <SearchableSelect
+              options={[
+                { value: "Todos", label: "Todas las etiquetas y restricciones" },
+                ...allTags.map((tag) => ({ value: tag, label: tag })),
+              ]}
+              value={selectedTag}
+              onChange={setSelectedTag}
+              placeholder="Buscar tag o restricción..."
+              triggerClassName="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white pl-10"
+            />
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 z-10">
               <Folder className="h-4 w-4 text-slate-400" />
             </div>
-            <select
-              className="w-full h-11 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-medium text-slate-700 appearance-none cursor-pointer text-sm"
-              value={selectedTag}
-              onChange={(e) => setSelectedTag(e.target.value)}
-            >
-              <option value="Todos">Todas las Etiquetas</option>
-              {allTags.map((tag) => (
-                <option key={tag} value={tag}>
-                  {tag}
-                </option>
-              ))}
-            </select>
           </div>
         </div>
 
