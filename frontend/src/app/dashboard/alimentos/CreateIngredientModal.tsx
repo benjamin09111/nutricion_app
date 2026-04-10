@@ -7,9 +7,9 @@ import * as z from "zod";
 import { Save, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { TagInput } from "@/components/ui/TagInput";
-import Cookies from "js-cookie";
 import { Ingredient } from "@/features/foods";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
+import { getAuthToken } from "@/lib/auth-token";
 
 interface IngredientFormValues {
   name: string;
@@ -150,7 +150,10 @@ export default function CreateIngredientModal({
   const onSubmit = async (data: IngredientFormValues) => {
     setIsSubmitting(true);
     try {
-      const token = Cookies.get("auth_token");
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error("Sesión no válida");
+      }
       const response = await fetchApi("/foods", {
         method: "POST",
         headers: {

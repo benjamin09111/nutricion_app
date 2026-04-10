@@ -18,6 +18,7 @@ export declare class FoodsService {
     private getOrCreateBrand;
     private getOrCreateCategory;
     private getOrCreateTags;
+    private invalidateFoodCaches;
     create(createFoodDto: CreateFoodDto, userId: string): Promise<any>;
     findAll(params: {
         nutritionistAccountId?: string;

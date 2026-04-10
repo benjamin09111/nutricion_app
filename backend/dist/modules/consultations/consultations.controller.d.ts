@@ -15,8 +15,8 @@ export declare class ConsultationsController {
         updatedAt: Date;
         description: string | null;
         date: Date;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         patientId: string;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         title: string;
     }>;
     findAll(req: any, page?: string, limit?: string, search?: string, patientId?: string, type?: 'CLINICAL' | 'METRIC' | 'ALL'): Promise<{
@@ -31,8 +31,8 @@ export declare class ConsultationsController {
             updatedAt: Date;
             description: string | null;
             date: Date;
-            metrics: import("@prisma/client/runtime/library").JsonValue | null;
             patientId: string;
+            metrics: import("@prisma/client/runtime/library").JsonValue | null;
             title: string;
         }[];
         meta: {
@@ -52,8 +52,8 @@ export declare class ConsultationsController {
         updatedAt: Date;
         description: string | null;
         date: Date;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         patientId: string;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         title: string;
     }>;
     update(req: any, id: string, updateConsultationDto: UpdateConsultationDto): Promise<{
@@ -67,8 +67,8 @@ export declare class ConsultationsController {
         updatedAt: Date;
         description: string | null;
         date: Date;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         patientId: string;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         title: string;
     }>;
     remove(req: any, id: string): Promise<{
@@ -78,8 +78,8 @@ export declare class ConsultationsController {
         updatedAt: Date;
         description: string | null;
         date: Date;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         patientId: string;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         title: string;
     }>;
 }

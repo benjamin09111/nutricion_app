@@ -158,6 +158,15 @@ let FoodsService = class FoodsService {
         }
         return tags;
     }
+    async invalidateFoodCaches(params) {
+        const identifiers = Array.from(new Set([params.accountId, params.nutritionistId].filter(Boolean)));
+        if (identifiers.length === 0)
+            return;
+        const prefixes = params.includeDashboard
+            ? ['foods', 'dashboard']
+            : ['foods'];
+        await Promise.all(identifiers.flatMap((identifier) => prefixes.map((prefix) => this.cacheService.invalidateNutritionistPrefix(identifier, prefix))));
+    }
     async create(createFoodDto, userId) {
         const { brand, category, tags, isPublic, isDraft, ingredients, ...rest } = createFoodDto;
         const nutritionist = await this.prisma.nutritionist.findUnique({
@@ -202,8 +211,11 @@ let FoodsService = class FoodsService {
             });
             return ingredient;
         });
-        await this.cacheService.invalidateNutritionistPrefix(nutritionist.id, 'foods');
-        await this.cacheService.invalidateNutritionistPrefix(nutritionist.id, 'dashboard');
+        await this.invalidateFoodCaches({
+            accountId: userId,
+            nutritionistId: nutritionist.id,
+            includeDashboard: true,
+        });
         return this.serializeIngredient(ingredient, nutritionist.id);
     }
     async findAll(params) {
@@ -278,7 +290,6 @@ let FoodsService = class FoodsService {
             case 'tagged':
                 if (!nutritionistId)
                     return [];
-                andClauses.push({ nutritionistId });
                 andClauses.push({
                     OR: [
                         { tags: { some: {} } },
@@ -461,7 +472,11 @@ let FoodsService = class FoodsService {
                 },
                 include: { tags: true },
             });
-            await this.cacheService.invalidateNutritionistPrefix(nutritionist.id, 'foods');
+            await this.invalidateFoodCaches({
+                accountId: userId,
+                nutritionistId: nutritionist.id,
+                includeDashboard: true,
+            });
             return preference;
         }
         catch (error) {
@@ -508,9 +523,25 @@ let FoodsService = class FoodsService {
                 ...(categoryRecord && { category: { connect: { id: categoryRecord.id } } }),
                 ...(tagRecords && { tags: { set: tagRecords.map(t => ({ id: t.id })) } }),
             },
+            include: {
+                brand: true,
+                category: true,
+                tags: true,
+                ...(nutritionistId
+                    ? {
+                        preferences: {
+                            where: { nutritionistId },
+                            include: { tags: true },
+                        },
+                    }
+                    : {}),
+            },
         });
-        await this.cacheService.invalidateNutritionistPrefix(existing.nutritionistId, 'foods');
-        await this.cacheService.invalidateNutritionistPrefix(existing.nutritionistId, 'dashboard');
+        await this.invalidateFoodCaches({
+            accountId: requesterAccountId,
+            nutritionistId: existing.nutritionistId,
+            includeDashboard: true,
+        });
         return this.serializeIngredient(ingredient, nutritionistId);
     }
     async remove(id, requesterAccountId) {
@@ -524,8 +555,11 @@ let FoodsService = class FoodsService {
         const result = await this.prisma.ingredient.delete({
             where: { id },
         });
-        await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'foods');
-        await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'dashboard');
+        await this.invalidateFoodCaches({
+            accountId: requesterAccountId,
+            nutritionistId: ingredient.nutritionistId,
+            includeDashboard: true,
+        });
         return result;
     }
     async getMarketPrices(limit = 7) {

@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { TagInput } from "@/components/ui/TagInput"; // Assuming TagInput is reusable and exported
 import { fetchApi, getApiUrl } from "@/lib/api-base";
+import { getAuthToken } from "@/lib/auth-token";
 
 type CreateGroupForm = {
   name: string;
@@ -38,7 +38,7 @@ export default function CreateGroupModal({
 
   const onSubmit = async (data: CreateGroupForm) => {
     setIsLoading(true);
-    const token = Cookies.get("auth_token");
+    const token = getAuthToken();
     if (!token) {
       toast.error("Sesión no válida");
       setIsLoading(false);

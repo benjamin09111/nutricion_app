@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Ingredient } from "@/features/foods";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { Modal } from "@/components/ui/Modal";
 import { fetchApi } from "@/lib/api-base";
+import { getAuthToken } from "@/lib/auth-token";
 
 interface AddIngredientsToGroupModalProps {
   isOpen: boolean;
@@ -99,8 +99,12 @@ export default function AddIngredientsToGroupModal({
   const handleAdd = async () => {
     if (selectedIds.size === 0) return;
     setIsSubmitting(true);
-    const token = Cookies.get("auth_token");
-    if (!token) return;
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Sesión no válida");
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const res = await fetchApi(

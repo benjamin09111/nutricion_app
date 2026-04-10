@@ -145,6 +145,30 @@ export class FoodsService {
         return tags;
     }
 
+    private async invalidateFoodCaches(params: {
+        accountId?: string | null;
+        nutritionistId?: string | null;
+        includeDashboard?: boolean;
+    }) {
+        const identifiers = Array.from(
+            new Set([params.accountId, params.nutritionistId].filter(Boolean)),
+        ) as string[];
+
+        if (identifiers.length === 0) return;
+
+        const prefixes = params.includeDashboard
+            ? ['foods', 'dashboard']
+            : ['foods'];
+
+        await Promise.all(
+            identifiers.flatMap((identifier) =>
+                prefixes.map((prefix) =>
+                    this.cacheService.invalidateNutritionistPrefix(identifier, prefix),
+                ),
+            ),
+        );
+    }
+
     async create(createFoodDto: CreateFoodDto, userId: string) {
         const { brand, category, tags, isPublic, isDraft, ingredients, ...rest } = createFoodDto;
 
@@ -202,8 +226,11 @@ export class FoodsService {
             return ingredient;
         });
 
-        await this.cacheService.invalidateNutritionistPrefix(nutritionist.id, 'foods');
-        await this.cacheService.invalidateNutritionistPrefix(nutritionist.id, 'dashboard');
+        await this.invalidateFoodCaches({
+            accountId: userId,
+            nutritionistId: nutritionist.id,
+            includeDashboard: true,
+        });
         return this.serializeIngredient(ingredient, nutritionist.id);
     }
 
@@ -285,7 +312,6 @@ export class FoodsService {
                 break;
             case 'tagged':
                 if (!nutritionistId) return [];
-                andClauses.push({ nutritionistId });
                 andClauses.push({
                     OR: [
                         { tags: { some: {} } },
@@ -498,7 +524,11 @@ export class FoodsService {
                 include: { tags: true },
             });
 
-            await this.cacheService.invalidateNutritionistPrefix(nutritionist.id, 'foods');
+            await this.invalidateFoodCaches({
+                accountId: userId,
+                nutritionistId: nutritionist.id,
+                includeDashboard: true,
+            });
             return preference;
         } catch (error) {
             console.error(`[togglePreference] Error upserting preference:`, error);
@@ -571,8 +601,11 @@ export class FoodsService {
             },
         });
 
-        await this.cacheService.invalidateNutritionistPrefix(existing.nutritionistId, 'foods');
-        await this.cacheService.invalidateNutritionistPrefix(existing.nutritionistId, 'dashboard');
+        await this.invalidateFoodCaches({
+            accountId: requesterAccountId,
+            nutritionistId: existing.nutritionistId,
+            includeDashboard: true,
+        });
         return this.serializeIngredient(ingredient, nutritionistId);
     }
 
@@ -590,8 +623,11 @@ export class FoodsService {
         const result = await (this.prisma as any).ingredient.delete({
             where: { id },
         });
-        await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'foods');
-        await this.cacheService.invalidateNutritionistPrefix(ingredient.nutritionistId, 'dashboard');
+        await this.invalidateFoodCaches({
+            accountId: requesterAccountId,
+            nutritionistId: ingredient.nutritionistId,
+            includeDashboard: true,
+        });
         return result;
     }
 

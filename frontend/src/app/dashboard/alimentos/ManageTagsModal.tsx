@@ -10,10 +10,10 @@ import {
 } from "@headlessui/react";
 import { X, Save, Tag } from "lucide-react";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { TagInput } from "@/components/ui/TagInput";
 import { Ingredient } from "@/features/foods";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
+import { getAuthToken } from "@/lib/auth-token";
 
 interface ManageTagsModalProps {
   isOpen: boolean;
@@ -51,7 +51,10 @@ export default function ManageTagsModal({
     setIsSubmitting(true);
 
     try {
-      const token = Cookies.get("auth_token");
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error("Sesión no válida");
+      }
       const response = await fetchApi(
         `/foods/${ingredient.id}/preferences`,
         {

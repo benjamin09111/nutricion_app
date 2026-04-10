@@ -33,12 +33,12 @@ import IngredientDetailsModal from "./IngredientDetailsModal";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import ManageTagsModal from "./ManageTagsModal";
 import CreateGroupModal from "./CreateGroupModal";
 import AddIngredientsToGroupModal from "./AddIngredientsToGroupModal";
 import { fetchApi } from "@/lib/api-base";
+import { getAuthToken } from "@/lib/auth-token";
 
 type IngredientTab =
   | "Dieta base"
@@ -114,8 +114,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     setCatalogPool(initialData);
   }, [initialData]);
 
-  const getToken = () =>
-    Cookies.get("auth_token") || localStorage.getItem("auth_token");
+  const getToken = () => getAuthToken();
 
   const canEditIngredient = (ingredient: Ingredient | null | undefined) =>
     Boolean(ingredient?.isMine);
@@ -194,7 +193,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   }, []);
 
   const fetchGroups = async () => {
-    const token = Cookies.get("auth_token");
+    const token = getToken();
     if (!token) return;
     setIsLoadingGroups(true);
     try {
@@ -362,7 +361,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   ];
 
   const handleGroupClick = async (groupId: string) => {
-    const token = Cookies.get("auth_token");
+    const token = getToken();
     if (!token) return;
 
     try {
@@ -445,7 +444,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
   const confirmDeleteGroup = async () => {
     if (!groupToDelete) return;
-    const token = Cookies.get("auth_token");
+    const token = getToken();
     if (!token) return;
 
     try {
@@ -473,7 +472,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     groupId: string,
     ingredientId: string,
   ) => {
-    const token = Cookies.get("auth_token");
+    const token = getToken();
     if (!token) return;
 
     try {
@@ -545,7 +544,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     await Promise.all([fetchIngredients(), fetchCatalogPool()]);
 
     if (targetGroupIdForNewIngredient && newIngredient) {
-      const token = Cookies.get("auth_token");
+      const token = getToken();
       if (!token) return;
 
       try {
@@ -587,7 +586,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   };
 
   const handleTogglePreference = async (ingredientId: string, updates: any) => {
-    const token = Cookies.get("auth_token");
+    const token = getToken();
     if (!token) return;
 
     // Optimistic Update
@@ -686,7 +685,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   };
 
   const handleSaveEdit = async (id: string) => {
-    const token = Cookies.get("auth_token");
+    const token = getToken();
     if (!token) return;
 
     const ingredientToEdit =
@@ -742,7 +741,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   };
 
   const handleShareToggle = async (ingredient: Ingredient) => {
-    const token = Cookies.get("auth_token");
+    const token = getToken();
     if (!token) return;
 
     const newIsPublic = !ingredient.isPublic;
