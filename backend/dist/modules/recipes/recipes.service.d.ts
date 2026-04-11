@@ -1,12 +1,56 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { EstimateMacrosDto } from './dto/estimate-macros.dto';
+import { AiFillRecipesDto } from './dto/ai-fill-recipes.dto';
 import { CacheService } from '../../common/services/cache.service';
+type AiRecipeOutput = {
+    slotId: string;
+    mealSection: string;
+    title: string;
+    description: string;
+    preparation: string;
+    complexity: 'simple' | 'elaborada';
+    protein: number;
+    calories: number;
+    carbs: number;
+    fats: number;
+    ingredients: string[];
+    mainIngredients: string[];
+};
+type AiReplacementGuide = {
+    mealSection: string;
+    suggestions: string[];
+};
+type AiMetaResponse = {
+    note: string;
+    replacementGuide: AiReplacementGuide[];
+};
+type AiFillDayResponse = {
+    recipes: AiRecipeOutput[];
+    meta: AiMetaResponse;
+};
+type AiFillWeekResponse = {
+    days: Array<{
+        day: string;
+        recipes: AiRecipeOutput[];
+    }>;
+    meta: AiMetaResponse;
+};
 export declare class RecipesService {
     private readonly prisma;
     private readonly cacheService;
     constructor(prisma: PrismaService, cacheService: CacheService);
     private getNutritionistId;
+    private normalizeFoodName;
+    private normalizeMealSection;
+    private isStrictMealSection;
+    private buildAiPrompt;
+    private extractJsonFromResponse;
+    private parseAiResponse;
+    private validateAiRecipe;
+    private validateReplacementGuide;
+    private validateWeekVariety;
+    fillWithAi(userId: string, dto: AiFillRecipesDto): Promise<AiFillDayResponse | AiFillWeekResponse>;
     create(userId: string, createDto: CreateRecipeDto): Promise<{
         ingredients: ({
             ingredient: {
@@ -23,8 +67,8 @@ export declare class RecipesService {
                 sodium: number | null;
                 ingredients: string | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 id: string;
+                nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 verified: boolean;
@@ -49,8 +93,8 @@ export declare class RecipesService {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -77,8 +121,8 @@ export declare class RecipesService {
                 sodium: number | null;
                 ingredients: string | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 id: string;
+                nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 verified: boolean;
@@ -115,8 +159,8 @@ export declare class RecipesService {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -145,8 +189,8 @@ export declare class RecipesService {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -171,8 +215,8 @@ export declare class RecipesService {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -183,3 +227,4 @@ export declare class RecipesService {
         imageUrl: string | null;
     }>;
 }
+export {};

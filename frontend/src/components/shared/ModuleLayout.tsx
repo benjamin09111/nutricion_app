@@ -3,6 +3,7 @@ import { LucideIcon } from "lucide-react";
 import { ModuleRightNav } from "./ModuleRightNav";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { cn } from "@/lib/utils"; // Ensure cn is imported
+import { useDashboardShell } from "@/context/DashboardShellContext";
 
 interface StepIndicator {
   number: number | string;
@@ -30,6 +31,8 @@ export function ModuleLayout({
   children,
   className,
 }: ModuleLayoutProps) {
+  const { isSidebarCollapsed } = useDashboardShell();
+
   return (
     <div
       className={cn("w-full max-w-5xl mx-auto space-y-6 lg:space-y-8 pb-32 relative", className)}
@@ -66,7 +69,12 @@ export function ModuleLayout({
 
       {/* Footer - Fixed at bottom */}
       {footer && (
-        <div className="fixed bottom-0 left-0 lg:left-72 right-0 z-40">
+        <div
+          className={cn(
+            "fixed bottom-0 left-0 right-0 z-40",
+            isSidebarCollapsed ? "lg:left-20" : "lg:left-72",
+          )}
+        >
           {footer}
         </div>
       )}

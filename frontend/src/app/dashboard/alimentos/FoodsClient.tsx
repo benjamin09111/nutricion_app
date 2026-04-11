@@ -154,6 +154,15 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         ...(selectedTag !== "Todos" && { tag: selectedTag }),
       });
 
+      console.log("[FoodsClient.fetchIngredients] request", {
+        activeTab,
+        backendTab: getBackendTab(),
+        selectedCategory,
+        selectedTag,
+        searchTerm,
+        url: `/foods?${queryParams.toString()}`,
+      });
+
       const res = await fetchApi(`/foods?${queryParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -163,6 +172,21 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
       }
 
       const result = await res.json();
+      console.log("[FoodsClient.fetchIngredients] response", {
+        activeTab,
+        backendTab: getBackendTab(),
+        count: Array.isArray(result) ? result.length : 0,
+        sample: Array.isArray(result)
+          ? result.slice(0, 5).map((item) => ({
+              id: item.id,
+              name: item.name,
+              isFavorite: item.preferences?.[0]?.isFavorite ?? false,
+              isNotRecommended:
+                item.preferences?.[0]?.isNotRecommended ?? false,
+              tagCount: item.preferences?.[0]?.tags?.length ?? 0,
+            }))
+          : [],
+      });
       setData(Array.isArray(result) ? result : []);
     } catch (error) {
       console.error("Error fetching ingredients:", error);
@@ -589,6 +613,12 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     const token = getToken();
     if (!token) return;
 
+    console.log("[FoodsClient.handleTogglePreference] start", {
+      activeTab,
+      ingredientId,
+      updates,
+    });
+
     // Optimistic Update
     const previousData = [...data];
     setData((current) =>
@@ -633,6 +663,13 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
           errorData.message || "Error al actualizar preferencias",
         );
       }
+
+      const savedPreference = await response.json();
+      console.log("[FoodsClient.handleTogglePreference] saved", {
+        ingredientId,
+        updates,
+        savedPreference,
+      });
 
       await Promise.all([fetchIngredients(), fetchCatalogPool()]);
 

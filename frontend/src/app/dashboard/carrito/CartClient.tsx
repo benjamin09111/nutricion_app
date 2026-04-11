@@ -998,13 +998,6 @@ export default function CartClient() {
         },
       },
       {
-        id: "save-draft",
-        icon: Save,
-        label: "Guardar Borrador",
-        variant: "slate",
-        onClick: () => setIsSaveCreationModalOpen(true),
-      },
-      {
         id: "export-json",
         icon: FileCode,
         label: "Imprimir JSON",

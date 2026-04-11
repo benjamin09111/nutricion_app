@@ -7,8 +7,8 @@ export declare class CreationsService {
     create(nutritionistId: string, data: any): Promise<{
         name: string;
         tags: string[];
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         type: string;
@@ -19,8 +19,8 @@ export declare class CreationsService {
     findAll(nutritionistId: string, type?: string): Promise<{
         name: string;
         tags: string[];
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         type: string;
@@ -31,8 +31,8 @@ export declare class CreationsService {
     findOne(id: string, nutritionistId: string): Promise<{
         name: string;
         tags: string[];
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         type: string;

@@ -2,6 +2,7 @@ import { RecipesService } from './recipes.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { EstimateMacrosDto } from './dto/estimate-macros.dto';
 import { CompatibleRecipesDto } from './dto/compatible-recipes.dto';
+import { AiFillRecipesDto } from './dto/ai-fill-recipes.dto';
 import { RecipeMatchingService } from './recipe-matching.service';
 export declare class RecipesController {
     private readonly recipesService;
@@ -23,8 +24,8 @@ export declare class RecipesController {
                 sodium: number | null;
                 ingredients: string | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 id: string;
+                nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 verified: boolean;
@@ -49,8 +50,8 @@ export declare class RecipesController {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -84,8 +85,8 @@ export declare class RecipesController {
                 sodium: number | null;
                 ingredients: string | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 id: string;
+                nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 verified: boolean;
@@ -112,8 +113,8 @@ export declare class RecipesController {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -123,6 +124,54 @@ export declare class RecipesController {
         portionSize: number;
         imageUrl: string | null;
     }[]>;
+    fillWithAi(req: any, dto: AiFillRecipesDto): Promise<{
+        recipes: {
+            slotId: string;
+            mealSection: string;
+            title: string;
+            description: string;
+            preparation: string;
+            complexity: "simple" | "elaborada";
+            protein: number;
+            calories: number;
+            carbs: number;
+            fats: number;
+            ingredients: string[];
+            mainIngredients: string[];
+        }[];
+        meta: {
+            note: string;
+            replacementGuide: {
+                mealSection: string;
+                suggestions: string[];
+            }[];
+        };
+    } | {
+        days: Array<{
+            day: string;
+            recipes: {
+                slotId: string;
+                mealSection: string;
+                title: string;
+                description: string;
+                preparation: string;
+                complexity: "simple" | "elaborada";
+                protein: number;
+                calories: number;
+                carbs: number;
+                fats: number;
+                ingredients: string[];
+                mainIngredients: string[];
+            }[];
+        }>;
+        meta: {
+            note: string;
+            replacementGuide: {
+                mealSection: string;
+                suggestions: string[];
+            }[];
+        };
+    }>;
     findAll(req: any): Promise<any[]>;
     findOne(req: any, id: string): Promise<{
         ingredients: ({
@@ -140,8 +189,8 @@ export declare class RecipesController {
                 sodium: number | null;
                 ingredients: string | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 id: string;
+                nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 verified: boolean;
@@ -178,8 +227,8 @@ export declare class RecipesController {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -208,8 +257,8 @@ export declare class RecipesController {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -228,8 +277,8 @@ export declare class RecipesController {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;

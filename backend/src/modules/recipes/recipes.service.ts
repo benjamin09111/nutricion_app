@@ -2,8 +2,48 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { EstimateMacrosDto } from './dto/estimate-macros.dto';
+import { AiFillPayload, AiFillRecipesDto } from './dto/ai-fill-recipes.dto';
 
 import { CacheService } from '../../common/services/cache.service';
+import { RECIPES_AI_PROMPTS } from './recipes-ai-prompts';
+
+type AiRecipeOutput = {
+    slotId: string;
+    mealSection: string;
+    title: string;
+    description: string;
+    preparation: string;
+    complexity: 'simple' | 'elaborada';
+    protein: number;
+    calories: number;
+    carbs: number;
+    fats: number;
+    ingredients: string[];
+    mainIngredients: string[];
+};
+
+type AiReplacementGuide = {
+    mealSection: string;
+    suggestions: string[];
+};
+
+type AiMetaResponse = {
+    note: string;
+    replacementGuide: AiReplacementGuide[];
+};
+
+type AiFillDayResponse = {
+    recipes: AiRecipeOutput[];
+    meta: AiMetaResponse;
+};
+
+type AiFillWeekResponse = {
+    days: Array<{
+        day: string;
+        recipes: AiRecipeOutput[];
+    }>;
+    meta: AiMetaResponse;
+};
 
 @Injectable()
 export class RecipesService {
@@ -22,6 +62,231 @@ export class RecipesService {
         });
         if (!nutritionist) throw new NotFoundException('Nutritionist profile not found');
         return nutritionist.id;
+    }
+
+    private normalizeFoodName(value: string): string {
+        return value
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+
+    private normalizeMealSection(value?: string): string {
+        return this.normalizeFoodName(value || '');
+    }
+
+    private isStrictMealSection(mealSection?: string): boolean {
+        const normalized = this.normalizeMealSection(mealSection);
+        return ['desayuno', 'almuerzo', 'cena', 'once'].includes(normalized);
+    }
+
+    private buildAiPrompt(payload: AiFillPayload): string {
+        const scopePrompt =
+            payload.scope === 'week' ? RECIPES_AI_PROMPTS.week : RECIPES_AI_PROMPTS.day;
+
+        return [scopePrompt, JSON.stringify(payload)].join('\n');
+    }
+
+    private extractJsonFromResponse(rawContent: string): string {
+        const trimmed = rawContent.trim();
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            return trimmed;
+        }
+
+        const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+        if (fencedMatch?.[1]) {
+            return fencedMatch[1].trim();
+        }
+
+        const firstBrace = trimmed.indexOf('{');
+        const lastBrace = trimmed.lastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+            return trimmed.slice(firstBrace, lastBrace + 1);
+        }
+
+        throw new BadRequestException('La IA no devolvió un JSON válido.');
+    }
+
+    private parseAiResponse(rawContent: string): AiFillDayResponse | AiFillWeekResponse {
+        const jsonContent = this.extractJsonFromResponse(rawContent);
+        return JSON.parse(jsonContent) as AiFillDayResponse | AiFillWeekResponse;
+    }
+
+    private validateAiRecipe(
+        recipe: AiRecipeOutput,
+        slotMealSection: string,
+        allowedFoods: Set<string>,
+        allowFlexibleExternalFoods: boolean,
+    ) {
+        if (!recipe.slotId || !recipe.title || !recipe.mealSection) {
+            throw new BadRequestException('La IA devolvió una receta incompleta.');
+        }
+
+        const normalizedSlotMealSection = this.normalizeMealSection(slotMealSection);
+        const normalizedRecipeMealSection = this.normalizeMealSection(recipe.mealSection);
+        if (normalizedSlotMealSection !== normalizedRecipeMealSection) {
+            throw new BadRequestException(`La IA devolvió una sección incompatible para ${recipe.slotId}.`);
+        }
+
+        const allIngredients = [...(recipe.ingredients || []), ...(recipe.mainIngredients || [])]
+            .map((item) => this.normalizeFoodName(item))
+            .filter(Boolean);
+
+        const requiresStrictDietFoods = this.isStrictMealSection(recipe.mealSection);
+        if (requiresStrictDietFoods || !allowFlexibleExternalFoods) {
+            const invalidIngredient = allIngredients.find((ingredient) => !allowedFoods.has(ingredient));
+            if (invalidIngredient) {
+                throw new BadRequestException(
+                    `La IA devolvió un ingrediente fuera de la dieta permitida: ${invalidIngredient}.`,
+                );
+            }
+        }
+    }
+
+    private validateReplacementGuide(meta?: AiMetaResponse) {
+        if (!meta) {
+            throw new BadRequestException('La IA no devolvió metadata de guía.');
+        }
+
+        if (typeof meta.note !== 'string' || !meta.note.trim()) {
+            throw new BadRequestException('La IA no devolvió la nota general requerida.');
+        }
+
+        if (!Array.isArray(meta.replacementGuide)) {
+            throw new BadRequestException('La IA no devolvió replacementGuide válido.');
+        }
+
+        meta.replacementGuide.forEach((item) => {
+            if (!item.mealSection || !Array.isArray(item.suggestions)) {
+                throw new BadRequestException('La IA devolvió replacementGuide incompleto.');
+            }
+        });
+    }
+
+    private validateWeekVariety(
+        response: AiFillWeekResponse,
+        existingAssignments: AiFillPayload['existingAssignments'],
+    ) {
+        const orderedDays = response.days || [];
+        let previousTitles: Set<string> | null = null;
+
+        orderedDays.forEach((dayBlock, index) => {
+            const currentTitles = new Set<string>(
+                dayBlock.recipes.map((recipe) => this.normalizeFoodName(recipe.title)),
+            );
+
+            const fallbackPreviousTitles =
+                index === 0
+                    ? new Set<string>()
+                    : new Set(
+                        existingAssignments
+                            .filter((assignment) => assignment.day === orderedDays[index - 1]?.day)
+                            .map((assignment) => this.normalizeFoodName(assignment.title)),
+                    );
+
+            const titlesToCompare = previousTitles ?? fallbackPreviousTitles;
+            const repeated = [...currentTitles].find((title) => titlesToCompare.has(title));
+            if (repeated) {
+                throw new BadRequestException(
+                    `La IA repitió un plato en días consecutivos: ${repeated}.`,
+                );
+            }
+
+            previousTitles = currentTitles;
+        });
+    }
+
+    async fillWithAi(userId: string, dto: AiFillRecipesDto) {
+        await this.getNutritionistId(userId);
+
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+            throw new BadRequestException('Configura tu API key de OpenAI para usar esta función.');
+        }
+
+        const { payload } = dto;
+        const allowedFoods = new Set(
+            payload.allowedFoodsByDiet.map((food) => this.normalizeFoodName(food)),
+        );
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+                model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+                temperature: 0.2,
+                messages: [
+                    { role: 'system', content: RECIPES_AI_PROMPTS.base },
+                    { role: 'user', content: this.buildAiPrompt(payload) },
+                ],
+            }),
+        });
+
+        if (!response.ok) {
+            throw new BadRequestException('No se pudo completar recetas con IA.');
+        }
+
+        const json = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+        const content = json.choices?.[0]?.message?.content;
+        if (!content) {
+            throw new BadRequestException('La IA no devolvió contenido.');
+        }
+
+        const parsed = this.parseAiResponse(content);
+
+        if (payload.scope === 'day') {
+            const result = parsed as AiFillDayResponse;
+            this.validateReplacementGuide(result.meta);
+
+            const slotMap = new Map((payload.slots || []).map((slot) => [slot.slotId, slot]));
+            result.recipes.forEach((recipe) => {
+                const slot = slotMap.get(recipe.slotId);
+                if (!slot) {
+                    throw new BadRequestException(`La IA devolvió un slot desconocido: ${recipe.slotId}.`);
+                }
+                this.validateAiRecipe(
+                    recipe,
+                    slot.mealSection,
+                    allowedFoods,
+                    payload.generalSnackFlexAllowed,
+                );
+            });
+
+            return result;
+        }
+
+        const result = parsed as AiFillWeekResponse;
+        this.validateReplacementGuide(result.meta);
+
+        const slotMap = new Map(
+            (payload.days || []).flatMap((day) =>
+                day.slots.map((slot) => [`${day.day}:${slot.slotId}`, slot] as const),
+            ),
+        );
+
+        result.days.forEach((dayBlock) => {
+            dayBlock.recipes.forEach((recipe) => {
+                const slot = slotMap.get(`${dayBlock.day}:${recipe.slotId}`);
+                if (!slot) {
+                    throw new BadRequestException(
+                        `La IA devolvió un slot desconocido para ${dayBlock.day}: ${recipe.slotId}.`,
+                    );
+                }
+                this.validateAiRecipe(
+                    recipe,
+                    slot.mealSection,
+                    allowedFoods,
+                    payload.generalSnackFlexAllowed,
+                );
+            });
+        });
+
+        this.validateWeekVariety(result, payload.existingAssignments);
+        return result;
     }
 
     async create(userId: string, createDto: CreateRecipeDto) {

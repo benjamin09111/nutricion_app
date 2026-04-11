@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useDashboardShell } from "@/context/DashboardShellContext";
 
 interface SidebarItem {
   name: string;
@@ -90,26 +91,41 @@ const groups: SidebarGroup[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { isSidebarCollapsed } = useDashboardShell();
 
   return (
-    <div className="flex grow flex-col gap-y-4 overflow-y-auto border-r border-slate-200 bg-white px-4 pb-4 h-full">
-      <div className="flex h-16 shrink-0 items-center pl-2">
+    <div
+      className={cn(
+        "flex grow flex-col gap-y-4 overflow-y-auto border-r border-slate-200 bg-white pb-4 h-full transition-all duration-300",
+        isSidebarCollapsed ? "px-2" : "px-4",
+      )}
+    >
+      <div
+        className={cn(
+          "flex h-16 shrink-0 items-center",
+          isSidebarCollapsed ? "justify-center" : "pl-2",
+        )}
+      >
         <div className="flex items-center space-x-2">
           <div className="h-8 w-8 rounded bg-emerald-500 flex items-center justify-center">
             <span className="font-bold text-white text-lg">N</span>
           </div>
-          <span className="text-xl font-bold tracking-wide text-slate-900">
-            NutriSaaS
-          </span>
+          {!isSidebarCollapsed && (
+            <span className="text-xl font-bold tracking-wide text-slate-900">
+              NutriSaaS
+            </span>
+          )}
         </div>
       </div>
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-2">
           {groups.map((group) => (
             <li key={group.title}>
-              <div className="text-[0.7rem] font-bold uppercase tracking-wider text-slate-400 mb-1 pl-2">
-                {group.title}
-              </div>
+              {!isSidebarCollapsed && (
+                <div className="text-[0.7rem] font-bold uppercase tracking-wider text-slate-400 mb-1 pl-2">
+                  {group.title}
+                </div>
+              )}
               <ul role="list" className="-mx-2 space-y-0.5">
                 {group.items.map((item) => {
                   const isActive = pathname === item.href;
@@ -133,7 +149,9 @@ export function Sidebar() {
                             : "text-slate-600 hover:text-emerald-600 hover:bg-slate-50 font-medium",
                           isLocked && "opacity-50 cursor-not-allowed grayscale",
                           "group flex gap-x-2 rounded-md p-2 leading-5 transition-colors items-center cursor-pointer",
+                          isSidebarCollapsed && "justify-center",
                         )}
+                        title={item.name}
                       >
                         <item.icon
                           className={cn(
@@ -144,7 +162,9 @@ export function Sidebar() {
                           )}
                           aria-hidden="true"
                         />
-                        <span className="flex-1">{item.name}</span>
+                        {!isSidebarCollapsed && (
+                          <span className="flex-1">{item.name}</span>
+                        )}
                         {isLocked && (
                           <Lock className="h-3 w-3 text-slate-400" />
                         )}

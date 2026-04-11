@@ -7,8 +7,8 @@ export declare class IngredientGroupsController {
     create(req: any, createDto: CreateIngredientGroupDto): Promise<{
         tags: {
             name: string;
-            nutritionistId: string | null;
             id: string;
+            nutritionistId: string | null;
         }[];
         entries: ({
             ingredient: {
@@ -32,8 +32,8 @@ export declare class IngredientGroupsController {
         };
     } & {
         name: string;
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -50,11 +50,11 @@ export declare class IngredientGroupsController {
                     id: string;
                 };
                 preferences: {
-                    nutritionistId: string;
-                    isFavorite: boolean;
-                    isHidden: boolean;
-                    isNotRecommended: boolean;
                     id: string;
+                    nutritionistId: string;
+                    isHidden: boolean;
+                    isFavorite: boolean;
+                    isNotRecommended: boolean;
                     ingredientId: string;
                 }[];
             } & {
@@ -71,8 +71,8 @@ export declare class IngredientGroupsController {
                 sodium: number | null;
                 ingredients: string | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 id: string;
+                nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 verified: boolean;
@@ -86,8 +86,8 @@ export declare class IngredientGroupsController {
         }[];
         tags: {
             name: string;
-            nutritionistId: string | null;
             id: string;
+            nutritionistId: string | null;
         }[];
         entries: ({
             ingredient: {
@@ -100,11 +100,11 @@ export declare class IngredientGroupsController {
                     id: string;
                 };
                 preferences: {
-                    nutritionistId: string;
-                    isFavorite: boolean;
-                    isHidden: boolean;
-                    isNotRecommended: boolean;
                     id: string;
+                    nutritionistId: string;
+                    isHidden: boolean;
+                    isFavorite: boolean;
+                    isNotRecommended: boolean;
                     ingredientId: string;
                 }[];
             } & {
@@ -121,8 +121,8 @@ export declare class IngredientGroupsController {
                 sodium: number | null;
                 ingredients: string | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 id: string;
+                nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 verified: boolean;
@@ -141,8 +141,8 @@ export declare class IngredientGroupsController {
             entries: number;
         };
         name: string;
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -160,15 +160,15 @@ export declare class IngredientGroupsController {
                 };
                 tags: {
                     name: string;
-                    nutritionistId: string | null;
                     id: string;
+                    nutritionistId: string | null;
                 }[];
                 preferences: {
-                    nutritionistId: string;
-                    isFavorite: boolean;
-                    isHidden: boolean;
-                    isNotRecommended: boolean;
                     id: string;
+                    nutritionistId: string;
+                    isHidden: boolean;
+                    isFavorite: boolean;
+                    isNotRecommended: boolean;
                     ingredientId: string;
                 }[];
             } & {
@@ -185,8 +185,8 @@ export declare class IngredientGroupsController {
                 sodium: number | null;
                 ingredients: string | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 id: string;
+                nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 verified: boolean;
@@ -200,8 +200,8 @@ export declare class IngredientGroupsController {
         }[];
         tags: {
             name: string;
-            nutritionistId: string | null;
             id: string;
+            nutritionistId: string | null;
         }[];
         nutritionist: {
             id: string;
@@ -218,15 +218,15 @@ export declare class IngredientGroupsController {
                 };
                 tags: {
                     name: string;
-                    nutritionistId: string | null;
                     id: string;
+                    nutritionistId: string | null;
                 }[];
                 preferences: {
-                    nutritionistId: string;
-                    isFavorite: boolean;
-                    isHidden: boolean;
-                    isNotRecommended: boolean;
                     id: string;
+                    nutritionistId: string;
+                    isHidden: boolean;
+                    isFavorite: boolean;
+                    isNotRecommended: boolean;
                     ingredientId: string;
                 }[];
             } & {
@@ -243,8 +243,8 @@ export declare class IngredientGroupsController {
                 sodium: number | null;
                 ingredients: string | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 id: string;
+                nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 verified: boolean;
@@ -260,8 +260,8 @@ export declare class IngredientGroupsController {
             groupId: string;
         })[];
         name: string;
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -269,21 +269,21 @@ export declare class IngredientGroupsController {
     update(req: any, id: string, updateDto: CreateIngredientGroupDto): Promise<{
         tags: {
             name: string;
-            nutritionistId: string | null;
             id: string;
+            nutritionistId: string | null;
         }[];
     } & {
         name: string;
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
     }>;
     remove(req: any, id: string): Promise<{
         name: string;
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -294,8 +294,8 @@ export declare class IngredientGroupsController {
         };
     } & {
         name: string;
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
@@ -306,8 +306,8 @@ export declare class IngredientGroupsController {
         };
     } & {
         name: string;
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;

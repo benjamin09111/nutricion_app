@@ -7,8 +7,8 @@ export declare class PatientsController {
     constructor(patientsService: PatientsService);
     create(req: any, createPatientDto: CreatePatientDto): Promise<{
         tags: string[];
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         email: string | null;
         fullName: string;
         phone: string | null;
@@ -30,8 +30,8 @@ export declare class PatientsController {
     findAll(req: any, page?: string, limit?: string, search?: string, status?: string, documentId?: string, tags?: string, startDate?: string, endDate?: string): Promise<{
         data: {
             tags: string[];
-            nutritionistId: string;
             id: string;
+            nutritionistId: string;
             email: string | null;
             fullName: string;
             phone: string | null;
@@ -61,15 +61,15 @@ export declare class PatientsController {
     }>;
     findOne(req: any, id: string): Promise<{
         consultations: {
-            nutritionistId: string;
             id: string;
+            nutritionistId: string;
             createdAt: Date;
             updatedAt: Date;
             description: string | null;
             date: Date;
             patientId: string;
-            metrics: import("@prisma/client/runtime/library").JsonValue | null;
             title: string;
+            metrics: import("@prisma/client/runtime/library").JsonValue | null;
         }[];
         exams: {
             name: string;
@@ -85,8 +85,8 @@ export declare class PatientsController {
         }[];
     } & {
         tags: string[];
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         email: string | null;
         fullName: string;
         phone: string | null;
@@ -107,8 +107,8 @@ export declare class PatientsController {
     }>;
     update(req: any, id: string, updatePatientDto: UpdatePatientDto): Promise<{
         tags: string[];
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         email: string | null;
         fullName: string;
         phone: string | null;
@@ -129,8 +129,8 @@ export declare class PatientsController {
     }>;
     remove(req: any, id: string): Promise<{
         tags: string[];
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         email: string | null;
         fullName: string;
         phone: string | null;

@@ -4,17 +4,17 @@ export declare class TagsController {
     constructor(tagsService: TagsService);
     findAll(search?: string, limit?: string): Promise<{
         name: string;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
     }[]>;
     create(name: string, req: any): Promise<{
         name: string;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
     } | null>;
     remove(id: string, req: any): Promise<{
         name: string;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
     }>;
 }

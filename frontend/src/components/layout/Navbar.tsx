@@ -14,6 +14,8 @@ import {
   Bell,
   Sparkles,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -25,6 +27,8 @@ import {
 } from "@/context/SubscriptionContext";
 import { authService } from "@/features/auth/services/auth.service";
 import { useNotifications } from "@/context/NotificationsContext";
+import { TutorialTrigger } from "./TutorialTrigger";
+import { useDashboardShell } from "@/context/DashboardShellContext";
 
 function SubscriptionSwitcher() {
   const { plan, forceUpdatePlan } = useSubscription();
@@ -60,6 +64,11 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { plan, planName, trialEndsAt } = useSubscription();
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
     useNotifications();
+  const {
+    isSidebarCollapsed,
+    isSidebarToggleHighlighted,
+    toggleSidebarCollapsed,
+  } = useDashboardShell();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const daysLeft = trialEndsAt
@@ -132,8 +141,30 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
         <Menu className="h-6 w-6 text-slate-600" aria-hidden="true" />
       </button>
 
+      <button
+        type="button"
+        onClick={toggleSidebarCollapsed}
+        className={cn(
+          "hidden lg:inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 transition-all",
+          "hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600",
+          isSidebarToggleHighlighted &&
+            "animate-pulse border-emerald-300 bg-emerald-50 text-emerald-600 shadow-lg shadow-emerald-100",
+        )}
+        title={
+          isSidebarCollapsed ? "Mostrar sidebar principal" : "Ocultar sidebar principal"
+        }
+      >
+        {isSidebarCollapsed ? (
+          <PanelLeftOpen className="h-5 w-5" />
+        ) : (
+          <PanelLeftClose className="h-5 w-5" />
+        )}
+      </button>
+
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6 justify-end">
         <div className="flex items-center gap-x-4 lg:gap-x-6">
+          <TutorialTrigger />
+
           {/* Notification Bell */}
           <div className="relative" ref={notificationRef}>
             <button

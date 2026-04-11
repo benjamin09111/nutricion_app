@@ -1,10 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { AdminProvider, useAdmin } from "@/context/AdminContext";
+import {
+  DashboardShellProvider,
+  useDashboardShell,
+} from "@/context/DashboardShellContext";
 import { X } from "lucide-react";
 
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
@@ -12,6 +17,9 @@ import { SubscriptionProvider } from "@/context/SubscriptionContext";
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { isAdminView, isLoading } = useAdmin();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { isSidebarCollapsed } = useDashboardShell();
+  const pathname = usePathname();
+  const isRecipesModule = pathname.startsWith("/dashboard/recetas");
 
   if (isLoading) {
     return (
@@ -50,16 +58,32 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Desktop Sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+      <div
+        className={`hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300 ${
+          isSidebarCollapsed ? "lg:w-20" : "lg:w-72"
+        }`}
+      >
         {isAdminView ? <AdminSidebar /> : <Sidebar />}
       </div>
 
-      <div className="lg:pl-72 h-full min-h-screen flex flex-col transition-all duration-300">
+      <div
+        className={`h-full min-h-screen flex flex-col transition-all duration-300 ${
+          isSidebarCollapsed ? "lg:pl-20" : "lg:pl-72"
+        }`}
+      >
         <Navbar onMenuClick={() => setSidebarOpen(true)} />
         <main
           className={`flex-1 py-6 lg:py-10 ${isAdminView ? "bg-indigo-50/10" : ""}`}
         >
-          <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">{children}</div>
+          <div
+            className={`mx-auto w-full ${
+              isRecipesModule
+                ? "max-w-[120rem] px-3 sm:px-5 lg:px-6"
+                : "max-w-7xl px-4 sm:px-6 lg:px-8"
+            }`}
+          >
+            {children}
+          </div>
         </main>
       </div>
     </div>
@@ -74,7 +98,9 @@ export default function DashboardLayout({
   return (
     <AdminProvider>
       <SubscriptionProvider>
-        <DashboardContent>{children}</DashboardContent>
+        <DashboardShellProvider>
+          <DashboardContent>{children}</DashboardContent>
+        </DashboardShellProvider>
       </SubscriptionProvider>
     </AdminProvider>
   );

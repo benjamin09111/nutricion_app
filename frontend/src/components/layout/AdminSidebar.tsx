@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
+import { useDashboardShell } from "@/context/DashboardShellContext";
 
 interface SidebarItem {
   name: string;
@@ -91,6 +92,7 @@ const groups: SidebarGroup[] = [
 export function AdminSidebar() {
   const pathname = usePathname();
   const [pendingCount, setPendingCount] = useState(0);
+  const { isSidebarCollapsed } = useDashboardShell();
 
   useEffect(() => {
     const fetchPendingCount = async () => {
@@ -120,24 +122,38 @@ export function AdminSidebar() {
   }, []);
 
   return (
-    <div className="flex grow flex-col gap-y-4 overflow-y-auto border-r border-indigo-100 bg-slate-50/50 px-4 pb-4">
-      <div className="flex h-16 shrink-0 items-center pl-2">
+    <div
+      className={cn(
+        "flex grow flex-col gap-y-4 overflow-y-auto border-r border-indigo-100 bg-slate-50/50 pb-4 transition-all duration-300",
+        isSidebarCollapsed ? "px-2" : "px-4",
+      )}
+    >
+      <div
+        className={cn(
+          "flex h-16 shrink-0 items-center",
+          isSidebarCollapsed ? "justify-center" : "pl-2",
+        )}
+      >
         <div className="flex items-center space-x-2">
           <div className="h-8 w-8 rounded bg-indigo-600 flex items-center justify-center">
             <span className="font-bold text-white text-lg">A</span>
           </div>
-          <span className="text-xl font-bold tracking-wide text-indigo-900">
-            Admin Panel
-          </span>
+          {!isSidebarCollapsed && (
+            <span className="text-xl font-bold tracking-wide text-indigo-900">
+              Admin Panel
+            </span>
+          )}
         </div>
       </div>
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-3">
           {groups.map((group) => (
             <li key={group.title}>
-              <div className="text-[0.8rem] font-bold uppercase tracking-wider text-indigo-400 mb-1 pl-2">
-                {group.title}
-              </div>
+              {!isSidebarCollapsed && (
+                <div className="text-[0.8rem] font-bold uppercase tracking-wider text-indigo-400 mb-1 pl-2">
+                  {group.title}
+                </div>
+              )}
               <ul role="list" className="-mx-2 space-y-0.5">
                 {group.items.map((item) => {
                   const isActive =
@@ -154,7 +170,9 @@ export function AdminSidebar() {
                             ? "bg-indigo-100 text-indigo-700"
                             : "text-slate-600 hover:text-indigo-700 hover:bg-indigo-50",
                           "group flex gap-x-2 rounded-md p-2 leading-5 font-medium transition-colors items-center cursor-pointer",
+                          isSidebarCollapsed && "justify-center",
                         )}
+                        title={item.name}
                       >
                         <item.icon
                           className={cn(
@@ -165,12 +183,14 @@ export function AdminSidebar() {
                           )}
                           aria-hidden="true"
                         />
-                        <span>{item.name}</span>
-                        {item.name === "Peticiones" && pendingCount > 0 && (
+                        {!isSidebarCollapsed && <span>{item.name}</span>}
+                        {!isSidebarCollapsed &&
+                          item.name === "Peticiones" &&
+                          pendingCount > 0 && (
                           <span className="ml-auto inline-flex items-center justify-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
                             {pendingCount}
                           </span>
-                        )}
+                          )}
                       </Link>
                     </li>
                   );

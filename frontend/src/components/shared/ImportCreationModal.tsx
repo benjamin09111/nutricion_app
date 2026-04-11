@@ -26,6 +26,13 @@ interface ImportCreationModalProps {
     defaultType?: string; // DIET, SHOPPING_LIST, RECIPE
 }
 
+const CREATION_TYPE_OPTIONS = [
+    { value: "ALL", label: "Todos" },
+    { value: "DIET", label: "Dietas" },
+    { value: "SHOPPING_LIST", label: "Carrito" },
+    { value: "RECIPE", label: "Recetas" },
+] as const;
+
 export function ImportCreationModal({
     isOpen,
     onClose,
@@ -35,31 +42,37 @@ export function ImportCreationModal({
     const [creations, setCreations] = useState<Creation[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState("");
-    const [filterType, setFilterType] = useState<string>(defaultType || "ALL");
+    const [selectedTypes, setSelectedTypes] = useState<string[]>(["ALL"]);
 
     useEffect(() => {
         if (isOpen) {
             fetchCreations();
         }
-    }, [isOpen, filterType]);
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        setSelectedTypes(["ALL"]);
+    }, [isOpen, defaultType]);
 
     const fetchCreations = async () => {
         setLoading(true);
         try {
             const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
 
-            let url = "/creations";
-            if (filterType !== "ALL") {
-                url += `?type=${filterType}`;
-            }
-
-            const response = await fetchApi(url, {
+            const response = await fetchApi("/creations", {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
             if (response.ok) {
                 const data = await response.json();
-                setCreations(data);
+                const orderedCreations = [...data].sort(
+                    (a, b) =>
+                        new Date(b.createdAt).getTime() -
+                        new Date(a.createdAt).getTime(),
+                );
+                setCreations(orderedCreations);
             }
         } catch (e) {
             console.error("Error fetching creations", e);
@@ -70,11 +83,28 @@ export function ImportCreationModal({
     };
 
     const filteredCreations = creations.filter((c) => {
+        const matchesType =
+            selectedTypes.includes("ALL") || selectedTypes.includes(c.type);
         const matchesSearch =
             c.name.toLowerCase().includes(search.toLowerCase()) ||
             c.tags?.some(t => t.toLowerCase().includes(search.toLowerCase()));
-        return matchesSearch;
+        return matchesType && matchesSearch;
     });
+
+    const toggleType = (type: string) => {
+        setSelectedTypes((current) => {
+            if (type === "ALL") {
+                return ["ALL"];
+            }
+
+            const withoutAll = current.filter((item) => item !== "ALL");
+            const next = withoutAll.includes(type)
+                ? withoutAll.filter((item) => item !== type)
+                : [...withoutAll, type];
+
+            return next.length > 0 ? next : ["ALL"];
+        });
+    };
 
     const getTypeLabel = (type: string) => {
         switch (type) {
@@ -113,16 +143,31 @@ export function ImportCreationModal({
                             className="pl-10 h-10 rounded-xl"
                         />
                     </div>
-                    <select
-                        value={filterType}
-                        onChange={(e) => setFilterType(e.target.value)}
-                        className="h-10 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 px-3 min-w-[140px]"
-                    >
-                        <option value="ALL">Todos los tipos</option>
-                        <option value="DIET">Dietas</option>
-                        <option value="SHOPPING_LIST">Carrito</option>
-                        <option value="RECIPE">Recetas</option>
-                    </select>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                    {CREATION_TYPE_OPTIONS.map((option) => {
+                        const checked = selectedTypes.includes(option.value);
+                        return (
+                            <label
+                                key={option.value}
+                                className={cn(
+                                    "flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-black uppercase tracking-wide transition-all cursor-pointer",
+                                    checked
+                                        ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300",
+                                )}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => toggleType(option.value)}
+                                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span>{option.label}</span>
+                            </label>
+                        );
+                    })}
                 </div>
 
                 {/* Content */}

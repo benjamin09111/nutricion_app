@@ -3,8 +3,8 @@ export declare class SubstitutesController {
     private readonly substitutesService;
     constructor(substitutesService: SubstitutesService);
     findOne(req: any): Promise<{
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         content: import("@prisma/client/runtime/library").JsonValue;
@@ -12,8 +12,8 @@ export declare class SubstitutesController {
     upsert(req: any, body: {
         content: any;
     }): Promise<{
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         content: import("@prisma/client/runtime/library").JsonValue;

@@ -303,6 +303,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const [isSearchingInSmart, setIsSearchingInSmart] = useState(false);
   const [selectedFoods, setSelectedFoods] = useState<Set<string>>(new Set());
   const [isLoadingSmart, setIsLoadingSmart] = useState(false);
+  const [smartInfoFood, setSmartInfoFood] = useState<MarketPrice | null>(null);
 
   // -- Food Info Modal State --
   const [isFoodInfoModalOpen, setIsFoodInfoModalOpen] = useState(false);
@@ -378,6 +379,92 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     () => availableTags.filter((tag) => !tag.startsWith("#")),
     [availableTags],
   );
+
+  const buildFoodInfoPreview = (food: any): MarketPrice => ({
+    id: food?.id,
+    producto: food?.producto || food?.name || "Desconocido",
+    grupo: food?.grupo || food?.category?.name || "Varios",
+    calorias: Number(food?.calorias ?? food?.calories ?? 0),
+    proteinas: Number(food?.proteinas ?? food?.proteins ?? 0),
+    carbohidratos: Number(food?.carbohidratos ?? food?.carbs ?? 0),
+    lipidos: Number(food?.lipidos ?? food?.lipids ?? 0),
+    azucares: Number(food?.azucares ?? food?.sugars ?? 0),
+    fibra: Number(food?.fibra ?? food?.fiber ?? 0),
+    sodio: Number(food?.sodio ?? food?.sodium ?? 0),
+    unidad: food?.unidad || food?.unit || "g",
+    precioPromedio: Number(food?.precioPromedio ?? food?.price ?? 0),
+    tags:
+      food?.tags?.map((tag: any) => (typeof tag === "string" ? tag : tag.name)) ||
+      [],
+    isDraft: !!food?.isDraft,
+  });
+
+  const renderSmartInfoTrigger = (food: any, groupLabel?: string) => {
+    const infoFood = buildFoodInfoPreview(food);
+    const isOpen = smartInfoFood?.id === infoFood.id;
+
+    return (
+      <div
+        className="relative"
+        onMouseEnter={() => setSmartInfoFood(infoFood)}
+        onMouseLeave={() => setSmartInfoFood(null)}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setSmartInfoFood((current) =>
+              current?.id === infoFood.id ? null : infoFood,
+            );
+          }}
+          onFocus={() => setSmartInfoFood(infoFood)}
+          onBlur={() => setSmartInfoFood((current) =>
+            current?.id === infoFood.id ? null : current,
+          )}
+          className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+        >
+          <Info className="h-4 w-4" />
+        </button>
+        {isOpen && (
+          <div className="absolute right-0 top-full z-30 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl shadow-slate-300/30">
+            <p className="text-xs font-black text-slate-900">
+              {infoFood.producto}
+            </p>
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              {groupLabel || infoFood.grupo}
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+              <span>{infoFood.calorias || 0} kcal</span>
+              <span>P: {infoFood.proteinas || 0}g</span>
+              <span>C: {infoFood.carbohidratos || 0}g</span>
+              <span>L: {infoFood.lipidos || 0}g</span>
+            </div>
+            {!!infoFood.tags?.length && (
+              <div className="mt-3 flex flex-wrap gap-1">
+                {infoFood.tags.slice(0, 4).map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500"
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  useEffect(() => {
+    if (!isSmartModalOpen) {
+      setSmartInfoFood(null);
+    }
+  }, [isSmartModalOpen]);
+
+  useEffect(() => {
+    setSmartInfoFood(null);
+  }, [smartAddTab, smartSearchQuery]);
 
   const fetchAvailableTags = async (retries = 3) => {
     try {
@@ -1169,7 +1256,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     saveDraft({ foodStatus: nextStatus });
 
     // 2. Persistencia Backend (En segundo plano)
-    const token = Cookies.get("auth_token");
+    const token = getAuthToken();
     if (token) {
       try {
         let targetId = food.id;
@@ -1543,12 +1630,18 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           const normalizedTargetGroup = normalizeGroupName(
             activeGroupForAddition || "Varios",
           );
-          const filteredByGroup = data.filter((ing: any) => {
-            const ingredientGroup = normalizeGroupName(
-              ing.category?.name || "Varios",
-            );
-            return ingredientGroup === normalizedTargetGroup;
-          });
+          const isCustomTargetGroup = customGroups.some(
+            (group) => normalizeGroupName(group) === normalizedTargetGroup,
+          );
+
+          const filteredByGroup = isCustomTargetGroup
+            ? data
+            : data.filter((ing: any) => {
+                const ingredientGroup = normalizeGroupName(
+                  ing.category?.name || "Varios",
+                );
+                return ingredientGroup === normalizedTargetGroup;
+              });
 
           setSearchResultFoods(
             filteredByGroup.map((ing: any) => ({
@@ -1575,7 +1668,12 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
     const timeoutId = setTimeout(fetchFoods, 300);
     return () => clearTimeout(timeoutId);
-  }, [isAddFoodModalOpen, foodSearchQuery, activeGroupForAddition]);
+  }, [
+    isAddFoodModalOpen,
+    foodSearchQuery,
+    activeGroupForAddition,
+    customGroups,
+  ]);
 
   useEffect(() => {
     if (smartAddTab !== "search" || !smartSearchQuery.trim()) {
@@ -1796,7 +1894,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const handleSaveDraftFood = async () => {
     if (!draftFoodToEdit?.id) return;
 
-    const token = Cookies.get("auth_token");
+    const token = getAuthToken();
     if (!token) {
       toast.error("No se encontró una sesión activa.");
       return;
@@ -2203,22 +2301,22 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
   const fetchSmartAddData = async () => {
     setIsLoadingSmart(true);
-    const token = Cookies.get("auth_token");
+    const token = getAuthToken();
     try {
-      // Fetch All Foods for Favorites
-      const foodsRes = await fetchApi(`/foods?limit=1000`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (foodsRes.ok) {
-        const allFoods = await foodsRes.json();
-        setSmartFavorites(
-          allFoods.filter((f: any) => f.preferences?.[0]?.isFavorite),
-        );
+      const headers = { Authorization: `Bearer ${token}` };
+      const [favoritesRes, myProductsRes, groupsRes] = await Promise.all([
+        fetchApi(`/foods?tab=favorites&limit=1000`, { headers }),
+        fetchApi(`/foods?tab=mine&limit=1000`, { headers }),
+        fetchApi(`/ingredient-groups`, { headers }),
+      ]);
+
+      if (favoritesRes.ok) {
+        const favorites = await favoritesRes.json();
+        setSmartFavorites(favorites);
+      } else {
+        setSmartFavorites([]);
       }
 
-      const myProductsRes = await fetchApi(`/foods?tab=mine&limit=1000`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
       if (myProductsRes.ok) {
         const myProducts = await myProductsRes.json();
         setSmartMyProducts(myProducts);
@@ -2226,13 +2324,11 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         setSmartMyProducts([]);
       }
 
-      // Fetch Groups
-      const groupsRes = await fetchApi(`/ingredient-groups`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
       if (groupsRes.ok) {
         const groups = await groupsRes.json();
         setSmartGroups(groups);
+      } else {
+        setSmartGroups([]);
       }
     } catch (error) {
       toast.error("Error al cargar datos para adición inteligente");
@@ -3138,28 +3234,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedFoodForInfo({
-                              id: f.id,
-                              producto: f.name,
-                              grupo: f.category?.name || "Varios",
-                              calorias: f.calories || 0,
-                              proteinas: f.proteins || 0,
-                              carbohidratos: f.carbs || 0,
-                              lipidos: f.lipids || 0,
-                              unidad: f.unit || "g",
-                              precioPromedio: f.price || 0,
-                              tags: f.tags?.map((t: any) => t.name) || [],
-                              ...(f as any),
-                            });
-                            setIsFoodInfoModalOpen(true);
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
-                        >
-                          <Info className="h-4 w-4" />
-                        </button>
+                        {renderSmartInfoTrigger(f)}
                         <div
                           className={cn(
                             "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
@@ -3248,31 +3323,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const ing = rel.ingredient;
-                                    setSelectedFoodForInfo({
-                                      id: ing?.id,
-                                      producto: ing?.name || "Desconocido",
-                                      grupo: ing?.category?.name || "Varios",
-                                      calorias: ing?.calories || 0,
-                                      proteinas: ing?.proteins || 0,
-                                      carbohidratos: ing?.carbs || 0,
-                                      lipidos: ing?.lipids || 0,
-                                      unidad: ing?.unit || "g",
-                                      precioPromedio: ing?.price || 0,
-                                      tags:
-                                        ing?.tags?.map((t: any) => t.name) ||
-                                        [],
-                                      ...(ing as any),
-                                    });
-                                    setIsFoodInfoModalOpen(true);
-                                  }}
-                                  className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
-                                >
-                                  <Info className="h-4 w-4" />
-                                </button>
+                                {renderSmartInfoTrigger(rel.ingredient)}
                                 <div
                                   className={cn(
                                     "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
@@ -3326,28 +3377,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedFoodForInfo({
-                              id: f.id,
-                              producto: f.name,
-                              grupo: f.category?.name || "Varios",
-                              calorias: f.calories || 0,
-                              proteinas: f.proteins || 0,
-                              carbohidratos: f.carbs || 0,
-                              lipidos: f.lipids || 0,
-                              unidad: f.unit || "g",
-                              precioPromedio: f.price || 0,
-                              tags: f.tags?.map((t: any) => t.name) || [],
-                              ...(f as any),
-                            });
-                            setIsFoodInfoModalOpen(true);
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
-                        >
-                          <Info className="h-4 w-4" />
-                        </button>
+                        {renderSmartInfoTrigger(f, "Creado por ti")}
                         <div
                           className={cn(
                             "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
@@ -3402,28 +3432,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedFoodForInfo({
-                              id: f.id,
-                              producto: f.name,
-                              grupo: f.category?.name || "Varios",
-                              calorias: f.calories || 0,
-                              proteinas: f.proteins || 0,
-                              carbohidratos: f.carbs || 0,
-                              lipidos: f.lipids || 0,
-                              unidad: f.unit || "g",
-                              precioPromedio: f.price || 0,
-                              tags: f.tags?.map((t: any) => t.name) || [],
-                              ...(f as any),
-                            });
-                            setIsFoodInfoModalOpen(true);
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
-                        >
-                          <Info className="h-4 w-4" />
-                        </button>
+                        {renderSmartInfoTrigger(f)}
                         <div
                           className={cn(
                             "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",

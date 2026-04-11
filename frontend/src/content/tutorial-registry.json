@@ -1,0 +1,72 @@
+[
+  {
+    "id": "diet",
+    "moduleKey": "diet",
+    "label": "Dieta",
+    "routePatterns": ["/dashboard/dieta"],
+    "status": "planned"
+  },
+  {
+    "id": "recipes",
+    "moduleKey": "recipes",
+    "label": "Recetas y Porciones",
+    "routePatterns": ["/dashboard/recetas"],
+    "status": "planned"
+  },
+  {
+    "id": "cart",
+    "moduleKey": "cart",
+    "label": "Carrito",
+    "routePatterns": ["/dashboard/carrito"],
+    "status": "planned"
+  },
+  {
+    "id": "deliverable",
+    "moduleKey": "deliverable",
+    "label": "Entregable",
+    "routePatterns": ["/dashboard/entregable"],
+    "status": "planned"
+  },
+  {
+    "id": "foods",
+    "moduleKey": "foods",
+    "label": "Alimentos",
+    "routePatterns": ["/dashboard/alimentos"],
+    "status": "planned"
+  },
+  {
+    "id": "patients",
+    "moduleKey": "patients",
+    "label": "Pacientes",
+    "routePatterns": ["/dashboard/pacientes", "/dashboard/pacientes/*"],
+    "status": "planned"
+  },
+  {
+    "id": "consultations",
+    "moduleKey": "consultations",
+    "label": "Consultas",
+    "routePatterns": ["/dashboard/consultas", "/dashboard/consultas/*"],
+    "status": "planned"
+  },
+  {
+    "id": "resources",
+    "moduleKey": "resources",
+    "label": "Recursos",
+    "routePatterns": ["/dashboard/recursos", "/dashboard/recursos/*"],
+    "status": "planned"
+  },
+  {
+    "id": "substitutes",
+    "moduleKey": "substitutes",
+    "label": "Sustitutos",
+    "routePatterns": ["/dashboard/sustitutos"],
+    "status": "planned"
+  },
+  {
+    "id": "details",
+    "moduleKey": "details",
+    "label": "Detalles",
+    "routePatterns": ["/dashboard/detalles"],
+    "status": "planned"
+  }
+]

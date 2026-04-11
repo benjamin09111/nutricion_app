@@ -6,22 +6,22 @@ export declare class TagsService {
     constructor(prisma: PrismaService, cacheService: CacheService);
     findAll(limit?: number): Promise<{
         name: string;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
     }[]>;
     findOrCreate(name: string, nutritionistId?: string): Promise<{
         name: string;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
     } | null>;
     search(query: string): Promise<{
         name: string;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
     }[]>;
     remove(id: string, nutritionistId: string, role?: string): Promise<{
         name: string;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
     }>;
 }

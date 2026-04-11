@@ -41,6 +41,7 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var FoodsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FoodsService = void 0;
 const client_1 = require("@prisma/client");
@@ -50,10 +51,11 @@ const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const XLSX = __importStar(require("xlsx"));
 const cache_service_1 = require("../../common/services/cache.service");
-let FoodsService = class FoodsService {
+let FoodsService = FoodsService_1 = class FoodsService {
     prisma;
     cacheService;
     draftMarker = '__NUTRI_DIET_DRAFT__';
+    logger = new common_1.Logger(FoodsService_1.name);
     constructor(prisma, cacheService) {
         this.prisma = prisma;
         this.cacheService = cacheService;
@@ -77,6 +79,20 @@ let FoodsService = class FoodsService {
                 : this.draftMarker;
         }
         return cleaned || null;
+    }
+    buildNonDraftWhere() {
+        return {
+            OR: [
+                { ingredients: null },
+                {
+                    NOT: {
+                        ingredients: {
+                            contains: this.draftMarker,
+                        },
+                    },
+                },
+            ],
+        };
     }
     resolveIngredientNotesForWrite(params) {
         const { cleanedIngredients, isDraft: existingIsDraft } = this.parseDraftIngredientField(params.existingIngredients);
@@ -222,7 +238,16 @@ let FoodsService = class FoodsService {
         const { nutritionistAccountId, search, category, tag, tab = 'all', page = 1, limit = 20 } = params;
         const nutritionist = await this.resolveNutritionist(nutritionistAccountId);
         const nutritionistId = nutritionist?.id;
+        const shouldDebug = tab === 'favorites' ||
+            tab === 'not_recommended' ||
+            tab === 'tagged' ||
+            tab === 'mine' ||
+            tab === 'drafts';
+        if (shouldDebug) {
+            this.logger.log(`[findAll] tab=${tab} accountId=${nutritionistAccountId ?? 'none'} nutritionistId=${nutritionistId ?? 'none'} search=${search ?? '-'} category=${category ?? '-'} tag=${tag ?? '-'} page=${page} limit=${limit}`);
+        }
         const andClauses = [];
+        let preferenceIngredientIds = [];
         switch (tab) {
             case 'drafts':
                 if (!nutritionistId)
@@ -239,77 +264,69 @@ let FoodsService = class FoodsService {
                 if (!nutritionistId)
                     return [];
                 andClauses.push({ nutritionistId });
-                andClauses.push({
-                    NOT: {
-                        ingredients: {
-                            contains: this.draftMarker,
-                        },
-                    },
-                });
+                andClauses.push(this.buildNonDraftWhere());
                 break;
             case 'favorites':
                 if (!nutritionistId)
                     return [];
-                andClauses.push({
-                    preferences: {
-                        some: {
-                            nutritionistId,
-                            isFavorite: true,
-                            isHidden: false,
-                        },
+                preferenceIngredientIds = (await this.prisma.ingredientPreference.findMany({
+                    where: {
+                        nutritionistId,
+                        isFavorite: true,
+                        isHidden: false,
                     },
-                });
-                andClauses.push({
-                    NOT: {
-                        ingredients: {
-                            contains: this.draftMarker,
-                        },
-                    },
-                });
+                    select: { ingredientId: true },
+                })).map((preference) => preference.ingredientId);
+                if (shouldDebug) {
+                    this.logger.log(`[findAll] tab=favorites preferenceIds=${JSON.stringify(preferenceIngredientIds.slice(0, 20))} total=${preferenceIngredientIds.length}`);
+                }
+                if (preferenceIngredientIds.length === 0)
+                    return [];
+                andClauses.push({ id: { in: preferenceIngredientIds } });
+                andClauses.push(this.buildNonDraftWhere());
                 break;
             case 'not_recommended':
                 if (!nutritionistId)
                     return [];
-                andClauses.push({
-                    preferences: {
-                        some: {
-                            nutritionistId,
-                            isNotRecommended: true,
-                            isHidden: false,
-                        },
+                preferenceIngredientIds = (await this.prisma.ingredientPreference.findMany({
+                    where: {
+                        nutritionistId,
+                        isNotRecommended: true,
+                        isHidden: false,
                     },
-                });
-                andClauses.push({
-                    NOT: {
-                        ingredients: {
-                            contains: this.draftMarker,
-                        },
-                    },
-                });
+                    select: { ingredientId: true },
+                })).map((preference) => preference.ingredientId);
+                if (shouldDebug) {
+                    this.logger.log(`[findAll] tab=not_recommended preferenceIds=${JSON.stringify(preferenceIngredientIds.slice(0, 20))} total=${preferenceIngredientIds.length}`);
+                }
+                if (preferenceIngredientIds.length === 0)
+                    return [];
+                andClauses.push({ id: { in: preferenceIngredientIds } });
+                andClauses.push(this.buildNonDraftWhere());
                 break;
             case 'tagged':
                 if (!nutritionistId)
                     return [];
+                preferenceIngredientIds = (await this.prisma.ingredientPreference.findMany({
+                    where: {
+                        nutritionistId,
+                        isHidden: false,
+                        tags: { some: {} },
+                    },
+                    select: { ingredientId: true },
+                })).map((preference) => preference.ingredientId);
+                if (shouldDebug) {
+                    this.logger.log(`[findAll] tab=tagged personalPreferenceIds=${JSON.stringify(preferenceIngredientIds.slice(0, 20))} total=${preferenceIngredientIds.length}`);
+                }
                 andClauses.push({
                     OR: [
                         { tags: { some: {} } },
-                        {
-                            preferences: {
-                                some: {
-                                    nutritionistId,
-                                    tags: { some: {} },
-                                },
-                            },
-                        },
+                        ...(preferenceIngredientIds.length > 0
+                            ? [{ id: { in: preferenceIngredientIds } }]
+                            : []),
                     ],
                 });
-                andClauses.push({
-                    NOT: {
-                        ingredients: {
-                            contains: this.draftMarker,
-                        },
-                    },
-                });
+                andClauses.push(this.buildNonDraftWhere());
                 break;
             case 'app':
                 andClauses.push({
@@ -335,13 +352,7 @@ let FoodsService = class FoodsService {
                         OR: [{ isPublic: true }, { nutritionistId }],
                     }
                     : { isPublic: true });
-                andClauses.push({
-                    NOT: {
-                        ingredients: {
-                            contains: this.draftMarker,
-                        },
-                    },
-                });
+                andClauses.push(this.buildNonDraftWhere());
                 break;
         }
         if (search) {
@@ -404,20 +415,36 @@ let FoodsService = class FoodsService {
             take: limit,
             orderBy: { name: 'asc' },
         });
+        if (shouldDebug) {
+            const sample = ingredients.slice(0, 5).map((ingredient) => ({
+                id: ingredient.id,
+                name: ingredient.name,
+                preference: ingredient.preferences?.[0]
+                    ? {
+                        isFavorite: ingredient.preferences[0].isFavorite,
+                        isNotRecommended: ingredient.preferences[0].isNotRecommended,
+                        isHidden: ingredient.preferences[0].isHidden,
+                        tagCount: ingredient.preferences[0].tags?.length ?? 0,
+                    }
+                    : null,
+                globalTagCount: ingredient.tags?.length ?? 0,
+            }));
+            this.logger.log(`[findAll] tab=${tab} results=${ingredients.length} sample=${JSON.stringify(sample)}`);
+        }
         return ingredients.map((ing) => this.serializeIngredient(ing, nutritionistId));
     }
     async togglePreference(ingredientId, userId, data) {
-        console.log('[togglePreference] Processing for Account ID:', userId, 'Ingredient ID:', ingredientId);
+        this.logger.log(`[togglePreference] accountId=${userId} ingredientId=${ingredientId} payload=${JSON.stringify(data)}`);
         let nutritionist = await this.prisma.nutritionist.findUnique({
             where: { accountId: userId },
         });
         if (!nutritionist) {
-            console.warn(`[togglePreference] Nutritionist profile missing for Account ID: ${userId}. Attempting auto-creation...`);
+            this.logger.warn(`[togglePreference] Missing nutritionist profile for accountId=${userId}. Attempting auto-creation.`);
             const account = await this.prisma.account.findUnique({
                 where: { id: userId }
             });
             if (!account) {
-                console.error(`[togglePreference] Account not found: ${userId}`);
+                this.logger.error(`[togglePreference] Account not found accountId=${userId}`);
                 throw new common_1.NotFoundException("Cuenta de usuario no encontrada.");
             }
             try {
@@ -428,10 +455,10 @@ let FoodsService = class FoodsService {
                         specialty: 'General',
                     }
                 });
-                console.log(`[togglePreference] Auto-created Nutritionist profile: ${nutritionist.id}`);
+                this.logger.warn(`[togglePreference] Auto-created nutritionistId=${nutritionist.id} for accountId=${userId}`);
             }
             catch (createError) {
-                console.error(`[togglePreference] Failed to auto-create profile:`, createError);
+                this.logger.error(`[togglePreference] Failed auto-create for accountId=${userId}`, createError);
                 throw new common_1.NotFoundException("No se pudo crear el perfil de nutricionista necesario.");
             }
         }
@@ -439,7 +466,7 @@ let FoodsService = class FoodsService {
             where: { id: ingredientId },
         });
         if (!ingredient) {
-            console.error(`[togglePreference] Ingredient not found: ${ingredientId}`);
+            this.logger.error(`[togglePreference] Ingredient not found ingredientId=${ingredientId}`);
             throw new common_1.NotFoundException("Ingrediente no encontrado.");
         }
         const { tags, ...rest } = data;
@@ -477,10 +504,17 @@ let FoodsService = class FoodsService {
                 nutritionistId: nutritionist.id,
                 includeDashboard: true,
             });
+            this.logger.log(`[togglePreference] saved nutritionistId=${nutritionist.id} ingredientId=${ingredientId} result=${JSON.stringify({
+                id: preference.id,
+                isFavorite: preference.isFavorite,
+                isNotRecommended: preference.isNotRecommended,
+                isHidden: preference.isHidden,
+                tagCount: preference.tags?.length ?? 0,
+            })}`);
             return preference;
         }
         catch (error) {
-            console.error(`[togglePreference] Error upserting preference:`, error);
+            this.logger.error(`[togglePreference] Error upserting ingredientId=${ingredientId}`, error);
             throw error;
         }
     }
@@ -610,7 +644,7 @@ let FoodsService = class FoodsService {
     }
 };
 exports.FoodsService = FoodsService;
-exports.FoodsService = FoodsService = __decorate([
+exports.FoodsService = FoodsService = FoodsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         cache_service_1.CacheService])

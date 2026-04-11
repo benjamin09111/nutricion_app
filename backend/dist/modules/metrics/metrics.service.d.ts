@@ -7,8 +7,8 @@ export declare class MetricsService {
     findAll(): Promise<{
         name: string;
         unit: string;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         key: string;
@@ -24,8 +24,8 @@ export declare class MetricsService {
     }, nutritionistId?: string): Promise<{
         name: string;
         unit: string;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         key: string;
@@ -35,8 +35,8 @@ export declare class MetricsService {
     search(query: string): Promise<{
         name: string;
         unit: string;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         key: string;
@@ -46,8 +46,8 @@ export declare class MetricsService {
     remove(id: string, nutritionistId: string, role?: string): Promise<{
         name: string;
         unit: string;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         key: string;

@@ -39,9 +39,9 @@ export declare class ProjectsController {
         } | null;
     } & {
         name: string;
+        id: string;
         nutritionistId: string;
         mode: string;
-        id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
@@ -88,9 +88,9 @@ export declare class ProjectsController {
         } | null;
     } & {
         name: string;
+        id: string;
         nutritionistId: string;
         mode: string;
-        id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
@@ -137,9 +137,9 @@ export declare class ProjectsController {
         } | null;
     } & {
         name: string;
+        id: string;
         nutritionistId: string;
         mode: string;
-        id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
@@ -186,9 +186,9 @@ export declare class ProjectsController {
         } | null;
     } & {
         name: string;
+        id: string;
         nutritionistId: string;
         mode: string;
-        id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;

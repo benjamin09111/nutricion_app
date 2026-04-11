@@ -7,14 +7,14 @@ export declare class ResourcesController {
         category: string;
         tags: string[];
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         fileUrl: string | null;
+        title: string;
         content: string;
         format: string;
-        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -22,8 +22,8 @@ export declare class ResourcesController {
     })[]>;
     getSections(req: any): Promise<{
         name: string;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
@@ -33,8 +33,8 @@ export declare class ResourcesController {
     }[]>;
     createSection(req: any, data: any): Promise<{
         name: string;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
@@ -46,14 +46,14 @@ export declare class ResourcesController {
         category: string;
         tags: string[];
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         fileUrl: string | null;
+        title: string;
         content: string;
         format: string;
-        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -63,14 +63,14 @@ export declare class ResourcesController {
         category: string;
         tags: string[];
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         fileUrl: string | null;
+        title: string;
         content: string;
         format: string;
-        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -86,14 +86,14 @@ export declare class ResourcesController {
         category: string;
         tags: string[];
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         fileUrl: string | null;
+        title: string;
         content: string;
         format: string;
-        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -103,14 +103,14 @@ export declare class ResourcesController {
         category: string;
         tags: string[];
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         fileUrl: string | null;
+        title: string;
         content: string;
         format: string;
-        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     }>;

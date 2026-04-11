@@ -13,6 +13,7 @@ exports.RecipesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const cache_service_1 = require("../../common/services/cache.service");
+const recipes_ai_prompts_1 = require("./recipes-ai-prompts");
 let RecipesService = class RecipesService {
     prisma;
     cacheService;
@@ -28,6 +29,158 @@ let RecipesService = class RecipesService {
         if (!nutritionist)
             throw new common_1.NotFoundException('Nutritionist profile not found');
         return nutritionist.id;
+    }
+    normalizeFoodName(value) {
+        return value
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+    normalizeMealSection(value) {
+        return this.normalizeFoodName(value || '');
+    }
+    isStrictMealSection(mealSection) {
+        const normalized = this.normalizeMealSection(mealSection);
+        return ['desayuno', 'almuerzo', 'cena', 'once'].includes(normalized);
+    }
+    buildAiPrompt(payload) {
+        const scopePrompt = payload.scope === 'week' ? recipes_ai_prompts_1.RECIPES_AI_PROMPTS.week : recipes_ai_prompts_1.RECIPES_AI_PROMPTS.day;
+        return [scopePrompt, JSON.stringify(payload)].join('\n');
+    }
+    extractJsonFromResponse(rawContent) {
+        const trimmed = rawContent.trim();
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            return trimmed;
+        }
+        const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+        if (fencedMatch?.[1]) {
+            return fencedMatch[1].trim();
+        }
+        const firstBrace = trimmed.indexOf('{');
+        const lastBrace = trimmed.lastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+            return trimmed.slice(firstBrace, lastBrace + 1);
+        }
+        throw new common_1.BadRequestException('La IA no devolvió un JSON válido.');
+    }
+    parseAiResponse(rawContent) {
+        const jsonContent = this.extractJsonFromResponse(rawContent);
+        return JSON.parse(jsonContent);
+    }
+    validateAiRecipe(recipe, slotMealSection, allowedFoods, allowFlexibleExternalFoods) {
+        if (!recipe.slotId || !recipe.title || !recipe.mealSection) {
+            throw new common_1.BadRequestException('La IA devolvió una receta incompleta.');
+        }
+        const normalizedSlotMealSection = this.normalizeMealSection(slotMealSection);
+        const normalizedRecipeMealSection = this.normalizeMealSection(recipe.mealSection);
+        if (normalizedSlotMealSection !== normalizedRecipeMealSection) {
+            throw new common_1.BadRequestException(`La IA devolvió una sección incompatible para ${recipe.slotId}.`);
+        }
+        const allIngredients = [...(recipe.ingredients || []), ...(recipe.mainIngredients || [])]
+            .map((item) => this.normalizeFoodName(item))
+            .filter(Boolean);
+        const requiresStrictDietFoods = this.isStrictMealSection(recipe.mealSection);
+        if (requiresStrictDietFoods || !allowFlexibleExternalFoods) {
+            const invalidIngredient = allIngredients.find((ingredient) => !allowedFoods.has(ingredient));
+            if (invalidIngredient) {
+                throw new common_1.BadRequestException(`La IA devolvió un ingrediente fuera de la dieta permitida: ${invalidIngredient}.`);
+            }
+        }
+    }
+    validateReplacementGuide(meta) {
+        if (!meta) {
+            throw new common_1.BadRequestException('La IA no devolvió metadata de guía.');
+        }
+        if (typeof meta.note !== 'string' || !meta.note.trim()) {
+            throw new common_1.BadRequestException('La IA no devolvió la nota general requerida.');
+        }
+        if (!Array.isArray(meta.replacementGuide)) {
+            throw new common_1.BadRequestException('La IA no devolvió replacementGuide válido.');
+        }
+        meta.replacementGuide.forEach((item) => {
+            if (!item.mealSection || !Array.isArray(item.suggestions)) {
+                throw new common_1.BadRequestException('La IA devolvió replacementGuide incompleto.');
+            }
+        });
+    }
+    validateWeekVariety(response, existingAssignments) {
+        const orderedDays = response.days || [];
+        let previousTitles = null;
+        orderedDays.forEach((dayBlock, index) => {
+            const currentTitles = new Set(dayBlock.recipes.map((recipe) => this.normalizeFoodName(recipe.title)));
+            const fallbackPreviousTitles = index === 0
+                ? new Set()
+                : new Set(existingAssignments
+                    .filter((assignment) => assignment.day === orderedDays[index - 1]?.day)
+                    .map((assignment) => this.normalizeFoodName(assignment.title)));
+            const titlesToCompare = previousTitles ?? fallbackPreviousTitles;
+            const repeated = [...currentTitles].find((title) => titlesToCompare.has(title));
+            if (repeated) {
+                throw new common_1.BadRequestException(`La IA repitió un plato en días consecutivos: ${repeated}.`);
+            }
+            previousTitles = currentTitles;
+        });
+    }
+    async fillWithAi(userId, dto) {
+        await this.getNutritionistId(userId);
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+            throw new common_1.BadRequestException('Configura tu API key de OpenAI para usar esta función.');
+        }
+        const { payload } = dto;
+        const allowedFoods = new Set(payload.allowedFoodsByDiet.map((food) => this.normalizeFoodName(food)));
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+                model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+                temperature: 0.2,
+                messages: [
+                    { role: 'system', content: recipes_ai_prompts_1.RECIPES_AI_PROMPTS.base },
+                    { role: 'user', content: this.buildAiPrompt(payload) },
+                ],
+            }),
+        });
+        if (!response.ok) {
+            throw new common_1.BadRequestException('No se pudo completar recetas con IA.');
+        }
+        const json = (await response.json());
+        const content = json.choices?.[0]?.message?.content;
+        if (!content) {
+            throw new common_1.BadRequestException('La IA no devolvió contenido.');
+        }
+        const parsed = this.parseAiResponse(content);
+        if (payload.scope === 'day') {
+            const result = parsed;
+            this.validateReplacementGuide(result.meta);
+            const slotMap = new Map((payload.slots || []).map((slot) => [slot.slotId, slot]));
+            result.recipes.forEach((recipe) => {
+                const slot = slotMap.get(recipe.slotId);
+                if (!slot) {
+                    throw new common_1.BadRequestException(`La IA devolvió un slot desconocido: ${recipe.slotId}.`);
+                }
+                this.validateAiRecipe(recipe, slot.mealSection, allowedFoods, payload.generalSnackFlexAllowed);
+            });
+            return result;
+        }
+        const result = parsed;
+        this.validateReplacementGuide(result.meta);
+        const slotMap = new Map((payload.days || []).flatMap((day) => day.slots.map((slot) => [`${day.day}:${slot.slotId}`, slot])));
+        result.days.forEach((dayBlock) => {
+            dayBlock.recipes.forEach((recipe) => {
+                const slot = slotMap.get(`${dayBlock.day}:${recipe.slotId}`);
+                if (!slot) {
+                    throw new common_1.BadRequestException(`La IA devolvió un slot desconocido para ${dayBlock.day}: ${recipe.slotId}.`);
+                }
+                this.validateAiRecipe(recipe, slot.mealSection, allowedFoods, payload.generalSnackFlexAllowed);
+            });
+        });
+        this.validateWeekVariety(result, payload.existingAssignments);
+        return result;
     }
     async create(userId, createDto) {
         console.log('[RecipesService.create] userId:', userId, 'createDto:', JSON.stringify(createDto, null, 2));

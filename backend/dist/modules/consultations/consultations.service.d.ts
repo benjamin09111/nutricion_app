@@ -11,15 +11,15 @@ export declare class ConsultationsService {
             fullName: string;
         };
     } & {
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
         date: Date;
         patientId: string;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         title: string;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     findAll(nutritionistId: string, page?: number, limit?: number, search?: string, patientId?: string, type?: 'CLINICAL' | 'METRIC' | 'ALL'): Promise<{
         data: {
@@ -27,15 +27,15 @@ export declare class ConsultationsService {
             patient: {
                 fullName: string;
             };
-            nutritionistId: string;
             id: string;
+            nutritionistId: string;
             createdAt: Date;
             updatedAt: Date;
             description: string | null;
             date: Date;
             patientId: string;
-            metrics: import("@prisma/client/runtime/library").JsonValue | null;
             title: string;
+            metrics: import("@prisma/client/runtime/library").JsonValue | null;
         }[];
         meta: {
             total: number;
@@ -48,41 +48,41 @@ export declare class ConsultationsService {
         patient: {
             fullName: string;
         };
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
         date: Date;
         patientId: string;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         title: string;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     update(nutritionistId: string, id: string, updateConsultationDto: UpdateConsultationDto): Promise<{
         patient: {
             fullName: string;
         };
     } & {
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
         date: Date;
         patientId: string;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         title: string;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     private syncPatientData;
     remove(nutritionistId: string, id: string): Promise<{
-        nutritionistId: string;
         id: string;
+        nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
         date: Date;
         patientId: string;
-        metrics: import("@prisma/client/runtime/library").JsonValue | null;
         title: string;
+        metrics: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
 }

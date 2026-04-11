@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateFoodDto } from './dto/create-food.dto';
 import { UpdateFoodDto } from './dto/update-food.dto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -13,6 +13,7 @@ import { CacheService } from '../../common/services/cache.service';
 @Injectable()
 export class FoodsService {
     private readonly draftMarker = '__NUTRI_DIET_DRAFT__';
+    private readonly logger = new Logger(FoodsService.name);
 
     constructor(
         private readonly prisma: PrismaService,
@@ -45,6 +46,21 @@ export class FoodsService {
         }
 
         return cleaned || null;
+    }
+
+    private buildNonDraftWhere(): Prisma.IngredientWhereInput {
+        return {
+            OR: [
+                { ingredients: null },
+                {
+                    NOT: {
+                        ingredients: {
+                            contains: this.draftMarker,
+                        },
+                    },
+                },
+            ],
+        };
     }
 
     private resolveIngredientNotesForWrite(params: {
@@ -247,8 +263,21 @@ export class FoodsService {
 
         const nutritionist = await this.resolveNutritionist(nutritionistAccountId);
         const nutritionistId = nutritionist?.id;
+        const shouldDebug =
+            tab === 'favorites' ||
+            tab === 'not_recommended' ||
+            tab === 'tagged' ||
+            tab === 'mine' ||
+            tab === 'drafts';
+
+        if (shouldDebug) {
+            this.logger.log(
+                `[findAll] tab=${tab} accountId=${nutritionistAccountId ?? 'none'} nutritionistId=${nutritionistId ?? 'none'} search=${search ?? '-'} category=${category ?? '-'} tag=${tag ?? '-'} page=${page} limit=${limit}`,
+            );
+        }
 
         const andClauses: Prisma.IngredientWhereInput[] = [];
+        let preferenceIngredientIds: string[] = [];
 
         switch (tab) {
             case 'drafts':
@@ -264,74 +293,76 @@ export class FoodsService {
             case 'created':
                 if (!nutritionistId) return [];
                 andClauses.push({ nutritionistId });
-                andClauses.push({
-                    NOT: {
-                        ingredients: {
-                            contains: this.draftMarker,
-                        },
-                    },
-                });
+                andClauses.push(this.buildNonDraftWhere());
                 break;
             case 'favorites':
                 if (!nutritionistId) return [];
-                andClauses.push({
-                    preferences: {
-                        some: {
+                preferenceIngredientIds = (
+                    await (this.prisma as any).ingredientPreference.findMany({
+                        where: {
                             nutritionistId,
                             isFavorite: true,
                             isHidden: false,
                         },
-                    },
-                });
-                andClauses.push({
-                    NOT: {
-                        ingredients: {
-                            contains: this.draftMarker,
-                        },
-                    },
-                });
+                        select: { ingredientId: true },
+                    })
+                ).map((preference: { ingredientId: string }) => preference.ingredientId);
+                if (shouldDebug) {
+                    this.logger.log(
+                        `[findAll] tab=favorites preferenceIds=${JSON.stringify(preferenceIngredientIds.slice(0, 20))} total=${preferenceIngredientIds.length}`,
+                    );
+                }
+                if (preferenceIngredientIds.length === 0) return [];
+                andClauses.push({ id: { in: preferenceIngredientIds } });
+                andClauses.push(this.buildNonDraftWhere());
                 break;
             case 'not_recommended':
                 if (!nutritionistId) return [];
-                andClauses.push({
-                    preferences: {
-                        some: {
+                preferenceIngredientIds = (
+                    await (this.prisma as any).ingredientPreference.findMany({
+                        where: {
                             nutritionistId,
                             isNotRecommended: true,
                             isHidden: false,
                         },
-                    },
-                });
-                andClauses.push({
-                    NOT: {
-                        ingredients: {
-                            contains: this.draftMarker,
-                        },
-                    },
-                });
+                        select: { ingredientId: true },
+                    })
+                ).map((preference: { ingredientId: string }) => preference.ingredientId);
+                if (shouldDebug) {
+                    this.logger.log(
+                        `[findAll] tab=not_recommended preferenceIds=${JSON.stringify(preferenceIngredientIds.slice(0, 20))} total=${preferenceIngredientIds.length}`,
+                    );
+                }
+                if (preferenceIngredientIds.length === 0) return [];
+                andClauses.push({ id: { in: preferenceIngredientIds } });
+                andClauses.push(this.buildNonDraftWhere());
                 break;
             case 'tagged':
                 if (!nutritionistId) return [];
+                preferenceIngredientIds = (
+                    await (this.prisma as any).ingredientPreference.findMany({
+                        where: {
+                            nutritionistId,
+                            isHidden: false,
+                            tags: { some: {} },
+                        },
+                        select: { ingredientId: true },
+                    })
+                ).map((preference: { ingredientId: string }) => preference.ingredientId);
+                if (shouldDebug) {
+                    this.logger.log(
+                        `[findAll] tab=tagged personalPreferenceIds=${JSON.stringify(preferenceIngredientIds.slice(0, 20))} total=${preferenceIngredientIds.length}`,
+                    );
+                }
                 andClauses.push({
                     OR: [
                         { tags: { some: {} } },
-                        {
-                            preferences: {
-                                some: {
-                                    nutritionistId,
-                                    tags: { some: {} },
-                                },
-                            },
-                        },
+                        ...(preferenceIngredientIds.length > 0
+                            ? [{ id: { in: preferenceIngredientIds } }]
+                            : []),
                     ],
                 });
-                andClauses.push({
-                    NOT: {
-                        ingredients: {
-                            contains: this.draftMarker,
-                        },
-                    },
-                });
+                andClauses.push(this.buildNonDraftWhere());
                 break;
             case 'app':
                 andClauses.push({
@@ -359,13 +390,7 @@ export class FoodsService {
                         }
                         : { isPublic: true },
                 );
-                andClauses.push({
-                    NOT: {
-                        ingredients: {
-                            contains: this.draftMarker,
-                        },
-                    },
-                });
+                andClauses.push(this.buildNonDraftWhere());
                 break;
         }
 
@@ -438,6 +463,26 @@ export class FoodsService {
             orderBy: { name: 'asc' },
         });
 
+        if (shouldDebug) {
+            const sample = ingredients.slice(0, 5).map((ingredient: any) => ({
+                id: ingredient.id,
+                name: ingredient.name,
+                preference: ingredient.preferences?.[0]
+                    ? {
+                        isFavorite: ingredient.preferences[0].isFavorite,
+                        isNotRecommended: ingredient.preferences[0].isNotRecommended,
+                        isHidden: ingredient.preferences[0].isHidden,
+                        tagCount: ingredient.preferences[0].tags?.length ?? 0,
+                    }
+                    : null,
+                globalTagCount: ingredient.tags?.length ?? 0,
+            }));
+
+            this.logger.log(
+                `[findAll] tab=${tab} results=${ingredients.length} sample=${JSON.stringify(sample)}`,
+            );
+        }
+
         // Add isMine property to each ingredient
         return ingredients.map((ing: any) => this.serializeIngredient(ing, nutritionistId));
     }
@@ -448,13 +493,17 @@ export class FoodsService {
         isHidden?: boolean;
         tags?: string[];
     }) {
-        console.log('[togglePreference] Processing for Account ID:', userId, 'Ingredient ID:', ingredientId);
+        this.logger.log(
+            `[togglePreference] accountId=${userId} ingredientId=${ingredientId} payload=${JSON.stringify(data)}`,
+        );
         let nutritionist = await (this.prisma as any).nutritionist.findUnique({
             where: { accountId: userId },
         });
 
         if (!nutritionist) {
-            console.warn(`[togglePreference] Nutritionist profile missing for Account ID: ${userId}. Attempting auto-creation...`);
+            this.logger.warn(
+                `[togglePreference] Missing nutritionist profile for accountId=${userId}. Attempting auto-creation.`,
+            );
 
             // Check if account exists first
             const account = await (this.prisma as any).account.findUnique({
@@ -462,7 +511,7 @@ export class FoodsService {
             });
 
             if (!account) {
-                console.error(`[togglePreference] Account not found: ${userId}`);
+                this.logger.error(`[togglePreference] Account not found accountId=${userId}`);
                 throw new NotFoundException("Cuenta de usuario no encontrada.");
             }
 
@@ -475,9 +524,11 @@ export class FoodsService {
                         specialty: 'General',
                     }
                 });
-                console.log(`[togglePreference] Auto-created Nutritionist profile: ${nutritionist.id}`);
+                this.logger.warn(
+                    `[togglePreference] Auto-created nutritionistId=${nutritionist.id} for accountId=${userId}`,
+                );
             } catch (createError) {
-                console.error(`[togglePreference] Failed to auto-create profile:`, createError);
+                this.logger.error(`[togglePreference] Failed auto-create for accountId=${userId}`, createError as any);
                 throw new NotFoundException("No se pudo crear el perfil de nutricionista necesario.");
             }
         }
@@ -488,7 +539,7 @@ export class FoodsService {
         });
 
         if (!ingredient) {
-            console.error(`[togglePreference] Ingredient not found: ${ingredientId}`);
+            this.logger.error(`[togglePreference] Ingredient not found ingredientId=${ingredientId}`);
             throw new NotFoundException("Ingrediente no encontrado.");
         }
 
@@ -529,9 +580,18 @@ export class FoodsService {
                 nutritionistId: nutritionist.id,
                 includeDashboard: true,
             });
+            this.logger.log(
+                `[togglePreference] saved nutritionistId=${nutritionist.id} ingredientId=${ingredientId} result=${JSON.stringify({
+                    id: preference.id,
+                    isFavorite: preference.isFavorite,
+                    isNotRecommended: preference.isNotRecommended,
+                    isHidden: preference.isHidden,
+                    tagCount: preference.tags?.length ?? 0,
+                })}`,
+            );
             return preference;
         } catch (error) {
-            console.error(`[togglePreference] Error upserting preference:`, error);
+            this.logger.error(`[togglePreference] Error upserting ingredientId=${ingredientId}`, error as any);
             throw error;
         }
     }

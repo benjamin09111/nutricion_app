@@ -7,9 +7,11 @@ export declare class FoodsService {
     private readonly prisma;
     private readonly cacheService;
     private readonly draftMarker;
+    private readonly logger;
     constructor(prisma: PrismaService, cacheService: CacheService);
     private parseDraftIngredientField;
     private buildDraftIngredientField;
+    private buildNonDraftWhere;
     private resolveIngredientNotesForWrite;
     private serializeIngredient;
     private resolveNutritionist;

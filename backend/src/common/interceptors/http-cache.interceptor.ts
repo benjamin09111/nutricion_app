@@ -22,16 +22,20 @@ export class HttpCacheInterceptor extends CacheInterceptor {
             return undefined;
         }
 
-        // Si tenemos un usuario autenticado, incluimos su ID en la llave del caché
-        // Esto evita que nutricionistas distintos vean datos cargados en caché por otros
+        const requestUrl = httpAdapter.getRequestUrl(request);
+
+        // The foods catalog changes often and is highly personalized, so stale
+        // GET responses here are more harmful than the cache hit benefit.
+        if (requestUrl.startsWith('/foods')) {
+            return undefined;
+        }
+
         const userId = request.user?.id;
         const nutritionistId = request.user?.nutritionistId;
         const userIdentifier = nutritionistId || userId;
 
-        const cacheKey = userIdentifier
-            ? `${userIdentifier}:${httpAdapter.getRequestUrl(request)}`
-            : httpAdapter.getRequestUrl(request);
-
-        return cacheKey;
+        return userIdentifier
+            ? `${userIdentifier}:${requestUrl}`
+            : requestUrl;
     }
 }

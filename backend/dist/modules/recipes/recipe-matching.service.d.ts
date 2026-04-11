@@ -20,8 +20,8 @@ export declare class RecipeMatchingService {
                 sodium: number | null;
                 ingredients: string | null;
                 isPublic: boolean;
-                nutritionistId: string | null;
                 id: string;
+                nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 verified: boolean;
@@ -48,8 +48,8 @@ export declare class RecipeMatchingService {
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
-        nutritionistId: string | null;
         id: string;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
