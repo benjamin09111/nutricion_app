@@ -2,6 +2,7 @@ export enum CreationType {
   DIET = "Dieta",
   SHOPPING_LIST = "Lista de Compras",
   RECIPE = "Receta",
+  FAST_DELIVERABLE = "Entregable Rápido",
   OTHER = "Otro",
 }
 

@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  NotebookText,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -60,6 +61,8 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
         return CreationType.SHOPPING_LIST;
       case "RECIPE":
         return CreationType.RECIPE;
+      case "FAST_DELIVERABLE":
+        return CreationType.FAST_DELIVERABLE;
       default:
         return CreationType.OTHER;
     }
@@ -133,6 +136,25 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
     };
   };
 
+  const buildFastDeliverableData = (raw: {
+    name?: string;
+    content?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
+  }) => ({
+    name: typeof raw.content?.title === "string" ? raw.content.title : raw.name,
+    patientName:
+      typeof raw.metadata?.patientName === "string"
+        ? raw.metadata.patientName
+        : null,
+    meals: Array.isArray(raw.content?.meals) ? raw.content.meals : [],
+    avoidFoods: Array.isArray(raw.content?.avoidFoods) ? raw.content.avoidFoods : [],
+    resources: Array.isArray(raw.content?.resources) ? raw.content.resources : [],
+    portionGuide: Array.isArray(raw.content?.portionGuide) ? raw.content.portionGuide : [],
+    generatedAt: typeof raw.content?.updatedAt === "string"
+      ? new Date(raw.content.updatedAt).toLocaleDateString("es-CL")
+      : new Date().toLocaleDateString("es-CL"),
+  });
+
   const handleExportPdf = async () => {
     if (!selectedItem) return;
     setIsExportingPdf(true);
@@ -142,6 +164,11 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
       if (selectedItem.type === CreationType.DIET) {
         const { downloadDietPdf } = await import("@/features/pdf/pdfExport");
         await downloadDietPdf(buildDietData(raw));
+        toast.success("PDF descargado correctamente.");
+        setDownloadModalOpen(false);
+      } else if (selectedItem.type === CreationType.FAST_DELIVERABLE) {
+        const { downloadFastDeliverablePdf } = await import("@/features/pdf/fastDeliverablePdfExport");
+        await downloadFastDeliverablePdf(buildFastDeliverableData(raw));
         toast.success("PDF descargado correctamente.");
         setDownloadModalOpen(false);
       } else {
@@ -298,6 +325,8 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
         return <ShoppingCart className="w-4 h-4 text-emerald-500" />;
       case CreationType.RECIPE:
         return <ChefHat className="w-4 h-4 text-amber-500" />;
+      case CreationType.FAST_DELIVERABLE:
+        return <NotebookText className="w-4 h-4 text-fuchsia-500" />;
       default:
         return <Folder className="w-4 h-4 text-slate-400" />;
     }
@@ -311,6 +340,8 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
         return "bg-emerald-50 text-emerald-700 ring-emerald-600/20";
       case CreationType.RECIPE:
         return "bg-amber-50 text-amber-700 ring-amber-600/20";
+      case CreationType.FAST_DELIVERABLE:
+        return "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-600/20";
       default:
         return "bg-slate-50 text-slate-600 ring-slate-500/10";
     }
@@ -332,6 +363,9 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
         break;
       case CreationType.RECIPE:
         router.push("/dashboard/recetas");
+        break;
+      case CreationType.FAST_DELIVERABLE:
+        router.push(`/dashboard/rapido?creationId=${item.id}`);
         break;
       default:
         // Fallback
@@ -427,6 +461,9 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                 Listas de Compra
               </option>
               <option value={CreationType.RECIPE}>Recetas</option>
+              <option value={CreationType.FAST_DELIVERABLE}>
+                Entregables Rápidos
+              </option>
             </select>
           </div>
 

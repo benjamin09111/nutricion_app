@@ -181,9 +181,10 @@ export default function CartClient() {
   const [draftMeta, setDraftMeta] = useState<{ label: string; date?: string }>({ label: "" });
 
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
-  const [cartSourceLabel, setCartSourceLabel] = useState("Generado manualmente");
+  const [cartSourceLabel, setCartSourceLabel] = useState("Recetas y porciones no asignadas");
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [creationDescription, setCreationDescription] = useState("");
+  const [hasRecipeSource, setHasRecipeSource] = useState(false);
 
   // -- Equivalent Selector State --
   const [isEquivalentModalOpen, setIsEquivalentModalOpen] = useState(false);
@@ -205,6 +206,32 @@ export default function CartClient() {
     setCurrentProjectId(projectIdFromUrl);
   }, [projectIdFromUrl]);
 
+  const hasAssignedRecipes = (recipesContent: any) => {
+    if (!recipesContent) return false;
+
+    if (Array.isArray(recipesContent.ingredientHints) && recipesContent.ingredientHints.length > 0) {
+      return true;
+    }
+
+    const weekSlots = recipesContent.weekSlots;
+    if (!weekSlots || typeof weekSlots !== "object") return false;
+
+    return Object.values(weekSlots).some((slots) =>
+      Array.isArray(slots) && slots.some((slot: any) => Boolean(slot?.recipe)),
+    );
+  };
+
+  const syncRecipeDependency = (draft: any) => {
+    const enabled = hasAssignedRecipes(draft?.recipes);
+    setHasRecipeSource(enabled);
+    setCartSourceLabel(
+      enabled
+        ? "Generado desde Recetas y porciones"
+        : "Recetas y porciones no asignadas",
+    );
+    return enabled;
+  };
+
   // -- Persistence: Draft Load/Save --
   useEffect(() => {
     if (projectIdFromUrl) {
@@ -216,6 +243,7 @@ export default function CartClient() {
     if (!alreadyDecided && storedDraft) {
       try {
         const draft = JSON.parse(storedDraft);
+        const canUseRecipes = syncRecipeDependency(draft);
         if (draft.cart && draft.cart.items && draft.cart.items.length > 0) {
           setDraftMeta({
             label: `Carrito: ${draft.cart.items.length} alimento(s)`,
@@ -229,24 +257,26 @@ export default function CartClient() {
           }
           return;
         }
-        // No named cart draft — load from diet includedFoods (flow) or legacy currentDietStep
-        const includedFoods =
-          draft.diet?.includedFoods ||
-          (() => {
-            try {
-              const legacy = localStorage.getItem("currentDietStep");
-              return legacy ? JSON.parse(legacy).includedFoods : null;
-            } catch { return null; }
-          })();
+        // No named cart draft — only hydrate automatically when recipes are already assigned
+        const includedFoods = canUseRecipes
+          ? draft.diet?.includedFoods ||
+            (() => {
+              try {
+                const legacy = localStorage.getItem("currentDietStep");
+                return legacy ? JSON.parse(legacy).includedFoods : null;
+              } catch {
+                return null;
+              }
+            })()
+          : null;
 
         if (includedFoods && Array.isArray(includedFoods) && includedFoods.length > 0) {
           const recipeHints: Array<{ name: string; weeklyHits: number }> =
             draft.recipes?.ingredientHints || [];
-          setCartSourceLabel(
-            recipeHints.length > 0
-              ? "Generado desde Dieta + Recetas y Porciones"
-              : "Generado desde Dieta",
-          );
+          if (recipeHints.length === 0) {
+            return;
+          }
+          setCartSourceLabel("Generado desde Recetas y porciones");
 
           const hintForFood = (foodName: string) => {
             const normalized = foodName.toLowerCase().trim();
@@ -283,9 +313,7 @@ export default function CartClient() {
             ...item,
             cantidadMes: Number(((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2)),
           })));
-          if (recipeHints.length > 0) {
-            toast.success("Carrito generado usando Dieta + Recetas y Porciones.");
-          }
+          toast.success("Carrito generado usando Recetas y porciones.");
         }
       } catch (e) {
         console.error("Error loading cart draft", e);
@@ -355,10 +383,25 @@ export default function CartClient() {
           return;
         }
 
-        if (project.activeDietCreationId) {
-          const creation = await fetchCreation(project.activeDietCreationId);
-          handleImportCreation(creation);
-          setCartSourceLabel(`Generado desde proyecto ${project.name}`);
+        const [dietCreation, recipeCreation] = await Promise.all([
+          project.activeDietCreationId
+            ? fetchCreation(project.activeDietCreationId)
+            : Promise.resolve(null),
+          project.activeRecipeCreationId
+            ? fetchCreation(project.activeRecipeCreationId)
+            : Promise.resolve(null),
+        ]);
+
+        const nextDraft = {
+          ...(JSON.parse(localStorage.getItem("nutri_active_draft") || "{}")),
+          ...(dietCreation?.content ? { diet: dietCreation.content } : {}),
+          ...(recipeCreation?.content ? { recipes: recipeCreation.content } : {}),
+        };
+        localStorage.setItem("nutri_active_draft", JSON.stringify(nextDraft));
+
+        if (syncRecipeDependency(nextDraft) && dietCreation?.content && recipeCreation?.content) {
+          handleImportCreation(recipeCreation);
+          setCartSourceLabel(`Generado desde Recetas del proyecto ${project.name}`);
         }
       } catch (error) {
         console.error("Error loading project cart context", error);
@@ -381,6 +424,7 @@ export default function CartClient() {
       updatedAt: new Date().toISOString(),
     };
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+    syncRecipeDependency(draft);
   }, [items, selectedMarket, cartTargets]);
 
   // Totals logic
@@ -934,6 +978,13 @@ export default function CartClient() {
   };
 
   const handleFinalize = async () => {
+    if (!hasRecipeSource) {
+      toast.error("Faltan Recetas y porciones", {
+        description: "Importa o completa Recetas y porciones antes de usar Carrito.",
+      });
+      return;
+    }
+
     saveCartToStorage();
     try {
       await persistCartCreation();
@@ -963,6 +1014,7 @@ export default function CartClient() {
 
   const clearCart = () => {
     setItems([]);
+    setCartSourceLabel("Recetas y porciones no asignadas");
     // Clear cart from global draft
     const storedDraft = localStorage.getItem("nutri_active_draft");
     if (storedDraft) {
@@ -1003,6 +1055,7 @@ export default function CartClient() {
         label: "Imprimir JSON",
         variant: "slate",
         onClick: printJson,
+        disabled: !hasRecipeSource,
       },
       {
         id: "export-pdf",
@@ -1010,6 +1063,7 @@ export default function CartClient() {
         label: "Exportar PDF",
         variant: "slate",
         onClick: () => toast.info("PDF del carrito disponible en la etapa Entregable."),
+        disabled: !hasRecipeSource,
       },
       {
         id: "reset",
@@ -1017,9 +1071,10 @@ export default function CartClient() {
         label: "Reiniciar Todo",
         variant: "rose",
         onClick: clearCart,
+        disabled: !hasRecipeSource,
       },
     ],
-    [printJson, clearCart, selectedPatient, items, totals, cartTargets, currentProjectId, cartSourceLabel],
+    [printJson, clearCart, selectedPatient, items, totals, cartTargets, currentProjectId, cartSourceLabel, hasRecipeSource],
   );
 
   const handleKeepDraft = () => {
@@ -1051,22 +1106,45 @@ export default function CartClient() {
   const handleImportCreation = (creation: any) => {
     try {
       const { type, content } = creation;
+      const storedDraft = localStorage.getItem("nutri_active_draft");
+      const draft = storedDraft ? JSON.parse(storedDraft) : {};
 
-      // If importing a DIET, we take the includedFoods
-      if (type === "DIET") {
-        // Look for foods in all possible locations for backward compatibility
-        const includedFoods = content.foods || content.includedFoods || content.manualAdditions || [];
+      if (type === "RECIPE") {
+        draft.recipes = content;
+        localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
 
-        if (includedFoods.length === 0) {
-          toast.error("La dieta importada no tiene alimentos reconocibles.");
+        if (!syncRecipeDependency(draft)) {
+          toast.error("La planificación importada no tiene platos asignados.");
           return;
         }
 
+        const dietContent = draft.diet || {};
+        const includedFoods =
+          dietContent.foods || dietContent.includedFoods || dietContent.manualAdditions || [];
+
+        if (!Array.isArray(includedFoods) || includedFoods.length === 0) {
+          toast.error("Falta la dieta base", {
+            description: "Para construir el carrito desde Recetas y porciones también necesitamos la dieta importada.",
+          });
+          return;
+        }
+
+        const recipeHints: Array<{ name: string; weeklyHits: number }> =
+          content.ingredientHints || [];
+
+        const hintForFood = (foodName: string) => {
+          const normalized = foodName.toLowerCase().trim();
+          const match = recipeHints.find((hint) =>
+            normalized.includes(hint.name) || hint.name.includes(normalized),
+          );
+          return match?.weeklyHits || 3;
+        };
+
         const cartItems: CartItem[] = includedFoods.map((f: any) => {
-          // Normalize group name
-          const groupName = f.grupo ||
+          const groupName =
+            f.grupo ||
             f.group ||
-            (typeof f.category === 'string' ? f.category : f.category?.name) ||
+            (typeof f.category === "string" ? f.category : f.category?.name) ||
             "Varios";
 
           return {
@@ -1074,8 +1152,8 @@ export default function CartClient() {
             producto: f.producto || f.name || "Alimento sin nombre",
             grupo: groupName,
             cantidadMes: 0,
-            frecuenciaSemanal: 4, // Default frequency
-            porcionGramos: 100,  // Default portion
+            frecuenciaSemanal: hintForFood(f.producto || f.name || ""),
+            porcionGramos: 100,
             carbohidratosPor100g: f.carbohidratos || f.carbohydrates || f.carbs || 0,
             grasasPor100g: f.lipidos || f.lipids || f.grasas || 0,
             caloriasPor100g: f.calorias || f.calories || 0,
@@ -1094,17 +1172,49 @@ export default function CartClient() {
           };
         });
 
-        setItems(cartItems.map((item) => ({
-          ...item,
-          cantidadMes: Number(((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2)),
-        })));
-        toast.success(`Dieta "${creation.name}" importada al carrito.`);
+        setItems(
+          cartItems.map((item) => ({
+            ...item,
+            cantidadMes: Number(
+              ((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2),
+            ),
+          })),
+        );
+
+        if (content.targets) {
+          const t = content.targets;
+          setCartTargets((prev) => ({
+            ...prev,
+            calories: t.calories || prev.calories,
+            protein: t.protein || prev.protein,
+            carbs: t.carbs || prev.carbs,
+            fats: t.fats || prev.fats,
+          }));
+        }
+
+        setCartSourceLabel(`Generado desde Recetas y porciones: ${creation.name}`);
+        toast.success(`Recetas "${creation.name}" importadas al carrito.`);
+        return;
+      }
+
+      // If importing a DIET, we take the includedFoods
+      if (type === "DIET") {
+        draft.diet = content;
+        localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+        syncRecipeDependency(draft);
+        toast.info("Dieta importada", {
+          description: "Ahora importa Recetas y porciones para habilitar el carrito.",
+        });
+        return;
+
       }
       // If importing a SHOPPING_LIST (CART), we take the items directly
       else if (type === "SHOPPING_LIST") {
         if (content.items && Array.isArray(content.items)) {
           setItems(content.items);
           if (content.targets) setCartTargets(content.targets);
+          setHasRecipeSource(true);
+          setCartSourceLabel(`Carrito importado: ${creation.name}`);
           toast.success(`Carrito "${creation.name}" importado.`);
         } else {
           toast.error("El carrito importado no tiene el formato correcto.");
@@ -1138,7 +1248,7 @@ export default function CartClient() {
         isOpen={isImportCreationModalOpen}
         onClose={() => setIsImportCreationModalOpen(false)}
         onImport={handleImportCreation}
-        defaultType="SHOPPING_LIST"
+        defaultType="RECIPE"
       />
 
       <Modal
@@ -1285,12 +1395,14 @@ export default function CartClient() {
             <div className="flex gap-4">
               <Button
                 className="h-12 px-8 bg-slate-900"
+                disabled={!hasRecipeSource}
                 onClick={() => setIsSaveCreationModalOpen(true)}
               >
                 Guardar Creación
               </Button>
               <Button
                 className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-xl shadow-emerald-200 transition-all hover:scale-[1.02] active:scale-95"
+                disabled={!hasRecipeSource}
                 onClick={handleFinalize}
               >
                 Continuar
@@ -1306,6 +1418,43 @@ export default function CartClient() {
           mode={currentProjectMode}
           moduleLabel="Carrito"
         />
+        {!hasRecipeSource ? (
+          <div className="mb-6 rounded-[2rem] border border-amber-200 bg-amber-50 p-5 shadow-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-700">
+                  Recetas requeridas
+                </p>
+                <p className="text-sm font-medium text-amber-900">
+                  Carrito depende de Recetas y porciones. Importa esa planificación antes de generar o editar la lista de compras.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsImportCreationModalOpen(true)}
+                  className="rounded-2xl border-amber-200 bg-white font-bold text-amber-900"
+                >
+                  <Library className="mr-2 h-4 w-4" />
+                  Importar recetas
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    router.push(
+                      buildProjectAwarePath("/dashboard/recetas", currentProjectId),
+                    )
+                  }
+                  className="rounded-2xl border-amber-200 bg-white font-bold text-amber-900"
+                >
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  Ir a Recetas
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        <div className={cn(!hasRecipeSource && "pointer-events-none opacity-55 select-none")}>
         <div className="mb-4">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 border border-indigo-100">
             <BookOpen className="h-4 w-4 text-indigo-600" />
@@ -2224,6 +2373,7 @@ export default function CartClient() {
             </div>
           </div>
         </Modal>
+        </div>
         <SaveCreationModal
           isOpen={isSaveCreationModalOpen}
           onClose={() => setIsSaveCreationModalOpen(false)}

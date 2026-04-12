@@ -11,6 +11,7 @@ import {
   ShoppingCart,
   CalendarDays,
   FileText,
+  NotebookText,
   MessageCircle,
   ClipboardCheck,
   MessageSquare,
@@ -57,6 +58,7 @@ const groups: SidebarGroup[] = [
   {
     title: "Principal",
     items: [
+      { name: "Rápido", href: "/dashboard/rapido", icon: NotebookText },
       { name: "Dieta", href: "/dashboard/dieta", icon: Utensils },
       { name: "Recetas y Porciones", href: "/dashboard/recetas", icon: ChefHat },
       { name: "Carrito", href: "/dashboard/carrito", icon: ShoppingCart },

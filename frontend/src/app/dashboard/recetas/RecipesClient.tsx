@@ -379,6 +379,7 @@ export default function RecipesClient() {
     diet: false,
     cart: false,
   });
+  const isRecipesLocked = !hasSourceData;
 
   // -- Draft Restore Modal --
   const [showDraftModal, setShowDraftModal] = useState(false);
@@ -549,24 +550,30 @@ export default function RecipesClient() {
     };
 
     visit(draft.diet);
-    visit(draft.cart);
 
     return Array.from(collected);
   };
 
   const getSourceModules = (draft: Record<string, any>) => ({
     diet: Boolean(draft?.diet),
-    cart: Boolean(draft?.cart),
+    cart: false,
   });
 
   const syncSourceFoods = (draft: Record<string, any>) => {
     const nextSourceModules = getSourceModules(draft);
-    setHasSourceData(nextSourceModules.diet || nextSourceModules.cart);
+    const nextSourceFoods = extractSourceFoods(draft);
+    setHasSourceData(nextSourceModules.diet && nextSourceFoods.length > 0);
     setSourceModules(nextSourceModules);
-    setSourceFoods(extractSourceFoods(draft));
+    setSourceFoods(nextSourceFoods);
   };
 
   const loadRecipeLibrary = async () => {
+    if (!hasSourceData) {
+      setRecipeLibrary([]);
+      setCompatibleRecipeIds([]);
+      return;
+    }
+
     const token = getAuthToken();
     if (!token) {
       setRecipeLibrary([]);
@@ -694,8 +701,14 @@ export default function RecipesClient() {
   );
 
   useEffect(() => {
+    if (!hasSourceData) {
+      setRecipeLibrary([]);
+      setCompatibleRecipeIds([]);
+      return;
+    }
+
     loadRecipeLibrary();
-  }, [sourceFoods]);
+  }, [hasSourceData, sourceFoods]);
 
   useEffect(() => {
     if (recipeLibrary.length === 0) {
@@ -809,9 +822,8 @@ export default function RecipesClient() {
     if (storedDraft) {
       try {
         const draft = JSON.parse(storedDraft);
-        // Check if we have ingredients to work with
-        if (draft.diet || draft.cart) {
-          setHasSourceData(true);
+        // Check if we have a diet to work with
+        if (draft.diet) {
           syncSourceFoods(draft);
         }
 
@@ -896,7 +908,6 @@ export default function RecipesClient() {
         }
 
         localStorage.setItem("nutri_active_draft", JSON.stringify(nextDraft));
-        setHasSourceData(Boolean(nextDraft.diet || nextDraft.cart));
         syncSourceFoods(nextDraft);
       } catch (error) {
         console.error("Error loading project recipes context", error);
@@ -1207,8 +1218,8 @@ export default function RecipesClient() {
   // AI Generation Simulation
   const handleGenerateAI = (mode: "day" | "week" = "day") => {
     if (!hasSourceData) {
-      toast.error("Faltan ingredientes", {
-        description: "Debes importar una Dieta o Carrito primero para tener la base de alimentos.",
+      toast.error("Falta una dieta base", {
+        description: "Debes importar una dieta con alimentos antes de usar Recetas y porciones.",
       });
       return;
     }
@@ -1223,8 +1234,8 @@ export default function RecipesClient() {
     return;
 
     if (!hasSourceData) {
-      toast.error("Faltan ingredientes", {
-        description: "Debes importar una Dieta o Carrito primero para tener la base de alimentos."
+      toast.error("Falta una dieta base", {
+        description: "Debes importar una dieta con alimentos antes de usar Recetas y porciones.",
       });
       return;
     }
@@ -1737,8 +1748,18 @@ export default function RecipesClient() {
     days.forEach((day) => {
       initial[day] = baseStructure.map((slot) => ({ ...slot }));
     });
+
+    const draft = readWorkflowDraft();
+    delete draft.diet;
+    delete draft.recipes;
+    delete draft.cart;
+    localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+
     setWeekSlots(initial);
-    toast.info("Plan semanal reiniciado.");
+    setSourceFoods([]);
+    setSourceModules({ diet: false, cart: false });
+    setHasSourceData(false);
+    toast.info("Recetas y porciones reiniciado por completo.");
   };
 
   const buildRecipesPayload = (description?: string) => ({
@@ -1807,6 +1828,7 @@ export default function RecipesClient() {
         label: "Imprimir JSON",
         variant: "slate",
         onClick: printJson,
+        disabled: isRecipesLocked,
       },
       {
         id: "export-pdf",
@@ -1814,6 +1836,7 @@ export default function RecipesClient() {
         label: "Exportar PDF",
         variant: "slate",
         onClick: () => toast.info("PDF de recetas disponible en la etapa Entregable."),
+        disabled: isRecipesLocked,
       },
       {
         id: "reset",
@@ -1821,21 +1844,20 @@ export default function RecipesClient() {
         label: "Reiniciar Todo",
         variant: "rose",
         onClick: resetRecipes,
+        disabled: isRecipesLocked,
       },
     ],
-    [printJson, resetRecipes, selectedPatient, weekSlots, targetProtein, targetCalories, targetCarbs, targetFats, wakeUpTime, sleepTime, currentProjectId],
+    [printJson, resetRecipes, selectedPatient, weekSlots, targetProtein, targetCalories, targetCarbs, targetFats, wakeUpTime, sleepTime, currentProjectId, isRecipesLocked],
   );
 
   const assignedSourceSummary = useMemo(() => {
-    if (sourceModules.diet && sourceModules.cart) return "Dieta y carrito importados";
     if (sourceModules.diet) return "Dieta asignada";
-    if (sourceModules.cart) return "Carrito asignado";
-    return "Sin base asignada";
+    return "Sin dieta asignada";
   }, [sourceModules]);
 
   const sourceDraftSummary = useMemo(() => {
     const draft = readWorkflowDraft();
-    const sourceContent = draft.diet || draft.cart || {};
+    const sourceContent = draft.diet || {};
     const targets = sourceContent.targets || sourceContent.nutritionalTargets || {};
 
     return {
@@ -1882,20 +1904,21 @@ export default function RecipesClient() {
 
       // Full RECIPE import
       if (type === "RECIPE") {
+        if (!draft.diet) {
+          toast.error("Primero importa una dieta", {
+            description: "Recetas y porciones necesita una dieta base antes de cargar una planificación.",
+          });
+          return;
+        }
         draft.recipes = content;
         localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
         applyRecipesContent(content);
         toast.success(`Plan de recetas "${creation.name}" importado.`);
       }
-      // Partial import from DIET or CART (Sync targets)
-      else if (type === "DIET" || type === "SHOPPING_LIST") {
-        if (type === "DIET") {
-          draft.diet = content;
-        } else {
-          draft.cart = content;
-        }
+      // Diet import is required to enable this module
+      else if (type === "DIET") {
+        draft.diet = content;
         localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
-        setHasSourceData(Boolean(draft.diet || draft.cart));
         syncSourceFoods(draft);
 
         const targets = content.targets || content.nutritionalTargets || {};
@@ -1912,6 +1935,10 @@ export default function RecipesClient() {
         if (fats > 0) setTargetFats(fats);
 
         toast.success(`Metas sincronizadas desde ${type === "DIET" ? "Dieta" : "Carrito"}: "${creation.name}"`);
+      } else if (type === "SHOPPING_LIST") {
+        toast.info("Este módulo depende de una dieta", {
+          description: "Importa una dieta para habilitar Recetas y porciones.",
+        });
       }
     } catch (e) {
       console.error("Error importing creation", e);
@@ -1925,7 +1952,7 @@ export default function RecipesClient() {
         isOpen={isImportCreationModalOpen}
         onClose={() => setIsImportCreationModalOpen(false)}
         onImport={handleImportCreation}
-        defaultType="RECIPE"
+        defaultType="DIET"
       />
       <DraftRestoreModal
         isOpen={showDraftModal}
@@ -1964,8 +1991,13 @@ export default function RecipesClient() {
 
               <Button
                 className="h-12 px-8 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-200 uppercase tracking-widest text-xs"
+                disabled={isRecipesLocked}
                 onClick={async () => {
                   try {
+                    if (isRecipesLocked) {
+                      toast.error("Importa una dieta primero.");
+                      return;
+                    }
                     await persistRecipesCreation();
                     toast.success("Creación guardada exitosamente");
                   } catch (error: any) {
@@ -1977,8 +2009,13 @@ export default function RecipesClient() {
               </Button>
 
               <Button
+                disabled={isRecipesLocked}
                 onClick={async () => {
                   try {
+                    if (isRecipesLocked) {
+                      toast.error("Importa una dieta primero.");
+                      return;
+                    }
                     const emptyBlocks = getEmptyMealBlocks();
                     if (emptyBlocks.length > 0) {
                       const firstEmpty = emptyBlocks[0];
@@ -2128,17 +2165,54 @@ export default function RecipesClient() {
           </div>
         )}
 
-        <div className="space-y-8 mt-6">
+        {!hasSourceData ? (
+          <div className="mb-6 rounded-[2rem] border border-amber-200 bg-amber-50 p-5 shadow-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-700">
+                  Dieta requerida
+                </p>
+                <p className="text-sm font-medium text-amber-900">
+                  Recetas y porciones necesita una dieta importada con alimentos para habilitar la IA y la planificación.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsImportCreationModalOpen(true)}
+                  className="rounded-2xl border-amber-200 bg-white font-bold text-amber-900"
+                >
+                  <Library className="mr-2 h-4 w-4" />
+                  Importar dieta
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    router.push(
+                      buildProjectAwarePath("/dashboard/dieta", currentProjectId),
+                    )
+                  }
+                  className="rounded-2xl border-amber-200 bg-white font-bold text-amber-900"
+                >
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  Ir a Dieta
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <div className={cn("space-y-8 mt-6", isRecipesLocked && "pointer-events-none opacity-55 select-none")}>
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
                     Configuración de estructura
                   </p>
-                  <h3 className="mt-1 text-lg font-black text-slate-900">
-                    Este módulo está hecho para trabajarse con Inteligencia Artificial (IA): optimiza el tiempo, verifica las restricciones de dieta y los alimentos disponibles para crear platos realistas y con variación. Puedes elegir si se rellena semanal, o se rellena manual.
-                  </h3>
+                  <p className="mt-1 max-w-3xl text-sm font-medium leading-relaxed text-slate-500">
+                    Usa IA para proponer platos realistas según restricciones y alimentos disponibles, o completa la estructura manualmente.
+                  </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
@@ -2248,12 +2322,20 @@ export default function RecipesClient() {
             </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
-              <div className="rounded-2xl bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700">
-                Alimentos base considerados: {sourceFoods.length}
-              </div>
-              <div className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-600">
-                La información anterior se conserva y este módulo solo suma estructura, porciones y distribución.
-              </div>
+              {hasSourceData ? (
+                <>
+                  <div className="rounded-2xl bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700">
+                    Alimentos base considerados: {sourceFoods.length}
+                  </div>
+                  <div className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-600">
+                    La información anterior se conserva y este módulo solo suma estructura, porciones y distribución.
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-2xl bg-amber-50 px-4 py-2 text-xs font-black text-amber-700">
+                  Sin dieta asignada. Importa una dieta para habilitar esta etapa.
+                </div>
+              )}
             </div>
           </div>
 
