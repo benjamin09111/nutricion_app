@@ -5,7 +5,6 @@ import {
   AlertCircle,
   Download,
   FileCode,
-  GripVertical,
   Library,
   NotebookText,
   Plus,
@@ -20,8 +19,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
-import { Textarea } from "@/components/ui/Textarea";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
+import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
@@ -48,10 +47,23 @@ type QuickMeal = {
   portion: string;
 };
 
+type QuickAvoidFoodRow = {
+  id: string;
+  value: string;
+};
+
+type QuickPortionGuideRow = {
+  id: string;
+  category: string;
+  portion: string;
+};
+
 type ResourceTemplate = {
   id: string;
   title: string;
   content: string;
+  category?: string | null;
+  variablePlaceholders?: string[];
 };
 
 type ResolvedResourcePage = {
@@ -65,6 +77,14 @@ type QuickPatient = {
   id?: string;
   fullName: string;
   email?: string | null;
+};
+
+type ImportedCreation = {
+  id: string;
+  name: string;
+  type: string;
+  content?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
 };
 
 const QUICK_SECTIONS: QuickSection[] = [
@@ -97,6 +117,20 @@ const createMeal = (section: QuickSection = "Desayuno"): QuickMeal => ({
   portion: "",
 });
 
+const createAvoidFoodRow = (value = ""): QuickAvoidFoodRow => ({
+  id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  value,
+});
+
+const createPortionGuideRow = (
+  row: Partial<QuickPortionGuideRow> = {},
+): QuickPortionGuideRow => ({
+  id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  category: "",
+  portion: "",
+  ...row,
+});
+
 function extractVariablesFromContent(content: string): string[] {
   const regex = /\^([a-zA-Z0-9_\- ]+)\^/g;
   const variables = new Set<string>();
@@ -106,6 +140,27 @@ function extractVariablesFromContent(content: string): string[] {
     match = regex.exec(content || "");
   }
   return Array.from(variables);
+}
+
+function stripHtml(content: string): string {
+  return (content || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\n\s*\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+}
+
+function getResolvedResourceKey(resource: ResolvedResourcePage, index: number): string {
+  return `${resource.resourceId}-${index}`;
 }
 
 export default function QuickDeliverableClient() {
@@ -120,22 +175,32 @@ export default function QuickDeliverableClient() {
     createMeal("Cena"),
   ]);
   const [sectionToAdd, setSectionToAdd] = useState<QuickSection>("Colación AM");
-  const [avoidFoods, setAvoidFoods] = useState<string[]>([""]);
+  const [avoidFoods, setAvoidFoods] = useState<QuickAvoidFoodRow[]>([
+    createAvoidFoodRow(),
+  ]);
+  const [includeMeals, setIncludeMeals] = useState(true);
+  const [includeAvoidFoods, setIncludeAvoidFoods] = useState(true);
+  const [includeResources, setIncludeResources] = useState(true);
   const [includePortionGuide, setIncludePortionGuide] = useState(true);
+  const [portionGuideRows, setPortionGuideRows] = useState<QuickPortionGuideRow[]>(
+    QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)),
+  );
   const [resources, setResources] = useState<ResourceTemplate[]>([]);
   const [resolvedResourcePages, setResolvedResourcePages] = useState<ResolvedResourcePage[]>([]);
-  const [selectedResourceId, setSelectedResourceId] = useState("");
-  const [resourceVariables, setResourceVariables] = useState<Record<string, string>>({});
+  const [selectedResourceKeys, setSelectedResourceKeys] = useState<string[]>([]);
+  const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);
+  const [resourceSearch, setResourceSearch] = useState("");
+  const [resourceCategoryFilter, setResourceCategoryFilter] = useState("Todas");
   const [patients, setPatients] = useState<QuickPatient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<QuickPatient | null>(null);
   const [patientSearch, setPatientSearch] = useState("");
   const [creationDescription, setCreationDescription] = useState("");
-  const [draggedMealId, setDraggedMealId] = useState<string | null>(null);
   const [currentProjectName, setCurrentProjectName] = useState<string | null>(null);
   const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(null);
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
+  const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
@@ -146,9 +211,33 @@ export default function QuickDeliverableClient() {
       const parsed = JSON.parse(draft);
       setTitle(parsed.title || DEFAULT_TITLE);
       setMeals(Array.isArray(parsed.meals) && parsed.meals.length > 0 ? parsed.meals : [createMeal("Desayuno")]);
-      setAvoidFoods(Array.isArray(parsed.avoidFoods) && parsed.avoidFoods.length > 0 ? parsed.avoidFoods : [""]);
-      setResolvedResourcePages(Array.isArray(parsed.resources) ? parsed.resources : []);
+      setAvoidFoods(
+        Array.isArray(parsed.avoidFoods) && parsed.avoidFoods.length > 0
+          ? parsed.avoidFoods.map((item: string | QuickAvoidFoodRow) =>
+              typeof item === "string" ? createAvoidFoodRow(item) : item,
+            )
+          : [createAvoidFoodRow()],
+      );
+      setResolvedResourcePages(
+        Array.isArray(parsed.resources)
+          ? parsed.resources.map((resource: ResolvedResourcePage) => ({
+              ...resource,
+              content: stripHtml(resource.content || ""),
+            }))
+          : [],
+      );
+      setSelectedResourceKeys(
+        Array.isArray(parsed.selectedResourceKeys) ? parsed.selectedResourceKeys : [],
+      );
+      setIncludeMeals(parsed.includeMeals !== false);
+      setIncludeAvoidFoods(parsed.includeAvoidFoods !== false);
+      setIncludeResources(parsed.includeResources !== false);
       setIncludePortionGuide(parsed.includePortionGuide !== false);
+      setPortionGuideRows(
+        Array.isArray(parsed.portionGuideRows) && parsed.portionGuideRows.length > 0
+          ? parsed.portionGuideRows
+          : QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)),
+      );
       setSelectedPatient(parsed.selectedPatient || null);
     } catch (error) {
       console.error("Error loading quick draft", error);
@@ -163,11 +252,28 @@ export default function QuickDeliverableClient() {
         meals,
         avoidFoods,
         resources: resolvedResourcePages,
+        selectedResourceKeys,
+        includeMeals,
+        includeAvoidFoods,
+        includeResources,
         includePortionGuide,
+        portionGuideRows,
         selectedPatient,
       }),
     );
-  }, [title, meals, avoidFoods, resolvedResourcePages, includePortionGuide, selectedPatient]);
+  }, [
+    title,
+    meals,
+    avoidFoods,
+    resolvedResourcePages,
+    selectedResourceKeys,
+    includeMeals,
+    includeAvoidFoods,
+    includeResources,
+    includePortionGuide,
+    portionGuideRows,
+    selectedPatient,
+  ]);
 
   useEffect(() => {
     const loadCreation = async () => {
@@ -177,9 +283,33 @@ export default function QuickDeliverableClient() {
         const content = creation.content || {};
         setTitle(content.title || creation.name || DEFAULT_TITLE);
         setMeals(Array.isArray(content.meals) && content.meals.length > 0 ? content.meals : [createMeal("Desayuno")]);
-        setAvoidFoods(Array.isArray(content.avoidFoods) && content.avoidFoods.length > 0 ? content.avoidFoods : [""]);
-        setResolvedResourcePages(Array.isArray(content.resources) ? content.resources : []);
+        setAvoidFoods(
+          Array.isArray(content.avoidFoods) && content.avoidFoods.length > 0
+            ? content.avoidFoods.map((item: string | QuickAvoidFoodRow) =>
+                typeof item === "string" ? createAvoidFoodRow(item) : item,
+              )
+            : [createAvoidFoodRow()],
+        );
+        setResolvedResourcePages(
+          Array.isArray(content.resources)
+            ? content.resources.map((resource: ResolvedResourcePage) => ({
+                ...resource,
+                content: stripHtml(resource.content || ""),
+              }))
+            : [],
+        );
+        setSelectedResourceKeys(
+          Array.isArray(content.selectedResourceKeys) ? content.selectedResourceKeys : [],
+        );
+        setIncludeMeals(content.includeMeals !== false);
+        setIncludeAvoidFoods(content.includeAvoidFoods !== false);
+        setIncludeResources(content.includeResources !== false);
         setIncludePortionGuide(content.includePortionGuide !== false);
+        setPortionGuideRows(
+          Array.isArray(content.portionGuideRows) && content.portionGuideRows.length > 0
+            ? content.portionGuideRows
+            : QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)),
+        );
         if (creation.metadata?.patientName) {
           setSelectedPatient({
             id: creation.metadata?.patientId,
@@ -221,9 +351,143 @@ export default function QuickDeliverableClient() {
   }, [patients, patientSearch]);
 
   const validAvoidFoods = useMemo(
-    () => avoidFoods.map((food) => food.trim()).filter(Boolean),
+    () => avoidFoods.map((food) => food.value.trim()).filter(Boolean),
     [avoidFoods],
   );
+
+  const simpleResources = useMemo(
+    () =>
+      resources.filter(
+        (resource) =>
+          !extractVariablesFromContent(resource.content || "").length &&
+          !(resource.variablePlaceholders?.length || 0),
+      ),
+    [resources],
+  );
+
+  const resourceCategories = useMemo(() => {
+    const categories = simpleResources
+      .map((resource) => resource.category?.trim())
+      .filter(Boolean) as string[];
+    return ["Todas", ...Array.from(new Set(categories)).sort((a, b) => a.localeCompare(b))];
+  }, [simpleResources]);
+
+  const filteredSimpleResources = useMemo(() => {
+    const search = resourceSearch.trim().toLowerCase();
+    return simpleResources.filter((resource) => {
+      const matchesCategory =
+        resourceCategoryFilter === "Todas" ||
+        (resource.category || "").trim() === resourceCategoryFilter;
+      const matchesSearch =
+        !search ||
+        (resource.title || "").toLowerCase().includes(search) ||
+        (resource.content || "").toLowerCase().includes(search);
+      return matchesCategory && matchesSearch;
+    });
+  }, [simpleResources, resourceCategoryFilter, resourceSearch]);
+
+  const selectedResolvedResources = useMemo(
+    () =>
+      resolvedResourcePages.filter((resource, index) =>
+        selectedResourceKeys.includes(getResolvedResourceKey(resource, index)),
+      ),
+    [resolvedResourcePages, selectedResourceKeys],
+  );
+
+  const portionGuideCount = useMemo(
+    () =>
+      portionGuideRows.filter(
+        (row) => row.category.trim() || row.portion.trim(),
+      ).length,
+    [portionGuideRows],
+  );
+
+  const applyImportedQuickCreation = (creation: ImportedCreation) => {
+    if (creation.type !== "FAST_DELIVERABLE") {
+      toast.error("Solo puedes importar entregables rápidos en este módulo.");
+      return;
+    }
+
+    const content = creation.content || {};
+    const importedMeals = Array.isArray(content.meals)
+      ? (content.meals as QuickMeal[])
+      : [];
+    const importedAvoidFoods = Array.isArray(content.avoidFoods)
+      ? content.avoidFoods
+      : [];
+    const importedResources = Array.isArray(content.resources)
+      ? (content.resources as ResolvedResourcePage[])
+      : [];
+    const importedPortionRows = Array.isArray(content.portionGuideRows)
+      ? (content.portionGuideRows as QuickPortionGuideRow[])
+      : Array.isArray(content.portionGuide)
+        ? (content.portionGuide as Array<{ category?: string; portion?: string }>).map((row) =>
+            createPortionGuideRow({
+              category: row.category || "",
+              portion: row.portion || "",
+            }),
+          )
+        : [];
+
+    setTitle(
+      typeof content.title === "string" && content.title.trim()
+        ? content.title
+        : creation.name || DEFAULT_TITLE,
+    );
+    setMeals(importedMeals.length > 0 ? importedMeals : [createMeal("Desayuno")]);
+    setAvoidFoods(
+      importedAvoidFoods.length > 0
+        ? importedAvoidFoods.map((item) =>
+            typeof item === "string"
+              ? createAvoidFoodRow(item)
+              : createAvoidFoodRow((item as QuickAvoidFoodRow).value || ""),
+          )
+        : [createAvoidFoodRow()],
+    );
+    setResolvedResourcePages(
+      importedResources.map((resource) => ({
+        ...resource,
+        content: stripHtml(resource.content || ""),
+      })),
+    );
+    setSelectedResourceKeys(
+      Array.isArray(content.selectedResourceKeys)
+        ? (content.selectedResourceKeys as string[])
+        : importedResources.map((resource, index) =>
+            getResolvedResourceKey(resource, index),
+          ),
+    );
+    setIncludeMeals(content.includeMeals !== false);
+    setIncludeAvoidFoods(content.includeAvoidFoods !== false);
+    setIncludeResources(content.includeResources !== false);
+    setIncludePortionGuide(content.includePortionGuide !== false);
+    setPortionGuideRows(
+      importedPortionRows.length > 0
+        ? importedPortionRows.map((row) => createPortionGuideRow(row))
+        : QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)),
+    );
+
+    const patientName =
+      typeof creation.metadata?.patientName === "string"
+        ? creation.metadata.patientName
+        : null;
+    const patientId =
+      typeof creation.metadata?.patientId === "string"
+        ? creation.metadata.patientId
+        : undefined;
+
+    setSelectedPatient(
+      patientName
+        ? {
+            id: patientId,
+            fullName: patientName,
+          }
+        : null,
+    );
+
+    setIsImportCreationModalOpen(false);
+    toast.success("Entregable rápido importado al borrador actual.");
+  };
 
   const openPatientModal = async () => {
     try {
@@ -258,47 +522,44 @@ export default function QuickDeliverableClient() {
 
   const openResourceModal = async () => {
     await fetchResources();
-    setSelectedResourceId("");
-    setResourceVariables({});
+    setSelectedResourceIds([]);
+    setResourceSearch("");
+    setResourceCategoryFilter("Todas");
     setIsResourceModalOpen(true);
   };
 
   const addResolvedResourcePage = async () => {
-    if (!selectedResourceId) {
-      toast.error("Selecciona un recurso.");
+    if (selectedResourceIds.length === 0) {
+      toast.error("Selecciona al menos un recurso.");
       return;
     }
 
-    const resource = resources.find((item) => item.id === selectedResourceId);
-    if (!resource) return;
-
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi(`/resources/resolve-variables`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          content: resource.content,
-          inputs: resourceVariables,
-        }),
-      });
+      const nextResources: ResolvedResourcePage[] = [];
 
-      if (!response.ok) throw new Error("resolve failed");
-      const data = await response.json();
-      setResolvedResourcePages((prev) => [
-        ...prev,
-        {
+      for (const resourceId of selectedResourceIds) {
+        const resource = simpleResources.find((item) => item.id === resourceId);
+        if (!resource) continue;
+        nextResources.push({
           resourceId: resource.id,
           title: resource.title,
-          content: data.resolvedContent || resource.content,
-          variables: resourceVariables,
-        },
-      ]);
+          content: stripHtml(resource.content),
+          variables: {},
+        });
+      }
+      setResolvedResourcePages((prev) => {
+        const next = [...prev, ...nextResources];
+        setSelectedResourceKeys((current) => [
+          ...current,
+          ...nextResources.map((resource, index) =>
+            getResolvedResourceKey(resource, prev.length + index),
+          ),
+        ]);
+        return next;
+      });
+      setSelectedResourceIds([]);
       setIsResourceModalOpen(false);
-      toast.success("Recurso agregado al entregable rápido.");
+      toast.success("Recursos agregados al entregable rápido.");
     } catch (error) {
       console.error(error);
       toast.error("No se pudo agregar el recurso.");
@@ -319,38 +580,63 @@ export default function QuickDeliverableClient() {
     setMeals((current) => current.filter((meal) => meal.id !== mealId));
   };
 
-  const moveMeal = (targetMealId: string) => {
-    if (!draggedMealId || draggedMealId === targetMealId) return;
-    setMeals((current) => {
-      const next = [...current];
-      const fromIndex = next.findIndex((meal) => meal.id === draggedMealId);
-      const toIndex = next.findIndex((meal) => meal.id === targetMealId);
-      if (fromIndex === -1 || toIndex === -1) return current;
-      const [moved] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, moved);
-      return next;
-    });
-  };
-
-  const updateAvoidFood = (index: number, value: string) => {
-    setAvoidFoods((current) => current.map((item, itemIndex) => (itemIndex === index ? value : item)));
+  const updateAvoidFood = (rowId: string, value: string) => {
+    setAvoidFoods((current) =>
+      current.map((item) => (item.id === rowId ? { ...item, value } : item)),
+    );
   };
 
   const addAvoidFoodRow = () => {
-    setAvoidFoods((current) => [...current, ""]);
+    setAvoidFoods((current) => [...current, createAvoidFoodRow()]);
   };
 
-  const removeAvoidFood = (index: number) => {
-    setAvoidFoods((current) => (current.length === 1 ? [""] : current.filter((_, itemIndex) => itemIndex !== index)));
+  const removeAvoidFood = (rowId: string) => {
+    setAvoidFoods((current) =>
+      current.length === 1
+        ? current
+        : current.filter((item) => item.id !== rowId),
+    );
+  };
+
+  const updatePortionGuideRow = (
+    rowId: string,
+    field: "category" | "portion",
+    value: string,
+  ) => {
+    setPortionGuideRows((current) =>
+      current.map((row) => (row.id === rowId ? { ...row, [field]: value } : row)),
+    );
+  };
+
+  const addPortionGuideRow = () => {
+    setPortionGuideRows((current) => [...current, createPortionGuideRow()]);
+  };
+
+  const removePortionGuideRow = (rowId: string) => {
+    setPortionGuideRows((current) =>
+      current.length === 1 ? current : current.filter((row) => row.id !== rowId),
+    );
   };
 
   const buildPdfPayload = () => ({
     name: title.trim() || DEFAULT_TITLE,
     patientName: selectedPatient?.fullName || null,
-    meals,
-    avoidFoods: validAvoidFoods,
-    resources: resolvedResourcePages,
-    portionGuide: includePortionGuide ? QUICK_PORTION_GUIDE : [],
+    meals: includeMeals ? meals : [],
+    avoidFoods: includeAvoidFoods ? validAvoidFoods : [],
+    resources: includeResources
+      ? selectedResolvedResources.map((resource) => ({
+          ...resource,
+          content: stripHtml(resource.content || ""),
+        }))
+      : [],
+    portionGuide: includePortionGuide
+      ? portionGuideRows
+          .map((row) => ({
+            category: row.category.trim(),
+            portion: row.portion.trim(),
+          }))
+          .filter((row) => row.category || row.portion)
+      : [],
     generatedAt: new Date().toLocaleDateString("es-CL"),
   });
 
@@ -378,8 +664,18 @@ export default function QuickDeliverableClient() {
           meals,
           avoidFoods: validAvoidFoods,
           resources: resolvedResourcePages,
+          selectedResourceKeys,
+          includeMeals,
+          includeAvoidFoods,
+          includeResources,
           includePortionGuide,
-          portionGuide: QUICK_PORTION_GUIDE,
+          portionGuide: portionGuideRows
+            .map((row) => ({
+              category: row.category.trim(),
+              portion: row.portion.trim(),
+            }))
+            .filter((row) => row.category || row.portion),
+          portionGuideRows,
           updatedAt: new Date().toISOString(),
         },
         metadata: {
@@ -387,9 +683,9 @@ export default function QuickDeliverableClient() {
           ...(selectedPatient
             ? { patientId: selectedPatient.id, patientName: selectedPatient.fullName }
             : {}),
-          mealCount: meals.length,
-          avoidFoodsCount: validAvoidFoods.length,
-          resourceCount: resolvedResourcePages.length,
+          mealCount: includeMeals ? meals.length : 0,
+          avoidFoodsCount: includeAvoidFoods ? validAvoidFoods.length : 0,
+          resourceCount: includeResources ? selectedResolvedResources.length : 0,
         },
         tags: ["rapido", "express"],
       });
@@ -411,9 +707,14 @@ export default function QuickDeliverableClient() {
   const resetQuickDeliverable = () => {
     setTitle(DEFAULT_TITLE);
     setMeals([createMeal("Desayuno"), createMeal("Almuerzo"), createMeal("Cena")]);
-    setAvoidFoods([""]);
+    setAvoidFoods([createAvoidFoodRow()]);
     setResolvedResourcePages([]);
+    setSelectedResourceKeys([]);
+    setIncludeMeals(true);
+    setIncludeAvoidFoods(true);
+    setIncludeResources(true);
     setIncludePortionGuide(true);
+    setPortionGuideRows(QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)));
     localStorage.removeItem("nutri_quick_deliverable_draft");
     toast.success("Entregable rápido reiniciado.");
   };
@@ -446,6 +747,13 @@ export default function QuickDeliverableClient() {
       label: "Guardar creación",
       variant: "slate",
       onClick: () => setIsSaveCreationModalOpen(true),
+    },
+    {
+      id: "import",
+      icon: Library,
+      label: "Importar creación",
+      variant: "slate",
+      onClick: () => setIsImportCreationModalOpen(true),
     },
     {
       id: "json",
@@ -508,7 +816,10 @@ export default function QuickDeliverableClient() {
 
           <div className="grid gap-6 xl:grid-cols-[1.5fr,0.9fr]">
             <div className="space-y-6">
-              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <section className={cn(
+                "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm",
+                !includeResources && "opacity-55",
+              )}>
                 <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                   <div className="flex-1 space-y-2">
                     <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
@@ -529,7 +840,10 @@ export default function QuickDeliverableClient() {
                 </div>
               </section>
 
-              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <section className={cn(
+                "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm",
+                !includeMeals && "opacity-55",
+              )}>
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h2 className="text-xl font-black text-slate-900">
@@ -540,13 +854,23 @@ export default function QuickDeliverableClient() {
                       indicación y porción.
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={includeMeals}
+                        onChange={(e) => setIncludeMeals(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                      />
+                      Incluir
+                    </label>
                     <select
                       value={sectionToAdd}
                       onChange={(e) =>
                         setSectionToAdd(e.target.value as QuickSection)
                       }
-                      className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-700"
+                      className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900"
+                      disabled={!includeMeals}
                     >
                       {QUICK_SECTIONS.map((section) => (
                         <option key={section} value={section}>
@@ -557,6 +881,7 @@ export default function QuickDeliverableClient() {
                     <Button
                       className="h-11 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
                       onClick={addMeal}
+                      disabled={!includeMeals}
                     >
                       <Plus className="mr-2 h-4 w-4" />
                       Agregar
@@ -564,74 +889,100 @@ export default function QuickDeliverableClient() {
                   </div>
                 </div>
 
-                <div className="mt-6 space-y-3">
-                  {meals.map((meal, index) => (
-                    <div
-                      key={meal.id}
-                      draggable
-                      onDragStart={() => setDraggedMealId(meal.id)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={() => moveMeal(meal.id)}
-                      className="rounded-3xl border border-slate-200 bg-slate-50 p-4"
-                    >
-                      <div className="grid gap-3 xl:grid-cols-[40px,180px,140px,1fr,180px,44px] xl:items-start">
-                        <div className="flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400">
-                          <GripVertical className="h-4 w-4" />
-                        </div>
-                        <select
-                          value={meal.section}
-                          onChange={(e) =>
-                            updateMeal(meal.id, "section", e.target.value)
-                          }
-                          className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-700"
-                        >
-                          {QUICK_SECTIONS.map((section) => (
-                            <option key={section} value={section}>
-                              {section}
-                            </option>
-                          ))}
-                        </select>
-                        <Input
-                          type="time"
-                          value={meal.time}
-                          onChange={(e) =>
-                            updateMeal(meal.id, "time", e.target.value)
-                          }
-                          className="h-11 rounded-2xl border-slate-200 bg-white"
-                        />
-                        <Textarea
-                          value={meal.mealText}
-                          onChange={(e) =>
-                            updateMeal(meal.id, "mealText", e.target.value)
-                          }
-                          className="min-h-[92px] rounded-2xl border-slate-200 bg-white"
-                          placeholder={`Indicaciones para ${meal.section.toLowerCase()}...`}
-                        />
-                        <Input
-                          value={meal.portion}
-                          onChange={(e) =>
-                            updateMeal(meal.id, "portion", e.target.value)
-                          }
-                          className="h-11 rounded-2xl border-slate-200 bg-white"
-                          placeholder="Ej: 1 plato o 150 g"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeMeal(meal.id)}
-                          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                      <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
-                        Bloque {index + 1}
-                      </p>
-                    </div>
-                  ))}
+                <div className="mt-6 overflow-x-auto rounded-3xl border border-slate-200">
+                  <table className="w-full min-w-[860px] bg-white">
+                    <thead className="bg-slate-50">
+                      <tr className="border-b border-slate-200">
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                          Sección
+                        </th>
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                          Alimentos
+                        </th>
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-36">
+                          Hora
+                        </th>
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-44">
+                          Porciones
+                        </th>
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">
+                          Acción
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {meals.map((meal) => (
+                        <tr key={meal.id} className="border-b border-slate-100 last:border-b-0">
+                          <td className="px-4 py-3 align-top">
+                            <select
+                              value={meal.section}
+                              onChange={(e) =>
+                                updateMeal(meal.id, "section", e.target.value)
+                              }
+                              className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900"
+                              disabled={!includeMeals}
+                            >
+                              {QUICK_SECTIONS.map((section) => (
+                                <option key={section} value={section}>
+                                  {section}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-4 py-3 align-top">
+                            <Input
+                              value={meal.mealText}
+                              onChange={(e) =>
+                                updateMeal(meal.id, "mealText", e.target.value)
+                              }
+                              className="h-11 rounded-2xl border-slate-200 bg-white"
+                              placeholder={`Ej: ${meal.section.toLowerCase()} con fruta`}
+                              disabled={!includeMeals}
+                            />
+                          </td>
+                          <td className="px-4 py-3 align-top">
+                            <Input
+                              value={meal.time}
+                              onChange={(e) =>
+                                updateMeal(meal.id, "time", e.target.value)
+                              }
+                              className="h-11 rounded-2xl border-slate-200 bg-white"
+                              placeholder="07:30"
+                              disabled={!includeMeals}
+                            />
+                          </td>
+                          <td className="px-4 py-3 align-top">
+                            <Input
+                              value={meal.portion}
+                              onChange={(e) =>
+                                updateMeal(meal.id, "portion", e.target.value)
+                              }
+                              className="h-11 rounded-2xl border-slate-200 bg-white"
+                              placeholder="2 porciones"
+                              disabled={!includeMeals}
+                            />
+                          </td>
+                          <td className="px-4 py-3 align-top">
+                            <button
+                              type="button"
+                              onClick={() => removeMeal(meal.id)}
+                              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                              disabled={!includeMeals}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </section>
 
-              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <section className={cn(
+                "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm",
+                !includeAvoidFoods && "opacity-55",
+              )}>
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-black text-slate-900">
@@ -642,42 +993,77 @@ export default function QuickDeliverableClient() {
                       recordatorios rápidos.
                     </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    className="h-11 rounded-2xl border-slate-200"
-                    onClick={addAvoidFoodRow}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Agregar fila
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={includeAvoidFoods}
+                        onChange={(e) => setIncludeAvoidFoods(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                      />
+                      Incluir
+                    </label>
+                    <Button
+                      variant="outline"
+                      className="h-11 rounded-2xl border-slate-200"
+                      onClick={addAvoidFoodRow}
+                      disabled={!includeAvoidFoods}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Agregar fila
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="mt-6 space-y-3">
-                  {avoidFoods.map((food, index) => (
-                    <div key={`${index}-${food}`} className="flex gap-3">
-                      <Input
-                        value={food}
-                        onChange={(e) =>
-                          updateAvoidFood(index, e.target.value)
-                        }
-                        className="h-11 rounded-2xl border-slate-200 bg-slate-50"
-                        placeholder="Ej: bebidas azucaradas, frituras, alcohol..."
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeAvoidFood(index)}
-                        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
+                <div className="mt-6 overflow-x-auto rounded-3xl border border-slate-200">
+                  <table className="w-full min-w-[620px] bg-white">
+                    <thead className="bg-slate-50">
+                      <tr className="border-b border-slate-200">
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                          Alimento / restricción
+                        </th>
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">
+                          Acción
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {avoidFoods.map((food) => (
+                        <tr key={food.id} className="border-b border-slate-100 last:border-b-0">
+                          <td className="px-4 py-3">
+                            <Input
+                              value={food.value}
+                              onChange={(e) =>
+                                updateAvoidFood(food.id, e.target.value)
+                              }
+                              className="h-11 rounded-2xl border-slate-200 bg-white"
+                              placeholder="Ej: bebidas azucaradas, frituras, alcohol..."
+                              disabled={!includeAvoidFoods}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => removeAvoidFood(food.id)}
+                              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                              disabled={!includeAvoidFoods}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </section>
             </div>
 
             <div className="space-y-6">
-              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <section className={cn(
+                "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm",
+                !includePortionGuide && "opacity-55",
+              )}>
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-black text-slate-900">
@@ -687,17 +1073,120 @@ export default function QuickDeliverableClient() {
                       Puedes sumar material breve adaptado al paciente.
                     </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    className="h-10 rounded-2xl border-slate-200"
-                    onClick={openResourceModal}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Agregar
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={includeResources}
+                        onChange={(e) => setIncludeResources(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                      />
+                      Incluir
+                    </label>
+                    <Button
+                      variant="outline"
+                      className="h-10 rounded-2xl border-slate-200"
+                      onClick={openResourceModal}
+                      disabled={!includeResources}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Agregar
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="mt-5 space-y-3">
+                <div className="mt-5 overflow-x-auto rounded-3xl border border-slate-200">
+                  <table className="w-full min-w-[760px] bg-white">
+                    <thead className="bg-slate-50">
+                      <tr className="border-b border-slate-200">
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">
+                          Incluir
+                        </th>
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                          Recurso
+                        </th>
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                          Vista previa
+                        </th>
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">
+                          Acción
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {resolvedResourcePages.length > 0 ? (
+                        resolvedResourcePages.map((resource, index) => {
+                          const resourceKey = getResolvedResourceKey(resource, index);
+                          const isSelected = selectedResourceKeys.includes(resourceKey);
+
+                          return (
+                            <tr key={`selected-${resourceKey}`} className="border-b border-slate-100 last:border-b-0">
+                              <td className="px-4 py-3 align-top">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    includeResources &&
+                                    setSelectedResourceKeys((current) =>
+                                      current.includes(resourceKey)
+                                        ? current.filter((key) => key !== resourceKey)
+                                        : [...current, resourceKey],
+                                    )
+                                  }
+                                  className={cn(
+                                    "h-6 w-6 rounded-md border flex items-center justify-center transition-colors",
+                                    isSelected
+                                      ? "border-emerald-500 bg-emerald-500 text-white"
+                                      : "border-slate-300 bg-white text-transparent",
+                                  )}
+                                  disabled={!includeResources}
+                                >
+                                  <AlertCircle className="h-3.5 w-3.5" />
+                                </button>
+                              </td>
+                              <td className="px-4 py-3 align-top">
+                                <p className="font-bold text-slate-800">{resource.title}</p>
+                                <p className="mt-1 text-[11px] text-slate-500">
+                                  {Object.keys(resource.variables || {}).length} variables resueltas
+                                </p>
+                              </td>
+                              <td className="px-4 py-3 align-top">
+                                <p className="line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                                  {resource.content}
+                                </p>
+                              </td>
+                              <td className="px-4 py-3 align-top">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!includeResources) return;
+                                    setResolvedResourcePages((current) =>
+                                      current.filter((_, itemIndex) => itemIndex !== index),
+                                    );
+                                    setSelectedResourceKeys((current) =>
+                                      current.filter((key) => key !== resourceKey),
+                                    );
+                                  }}
+                                  className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                                  disabled={!includeResources}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-6 text-sm text-slate-500">
+                            Todavía no agregas recursos para este entregable.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="hidden mt-5 space-y-3">
                   {resolvedResourcePages.length > 0 ? (
                     resolvedResourcePages.map((resource, index) => (
                       <div
@@ -759,25 +1248,77 @@ export default function QuickDeliverableClient() {
                   </label>
                 </div>
 
+                <div className="mt-5 flex justify-end">
+                  <Button
+                    variant="outline"
+                    className="h-10 rounded-2xl border-slate-200"
+                    onClick={addPortionGuideRow}
+                    disabled={!includePortionGuide}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Agregar fila
+                  </Button>
+                </div>
+
                 <div
                   className={cn(
-                    "mt-5 overflow-hidden rounded-2xl border border-slate-200",
+                    "mt-4 overflow-x-auto rounded-2xl border border-slate-200",
                     !includePortionGuide && "opacity-45",
                   )}
                 >
-                  {QUICK_PORTION_GUIDE.map((item) => (
-                    <div
-                      key={item.category}
-                      className="grid grid-cols-[0.95fr,1.2fr] gap-4 border-b border-slate-200 px-4 py-3 last:border-b-0"
-                    >
-                      <p className="text-sm font-bold text-slate-800">
-                        {item.category}
-                      </p>
-                      <p className="text-sm leading-6 text-slate-600">
-                        {item.portion}
-                      </p>
-                    </div>
-                  ))}
+                  <table className="w-full min-w-[720px] bg-white">
+                    <thead className="bg-slate-50">
+                      <tr className="border-b border-slate-200">
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                          Categoría
+                        </th>
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                          Porción
+                        </th>
+                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">
+                          Acción
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {portionGuideRows.map((row) => (
+                        <tr key={row.id} className="border-b border-slate-100 last:border-b-0">
+                          <td className="px-4 py-3">
+                            <Input
+                              value={row.category}
+                              onChange={(e) =>
+                                updatePortionGuideRow(row.id, "category", e.target.value)
+                              }
+                              className="h-11 rounded-2xl border-slate-200 bg-white"
+                              placeholder="Categoría"
+                              disabled={!includePortionGuide}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Input
+                              value={row.portion}
+                              onChange={(e) =>
+                                updatePortionGuideRow(row.id, "portion", e.target.value)
+                              }
+                              className="h-11 rounded-2xl border-slate-200 bg-white"
+                              placeholder="Detalle de porción"
+                              disabled={!includePortionGuide}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => removePortionGuideRow(row.id)}
+                              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                              disabled={!includePortionGuide || portionGuideRows.length === 1}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </section>
 
@@ -810,7 +1351,7 @@ export default function QuickDeliverableClient() {
                   </div>
                   <div className="rounded-2xl bg-white/8 p-4">
                     <p className="text-2xl font-black">
-                      {includePortionGuide ? QUICK_PORTION_GUIDE.length : 0}
+                      {includePortionGuide ? portionGuideCount : 0}
                     </p>
                     <p className="text-xs uppercase tracking-widest text-slate-300">
                       Porciones visibles
@@ -882,60 +1423,91 @@ export default function QuickDeliverableClient() {
         className="max-w-2xl"
       >
         <div className="space-y-4">
-          <select
-            value={selectedResourceId}
-            onChange={(e) => {
-              const nextId = e.target.value;
-              setSelectedResourceId(nextId);
-              const selectedResource = resources.find(
-                (item) => item.id === nextId,
-              );
-              const variables = extractVariablesFromContent(
-                selectedResource?.content || "",
-              );
-              const initialInputs: Record<string, string> = {};
-              variables.forEach((variableKey) => {
-                initialInputs[variableKey] = "";
-              });
-              setResourceVariables(initialInputs);
-            }}
-            className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
-          >
-            <option value="">Selecciona un recurso</option>
-            {resources.map((resource) => (
-              <option key={resource.id} value={resource.id}>
-                {resource.title}
-              </option>
-            ))}
-          </select>
-
-          {Object.keys(resourceVariables).length > 0 ? (
-            <div className="space-y-3">
-              {Object.keys(resourceVariables).map((variableKey) => (
-                <div key={variableKey} className="space-y-1">
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">
-                    {variableKey}
-                  </p>
-                  <Input
-                    value={resourceVariables[variableKey]}
-                    onChange={(e) =>
-                      setResourceVariables((current) => ({
-                        ...current,
-                        [variableKey]: e.target.value,
-                      }))
-                    }
-                    className="h-11 rounded-xl border-slate-200 bg-slate-50"
-                  />
-                </div>
+          <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+            <Input
+              value={resourceSearch}
+              onChange={(e) => setResourceSearch(e.target.value)}
+              placeholder="Buscar por nombre del recurso..."
+              className="h-11 rounded-xl border-slate-200 bg-slate-50"
+            />
+            <select
+              value={resourceCategoryFilter}
+              onChange={(e) => setResourceCategoryFilter(e.target.value)}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900"
+            >
+              {resourceCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
               ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+              Solo recursos simples, sin variables
+            </p>
+            <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+              {filteredSimpleResources.length > 0 ? filteredSimpleResources.map((resource) => {
+                const isSelected = selectedResourceIds.includes(resource.id);
+                const preview = stripHtml(resource.content || "").replace(/\s+/g, " ").trim();
+
+                return (
+                  <button
+                    key={resource.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedResourceIds((current) =>
+                        current.includes(resource.id)
+                          ? current.filter((id) => id !== resource.id)
+                          : [...current, resource.id],
+                      );
+                    }}
+                    className={cn(
+                      "w-full rounded-2xl border px-4 py-3 text-left transition-colors",
+                      isSelected
+                        ? "border-emerald-300 bg-emerald-50"
+                        : "border-slate-200 bg-white hover:border-slate-300",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-800">{resource.title}</p>
+                        <p className="mt-1 line-clamp-2 text-sm text-slate-500">
+                          {preview || "Sin descripción disponible."}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div
+                          className={cn(
+                            "inline-flex h-6 w-6 items-center justify-center rounded-md border text-[10px] font-black",
+                            isSelected
+                              ? "border-emerald-500 bg-emerald-500 text-white"
+                              : "border-slate-300 bg-white text-transparent",
+                          )}
+                        >
+                          ✓
+                        </div>
+                        <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                          {resource.category || "General"}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              }) : (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                  No hay recursos simples para este filtro.
+                </div>
+              )}
             </div>
-          ) : null}
+          </div>
 
           <Button
             className="h-11 w-full rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
             onClick={addResolvedResourcePage}
           >
-            Agregar al entregable
+            Agregar seleccionados
           </Button>
         </div>
       </Modal>
@@ -949,6 +1521,12 @@ export default function QuickDeliverableClient() {
         title="Guardar entregable rápido"
         subtitle="Añade una breve descripción para identificar esta versión express dentro de Mis creaciones."
         isSaving={isSaving}
+      />
+      <ImportCreationModal
+        isOpen={isImportCreationModalOpen}
+        onClose={() => setIsImportCreationModalOpen(false)}
+        onImport={applyImportedQuickCreation}
+        allowedTypes={["FAST_DELIVERABLE"]}
       />
     </>
   );

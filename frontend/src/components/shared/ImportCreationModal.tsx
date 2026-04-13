@@ -24,6 +24,7 @@ interface ImportCreationModalProps {
     onClose: () => void;
     onImport: (creation: Creation) => void;
     defaultType?: string; // DIET, SHOPPING_LIST, RECIPE
+    allowedTypes?: string[];
 }
 
 const CREATION_TYPE_OPTIONS = [
@@ -31,6 +32,7 @@ const CREATION_TYPE_OPTIONS = [
     { value: "DIET", label: "Dietas" },
     { value: "SHOPPING_LIST", label: "Carrito" },
     { value: "RECIPE", label: "Recetas" },
+    { value: "FAST_DELIVERABLE", label: "Entregable rápido" },
 ] as const;
 
 export function ImportCreationModal({
@@ -38,6 +40,7 @@ export function ImportCreationModal({
     onClose,
     onImport,
     defaultType,
+    allowedTypes,
 }: ImportCreationModalProps) {
     const [creations, setCreations] = useState<Creation[]>([]);
     const [loading, setLoading] = useState(false);
@@ -82,9 +85,19 @@ export function ImportCreationModal({
         }
     };
 
+    const visibleTypeOptions = CREATION_TYPE_OPTIONS.filter(
+        (option) => option.value === "ALL" || !allowedTypes || allowedTypes.includes(option.value),
+    );
+
+    const effectiveSelectedTypes = selectedTypes.filter(
+        (type) => type === "ALL" || !allowedTypes || allowedTypes.includes(type),
+    );
+
     const filteredCreations = creations.filter((c) => {
+        const isAllowedType = !allowedTypes || allowedTypes.includes(c.type);
+        if (!isAllowedType) return false;
         const matchesType =
-            selectedTypes.includes("ALL") || selectedTypes.includes(c.type);
+            effectiveSelectedTypes.includes("ALL") || effectiveSelectedTypes.includes(c.type);
         const matchesSearch =
             c.name.toLowerCase().includes(search.toLowerCase()) ||
             c.tags?.some(t => t.toLowerCase().includes(search.toLowerCase()));
@@ -111,6 +124,7 @@ export function ImportCreationModal({
             case "DIET": return "Dieta";
             case "SHOPPING_LIST": return "Carrito";
             case "RECIPE": return "Receta";
+            case "FAST_DELIVERABLE": return "Entregable rápido";
             default: return type;
         }
     };
@@ -120,6 +134,7 @@ export function ImportCreationModal({
             case "DIET": return "bg-indigo-100 text-indigo-700";
             case "SHOPPING_LIST": return "bg-emerald-100 text-emerald-700";
             case "RECIPE": return "bg-amber-100 text-amber-700";
+            case "FAST_DELIVERABLE": return "bg-fuchsia-100 text-fuchsia-700";
             default: return "bg-slate-100 text-slate-700";
         }
     };
@@ -146,7 +161,7 @@ export function ImportCreationModal({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                    {CREATION_TYPE_OPTIONS.map((option) => {
+                    {visibleTypeOptions.map((option) => {
                         const checked = selectedTypes.includes(option.value);
                         return (
                             <label

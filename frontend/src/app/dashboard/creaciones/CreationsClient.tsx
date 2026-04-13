@@ -13,7 +13,6 @@ import {
   ChefHat,
   Folder,
   Filter,
-  UploadCloud,
   X,
   ChevronLeft,
   ChevronRight,
@@ -69,7 +68,6 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
   };
 
   // Modal State
-  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -78,7 +76,6 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
   const [fullCreationData, setFullCreationData] = useState<any | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [isExportingWord, setIsExportingWord] = useState(false);
 
   // -- Fetch full creation data (shared by view and export) --
   const fetchFullData = async (id: string): Promise<any | null> => {
@@ -155,22 +152,20 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
       : new Date().toLocaleDateString("es-CL"),
   });
 
-  const handleExportPdf = async () => {
-    if (!selectedItem) return;
+  const handleDownloadClick = async (item: Creation) => {
+    setSelectedItem(item);
     setIsExportingPdf(true);
     try {
-      const raw = await fetchFullData(selectedItem.id);
+      const raw = await fetchFullData(item.id);
       if (!raw) { toast.error("No se pudo obtener los datos de la creación."); return; }
-      if (selectedItem.type === CreationType.DIET) {
+      if (item.type === CreationType.DIET) {
         const { downloadDietPdf } = await import("@/features/pdf/pdfExport");
         await downloadDietPdf(buildDietData(raw));
         toast.success("PDF descargado correctamente.");
-        setDownloadModalOpen(false);
-      } else if (selectedItem.type === CreationType.FAST_DELIVERABLE) {
+      } else if (item.type === CreationType.FAST_DELIVERABLE) {
         const { downloadFastDeliverablePdf } = await import("@/features/pdf/fastDeliverablePdfExport");
         await downloadFastDeliverablePdf(buildFastDeliverableData(raw));
         toast.success("PDF descargado correctamente.");
-        setDownloadModalOpen(false);
       } else {
         toast.info("Exportación PDF para este tipo próximamente.");
       }
@@ -179,34 +174,8 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
       toast.error("Error al generar el PDF.");
     } finally {
       setIsExportingPdf(false);
+      setSelectedItem(null);
     }
-  };
-
-  const handleExportWord = async () => {
-    if (!selectedItem) return;
-    setIsExportingWord(true);
-    try {
-      const raw = await fetchFullData(selectedItem.id);
-      if (!raw) { toast.error("No se pudo obtener los datos de la creación."); return; }
-      if (selectedItem.type === CreationType.DIET) {
-        const { downloadDietDocx } = await import("@/features/pdf/wordExport");
-        await downloadDietDocx(buildDietData(raw));
-        toast.success("Word descargado correctamente.");
-        setDownloadModalOpen(false);
-      } else {
-        toast.info("Exportación Word para este tipo próximamente.");
-      }
-    } catch (e) {
-      console.error(e);
-      toast.error("Error al generar el Word.");
-    } finally {
-      setIsExportingWord(false);
-    }
-  };
-
-  const handleDownloadClick = (item: Creation) => {
-    setSelectedItem(item);
-    setDownloadModalOpen(true);
   };
 
   const handleInfoClick = (item: Creation) => {
@@ -485,12 +454,6 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
           </div>
         </div>
 
-        <div className="flex gap-2 w-full md:w-auto justify-end">
-          <Button className="bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-200 h-11 px-6 rounded-xl">
-            <UploadCloud className="w-4 h-4 mr-2" />
-            Subir Archivo
-          </Button>
-        </div>
       </div>
 
       {/* Creations Table */}
@@ -607,13 +570,15 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                         >
                           <Info className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => handleViewClick(item)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
-                          title="Previsualizar"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
+                        {item.type !== CreationType.FAST_DELIVERABLE && (
+                          <button
+                            onClick={() => handleViewClick(item)}
+                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
+                            title="Previsualizar"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleEdit(item)}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all cursor-pointer"
@@ -681,85 +646,7 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
           </div>
         </div>
       </div>
-      {downloadModalOpen && selectedItem && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200 cursor-default"
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="font-bold text-slate-900 text-lg">Exportar Creación</h3>
-                <p className="text-xs text-slate-400 mt-0.5">{selectedItem.name}</p>
-              </div>
-              <button
-                onClick={() => setDownloadModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
 
-            <div className="space-y-3">
-              <p className="text-sm text-slate-500">
-                Elige el formato de exportación:
-              </p>
-
-              <div className="grid grid-cols-2 gap-3">
-                {/* PDF */}
-                <button
-                  className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-200 hover:border-red-300 hover:bg-red-50 group transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={handleExportPdf}
-                  disabled={isExportingPdf || isExportingWord}
-                >
-                  {isExportingPdf ? (
-                    <Loader2 className="h-7 w-7 text-red-400 animate-spin mb-2" />
-                  ) : (
-                    <FileText className="h-7 w-7 text-slate-300 group-hover:text-red-500 mb-2 transition-colors" />
-                  )}
-                  <span className="text-xs font-black text-slate-600 group-hover:text-red-700 uppercase tracking-wider">
-                    {isExportingPdf ? "Generando..." : "PDF"}
-                  </span>
-                  <span className="text-[10px] text-slate-400 mt-0.5">.pdf</span>
-                </button>
-
-                {/* Word */}
-                <button
-                  className="flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-200 hover:border-blue-300 hover:bg-blue-50 group transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={handleExportWord}
-                  disabled={isExportingPdf || isExportingWord}
-                >
-                  {isExportingWord ? (
-                    <Loader2 className="h-7 w-7 text-blue-400 animate-spin mb-2" />
-                  ) : (
-                    <FileText className="h-7 w-7 text-slate-300 group-hover:text-blue-500 mb-2 transition-colors" />
-                  )}
-                  <span className="text-xs font-black text-slate-600 group-hover:text-blue-700 uppercase tracking-wider">
-                    {isExportingWord ? "Generando..." : "Word"}
-                  </span>
-                  <span className="text-[10px] text-slate-400 mt-0.5">.docx</span>
-                </button>
-              </div>
-
-              <div className="pt-2 border-t border-slate-100">
-                <Button
-                  variant="outline"
-                  className="w-full border-dashed border-slate-300 text-slate-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
-                  onClick={() => {
-                    setDownloadModalOpen(false);
-                    handleEdit(selectedItem);
-                  }}
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  Seguir Editando
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       <Modal
         isOpen={infoModalOpen}
         onClose={() => {
