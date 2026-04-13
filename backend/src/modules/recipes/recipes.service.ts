@@ -13,6 +13,7 @@ type AiRecipeOutput = {
     title: string;
     description: string;
     preparation: string;
+    recommendedPortion: string;
     complexity: 'simple' | 'elaborada';
     protein: number;
     calories: number;
@@ -119,7 +120,7 @@ export class RecipesService {
         allowedFoods: Set<string>,
         allowFlexibleExternalFoods: boolean,
     ) {
-        if (!recipe.slotId || !recipe.title || !recipe.mealSection) {
+        if (!recipe.slotId || !recipe.title || !recipe.mealSection || !recipe.recommendedPortion?.trim()) {
             throw new BadRequestException('La IA devolvió una receta incompleta.');
         }
 

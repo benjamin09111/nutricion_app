@@ -618,6 +618,19 @@ export default function QuickDeliverableClient() {
     );
   };
 
+  const getProteinSupplementNote = () => {
+    try {
+      const workflowDraft = JSON.parse(localStorage.getItem("nutri_active_draft") || "{}");
+      const supplement = workflowDraft?.recipes?.proteinSupplement;
+      const enabled = Boolean(supplement?.enabled);
+      const gramsPerDay = Math.max(0, Number(supplement?.gramsPerDay) || 0);
+      if (!enabled || gramsPerDay <= 0) return "";
+      return `Incluye suplemento de proteína: ${gramsPerDay} g diarios.`;
+    } catch {
+      return "";
+    }
+  };
+
   const buildPdfPayload = () => ({
     name: title.trim() || DEFAULT_TITLE,
     patientName: selectedPatient?.fullName || null,
@@ -637,6 +650,7 @@ export default function QuickDeliverableClient() {
           }))
           .filter((row) => row.category || row.portion)
       : [],
+    supplementNote: getProteinSupplementNote(),
     generatedAt: new Date().toLocaleDateString("es-CL"),
   });
 
@@ -676,6 +690,7 @@ export default function QuickDeliverableClient() {
             }))
             .filter((row) => row.category || row.portion),
           portionGuideRows,
+          supplementNote: getProteinSupplementNote(),
           updatedAt: new Date().toISOString(),
         },
         metadata: {

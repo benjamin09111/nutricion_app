@@ -11,7 +11,12 @@ export interface Patient {
   weight?: number;
   dietRestrictions?: string[]; // Stored as Json array in backend
   tags?: string[];
-  customVariables?: { key: string; label: string; unit: string }[];
+  customVariables?: {
+    key: string;
+    label: string;
+    unit?: string;
+    value?: string | number;
+  }[];
   exams?: PatientExam[];
   createdAt: string;
   updatedAt: string;

@@ -4,6 +4,7 @@ import {
     IsBoolean,
     IsIn,
     IsInt,
+    IsNumber,
     IsObject,
     IsOptional,
     IsString,
@@ -97,6 +98,73 @@ class ExistingAssignmentDto {
     mainIngredients: string[];
 }
 
+class AiPatientProfileDto {
+    @IsString()
+    @IsOptional()
+    fullName?: string;
+
+    @IsInt()
+    @Min(0)
+    @IsOptional()
+    ageYears?: number;
+
+    @IsString()
+    @IsOptional()
+    gender?: string;
+
+    @IsNumber()
+    @IsOptional()
+    weightKg?: number;
+
+    @IsNumber()
+    @IsOptional()
+    heightCm?: number;
+
+    @IsString()
+    @IsOptional()
+    nutritionalFocus?: string;
+
+    @IsString()
+    @IsOptional()
+    fitnessGoals?: string;
+
+    @IsIn(['sedentario', 'deportista'])
+    @IsOptional()
+    activityLevel?: 'sedentario' | 'deportista';
+
+    @IsArray()
+    @IsString({ each: true })
+    @IsOptional()
+    restrictions?: string[];
+}
+
+class AiPatientGoalsDto {
+    @IsInt()
+    @Min(0)
+    calories: number;
+
+    @IsInt()
+    @Min(0)
+    protein: number;
+
+    @IsInt()
+    @Min(0)
+    carbs: number;
+
+    @IsInt()
+    @Min(0)
+    fats: number;
+}
+
+class AiProteinSupplementDto {
+    @IsBoolean()
+    enabled: boolean;
+
+    @IsInt()
+    @Min(0)
+    gramsPerDay: number;
+}
+
 class AiFillPayloadDto {
     @IsIn(['day', 'week'])
     scope: 'day' | 'week';
@@ -113,10 +181,6 @@ class AiFillPayloadDto {
     @IsString({ each: true })
     preferredFoods: string[];
 
-    @IsArray()
-    @IsString({ each: true })
-    avoidFoods: string[];
-
     @IsString()
     @IsOptional()
     nutritionistNotes?: string;
@@ -124,6 +188,25 @@ class AiFillPayloadDto {
     @IsArray()
     @IsString({ each: true })
     allowedFoodsByDiet: string[];
+
+    @IsArray()
+    @IsString({ each: true })
+    chileExchangePortionGuide: string[];
+
+    @ValidateNested()
+    @Type(() => AiPatientProfileDto)
+    @IsOptional()
+    patientProfile?: AiPatientProfileDto;
+
+    @ValidateNested()
+    @Type(() => AiPatientGoalsDto)
+    @IsOptional()
+    patientGoals?: AiPatientGoalsDto;
+
+    @ValidateNested()
+    @Type(() => AiProteinSupplementDto)
+    @IsOptional()
+    proteinSupplement?: AiProteinSupplementDto;
 
     @IsBoolean()
     generalSnackFlexAllowed: boolean;

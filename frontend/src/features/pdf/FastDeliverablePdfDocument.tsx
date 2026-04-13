@@ -23,6 +23,7 @@ export interface FastDeliverablePdfData {
   avoidFoods: string[];
   resources: FastDeliverableResourcePage[];
   portionGuide: Array<{ category: string; portion: string }>;
+  supplementNote?: string;
   generatedAt?: string;
 }
 
@@ -248,6 +249,13 @@ export function FastDeliverablePdfDocument({
             ))}
           </View>
         </View>
+
+        {data.supplementNote ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Suplemento</Text>
+            <Text>{data.supplementNote}</Text>
+          </View>
+        ) : null}
 
         {data.resources.length > 0 ? (
           <View style={styles.section}>

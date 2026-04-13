@@ -1327,6 +1327,27 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     setEditForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const getActivityLevelFromVariables = (vars: any[]) => {
+    const raw = String(vars.find((item) => item?.key === "activityLevel")?.value || "").toLowerCase();
+    return raw === "deportista" ? "deportista" : "sedentario";
+  };
+
+  const getCurrentActivityLevel = () => {
+    const source = isEditing ? editForm.customVariables : patient?.customVariables;
+    const vars = Array.isArray(source) ? (source as any[]) : [];
+    return getActivityLevelFromVariables(vars);
+  };
+
+  const updateActivityLevel = (value: "sedentario" | "deportista") => {
+    if (!isEditing) return;
+    const vars = Array.isArray(editForm.customVariables) ? [...(editForm.customVariables as any[])] : [];
+    const index = vars.findIndex((item) => item?.key === "activityLevel");
+    const entry = { key: "activityLevel", label: "Nivel de actividad", value, unit: "" };
+    if (index >= 0) vars[index] = entry;
+    else vars.push(entry);
+    updateField("customVariables", vars);
+  };
+
   const handleDelete = async () => {
 
     try {
@@ -1937,6 +1958,32 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               </div>
 
               <div className="space-y-4" >
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-400">Nivel de actividad</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { key: "sedentario", label: "Sedentario" },
+                      { key: "deportista", label: "Deportista" },
+                    ].map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        disabled={!isEditing}
+                        onClick={() => updateActivityLevel(item.key as "sedentario" | "deportista")}
+                        className={cn(
+                          "h-10 rounded-xl border text-xs font-black uppercase tracking-wider transition-all",
+                          getCurrentActivityLevel() === item.key
+                            ? "border-rose-600 bg-rose-600 text-white"
+                            : "border-slate-200 bg-slate-50 text-slate-600",
+                          !isEditing && "cursor-default opacity-90",
+                        )}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {isEditing ? (
                   <textarea
                     value={editForm.fitnessGoals || ""}

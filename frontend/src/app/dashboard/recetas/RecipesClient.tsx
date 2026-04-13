@@ -102,6 +102,7 @@ interface Recipe {
   title: string;
   description: string;
   preparation?: string;
+  recommendedPortion?: string;
   complexity: "simple" | "elaborada";
   protein: number;
   calories: number;
@@ -134,6 +135,7 @@ interface AiRecipeOutput {
   title: string;
   description: string;
   preparation: string;
+  recommendedPortion: string;
   complexity: "simple" | "elaborada";
   protein: number;
   calories: number;
@@ -169,6 +171,134 @@ interface AiWeekResponse {
 type AiFillScope = "day" | "week";
 type AiRecipeStyle = "very-simple" | "simple" | "varied";
 type AiTimeStyle = "quick" | "normal";
+
+type NutritionGoals = {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+};
+
+type ActivityLevel = "sedentario" | "deportista";
+
+type ProteinSupplement = {
+  enabled: boolean;
+  gramsPerDay: number;
+};
+
+const CHILE_EXCHANGE_PORTION_GUIDE = [
+  "Cereales/tuberculos: 1/2 taza cocida o 1 rebanada de pan.",
+  "Legumbres: 3/4 taza cocida.",
+  "Proteinas: 90-120 g cocidos (tamano palma).",
+  "Frutas: 1 unidad mediana o 1 taza picada.",
+  "Verduras: 2 tazas crudas o 1 taza cocida.",
+  "Grasas: 1 cucharada de aceite o 1/4 palta.",
+  "Lacteos: 1 taza leche/yogur o 1 lamina de queso fresco.",
+];
+
+const calculateAgeYears = (birthDate?: string) => {
+  if (!birthDate) return undefined;
+  const date = new Date(birthDate);
+  if (Number.isNaN(date.getTime())) return undefined;
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+    age -= 1;
+  }
+  return age >= 0 ? age : undefined;
+};
+
+const sanitizeNutritionGoals = (value: any): NutritionGoals | null => {
+  if (!value || typeof value !== "object") return null;
+
+  const calories = Number(value.calories);
+  const protein = Number(value.protein);
+  const carbs = Number(value.carbs);
+  const fats = Number(value.fats);
+
+  if ([calories, protein, carbs, fats].some((item) => !Number.isFinite(item) || item <= 0)) {
+    return null;
+  }
+
+  return {
+    calories: Math.round(calories),
+    protein: Math.round(protein),
+    carbs: Math.round(carbs),
+    fats: Math.round(fats),
+  };
+};
+
+const normalizeString = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+const getCustomVariablesArray = (patient: any): any[] =>
+  Array.isArray(patient?.customVariables) ? patient.customVariables : [];
+
+const findCustomVariable = (customVariables: any[], key: string) => {
+  const wantedKey = normalizeString(key);
+  return customVariables.find((item) => normalizeString(item?.key || "") === wantedKey);
+};
+
+const readCustomVariableNumber = (customVariables: any[], key: string): number | null => {
+  const item = findCustomVariable(customVariables, key);
+  const parsed = Number(item?.value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const readCustomVariableText = (customVariables: any[], key: string): string | null => {
+  const item = findCustomVariable(customVariables, key);
+  const value = String(item?.value || "").trim();
+  return value ? value : null;
+};
+
+const getActivityLevel = (patient: any): ActivityLevel | undefined => {
+  const customVariables = getCustomVariablesArray(patient);
+  const raw = normalizeString(readCustomVariableText(customVariables, "activityLevel") || "");
+  if (raw === "sedentario") return "sedentario";
+  if (raw === "deportista") return "deportista";
+  return undefined;
+};
+
+const getGoalsFromPatient = (patient: any): NutritionGoals | null => {
+  const customVariables = getCustomVariablesArray(patient);
+  const goals = {
+    calories: readCustomVariableNumber(customVariables, "targetCalories"),
+    protein: readCustomVariableNumber(customVariables, "targetProtein"),
+    carbs: readCustomVariableNumber(customVariables, "targetCarbs"),
+    fats: readCustomVariableNumber(customVariables, "targetFats"),
+  };
+
+  if (!goals.calories || !goals.protein || !goals.carbs || !goals.fats) {
+    return sanitizeNutritionGoals(patient?.nutritionGoals);
+  }
+
+  return {
+    calories: Math.round(goals.calories),
+    protein: Math.round(goals.protein),
+    carbs: Math.round(goals.carbs),
+    fats: Math.round(goals.fats),
+  };
+};
+
+const getRecommendedProteinRange = (
+  weightKg: number | undefined,
+  activityLevel: ActivityLevel | undefined,
+) => {
+  if (!weightKg || weightKg <= 0 || !activityLevel) return null;
+
+  const minMultiplier = activityLevel === "deportista" ? 1.5 : 0.8;
+  const maxMultiplier = activityLevel === "deportista" ? 2.5 : 1.0;
+
+  return {
+    min: Math.round(weightKg * minMultiplier),
+    max: Math.round(weightKg * maxMultiplier),
+  };
+};
 
 type PlannerView = "daily" | "weekly";
 
@@ -348,11 +478,14 @@ export default function RecipesClient() {
   const [targetCalories, setTargetCalories] = useState(2400);
   const [targetCarbs, setTargetCarbs] = useState(250);
   const [targetFats, setTargetFats] = useState(70);
+  const [proteinSupplement, setProteinSupplement] = useState<ProteinSupplement>({
+    enabled: false,
+    gramsPerDay: 25,
+  });
 
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showAddBlockModal, setShowAddBlockModal] = useState(false);
   const [editingMealBlockId, setEditingMealBlockId] = useState<string | null>(null);
-  const [showSourceSummary, setShowSourceSummary] = useState(false);
   const [previewRecipeId, setPreviewRecipeId] = useState<string | null>(null);
   const [showAiFillModal, setShowAiFillModal] = useState(false);
   const [aiFillScope, setAiFillScope] = useState<AiFillScope>("day");
@@ -751,6 +884,12 @@ export default function RecipesClient() {
         restrictions: patient.dietRestrictions || [],
         weight: patient.weight,
         height: patient.height,
+        gender: patient.gender,
+        birthDate: patient.birthDate,
+        nutritionalFocus: patient.nutritionalFocus,
+        fitnessGoals: patient.fitnessGoals,
+        activityLevel: getActivityLevel(patient),
+        nutritionGoals: getGoalsFromPatient(patient),
         updatedAt: new Date().toISOString(),
       }
       : undefined;
@@ -773,6 +912,7 @@ export default function RecipesClient() {
       note: recipeGuideNote,
       replacementGuide,
     },
+    proteinSupplement,
     ingredientHints: buildRecipeIngredientHints(weekSlots),
     updatedAt: new Date().toISOString(),
   });
@@ -807,6 +947,12 @@ export default function RecipesClient() {
     if (content.aiGuidance) {
       setRecipeGuideNote(content.aiGuidance.note || "");
       setReplacementGuide(content.aiGuidance.replacementGuide || []);
+    }
+    if (content.proteinSupplement) {
+      setProteinSupplement({
+        enabled: Boolean(content.proteinSupplement.enabled),
+        gramsPerDay: Math.max(0, Math.round(Number(content.proteinSupplement.gramsPerDay) || 0)),
+      });
     }
   };
 
@@ -940,6 +1086,7 @@ export default function RecipesClient() {
     sleepTime,
     recipeGuideNote,
     replacementGuide,
+    proteinSupplement,
     selectedPatient,
   ]);
 
@@ -990,6 +1137,8 @@ export default function RecipesClient() {
       weight: patient.weight,
       height: patient.height,
       gender: patient.gender,
+      activityLevel: getActivityLevel(patient),
+      nutritionGoals: getGoalsFromPatient(patient),
       updatedAt: new Date().toISOString(),
     };
 
@@ -1036,11 +1185,6 @@ export default function RecipesClient() {
       .filter(([, status]) => status === "favorite")
       .map(([foodName]) => foodName);
 
-  const extractAvoidFoodsFromDraft = (draft: Record<string, any>) =>
-    Object.entries(draft.diet?.foodStatus || {})
-      .filter(([, status]) => status === "removed")
-      .map(([foodName]) => foodName);
-
   const getEmptySlotsForScope = (scope: AiFillScope) => {
     if (scope === "day") {
       return (weekSlots[currentDay] || []).filter((slot) => !slot.recipe);
@@ -1075,6 +1219,7 @@ export default function RecipesClient() {
     title: recipe.title,
     description: recipe.description,
     preparation: recipe.preparation,
+    recommendedPortion: recipe.recommendedPortion,
     complexity: recipe.complexity,
     protein: recipe.protein,
     calories: recipe.calories,
@@ -1127,6 +1272,7 @@ export default function RecipesClient() {
 
   const buildAiFillPayload = (scope: AiFillScope) => {
     const draft = readWorkflowDraft();
+    const patientMeta = draft.patientMeta || {};
     const patientRestrictions = Array.isArray(draft.patientMeta?.restrictions)
       ? draft.patientMeta.restrictions
       : [];
@@ -1137,21 +1283,62 @@ export default function RecipesClient() {
       new Set([...patientRestrictions, ...dietRestrictions].filter(Boolean)),
     );
 
+    const supplementProtein = proteinSupplement.enabled
+      ? Math.max(0, Math.round(proteinSupplement.gramsPerDay || 0))
+      : 0;
+    const adjustedTargetProtein = Math.max(
+      0,
+      Math.round((targetProtein || 0) - supplementProtein),
+    );
+    const draftPatientGoals = sanitizeNutritionGoals(patientMeta?.nutritionGoals);
+    const resolvedPatientGoals = getGoalsFromPatient(selectedPatient) || draftPatientGoals;
+    const adjustedPatientGoals = resolvedPatientGoals
+      ? {
+        ...resolvedPatientGoals,
+        protein: Math.max(0, resolvedPatientGoals.protein - supplementProtein),
+      }
+      : undefined;
+
     return {
       scope,
       payload: {
         scope,
         targets: {
           calories: Math.round(targetCalories || 0),
-          protein: Math.round(targetProtein || 0),
+          protein: adjustedTargetProtein,
           carbs: Math.round(targetCarbs || 0),
           fats: Math.round(targetFats || 0),
         },
         dietRestrictions: restrictions,
         preferredFoods: extractFavoriteFoodsFromDraft(draft),
-        avoidFoods: extractAvoidFoodsFromDraft(draft),
-        nutritionistNotes: aiNutritionistNotes.trim(),
         allowedFoodsByDiet: extractAllowedFoodsByDiet(draft),
+        chileExchangePortionGuide: CHILE_EXCHANGE_PORTION_GUIDE,
+        patientProfile: patientMeta?.fullName
+          ? {
+            fullName: patientMeta.fullName,
+            ageYears: calculateAgeYears(patientMeta.birthDate),
+            gender: patientMeta.gender || undefined,
+            weightKg:
+              typeof patientMeta.weight === "number" ? patientMeta.weight : undefined,
+            heightCm:
+              typeof patientMeta.height === "number" ? patientMeta.height : undefined,
+            nutritionalFocus: patientMeta.nutritionalFocus || undefined,
+            fitnessGoals: patientMeta.fitnessGoals || undefined,
+            activityLevel:
+              patientMeta.activityLevel === "sedentario" ||
+                patientMeta.activityLevel === "deportista"
+                ? patientMeta.activityLevel
+                : undefined,
+            restrictions: Array.isArray(patientMeta.restrictions)
+              ? patientMeta.restrictions.filter(Boolean)
+              : [],
+          }
+          : undefined,
+        patientGoals: adjustedPatientGoals,
+        proteinSupplement: {
+          enabled: proteinSupplement.enabled,
+          gramsPerDay: supplementProtein,
+        },
         generalSnackFlexAllowed: aiSnackFlexAllowed,
         rules: {
           strictDietFoodsForMainMeals: true,
@@ -1196,19 +1383,60 @@ export default function RecipesClient() {
     };
   };
 
-  const handleSubmitAiFill = async () => {
+  const handleSubmitAiFillLegacy = async () => {
     const payload = buildAiFillPayload(aiFillScope);
+    const systemPrompt = [
+      "Tu tarea: completar bloques de comida faltantes.",
+      "Usa solo alimentos de DIETA para desayuno, almuerzo, once y cena.",
+      "Para bloques variables como merienda o extra puedes usar opciones simples fuera de DIETA si la regla lo permite.",
+      "No cuentes sal, condimentos ni básicos de cocción.",
+      "Toma como base principal allowedFoodsByDiet y nutritionistNotes.",
+      "Usa chileExchangePortionGuide como referencia para porciones de intercambio en Chile.",
+      "Si existe patientProfile, ajusta porciones y complejidad según edad y características del paciente.",
+      "Si existe patientGoals, prioriza cumplir metas de calorias/macros para el alcance solicitado (dia o semana).",
+      "Prioriza alimentos y combinaciones comunes y faciles de conseguir en Chile (ferias y supermercados).",
+      "Respeta restricciones alimentarias.",
+      "Prefiere platos comunes, caseros, realistas, simples y con pocos ingredientes.",
+      "Evita repetir platos ya usados o muy parecidos.",
+      "Devuelve solo JSON válido. Sin explicación.",
+      "Cada receta debe incluir: slotId, mealSection, title, description, preparation, recommendedPortion, complexity, protein, calories, carbs, fats, ingredients, mainIngredients.",
+      "description: 1 frase.",
+      "preparation: breve, clara, 2 a 4 pasos.",
+      "complexity: simple o elaborada.",
+      "Agrega también meta.note y meta.replacementGuide.",
+    ].join("\n");
 
-    console.group("AI FILL PAYLOAD / PROMPT DATA (Simulated)");
+    const scopePrompt =
+      aiFillScope === "day"
+        ? [
+          "Completa solo los bloques vacíos del día indicado.",
+          "No modifiques bloques ya completos.",
+          'Devuelve JSON con forma {"recipes":[...],"meta":{"note":"string","replacementGuide":[{"mealSection":"string","suggestions":["string"]}]}}',
+        ].join("\n")
+        : [
+          "Completa solo los bloques vacíos de la semana.",
+          "No modifiques bloques ya completos.",
+          "Mantén variedad durante la semana.",
+          "Evita repetir el mismo plato en días consecutivos.",
+          'Devuelve JSON con forma {"days":[{"day":"string","recipes":[...]}],"meta":{"note":"string","replacementGuide":[{"mealSection":"string","suggestions":["string"]}]}}',
+        ].join("\n");
+
+    const userPrompt = `${scopePrompt}\n${JSON.stringify(payload.payload)}`;
+
+    console.group("AI FILL PROMPT PREVIEW");
+    console.log("SYSTEM PROMPT");
+    console.log(systemPrompt);
+    console.log("USER PROMPT");
+    console.log(userPrompt);
+    console.log("REQUEST PAYLOAD");
     console.log(payload);
     console.groupEnd();
 
-    toast.info("Input de IA impreso en consola.", {
-      description: "La comunicación real está desactivada. Revisa el payload en las herramientas de desarrollador.",
+    toast.info("Prompt de IA impreso en consola.", {
+      description: "Revisa SYSTEM PROMPT y USER PROMPT en las herramientas de desarrollador.",
     });
 
     setIsGenerating(true);
-    // Simulate a brief generation delay
     setTimeout(() => {
       setIsGenerating(false);
       setShowAiFillModal(false);
@@ -1216,7 +1444,7 @@ export default function RecipesClient() {
   };
 
   // AI Generation Simulation
-  const handleGenerateAI = (mode: "day" | "week" = "day") => {
+  const handleGenerateAILegacy = (mode: "day" | "week" = "day") => {
     if (!hasSourceData) {
       toast.error("Falta una dieta base", {
         description: "Debes importar una dieta con alimentos antes de usar Recetas y porciones.",
@@ -1292,6 +1520,193 @@ export default function RecipesClient() {
       }
       setIsGenerating(false);
     }, 3000);
+  };
+
+  const isStrictMealSection = (mealSection?: string) => {
+    const normalized = normalizeAiValue(mealSection || "");
+    return ["desayuno", "almuerzo", "once", "cena"].includes(normalized);
+  };
+
+  const buildAiPromptPreview = (payload: ReturnType<typeof buildAiFillPayload>) => {
+    const systemPrompt = [
+      "Tu tarea: completar bloques de comida faltantes.",
+      "Usa solo alimentos de DIETA para desayuno, almuerzo, once y cena.",
+      "Para bloques variables como merienda o extra puedes usar opciones simples fuera de DIETA si la regla lo permite.",
+      "No cuentes sal, condimentos ni básicos de cocción.",
+      "Toma como base principal allowedFoodsByDiet.",
+      "Usa chileExchangePortionGuide como referencia para porciones de intercambio en Chile.",
+      "Si existe patientProfile, ajusta porciones y complejidad según edad y características del paciente.",
+      "Si existe patientGoals, prioriza cumplir metas de calorías/macros para el alcance solicitado (día o semana).",
+      "Si existe proteinSupplement, considera esos gramos diarios como proteína ya cubierta.",
+      "Prioriza alimentos y combinaciones comunes y fáciles de conseguir en Chile (ferias y supermercados).",
+      "Respeta restricciones alimentarias.",
+      "Prefiere platos comunes, caseros, realistas, simples y con pocos ingredientes.",
+      "Evita repetir platos ya usados o muy parecidos.",
+      "Devuelve solo JSON válido. Sin explicación.",
+      "Cada receta debe incluir: slotId, mealSection, title, description, preparation, recommendedPortion, complexity, protein, calories, carbs, fats, ingredients, mainIngredients.",
+      "description: 1 frase.",
+      "preparation: breve, clara, 2 a 4 pasos.",
+      "complexity: simple o elaborada.",
+      "Agrega también meta.note y meta.replacementGuide.",
+    ].join("\n");
+
+    const scopePrompt =
+      payload.scope === "day"
+        ? [
+          "Completa solo los bloques vacíos del día indicado.",
+          "No modifiques bloques ya completos.",
+          'Devuelve JSON con forma {"recipes":[...],"meta":{"note":"string","replacementGuide":[{"mealSection":"string","suggestions":["string"]}]}}',
+        ].join("\n")
+        : [
+          "Completa solo los bloques vacíos de la semana.",
+          "No modifiques bloques ya completos.",
+          "Mantén variedad durante la semana.",
+          "Evita repetir el mismo plato en días consecutivos.",
+          'Devuelve JSON con forma {"days":[{"day":"string","recipes":[...]}],"meta":{"note":"string","replacementGuide":[{"mealSection":"string","suggestions":["string"]}]}}',
+        ].join("\n");
+
+    const userPrompt = `${scopePrompt}\n${JSON.stringify(payload.payload)}`;
+    return { systemPrompt, userPrompt };
+  };
+
+  const printAiPromptPreview = (scope: AiFillScope = aiFillScope) => {
+    const payload = buildAiFillPayload(scope);
+    const { systemPrompt, userPrompt } = buildAiPromptPreview(payload);
+
+    console.group("AI FILL PROMPT PREVIEW");
+    console.log("SYSTEM PROMPT");
+    console.log(systemPrompt);
+    console.log("USER PROMPT");
+    console.log(userPrompt);
+    console.log("REQUEST PAYLOAD");
+    console.log(payload);
+    console.groupEnd();
+
+    toast.info("Prompt de IA impreso en consola.", {
+      description: "Revisa SYSTEM PROMPT y USER PROMPT en las herramientas de desarrollador.",
+    });
+  };
+
+  const validateAiResponseClient = (
+    scope: AiFillScope,
+    payload: ReturnType<typeof buildAiFillPayload>,
+    response: AiDayResponse | AiWeekResponse,
+  ) => {
+    const payloadData = payload.payload as any;
+    const allowedFoods = new Set(
+      (payloadData.allowedFoodsByDiet || []).map((item: string) => normalizeAiValue(item)),
+    );
+
+    const validateRecipe = (recipe: AiRecipeOutput, slotMealSection: string) => {
+      if (!recipe.slotId) throw new Error("Respuesta IA sin slotId.");
+
+      const normalizedSlot = normalizeAiValue(slotMealSection || "");
+      const normalizedRecipe = normalizeAiValue(recipe.mealSection || "");
+      if (!normalizedRecipe || normalizedRecipe !== normalizedSlot) {
+        throw new Error(`Sección incompatible en ${recipe.slotId}.`);
+      }
+
+      const allIngredients = [...(recipe.ingredients || []), ...(recipe.mainIngredients || [])]
+        .map((item) => normalizeAiValue(item))
+        .filter(Boolean);
+
+      if (isStrictMealSection(recipe.mealSection) || !payloadData.generalSnackFlexAllowed) {
+        const invalidIngredient = allIngredients.find((ingredient) => !allowedFoods.has(ingredient));
+        if (invalidIngredient) {
+          throw new Error(`Ingrediente fuera de dieta: ${invalidIngredient}.`);
+        }
+      }
+    };
+
+    if (scope === "day" && "recipes" in response) {
+      const slotMap = new Map<string, string>(
+        (payloadData.slots || []).map((slot: any) => [slot.slotId, slot.mealSection]),
+      );
+
+      response.recipes.forEach((recipe) => {
+        const slotMealSection = slotMap.get(recipe.slotId);
+        if (!slotMealSection) throw new Error(`Slot desconocido: ${recipe.slotId}.`);
+        validateRecipe(recipe, slotMealSection);
+      });
+      return;
+    }
+
+    if ("days" in response) {
+      const slotMap = new Map<string, string>();
+      (payloadData.days || []).forEach((dayBlock: any) => {
+        dayBlock.slots.forEach((slot: any) => {
+          slotMap.set(`${dayBlock.day}:${slot.slotId}`, slot.mealSection);
+        });
+      });
+
+      response.days.forEach((dayBlock) => {
+        dayBlock.recipes.forEach((recipe) => {
+          const slotMealSection = slotMap.get(`${dayBlock.day}:${recipe.slotId}`);
+          if (!slotMealSection) throw new Error(`Slot desconocido: ${dayBlock.day}/${recipe.slotId}.`);
+          validateRecipe(recipe, slotMealSection);
+        });
+      });
+    }
+  };
+
+  const handleSubmitAiFill = async () => {
+    const payload = buildAiFillPayload(aiFillScope);
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("No se encontró sesión activa.");
+      return;
+    }
+
+    printAiPromptPreview(aiFillScope);
+    setIsGenerating(true);
+
+    try {
+      const response = await fetchApi("/recipes/ai-fill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.message || "No se pudo completar con IA.");
+      }
+
+      const result = (await response.json()) as AiDayResponse | AiWeekResponse;
+      validateAiResponseClient(aiFillScope, payload, result);
+      applyAiFillResponse(aiFillScope, result);
+      setShowAiFillModal(false);
+      toast.success(
+        aiFillScope === "day"
+          ? `IA completó los bloques vacíos de ${currentDay}.`
+          : "IA completó los bloques vacíos de la semana.",
+      );
+    } catch (error: any) {
+      console.error("AI FILL ERROR", error);
+      toast.error(error?.message || "Error al completar con IA.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateAI = (mode: "day" | "week" = "day") => {
+    if (!hasSourceData) {
+      toast.error("Falta una dieta base", {
+        description: "Debes importar una dieta con alimentos antes de usar Recetas y porciones.",
+      });
+      return;
+    }
+
+    if (getEmptySlotsForScope(mode).length === 0) {
+      toast.info("No hay bloques vacíos para rellenar.");
+      return;
+    }
+
+    setAiFillScope(mode);
+    setShowAiFillModal(true);
   };
 
   const handleMealCountChange = (count: number) => {
@@ -1666,11 +2081,173 @@ export default function RecipesClient() {
       { protein: 0, calories: 0, carbs: 0, fats: 0 },
     );
 
+  const proteinSupplementPerDay =
+    proteinSupplement.enabled && proteinSupplement.gramsPerDay > 0
+      ? proteinSupplement.gramsPerDay
+      : 0;
+
   // Suma todos los bloques/alimentos asignados al día activo.
   const dayTotals = useMemo(
     () => calculateDayTotals(weekSlots[currentDay] || []),
     [currentDay, weekSlots],
   );
+
+  const dayTotalsWithSupplement = useMemo(
+    () => ({
+      ...dayTotals,
+      protein: dayTotals.protein + proteinSupplementPerDay,
+    }),
+    [dayTotals, proteinSupplementPerDay],
+  );
+
+  const weekTotals = useMemo(
+    () =>
+      days.reduce(
+        (acc, day) => {
+          const totals = calculateDayTotals(weekSlots[day] || []);
+          return {
+            protein: acc.protein + totals.protein,
+            calories: acc.calories + totals.calories,
+            carbs: acc.carbs + totals.carbs,
+            fats: acc.fats + totals.fats,
+          };
+        },
+        { protein: 0, calories: 0, carbs: 0, fats: 0 },
+      ),
+    [weekSlots],
+  );
+
+  const weekTotalsWithSupplement = useMemo(
+    () => ({
+      ...weekTotals,
+      protein: weekTotals.protein + proteinSupplementPerDay * 7,
+    }),
+    [weekTotals, proteinSupplementPerDay],
+  );
+
+  const patientNutritionGoals = useMemo(() => {
+    const selectedGoals = getGoalsFromPatient(selectedPatient);
+    if (selectedGoals) return selectedGoals;
+
+    const draft = readWorkflowDraft();
+    return sanitizeNutritionGoals(draft.patientMeta?.nutritionGoals) || null;
+  }, [selectedPatient]);
+
+  const selectedPatientActivityLevel = useMemo(
+    () => getActivityLevel(selectedPatient),
+    [selectedPatient],
+  );
+
+  const recommendedProteinRange = useMemo(
+    () => getRecommendedProteinRange(selectedPatient?.weight, selectedPatientActivityLevel),
+    [selectedPatient, selectedPatientActivityLevel],
+  );
+
+  const assignPatientGoalsFromCurrentTargets = async () => {
+    if (!selectedPatient) {
+      toast.info("Primero vincula un paciente para asignar metas.");
+      return;
+    }
+
+    const goals: NutritionGoals = {
+      calories: Math.max(1, Math.round(targetCalories || 0)),
+      protein: Math.max(1, Math.round(targetProtein || 0)),
+      carbs: Math.max(1, Math.round(targetCarbs || 0)),
+      fats: Math.max(1, Math.round(targetFats || 0)),
+    };
+
+    const currentCustomVariables = getCustomVariablesArray(selectedPatient);
+    const upsertCustomVariable = (
+      list: any[],
+      key: string,
+      label: string,
+      value: string,
+      unit: string,
+    ) => {
+      const next = [...list];
+      const index = next.findIndex((item) => normalizeString(item?.key || "") === normalizeString(key));
+      const payload = { key, label, value, unit };
+      if (index >= 0) {
+        next[index] = payload;
+      } else {
+        next.push(payload);
+      }
+      return next;
+    };
+
+    let nextCustomVariables = [...currentCustomVariables];
+    nextCustomVariables = upsertCustomVariable(
+      nextCustomVariables,
+      "targetCalories",
+      "Calorías Meta",
+      String(goals.calories),
+      "kcal",
+    );
+    nextCustomVariables = upsertCustomVariable(
+      nextCustomVariables,
+      "targetProtein",
+      "Proteína Meta",
+      String(goals.protein),
+      "g",
+    );
+    nextCustomVariables = upsertCustomVariable(
+      nextCustomVariables,
+      "targetCarbs",
+      "Carbohidratos Meta",
+      String(goals.carbs),
+      "g",
+    );
+    nextCustomVariables = upsertCustomVariable(
+      nextCustomVariables,
+      "targetFats",
+      "Grasas Meta",
+      String(goals.fats),
+      "g",
+    );
+    nextCustomVariables = upsertCustomVariable(
+      nextCustomVariables,
+      "targetTimeframe",
+      "Temporalidad",
+      "dia",
+      "",
+    );
+
+    try {
+      const token = getAuthToken();
+      const response = await fetchApi(`/patients/${selectedPatient.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          customVariables: nextCustomVariables,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error?.message || "No se pudo guardar metas en el paciente.");
+      }
+
+      const updatedPatient = await response.json();
+      setSelectedPatient(updatedPatient);
+      localStorage.setItem("nutri_patient", JSON.stringify(updatedPatient));
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudieron asignar metas al paciente.");
+      return;
+    }
+
+    const draft = readWorkflowDraft();
+    draft.patientMeta = {
+      ...(draft.patientMeta || buildPatientMeta(selectedPatient) || {}),
+      nutritionGoals: goals,
+      updatedAt: new Date().toISOString(),
+    };
+    localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+
+    toast.success("Metas del paciente actualizadas.");
+  };
 
   const getEmptyMealBlocks = () => {
     const emptyBlocks: Array<{ day: string; label: string; time: string }> = [];
@@ -1831,6 +2408,14 @@ export default function RecipesClient() {
         disabled: isRecipesLocked,
       },
       {
+        id: "print-prompt",
+        icon: FileCode,
+        label: "Imprimir PROMPT",
+        variant: "slate",
+        onClick: () => printAiPromptPreview(aiFillScope),
+        disabled: isRecipesLocked,
+      },
+      {
         id: "export-pdf",
         icon: Download,
         label: "Exportar PDF",
@@ -1847,27 +2432,13 @@ export default function RecipesClient() {
         disabled: isRecipesLocked,
       },
     ],
-    [printJson, resetRecipes, selectedPatient, weekSlots, targetProtein, targetCalories, targetCarbs, targetFats, wakeUpTime, sleepTime, currentProjectId, isRecipesLocked],
+    [aiFillScope, isRecipesLocked, printAiPromptPreview, printJson, resetRecipes, selectedPatient, sleepTime, targetCalories, targetCarbs, targetFats, targetProtein, wakeUpTime, weekSlots],
   );
 
   const assignedSourceSummary = useMemo(() => {
     if (sourceModules.diet) return "Dieta asignada";
     return "Sin dieta asignada";
   }, [sourceModules]);
-
-  const sourceDraftSummary = useMemo(() => {
-    const draft = readWorkflowDraft();
-    const sourceContent = draft.diet || {};
-    const targets = sourceContent.targets || sourceContent.nutritionalTargets || {};
-
-    return {
-      calories: targets.calories || targets.targetCalories || 0,
-      protein: targets.protein || targets.targetProtein || 0,
-      carbs: targets.carbs || targets.targetCarbs || 0,
-      fats: targets.fats || targets.targetFats || 0,
-      foods: sourceFoods.slice(0, 8),
-    };
-  }, [sourceFoods, sourceModules]);
 
   const handleKeepDraft = () => {
     sessionStorage.setItem("nutri_recipes_draft_decided", "keep");
@@ -2095,37 +2666,6 @@ export default function RecipesClient() {
                       ? `Esta etapa ya está conectada con ${assignedSourceSummary.toLowerCase()}. Puedes seguir construyendo sobre esa base o importar otra creación.`
                       : "Aún no tienes una dieta o carrito asignado en esta etapa. Si quieres continuar con progreso previo, importa una creación antes de seguir."}
                   </p>
-                  {hasSourceData ? (
-                    <div className="mt-4 space-y-3">
-                      <button
-                        type="button"
-                        onClick={() => setShowSourceSummary((prev) => !prev)}
-                        className="rounded-2xl border border-white/80 bg-white/80 px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-700 transition-all hover:bg-white"
-                      >
-                        {showSourceSummary ? "Ocultar dieta" : "Ver dieta"}
-                      </button>
-                      {showSourceSummary ? (
-                        <div className="rounded-2xl border border-white/80 bg-white/75 p-4 text-sm text-slate-600">
-                          <p className="font-black text-slate-900">
-                            Resumen rápido de la base cargada
-                          </p>
-                          <p className="mt-2">
-                            {sourceDraftSummary.calories || sourceDraftSummary.protein || sourceDraftSummary.carbs || sourceDraftSummary.fats
-                              ? `${sourceDraftSummary.calories} kcal · ${sourceDraftSummary.protein}g proteína · ${sourceDraftSummary.carbs}g carbs · ${sourceDraftSummary.fats}g grasas`
-                              : "No encontramos metas nutricionales resumidas en la base importada."}
-                          </p>
-                          <p className="mt-3 text-xs font-black uppercase tracking-widest text-slate-400">
-                            Ingredientes detectados
-                          </p>
-                          <p className="mt-1">
-                            {sourceDraftSummary.foods.length > 0
-                              ? sourceDraftSummary.foods.join(", ")
-                              : "No encontramos ingredientes resumidos todavía."}
-                          </p>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
                 </div>
               </div>
               <div className="shrink-0 rounded-2xl border border-white/70 bg-white/70 px-4 py-3 text-right">
@@ -2317,6 +2857,44 @@ export default function RecipesClient() {
                       className="h-12 rounded-2xl text-xs font-bold"
                     />
                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 md:min-w-[300px]">
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
+                  Suplemento de proteína
+                </p>
+                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={proteinSupplement.enabled}
+                    onChange={(e) =>
+                      setProteinSupplement((prev) => ({
+                        ...prev,
+                        enabled: e.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                  />
+                  Toma suplemento diario
+                </label>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase">
+                    Proteína asegurada (g/día)
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    disabled={!proteinSupplement.enabled}
+                    value={proteinSupplement.gramsPerDay}
+                    onChange={(e) =>
+                      setProteinSupplement((prev) => ({
+                        ...prev,
+                        gramsPerDay: Math.max(0, Number(e.target.value) || 0),
+                      }))
+                    }
+                    className="h-12 rounded-2xl text-xs font-bold"
+                  />
                 </div>
               </div>
             </div>
@@ -2588,6 +3166,16 @@ export default function RecipesClient() {
                                   </p>
                                 </div>
                               ) : null}
+                              {recipe.recommendedPortion ? (
+                                <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-3">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                                    Porcion recomendada
+                                  </p>
+                                  <p className="mt-1 text-xs font-semibold leading-relaxed text-emerald-800">
+                                    {recipe.recommendedPortion}
+                                  </p>
+                                </div>
+                              ) : null}
                               <div className="mt-3 flex flex-wrap gap-2">
                                 <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
                                   {recipe.calories} kcal
@@ -2818,6 +3406,11 @@ export default function RecipesClient() {
                                 <p className="text-sm text-slate-500 font-medium leading-relaxed">
                                   {truncateText(slot.recipe.description, 160)}
                                 </p>
+                                {slot.recipe.recommendedPortion ? (
+                                  <p className="text-xs font-black uppercase tracking-widest text-emerald-700">
+                                    Porcion: {slot.recipe.recommendedPortion}
+                                  </p>
+                                ) : null}
 
                                 <div className="flex flex-wrap gap-4 pt-2">
                                   <div className="flex items-center gap-1.5 transition-all">
@@ -2941,6 +3534,11 @@ export default function RecipesClient() {
                                       {truncateText(slot.recipe.description, 90)}
                                     </p>
                                   ) : null}
+                                  {slot.recipe?.recommendedPortion ? (
+                                    <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                                      Porcion: {slot.recipe.recommendedPortion}
+                                    </p>
+                                  ) : null}
                                   <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
                                     <GripVertical className="h-3 w-3" />
                                     Arrastrar
@@ -3011,7 +3609,7 @@ export default function RecipesClient() {
                       Balance del día ({currentDay})
                     </p>
                     <h3 className="text-3xl font-black text-slate-900">
-                      {dayTotals.calories}
+                      {dayTotalsWithSupplement.calories}
                       <span className="text-sm text-slate-400 font-bold ml-1 uppercase tracking-widest">
                         kcal
                       </span>
@@ -3024,7 +3622,7 @@ export default function RecipesClient() {
                       <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
                         <span>Proteína</span>
                         <span className="text-emerald-600">
-                          {dayTotals.protein}g / {targetProtein}g
+                          {Math.round(dayTotalsWithSupplement.protein)}g / {targetProtein}g
                         </span>
                       </div>
                       <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -3033,7 +3631,7 @@ export default function RecipesClient() {
                             "h-full transition-all duration-1000 bg-emerald-500",
                           )}
                           style={{
-                            width: `${Math.min(100, (dayTotals.protein / targetProtein) * 100)}%`,
+                            width: `${Math.min(100, (dayTotalsWithSupplement.protein / Math.max(targetProtein, 1)) * 100)}%`,
                           }}
                         />
                       </div>
@@ -3073,6 +3671,84 @@ export default function RecipesClient() {
                           }}
                         />
                       </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Metas del paciente
+                      </p>
+                      {patientNutritionGoals ? (
+                        <div className="mt-3 space-y-3">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                              Cumplimiento diario ({currentDay})
+                            </p>
+                            <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-black uppercase tracking-widest">
+                              <span className={dayTotalsWithSupplement.calories >= patientNutritionGoals.calories ? "text-emerald-600" : "text-slate-500"}>
+                                kcal {dayTotalsWithSupplement.calories}/{patientNutritionGoals.calories}
+                              </span>
+                              <span className={dayTotalsWithSupplement.protein >= patientNutritionGoals.protein ? "text-emerald-600" : "text-slate-500"}>
+                                prot {Math.round(dayTotalsWithSupplement.protein)}/{patientNutritionGoals.protein}
+                              </span>
+                              <span className={dayTotals.carbs >= patientNutritionGoals.carbs ? "text-emerald-600" : "text-slate-500"}>
+                                cho {Math.round(dayTotals.carbs)}/{patientNutritionGoals.carbs}
+                              </span>
+                              <span className={dayTotals.fats >= patientNutritionGoals.fats ? "text-emerald-600" : "text-slate-500"}>
+                                lip {Math.round(dayTotals.fats)}/{patientNutritionGoals.fats}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                              Cumplimiento semanal
+                            </p>
+                            <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-black uppercase tracking-widest">
+                              <span className={weekTotalsWithSupplement.calories >= patientNutritionGoals.calories * 7 ? "text-emerald-600" : "text-slate-500"}>
+                                kcal {weekTotalsWithSupplement.calories}/{patientNutritionGoals.calories * 7}
+                              </span>
+                              <span className={weekTotalsWithSupplement.protein >= patientNutritionGoals.protein * 7 ? "text-emerald-600" : "text-slate-500"}>
+                                prot {Math.round(weekTotalsWithSupplement.protein)}/{patientNutritionGoals.protein * 7}
+                              </span>
+                              <span className={weekTotals.carbs >= patientNutritionGoals.carbs * 7 ? "text-emerald-600" : "text-slate-500"}>
+                                cho {Math.round(weekTotals.carbs)}/{patientNutritionGoals.carbs * 7}
+                              </span>
+                              <span className={weekTotals.fats >= patientNutritionGoals.fats * 7 ? "text-emerald-600" : "text-slate-500"}>
+                                lip {Math.round(weekTotals.fats)}/{patientNutritionGoals.fats * 7}
+                              </span>
+                            </div>
+                          </div>
+                          {recommendedProteinRange ? (
+                            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                                Referencia proteína por peso
+                              </p>
+                              <p className="mt-1 text-xs font-bold text-emerald-900">
+                                {selectedPatientActivityLevel === "deportista"
+                                  ? "Deportista"
+                                  : "Sedentario"}: {recommendedProteinRange.min}g - {recommendedProteinRange.max}g/día
+                              </p>
+                              {proteinSupplementPerDay > 0 ? (
+                                <p className="mt-1 text-[11px] font-bold text-emerald-700">
+                                  Incluye suplemento: +{proteinSupplementPerDay}g/día.
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                          <p className="text-xs font-bold text-amber-900">
+                            El paciente no tiene registradas metas de proteina, calorias, carbohidratos y grasas. La IA no las considerara.
+                          </p>
+                          <Button
+                            onClick={assignPatientGoalsFromCurrentTargets}
+                            disabled={!selectedPatient}
+                            className="mt-3 h-9 rounded-xl bg-amber-600 px-4 text-white hover:bg-amber-700"
+                          >
+                            Asignar
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

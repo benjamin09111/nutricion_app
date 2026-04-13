@@ -42,6 +42,21 @@ interface SidebarGroup {
 
 const groups: SidebarGroup[] = [
   {
+    title: "RÁPIDO",
+    items: [
+      { name: "Entregable", href: "/dashboard/rapido", icon: NotebookText },
+    ],
+  },
+  {
+    title: "PRINCIPAL",
+    items: [
+      { name: "Dieta", href: "/dashboard/dieta", icon: Utensils },
+      { name: "Recetas y Porciones", href: "/dashboard/recetas", icon: ChefHat },
+      { name: "Carrito", href: "/dashboard/carrito", icon: ShoppingCart },
+      { name: "Entregable", href: "/dashboard/entregable", icon: ClipboardCheck },
+    ],
+  },
+  {
     title: "Administración",
     items: [
       { name: "Pacientes", href: "/dashboard/pacientes", icon: Users },
@@ -53,16 +68,6 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Ingredientes", href: "/dashboard/alimentos", icon: Apple },
       { name: "Grupos", href: "/dashboard/alimentos?tab=Mis grupos", icon: FolderPlus },
-    ],
-  },
-  {
-    title: "Principal",
-    items: [
-      { name: "Rápido", href: "/dashboard/rapido", icon: NotebookText },
-      { name: "Dieta", href: "/dashboard/dieta", icon: Utensils },
-      { name: "Recetas y Porciones", href: "/dashboard/recetas", icon: ChefHat },
-      { name: "Carrito", href: "/dashboard/carrito", icon: ShoppingCart },
-      { name: "Entregable", href: "/dashboard/entregable", icon: ClipboardCheck },
     ],
   },
   {

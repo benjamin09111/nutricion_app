@@ -36,6 +36,24 @@ export default function CreatePatientClient() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const selectedMetrics = draft.customVariables || [];
 
+  const getDraftCustomVariables = () =>
+    (Array.isArray(draft.customVariables) ? [...(draft.customVariables as any[])] : []);
+
+  const getActivityLevelDraft = () => {
+    const item = getDraftCustomVariables().find((entry: any) => entry?.key === "activityLevel");
+    const value = String(item?.value || "").toLowerCase();
+    return value === "deportista" ? "deportista" : "sedentario";
+  };
+
+  const setActivityLevelDraft = (value: "sedentario" | "deportista") => {
+    const customVariables = getDraftCustomVariables();
+    const index = customVariables.findIndex((entry: any) => entry?.key === "activityLevel");
+    const nextValue = { key: "activityLevel", label: "Nivel de actividad", value, unit: "" };
+    if (index >= 0) customVariables[index] = nextValue;
+    else customVariables.push(nextValue);
+    updateDraft({ customVariables });
+  };
+
 
 
   if (!isLoaded) return null;
@@ -319,6 +337,32 @@ export default function CreatePatientClient() {
                 value={draft.fitnessGoals || ""}
                 onChange={(e) => updateDraft({ fitnessGoals: e.target.value })}
               />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-xs font-semibold text-slate-500 ml-1">
+                Nivel de actividad
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { key: "sedentario", label: "Sedentario" },
+                  { key: "deportista", label: "Deportista" },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setActivityLevelDraft(item.key as "sedentario" | "deportista")}
+                    className={cn(
+                      "h-11 rounded-xl border text-sm font-bold transition-all",
+                      getActivityLevelDraft() === item.key
+                        ? "border-emerald-600 bg-emerald-600 text-white"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-2 md:col-span-2">

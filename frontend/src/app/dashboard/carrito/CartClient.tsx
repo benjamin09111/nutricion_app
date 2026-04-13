@@ -168,6 +168,10 @@ export default function CartClient() {
   const [foodSearchQuery, setFoodSearchQuery] = useState("");
   const [searchResultFoods, setSearchResultFoods] = useState<any[]>([]);
   const [isSearchingFoods, setIsSearchingFoods] = useState(false);
+  const [proteinSupplement, setProteinSupplement] = useState({
+    enabled: false,
+    gramsPerDay: 0,
+  });
 
   // -- Import Patient Modal State --
   const [isImportPatientModalOpen, setIsImportPatientModalOpen] =
@@ -232,6 +236,37 @@ export default function CartClient() {
     return enabled;
   };
 
+  const normalizeProteinSupplement = (value: any) => ({
+    enabled: Boolean(value?.enabled),
+    gramsPerDay: Math.max(0, Math.round(Number(value?.gramsPerDay) || 0)),
+  });
+
+  const getPatientTargetsFromCustomVariables = (patient: any) => {
+    const vars = Array.isArray(patient?.customVariables) ? patient.customVariables : [];
+    const read = (key: string) => Number(vars.find((item: any) => item.key === key)?.value);
+    const calories = read("targetCalories");
+    const protein = read("targetProtein");
+    const carbs = read("targetCarbs");
+    const fats = read("targetFats");
+    if ([calories, protein, carbs, fats].some((value) => !Number.isFinite(value) || value <= 0)) {
+      return null;
+    }
+    return {
+      calories: Math.round(calories),
+      protein: Math.round(protein),
+      carbs: Math.round(carbs),
+      fats: Math.round(fats),
+    };
+  };
+
+  const getPatientActivityLevel = (patient: any) => {
+    const vars = Array.isArray(patient?.customVariables) ? patient.customVariables : [];
+    const raw = String(vars.find((item: any) => item.key === "activityLevel")?.value || "").toLowerCase();
+    if (raw === "deportista") return "deportista";
+    if (raw === "sedentario") return "sedentario";
+    return undefined;
+  };
+
   // -- Persistence: Draft Load/Save --
   useEffect(() => {
     if (projectIdFromUrl) {
@@ -244,6 +279,7 @@ export default function CartClient() {
       try {
         const draft = JSON.parse(storedDraft);
         const canUseRecipes = syncRecipeDependency(draft);
+        setProteinSupplement(normalizeProteinSupplement(draft?.recipes?.proteinSupplement));
         if (draft.cart && draft.cart.items && draft.cart.items.length > 0) {
           setDraftMeta({
             label: `Carrito: ${draft.cart.items.length} alimento(s)`,
@@ -377,6 +413,7 @@ export default function CartClient() {
           if (creation?.content?.targets) {
             setCartTargets(creation.content.targets);
           }
+          setProteinSupplement(normalizeProteinSupplement(creation?.content?.proteinSupplement));
           if (creation?.content?.selectedMarket) {
             setCartSourceLabel(`Proyecto: ${project.name}`);
           }
@@ -397,6 +434,7 @@ export default function CartClient() {
           ...(dietCreation?.content ? { diet: dietCreation.content } : {}),
           ...(recipeCreation?.content ? { recipes: recipeCreation.content } : {}),
         };
+        setProteinSupplement(normalizeProteinSupplement(recipeCreation?.content?.proteinSupplement));
         localStorage.setItem("nutri_active_draft", JSON.stringify(nextDraft));
 
         if (syncRecipeDependency(nextDraft) && dietCreation?.content && recipeCreation?.content) {
@@ -421,11 +459,12 @@ export default function CartClient() {
       items,
       selectedMarket,
       targets: cartTargets,
+      proteinSupplement,
       updatedAt: new Date().toISOString(),
     };
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
     syncRecipeDependency(draft);
-  }, [items, selectedMarket, cartTargets]);
+  }, [items, selectedMarket, cartTargets, proteinSupplement]);
 
   // Totals logic
   const totals = useMemo(() => {
@@ -468,9 +507,13 @@ export default function CartClient() {
       return Number(result.toFixed(1)); // Keep 1 decimal for internal calculation
     };
 
+    const supplementProtein = proteinSupplement.enabled
+      ? proteinSupplement.gramsPerDay * (timeView === "dia" ? 1 : timeView === "semana" ? 7 : 30)
+      : 0;
+
     return {
       calories: Math.round(scale(calories)), // Calories usually rounded
-      protein: scale(protein),
+      protein: Number((scale(protein) + supplementProtein).toFixed(1)),
       carbs: scale(carbs),
       fats: scale(fats),
       sugars: scale(sugars),
@@ -483,7 +526,7 @@ export default function CartClient() {
       calcium: scale(calcium),
       iron: scale(iron),
     };
-  }, [items, timeView]);
+  }, [items, proteinSupplement, timeView]);
 
   const calculateExchangePortions = (item: CartItem) => {
     const {
@@ -800,6 +843,8 @@ export default function CartClient() {
       weight: patient.weight,
       height: patient.height,
       gender: patient.gender,
+      activityLevel: getPatientActivityLevel(patient),
+      nutritionGoals: getPatientTargetsFromCustomVariables(patient),
       updatedAt: new Date().toISOString(),
     };
 
@@ -911,6 +956,7 @@ export default function CartClient() {
       items: updatedItems || items,
       totals,
       targets: cartTargets,
+      proteinSupplement,
       selectedPatient,
       selectedMarket,
       updatedAt: new Date().toISOString(),
@@ -933,6 +979,7 @@ export default function CartClient() {
         items: nextItems,
         totals,
         targets: cartTargets,
+        proteinSupplement,
         selectedPatient,
         selectedMarket,
         sourceLabel: cartSourceLabel,
@@ -1191,6 +1238,7 @@ export default function CartClient() {
             fats: t.fats || prev.fats,
           }));
         }
+        setProteinSupplement(normalizeProteinSupplement(content.proteinSupplement));
 
         setCartSourceLabel(`Generado desde Recetas y porciones: ${creation.name}`);
         toast.success(`Recetas "${creation.name}" importadas al carrito.`);
@@ -1213,6 +1261,7 @@ export default function CartClient() {
         if (content.items && Array.isArray(content.items)) {
           setItems(content.items);
           if (content.targets) setCartTargets(content.targets);
+          setProteinSupplement(normalizeProteinSupplement(content.proteinSupplement));
           setHasRecipeSource(true);
           setCartSourceLabel(`Carrito importado: ${creation.name}`);
           toast.success(`Carrito "${creation.name}" importado.`);
@@ -1462,6 +1511,14 @@ export default function CartClient() {
               {cartSourceLabel}
             </span>
           </div>
+          {proteinSupplement.enabled ? (
+            <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2">
+              <Target className="h-4 w-4 text-emerald-600" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                Suplemento activo: +{proteinSupplement.gramsPerDay}g proteína/día
+              </span>
+            </div>
+          ) : null}
         </div>
 
         {selectedPatient && (
