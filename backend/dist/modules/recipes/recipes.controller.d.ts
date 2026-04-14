@@ -131,6 +131,7 @@ export declare class RecipesController {
             title: string;
             description: string;
             preparation: string;
+            recommendedPortion: string;
             complexity: "simple" | "elaborada";
             protein: number;
             calories: number;
@@ -155,6 +156,7 @@ export declare class RecipesController {
                 title: string;
                 description: string;
                 preparation: string;
+                recommendedPortion: string;
                 complexity: "simple" | "elaborada";
                 protein: number;
                 calories: number;

@@ -141,14 +141,114 @@ __decorate([
     (0, class_validator_1.IsString)({ each: true }),
     __metadata("design:type", Array)
 ], ExistingAssignmentDto.prototype, "mainIngredients", void 0);
+class AiPatientProfileDto {
+    fullName;
+    ageYears;
+    gender;
+    weightKg;
+    heightCm;
+    nutritionalFocus;
+    fitnessGoals;
+    activityLevel;
+    restrictions;
+}
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], AiPatientProfileDto.prototype, "fullName", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], AiPatientProfileDto.prototype, "ageYears", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], AiPatientProfileDto.prototype, "gender", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], AiPatientProfileDto.prototype, "weightKg", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], AiPatientProfileDto.prototype, "heightCm", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], AiPatientProfileDto.prototype, "nutritionalFocus", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], AiPatientProfileDto.prototype, "fitnessGoals", void 0);
+__decorate([
+    (0, class_validator_1.IsIn)(['sedentario', 'deportista']),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], AiPatientProfileDto.prototype, "activityLevel", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], AiPatientProfileDto.prototype, "restrictions", void 0);
+class AiPatientGoalsDto {
+    calories;
+    protein;
+    carbs;
+    fats;
+}
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], AiPatientGoalsDto.prototype, "calories", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], AiPatientGoalsDto.prototype, "protein", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], AiPatientGoalsDto.prototype, "carbs", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], AiPatientGoalsDto.prototype, "fats", void 0);
+class AiProteinSupplementDto {
+    enabled;
+    gramsPerDay;
+}
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], AiProteinSupplementDto.prototype, "enabled", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], AiProteinSupplementDto.prototype, "gramsPerDay", void 0);
 class AiFillPayloadDto {
     scope;
     targets;
     dietRestrictions;
     preferredFoods;
-    avoidFoods;
     nutritionistNotes;
     allowedFoodsByDiet;
+    chileExchangePortionGuide;
+    patientProfile;
+    patientGoals;
+    proteinSupplement;
     generalSnackFlexAllowed;
     rules;
     day;
@@ -178,11 +278,6 @@ __decorate([
     __metadata("design:type", Array)
 ], AiFillPayloadDto.prototype, "preferredFoods", void 0);
 __decorate([
-    (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.IsString)({ each: true }),
-    __metadata("design:type", Array)
-], AiFillPayloadDto.prototype, "avoidFoods", void 0);
-__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
@@ -192,6 +287,29 @@ __decorate([
     (0, class_validator_1.IsString)({ each: true }),
     __metadata("design:type", Array)
 ], AiFillPayloadDto.prototype, "allowedFoodsByDiet", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], AiFillPayloadDto.prototype, "chileExchangePortionGuide", void 0);
+__decorate([
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => AiPatientProfileDto),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", AiPatientProfileDto)
+], AiFillPayloadDto.prototype, "patientProfile", void 0);
+__decorate([
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => AiPatientGoalsDto),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", AiPatientGoalsDto)
+], AiFillPayloadDto.prototype, "patientGoals", void 0);
+__decorate([
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => AiProteinSupplementDto),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", AiProteinSupplementDto)
+], AiFillPayloadDto.prototype, "proteinSupplement", void 0);
 __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)

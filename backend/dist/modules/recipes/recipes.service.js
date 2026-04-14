@@ -69,7 +69,7 @@ let RecipesService = class RecipesService {
         return JSON.parse(jsonContent);
     }
     validateAiRecipe(recipe, slotMealSection, allowedFoods, allowFlexibleExternalFoods) {
-        if (!recipe.slotId || !recipe.title || !recipe.mealSection) {
+        if (!recipe.slotId || !recipe.title || !recipe.mealSection || !recipe.recommendedPortion?.trim()) {
             throw new common_1.BadRequestException('La IA devolvió una receta incompleta.');
         }
         const normalizedSlotMealSection = this.normalizeMealSection(slotMealSection);

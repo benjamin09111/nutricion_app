@@ -6,7 +6,6 @@ import {
   Download,
   Eye,
   CheckCircle2,
-  QrCode,
   Sparkles,
   FileText,
   ShoppingCart,
@@ -18,10 +17,8 @@ import {
   HelpCircle,
   Info,
   Save,
-  Image as ImageIcon,
   Pencil,
   Layout,
-  Palette,
   X,
   ChevronLeft,
   Search,
@@ -89,6 +86,24 @@ interface SectionItem {
   editable?: boolean;
 }
 
+type PreviousStageSummary = {
+  diet: {
+    hasData: boolean;
+    name: string | null;
+    foodCount: number;
+    restrictions: string[];
+  };
+  patient: {
+    hasData: boolean;
+    name: string | null;
+    description: string | null;
+  };
+  cart: {
+    hasData: boolean;
+    foodCount: number;
+  };
+};
+
 const DELIVERABLE_SECTIONS: SectionItem[] = [
   {
     id: "cover",
@@ -119,15 +134,6 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     contentType: "practical",
   },
   {
-    id: "qrCode",
-    label: "QR Lista de Compras",
-    description: "Acceso rápido para cargar el carrito en retail.",
-    icon: QrCode,
-    defaultSelected: true,
-    category: "core",
-    contentType: "practical",
-  },
-  {
     id: "recipes",
     label: "Recetas, Horarios y Platos",
     description: "Distribución diaria y preparación de comidas.",
@@ -141,9 +147,9 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     label: "Inteligencia Hormonal",
     description: "Ajustes según fase del ciclo menstrual.",
     icon: Sparkles,
-    defaultSelected: true,
-    category: "core",
-    contentType: "practical",
+    defaultSelected: false,
+    category: "info",
+    contentType: "theory",
   },
   {
     id: "pathologyInfo",
@@ -223,10 +229,87 @@ const getBlankDeliverableSections = () =>
   DELIVERABLE_SECTIONS.filter(
     (section) =>
       section.defaultSelected &&
-      !["shoppingList", "qrCode", "recipes", "patientInfo", "hormonalIntel"].includes(
+      !["shoppingList", "recipes", "patientInfo"].includes(
         section.id,
       ),
   ).map((section) => section.id);
+
+const VALID_SECTION_IDS = new Set(DELIVERABLE_SECTIONS.map((section) => section.id));
+
+const sanitizeSectionIds = (sectionIds: string[] = []) =>
+  sectionIds.filter((id) => VALID_SECTION_IDS.has(id));
+
+const EMPTY_STAGE_SUMMARY: PreviousStageSummary = {
+  diet: { hasData: false, name: null, foodCount: 0, restrictions: [] },
+  patient: { hasData: false, name: null, description: null },
+  cart: { hasData: false, foodCount: 0 },
+};
+
+const safeString = (value: unknown) => {
+  if (typeof value !== "string") return "";
+  return value.trim();
+};
+
+const normalizeStringList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  const next = value
+    .map((item) => safeString(item))
+    .filter(Boolean);
+  return Array.from(new Set(next));
+};
+
+const buildPreviousStageSummary = (
+  draft: any,
+  selectedPatient: any,
+): PreviousStageSummary => {
+  const diet = draft?.diet || {};
+  const cart = draft?.cart || {};
+  const patientMeta = draft?.patientMeta || {};
+
+  const dietFoods = Array.isArray(diet?.includedFoods)
+    ? diet.includedFoods
+    : Array.isArray(diet?.foods)
+      ? diet.foods
+      : [];
+
+  const dietRestrictions = normalizeStringList(
+    Array.isArray(diet?.activeConstraints) ? diet.activeConstraints : patientMeta?.restrictions,
+  );
+
+  const patientName =
+    safeString(selectedPatient?.fullName) ||
+    safeString(selectedPatient?.name) ||
+    safeString(patientMeta?.fullName) ||
+    null;
+
+  const patientDescription =
+    safeString(selectedPatient?.description) ||
+    safeString(selectedPatient?.nutritionalFocus) ||
+    safeString(selectedPatient?.fitnessGoals) ||
+    safeString(patientMeta?.nutritionalFocus) ||
+    safeString(patientMeta?.fitnessGoals) ||
+    null;
+
+  const cartItems = Array.isArray(cart?.items) ? cart.items : [];
+
+  return {
+    diet: {
+      hasData: dietFoods.length > 0 || Boolean(safeString(diet?.dietName)),
+      name: safeString(diet?.dietName) || safeString(diet?.name) || null,
+      foodCount: dietFoods.length,
+      restrictions: dietRestrictions,
+    },
+    patient: {
+      hasData: Boolean(patientName),
+      name: patientName,
+      description: patientDescription,
+    },
+    cart: {
+      hasData: cartItems.length > 0,
+      foodCount: cartItems.length,
+    },
+  };
+};
 
 export default function DeliverableClient() {
   const router = useRouter();
@@ -234,7 +317,9 @@ export default function DeliverableClient() {
   const projectIdFromUrl = searchParams.get("project");
   const { role } = useAdmin();
   const [selectedSections, setSelectedSections] = useState<string[]>(
-    DELIVERABLE_SECTIONS.filter((s) => s.defaultSelected).map((s) => s.id),
+    sanitizeSectionIds(
+      DELIVERABLE_SECTIONS.filter((s) => s.defaultSelected).map((s) => s.id),
+    ),
   );
   const [includeLogo, setIncludeLogo] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
@@ -257,6 +342,14 @@ export default function DeliverableClient() {
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
+  const [importCreationDefaultType, setImportCreationDefaultType] = useState<
+    string | undefined
+  >(undefined);
+  const [importCreationAllowedTypes, setImportCreationAllowedTypes] = useState<
+    string[] | undefined
+  >(undefined);
+  const [previousStagesSummary, setPreviousStagesSummary] =
+    useState<PreviousStageSummary>(EMPTY_STAGE_SUMMARY);
   const [resources, setResources] = useState<ResourceTemplate[]>([]);
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
   const [selectedResourceId, setSelectedResourceId] = useState("");
@@ -282,6 +375,35 @@ export default function DeliverableClient() {
   useEffect(() => {
     setCurrentProjectId(projectIdFromUrl);
   }, [projectIdFromUrl]);
+
+  const refreshPreviousStagesSummary = (
+    draftOverride?: any,
+    patientOverride?: any,
+  ) => {
+    const draft = draftOverride
+      ? draftOverride
+      : (() => {
+          try {
+            const stored = localStorage.getItem("nutri_active_draft");
+            return stored ? JSON.parse(stored) : {};
+          } catch (_) {
+            return {};
+          }
+        })();
+
+    setPreviousStagesSummary(
+      buildPreviousStageSummary(
+        draft,
+        patientOverride !== undefined ? patientOverride : selectedPatient,
+      ),
+    );
+  };
+
+  const openFilteredCreationImport = (type: "DIET" | "SHOPPING_LIST" | "RECIPE") => {
+    setImportCreationDefaultType(type);
+    setImportCreationAllowedTypes([type]);
+    setIsImportCreationModalOpen(true);
+  };
 
   // Load project draft on mount
   useEffect(() => {
@@ -332,10 +454,12 @@ export default function DeliverableClient() {
             );
             const deliverableContent = creation.content || {};
             setSelectedSections(
-              deliverableContent.selectedSections ||
-                DELIVERABLE_SECTIONS.filter((s) => s.defaultSelected).map(
-                  (s) => s.id,
-                ),
+              sanitizeSectionIds(
+                deliverableContent.selectedSections ||
+                  DELIVERABLE_SECTIONS.filter((s) => s.defaultSelected).map(
+                    (s) => s.id,
+                  ),
+              ),
             );
             setIncludeLogo(deliverableContent.includeLogo ?? true);
             setExportPackages(deliverableContent.exportPackages || []);
@@ -344,6 +468,7 @@ export default function DeliverableClient() {
           }
 
           localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+          refreshPreviousStagesSummary(draft, project.patient || null);
         } catch (error) {
           console.error("Error loading project deliverable context", error);
           toast.error("No se pudo cargar el proyecto en Entregable.");
@@ -393,9 +518,9 @@ export default function DeliverableClient() {
           const availableDefaults = DELIVERABLE_SECTIONS.filter((s) => {
             if (!s.defaultSelected) return false;
             // Disabled sections shouldn't be selected by default
-            if ((s.id === "shoppingList" || s.id === "qrCode") && !draft.cart) return false;
+            if (s.id === "shoppingList" && !draft.cart) return false;
             if (s.id === "recipes" && !draft.recipes) return false;
-            if ((s.id === "patientInfo" || s.id === "hormonalIntel") && !storedPatient) return false;
+            if (s.id === "patientInfo" && !storedPatient) return false;
             return true;
           }).map((s) => s.id);
           setSelectedSections(availableDefaults);
@@ -403,9 +528,13 @@ export default function DeliverableClient() {
 
         internalHasCart = !!draft.cart;
         internalHasRecipes = !!draft.recipes;
+        refreshPreviousStagesSummary(draft, null);
       } catch (e) {
         console.error("Error loading project draft", e);
+        refreshPreviousStagesSummary({}, null);
       }
+    } else {
+      refreshPreviousStagesSummary({}, null);
     }
 
     setHasCart(internalHasCart);
@@ -426,14 +555,17 @@ export default function DeliverableClient() {
     };
 
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
-  }, [selectedSections, includeLogo, exportPackages, resolvedResourcePages]);
+    refreshPreviousStagesSummary(draft, selectedPatient);
+  }, [selectedSections, includeLogo, exportPackages, resolvedResourcePages, selectedPatient]);
 
   // Load stored patient
   useEffect(() => {
     const storedPatient = localStorage.getItem("nutri_patient");
     if (storedPatient) {
       try {
-        setSelectedPatient(JSON.parse(storedPatient));
+        const parsedPatient = JSON.parse(storedPatient);
+        setSelectedPatient(parsedPatient);
+        refreshPreviousStagesSummary(undefined, parsedPatient);
       } catch (e) {
         console.error("Failed to parse stored patient", e);
       }
@@ -451,7 +583,7 @@ export default function DeliverableClient() {
     let disabled = false;
     let finalDescription = section.description;
 
-    if (section.id === "shoppingList" || section.id === "qrCode") {
+    if (section.id === "shoppingList") {
       if (!hasCart) {
         disabled = true;
         finalDescription = "⚠️ Requiere carrito cargado o paciente asociado.";
@@ -463,7 +595,7 @@ export default function DeliverableClient() {
         finalDescription = "⚠️ Requiere recetario cargado o paciente asociado.";
       }
     }
-    if (section.id === "patientInfo" || section.id === "hormonalIntel") {
+    if (section.id === "patientInfo") {
       if (!selectedPatient) {
         disabled = true;
         finalDescription = "⚠️ Requiere asignar paciente o cargar métricas.";
@@ -646,8 +778,8 @@ export default function DeliverableClient() {
   };
 
   const setSplitQuickPreset = () => {
-    const listSections = selectedSections.filter(id => ['shoppingList', 'qrCode', 'substitutes'].includes(id));
-    const recipeSections = selectedSections.filter(id => ['recipes', 'hormonalIntel'].includes(id));
+    const listSections = selectedSections.filter(id => ['shoppingList', 'substitutes'].includes(id));
+    const recipeSections = selectedSections.filter(id => ['recipes'].includes(id));
     const remainingSections = selectedSections.filter(id => !listSections.includes(id) && !recipeSections.includes(id));
 
     const presets: ExportPackage[] = [];
@@ -863,11 +995,16 @@ export default function DeliverableClient() {
   const handleUnlinkPatient = () => {
     setSelectedPatient(null);
     localStorage.removeItem("nutri_patient");
+    const storedDraft = localStorage.getItem("nutri_active_draft");
+    const draft = storedDraft ? JSON.parse(storedDraft) : {};
+    delete draft.patientMeta;
+    localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+    refreshPreviousStagesSummary(draft, null);
     toast.info("Paciente desvinculado de esta sesión");
   };
 
   const resetDeliverable = () => {
-    setSelectedSections(getBlankDeliverableSections());
+    setSelectedSections(sanitizeSectionIds(getBlankDeliverableSections()));
     setIncludeLogo(true);
     setResolvedResourcePages([]);
     setExportPackages([]);
@@ -881,7 +1018,7 @@ export default function DeliverableClient() {
     setHasRecipes(false);
     setHasDraftMemory(false);
     setSelectedPatient(null);
-    setSelectedSections(getBlankDeliverableSections());
+    setSelectedSections(sanitizeSectionIds(getBlankDeliverableSections()));
     setIncludeLogo(true);
     setResolvedResourcePages([]);
     setExportPackages([]);
@@ -892,6 +1029,7 @@ export default function DeliverableClient() {
     setIsResourceModalOpen(false);
     setIsExportWizardOpen(false);
     setShowInitModal(false);
+    refreshPreviousStagesSummary({}, null);
     toast.success("Proyecto en blanco iniciado.");
   };
 
@@ -902,6 +1040,8 @@ export default function DeliverableClient() {
       label: "Importar Creación",
       variant: "indigo",
       onClick: () => {
+        setImportCreationDefaultType(undefined);
+        setImportCreationAllowedTypes(undefined);
         setIsImportCreationModalOpen(true);
       },
     },
@@ -978,10 +1118,12 @@ export default function DeliverableClient() {
         toast.success(`Dieta "${creation.name}" importada al borrador.`);
       } else if (type === "SHOPPING_LIST") {
         draft.cart = content;
+        setHasDraftMemory(true);
         setHasCart(true);
         toast.success(`Carrito "${creation.name}" importado al borrador.`);
       } else if (type === "RECIPE") {
         draft.recipes = content;
+        setHasDraftMemory(true);
         setHasRecipes(true);
         toast.success(`Plan de recetas "${creation.name}" importado al borrador.`);
       } else {
@@ -990,8 +1132,9 @@ export default function DeliverableClient() {
       }
 
       localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
-      // Trigger a light reload or state update if needed
-      window.location.reload(); // Simple way to ensure all sections re-check draft
+      refreshPreviousStagesSummary(draft, selectedPatient);
+      setImportCreationDefaultType(undefined);
+      setImportCreationAllowedTypes(undefined);
     } catch (e) {
       console.error("Error importing creation", e);
       toast.error("Error al importar la creación.");
@@ -1002,8 +1145,14 @@ export default function DeliverableClient() {
     <>
       <ImportCreationModal
         isOpen={isImportCreationModalOpen}
-        onClose={() => setIsImportCreationModalOpen(false)}
+        onClose={() => {
+          setIsImportCreationModalOpen(false);
+          setImportCreationDefaultType(undefined);
+          setImportCreationAllowedTypes(undefined);
+        }}
         onImport={handleImportCreation}
+        defaultType={importCreationDefaultType}
+        allowedTypes={importCreationAllowedTypes}
       />
       {/* Entry config modal */}
       <Modal
@@ -1267,7 +1416,7 @@ export default function DeliverableClient() {
                 });
                 setResourceVariables(initialInputs);
               }}
-              className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+              className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 focus:border-emerald-400 focus:outline-none"
             >
               <option value="">Selecciona recurso</option>
               {resources.map((resource) => (
@@ -1341,56 +1490,110 @@ export default function DeliverableClient() {
           mode={currentProjectMode}
           moduleLabel="Entregable"
         />
-        <div className="space-y-12 mt-8">
-          {/* Custom Options */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="p-6 bg-white border border-slate-100 rounded-3xl space-y-4">
-              <div className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    "h-12 w-12 rounded-2xl border-2 flex items-center justify-center transition-all cursor-pointer",
-                    includeLogo
-                      ? "bg-white border-emerald-500 text-emerald-500 shadow-lg shadow-emerald-500/10"
-                      : "bg-slate-50 border-slate-200 text-slate-400",
-                  )}
-                  onClick={() => setIncludeLogo(!includeLogo)}
+        <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
+              Resumen de etapas previas
+            </p>
+            <h3 className="mt-1 text-sm font-black uppercase tracking-widest text-slate-900">
+              Estado acumulado del flujo
+            </h3>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Dieta
+                </p>
+                <button
+                  type="button"
+                  onClick={() => openFilteredCreationImport("DIET")}
+                  className="h-6 w-6 rounded-md border border-slate-300 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
+                  title="Cargar dieta desde creaciones"
                 >
-                  <ImageIcon className="h-6 w-6" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-black uppercase text-slate-900">
-                    Logo del Nutricionista
-                  </h4>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
-                    Incluir marca personal
-                  </p>
-                </div>
+                  <Plus className="mx-auto h-3.5 w-3.5" />
+                </button>
               </div>
+              {previousStagesSummary.diet.hasData ? (
+                <>
+                  <p className="text-xs font-bold text-slate-800">
+                    Nombre: {previousStagesSummary.diet.name || "Sin nombre"}
+                  </p>
+                  <p className="text-xs font-medium text-slate-600">
+                    Alimentos: {previousStagesSummary.diet.foodCount}
+                  </p>
+                  <p className="text-xs font-medium text-slate-600">
+                    Restricciones:{" "}
+                    {previousStagesSummary.diet.restrictions.length > 0
+                      ? previousStagesSummary.diet.restrictions.join(", ")
+                      : "No registradas"}
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs font-medium text-rose-600">
+                  Etapa de dieta no cargada.
+                </p>
+              )}
             </div>
 
-            <div className="p-6 bg-white border border-slate-100 rounded-3xl space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center">
-                  <Palette className="h-6 w-6 text-violet-600" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-xs font-black uppercase text-slate-900">
-                    Plantilla Visual
-                  </h4>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
-                    Standard NutriSaaS
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  className="text-[10px] font-black text-violet-600 uppercase hover:bg-violet-50 px-3 h-8"
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Paciente
+                </p>
+                <button
+                  type="button"
+                  onClick={handlePatientLoad}
+                  className="h-6 w-6 rounded-md border border-slate-300 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
+                  title="Asignar paciente"
                 >
-                  Cambiar
-                </Button>
+                  <Plus className="mx-auto h-3.5 w-3.5" />
+                </button>
               </div>
+              {previousStagesSummary.patient.hasData ? (
+                <>
+                  <p className="text-xs font-bold text-slate-800">
+                    Nombre: {previousStagesSummary.patient.name}
+                  </p>
+                  <p className="text-xs font-medium text-slate-600">
+                    Descripción:{" "}
+                    {previousStagesSummary.patient.description || "No registrada"}
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs font-medium text-rose-600">
+                  Paciente no asignado.
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Carrito
+                </p>
+                <button
+                  type="button"
+                  onClick={() => openFilteredCreationImport("SHOPPING_LIST")}
+                  className="h-6 w-6 rounded-md border border-slate-300 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
+                  title="Cargar carrito desde creaciones"
+                >
+                  <Plus className="mx-auto h-3.5 w-3.5" />
+                </button>
+              </div>
+              {previousStagesSummary.cart.hasData ? (
+                <p className="text-xs font-medium text-slate-600">
+                  Alimentos: {previousStagesSummary.cart.foodCount}
+                </p>
+              ) : (
+                <p className="text-xs font-medium text-rose-600">
+                  Carrito no cargado.
+                </p>
+              )}
             </div>
           </div>
-
+        </div>
+        <div className="space-y-12 mt-8">
           <div className="p-6 rounded-3xl border border-slate-200 bg-white space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div>

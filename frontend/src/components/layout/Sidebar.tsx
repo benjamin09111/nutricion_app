@@ -99,6 +99,33 @@ const groups: SidebarGroup[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const { isSidebarCollapsed } = useDashboardShell();
+  const getGroupPriority = (group: SidebarGroup) => {
+    const hrefs = group.items.map((item) => item.href);
+    if (hrefs.some((href) => href.startsWith("/dashboard/pacientes") || href.startsWith("/dashboard/consultas"))) {
+      return 0;
+    }
+    if (hrefs.some((href) => href.startsWith("/dashboard/alimentos"))) {
+      return 1;
+    }
+    if (hrefs.some((href) => href.startsWith("/dashboard/rapido"))) {
+      return 2;
+    }
+    if (
+      hrefs.some(
+        (href) =>
+          href.startsWith("/dashboard/dieta") ||
+          href.startsWith("/dashboard/recetas") ||
+          href.startsWith("/dashboard/carrito") ||
+          href.startsWith("/dashboard/entregable"),
+      )
+    ) {
+      return 3;
+    }
+    return 10;
+  };
+  const orderedGroups = [...groups].sort(
+    (a, b) => getGroupPriority(a) - getGroupPriority(b),
+  );
 
   return (
     <div
@@ -126,7 +153,7 @@ export function Sidebar() {
       </div>
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-2">
-          {groups.map((group) => (
+          {orderedGroups.map((group) => (
             <li key={group.title}>
               {!isSidebarCollapsed && (
                 <div className="text-[0.7rem] font-bold uppercase tracking-wider text-slate-400 mb-1 pl-2">

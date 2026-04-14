@@ -657,6 +657,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       weight: normalizedPatient.weight,
       height: normalizedPatient.height,
       gender: normalizedPatient.gender,
+      patientData: normalizedPatient,
       updatedAt: new Date().toISOString(),
     };
 
@@ -761,6 +762,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       weight: patient.weight,
       height: patient.height,
       gender: patient.gender,
+      patientData: patient,
       updatedAt: new Date().toISOString(),
     };
 
@@ -912,8 +914,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         const parsedPatient = normalizePatient(JSON.parse(storedPatient));
         void hydratePatient(parsedPatient).then((hydratedPatient) => {
           if (!hydratedPatient) return;
-          setSelectedPatient(hydratedPatient);
-          localStorage.setItem("nutri_patient", JSON.stringify(hydratedPatient));
+          applySelectedPatient(hydratedPatient, { showToast: false });
         });
       } catch (e) {
         console.error("Failed to parse stored patient", e);
@@ -1025,11 +1026,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             normalizePatient(project.patient),
           );
           if (hydratedPatient) {
-            setSelectedPatient(hydratedPatient);
-            localStorage.setItem(
-              "nutri_patient",
-              JSON.stringify(hydratedPatient),
-            );
+            applySelectedPatient(hydratedPatient, { showToast: false });
           }
         }
 

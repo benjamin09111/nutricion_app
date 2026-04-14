@@ -30,14 +30,38 @@ declare class ExistingAssignmentDto {
     title: string;
     mainIngredients: string[];
 }
+declare class AiPatientProfileDto {
+    fullName?: string;
+    ageYears?: number;
+    gender?: string;
+    weightKg?: number;
+    heightCm?: number;
+    nutritionalFocus?: string;
+    fitnessGoals?: string;
+    activityLevel?: 'sedentario' | 'deportista';
+    restrictions?: string[];
+}
+declare class AiPatientGoalsDto {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+}
+declare class AiProteinSupplementDto {
+    enabled: boolean;
+    gramsPerDay: number;
+}
 declare class AiFillPayloadDto {
     scope: 'day' | 'week';
     targets: AiFillTargetsDto;
     dietRestrictions: string[];
     preferredFoods: string[];
-    avoidFoods: string[];
     nutritionistNotes?: string;
     allowedFoodsByDiet: string[];
+    chileExchangePortionGuide: string[];
+    patientProfile?: AiPatientProfileDto;
+    patientGoals?: AiPatientGoalsDto;
+    proteinSupplement?: AiProteinSupplementDto;
     generalSnackFlexAllowed: boolean;
     rules: AiFillRulesDto;
     day?: string;
