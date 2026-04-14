@@ -317,27 +317,28 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
   };
 
   const handleEdit = (item: Creation) => {
-    // Mock loading data?
-    // In real app, we might pass ID via query param or load state.
-
     switch (item.type) {
       case CreationType.DIET:
-        // Pre-load logic if needed
         localStorage.setItem("currentDietEditId", item.id);
         router.push("/dashboard/dieta");
         break;
       case CreationType.SHOPPING_LIST:
-        // Assuming module exists or will exist at this route
         router.push("/dashboard/lista-compras");
         break;
-      case CreationType.RECIPE:
-        router.push("/dashboard/recetas");
+      case CreationType.RECIPE: {
+        // Quick recipes (tagged 'rapido') open in the rapido/recetas module
+        const isQuick = (item.tags || []).includes("rapido");
+        if (isQuick) {
+          router.push(`/dashboard/rapido/recetas?creationId=${item.id}`);
+        } else {
+          router.push("/dashboard/recetas");
+        }
         break;
+      }
       case CreationType.FAST_DELIVERABLE:
         router.push(`/dashboard/rapido?creationId=${item.id}`);
         break;
       default:
-        // Fallback
         console.warn("Edit not implemented for type", item.type);
     }
   };
@@ -373,6 +374,15 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
 
   return (
     <div className="space-y-6">
+      {/* Tip banner */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-100 text-amber-800 text-xs font-medium">
+        <svg className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
+        </svg>
+        <span>
+          <strong>Recomendación de uso:</strong> crear plantillas generales para simplemente re utilizarlas.
+        </span>
+      </div>
       {/* Filters Bar */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col xl:flex-row gap-4 items-center justify-between">
         <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto flex-1">

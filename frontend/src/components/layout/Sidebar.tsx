@@ -45,6 +45,7 @@ const groups: SidebarGroup[] = [
     title: "RÁPIDO",
     items: [
       { name: "Entregable", href: "/dashboard/rapido", icon: NotebookText },
+      { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
     ],
   },
   {

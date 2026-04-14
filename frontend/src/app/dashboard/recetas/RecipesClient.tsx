@@ -172,6 +172,13 @@ interface AiWeekResponse {
 type AiFillScope = "day" | "week";
 type AiRecipeStyle = "very-simple" | "simple" | "varied";
 type AiTimeStyle = "quick" | "normal";
+type SubstituteMealSection = "desayuno" | "almuerzo";
+
+type SubstituteRecipeItem = {
+  id: string;
+  title: string;
+  mealSection?: string;
+};
 
 type NutritionGoals = {
   calories: number;
@@ -403,6 +410,22 @@ const DEFAULT_RECIPE_IMAGES: Record<string, string> = {
   otro: "https://www.ecured.cu/images/3/39/Alimento.jpg",
 };
 
+const WEEKDAY_LABELS = [
+  "Lunes",
+  "Martes",
+  "Miércoles",
+  "Jueves",
+  "Viernes",
+  "Sábado",
+  "Domingo",
+];
+
+const createCycleDayLabels = (count: number) => {
+  const safeCount = Math.max(1, Math.min(7, count));
+  if (safeCount === 7) return [...WEEKDAY_LABELS];
+  return Array.from({ length: safeCount }, (_, i) => `Día ${i + 1}`);
+};
+
 export default function RecipesClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -434,21 +457,14 @@ export default function RecipesClient() {
   const [isLoadingRecipeLibrary, setIsLoadingRecipeLibrary] = useState(false);
 
   // Day Management
-  const days = [
-    "Lunes",
-    "Martes",
-    "Miércoles",
-    "Jueves",
-    "Viernes",
-    "Sábado",
-    "Domingo",
-  ];
-  const [currentDay, setCurrentDay] = useState("Lunes");
+  const [cycleDayCount, setCycleDayCount] = useState(7);
+  const days = useMemo(() => createCycleDayLabels(cycleDayCount), [cycleDayCount]);
+  const [currentDay, setCurrentDay] = useState(createCycleDayLabels(7)[0]);
 
   // Week Slots State: Stores slots for each day independently
   const [weekSlots, setWeekSlots] = useState<Record<string, MealSlot[]>>(() => {
     const initial: Record<string, MealSlot[]> = {};
-    days.forEach((day) => {
+    createCycleDayLabels(7).forEach((day) => {
       // Clone default slots to avoid reference issues
       initial[day] = JSON.parse(JSON.stringify(DEFAULT_SLOTS));
     });
@@ -485,6 +501,7 @@ export default function RecipesClient() {
   });
 
   const [showSwapModal, setShowSwapModal] = useState(false);
+  const [showQuickMealModal, setShowQuickMealModal] = useState(false);
   const [showAddBlockModal, setShowAddBlockModal] = useState(false);
   const [editingMealBlockId, setEditingMealBlockId] = useState<string | null>(null);
   const [previewRecipeId, setPreviewRecipeId] = useState<string | null>(null);
@@ -496,13 +513,36 @@ export default function RecipesClient() {
   const [aiSnackFlexAllowed, setAiSnackFlexAllowed] = useState(true);
   const [recipeGuideNote, setRecipeGuideNote] = useState("");
   const [replacementGuide, setReplacementGuide] = useState<AiReplacementGuide[]>([]);
+  const [adviseMealRepetition, setAdviseMealRepetition] = useState(false);
+  const [enableSubstituteRecipes, setEnableSubstituteRecipes] = useState(false);
+  const [substituteRecipesBySection, setSubstituteRecipesBySection] = useState<
+    Record<SubstituteMealSection, SubstituteRecipeItem[]>
+  >({
+    desayuno: [],
+    almuerzo: [],
+  });
   const [activeSwapSlot, setActiveSwapSlot] = useState<string | null>(null);
   const [activeSlotDay, setActiveSlotDay] = useState<string | null>(null);
+  const [quickMealTarget, setQuickMealTarget] = useState<{
+    day: string;
+    slotId: string;
+  } | null>(null);
+  const [quickMealDraft, setQuickMealDraft] = useState({
+    title: "",
+    description: "",
+    recommendedPortion: "",
+    preparation: "",
+    calories: "",
+    protein: "",
+    carbs: "",
+    fats: "",
+  });
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
 
   // -- Import Patient Modal State --
   const [isImportPatientModalOpen, setIsImportPatientModalOpen] =
     useState(false);
+  const [isEditingPatientGoals, setIsEditingPatientGoals] = useState(false);
   const [patients, setPatients] = useState<any[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
@@ -898,6 +938,7 @@ export default function RecipesClient() {
 
   const buildRecipesModule = () => ({
     plannerView,
+    cycleDayCount,
     mealCount,
     weekSlots,
     targets: {
@@ -914,6 +955,13 @@ export default function RecipesClient() {
       note: recipeGuideNote,
       replacementGuide,
     },
+    patientAdvisories: {
+      allowMealRepetition: adviseMealRepetition,
+    },
+    substituteRecipes: {
+      enabled: enableSubstituteRecipes,
+      bySection: substituteRecipesBySection,
+    },
     proteinSupplement,
     ingredientHints: buildRecipeIngredientHints(weekSlots),
     updatedAt: new Date().toISOString(),
@@ -924,6 +972,14 @@ export default function RecipesClient() {
 
     if (content.plannerView === "daily" || content.plannerView === "weekly") {
       setPlannerView(content.plannerView);
+    }
+    if (typeof content.cycleDayCount === "number") {
+      setCycleDayCount(Math.max(1, Math.min(7, Math.round(content.cycleDayCount))));
+    } else if (content.weekSlots && typeof content.weekSlots === "object") {
+      const inferredCount = Object.keys(content.weekSlots).length;
+      if (inferredCount > 0) {
+        setCycleDayCount(Math.max(1, Math.min(7, inferredCount)));
+      }
     }
     if (typeof content.mealCount === "number") {
       setMealCount(content.mealCount);
@@ -949,6 +1005,17 @@ export default function RecipesClient() {
     if (content.aiGuidance) {
       setRecipeGuideNote(content.aiGuidance.note || "");
       setReplacementGuide(content.aiGuidance.replacementGuide || []);
+    }
+    if (content.patientAdvisories) {
+      setAdviseMealRepetition(Boolean(content.patientAdvisories.allowMealRepetition));
+    }
+    if (content.substituteRecipes) {
+      setEnableSubstituteRecipes(Boolean(content.substituteRecipes.enabled));
+      const incoming = content.substituteRecipes.bySection || {};
+      setSubstituteRecipesBySection({
+        desayuno: Array.isArray(incoming.desayuno) ? incoming.desayuno : [],
+        almuerzo: Array.isArray(incoming.almuerzo) ? incoming.almuerzo : [],
+      });
     }
     if (content.proteinSupplement) {
       setProteinSupplement({
@@ -1042,15 +1109,23 @@ export default function RecipesClient() {
             : Promise.resolve(null),
         ]);
 
-        if (dietCreation?.content) {
+        const hasLocalDietDraft = Boolean(nextDraft?.diet);
+        const hasLocalCartDraft = Boolean(nextDraft?.cart);
+        const hasLocalRecipesDraft = Boolean(
+          nextDraft?.recipes?.updatedAt ||
+          nextDraft?.recipes?.weekSlots ||
+          nextDraft?.recipes?.mealCount,
+        );
+
+        if (dietCreation?.content && !hasLocalDietDraft) {
           nextDraft.diet = dietCreation.content;
         }
 
-        if (cartCreation?.content) {
+        if (cartCreation?.content && !hasLocalCartDraft) {
           nextDraft.cart = cartCreation.content;
         }
 
-        if (recipeCreation?.content) {
+        if (recipeCreation?.content && !hasLocalRecipesDraft) {
           nextDraft.recipes = recipeCreation.content;
           applyRecipesContent(recipeCreation.content);
         }
@@ -1078,6 +1153,7 @@ export default function RecipesClient() {
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
   }, [
     plannerView,
+    cycleDayCount,
     mealCount,
     weekSlots,
     targetProtein,
@@ -1088,6 +1164,9 @@ export default function RecipesClient() {
     sleepTime,
     recipeGuideNote,
     replacementGuide,
+    adviseMealRepetition,
+    enableSubstituteRecipes,
+    substituteRecipesBySection,
     proteinSupplement,
     selectedPatient,
   ]);
@@ -1689,7 +1768,23 @@ export default function RecipesClient() {
       );
     } catch (error: any) {
       console.error("AI FILL ERROR", error);
-      toast.error(error?.message || "Error al completar con IA.");
+      const message = String(error?.message || "");
+      const normalized = message.toLowerCase();
+
+      if (
+        normalized.includes("límite de tokens") ||
+        normalized.includes("limite de tokens") ||
+        normalized.includes("context length") ||
+        normalized.includes("context_length_exceeded") ||
+        normalized.includes("too many tokens")
+      ) {
+        toast.error("La IA excedió el límite de tokens/contexto.", {
+          description:
+            "Prueba rellenar menos bloques, o usa primero el modo diario y luego semanal.",
+        });
+      } else {
+        toast.error(message || "Error al completar con IA.");
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -1810,6 +1905,21 @@ export default function RecipesClient() {
     setDropTargetKey(`${day}-${slotId}`);
   };
 
+  const openQuickMealModal = (day: string, slotId: string) => {
+    setQuickMealTarget({ day, slotId });
+    setQuickMealDraft({
+      title: "",
+      description: "",
+      recommendedPortion: "",
+      preparation: "",
+      calories: "",
+      protein: "",
+      carbs: "",
+      fats: "",
+    });
+    setShowQuickMealModal(true);
+  };
+
   const isRecipeMealSectionCompatible = (
     recipe?: Pick<Recipe, "mealSection"> | null,
     slot?: Pick<MealSlot, "mealSection" | "type"> | null,
@@ -1818,6 +1928,7 @@ export default function RecipesClient() {
     const slotSection = normalizeAiValue(slot?.mealSection || slot?.type || "");
 
     if (!recipeSection || !slotSection) return true;
+    if (recipeSection === "almuerzo" && slotSection === "cena") return true;
     return recipeSection === slotSection;
   };
 
@@ -1852,6 +1963,53 @@ export default function RecipesClient() {
     setDropTargetKey(null);
   };
 
+  const submitQuickMeal = () => {
+    if (!quickMealTarget) return;
+
+    const daySlots = weekSlots[quickMealTarget.day] || [];
+    const targetSlot = daySlots.find((slot) => slot.id === quickMealTarget.slotId);
+    if (!targetSlot) {
+      toast.error("No se encontró el bloque para crear la comida rápida.");
+      return;
+    }
+
+    const title = quickMealDraft.title.trim();
+    if (!title) {
+      toast.error("El nombre de la comida es obligatorio.");
+      return;
+    }
+
+    const toNumber = (value: string) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+    };
+
+    const quickRecipe: Recipe = {
+      id:
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? `quick-${crypto.randomUUID()}`
+          : `quick-${Date.now()}`,
+      title,
+      description: quickMealDraft.description.trim() || "Comida rápida creada manualmente.",
+      preparation: quickMealDraft.preparation.trim() || undefined,
+      recommendedPortion: quickMealDraft.recommendedPortion.trim() || undefined,
+      complexity: "simple",
+      protein: toNumber(quickMealDraft.protein),
+      calories: toNumber(quickMealDraft.calories),
+      carbs: toNumber(quickMealDraft.carbs),
+      fats: toNumber(quickMealDraft.fats),
+      ingredients: [],
+      mainIngredients: [],
+      source: "mine",
+      mealSection: targetSlot.mealSection || targetSlot.type,
+    };
+
+    assignRecipeToSlot(quickMealTarget.day, quickMealTarget.slotId, quickRecipe);
+    setShowQuickMealModal(false);
+    setQuickMealTarget(null);
+    toast.success("Comida rápida creada y asignada al bloque.");
+  };
+
   const handleSlotPortionChange = (
     day: string,
     slotId: string,
@@ -1871,6 +2029,18 @@ export default function RecipesClient() {
       }),
     }));
   };
+
+  useEffect(() => {
+    setWeekSlots((prev) => {
+      const next: Record<string, MealSlot[]> = {};
+      days.forEach((day) => {
+        next[day] = prev[day] ? prev[day] : JSON.parse(JSON.stringify(DEFAULT_SLOTS));
+      });
+      return next;
+    });
+
+    setCurrentDay((prev) => (days.includes(prev) ? prev : days[0]));
+  }, [days]);
 
   const assignRecipeToActiveSlot = (recipe: Recipe) => {
     if (!activeSlotDay || !activeSwapSlot) return;
@@ -2122,6 +2292,73 @@ export default function RecipesClient() {
     setDropTargetKey(null);
   };
 
+  const isRecipeCompatibleForSubstitute = (
+    recipe: Pick<Recipe, "mealSection">,
+    section: SubstituteMealSection,
+  ) => normalizeAiValue(recipe.mealSection || "") === section;
+
+  const getSubstituteSectionForRecipe = (
+    recipe: Pick<Recipe, "mealSection">,
+  ): SubstituteMealSection | null => {
+    const normalized = normalizeAiValue(recipe.mealSection || "");
+    if (normalized === "desayuno") return "desayuno";
+    if (normalized === "almuerzo") return "almuerzo";
+    return null;
+  };
+
+  const isRecipeMarkedAsSubstitute = (
+    recipe: Pick<Recipe, "id" | "mealSection">,
+  ) => {
+    const section = getSubstituteSectionForRecipe(recipe);
+    if (!section) return false;
+    return substituteRecipesBySection[section].some((item) => item.id === recipe.id);
+  };
+
+  const addSubstituteRecipe = (
+    section: SubstituteMealSection,
+    recipe: Recipe,
+  ) => {
+    if (!isRecipeCompatibleForSubstitute(recipe, section)) {
+      toast.error(`Solo puedes agregar platos de ${section} en esta lista.`);
+      return;
+    }
+
+    setSubstituteRecipesBySection((prev) => {
+      if (prev[section].some((item) => item.id === recipe.id)) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [section]: [
+          ...prev[section],
+          { id: recipe.id, title: recipe.title, mealSection: recipe.mealSection },
+        ],
+      };
+    });
+  };
+
+  const removeSubstituteRecipe = (section: SubstituteMealSection, id: string) => {
+    setSubstituteRecipesBySection((prev) => ({
+      ...prev,
+      [section]: prev[section].filter((item) => item.id !== id),
+    }));
+  };
+
+  const toggleSubstituteRecipe = (recipe: Recipe, checked: boolean) => {
+    const section = getSubstituteSectionForRecipe(recipe);
+    if (!section) {
+      toast.info("Solo puedes marcar sustitutos para desayuno o almuerzo.");
+      return;
+    }
+
+    if (checked) {
+      addSubstituteRecipe(section, recipe);
+      return;
+    }
+
+    removeSubstituteRecipe(section, recipe.id);
+  };
+
   const draggedRecipe = useMemo(
     () =>
       draggedRecipeId
@@ -2192,6 +2429,10 @@ export default function RecipesClient() {
     const draft = readWorkflowDraft();
     return sanitizeNutritionGoals(draft.patientMeta?.nutritionGoals) || null;
   }, [selectedPatient]);
+
+  useEffect(() => {
+    setIsEditingPatientGoals(false);
+  }, [selectedPatient?.id]);
 
   const selectedPatientActivityLevel = useMemo(
     () => getActivityLevel(selectedPatient),
@@ -2307,6 +2548,7 @@ export default function RecipesClient() {
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
 
     toast.success("Metas del paciente actualizadas.");
+    setIsEditingPatientGoals(false);
   };
 
   const getEmptyMealBlocks = () => {
@@ -2465,14 +2707,6 @@ export default function RecipesClient() {
         label: "Imprimir JSON",
         variant: "slate",
         onClick: printJson,
-        disabled: isRecipesLocked,
-      },
-      {
-        id: "print-prompt",
-        icon: FileCode,
-        label: "Imprimir PROMPT",
-        variant: "slate",
-        onClick: () => printAiPromptPreview(aiFillScope),
         disabled: isRecipesLocked,
       },
       {
@@ -2999,6 +3233,71 @@ export default function RecipesClient() {
               </div>
             </div>
 
+            <div className="mt-4 space-y-3 rounded-[2rem] border border-slate-200 bg-white p-4">
+              <label className="inline-flex items-center gap-3 text-xs font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={adviseMealRepetition}
+                  onChange={(e) => setAdviseMealRepetition(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                />
+                Avisar al paciente que puede repetir alimentos durante su ciclo semanal.
+              </label>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <label className="inline-flex items-center gap-3 text-xs font-bold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={enableSubstituteRecipes}
+                    onChange={(e) => setEnableSubstituteRecipes(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                  />
+                  Activar platos sustitutos
+                </label>
+
+                {enableSubstituteRecipes ? (
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    {(["desayuno", "almuerzo"] as SubstituteMealSection[]).map((section) => (
+                      <div
+                        key={section}
+                        className="rounded-xl border border-slate-300 bg-white p-3"
+                      >
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          Platos sustitutos · {section}
+                        </p>
+                        <p className="mt-1 text-[11px] font-medium text-slate-500">
+                          Marca como sustitutos en la biblioteca algunos platos de {section}.
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {substituteRecipesBySection[section].map((item) => (
+                            <span
+                              key={`${section}-${item.id}`}
+                              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-700"
+                            >
+                              {item.title}
+                              <button
+                                type="button"
+                                className="text-slate-400 hover:text-rose-600"
+                                onClick={() => removeSubstituteRecipe(section, item.id)}
+                                title="Quitar sustituto"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))}
+                          {substituteRecipesBySection[section].length === 0 ? (
+                            <span className="text-[11px] font-medium text-slate-400">
+                              Sin platos sustitutos aún.
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
             <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
               {hasSourceData ? (
                 <>
@@ -3230,6 +3529,28 @@ export default function RecipesClient() {
                               <Plus className="h-4 w-4 text-emerald-600 shrink-0" />
                             </div>
                           </div>
+                          {enableSubstituteRecipes ? (
+                            <div className="mt-3 rounded-xl border border-slate-200 bg-white p-2">
+                              <label className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-600">
+                                <input
+                                  type="checkbox"
+                                  checked={isRecipeMarkedAsSubstitute(recipe)}
+                                  disabled={!getSubstituteSectionForRecipe(recipe)}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    toggleSubstituteRecipe(recipe, e.target.checked);
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-emerald-600 disabled:opacity-40"
+                                />
+                                Sustituto
+                                <span className="text-slate-400 normal-case tracking-normal font-medium">
+                                  {getSubstituteSectionForRecipe(recipe)
+                                    ? `(${getSubstituteSectionForRecipe(recipe)})`
+                                    : "(solo desayuno/almuerzo)"}
+                                </span>
+                              </label>
+                            </div>
+                          ) : null}
                           {previewRecipeId === recipe.id ? (
                             <div className="mt-3 rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
                               <div className="flex items-start justify-between gap-3">
@@ -3304,6 +3625,29 @@ export default function RecipesClient() {
             <div className="lg:col-span-6 space-y-6">
               {plannerView === "daily" && (
                 <>
+                  <div className="rounded-[2rem] border border-slate-200 bg-white p-3 shadow-sm">
+                    <p className="mb-2 text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
+                      Repeticiones del ciclo
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {[1, 2, 3, 4, 5, 6, 7].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setCycleDayCount(num)}
+                          className={cn(
+                            "rounded-xl border px-3 py-2 text-[11px] font-black uppercase tracking-widest transition-all",
+                            cycleDayCount === num
+                              ? "border-emerald-600 bg-emerald-600 text-white"
+                              : "border-slate-200 bg-white text-slate-500 hover:border-slate-300",
+                          )}
+                        >
+                          {num} día{num > 1 ? "s" : ""}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2 rounded-[2rem] border border-slate-200 bg-white p-3 shadow-sm sm:grid-cols-4 xl:grid-cols-7">
                     {days.map((day) => (
                       <button
@@ -3333,7 +3677,13 @@ export default function RecipesClient() {
                         {isGenerating && aiFillScope === "day"
                           ? "Generando día..."
                           : "Rellenar día con IA"}
-                      </Button>
+                        </Button>
+                      </div>
+                    <div className="flex items-center gap-2 pl-2">
+                      <Clock className="h-4 w-4 text-slate-400" />
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        Despierta · {wakeUpTime}
+                      </p>
                     </div>
                     {currentSlots.map((slot) => {
                       const isDropTarget = dropTargetKey === `${currentDay}-${slot.id}`;
@@ -3457,14 +3807,24 @@ export default function RecipesClient() {
                                   </div>
                                 </div>
                               </div>
-                              <Button
-                                variant="ghost"
-                                className="text-emerald-600 hover:bg-emerald-50 rounded-xl font-black text-xs uppercase"
-                                onClick={() => openSlotEditor(currentDay, slot.id)}
-                              >
-                                <Plus className="h-4 w-4 mr-1" />
-                                Filtrar platos
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  className="text-slate-600 hover:bg-slate-100 rounded-xl font-black text-xs uppercase"
+                                  onClick={() => openQuickMealModal(currentDay, slot.id)}
+                                >
+                                  <Pencil className="h-4 w-4 mr-1" />
+                                  Crear comida rápida
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  className="text-emerald-600 hover:bg-emerald-50 rounded-xl font-black text-xs uppercase"
+                                  onClick={() => openSlotEditor(currentDay, slot.id)}
+                                >
+                                  <Plus className="h-4 w-4 mr-1" />
+                                  Filtrar platos
+                                </Button>
+                              </div>
                             </div>
                           ) : (
                             <div className="flex flex-col md:flex-row gap-6">
@@ -3574,6 +3934,12 @@ export default function RecipesClient() {
                         </div>
                       );
                     })}
+                    <div className="flex items-center gap-2 pl-2">
+                      <Moon className="h-4 w-4 text-slate-400" />
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        Duerme · {sleepTime}
+                      </p>
+                    </div>
                     <div className="flex justify-center pt-2">
                       <button
                         onClick={handleOpenAddBlockModal}
@@ -3741,12 +4107,20 @@ export default function RecipesClient() {
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </button>
                                 ) : null}
-                                <div className="rounded-xl bg-white p-2 text-emerald-600 border border-slate-200">
-                                  <Plus className="h-4 w-4" />
-                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openQuickMealModal(day, slot.id);
+                                  }}
+                                  className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+                                  title="Crear comida rápida"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
                               </div>
                             </div>
-                            </div>
+                          </div>
                           );
                         })}
                       </div>
@@ -3837,6 +4211,84 @@ export default function RecipesClient() {
                       </p>
                       {patientNutritionGoals ? (
                         <div className="mt-3 space-y-3">
+                          <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                Objetivos editables
+                              </p>
+                              {isEditingPatientGoals ? (
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    className="h-8 rounded-xl px-3 text-[10px] font-black uppercase"
+                                    onClick={() => {
+                                      setTargetCalories(patientNutritionGoals.calories);
+                                      setTargetProtein(patientNutritionGoals.protein);
+                                      setTargetCarbs(patientNutritionGoals.carbs);
+                                      setTargetFats(patientNutritionGoals.fats);
+                                      setIsEditingPatientGoals(false);
+                                    }}
+                                  >
+                                    Cancelar
+                                  </Button>
+                                  <Button
+                                    className="h-8 rounded-xl bg-emerald-600 px-3 text-[10px] font-black uppercase text-white hover:bg-emerald-700"
+                                    onClick={assignPatientGoalsFromCurrentTargets}
+                                  >
+                                    Guardar
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  className="h-8 rounded-xl px-3 text-[10px] font-black uppercase"
+                                  onClick={() => {
+                                    setTargetCalories(patientNutritionGoals.calories);
+                                    setTargetProtein(patientNutritionGoals.protein);
+                                    setTargetCarbs(patientNutritionGoals.carbs);
+                                    setTargetFats(patientNutritionGoals.fats);
+                                    setIsEditingPatientGoals(true);
+                                  }}
+                                >
+                                  Editar metas
+                                </Button>
+                              )}
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                              <Input
+                                type="number"
+                                value={targetCalories}
+                                disabled={!isEditingPatientGoals}
+                                onChange={(e) => setTargetCalories(Math.max(0, Number(e.target.value) || 0))}
+                                placeholder="kcal"
+                                className="h-9 rounded-xl border-slate-200 text-xs font-bold"
+                              />
+                              <Input
+                                type="number"
+                                value={targetProtein}
+                                disabled={!isEditingPatientGoals}
+                                onChange={(e) => setTargetProtein(Math.max(0, Number(e.target.value) || 0))}
+                                placeholder="prot"
+                                className="h-9 rounded-xl border-slate-200 text-xs font-bold"
+                              />
+                              <Input
+                                type="number"
+                                value={targetCarbs}
+                                disabled={!isEditingPatientGoals}
+                                onChange={(e) => setTargetCarbs(Math.max(0, Number(e.target.value) || 0))}
+                                placeholder="cho"
+                                className="h-9 rounded-xl border-slate-200 text-xs font-bold"
+                              />
+                              <Input
+                                type="number"
+                                value={targetFats}
+                                disabled={!isEditingPatientGoals}
+                                onChange={(e) => setTargetFats(Math.max(0, Number(e.target.value) || 0))}
+                                placeholder="lip"
+                                className="h-9 rounded-xl border-slate-200 text-xs font-bold"
+                              />
+                            </div>
+                          </div>
                           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                               Cumplimiento diario ({currentDay})
@@ -4208,6 +4660,133 @@ export default function RecipesClient() {
             </div>
           </div>
         )}
+
+        <Modal
+          isOpen={showQuickMealModal}
+          onClose={() => {
+            setShowQuickMealModal(false);
+            setQuickMealTarget(null);
+          }}
+          title="Crear comida rápida"
+        >
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-600">
+              Completa lo mínimo para asignar una comida al bloque actual.
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                Nombre *
+              </label>
+              <Input
+                value={quickMealDraft.title}
+                onChange={(e) =>
+                  setQuickMealDraft((prev) => ({ ...prev, title: e.target.value }))
+                }
+                placeholder="Ej: Arroz con pollo"
+                className="h-11 rounded-2xl border-slate-200 font-bold"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                Descripción
+              </label>
+              <Textarea
+                value={quickMealDraft.description}
+                onChange={(e) =>
+                  setQuickMealDraft((prev) => ({ ...prev, description: e.target.value }))
+                }
+                placeholder="Descripción breve (opcional)"
+                className="min-h-[84px] rounded-2xl border-slate-200"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                value={quickMealDraft.recommendedPortion}
+                onChange={(e) =>
+                  setQuickMealDraft((prev) => ({
+                    ...prev,
+                    recommendedPortion: e.target.value,
+                  }))
+                }
+                placeholder="Porción (opcional)"
+                className="h-10 rounded-xl border-slate-200 text-xs"
+              />
+              <Input
+                value={quickMealDraft.preparation}
+                onChange={(e) =>
+                  setQuickMealDraft((prev) => ({ ...prev, preparation: e.target.value }))
+                }
+                placeholder="Preparación (opcional)"
+                className="h-10 rounded-xl border-slate-200 text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                type="number"
+                min={0}
+                value={quickMealDraft.calories}
+                onChange={(e) =>
+                  setQuickMealDraft((prev) => ({ ...prev, calories: e.target.value }))
+                }
+                placeholder="kcal"
+                className="h-10 rounded-xl border-slate-200 text-xs"
+              />
+              <Input
+                type="number"
+                min={0}
+                value={quickMealDraft.protein}
+                onChange={(e) =>
+                  setQuickMealDraft((prev) => ({ ...prev, protein: e.target.value }))
+                }
+                placeholder="prot (g)"
+                className="h-10 rounded-xl border-slate-200 text-xs"
+              />
+              <Input
+                type="number"
+                min={0}
+                value={quickMealDraft.carbs}
+                onChange={(e) =>
+                  setQuickMealDraft((prev) => ({ ...prev, carbs: e.target.value }))
+                }
+                placeholder="cho (g)"
+                className="h-10 rounded-xl border-slate-200 text-xs"
+              />
+              <Input
+                type="number"
+                min={0}
+                value={quickMealDraft.fats}
+                onChange={(e) =>
+                  setQuickMealDraft((prev) => ({ ...prev, fats: e.target.value }))
+                }
+                placeholder="lip (g)"
+                className="h-10 rounded-xl border-slate-200 text-xs"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="ghost"
+                className="rounded-2xl font-bold"
+                onClick={() => {
+                  setShowQuickMealModal(false);
+                  setQuickMealTarget(null);
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                className="rounded-2xl bg-emerald-600 hover:bg-emerald-700"
+                onClick={submitQuickMeal}
+              >
+                Guardar comida rápida
+              </Button>
+            </div>
+          </div>
+        </Modal>
 
         <Modal
           isOpen={showAiFillModal}

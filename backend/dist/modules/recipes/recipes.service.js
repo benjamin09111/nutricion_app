@@ -146,7 +146,18 @@ let RecipesService = class RecipesService {
             }),
         });
         if (!response.ok) {
-            throw new common_1.BadRequestException('No se pudo completar recetas con IA.');
+            const errorPayload = await response.json().catch(() => ({}));
+            const upstreamMessage = errorPayload?.error?.message ||
+                errorPayload?.message ||
+                '';
+            const normalizedMessage = String(upstreamMessage).toLowerCase();
+            if (normalizedMessage.includes('context_length_exceeded') ||
+                normalizedMessage.includes('maximum context length') ||
+                normalizedMessage.includes('too many tokens') ||
+                normalizedMessage.includes('max_tokens')) {
+                throw new common_1.BadRequestException('La solicitud supera el límite de tokens/contexto de OpenAI. Reduce bloques, filtros o detalle y vuelve a intentar.');
+            }
+            throw new common_1.BadRequestException(upstreamMessage || 'No se pudo completar recetas con IA.');
         }
         const json = (await response.json());
         const content = json.choices?.[0]?.message?.content;

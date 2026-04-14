@@ -433,7 +433,13 @@ export default function CartClient() {
           localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
         }
 
-        if (project.activeCartCreationId) {
+        const existingDraft = JSON.parse(localStorage.getItem("nutri_active_draft") || "{}");
+        const hasLocalCartDraft = Boolean(
+          existingDraft?.cart?.updatedAt ||
+          (Array.isArray(existingDraft?.cart?.items) && existingDraft.cart.items.length > 0),
+        );
+
+        if (project.activeCartCreationId && !hasLocalCartDraft) {
           const creation = await fetchCreation(project.activeCartCreationId);
           if (creation?.content?.items) {
             setItems(creation.content.items);
@@ -459,10 +465,18 @@ export default function CartClient() {
 
         const nextDraft = {
           ...(JSON.parse(localStorage.getItem("nutri_active_draft") || "{}")),
-          ...(dietCreation?.content ? { diet: dietCreation.content } : {}),
-          ...(recipeCreation?.content ? { recipes: recipeCreation.content } : {}),
         };
-        setProteinSupplement(normalizeProteinSupplement(recipeCreation?.content?.proteinSupplement));
+        if (dietCreation?.content && !nextDraft?.diet) {
+          nextDraft.diet = dietCreation.content;
+        }
+        if (recipeCreation?.content && !nextDraft?.recipes) {
+          nextDraft.recipes = recipeCreation.content;
+        }
+        setProteinSupplement(
+          normalizeProteinSupplement(
+            nextDraft?.recipes?.proteinSupplement || recipeCreation?.content?.proteinSupplement,
+          ),
+        );
         localStorage.setItem("nutri_active_draft", JSON.stringify(nextDraft));
 
         if (syncRecipeDependency(nextDraft) && dietCreation?.content && recipeCreation?.content) {
@@ -1755,11 +1769,15 @@ export default function CartClient() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div>
               <button
-                onClick={() => router.back()}
+                onClick={() =>
+                  router.push(
+                    buildProjectAwarePath("/dashboard/recetas?flow=continue", currentProjectId),
+                  )
+                }
                 className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors mb-2 text-sm font-bold group"
               >
                 <ChevronLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-                Volver a Dieta Base
+                Volver a Recetas y porciones
               </button>
             </div>
 

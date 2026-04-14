@@ -416,39 +416,69 @@ export default function DeliverableClient() {
           setCurrentProjectMode(project.mode);
           setShowInitModal(false);
 
-          const draft: Record<string, any> = {};
+          const existingDraft = (() => {
+            try {
+              const stored = localStorage.getItem("nutri_active_draft");
+              return stored ? JSON.parse(stored) : {};
+            } catch (_) {
+              return {} as Record<string, any>;
+            }
+          })();
+          const draft: Record<string, any> = { ...existingDraft };
+          const hasLocalDiet = Boolean(existingDraft?.diet);
+          const hasLocalCart = Boolean(existingDraft?.cart);
+          const hasLocalRecipes = Boolean(existingDraft?.recipes);
+          const hasLocalDeliverable = Boolean(
+            existingDraft?.deliverable?.updatedAt ||
+            existingDraft?.deliverable?.selectedSections ||
+            existingDraft?.deliverable?.resourcePages,
+          );
 
           if (project.patient) {
-            setSelectedPatient(project.patient);
-            localStorage.setItem("nutri_patient", JSON.stringify(project.patient));
-            draft.patientMeta = {
-              id: project.patient.id,
-              fullName: project.patient.fullName,
-              restrictions: project.patient.dietRestrictions || [],
-              weight: project.patient.weight,
-              height: project.patient.height,
-              updatedAt: new Date().toISOString(),
-            };
+            const localPatient = localStorage.getItem("nutri_patient");
+            if (!localPatient) {
+              setSelectedPatient(project.patient);
+              localStorage.setItem("nutri_patient", JSON.stringify(project.patient));
+            }
+            if (!draft.patientMeta) {
+              draft.patientMeta = {
+                id: project.patient.id,
+                fullName: project.patient.fullName,
+                restrictions: project.patient.dietRestrictions || [],
+                weight: project.patient.weight,
+                height: project.patient.height,
+                updatedAt: new Date().toISOString(),
+              };
+            }
           }
 
-          if (project.activeDietCreationId) {
+          if (project.activeDietCreationId && !hasLocalDiet) {
             const creation = await fetchCreation(project.activeDietCreationId);
             draft.diet = creation.content;
           }
 
-          if (project.activeCartCreationId) {
+          if (project.activeCartCreationId && !hasLocalCart) {
             const creation = await fetchCreation(project.activeCartCreationId);
             draft.cart = creation.content;
-            setHasCart(true);
           }
 
-          if (project.activeRecipeCreationId) {
+          if (project.activeRecipeCreationId && !hasLocalRecipes) {
             const creation = await fetchCreation(project.activeRecipeCreationId);
             draft.recipes = creation.content;
-            setHasRecipes(true);
           }
 
-          if (project.activeDeliverableCreationId) {
+          if (hasLocalDeliverable && draft.deliverable) {
+            const deliverableContent = draft.deliverable || {};
+            setSelectedSections(
+              sanitizeSectionIds(
+                deliverableContent.selectedSections ||
+                DELIVERABLE_SECTIONS.filter((s) => s.defaultSelected).map((s) => s.id),
+              ),
+            );
+            setIncludeLogo(deliverableContent.includeLogo ?? true);
+            setExportPackages(deliverableContent.exportPackages || []);
+            setResolvedResourcePages(deliverableContent.resourcePages || []);
+          } else if (project.activeDeliverableCreationId) {
             const creation = await fetchCreation(
               project.activeDeliverableCreationId,
             );
@@ -466,6 +496,9 @@ export default function DeliverableClient() {
             setResolvedResourcePages(deliverableContent.resourcePages || []);
             draft.deliverable = deliverableContent;
           }
+
+          setHasCart(Boolean(draft.cart));
+          setHasRecipes(Boolean(draft.recipes));
 
           localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
           refreshPreviousStagesSummary(draft, project.patient || null);
