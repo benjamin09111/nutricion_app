@@ -152,6 +152,16 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
       : new Date().toLocaleDateString("es-CL"),
   });
 
+  const buildQuickRecipesData = (raw: any) => ({
+    title: typeof raw.content?.title === "string" ? raw.content.title : raw.name || "Recetas",
+    patientName: typeof raw.metadata?.patientName === "string" ? raw.metadata.patientName : null,
+    nutritionistNotes: typeof raw.content?.nutritionistNotes === "string" ? raw.content.nutritionistNotes : undefined,
+    dishes: Array.isArray(raw.content?.dishes) ? raw.content.dishes : [],
+    generatedAt: typeof raw.content?.updatedAt === "string"
+      ? new Date(raw.content.updatedAt).toLocaleDateString("es-CL")
+      : new Date().toLocaleDateString("es-CL"),
+  });
+
   const handleDownloadClick = async (item: Creation) => {
     setSelectedItem(item);
     setIsExportingPdf(true);
@@ -166,6 +176,11 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
         const { downloadFastDeliverablePdf } = await import("@/features/pdf/fastDeliverablePdfExport");
         await downloadFastDeliverablePdf(buildFastDeliverableData(raw));
         toast.success("PDF descargado correctamente.");
+      } else if (item.type === CreationType.RECIPE && (item.tags || []).includes("rapido")) {
+        // Quick recipe PDF export
+        const { downloadQuickRecipesPdf } = await import("@/features/pdf/quickRecipesPdfExport");
+        await downloadQuickRecipesPdf(buildQuickRecipesData(raw));
+        toast.success("PDF de recetas descargado correctamente.");
       } else {
         toast.info("Exportación PDF para este tipo próximamente.");
       }

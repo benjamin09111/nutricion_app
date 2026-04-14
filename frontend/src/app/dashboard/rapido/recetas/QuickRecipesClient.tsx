@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Plus,
   Trash2,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -134,6 +135,7 @@ export default function QuickRecipesClient() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiNotes, setAiNotes] = useState("");
   const [showAiModal, setShowAiModal] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // -- Draft Persistence --
   useEffect(() => {
@@ -415,6 +417,44 @@ export default function QuickRecipesClient() {
     toast.success("Borrador reiniciado.");
   };
 
+  // -- PDF Export --
+  const buildPdfData = () => ({
+    title: title.trim() || DEFAULT_TITLE,
+    patientName: selectedPatient?.fullName || null,
+    nutritionistNotes: nutritionistNotes.trim() || undefined,
+    dishes: dishes.map((d) => ({
+      title: d.title,
+      mealSection: d.mealSection,
+      description: d.description,
+      preparation: d.preparation,
+      recommendedPortion: d.recommendedPortion,
+      protein: d.protein,
+      calories: d.calories,
+      carbs: d.carbs,
+      fats: d.fats,
+      ingredients: d.ingredients
+        .filter((ing) => ing.name.trim())
+        .map((ing) => ({ name: ing.name, quantity: ing.quantity })),
+    })),
+    generatedAt: new Date().toLocaleDateString("es-CL"),
+  });
+
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      const { downloadQuickRecipesPdf } = await import(
+        "@/features/pdf/quickRecipesPdfExport"
+      );
+      await downloadQuickRecipesPdf(buildPdfData());
+      toast.success("PDF de recetas descargado correctamente.");
+    } catch (error) {
+      console.error("PDF export error", error);
+      toast.error("No se pudo generar el PDF.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   // -- Action Dock --
   const actionDockItems: ActionDockItem[] = [
     {
@@ -430,6 +470,13 @@ export default function QuickRecipesClient() {
       label: isGenerating ? "Generando..." : "Generar con IA",
       variant: "indigo",
       onClick: () => setShowAiModal(true),
+    },
+    {
+      id: "export-pdf",
+      icon: Download,
+      label: isExportingPdf ? "Exportando..." : "Exportar PDF",
+      variant: "slate",
+      onClick: handleExportPdf,
     },
     {
       id: "save",
