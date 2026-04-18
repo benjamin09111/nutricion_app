@@ -520,6 +520,30 @@ export default function QuickRecipesClient() {
             <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
               Modo Express · Recetas reutilizables
             </div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                className="h-11 rounded-2xl border-slate-200"
+                onClick={() => {
+                  if (!title.trim()) {
+                    toast.error("Por favor ingresa un tÃ­tulo antes de guardar.");
+                    return;
+                  }
+                  setIsSaveCreationModalOpen(true);
+                }}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                Guardar
+              </Button>
+              <Button
+                className="h-11 rounded-2xl bg-slate-900 px-6 text-white hover:bg-slate-800"
+                onClick={handleExportPdf}
+                disabled={isExportingPdf}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {isExportingPdf ? "Generando..." : "Descargar PDF"}
+              </Button>
+            </div>
           </ModuleFooter>
         }
       >

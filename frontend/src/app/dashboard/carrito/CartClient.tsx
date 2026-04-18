@@ -238,6 +238,51 @@ export default function CartClient() {
     gramsPerDay: Math.max(0, Math.round(Number(value?.gramsPerDay) || 0)),
   });
 
+  const normalizeFoodKey = (value: string) =>
+    String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+
+  const mergeCartWithExtraIngredients = (
+    baseItems: CartItem[],
+    extraIngredients: Array<{ name: string; weeklyHits: number }>,
+  ) => {
+    const existingKeys = new Set(
+      baseItems.map((item) => normalizeFoodKey(item.producto)),
+    );
+
+    const extraItems: CartItem[] = extraIngredients
+      .filter((item) => item?.name)
+      .filter((item) => !existingKeys.has(normalizeFoodKey(item.name)))
+      .map((item) => ({
+        id: `extra-ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        producto: item.name,
+        grupo: "Ingredientes IA",
+        cantidadMes: 0,
+        frecuenciaSemanal: Math.max(1, Math.round(Number(item.weeklyHits) || 1)),
+        porcionGramos: 100,
+        carbohidratosPor100g: 0,
+        grasasPor100g: 0,
+        caloriasPor100g: 0,
+        proteinaPor100g: 0,
+        sugarsPor100g: 0,
+        fiberPor100g: 0,
+        sodiumPor100g: 0,
+        cholesterolPor100g: 0,
+        potassiumPor100g: 0,
+        vitaminAPor100g: 0,
+        vitaminCPor100g: 0,
+        calciumPor100g: 0,
+        ironPor100g: 0,
+        precioPorUnidad: 0,
+        unidad: "unidad",
+      }));
+
+    return [...baseItems, ...extraItems];
+  };
+
   const getPatientTargetsFromCustomVariables = (patient: any) => {
     const vars = Array.isArray(patient?.customVariables) ? patient.customVariables : [];
     const read = (key: string) => Number(vars.find((item: any) => item.key === key)?.value);
@@ -344,7 +389,7 @@ export default function CartClient() {
             return match?.weeklyHits || 3;
           };
 
-          const cartItems: CartItem[] = includedFoods.map((f: any) => ({
+          let cartItems: CartItem[] = includedFoods.map((f: any) => ({
             id: f.id || `food-${Math.random()}`,
             producto: f.producto,
             grupo: f.grupo,
@@ -367,10 +412,18 @@ export default function CartClient() {
             precioPorUnidad: f.price || f.precioPromedio || 1000,
             unidad: f.unidad || f.unit || "kg",
           }));
+
+          const extraIngredientsFromAI: Array<{ name: string; weeklyHits: number }> =
+            draft?.recipes?.extraIngredientsFromAI || [];
+          cartItems = mergeCartWithExtraIngredients(cartItems, extraIngredientsFromAI);
           setItems(cartItems.map((item) => ({
             ...item,
             cantidadMes: Number(((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2)),
           })));
+          const extraCount = (draft?.recipes?.extraIngredientsFromAI || []).length;
+          if (extraCount > 0) {
+            toast.info(`Se agregaron ${extraCount} ingrediente(s) nuevo(s) sugeridos por IA al carrito.`);
+          }
           toast.success("Carrito generado usando Recetas y porciones.");
         }
       } catch (e) {
@@ -1230,7 +1283,7 @@ export default function CartClient() {
           return match?.weeklyHits || 3;
         };
 
-        const cartItems: CartItem[] = includedFoods.map((f: any) => {
+        let cartItems: CartItem[] = includedFoods.map((f: any) => {
           const groupName =
             f.grupo ||
             f.group ||
@@ -1262,6 +1315,10 @@ export default function CartClient() {
           };
         });
 
+        const extraIngredientsFromAI: Array<{ name: string; weeklyHits: number }> =
+          content.extraIngredientsFromAI || draft?.recipes?.extraIngredientsFromAI || [];
+        cartItems = mergeCartWithExtraIngredients(cartItems, extraIngredientsFromAI);
+
         setItems(
           cartItems.map((item) => ({
             ...item,
@@ -1270,6 +1327,9 @@ export default function CartClient() {
             ),
           })),
         );
+        if (extraIngredientsFromAI.length > 0) {
+          toast.info(`Se agregaron ${extraIngredientsFromAI.length} ingrediente(s) extra sugeridos por IA.`);
+        }
 
         if (content.targets) {
           const t = content.targets;

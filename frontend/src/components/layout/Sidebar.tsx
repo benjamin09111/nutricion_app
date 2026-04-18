@@ -131,9 +131,10 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        "flex grow flex-col gap-y-4 overflow-y-auto border-r border-slate-200 bg-white pb-4 h-full transition-all duration-300",
+        "sidebar-scroll flex grow flex-col gap-y-4 overflow-y-auto border-r border-slate-200 bg-white pb-4 h-full transition-all duration-300",
         isSidebarCollapsed ? "px-2" : "px-4",
       )}
+      style={{ scrollbarWidth: "thin" }}
     >
       <div
         className={cn(
@@ -212,6 +213,21 @@ export function Sidebar() {
           ))}
         </ul>
       </nav>
+      <style jsx>{`
+        .sidebar-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+          background: rgba(148, 163, 184, 0.35);
+          border-radius: 999px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(100, 116, 139, 0.45);
+        }
+      `}</style>
     </div>
   );
 }

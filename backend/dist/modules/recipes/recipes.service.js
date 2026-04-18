@@ -8,15 +8,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var RecipesService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RecipesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const cache_service_1 = require("../../common/services/cache.service");
 const recipes_ai_prompts_1 = require("./recipes-ai-prompts");
-let RecipesService = class RecipesService {
+let RecipesService = RecipesService_1 = class RecipesService {
     prisma;
     cacheService;
+    logger = new common_1.Logger(RecipesService_1.name);
     constructor(prisma, cacheService) {
         this.prisma = prisma;
         this.cacheService = cacheService;
@@ -48,6 +50,78 @@ let RecipesService = class RecipesService {
         const scopePrompt = payload.scope === 'week' ? recipes_ai_prompts_1.RECIPES_AI_PROMPTS.week : recipes_ai_prompts_1.RECIPES_AI_PROMPTS.day;
         return [scopePrompt, JSON.stringify(payload)].join('\n');
     }
+    getGeminiConfig() {
+        const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+        const model = process.env.GEMINI_MODEL || process.env.GOOGLE_GEMINI_MODEL || 'gemini-2.5-flash';
+        if (!apiKey) {
+            throw new common_1.BadRequestException('Configura GEMINI_API_KEY para usar esta funcion.');
+        }
+        return { apiKey, model };
+    }
+    extractGeminiText(payload) {
+        const candidates = Array.isArray(payload?.candidates) ? payload.candidates : [];
+        const first = candidates[0];
+        const parts = Array.isArray(first?.content?.parts) ? first.content.parts : [];
+        const textPart = parts.find((part) => typeof part?.text === 'string');
+        return textPart?.text || null;
+    }
+    mapAiErrorMessage(upstreamMessage) {
+        const normalizedMessage = String(upstreamMessage || '').toLowerCase();
+        if (normalizedMessage.includes('context_length_exceeded') ||
+            normalizedMessage.includes('maximum context length') ||
+            normalizedMessage.includes('too many tokens') ||
+            normalizedMessage.includes('max_tokens') ||
+            normalizedMessage.includes('token')) {
+            return 'La solicitud supera el limite de tokens/contexto del modelo. Reduce bloques, filtros o detalle y vuelve a intentar.';
+        }
+        if (normalizedMessage.includes('resource_exhausted') ||
+            normalizedMessage.includes('quota') ||
+            normalizedMessage.includes('rate limit') ||
+            normalizedMessage.includes('429')) {
+            return 'Se alcanzo el limite de uso de la IA (cuota/rate limit). Intenta mas tarde o revisa tu plan.';
+        }
+        return upstreamMessage || 'No se pudo completar recetas con IA.';
+    }
+    async callGeminiJson(systemInstruction, userPrompt) {
+        const { apiKey, model } = this.getGeminiConfig();
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        this.logger.log(`[Gemini] Request model=${model} promptChars=${userPrompt.length}`);
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                systemInstruction: {
+                    parts: [{ text: systemInstruction }],
+                },
+                contents: [
+                    {
+                        role: 'user',
+                        parts: [{ text: userPrompt }],
+                    },
+                ],
+                generationConfig: {
+                    temperature: 0.2,
+                    responseMimeType: 'application/json',
+                },
+            }),
+        });
+        const raw = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const upstreamMessage = raw?.error?.message || raw?.message || '';
+            this.logger.error(`[Gemini] Error status=${response.status} message=${upstreamMessage || 'unknown'}`);
+            throw new common_1.BadRequestException(this.mapAiErrorMessage(upstreamMessage));
+        }
+        const text = this.extractGeminiText(raw);
+        if (!text) {
+            this.logger.error('[Gemini] Empty content in response payload');
+            throw new common_1.BadRequestException('La IA no devolvio contenido.');
+        }
+        this.logger.log(`[Gemini] Response ok chars=${text.length}`);
+        this.logger.log(`[Gemini] Raw response:\n${text}`);
+        return text;
+    }
     extractJsonFromResponse(rawContent) {
         const trimmed = rawContent.trim();
         if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -64,9 +138,58 @@ let RecipesService = class RecipesService {
         }
         throw new common_1.BadRequestException('La IA no devolvió un JSON válido.');
     }
+    extractFirstJsonValue(content) {
+        const start = content.search(/[\{\[]/);
+        if (start === -1)
+            return null;
+        const open = content[start];
+        const close = open === '{' ? '}' : ']';
+        let depth = 0;
+        let inString = false;
+        let escaped = false;
+        for (let i = start; i < content.length; i += 1) {
+            const char = content[i];
+            if (inString) {
+                if (escaped) {
+                    escaped = false;
+                    continue;
+                }
+                if (char === '\\') {
+                    escaped = true;
+                    continue;
+                }
+                if (char === '"') {
+                    inString = false;
+                }
+                continue;
+            }
+            if (char === '"') {
+                inString = true;
+                continue;
+            }
+            if (char === open)
+                depth += 1;
+            if (char === close)
+                depth -= 1;
+            if (depth === 0) {
+                return content.slice(start, i + 1);
+            }
+        }
+        return null;
+    }
     parseAiResponse(rawContent) {
         const jsonContent = this.extractJsonFromResponse(rawContent);
-        return JSON.parse(jsonContent);
+        try {
+            return JSON.parse(jsonContent);
+        }
+        catch {
+            const recovered = this.extractFirstJsonValue(rawContent.trim());
+            if (recovered) {
+                return JSON.parse(recovered);
+            }
+            this.logger.error(`[Gemini] JSON parse failed. snippet=${jsonContent.slice(0, 300)}`);
+            throw new common_1.BadRequestException('La IA devolvio un formato invalido. Intenta nuevamente.');
+        }
     }
     validateAiRecipe(recipe, slotMealSection, allowedFoods, allowFlexibleExternalFoods) {
         if (!recipe.slotId || !recipe.title || !recipe.mealSection || !recipe.recommendedPortion?.trim()) {
@@ -81,12 +204,10 @@ let RecipesService = class RecipesService {
             .map((item) => this.normalizeFoodName(item))
             .filter(Boolean);
         const requiresStrictDietFoods = this.isStrictMealSection(recipe.mealSection);
-        if (requiresStrictDietFoods || !allowFlexibleExternalFoods) {
-            const invalidIngredient = allIngredients.find((ingredient) => !allowedFoods.has(ingredient));
-            if (invalidIngredient) {
-                throw new common_1.BadRequestException(`La IA devolvió un ingrediente fuera de la dieta permitida: ${invalidIngredient}.`);
-            }
+        if (!requiresStrictDietFoods && allowFlexibleExternalFoods) {
+            return [];
         }
+        return Array.from(new Set(allIngredients.filter((ingredient) => !allowedFoods.has(ingredient))));
     }
     validateReplacementGuide(meta) {
         if (!meta) {
@@ -124,46 +245,9 @@ let RecipesService = class RecipesService {
     }
     async fillWithAi(userId, dto) {
         await this.getNutritionistId(userId);
-        const apiKey = process.env.OPENAI_API_KEY;
-        if (!apiKey) {
-            throw new common_1.BadRequestException('Configura tu API key de OpenAI para usar esta función.');
-        }
         const { payload } = dto;
         const allowedFoods = new Set(payload.allowedFoodsByDiet.map((food) => this.normalizeFoodName(food)));
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-                model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-                temperature: 0.2,
-                messages: [
-                    { role: 'system', content: recipes_ai_prompts_1.RECIPES_AI_PROMPTS.base },
-                    { role: 'user', content: this.buildAiPrompt(payload) },
-                ],
-            }),
-        });
-        if (!response.ok) {
-            const errorPayload = await response.json().catch(() => ({}));
-            const upstreamMessage = errorPayload?.error?.message ||
-                errorPayload?.message ||
-                '';
-            const normalizedMessage = String(upstreamMessage).toLowerCase();
-            if (normalizedMessage.includes('context_length_exceeded') ||
-                normalizedMessage.includes('maximum context length') ||
-                normalizedMessage.includes('too many tokens') ||
-                normalizedMessage.includes('max_tokens')) {
-                throw new common_1.BadRequestException('La solicitud supera el límite de tokens/contexto de OpenAI. Reduce bloques, filtros o detalle y vuelve a intentar.');
-            }
-            throw new common_1.BadRequestException(upstreamMessage || 'No se pudo completar recetas con IA.');
-        }
-        const json = (await response.json());
-        const content = json.choices?.[0]?.message?.content;
-        if (!content) {
-            throw new common_1.BadRequestException('La IA no devolvió contenido.');
-        }
+        const content = await this.callGeminiJson(recipes_ai_prompts_1.RECIPES_AI_PROMPTS.base, this.buildAiPrompt(payload));
         const parsed = this.parseAiResponse(content);
         if (payload.scope === 'day') {
             const result = parsed;
@@ -174,7 +258,11 @@ let RecipesService = class RecipesService {
                 if (!slot) {
                     throw new common_1.BadRequestException(`La IA devolvió un slot desconocido: ${recipe.slotId}.`);
                 }
-                this.validateAiRecipe(recipe, slot.mealSection, allowedFoods, payload.generalSnackFlexAllowed);
+                const extraIngredients = this.validateAiRecipe(recipe, slot.mealSection, allowedFoods, payload.generalSnackFlexAllowed);
+                if (extraIngredients.length > 0) {
+                    recipe.extraIngredients = extraIngredients;
+                    this.logger.warn(`[Gemini] Extra ingredients accepted slot=${recipe.slotId} extras=${JSON.stringify(extraIngredients)}`);
+                }
             });
             return result;
         }
@@ -187,7 +275,11 @@ let RecipesService = class RecipesService {
                 if (!slot) {
                     throw new common_1.BadRequestException(`La IA devolvió un slot desconocido para ${dayBlock.day}: ${recipe.slotId}.`);
                 }
-                this.validateAiRecipe(recipe, slot.mealSection, allowedFoods, payload.generalSnackFlexAllowed);
+                const extraIngredients = this.validateAiRecipe(recipe, slot.mealSection, allowedFoods, payload.generalSnackFlexAllowed);
+                if (extraIngredients.length > 0) {
+                    recipe.extraIngredients = extraIngredients;
+                    this.logger.warn(`[Gemini] Extra ingredients accepted day=${dayBlock.day} slot=${recipe.slotId} extras=${JSON.stringify(extraIngredients)}`);
+                }
             });
         });
         this.validateWeekVariety(result, payload.existingAssignments);
@@ -401,10 +493,6 @@ let RecipesService = class RecipesService {
         return updated;
     }
     async estimateMacros(dto) {
-        const apiKey = process.env.OPENAI_API_KEY;
-        if (!apiKey) {
-            throw new common_1.BadRequestException('Configura tu API key de OpenAI para usar esta función.');
-        }
         const prompt = [
             'Eres un nutricionista. Estima los valores nutricionales por porción para un plato con los siguientes ingredientes.',
             'Responde SOLO un JSON válido con la forma: {"calories": número, "proteins": número, "carbs": número, "lipids": número}',
@@ -412,29 +500,7 @@ let RecipesService = class RecipesService {
             `Ingredientes: ${JSON.stringify(dto.ingredientNames)}`,
         ].join('\n');
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-                    temperature: 0.2,
-                    messages: [
-                        { role: 'system', content: 'Eres un asistente nutricional. Responde solo JSON.' },
-                        { role: 'user', content: prompt },
-                    ],
-                }),
-            });
-            if (!response.ok) {
-                throw new common_1.BadRequestException('Configura tu API key de OpenAI para usar esta función.');
-            }
-            const json = (await response.json());
-            const content = json.choices?.[0]?.message?.content;
-            if (!content) {
-                throw new common_1.BadRequestException('No se pudo obtener la respuesta de la IA.');
-            }
+            const content = await this.callGeminiJson('Eres un asistente nutricional. Responde solo JSON.', prompt);
             const parsed = JSON.parse(content);
             return {
                 calories: Math.round(parsed.calories ?? 0),
@@ -446,7 +512,7 @@ let RecipesService = class RecipesService {
         catch (err) {
             if (err instanceof common_1.BadRequestException)
                 throw err;
-            throw new common_1.BadRequestException('Configura tu API key de OpenAI para usar esta función.');
+            throw new common_1.BadRequestException('No se pudo estimar macros con IA. Verifica GEMINI_API_KEY.');
         }
     }
     async remove(id, userId, userRole) {
@@ -465,7 +531,7 @@ let RecipesService = class RecipesService {
     }
 };
 exports.RecipesService = RecipesService;
-exports.RecipesService = RecipesService = __decorate([
+exports.RecipesService = RecipesService = RecipesService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         cache_service_1.CacheService])

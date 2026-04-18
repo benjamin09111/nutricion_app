@@ -23,6 +23,7 @@ import {
   Search,
   Filter,
   ArrowUpDown,
+  ChefHat,
   Coffee,
   Sun,
   Moon,
@@ -110,6 +111,7 @@ interface Recipe {
   carbs: number;
   fats: number;
   ingredients: string[];
+  extraIngredients?: string[];
   image?: string;
   source: RecipeCatalogTab;
   authorLabel?: string;
@@ -144,6 +146,7 @@ interface AiRecipeOutput {
   fats: number;
   ingredients: string[];
   mainIngredients: string[];
+  extraIngredients?: string[];
 }
 
 interface AiReplacementGuide {
@@ -384,7 +387,9 @@ const SLOT_LIBRARY: Record<number, Omit<MealSlot, "recipe">[]> = {
   ],
 };
 
-const DEFAULT_SLOTS: MealSlot[] = SLOT_LIBRARY[4].map((slot) => ({
+const DEFAULT_MEAL_COUNT = 3;
+
+const DEFAULT_SLOTS: MealSlot[] = SLOT_LIBRARY[DEFAULT_MEAL_COUNT].map((slot) => ({
   ...slot,
   recipe: undefined,
 }));
@@ -436,7 +441,7 @@ export default function RecipesClient() {
   const hasCollapsedSidebarForRecipesRef = useRef(false);
 
   // -- State --
-  const [mealCount, setMealCount] = useState(4);
+  const [mealCount, setMealCount] = useState(DEFAULT_MEAL_COUNT);
   const [plannerView, setPlannerView] = useState<PlannerView>("daily");
   const [isGenerating, setIsGenerating] = useState(false);
   const [draggedSlotId, setDraggedSlotId] = useState<string | null>(null);
@@ -453,6 +458,7 @@ export default function RecipesClient() {
   const [recipeMealSectionFilter, setRecipeMealSectionFilter] = useState("");
   const [showOnlyMyRecipes, setShowOnlyMyRecipes] = useState(false);
   const [showMatchingOnly, setShowMatchingOnly] = useState(true);
+  const [showOnlyAddedRecipes, setShowOnlyAddedRecipes] = useState(false);
   const [recipeLibraryPage, setRecipeLibraryPage] = useState(1);
   const [isLoadingRecipeLibrary, setIsLoadingRecipeLibrary] = useState(false);
 
@@ -571,6 +577,7 @@ export default function RecipesClient() {
   const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(
     null,
   );
+  const [isRecipesHydrated, setIsRecipesHydrated] = useState(false);
 
   useEffect(() => {
     setCurrentProjectId(projectIdFromUrl);
@@ -600,6 +607,25 @@ export default function RecipesClient() {
       slots.forEach((slot) => {
         slot.recipe?.ingredients?.forEach((ingredientName) => {
           const key = ingredientName.toLowerCase().trim();
+          counter.set(key, (counter.get(key) || 0) + 1);
+        });
+      });
+    });
+    return Array.from(counter.entries()).map(([name, weeklyHits]) => ({
+      name,
+      weeklyHits,
+    }));
+  };
+
+  const buildExtraIngredientsFromAi = (
+    slotsByDay: Record<string, MealSlot[]>,
+  ): Array<{ name: string; weeklyHits: number }> => {
+    const counter = new Map<string, number>();
+    Object.values(slotsByDay).forEach((slots) => {
+      slots.forEach((slot) => {
+        (slot.recipe?.extraIngredients || []).forEach((ingredientName) => {
+          const key = ingredientName.trim();
+          if (!key) return;
           counter.set(key, (counter.get(key) || 0) + 1);
         });
       });
@@ -798,9 +824,19 @@ export default function RecipesClient() {
 
   const filteredRecipeLibrary = useMemo(() => {
     const normalizedSearch = recipeSearch.trim().toLowerCase();
+    const addedRecipeIds = new Set(
+      days.flatMap((day) =>
+        (weekSlots[day] || [])
+          .map((slot) => slot.recipe?.id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
 
     return recipeLibrary.filter((recipe) => {
       if (showOnlyMyRecipes && recipe.source !== "mine") {
+        return false;
+      }
+      if (showOnlyAddedRecipes && !addedRecipeIds.has(recipe.id)) {
         return false;
       }
 
@@ -832,11 +868,14 @@ export default function RecipesClient() {
     });
   }, [
     compatibleRecipeIds,
+    days,
     recipeLibrary,
     recipeMealSectionFilter,
     recipeSearch,
     showOnlyMyRecipes,
+    showOnlyAddedRecipes,
     showMatchingOnly,
+    weekSlots,
   ]);
 
   const RECIPE_LIBRARY_PAGE_SIZE = 2;
@@ -856,7 +895,7 @@ export default function RecipesClient() {
 
   useEffect(() => {
     setRecipeLibraryPage(1);
-  }, [recipeSearch, recipeMealSectionFilter, showOnlyMyRecipes, showMatchingOnly]);
+  }, [recipeSearch, recipeMealSectionFilter, showOnlyMyRecipes, showOnlyAddedRecipes, showMatchingOnly]);
 
   useEffect(() => {
     if (recipeLibraryPage > recipeLibraryTotalPages) {
@@ -964,6 +1003,7 @@ export default function RecipesClient() {
     },
     proteinSupplement,
     ingredientHints: buildRecipeIngredientHints(weekSlots),
+    extraIngredientsFromAI: buildExtraIngredientsFromAi(weekSlots),
     updatedAt: new Date().toISOString(),
   });
 
@@ -1042,23 +1082,23 @@ export default function RecipesClient() {
           syncSourceFoods(draft);
         }
 
-        if (!alreadyDecided) {
-          if (draft.recipes && draft.recipes.weekSlots) {
-            setDraftMeta({
-              label: `Recetas: plan semanal guardado`,
-              date: draft.recipes.updatedAt,
-            });
-            setShowDraftModal(true);
-            // Load patient anyway
-            const storedPatient = localStorage.getItem("nutri_patient");
-            if (storedPatient) {
-              try { setSelectedPatient(JSON.parse(storedPatient)); } catch (_) { }
-            }
-            return;
+        if (draft.recipes && draft.recipes.weekSlots && !alreadyDecided) {
+          setDraftMeta({
+            label: `Recetas: plan semanal guardado`,
+            date: draft.recipes.updatedAt,
+          });
+          setShowDraftModal(true);
+          // Load patient anyway
+          const storedPatient = localStorage.getItem("nutri_patient");
+          if (storedPatient) {
+            try { setSelectedPatient(JSON.parse(storedPatient)); } catch (_) { }
           }
-          if (draft.recipes) {
-            applyRecipesContent(draft.recipes);
-          }
+          setIsRecipesHydrated(true);
+          return;
+        }
+
+        if (draft.recipes) {
+          applyRecipesContent(draft.recipes);
         }
       } catch (e) {
         console.error("Error loading recipes draft", e);
@@ -1074,6 +1114,7 @@ export default function RecipesClient() {
         console.error("Failed to parse stored patient", e);
       }
     }
+    setIsRecipesHydrated(true);
   }, [projectIdFromUrl]);
 
   useEffect(() => {
@@ -1135,6 +1176,8 @@ export default function RecipesClient() {
       } catch (error) {
         console.error("Error loading project recipes context", error);
         toast.error("No se pudo cargar el proyecto en Recetas.");
+      } finally {
+        setIsRecipesHydrated(true);
       }
     };
 
@@ -1143,6 +1186,7 @@ export default function RecipesClient() {
 
   // Auto-save to draft on changes
   useEffect(() => {
+    if (!isRecipesHydrated) return;
     const draft = readWorkflowDraft();
     draft.recipes = buildRecipesModule();
 
@@ -1152,6 +1196,7 @@ export default function RecipesClient() {
 
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
   }, [
+    isRecipesHydrated,
     plannerView,
     cycleDayCount,
     mealCount,
@@ -1194,6 +1239,7 @@ export default function RecipesClient() {
   };
 
   const handleSelectPatient = (patient: any) => {
+    const patientGoals = getGoalsFromPatient(patient);
     setSelectedPatient(patient);
     localStorage.setItem("nutri_patient", JSON.stringify(patient));
 
@@ -1225,6 +1271,13 @@ export default function RecipesClient() {
     };
 
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+
+    if (patientGoals) {
+      setTargetCalories(patientGoals.calories);
+      setTargetProtein(patientGoals.protein);
+      setTargetCarbs(patientGoals.carbs);
+      setTargetFats(patientGoals.fats);
+    }
 
     toast.success(`Paciente vinculado: ${patient.fullName}`);
     setIsImportPatientModalOpen(false);
@@ -1309,6 +1362,7 @@ export default function RecipesClient() {
     fats: recipe.fats,
     ingredients: recipe.ingredients,
     mainIngredients: recipe.mainIngredients,
+    extraIngredients: recipe.extraIngredients || [],
     mealSection: recipe.mealSection,
     source: "app",
   });
@@ -1481,7 +1535,8 @@ export default function RecipesClient() {
       "Prefiere platos comunes, caseros, realistas, simples y con pocos ingredientes.",
       "Evita repetir platos ya usados o muy parecidos.",
       "Devuelve solo JSON válido. Sin explicación.",
-      "Cada receta debe incluir: slotId, mealSection, title, description, preparation, recommendedPortion, complexity, protein, calories, carbs, fats, ingredients, mainIngredients.",
+      "Cada receta debe incluir: slotId, mealSection, title, description, preparation, recommendedPortion, complexity, protein, calories, carbs, fats, ingredients, mainIngredients, extraIngredients.",
+      "extraIngredients: ingredientes fuera de allowedFoodsByDiet. Si no hay, [].",
       "description: 1 frase.",
       "preparation: breve, clara, 2 a 4 pasos.",
       "complexity: simple o elaborada.",
@@ -1625,7 +1680,8 @@ export default function RecipesClient() {
       "Prefiere platos comunes, caseros, realistas, simples y con pocos ingredientes.",
       "Evita repetir platos ya usados o muy parecidos.",
       "Devuelve solo JSON válido. Sin explicación.",
-      "Cada receta debe incluir: slotId, mealSection, title, description, preparation, recommendedPortion, complexity, protein, calories, carbs, fats, ingredients, mainIngredients.",
+      "Cada receta debe incluir: slotId, mealSection, title, description, preparation, recommendedPortion, complexity, protein, calories, carbs, fats, ingredients, mainIngredients, extraIngredients.",
+      "extraIngredients: ingredientes fuera de allowedFoodsByDiet. Si no hay, [].",
       "description: 1 frase.",
       "preparation: breve, clara, 2 a 4 pasos.",
       "complexity: simple o elaborada.",
@@ -1689,14 +1745,18 @@ export default function RecipesClient() {
       }
 
       const allIngredients = [...(recipe.ingredients || []), ...(recipe.mainIngredients || [])]
-        .map((item) => normalizeAiValue(item))
-        .filter(Boolean);
+        .map((item) => ({ raw: item, normalized: normalizeAiValue(item) }))
+        .filter((item) => Boolean(item.normalized));
 
       if (isStrictMealSection(recipe.mealSection) || !payloadData.generalSnackFlexAllowed) {
-        const invalidIngredient = allIngredients.find((ingredient) => !allowedFoods.has(ingredient));
-        if (invalidIngredient) {
-          throw new Error(`Ingrediente fuera de dieta: ${invalidIngredient}.`);
-        }
+        const extraIngredients = Array.from(
+          new Set(
+            allIngredients
+              .filter((ingredient) => !allowedFoods.has(ingredient.normalized))
+              .map((ingredient) => ingredient.raw),
+          ),
+        );
+        recipe.extraIngredients = extraIngredients;
       }
     };
 
@@ -1740,6 +1800,7 @@ export default function RecipesClient() {
     }
 
     printAiPromptPreview(aiFillScope);
+    setShowAiFillModal(false);
     setIsGenerating(true);
 
     try {
@@ -1782,6 +1843,17 @@ export default function RecipesClient() {
           description:
             "Prueba rellenar menos bloques, o usa primero el modo diario y luego semanal.",
         });
+      } else if (
+        normalized.includes("cuota") ||
+        normalized.includes("quota") ||
+        normalized.includes("rate limit") ||
+        normalized.includes("resource_exhausted") ||
+        normalized.includes("429")
+      ) {
+        toast.error("Se alcanzÃ³ la cuota de la IA.", {
+          description:
+            "Espera un momento y vuelve a intentar. Si persiste, revisa tu plan o lÃ­mites de Gemini.",
+        });
       } else {
         toast.error(message || "Error al completar con IA.");
       }
@@ -1808,7 +1880,7 @@ export default function RecipesClient() {
   };
 
   const handleMealCountChange = (count: number) => {
-    const nextStructure = SLOT_LIBRARY[count] || SLOT_LIBRARY[4];
+    const nextStructure = SLOT_LIBRARY[count] || SLOT_LIBRARY[DEFAULT_MEAL_COUNT];
     setMealCount(count);
     setWeekSlots((prev) => applyStructureToWeek(nextStructure, prev));
   };
@@ -2033,14 +2105,24 @@ export default function RecipesClient() {
   useEffect(() => {
     setWeekSlots((prev) => {
       const next: Record<string, MealSlot[]> = {};
+      const referenceDay =
+        days.find((day) => Array.isArray(prev[day]) && prev[day].length > 0) ||
+        Object.keys(prev)[0];
+      const fallbackTemplate = getStructureTemplate(
+        (referenceDay && prev[referenceDay]) ||
+          SLOT_LIBRARY[mealCount] ||
+          SLOT_LIBRARY[DEFAULT_MEAL_COUNT],
+      );
       days.forEach((day) => {
-        next[day] = prev[day] ? prev[day] : JSON.parse(JSON.stringify(DEFAULT_SLOTS));
+        next[day] = prev[day]
+          ? prev[day]
+          : fallbackTemplate.map((slot) => ({ ...slot }));
       });
       return next;
     });
 
     setCurrentDay((prev) => (days.includes(prev) ? prev : days[0]));
-  }, [days]);
+  }, [days, mealCount]);
 
   const assignRecipeToActiveSlot = (recipe: Recipe) => {
     if (!activeSlotDay || !activeSwapSlot) return;
@@ -2431,6 +2513,24 @@ export default function RecipesClient() {
   }, [selectedPatient]);
 
   useEffect(() => {
+    if (!selectedPatient || !patientNutritionGoals || isEditingPatientGoals) {
+      return;
+    }
+
+    setTargetCalories(patientNutritionGoals.calories);
+    setTargetProtein(patientNutritionGoals.protein);
+    setTargetCarbs(patientNutritionGoals.carbs);
+    setTargetFats(patientNutritionGoals.fats);
+  }, [
+    selectedPatient,
+    patientNutritionGoals?.calories,
+    patientNutritionGoals?.protein,
+    patientNutritionGoals?.carbs,
+    patientNutritionGoals?.fats,
+    isEditingPatientGoals,
+  ]);
+
+  useEffect(() => {
     setIsEditingPatientGoals(false);
   }, [selectedPatient?.id]);
 
@@ -2623,7 +2723,7 @@ export default function RecipesClient() {
 
   const resetRecipes = () => {
     const initial: Record<string, MealSlot[]> = {};
-    const baseStructure = SLOT_LIBRARY[mealCount] || SLOT_LIBRARY[4];
+    const baseStructure = SLOT_LIBRARY[mealCount] || SLOT_LIBRARY[DEFAULT_MEAL_COUNT];
     days.forEach((day) => {
       initial[day] = baseStructure.map((slot) => ({ ...slot }));
     });
@@ -2725,7 +2825,7 @@ export default function RecipesClient() {
         onClick: resetRecipes,
         disabled: isRecipesLocked,
       },
-      ].filter(Boolean) as ActionDockItem[],
+    ].filter(Boolean) as ActionDockItem[],
     [aiFillScope, isRecipesLocked, printAiPromptPreview, printJson, resetRecipes, selectedPatient, sleepTime, targetCalories, targetCarbs, targetFats, targetProtein, wakeUpTime, weekSlots],
   );
 
@@ -2832,6 +2932,21 @@ export default function RecipesClient() {
         onKeep={handleKeepDraft}
         onDiscard={handleDiscardDraft}
       />
+      {isGenerating ? (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/55 backdrop-blur-sm">
+          <div className="flex flex-col items-center rounded-3xl border border-amber-200 bg-white px-10 py-8 shadow-2xl">
+            <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-amber-50">
+              <ChefHat className="h-10 w-10 animate-pulse text-amber-600" />
+            </div>
+            <p className="mt-5 text-lg font-black text-slate-900">
+              La IA está cocinando...
+            </p>
+            <p className="mt-1 text-sm font-medium text-slate-500">
+              Preparando tus platos y porciones.
+            </p>
+          </div>
+        </div>
+      ) : null}
       <ModuleLayout
         title="Recetas y Porciones"
         description="En este apartado modificarás, en base a los alimentos anteriores, las cantidades de cada uno de forma diaria, semanal o mensual, y sus porciones en base a la documentación oficial."
@@ -3361,18 +3476,18 @@ export default function RecipesClient() {
                     ))}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="inline-flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-black text-emerald-700">
+                  <div className="flex items-center gap-5 whitespace-nowrap flex-wrap">
+                    <label className="inline-flex items-center gap-2 text-xs font-black text-slate-700">
                       <input
                         type="checkbox"
                         checked={showMatchingOnly}
                         onChange={(e) => setShowMatchingOnly(e.target.checked)}
-                        className="h-4 w-4 rounded border-emerald-300 text-emerald-600"
+                        className="h-4 w-4 rounded border-slate-300 text-emerald-600"
                       />
                       Coincidencias de alimentos CON DIETA
                     </label>
 
-                    <label className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-black text-slate-700">
+                    <label className="inline-flex items-center gap-2 text-xs font-black text-slate-700">
                       <input
                         type="checkbox"
                         checked={showOnlyMyRecipes}
@@ -3380,6 +3495,16 @@ export default function RecipesClient() {
                         className="h-4 w-4 rounded border-slate-300 text-slate-900"
                       />
                       Mis alimentos
+                    </label>
+
+                    <label className="inline-flex items-center gap-2 text-xs font-black text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={showOnlyAddedRecipes}
+                        onChange={(e) => setShowOnlyAddedRecipes(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-slate-900"
+                      />
+                      Ya añadidos
                     </label>
                   </div>
 
@@ -3677,8 +3802,8 @@ export default function RecipesClient() {
                         {isGenerating && aiFillScope === "day"
                           ? "Generando día..."
                           : "Rellenar día con IA"}
-                        </Button>
-                      </div>
+                      </Button>
+                    </div>
                     <div className="flex items-center gap-2 pl-2">
                       <Clock className="h-4 w-4 text-slate-400" />
                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
@@ -3694,243 +3819,248 @@ export default function RecipesClient() {
 
                       return (
                         <div
-                        key={slot.id}
-                        className="group relative flex gap-6"
-                        draggable
-                        onDragStart={() => setDraggedSlotId(slot.id)}
-                        onDragEnd={() => setDraggedSlotId(null)}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          setDropTargetKey(`${currentDay}-${slot.id}`);
-                        }}
-                        onDragLeave={() => {
-                          if (dropTargetKey === `${currentDay}-${slot.id}`) {
-                            setDropTargetKey(null);
-                          }
-                        }}
-                        onDrop={() => handleSlotDrop(slot.id, currentDay)}
-                      >
-                        {/* Time marker */}
-                        <div className="flex flex-col items-center gap-2 pt-2">
-                          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-sm">
-                            <input
-                              type="text"
-                              value={slotTimeDrafts[slot.id] ?? slot.time}
-                              onChange={(e) =>
-                                handleSlotTimeDraftChange(slot.id, e.target.value)
-                              }
-                              onBlur={() => commitSlotTimeChange(slot.id)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.currentTarget.blur();
-                                }
-                                if (e.key === "Escape") {
-                                  setSlotTimeDrafts((prev) => {
-                                    const next = { ...prev };
-                                    delete next[slot.id];
-                                    return next;
-                                  });
-                                  e.currentTarget.blur();
-                                }
-                              }}
-                              inputMode="numeric"
-                              maxLength={5}
-                              placeholder="HH:MM"
-                              aria-label={`Editar hora de ${slot.label}`}
-                              className="h-5 w-[78px] border-0 bg-transparent p-0 text-[10px] font-black uppercase tracking-widest text-slate-500 outline-none"
-                            />
-                            <Pencil className="h-3 w-3 text-slate-400" />
-                          </div>
-                          <div className="w-[2px] h-full bg-slate-100 group-last:bg-transparent" />
-                        </div>
-
-                        {/* Slot Card */}
-                        <div
-                          className={cn(
-                            "flex-1 p-6 rounded-[2.5rem] border transition-all relative overflow-hidden",
-                            isDropTarget &&
-                            (isDropBlocked
-                              ? "ring-2 ring-rose-300 border-rose-300 bg-rose-50/30"
-                              : "ring-2 ring-emerald-300 border-emerald-300 bg-emerald-50/30"),
-                            draggedSlotId === slot.id && "ring-2 ring-emerald-300",
-                            slot.recipe
-                              ? "bg-white border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-300"
-                              : "bg-slate-50 border-dashed border-slate-300",
-                          )}
+                          key={slot.id}
+                          className="group relative flex gap-6"
+                          draggable
+                          onDragStart={() => setDraggedSlotId(slot.id)}
+                          onDragEnd={() => setDraggedSlotId(null)}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setDropTargetKey(`${currentDay}-${slot.id}`);
+                          }}
+                          onDragLeave={() => {
+                            if (dropTargetKey === `${currentDay}-${slot.id}`) {
+                              setDropTargetKey(null);
+                            }
+                          }}
+                          onDrop={() => handleSlotDrop(slot.id, currentDay)}
                         >
-                          {isDropBlocked ? (
-                            <div className="absolute right-4 top-4 z-10 inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-rose-600">
-                              <Lock className="h-3 w-3" />
-                              Bloqueado
+                          {/* Time marker */}
+                          <div className="flex flex-col items-center gap-2 pt-2">
+                            <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-sm">
+                              <input
+                                type="text"
+                                value={slotTimeDrafts[slot.id] ?? slot.time}
+                                onChange={(e) =>
+                                  handleSlotTimeDraftChange(slot.id, e.target.value)
+                                }
+                                onBlur={() => commitSlotTimeChange(slot.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.currentTarget.blur();
+                                  }
+                                  if (e.key === "Escape") {
+                                    setSlotTimeDrafts((prev) => {
+                                      const next = { ...prev };
+                                      delete next[slot.id];
+                                      return next;
+                                    });
+                                    e.currentTarget.blur();
+                                  }
+                                }}
+                                inputMode="numeric"
+                                maxLength={5}
+                                placeholder="HH:MM"
+                                aria-label={`Editar hora de ${slot.label}`}
+                                className="h-5 w-[78px] border-0 bg-transparent p-0 text-[10px] font-black uppercase tracking-widest text-slate-500 outline-none"
+                              />
+                              <Pencil className="h-3 w-3 text-slate-400" />
                             </div>
-                          ) : null}
-                          {slot.isUserAdded ? (
-                            <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEditMealBlockModal(slot.id)}
-                                className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600"
-                                title="Editar tipo de bloque"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveMealBlock(slot.id)}
-                                className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
-                                title="Eliminar bloque"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          ) : null}
-                          {!slot.recipe ? (
-                            <div className="flex items-center justify-between h-20">
-                              <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 rounded-2xl bg-slate-200/50 flex items-center justify-center">
-                                  {slot.type === "desayuno" ? (
-                                    <Coffee className="h-6 w-6 text-slate-300" />
-                                  ) : (
-                                    <Sun className="h-6 w-6 text-slate-300" />
-                                  )}
-                                </div>
-                                <div>
-                                  <h4 className="font-black text-slate-400 uppercase tracking-widest text-xs leading-none mb-1">
-                                    {slot.label}
-                                  </h4>
-                                  <p className="text-sm font-medium text-slate-300 italic">
-                                    Pendiente por generar...
-                                  </p>
-                                  <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                    <GripVertical className="h-3 w-3" />
-                                    Arrastrar
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  className="text-slate-600 hover:bg-slate-100 rounded-xl font-black text-xs uppercase"
-                                  onClick={() => openQuickMealModal(currentDay, slot.id)}
-                                >
-                                  <Pencil className="h-4 w-4 mr-1" />
-                                  Crear comida rápida
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  className="text-emerald-600 hover:bg-emerald-50 rounded-xl font-black text-xs uppercase"
-                                  onClick={() => openSlotEditor(currentDay, slot.id)}
-                                >
-                                  <Plus className="h-4 w-4 mr-1" />
-                                  Filtrar platos
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col md:flex-row gap-6">
-                              <div className="h-32 w-full md:w-32 overflow-hidden rounded-3xl border border-slate-100 bg-slate-50 text-[0px] shadow-inner relative group-hover:scale-105 transition-transform">
-                                <img
-                                  src={getRecipeImage(slot.recipe, slot.mealSection || slot.type)}
-                                  alt={slot.recipe.title}
-                                  className="absolute inset-0 h-full w-full object-cover"
-                                />
-                                {slot.type === "desayuno" ? "🥣" : "🍲"}
-                                <div className="absolute -top-2 -right-2 bg-emerald-500 text-white p-1 rounded-full shadow-lg">
-                                  <CheckCircle2 className="h-4 w-4" />
-                                </div>
-                              </div>
+                            <div className="w-[2px] h-full bg-slate-100 group-last:bg-transparent" />
+                          </div>
 
-                              <div className="flex-1 space-y-3">
-                                <div className="flex justify-between items-start">
-                                  <div className="space-y-1">
-                                    <div className="flex items-center gap-2">
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
-                                        <GripVertical className="h-3 w-3" />
-                                        Arrastrar
-                                      </span>
-                                      <span className="text-[10px] font-black uppercase text-emerald-600 tracking-[0.2em]">
-                                        {slot.label}
-                                      </span>
-                                      <span
-                                        className={cn(
-                                          "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border",
-                                          slot.recipe.complexity === "simple"
-                                            ? "bg-blue-50 text-blue-600 border-blue-100"
-                                            : "bg-purple-50 text-purple-600 border-purple-100",
-                                        )}
-                                      >
-                                        {slot.recipe.complexity}
-                                      </span>
-                                    </div>
-                                    <h4 className="text-xl font-black text-slate-900 leading-tight">
-                                      {slot.recipe.title}
+                          {/* Slot Card */}
+                          <div
+                            className={cn(
+                              "flex-1 p-6 rounded-[2.5rem] border transition-all relative overflow-hidden",
+                              isDropTarget &&
+                              (isDropBlocked
+                                ? "ring-2 ring-rose-300 border-rose-300 bg-rose-50/30"
+                                : "ring-2 ring-emerald-300 border-emerald-300 bg-emerald-50/30"),
+                              draggedSlotId === slot.id && "ring-2 ring-emerald-300",
+                              slot.recipe
+                                ? "bg-white border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-300"
+                                : "bg-slate-50 border-dashed border-slate-300",
+                            )}
+                          >
+                            {isDropBlocked ? (
+                              <div className="absolute right-4 top-4 z-10 inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-rose-600">
+                                <Lock className="h-3 w-3" />
+                                Bloqueado
+                              </div>
+                            ) : null}
+                            {slot.isUserAdded ? (
+                              <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditMealBlockModal(slot.id)}
+                                  className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600"
+                                  title="Editar tipo de bloque"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveMealBlock(slot.id)}
+                                  className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                                  title="Eliminar bloque"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ) : null}
+                            {!slot.recipe ? (
+                              <div className="flex items-center justify-between h-20">
+                                <div className="flex items-center gap-4">
+                                  <div className="h-12 w-12 rounded-2xl bg-slate-200/50 flex items-center justify-center">
+                                    {slot.type === "desayuno" ? (
+                                      <Coffee className="h-6 w-6 text-slate-300" />
+                                    ) : (
+                                      <Sun className="h-6 w-6 text-slate-300" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <h4 className="font-black text-slate-400 uppercase tracking-widest text-xs leading-none mb-1">
+                                      {slot.label}
                                     </h4>
+                                    <p className="text-sm font-medium text-slate-300 italic">
+                                      Pendiente por generar...
+                                    </p>
+                                    <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                      <GripVertical className="h-3 w-3" />
+                                      Arrastrar
+                                    </div>
                                   </div>
-
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={() => clearRecipeFromSlot(currentDay, slot.id)}
-                                      className="p-2.5 bg-slate-50 text-slate-400 rounded-2xl hover:bg-rose-600 hover:text-white transition-all cursor-pointer"
-                                      title="Quitar plato de este bloque"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    className="text-slate-600 hover:bg-slate-100 rounded-xl font-black text-xs uppercase"
+                                    onClick={() => openQuickMealModal(currentDay, slot.id)}
+                                  >
+                                    <Pencil className="h-4 w-4 mr-1" />
+                                    Crear comida rápida
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    className="text-emerald-600 hover:bg-emerald-50 rounded-xl font-black text-xs uppercase"
+                                    onClick={() => openSlotEditor(currentDay, slot.id)}
+                                  >
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Filtrar platos
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col md:flex-row gap-6">
+                                <div className="h-32 w-full md:w-32 overflow-hidden rounded-3xl border border-slate-100 bg-slate-50 text-[0px] shadow-inner relative group-hover:scale-105 transition-transform">
+                                  <img
+                                    src={getRecipeImage(slot.recipe, slot.mealSection || slot.type)}
+                                    alt={slot.recipe.title}
+                                    className="absolute inset-0 h-full w-full object-cover"
+                                  />
+                                  {slot.type === "desayuno" ? "🥣" : "🍲"}
+                                  <div className="absolute -top-2 -right-2 bg-emerald-500 text-white p-1 rounded-full shadow-lg">
+                                    <CheckCircle2 className="h-4 w-4" />
                                   </div>
                                 </div>
 
-                                <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                                  {truncateText(slot.recipe.description, 160)}
-                                </p>
-                                <div className="space-y-1">
-                                  {slot.recipe.recommendedPortion ? (
-                                    <p className="text-xs font-black uppercase tracking-widest text-emerald-700">
-                                      Porcion: {slot.recipe.recommendedPortion}
+                                <div className="flex-1 space-y-3">
+                                  <div className="flex justify-between items-start">
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                          <GripVertical className="h-3 w-3" />
+                                          Arrastrar
+                                        </span>
+                                        <span className="text-[10px] font-black uppercase text-emerald-600 tracking-[0.2em]">
+                                          {slot.label}
+                                        </span>
+                                        <span
+                                          className={cn(
+                                            "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border",
+                                            slot.recipe.complexity === "simple"
+                                              ? "bg-blue-50 text-blue-600 border-blue-100"
+                                              : "bg-purple-50 text-purple-600 border-purple-100",
+                                          )}
+                                        >
+                                          {slot.recipe.complexity}
+                                        </span>
+                                      </div>
+                                      <h4 className="text-xl font-black text-slate-900 leading-tight">
+                                        {slot.recipe.title}
+                                      </h4>
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => clearRecipeFromSlot(currentDay, slot.id)}
+                                        className="p-2.5 bg-slate-50 text-slate-400 rounded-2xl hover:bg-rose-600 hover:text-white transition-all cursor-pointer"
+                                        title="Quitar plato de este bloque"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                                    {truncateText(slot.recipe.description, 160)}
+                                  </p>
+                                  {slot.recipe.extraIngredients?.length ? (
+                                    <p className="text-xs font-black text-amber-700">
+                                      Ingredientes añadidos: {slot.recipe.extraIngredients.join(", ")}
                                     </p>
                                   ) : null}
-                                  <Input
-                                    value={slot.recipe.recommendedPortion || ""}
-                                    onChange={(e) =>
-                                      handleSlotPortionChange(
-                                        currentDay,
-                                        slot.id,
-                                        e.target.value,
-                                      )
-                                    }
-                                    placeholder="Porciones (opcional)"
-                                    className="h-9 rounded-xl border-slate-200 bg-white text-xs"
-                                  />
-                                </div>
+                                  <div className="space-y-1">
+                                    {slot.recipe.recommendedPortion ? (
+                                      <p className="text-xs font-black uppercase tracking-widest text-emerald-700">
+                                        Porcion: {slot.recipe.recommendedPortion}
+                                      </p>
+                                    ) : null}
+                                    <Input
+                                      value={slot.recipe.recommendedPortion || ""}
+                                      onChange={(e) =>
+                                        handleSlotPortionChange(
+                                          currentDay,
+                                          slot.id,
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder="Porciones (opcional)"
+                                      className="h-9 rounded-xl border-slate-200 bg-white text-xs"
+                                    />
+                                  </div>
 
-                                <div className="flex flex-wrap gap-4 pt-2">
-                                  <div className="flex items-center gap-1.5 transition-all">
-                                    <Dumbbell className="h-3.5 w-3.5 text-slate-400" />
-                                    <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">
-                                      {slot.recipe.protein}g Prot
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5 transition-all">
-                                    <Flame className="h-3.5 w-3.5 text-slate-400" />
-                                    <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">
-                                      {slot.recipe.calories} kcal
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5 transition-all">
-                                    <Layers className="h-3.5 w-3.5 text-slate-400" />
-                                    <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">
-                                      {slot.recipe.carbs}g Cho
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5 transition-all">
-                                    <Droplet className="h-3.5 w-3.5 text-slate-400" />
-                                    <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">
-                                      {slot.recipe.fats}g Lip
-                                    </span>
+                                  <div className="flex flex-wrap gap-4 pt-2">
+                                    <div className="flex items-center gap-1.5 transition-all">
+                                      <Dumbbell className="h-3.5 w-3.5 text-slate-400" />
+                                      <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">
+                                        {slot.recipe.protein}g Prot
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 transition-all">
+                                      <Flame className="h-3.5 w-3.5 text-slate-400" />
+                                      <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">
+                                        {slot.recipe.calories} kcal
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 transition-all">
+                                      <Layers className="h-3.5 w-3.5 text-slate-400" />
+                                      <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">
+                                        {slot.recipe.carbs}g Cho
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 transition-all">
+                                      <Droplet className="h-3.5 w-3.5 text-slate-400" />
+                                      <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">
+                                        {slot.recipe.fats}g Lip
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          )}
-                        </div>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -3987,140 +4117,145 @@ export default function RecipesClient() {
 
                           return (
                             <div
-                            key={`${day}-${slot.id}`}
-                            draggable
-                            onDragStart={() => {
-                              setCurrentDay(day);
-                              setDraggedSlotId(slot.id);
-                            }}
-                            onDragEnd={() => setDraggedSlotId(null)}
-                            onDragOver={(e) => {
-                              e.preventDefault();
-                              setDropTargetKey(`${day}-${slot.id}`);
-                            }}
-                            onDragLeave={() => {
-                              if (dropTargetKey === `${day}-${slot.id}`) {
-                                setDropTargetKey(null);
-                              }
-                            }}
-                            onDrop={() => {
-                              handleSlotDrop(slot.id, day);
-                            }}
-                            className={cn(
-                              "rounded-2xl border p-4 transition-all cursor-pointer",
-                              isDropTarget &&
-                              (isDropBlocked
-                                ? "ring-2 ring-rose-300 border-rose-300 bg-rose-50/30"
-                                : "ring-2 ring-emerald-300 border-emerald-300 bg-emerald-50/30"),
-                              slot.recipe
-                                ? "border-slate-200 bg-slate-50"
-                                : "border-dashed border-slate-300 bg-white",
-                            )}
-                            onClick={() => openSlotEditor(day, slot.id)}
-                          >
-                            {isDropBlocked ? (
-                              <div className="mb-2 inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-rose-600">
-                                <Lock className="h-3 w-3" />
-                                Bloqueado
-                              </div>
-                            ) : null}
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-start gap-3">
-                                {slot.recipe ? (
-                                  <img
-                                    src={getRecipeImage(slot.recipe, slot.mealSection || slot.type)}
-                                    alt={slot.recipe.title}
-                                    className="mt-0.5 h-12 w-12 shrink-0 rounded-2xl border border-slate-200 object-cover"
-                                  />
-                                ) : null}
-                                <div>
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                    {slot.time} · {slot.label}
-                                  </p>
-                                  <p className="mt-1 text-sm font-black text-slate-900">
-                                    {slot.recipe?.title || "Sin alimento asignado"}
-                                  </p>
-                                  {slot.recipe?.description ? (
-                                    <p className="mt-1 text-xs font-medium text-slate-500">
-                                      {truncateText(slot.recipe.description, 90)}
-                                    </p>
-                                  ) : null}
-                                  {slot.recipe?.recommendedPortion ? (
-                                    <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
-                                      Porcion: {slot.recipe.recommendedPortion}
-                                    </p>
-                                  ) : null}
+                              key={`${day}-${slot.id}`}
+                              draggable
+                              onDragStart={() => {
+                                setCurrentDay(day);
+                                setDraggedSlotId(slot.id);
+                              }}
+                              onDragEnd={() => setDraggedSlotId(null)}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                setDropTargetKey(`${day}-${slot.id}`);
+                              }}
+                              onDragLeave={() => {
+                                if (dropTargetKey === `${day}-${slot.id}`) {
+                                  setDropTargetKey(null);
+                                }
+                              }}
+                              onDrop={() => {
+                                handleSlotDrop(slot.id, day);
+                              }}
+                              className={cn(
+                                "rounded-2xl border p-4 transition-all cursor-pointer",
+                                isDropTarget &&
+                                (isDropBlocked
+                                  ? "ring-2 ring-rose-300 border-rose-300 bg-rose-50/30"
+                                  : "ring-2 ring-emerald-300 border-emerald-300 bg-emerald-50/30"),
+                                slot.recipe
+                                  ? "border-slate-200 bg-slate-50"
+                                  : "border-dashed border-slate-300 bg-white",
+                              )}
+                              onClick={() => openSlotEditor(day, slot.id)}
+                            >
+                              {isDropBlocked ? (
+                                <div className="mb-2 inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-rose-600">
+                                  <Lock className="h-3 w-3" />
+                                  Bloqueado
+                                </div>
+                              ) : null}
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-start gap-3">
                                   {slot.recipe ? (
-                                    <Input
-                                      value={slot.recipe.recommendedPortion || ""}
-                                      onChange={(e) =>
-                                        handleSlotPortionChange(day, slot.id, e.target.value)
-                                      }
-                                      onClick={(e) => e.stopPropagation()}
-                                      placeholder="Porciones (opcional)"
-                                      className="mt-2 h-8 rounded-xl border-slate-200 bg-white text-xs"
+                                    <img
+                                      src={getRecipeImage(slot.recipe, slot.mealSection || slot.type)}
+                                      alt={slot.recipe.title}
+                                      className="mt-0.5 h-12 w-12 shrink-0 rounded-2xl border border-slate-200 object-cover"
                                     />
                                   ) : null}
-                                  <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
-                                    <GripVertical className="h-3 w-3" />
-                                    Arrastrar
+                                  <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                      {slot.time} · {slot.label}
+                                    </p>
+                                    <p className="mt-1 text-sm font-black text-slate-900">
+                                      {slot.recipe?.title || "Sin alimento asignado"}
+                                    </p>
+                                    {slot.recipe?.description ? (
+                                      <p className="mt-1 text-xs font-medium text-slate-500">
+                                        {truncateText(slot.recipe.description, 90)}
+                                      </p>
+                                    ) : null}
+                                    {slot.recipe?.extraIngredients?.length ? (
+                                      <p className="mt-1 text-[11px] font-black text-amber-700">
+                                        Ingredientes añadidos: {slot.recipe.extraIngredients.join(", ")}
+                                      </p>
+                                    ) : null}
+                                    {slot.recipe?.recommendedPortion ? (
+                                      <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                                        Porcion: {slot.recipe.recommendedPortion}
+                                      </p>
+                                    ) : null}
+                                    {slot.recipe ? (
+                                      <Input
+                                        value={slot.recipe.recommendedPortion || ""}
+                                        onChange={(e) =>
+                                          handleSlotPortionChange(day, slot.id, e.target.value)
+                                        }
+                                        onClick={(e) => e.stopPropagation()}
+                                        placeholder="Porciones (opcional)"
+                                        className="mt-2 h-8 rounded-xl border-slate-200 bg-white text-xs"
+                                      />
+                                    ) : null}
+                                    <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                      <GripVertical className="h-3 w-3" />
+                                      Arrastrar
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {slot.isUserAdded ? (
+                                <div className="flex items-center gap-2">
+                                  {slot.isUserAdded ? (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenEditMealBlockModal(slot.id, day);
+                                      }}
+                                      className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600"
+                                      title="Editar tipo de bloque"
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </button>
+                                  ) : null}
+                                  {slot.isUserAdded ? (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemoveMealBlock(slot.id, day);
+                                      }}
+                                      className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                                      title="Eliminar bloque"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  ) : null}
+                                  {slot.recipe ? (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        clearRecipeFromSlot(day, slot.id);
+                                      }}
+                                      className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                                      title="Quitar plato"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  ) : null}
                                   <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleOpenEditMealBlockModal(slot.id, day);
+                                      openQuickMealModal(day, slot.id);
                                     }}
-                                    className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600"
-                                    title="Editar tipo de bloque"
+                                    className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+                                    title="Crear comida rápida"
                                   >
-                                    <Pencil className="h-3.5 w-3.5" />
+                                    <Pencil className="h-4 w-4" />
                                   </button>
-                                ) : null}
-                                {slot.isUserAdded ? (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleRemoveMealBlock(slot.id, day);
-                                    }}
-                                    className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
-                                    title="Eliminar bloque"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                ) : null}
-                                {slot.recipe ? (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      clearRecipeFromSlot(day, slot.id);
-                                    }}
-                                    className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
-                                    title="Quitar plato"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                ) : null}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openQuickMealModal(day, slot.id);
-                                  }}
-                                  className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
-                                  title="Crear comida rápida"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </button>
+                                </div>
                               </div>
                             </div>
-                          </div>
                           );
                         })}
                       </div>
@@ -4206,18 +4341,39 @@ export default function RecipesClient() {
 
                     {selectedPatient ? (
                       <div className="pt-2 border-t border-slate-100">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        Metas del paciente
-                      </p>
-                      {patientNutritionGoals ? (
-                        <div className="mt-3 space-y-3">
-                          <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                            <div className="flex items-center justify-between">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                Objetivos editables
-                              </p>
-                              {isEditingPatientGoals ? (
-                                <div className="flex items-center gap-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          Metas del paciente
+                        </p>
+                        {patientNutritionGoals ? (
+                          <div className="mt-3 space-y-3">
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                              <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                  Objetivos editables
+                                </p>
+                                {isEditingPatientGoals ? (
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="outline"
+                                      className="h-8 rounded-xl px-3 text-[10px] font-black uppercase"
+                                      onClick={() => {
+                                        setTargetCalories(patientNutritionGoals.calories);
+                                        setTargetProtein(patientNutritionGoals.protein);
+                                        setTargetCarbs(patientNutritionGoals.carbs);
+                                        setTargetFats(patientNutritionGoals.fats);
+                                        setIsEditingPatientGoals(false);
+                                      }}
+                                    >
+                                      Cancelar
+                                    </Button>
+                                    <Button
+                                      className="h-8 rounded-xl bg-emerald-600 px-3 text-[10px] font-black uppercase text-white hover:bg-emerald-700"
+                                      onClick={assignPatientGoalsFromCurrentTargets}
+                                    >
+                                      Guardar
+                                    </Button>
+                                  </div>
+                                ) : (
                                   <Button
                                     variant="outline"
                                     className="h-8 rounded-xl px-3 text-[10px] font-black uppercase"
@@ -4226,139 +4382,118 @@ export default function RecipesClient() {
                                       setTargetProtein(patientNutritionGoals.protein);
                                       setTargetCarbs(patientNutritionGoals.carbs);
                                       setTargetFats(patientNutritionGoals.fats);
-                                      setIsEditingPatientGoals(false);
+                                      setIsEditingPatientGoals(true);
                                     }}
                                   >
-                                    Cancelar
+                                    Editar metas
                                   </Button>
-                                  <Button
-                                    className="h-8 rounded-xl bg-emerald-600 px-3 text-[10px] font-black uppercase text-white hover:bg-emerald-700"
-                                    onClick={assignPatientGoalsFromCurrentTargets}
-                                  >
-                                    Guardar
-                                  </Button>
-                                </div>
-                              ) : (
-                                <Button
-                                  variant="outline"
-                                  className="h-8 rounded-xl px-3 text-[10px] font-black uppercase"
-                                  onClick={() => {
-                                    setTargetCalories(patientNutritionGoals.calories);
-                                    setTargetProtein(patientNutritionGoals.protein);
-                                    setTargetCarbs(patientNutritionGoals.carbs);
-                                    setTargetFats(patientNutritionGoals.fats);
-                                    setIsEditingPatientGoals(true);
-                                  }}
-                                >
-                                  Editar metas
-                                </Button>
-                              )}
+                                )}
+                              </div>
+                              <div className="mt-3 grid grid-cols-2 gap-2">
+                                <Input
+                                  type="number"
+                                  value={targetCalories}
+                                  disabled={!isEditingPatientGoals}
+                                  onChange={(e) => setTargetCalories(Math.max(0, Number(e.target.value) || 0))}
+                                  placeholder="kcal"
+                                  className="h-9 rounded-xl border-slate-200 text-xs font-bold"
+                                />
+                                <Input
+                                  type="number"
+                                  value={targetProtein}
+                                  disabled={!isEditingPatientGoals}
+                                  onChange={(e) => setTargetProtein(Math.max(0, Number(e.target.value) || 0))}
+                                  placeholder="prot"
+                                  className="h-9 rounded-xl border-slate-200 text-xs font-bold"
+                                />
+                                <Input
+                                  type="number"
+                                  value={targetCarbs}
+                                  disabled={!isEditingPatientGoals}
+                                  onChange={(e) => setTargetCarbs(Math.max(0, Number(e.target.value) || 0))}
+                                  placeholder="cho"
+                                  className="h-9 rounded-xl border-slate-200 text-xs font-bold"
+                                />
+                                <Input
+                                  type="number"
+                                  value={targetFats}
+                                  disabled={!isEditingPatientGoals}
+                                  onChange={(e) => setTargetFats(Math.max(0, Number(e.target.value) || 0))}
+                                  placeholder="lip"
+                                  className="h-9 rounded-xl border-slate-200 text-xs font-bold"
+                                />
+                              </div>
                             </div>
-                            <div className="mt-3 grid grid-cols-2 gap-2">
-                              <Input
-                                type="number"
-                                value={targetCalories}
-                                disabled={!isEditingPatientGoals}
-                                onChange={(e) => setTargetCalories(Math.max(0, Number(e.target.value) || 0))}
-                                placeholder="kcal"
-                                className="h-9 rounded-xl border-slate-200 text-xs font-bold"
-                              />
-                              <Input
-                                type="number"
-                                value={targetProtein}
-                                disabled={!isEditingPatientGoals}
-                                onChange={(e) => setTargetProtein(Math.max(0, Number(e.target.value) || 0))}
-                                placeholder="prot"
-                                className="h-9 rounded-xl border-slate-200 text-xs font-bold"
-                              />
-                              <Input
-                                type="number"
-                                value={targetCarbs}
-                                disabled={!isEditingPatientGoals}
-                                onChange={(e) => setTargetCarbs(Math.max(0, Number(e.target.value) || 0))}
-                                placeholder="cho"
-                                className="h-9 rounded-xl border-slate-200 text-xs font-bold"
-                              />
-                              <Input
-                                type="number"
-                                value={targetFats}
-                                disabled={!isEditingPatientGoals}
-                                onChange={(e) => setTargetFats(Math.max(0, Number(e.target.value) || 0))}
-                                placeholder="lip"
-                                className="h-9 rounded-xl border-slate-200 text-xs font-bold"
-                              />
-                            </div>
-                          </div>
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                              Cumplimiento diario ({currentDay})
-                            </p>
-                            <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-black uppercase tracking-widest">
-                              <span className={dayTotalsWithSupplement.calories >= patientNutritionGoals.calories ? "text-emerald-600" : "text-slate-500"}>
-                                kcal {dayTotalsWithSupplement.calories}/{patientNutritionGoals.calories}
-                              </span>
-                              <span className={dayTotalsWithSupplement.protein >= patientNutritionGoals.protein ? "text-emerald-600" : "text-slate-500"}>
-                                prot {Math.round(dayTotalsWithSupplement.protein)}/{patientNutritionGoals.protein}
-                              </span>
-                              <span className={dayTotals.carbs >= patientNutritionGoals.carbs ? "text-emerald-600" : "text-slate-500"}>
-                                cho {Math.round(dayTotals.carbs)}/{patientNutritionGoals.carbs}
-                              </span>
-                              <span className={dayTotals.fats >= patientNutritionGoals.fats ? "text-emerald-600" : "text-slate-500"}>
-                                lip {Math.round(dayTotals.fats)}/{patientNutritionGoals.fats}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                              Cumplimiento semanal
-                            </p>
-                            <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-black uppercase tracking-widest">
-                              <span className={weekTotalsWithSupplement.calories >= patientNutritionGoals.calories * 7 ? "text-emerald-600" : "text-slate-500"}>
-                                kcal {weekTotalsWithSupplement.calories}/{patientNutritionGoals.calories * 7}
-                              </span>
-                              <span className={weekTotalsWithSupplement.protein >= patientNutritionGoals.protein * 7 ? "text-emerald-600" : "text-slate-500"}>
-                                prot {Math.round(weekTotalsWithSupplement.protein)}/{patientNutritionGoals.protein * 7}
-                              </span>
-                              <span className={weekTotals.carbs >= patientNutritionGoals.carbs * 7 ? "text-emerald-600" : "text-slate-500"}>
-                                cho {Math.round(weekTotals.carbs)}/{patientNutritionGoals.carbs * 7}
-                              </span>
-                              <span className={weekTotals.fats >= patientNutritionGoals.fats * 7 ? "text-emerald-600" : "text-slate-500"}>
-                                lip {Math.round(weekTotals.fats)}/{patientNutritionGoals.fats * 7}
-                              </span>
-                            </div>
-                          </div>
-                          {recommendedProteinRange ? (
-                            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
-                                Referencia proteína por peso
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                Cumplimiento diario ({currentDay})
                               </p>
-                              <p className="mt-1 text-xs font-bold text-emerald-900">
-                                {selectedPatientActivityLevel === "deportista"
-                                  ? "Deportista"
-                                  : "Sedentario"}: {recommendedProteinRange.min}g - {recommendedProteinRange.max}g/día
+                              <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-black uppercase tracking-widest">
+                                <span className={dayTotalsWithSupplement.calories >= patientNutritionGoals.calories ? "text-emerald-600" : "text-slate-500"}>
+                                  kcal {dayTotalsWithSupplement.calories}/{patientNutritionGoals.calories}
+                                </span>
+                                <span className={dayTotalsWithSupplement.protein >= patientNutritionGoals.protein ? "text-emerald-600" : "text-slate-500"}>
+                                  prot {Math.round(dayTotalsWithSupplement.protein)}/{patientNutritionGoals.protein}
+                                </span>
+                                <span className={dayTotals.carbs >= patientNutritionGoals.carbs ? "text-emerald-600" : "text-slate-500"}>
+                                  cho {Math.round(dayTotals.carbs)}/{patientNutritionGoals.carbs}
+                                </span>
+                                <span className={dayTotals.fats >= patientNutritionGoals.fats ? "text-emerald-600" : "text-slate-500"}>
+                                  lip {Math.round(dayTotals.fats)}/{patientNutritionGoals.fats}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                Cumplimiento semanal
                               </p>
-                              {proteinSupplementPerDay > 0 ? (
-                                <p className="mt-1 text-[11px] font-bold text-emerald-700">
-                                  Incluye suplemento: +{proteinSupplementPerDay}g/día.
+                              <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] font-black uppercase tracking-widest">
+                                <span className={weekTotalsWithSupplement.calories >= patientNutritionGoals.calories * 7 ? "text-emerald-600" : "text-slate-500"}>
+                                  kcal {weekTotalsWithSupplement.calories}/{patientNutritionGoals.calories * 7}
+                                </span>
+                                <span className={weekTotalsWithSupplement.protein >= patientNutritionGoals.protein * 7 ? "text-emerald-600" : "text-slate-500"}>
+                                  prot {Math.round(weekTotalsWithSupplement.protein)}/{patientNutritionGoals.protein * 7}
+                                </span>
+                                <span className={weekTotals.carbs >= patientNutritionGoals.carbs * 7 ? "text-emerald-600" : "text-slate-500"}>
+                                  cho {Math.round(weekTotals.carbs)}/{patientNutritionGoals.carbs * 7}
+                                </span>
+                                <span className={weekTotals.fats >= patientNutritionGoals.fats * 7 ? "text-emerald-600" : "text-slate-500"}>
+                                  lip {Math.round(weekTotals.fats)}/{patientNutritionGoals.fats * 7}
+                                </span>
+                              </div>
+                            </div>
+                            {recommendedProteinRange ? (
+                              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                                  Referencia proteína por peso
                                 </p>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
-                          <p className="text-xs font-bold text-amber-900">
-                            El paciente no tiene registradas metas de proteina, calorias, carbohidratos y grasas. La IA no las considerara.
-                          </p>
-                          <Button
-                            onClick={assignPatientGoalsFromCurrentTargets}
-                            disabled={!selectedPatient}
-                            className="mt-3 h-9 rounded-xl bg-amber-600 px-4 text-white hover:bg-amber-700"
-                          >
-                            Asignar
-                          </Button>
-                        </div>
-                      )}
+                                <p className="mt-1 text-xs font-bold text-emerald-900">
+                                  {selectedPatientActivityLevel === "deportista"
+                                    ? "Deportista"
+                                    : "Sedentario"}: {recommendedProteinRange.min}g - {recommendedProteinRange.max}g/día
+                                </p>
+                                {proteinSupplementPerDay > 0 ? (
+                                  <p className="mt-1 text-[11px] font-bold text-emerald-700">
+                                    Incluye suplemento: +{proteinSupplementPerDay}g/día.
+                                  </p>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                            <p className="text-xs font-bold text-amber-900">
+                              El paciente no tiene registradas metas de proteina, calorias, carbohidratos y grasas. La IA no las considerara.
+                            </p>
+                            <Button
+                              onClick={assignPatientGoalsFromCurrentTargets}
+                              disabled={!selectedPatient}
+                              className="mt-3 h-9 rounded-xl bg-amber-600 px-4 text-white hover:bg-amber-700"
+                            >
+                              Asignar
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ) : null}
                   </div>
@@ -4674,6 +4809,24 @@ export default function RecipesClient() {
               Completa lo mínimo para asignar una comida al bloque actual.
             </div>
 
+            {isGenerating ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm">
+                    <ChefHat className="h-5 w-5 animate-pulse text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-amber-800">
+                      La IA está cocinando tus platos...
+                    </p>
+                    <p className="text-xs font-medium text-amber-700">
+                      Esto puede tardar unos segundos según la cantidad de bloques.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="space-y-2">
               <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
                 Nombre *
@@ -4875,7 +5028,14 @@ export default function RecipesClient() {
                 onClick={() => void handleSubmitAiFill()}
                 disabled={isGenerating}
               >
-                {isGenerating ? "Generando..." : "Generar con IA"}
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Cocinando...
+                  </>
+                ) : (
+                  "Generar con IA"
+                )}
               </Button>
             </div>
           </div>
