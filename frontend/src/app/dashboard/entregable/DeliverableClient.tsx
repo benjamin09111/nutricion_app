@@ -518,9 +518,12 @@ export default function DeliverableClient() {
     const storedDraft = localStorage.getItem("nutri_active_draft");
     const storedPatient = localStorage.getItem("nutri_patient");
 
-    // Revisar si hay estado en memoria para el pop-up de bienvenida
+    // Revisar si hay estado en memoria para el pop-up de bienvenida.
+    // Si venimos desde "Continuar" en Carrito, omitir modal y tomar progreso actual.
     const isFlow = window.location.search.includes("flow=continue");
-    if (!isFlow && (storedDraft || storedPatient)) {
+    const continueIntent =
+      sessionStorage.getItem("nutri_deliverable_draft_decided") === "keep";
+    if (!isFlow && !continueIntent && (storedDraft || storedPatient)) {
       setHasDraftMemory(true);
       setShowInitModal(true);
     }
@@ -1199,6 +1202,50 @@ export default function DeliverableClient() {
             Si procedes de las etapas anteriores tu borrador se cargará automáticamente. De lo contrario, ¿Qué tipo de PDF te gustaría construir hoy?
           </p>
 
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+              Resumen de progreso actual
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  Dieta
+                </p>
+                <p className="mt-1 text-xs font-bold text-slate-700">
+                  {previousStagesSummary.diet.hasData
+                    ? `${previousStagesSummary.diet.foodCount} alimentos`
+                    : "Sin datos"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  Recetas
+                </p>
+                <p className="mt-1 text-xs font-bold text-slate-700">
+                  {hasRecipes ? "Plan cargado" : "Sin datos"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  Carrito
+                </p>
+                <p className="mt-1 text-xs font-bold text-slate-700">
+                  {previousStagesSummary.cart.hasData
+                    ? `${previousStagesSummary.cart.foodCount} items`
+                    : "Sin datos"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                  Paciente
+                </p>
+                <p className="mt-1 text-xs font-bold text-slate-700 truncate" title={previousStagesSummary.patient.name || ""}>
+                  {previousStagesSummary.patient.name || "Sin asignar"}
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid md:grid-cols-2 gap-4">
             <button
               onClick={() => {
@@ -1210,9 +1257,9 @@ export default function DeliverableClient() {
               <div className="h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
                 <RotateCcw className="h-6 w-6 text-indigo-600" />
               </div>
-              <h4 className="font-black text-indigo-900 text-lg">Retomar Progreso</h4>
+              <h4 className="font-black text-indigo-900 text-lg">Retomar progreso</h4>
               <p className="text-xs text-indigo-700/70 mt-2 font-medium">
-                Reanuda tu sesión o datos en tu Navegador.
+                Cargar el avance actual del proyecto y continuar.
               </p>
             </button>
 

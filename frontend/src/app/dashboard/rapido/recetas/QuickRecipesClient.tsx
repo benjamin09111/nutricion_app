@@ -77,15 +77,15 @@ type ImportedCreation = {
 
 const MEAL_SECTIONS = [
   "Desayuno",
-  "Colación AM",
+  "Colaci�n AM",
   "Almuerzo",
-  "Colación PM",
+  "Colaci�n PM",
   "Once",
   "Cena",
   "Post entreno",
 ];
 
-const DEFAULT_TITLE = "Receta rápida";
+const DEFAULT_TITLE = "Receta r�pida";
 
 const createIngredient = (): QuickIngredient => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -178,7 +178,7 @@ export default function QuickRecipesClient() {
         }
       } catch (error) {
         console.error(error);
-        toast.error("No se pudo cargar la receta rápida.");
+        toast.error("No se pudo cargar la receta r�pida.");
       }
     };
     loadCreation();
@@ -215,7 +215,7 @@ export default function QuickRecipesClient() {
   const handleSelectPatient = (patient: QuickPatient) => {
     setSelectedPatient(patient);
     setIsPatientModalOpen(false);
-    toast.success(`Paciente "${patient.fullName}" vinculado. Sus características se incluirán en la generación IA.`);
+    toast.success(`Paciente "${patient.fullName}" vinculado. Sus caracter�sticas se incluir�n en la generaci�n IA.`);
   };
 
   // -- Dishes CRUD --
@@ -342,7 +342,7 @@ export default function QuickRecipesClient() {
       }
     } catch (error) {
       console.error("AI generation error", error);
-      toast.error("No se pudo generar con IA. Revisa tu conexión o intenta más tarde.");
+      toast.error("No se pudo generar con IA. Revisa tu conexi�n o intenta m�s tarde.");
     } finally {
       setIsGenerating(false);
     }
@@ -358,7 +358,7 @@ export default function QuickRecipesClient() {
 
   const handleSaveToCreations = async () => {
     if (!title.trim()) {
-      toast.error("Por favor ingresa un título antes de guardar.");
+      toast.error("Por favor ingresa un t�tulo antes de guardar.");
       return;
     }
     setIsSaving(true);
@@ -377,7 +377,7 @@ export default function QuickRecipesClient() {
         },
         tags: ["rapido", "receta"],
       });
-      toast.success("Receta rápida guardada en creaciones.");
+      toast.success("Receta r�pida guardada en creaciones.");
       setIsSaveCreationModalOpen(false);
       setCreationDescription("");
     } catch (error: unknown) {
@@ -393,7 +393,7 @@ export default function QuickRecipesClient() {
   // -- Import Creation --
   const applyImportedCreation = (creation: ImportedCreation) => {
     if (creation.type !== "RECIPE") {
-      toast.error("Solo puedes importar recetas en este módulo.");
+      toast.error("Solo puedes importar recetas en este m�dulo.");
       return;
     }
     const content = (creation.content || {}) as any;
@@ -481,11 +481,11 @@ export default function QuickRecipesClient() {
     {
       id: "save",
       icon: Save,
-      label: "Guardar creación",
+      label: "Guardar creaci�n",
       variant: "slate",
       onClick: () => {
         if (!title.trim()) {
-          toast.error("Por favor ingresa un título antes de guardar.");
+          toast.error("Por favor ingresa un t�tulo antes de guardar.");
           return;
         }
         setIsSaveCreationModalOpen(true);
@@ -494,7 +494,7 @@ export default function QuickRecipesClient() {
     {
       id: "import",
       icon: Library,
-      label: "Importar creación",
+      label: "Importar creaci�n",
       variant: "slate",
       onClick: () => setIsImportCreationModalOpen(true),
     },
@@ -510,15 +510,15 @@ export default function QuickRecipesClient() {
   return (
     <>
       <ModuleLayout
-        title="Rápido"
-        description="Crea platos y recetas rápidamente. Guárdalos como plantillas reutilizables para tus pacientes."
-        step={{ number: "Express", label: "Receta rápida", icon: ChefHat, color: "text-amber-600" }}
+        title="R�pido"
+        description="Crea platos y recetas r�pidamente. Gu�rdalos como plantillas reutilizables para tus pacientes."
+        step={{ number: "Express", label: "Receta r�pida", icon: ChefHat, color: "text-amber-600" }}
         rightNavItems={actionDockItems}
         className="max-w-5xl"
         footer={
           <ModuleFooter>
             <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
-              Modo Express · Recetas reutilizables
+              Modo Express � Recetas reutilizables
             </div>
             <div className="flex items-center gap-3">
               <Button
@@ -526,7 +526,7 @@ export default function QuickRecipesClient() {
                 className="h-11 rounded-2xl border-slate-200"
                 onClick={() => {
                   if (!title.trim()) {
-                    toast.error("Por favor ingresa un tÃ­tulo antes de guardar.");
+                    toast.error("Por favor ingresa un título antes de guardar.");
                     return;
                   }
                   setIsSaveCreationModalOpen(true);
@@ -554,7 +554,7 @@ export default function QuickRecipesClient() {
               {/* Title Input */}
               <div className="flex-1">
                 <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                  Título de la receta
+                  T�tulo de la receta
                 </label>
                 <Input
                   id="quick-recipe-title"
@@ -587,7 +587,7 @@ export default function QuickRecipesClient() {
               <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-100 text-amber-700 text-xs">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 <span>
-                  Puedes importar un paciente para que la IA adapte los platos según sus restricciones, objetivos y características personales. Es opcional.
+                  Puedes importar un paciente para que la IA adapte los platos seg�n sus restricciones, objetivos y caracter�sticas personales. Es opcional.
                 </span>
               </div>
             )}
@@ -601,7 +601,7 @@ export default function QuickRecipesClient() {
             <Textarea
               value={nutritionistNotes}
               onChange={(e) => setNutritionistNotes(e.target.value)}
-              placeholder="Ej: Paciente vegetariana, evitar gluten, foco en proteínas, preferencia por preparaciones rápidas..."
+              placeholder="Ej: Paciente vegetariana, evitar gluten, foco en prote�nas, preferencia por preparaciones r�pidas..."
               className="min-h-[80px] rounded-xl border-slate-200 bg-slate-50 focus:bg-white text-sm"
               maxLength={600}
             />
@@ -680,12 +680,12 @@ export default function QuickRecipesClient() {
                   {/* Description */}
                   <div>
                     <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                      Descripción
+                      Descripci�n
                     </label>
                     <Textarea
                       value={dish.description}
                       onChange={(e) => updateDish(dish.id, "description", e.target.value)}
-                      placeholder="Descripción breve del plato..."
+                      placeholder="Descripci�n breve del plato..."
                       className="min-h-[64px] rounded-xl border-slate-200 bg-slate-50 focus:bg-white text-sm"
                       maxLength={400}
                     />
@@ -694,12 +694,12 @@ export default function QuickRecipesClient() {
                   {/* Preparation */}
                   <div>
                     <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                      Preparación
+                      Preparaci�n
                     </label>
                     <Textarea
                       value={dish.preparation}
                       onChange={(e) => updateDish(dish.id, "preparation", e.target.value)}
-                      placeholder="Pasos de preparación..."
+                      placeholder="Pasos de preparaci�n..."
                       className="min-h-[80px] rounded-xl border-slate-200 bg-slate-50 focus:bg-white text-sm"
                       maxLength={800}
                     />
@@ -709,7 +709,7 @@ export default function QuickRecipesClient() {
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                     <div className="col-span-2 sm:col-span-1">
                       <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                        Porción
+                        Porci�n
                       </label>
                       <Input
                         value={dish.recommendedPortion}
@@ -798,7 +798,7 @@ export default function QuickRecipesClient() {
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-500">
-            Al importar un paciente, sus restricciones y características se incluirán en el contexto de la IA para generar platos personalizados.
+            Al importar un paciente, sus restricciones y caracter�sticas se incluir�n en el contexto de la IA para generar platos personalizados.
             <span className="block mt-1 text-slate-400 text-xs">Este campo es opcional. Puedes crear recetas generales sin paciente.</span>
           </p>
 
@@ -887,7 +887,7 @@ export default function QuickRecipesClient() {
             <Textarea
               value={aiNotes}
               onChange={(e) => setAiNotes(e.target.value)}
-              placeholder="Ej: Crear 3 platos variados, alta proteína, preparación máx 20 min, sin fritos..."
+              placeholder="Ej: Crear 3 platos variados, alta prote�na, preparaci�n m�x 20 min, sin fritos..."
               className="min-h-[100px] rounded-xl border-slate-200 bg-slate-50 focus:bg-white text-sm"
               maxLength={400}
             />
@@ -923,7 +923,7 @@ export default function QuickRecipesClient() {
         description={creationDescription}
         onDescriptionChange={setCreationDescription}
         title={`Guardar "${title.trim() || DEFAULT_TITLE}"`}
-        subtitle="Añade una descripción para identificar esta receta más tarde. Se guardará en Mis Creaciones."
+        subtitle="A�ade una descripci�n para identificar esta receta m�s tarde. Se guardar� en Mis Creaciones."
         isSaving={isSaving}
       />
 

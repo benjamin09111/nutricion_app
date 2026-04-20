@@ -34,11 +34,9 @@ export function DashboardShellProvider({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    const storedValue = localStorage.getItem(STORAGE_KEY);
-    if (storedValue === "true") {
-      setIsSidebarCollapsedState(true);
-    }
+    // Always start expanded on session entry.
+    setIsSidebarCollapsedState(false);
+    localStorage.setItem(STORAGE_KEY, "false");
   }, []);
 
   const setSidebarCollapsed = useCallback((collapsed: boolean) => {

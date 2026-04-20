@@ -330,8 +330,8 @@ const MOCK_RECIPES: Recipe[] = [
   },
   {
     id: "r2",
-    title: "Risotto de Champiñones Proteico",
-    description: "Arroz cremoso con champiñones y trozos de pollo marinado.",
+    title: "Risotto de Champi�ones Proteico",
+    description: "Arroz cremoso con champi�ones y trozos de pollo marinado.",
     complexity: "elaborada",
     protein: 38,
     calories: 520,
@@ -340,7 +340,7 @@ const MOCK_RECIPES: Recipe[] = [
     source: "app",
     mainIngredients: ["Arroz", "Pollo"],
     mealSection: "cena",
-    ingredients: ["Arroz", "Pollo", "Champiñones", "Cebolla", "Vino Blanco"],
+    ingredients: ["Arroz", "Pollo", "Champi�ones", "Cebolla", "Vino Blanco"],
   },
   {
     id: "r3",
@@ -418,17 +418,17 @@ const DEFAULT_RECIPE_IMAGES: Record<string, string> = {
 const WEEKDAY_LABELS = [
   "Lunes",
   "Martes",
-  "Miércoles",
+  "Mi�rcoles",
   "Jueves",
   "Viernes",
-  "Sábado",
+  "S�bado",
   "Domingo",
 ];
 
 const createCycleDayLabels = (count: number) => {
   const safeCount = Math.max(1, Math.min(7, count));
   if (safeCount === 7) return [...WEEKDAY_LABELS];
-  return Array.from({ length: safeCount }, (_, i) => `Día ${i + 1}`);
+  return Array.from({ length: safeCount }, (_, i) => `D�a ${i + 1}`);
 };
 
 export default function RecipesClient() {
@@ -494,7 +494,7 @@ export default function RecipesClient() {
   // Chronobiology State
   const [wakeUpTime, setWakeUpTime] = useState("07:30");
   const [sleepTime, setSleepTime] = useState("23:00");
-  const [patientInfo, setPatientInfo] = useState<any>({ name: "Juan Pérez" });
+  const [patientInfo, setPatientInfo] = useState<any>({ name: "Juan P�rez" });
 
   // Nutritional Targets (Editable)
   const [targetProtein, setTargetProtein] = useState(180);
@@ -644,10 +644,13 @@ export default function RecipesClient() {
         : MANUAL_SLOT_ID_PATTERN.test(slot.id),
   });
 
-  const normalizeWeekSlots = (slotsByDay: Record<string, MealSlot[]>) => {
+  const normalizeWeekSlots = (
+    slotsByDay: Record<string, MealSlot[]>,
+    dayLabels: string[],
+  ) => {
     const normalized: Record<string, MealSlot[]> = {};
 
-    days.forEach((day) => {
+    dayLabels.forEach((day) => {
       normalized[day] = (slotsByDay[day] || []).map(normalizeMealSlot);
     });
 
@@ -1010,24 +1013,38 @@ export default function RecipesClient() {
   const applyRecipesContent = (content: any) => {
     if (!content) return;
 
+    const resolvedCycleDayCount = (() => {
+      if (typeof content.cycleDayCount === "number") {
+        return Math.max(1, Math.min(7, Math.round(content.cycleDayCount)));
+      }
+      if (content.weekSlots && typeof content.weekSlots === "object") {
+        const inferredCount = Object.keys(content.weekSlots).length;
+        if (inferredCount > 0) {
+          return Math.max(1, Math.min(7, inferredCount));
+        }
+      }
+      return cycleDayCount;
+    })();
+    const resolvedDayLabels = createCycleDayLabels(resolvedCycleDayCount);
+    const nextCurrentDay = resolvedDayLabels.includes(currentDay)
+      ? currentDay
+      : resolvedDayLabels[0];
+
     if (content.plannerView === "daily" || content.plannerView === "weekly") {
       setPlannerView(content.plannerView);
     }
-    if (typeof content.cycleDayCount === "number") {
-      setCycleDayCount(Math.max(1, Math.min(7, Math.round(content.cycleDayCount))));
-    } else if (content.weekSlots && typeof content.weekSlots === "object") {
-      const inferredCount = Object.keys(content.weekSlots).length;
-      if (inferredCount > 0) {
-        setCycleDayCount(Math.max(1, Math.min(7, inferredCount)));
-      }
-    }
+    setCycleDayCount(resolvedCycleDayCount);
+    setCurrentDay(nextCurrentDay);
     if (typeof content.mealCount === "number") {
       setMealCount(content.mealCount);
     }
     if (content.weekSlots) {
-      const normalizedWeekSlots = normalizeWeekSlots(content.weekSlots);
+      const normalizedWeekSlots = normalizeWeekSlots(
+        content.weekSlots,
+        resolvedDayLabels,
+      );
       setWeekSlots(normalizedWeekSlots);
-      const firstDaySlots = normalizedWeekSlots[days[0]];
+      const firstDaySlots = normalizedWeekSlots[resolvedDayLabels[0]];
       if (Array.isArray(firstDaySlots) && firstDaySlots.length >= 3) {
         setMealCount(firstDaySlots.length);
       }
@@ -1166,7 +1183,9 @@ export default function RecipesClient() {
           nextDraft.cart = cartCreation.content;
         }
 
-        if (recipeCreation?.content && !hasLocalRecipesDraft) {
+        if (hasLocalRecipesDraft && nextDraft?.recipes) {
+          applyRecipesContent(nextDraft.recipes);
+        } else if (recipeCreation?.content && !hasLocalRecipesDraft) {
           nextDraft.recipes = recipeCreation.content;
           applyRecipesContent(recipeCreation.content);
         }
@@ -1292,7 +1311,7 @@ export default function RecipesClient() {
   const handleUnlinkPatient = () => {
     setSelectedPatient(null);
     localStorage.removeItem("nutri_patient");
-    toast.info("Paciente desvinculado de esta sesión");
+    toast.info("Paciente desvinculado de esta sesi�n");
   };
 
   const normalizeAiValue = (value: string) =>
@@ -1525,36 +1544,36 @@ export default function RecipesClient() {
       "Tu tarea: completar bloques de comida faltantes.",
       "Usa solo alimentos de DIETA para desayuno, almuerzo, once y cena.",
       "Para bloques variables como merienda o extra puedes usar opciones simples fuera de DIETA si la regla lo permite.",
-      "No cuentes sal, condimentos ni básicos de cocción.",
+      "No cuentes sal, condimentos ni b�sicos de cocci�n.",
       "Toma como base principal allowedFoodsByDiet y nutritionistNotes.",
       "Usa chileExchangePortionGuide como referencia para porciones de intercambio en Chile.",
-      "Si existe patientProfile, ajusta porciones y complejidad según edad y características del paciente.",
+      "Si existe patientProfile, ajusta porciones y complejidad seg�n edad y caracter�sticas del paciente.",
       "Si existe patientGoals, prioriza cumplir metas de calorias/macros para el alcance solicitado (dia o semana).",
       "Prioriza alimentos y combinaciones comunes y faciles de conseguir en Chile (ferias y supermercados).",
       "Respeta restricciones alimentarias.",
       "Prefiere platos comunes, caseros, realistas, simples y con pocos ingredientes.",
       "Evita repetir platos ya usados o muy parecidos.",
-      "Devuelve solo JSON válido. Sin explicación.",
+      "Devuelve solo JSON v�lido. Sin explicaci�n.",
       "Cada receta debe incluir: slotId, mealSection, title, description, preparation, recommendedPortion, complexity, protein, calories, carbs, fats, ingredients, mainIngredients, extraIngredients.",
       "extraIngredients: ingredientes fuera de allowedFoodsByDiet. Si no hay, [].",
       "description: 1 frase.",
       "preparation: breve, clara, 2 a 4 pasos.",
       "complexity: simple o elaborada.",
-      "Agrega también meta.note y meta.replacementGuide.",
+      "Agrega tambi�n meta.note y meta.replacementGuide.",
     ].join("\n");
 
     const scopePrompt =
       aiFillScope === "day"
         ? [
-          "Completa solo los bloques vacíos del día indicado.",
+          "Completa solo los bloques vac�os del d�a indicado.",
           "No modifiques bloques ya completos.",
           'Devuelve JSON con forma {"recipes":[...],"meta":{"note":"string","replacementGuide":[{"mealSection":"string","suggestions":["string"]}]}}',
         ].join("\n")
         : [
-          "Completa solo los bloques vacíos de la semana.",
+          "Completa solo los bloques vac�os de la semana.",
           "No modifiques bloques ya completos.",
-          "Mantén variedad durante la semana.",
-          "Evita repetir el mismo plato en días consecutivos.",
+          "Mant�n variedad durante la semana.",
+          "Evita repetir el mismo plato en d�as consecutivos.",
           'Devuelve JSON con forma {"days":[{"day":"string","recipes":[...]}],"meta":{"note":"string","replacementGuide":[{"mealSection":"string","suggestions":["string"]}]}}',
         ].join("\n");
 
@@ -1590,7 +1609,7 @@ export default function RecipesClient() {
     }
 
     if (getEmptySlotsForScope(mode).length === 0) {
-      toast.info("No hay bloques vacíos para rellenar.");
+      toast.info("No hay bloques vac�os para rellenar.");
       return;
     }
 
@@ -1615,7 +1634,7 @@ export default function RecipesClient() {
     );
 
     if (candidateRecipes.length === 0) {
-      toast.error("No hay platos compatibles todavía.", {
+      toast.error("No hay platos compatibles todav�a.", {
         description:
           "Primero crea o comparte platos con ingredientes principales que coincidan con tu dieta.",
       });
@@ -1640,7 +1659,7 @@ export default function RecipesClient() {
             ],
         }));
         setCurrentSlots(newSlots);
-        toast.success(`¡Día ${currentDay} generado con éxito!`);
+        toast.success(`�D�a ${currentDay} generado con �xito!`);
       } else {
         const newWeekSlots = { ...weekSlots };
         days.forEach(day => {
@@ -1653,7 +1672,7 @@ export default function RecipesClient() {
           }));
         });
         setWeekSlots(newWeekSlots);
-        toast.success(`¡Plan semanal completo generado!`);
+        toast.success(`�Plan semanal completo generado!`);
       }
       setIsGenerating(false);
     }, 3000);
@@ -1669,37 +1688,37 @@ export default function RecipesClient() {
       "Tu tarea: completar bloques de comida faltantes.",
       "Usa solo alimentos de DIETA para desayuno, almuerzo, once y cena.",
       "Para bloques variables como merienda o extra puedes usar opciones simples fuera de DIETA si la regla lo permite.",
-      "No cuentes sal, condimentos ni básicos de cocción.",
+      "No cuentes sal, condimentos ni b�sicos de cocci�n.",
       "Toma como base principal allowedFoodsByDiet.",
       "Usa chileExchangePortionGuide como referencia para porciones de intercambio en Chile.",
-      "Si existe patientProfile, ajusta porciones y complejidad según edad y características del paciente.",
-      "Si existe patientGoals, prioriza cumplir metas de calorías/macros para el alcance solicitado (día o semana).",
-      "Si existe proteinSupplement, considera esos gramos diarios como proteína ya cubierta.",
-      "Prioriza alimentos y combinaciones comunes y fáciles de conseguir en Chile (ferias y supermercados).",
+      "Si existe patientProfile, ajusta porciones y complejidad seg�n edad y caracter�sticas del paciente.",
+      "Si existe patientGoals, prioriza cumplir metas de calor�as/macros para el alcance solicitado (d�a o semana).",
+      "Si existe proteinSupplement, considera esos gramos diarios como prote�na ya cubierta.",
+      "Prioriza alimentos y combinaciones comunes y f�ciles de conseguir en Chile (ferias y supermercados).",
       "Respeta restricciones alimentarias.",
       "Prefiere platos comunes, caseros, realistas, simples y con pocos ingredientes.",
       "Evita repetir platos ya usados o muy parecidos.",
-      "Devuelve solo JSON válido. Sin explicación.",
+      "Devuelve solo JSON v�lido. Sin explicaci�n.",
       "Cada receta debe incluir: slotId, mealSection, title, description, preparation, recommendedPortion, complexity, protein, calories, carbs, fats, ingredients, mainIngredients, extraIngredients.",
       "extraIngredients: ingredientes fuera de allowedFoodsByDiet. Si no hay, [].",
       "description: 1 frase.",
       "preparation: breve, clara, 2 a 4 pasos.",
       "complexity: simple o elaborada.",
-      "Agrega también meta.note y meta.replacementGuide.",
+      "Agrega tambi�n meta.note y meta.replacementGuide.",
     ].join("\n");
 
     const scopePrompt =
       payload.scope === "day"
         ? [
-          "Completa solo los bloques vacíos del día indicado.",
+          "Completa solo los bloques vac�os del d�a indicado.",
           "No modifiques bloques ya completos.",
           'Devuelve JSON con forma {"recipes":[...],"meta":{"note":"string","replacementGuide":[{"mealSection":"string","suggestions":["string"]}]}}',
         ].join("\n")
         : [
-          "Completa solo los bloques vacíos de la semana.",
+          "Completa solo los bloques vac�os de la semana.",
           "No modifiques bloques ya completos.",
-          "Mantén variedad durante la semana.",
-          "Evita repetir el mismo plato en días consecutivos.",
+          "Mant�n variedad durante la semana.",
+          "Evita repetir el mismo plato en d�as consecutivos.",
           'Devuelve JSON con forma {"days":[{"day":"string","recipes":[...]}],"meta":{"note":"string","replacementGuide":[{"mealSection":"string","suggestions":["string"]}]}}',
         ].join("\n");
 
@@ -1741,7 +1760,7 @@ export default function RecipesClient() {
       const normalizedSlot = normalizeAiValue(slotMealSection || "");
       const normalizedRecipe = normalizeAiValue(recipe.mealSection || "");
       if (!normalizedRecipe || normalizedRecipe !== normalizedSlot) {
-        throw new Error(`Sección incompatible en ${recipe.slotId}.`);
+        throw new Error(`Secci�n incompatible en ${recipe.slotId}.`);
       }
 
       const allIngredients = [...(recipe.ingredients || []), ...(recipe.mainIngredients || [])]
@@ -1795,7 +1814,7 @@ export default function RecipesClient() {
     const payload = buildAiFillPayload(aiFillScope);
     const token = getAuthToken();
     if (!token) {
-      toast.error("No se encontró sesión activa.");
+      toast.error("No se encontr� sesi�n activa.");
       return;
     }
 
@@ -1824,8 +1843,8 @@ export default function RecipesClient() {
       setShowAiFillModal(false);
       toast.success(
         aiFillScope === "day"
-          ? `IA completó los bloques vacíos de ${currentDay}.`
-          : "IA completó los bloques vacíos de la semana.",
+          ? `IA complet� los bloques vac�os de ${currentDay}.`
+          : "IA complet� los bloques vac�os de la semana.",
       );
     } catch (error: any) {
       console.error("AI FILL ERROR", error);
@@ -1833,13 +1852,13 @@ export default function RecipesClient() {
       const normalized = message.toLowerCase();
 
       if (
-        normalized.includes("límite de tokens") ||
+        normalized.includes("l�mite de tokens") ||
         normalized.includes("limite de tokens") ||
         normalized.includes("context length") ||
         normalized.includes("context_length_exceeded") ||
         normalized.includes("too many tokens")
       ) {
-        toast.error("La IA excedió el límite de tokens/contexto.", {
+        toast.error("La IA excedi� el l�mite de tokens/contexto.", {
           description:
             "Prueba rellenar menos bloques, o usa primero el modo diario y luego semanal.",
         });
@@ -1850,9 +1869,9 @@ export default function RecipesClient() {
         normalized.includes("resource_exhausted") ||
         normalized.includes("429")
       ) {
-        toast.error("Se alcanzÃ³ la cuota de la IA.", {
+        toast.error("Se alcanzó la cuota de la IA.", {
           description:
-            "Espera un momento y vuelve a intentar. Si persiste, revisa tu plan o lÃ­mites de Gemini.",
+            "Espera un momento y vuelve a intentar. Si persiste, revisa tu plan o límites de Gemini.",
         });
       } else {
         toast.error(message || "Error al completar con IA.");
@@ -1871,7 +1890,7 @@ export default function RecipesClient() {
     }
 
     if (getEmptySlotsForScope(mode).length === 0) {
-      toast.info("No hay bloques vacíos para rellenar.");
+      toast.info("No hay bloques vac�os para rellenar.");
       return;
     }
 
@@ -2041,7 +2060,7 @@ export default function RecipesClient() {
     const daySlots = weekSlots[quickMealTarget.day] || [];
     const targetSlot = daySlots.find((slot) => slot.id === quickMealTarget.slotId);
     if (!targetSlot) {
-      toast.error("No se encontró el bloque para crear la comida rápida.");
+      toast.error("No se encontr� el bloque para crear la comida r�pida.");
       return;
     }
 
@@ -2062,7 +2081,7 @@ export default function RecipesClient() {
           ? `quick-${crypto.randomUUID()}`
           : `quick-${Date.now()}`,
       title,
-      description: quickMealDraft.description.trim() || "Comida rápida creada manualmente.",
+      description: quickMealDraft.description.trim() || "Comida r�pida creada manualmente.",
       preparation: quickMealDraft.preparation.trim() || undefined,
       recommendedPortion: quickMealDraft.recommendedPortion.trim() || undefined,
       complexity: "simple",
@@ -2079,7 +2098,7 @@ export default function RecipesClient() {
     assignRecipeToSlot(quickMealTarget.day, quickMealTarget.slotId, quickRecipe);
     setShowQuickMealModal(false);
     setQuickMealTarget(null);
-    toast.success("Comida rápida creada y asignada al bloque.");
+    toast.success("Comida r�pida creada y asignada al bloque.");
   };
 
   const handleSlotPortionChange = (
@@ -2175,7 +2194,7 @@ export default function RecipesClient() {
 
   const handleOpenAddBlockModal = () => {
     if (currentSlots.length >= 6) {
-      toast.info("Ya alcanzaste el máximo de 6 bloques.");
+      toast.info("Ya alcanzaste el m�ximo de 6 bloques.");
       return;
     }
 
@@ -2197,7 +2216,7 @@ export default function RecipesClient() {
 
   const handleAddMealBlock = (mealSection: string) => {
     if (currentSlots.length >= 6) {
-      toast.info("Ya alcanzaste el máximo de 6 bloques.");
+      toast.info("Ya alcanzaste el m�ximo de 6 bloques.");
       return;
     }
 
@@ -2208,7 +2227,7 @@ export default function RecipesClient() {
         (slot) => (slot.mealSection || slot.type) === mealSection,
       )
     ) {
-      toast.info("Ese bloque principal ya existe en este día.");
+      toast.info("Ese bloque principal ya existe en este d�a.");
       return;
     }
 
@@ -2236,7 +2255,7 @@ export default function RecipesClient() {
     setWeekSlots((prev) => applyStructureToWeek(nextStructure, prev));
     setShowAddBlockModal(false);
     toast.success(
-      `Se agregó ${getSlotLabelFromMealSection(mealSection)} a toda la semana.`,
+      `Se agreg� ${getSlotLabelFromMealSection(mealSection)} a toda la semana.`,
     );
   };
 
@@ -2260,7 +2279,7 @@ export default function RecipesClient() {
           (slot.mealSection || slot.type) === mealSection,
       )
     ) {
-      toast.info("Ese bloque principal ya existe en este dÃ­a.");
+      toast.info("Ese bloque principal ya existe en este día.");
       return;
     }
 
@@ -2303,17 +2322,17 @@ export default function RecipesClient() {
 
     setMealCount(nextStructure.length);
     setWeekSlots((prev) => applyStructureToWeek(nextStructure, prev));
-    toast.success(`Se eliminÃ³ ${slot.label} de toda la semana.`);
+    toast.success(`Se eliminó ${slot.label} de toda la semana.`);
   };
 
   const handleAddMeriendaSection = () => {
     if (mealCount >= 6) {
-      toast.info("Ya alcanzaste el máximo de 6 comidas.");
+      toast.info("Ya alcanzaste el m�ximo de 6 comidas.");
       return;
     }
 
     handleMealCountChange(mealCount + 1);
-    toast.success("Se agregó una nueva merienda a toda la semana.");
+    toast.success("Se agreg� una nueva merienda a toda la semana.");
   };
 
   const reorderStructure = (
@@ -2354,7 +2373,7 @@ export default function RecipesClient() {
       if (recipe) {
         if (!isRecipeMealSectionCompatible(recipe, targetSlot)) {
           toast.error(
-            `Bloqueado: "${targetSlot?.label || "Bloque"}" solo acepta platos de ${targetSlot?.mealSection || targetSlot?.type || "su categoría"}.`,
+            `Bloqueado: "${targetSlot?.label || "Bloque"}" solo acepta platos de ${targetSlot?.mealSection || targetSlot?.type || "su categor�a"}.`,
           );
           setDraggedRecipeId(null);
           setDropTargetKey(null);
@@ -2465,7 +2484,7 @@ export default function RecipesClient() {
       ? proteinSupplement.gramsPerDay
       : 0;
 
-  // Suma todos los bloques/alimentos asignados al día activo.
+  // Suma todos los bloques/alimentos asignados al d�a activo.
   const dayTotals = useMemo(
     () => calculateDayTotals(weekSlots[currentDay] || []),
     [currentDay, weekSlots],
@@ -2580,14 +2599,14 @@ export default function RecipesClient() {
     nextCustomVariables = upsertCustomVariable(
       nextCustomVariables,
       "targetCalories",
-      "Calorías Meta",
+      "Calor�as Meta",
       String(goals.calories),
       "kcal",
     );
     nextCustomVariables = upsertCustomVariable(
       nextCustomVariables,
       "targetProtein",
-      "Proteína Meta",
+      "Prote�na Meta",
       String(goals.protein),
       "g",
     );
@@ -2669,7 +2688,7 @@ export default function RecipesClient() {
     return emptyBlocks;
   };
 
-  // Distribuye horarios automáticamente dejando la última comida 2h antes de dormir.
+  // Distribuye horarios autom�ticamente dejando la �ltima comida 2h antes de dormir.
   const redistributeMealTimes = () => {
     const [wakeH, wakeM] = wakeUpTime.split(":").map(Number);
     const [sleepH, sleepM] = sleepTime.split(":").map(Number);
@@ -2785,7 +2804,7 @@ export default function RecipesClient() {
       {
         id: "import-creation",
         icon: Library,
-        label: "Importar Creación",
+        label: "Importar Creaci�n",
         variant: "indigo",
         onClick: () => {
           setIsImportCreationModalOpen(true);
@@ -2876,7 +2895,7 @@ export default function RecipesClient() {
       if (type === "RECIPE") {
         if (!draft.diet) {
           toast.error("Primero importa una dieta", {
-            description: "Recetas y porciones necesita una dieta base antes de cargar una planificación.",
+            description: "Recetas y porciones necesita una dieta base antes de cargar una planificaci�n.",
           });
           return;
         }
@@ -2906,13 +2925,13 @@ export default function RecipesClient() {
 
         toast.success(`Metas sincronizadas desde ${type === "DIET" ? "Dieta" : "Carrito"}: "${creation.name}"`);
       } else if (type === "SHOPPING_LIST") {
-        toast.info("Este módulo depende de una dieta", {
+        toast.info("Este m�dulo depende de una dieta", {
           description: "Importa una dieta para habilitar Recetas y porciones.",
         });
       }
     } catch (e) {
       console.error("Error importing creation", e);
-      toast.error("Error al importar la creación.");
+      toast.error("Error al importar la creaci�n.");
     }
   };
 
@@ -2939,7 +2958,7 @@ export default function RecipesClient() {
               <ChefHat className="h-10 w-10 animate-pulse text-amber-600" />
             </div>
             <p className="mt-5 text-lg font-black text-slate-900">
-              La IA está cocinando...
+              La IA est� cocinando...
             </p>
             <p className="mt-1 text-sm font-medium text-slate-500">
               Preparando tus platos y porciones.
@@ -2949,7 +2968,7 @@ export default function RecipesClient() {
       ) : null}
       <ModuleLayout
         title="Recetas y Porciones"
-        description="En este apartado modificarás, en base a los alimentos anteriores, las cantidades de cada uno de forma diaria, semanal o mensual, y sus porciones en base a la documentación oficial."
+        description="En este apartado modificar�s, en base a los alimentos anteriores, las cantidades de cada uno de forma diaria, semanal o mensual, y sus porciones en base a la documentaci�n oficial."
         step={{
           number: 3,
           label: "Planes & Recetas (AI)",
@@ -2984,13 +3003,13 @@ export default function RecipesClient() {
                       return;
                     }
                     await persistRecipesCreation();
-                    toast.success("Creación guardada exitosamente");
+                    toast.success("Creaci�n guardada exitosamente");
                   } catch (error: any) {
                     toast.error(error?.message || "No se pudieron guardar las recetas.");
                   }
                 }}
               >
-                Guardar Creación
+                Guardar Creaci�n
               </Button>
 
               <Button
@@ -3004,7 +3023,7 @@ export default function RecipesClient() {
                     const emptyBlocks = getEmptyMealBlocks();
                     if (emptyBlocks.length > 0) {
                       const firstEmpty = emptyBlocks[0];
-                      toast.error("Aún hay bloques de comida vacíos.", {
+                      toast.error("A�n hay bloques de comida vac�os.", {
                         description: `${firstEmpty.day}: ${firstEmpty.label} (${firstEmpty.time}). Completa todos los bloques antes de continuar.`,
                       });
                       setCurrentDay(firstEmpty.day);
@@ -3083,8 +3102,8 @@ export default function RecipesClient() {
                   </h3>
                   <p className="mt-2 text-sm font-medium text-slate-600">
                     {hasSourceData
-                      ? `Esta etapa ya está conectada con ${assignedSourceSummary.toLowerCase()}. Puedes seguir construyendo sobre esa base o importar otra creación.`
-                      : "Aún no tienes una dieta o carrito asignado en esta etapa. Si quieres continuar con progreso previo, importa una creación antes de seguir."}
+                      ? `Esta etapa ya est� conectada con ${assignedSourceSummary.toLowerCase()}. Puedes seguir construyendo sobre esa base o importar otra creaci�n.`
+                      : "A�n no tienes una dieta o carrito asignado en esta etapa. Si quieres continuar con progreso previo, importa una creaci�n antes de seguir."}
                   </p>
                   <p className="mt-1 text-xs font-black uppercase tracking-widest text-slate-500">
                     {selectedPatient
@@ -3138,7 +3157,7 @@ export default function RecipesClient() {
                   Dieta requerida
                 </p>
                 <p className="text-sm font-medium text-amber-900">
-                  Recetas y porciones necesita una dieta importada con alimentos para habilitar la IA y la planificación.
+                  Recetas y porciones necesita una dieta importada con alimentos para habilitar la IA y la planificaci�n.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
@@ -3173,10 +3192,10 @@ export default function RecipesClient() {
               <div className="space-y-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
-                    Configuración de estructura
+                    Configuraci�n de estructura
                   </p>
                   <p className="mt-1 max-w-3xl text-sm font-medium leading-relaxed text-slate-500">
-                    Usa IA para proponer platos realistas según restricciones y alimentos disponibles, o completa la estructura manualmente.
+                    Usa IA para proponer platos realistas seg�n restricciones y alimentos disponibles, o completa la estructura manualmente.
                   </p>
                 </div>
 
@@ -3257,7 +3276,7 @@ export default function RecipesClient() {
 
               <div className="space-y-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
-                  Cronobiología
+                  Cronobiolog�a
                 </p>
                 <div className="grid grid-cols-2 gap-3 md:min-w-[260px]">
                   <div className="space-y-1">
@@ -3293,7 +3312,7 @@ export default function RecipesClient() {
                 </div>
                 <div className="flex flex-col">
                   <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1.5">
-                    Suplementación
+                    Suplementaci�n
                   </p>
                   <label className="flex items-center gap-2 cursor-pointer group">
                     <input
@@ -3308,7 +3327,7 @@ export default function RecipesClient() {
                       className="h-4 w-4 rounded-lg border-slate-300 text-emerald-600 focus:ring-emerald-500 transition-all cursor-pointer"
                     />
                     <span className="text-[11px] font-black uppercase tracking-tight text-slate-700 group-hover:text-emerald-700 transition-colors">
-                      Proteína Diaria
+                      Prote�na Diaria
                     </span>
                   </label>
                 </div>
@@ -3342,7 +3361,7 @@ export default function RecipesClient() {
                 </div>
                 <div className="max-w-[140px]">
                   <p className="text-[9px] font-bold text-slate-500 leading-tight italic">
-                    Este valor se restará del total diario de comidas.
+                    Este valor se restar� del total diario de comidas.
                   </p>
                 </div>
               </div>
@@ -3378,7 +3397,7 @@ export default function RecipesClient() {
                         className="rounded-xl border border-slate-300 bg-white p-3"
                       >
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          Platos sustitutos · {section}
+                          Platos sustitutos � {section}
                         </p>
                         <p className="mt-1 text-[11px] font-medium text-slate-500">
                           Marca como sustitutos en la biblioteca algunos platos de {section}.
@@ -3402,7 +3421,7 @@ export default function RecipesClient() {
                           ))}
                           {substituteRecipesBySection[section].length === 0 ? (
                             <span className="text-[11px] font-medium text-slate-400">
-                              Sin platos sustitutos aún.
+                              Sin platos sustitutos a�n.
                             </span>
                           ) : null}
                         </div>
@@ -3420,7 +3439,7 @@ export default function RecipesClient() {
                     Alimentos base considerados: {sourceFoods.length}
                   </div>
                   <div className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-600">
-                    La información anterior se conserva y este módulo solo suma estructura, porciones y distribución.
+                    La informaci�n anterior se conserva y este m�dulo solo suma estructura, porciones y distribuci�n.
                   </div>
                 </>
               ) : (
@@ -3456,7 +3475,7 @@ export default function RecipesClient() {
 
                   <div className="hidden rounded-3xl bg-slate-100 p-2 grid grid-cols-3 gap-2">
                     {[
-                      { id: "mine", label: "Míos", count: recipeTabCounts.mine },
+                      { id: "mine", label: "M�os", count: recipeTabCounts.mine },
                       { id: "community", label: "Comunidad", count: recipeTabCounts.community },
                       { id: "app", label: "App", count: recipeTabCounts.app },
                     ].map((tab) => (
@@ -3504,7 +3523,7 @@ export default function RecipesClient() {
                         onChange={(e) => setShowOnlyAddedRecipes(e.target.checked)}
                         className="h-4 w-4 rounded border-slate-300 text-slate-900"
                       />
-                      Ya añadidos
+                      Ya a�adidos
                     </label>
                   </div>
 
@@ -3550,7 +3569,7 @@ export default function RecipesClient() {
                         disabled={recipeLibraryPage === 1}
                         className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-slate-200 px-4 text-sm font-black text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        Atrás
+                        Atr�s
                       </button>
                       <p className="text-xs font-black uppercase tracking-widest text-slate-400">
                         {recipeLibraryPage} / {recipeLibraryTotalPages}
@@ -3620,7 +3639,7 @@ export default function RecipesClient() {
                                     showOnlyMyRecipes && "hidden",
                                   )}>
                                     {recipe.source === "mine"
-                                      ? "Mío"
+                                      ? "M�o"
                                       : recipe.source === "community"
                                         ? "Comunidad"
                                         : "App"}
@@ -3647,7 +3666,7 @@ export default function RecipesClient() {
                                   setPreviewRecipeId((prev) => (prev === recipe.id ? null : recipe.id));
                                 }}
                                 className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600"
-                                title="Ver información del plato"
+                                title="Ver informaci�n del plato"
                               >
                                 <Eye className="h-4 w-4" />
                               </button>
@@ -3681,7 +3700,7 @@ export default function RecipesClient() {
                               <div className="flex items-start justify-between gap-3">
                                 <div>
                                   <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
-                                    Vista rápida
+                                    Vista r�pida
                                   </p>
                                   <p className="mt-1 text-sm font-black text-slate-900">
                                     {recipe.title}
@@ -3700,12 +3719,12 @@ export default function RecipesClient() {
                                 </button>
                               </div>
                               <p className="mt-3 text-xs font-medium leading-relaxed text-slate-600">
-                                {truncateText(recipe.description, 220) || "Sin descripción disponible."}
+                                {truncateText(recipe.description, 220) || "Sin descripci�n disponible."}
                               </p>
                               {recipe.preparation ? (
                                 <div className="mt-3 rounded-2xl bg-slate-50 p-3">
                                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                    Preparación
+                                    Preparaci�n
                                   </p>
                                   <p className="mt-1 text-xs font-medium leading-relaxed text-slate-600">
                                     {truncateText(recipe.preparation, 260)}
@@ -3767,7 +3786,7 @@ export default function RecipesClient() {
                               : "border-slate-200 bg-white text-slate-500 hover:border-slate-300",
                           )}
                         >
-                          {num} día{num > 1 ? "s" : ""}
+                          {num} d�a{num > 1 ? "s" : ""}
                         </button>
                       ))}
                     </div>
@@ -3800,14 +3819,14 @@ export default function RecipesClient() {
                       >
                         <Zap className="h-4 w-4" />
                         {isGenerating && aiFillScope === "day"
-                          ? "Generando día..."
-                          : "Rellenar día con IA"}
+                          ? "Generando d�a..."
+                          : "Rellenar d�a con IA"}
                       </Button>
                     </div>
                     <div className="flex items-center gap-2 pl-2">
                       <Clock className="h-4 w-4 text-slate-400" />
                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        Despierta · {wakeUpTime}
+                        Despierta � {wakeUpTime}
                       </p>
                     </div>
                     {currentSlots.map((slot) => {
@@ -3939,7 +3958,7 @@ export default function RecipesClient() {
                                     onClick={() => openQuickMealModal(currentDay, slot.id)}
                                   >
                                     <Pencil className="h-4 w-4 mr-1" />
-                                    Crear comida rápida
+                                    Crear comida r�pida
                                   </Button>
                                   <Button
                                     variant="ghost"
@@ -3959,7 +3978,7 @@ export default function RecipesClient() {
                                     alt={slot.recipe.title}
                                     className="absolute inset-0 h-full w-full object-cover"
                                   />
-                                  {slot.type === "desayuno" ? "🥣" : "🍲"}
+                                  {slot.type === "desayuno" ? "??" : "??"}
                                   <div className="absolute -top-2 -right-2 bg-emerald-500 text-white p-1 rounded-full shadow-lg">
                                     <CheckCircle2 className="h-4 w-4" />
                                   </div>
@@ -4008,7 +4027,7 @@ export default function RecipesClient() {
                                   </p>
                                   {slot.recipe.extraIngredients?.length ? (
                                     <p className="text-xs font-black text-amber-700">
-                                      Ingredientes añadidos: {slot.recipe.extraIngredients.join(", ")}
+                                      Ingredientes a�adidos: {slot.recipe.extraIngredients.join(", ")}
                                     </p>
                                   ) : null}
                                   <div className="space-y-1">
@@ -4067,7 +4086,7 @@ export default function RecipesClient() {
                     <div className="flex items-center gap-2 pl-2">
                       <Moon className="h-4 w-4 text-slate-400" />
                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        Duerme · {sleepTime}
+                        Duerme � {sleepTime}
                       </p>
                     </div>
                     <div className="flex justify-center pt-2">
@@ -4092,7 +4111,7 @@ export default function RecipesClient() {
                       <div className="mb-4 flex items-center justify-between">
                         <div>
                           <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
-                            Día
+                            D�a
                           </p>
                           <h4 className="text-lg font-black text-slate-900">{day}</h4>
                         </div>
@@ -4165,7 +4184,7 @@ export default function RecipesClient() {
                                   ) : null}
                                   <div>
                                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                      {slot.time} · {slot.label}
+                                      {slot.time} � {slot.label}
                                     </p>
                                     <p className="mt-1 text-sm font-black text-slate-900">
                                       {slot.recipe?.title || "Sin alimento asignado"}
@@ -4177,7 +4196,7 @@ export default function RecipesClient() {
                                     ) : null}
                                     {slot.recipe?.extraIngredients?.length ? (
                                       <p className="mt-1 text-[11px] font-black text-amber-700">
-                                        Ingredientes añadidos: {slot.recipe.extraIngredients.join(", ")}
+                                        Ingredientes a�adidos: {slot.recipe.extraIngredients.join(", ")}
                                       </p>
                                     ) : null}
                                     {slot.recipe?.recommendedPortion ? (
@@ -4249,7 +4268,7 @@ export default function RecipesClient() {
                                       openQuickMealModal(day, slot.id);
                                     }}
                                     className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
-                                    title="Crear comida rápida"
+                                    title="Crear comida r�pida"
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </button>
@@ -4272,7 +4291,7 @@ export default function RecipesClient() {
                 <div className="relative z-10 space-y-6">
                   <div className="text-center space-y-1">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Balance del día ({currentDay})
+                      Balance del d�a ({currentDay})
                     </p>
                     <h3 className="text-3xl font-black text-slate-900">
                       {dayTotalsWithSupplement.calories}
@@ -4286,7 +4305,7 @@ export default function RecipesClient() {
                     {/* Protein Progress */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        <span>Proteína</span>
+                        <span>Prote�na</span>
                         <span className="text-emerald-600">
                           {Math.round(dayTotalsWithSupplement.protein)}g / {targetProtein}g
                         </span>
@@ -4465,16 +4484,16 @@ export default function RecipesClient() {
                             {recommendedProteinRange ? (
                               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
-                                  Referencia proteína por peso
+                                  Referencia prote�na por peso
                                 </p>
                                 <p className="mt-1 text-xs font-bold text-emerald-900">
                                   {selectedPatientActivityLevel === "deportista"
                                     ? "Deportista"
-                                    : "Sedentario"}: {recommendedProteinRange.min}g - {recommendedProteinRange.max}g/día
+                                    : "Sedentario"}: {recommendedProteinRange.min}g - {recommendedProteinRange.max}g/d�a
                                 </p>
                                 {proteinSupplementPerDay > 0 ? (
                                   <p className="mt-1 text-[11px] font-bold text-emerald-700">
-                                    Incluye suplemento: +{proteinSupplementPerDay}g/día.
+                                    Incluye suplemento: +{proteinSupplementPerDay}g/d�a.
                                   </p>
                                 ) : null}
                               </div>
@@ -4523,7 +4542,7 @@ export default function RecipesClient() {
 
                   <div className="rounded-2xl bg-slate-100 p-1.5 grid grid-cols-3 gap-1.5">
                     {[
-                      { id: "mine", label: "Míos", count: recipeTabCounts.mine },
+                      { id: "mine", label: "M�os", count: recipeTabCounts.mine },
                       { id: "community", label: "Com.", count: recipeTabCounts.community },
                       { id: "app", label: "App", count: recipeTabCounts.app },
                     ].map((tab) => (
@@ -4642,7 +4661,7 @@ export default function RecipesClient() {
                       Ajustar bloque
                     </h3>
                     <p className="text-xs font-medium text-slate-500 tracking-widest uppercase">
-                      Agrega o cambia alimentos dentro de este bloque del día.
+                      Agrega o cambia alimentos dentro de este bloque del d�a.
                     </p>
                   </div>
                 </div>
@@ -4668,13 +4687,13 @@ export default function RecipesClient() {
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="rounded-3xl bg-slate-100 p-2 grid grid-cols-3 gap-2 flex-1">
                     {[
-                      { id: "mine", label: "Míos", count: recipeTabCounts.mine },
+                      { id: "mine", label: "M�os", count: recipeTabCounts.mine },
                       {
                         id: "community",
                         label: "Comunidad",
                         count: recipeTabCounts.community,
                       },
-                      { id: "app", label: "Aplicación", count: recipeTabCounts.app },
+                      { id: "app", label: "Aplicaci�n", count: recipeTabCounts.app },
                     ].map((tab) => (
                       <button
                         key={tab.id}
@@ -4708,7 +4727,7 @@ export default function RecipesClient() {
                     ? sourceFoods.length > 0
                       ? "Mostrando solo platos cuyos ingredientes principales coinciden con los alimentos cargados en la dieta."
                       : "Activa la dieta o el carrito primero para detectar coincidencias por ingredientes principales."
-                    : "Viendo todos los platos disponibles en esta pestaña."}
+                    : "Viendo todos los platos disponibles en esta pesta�a."}
                 </div>
 
                 <div className="space-y-3">
@@ -4744,7 +4763,7 @@ export default function RecipesClient() {
                       No encontramos platos en esta vista.
                     </p>
                     <p className="mt-2 text-sm font-medium text-slate-500">
-                      Ajusta la búsqueda, cambia de pestaña o desactiva el filtro de coincidencias.
+                      Ajusta la b�squeda, cambia de pesta�a o desactiva el filtro de coincidencias.
                     </p>
                   </div>
                 ) : null}
@@ -4758,7 +4777,7 @@ export default function RecipesClient() {
                     >
                       <div className="flex items-center gap-4">
                         <div className="h-14 w-14 bg-white rounded-2xl border border-slate-200 flex items-center justify-center text-2xl shadow-sm">
-                          🥗
+                          ??
                         </div>
                         <div>
                           <h5 className="font-black text-slate-900 leading-none mb-1">
@@ -4766,10 +4785,10 @@ export default function RecipesClient() {
                           </h5>
                           <div className="flex gap-2">
                             <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter">
-                              {r.protein}g Proteína
+                              {r.protein}g Prote�na
                             </span>
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
-                              •
+                              �
                             </span>
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
                               {r.complexity}
@@ -4802,11 +4821,11 @@ export default function RecipesClient() {
             setShowQuickMealModal(false);
             setQuickMealTarget(null);
           }}
-          title="Crear comida rápida"
+          title="Crear comida r�pida"
         >
           <div className="space-y-4">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-600">
-              Completa lo mínimo para asignar una comida al bloque actual.
+              Completa lo m�nimo para asignar una comida al bloque actual.
             </div>
 
             {isGenerating ? (
@@ -4817,10 +4836,10 @@ export default function RecipesClient() {
                   </div>
                   <div>
                     <p className="text-sm font-black text-amber-800">
-                      La IA está cocinando tus platos...
+                      La IA est� cocinando tus platos...
                     </p>
                     <p className="text-xs font-medium text-amber-700">
-                      Esto puede tardar unos segundos según la cantidad de bloques.
+                      Esto puede tardar unos segundos seg�n la cantidad de bloques.
                     </p>
                   </div>
                 </div>
@@ -4843,14 +4862,14 @@ export default function RecipesClient() {
 
             <div className="space-y-2">
               <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                Descripción
+                Descripci�n
               </label>
               <Textarea
                 value={quickMealDraft.description}
                 onChange={(e) =>
                   setQuickMealDraft((prev) => ({ ...prev, description: e.target.value }))
                 }
-                placeholder="Descripción breve (opcional)"
+                placeholder="Descripci�n breve (opcional)"
                 className="min-h-[84px] rounded-2xl border-slate-200"
               />
             </div>
@@ -4864,7 +4883,7 @@ export default function RecipesClient() {
                     recommendedPortion: e.target.value,
                   }))
                 }
-                placeholder="Porción (opcional)"
+                placeholder="Porci�n (opcional)"
                 className="h-10 rounded-xl border-slate-200 text-xs"
               />
               <Input
@@ -4872,7 +4891,7 @@ export default function RecipesClient() {
                 onChange={(e) =>
                   setQuickMealDraft((prev) => ({ ...prev, preparation: e.target.value }))
                 }
-                placeholder="Preparación (opcional)"
+                placeholder="Preparaci�n (opcional)"
                 className="h-10 rounded-xl border-slate-200 text-xs"
               />
             </div>
@@ -4935,7 +4954,7 @@ export default function RecipesClient() {
                 className="rounded-2xl bg-emerald-600 hover:bg-emerald-700"
                 onClick={submitQuickMeal}
               >
-                Guardar comida rápida
+                Guardar comida r�pida
               </Button>
             </div>
           </div>
@@ -4947,17 +4966,17 @@ export default function RecipesClient() {
             if (isGenerating) return;
             setShowAiFillModal(false);
           }}
-          title={aiFillScope === "day" ? "Rellenar día con IA" : "Rellenar semana con IA"}
+          title={aiFillScope === "day" ? "Rellenar d�a con IA" : "Rellenar semana con IA"}
         >
           <div className="space-y-5">
             <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-slate-700">
               <p className="font-black text-slate-900">
                 {aiFillScope === "day"
-                  ? `Se completarán los bloques vacíos de ${currentDay}.`
-                  : "Se completarán los bloques vacíos de toda la semana."}
+                  ? `Se completar�n los bloques vac�os de ${currentDay}.`
+                  : "Se completar�n los bloques vac�os de toda la semana."}
               </p>
               <p className="mt-2">
-                Bloques pendientes: {getEmptySlotsForScope(aiFillScope).length} · Alimentos base detectados: {sourceFoods.length}
+                Bloques pendientes: {getEmptySlotsForScope(aiFillScope).length} � Alimentos base detectados: {sourceFoods.length}
               </p>
             </div>
 
@@ -4968,7 +4987,7 @@ export default function RecipesClient() {
               <Textarea
                 value={aiNutritionistNotes}
                 onChange={(e) => setAiNutritionistNotes(e.target.value)}
-                placeholder="Ej: más desayunos salados, evitar huevo de noche..."
+                placeholder="Ej: m�s desayunos salados, evitar huevo de noche..."
                 className="min-h-[96px] rounded-2xl border-slate-200"
               />
             </div>
@@ -4985,7 +5004,7 @@ export default function RecipesClient() {
                 >
                   <option value="very-simple">Muy simples</option>
                   <option value="simple">Simples</option>
-                  <option value="varied">Más variadas</option>
+                  <option value="varied">M�s variadas</option>
                 </select>
               </div>
 
@@ -4998,7 +5017,7 @@ export default function RecipesClient() {
                   onChange={(e) => setAiTimeStyle(e.target.value as AiTimeStyle)}
                   className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none"
                 >
-                  <option value="quick">Rápidas</option>
+                  <option value="quick">R�pidas</option>
                   <option value="normal">Normales</option>
                 </select>
               </div>
@@ -5051,7 +5070,7 @@ export default function RecipesClient() {
         >
           <div className="space-y-4">
             <p className="text-sm text-slate-500">
-              Elige qué tipo de bloque quieres sumar a toda la semana.
+              Elige qu� tipo de bloque quieres sumar a toda la semana.
             </p>
 
             <div className="grid gap-3">
@@ -5085,7 +5104,7 @@ export default function RecipesClient() {
               ? availableMealSectionsForEditing.length === 0
               : availableMealSectionsToAdd.length === 0) ? (
               <div className="rounded-2xl bg-slate-50 px-4 py-4 text-sm font-bold text-slate-500">
-                No hay más tipos disponibles para agregar con la estructura actual.
+                No hay m�s tipos disponibles para agregar con la estructura actual.
               </div>
             ) : null}
           </div>
@@ -5146,7 +5165,7 @@ export default function RecipesClient() {
                         {patient.fullName}
                       </h3>
                       <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
-                        {patient.email || "Sin email"} •{" "}
+                        {patient.email || "Sin email"} �{" "}
                         {patient.weight
                           ? `${patient.weight}kg`
                           : "Peso no reg."}
@@ -5199,7 +5218,7 @@ export default function RecipesClient() {
         description={creationDescription}
         onDescriptionChange={setCreationDescription}
         title="Guardar recetas"
-        subtitle="Añade una breve descripción para reconocer estas recetas más tarde."
+        subtitle="A�ade una breve descripci�n para reconocer estas recetas m�s tarde."
       />
     </>
   );
