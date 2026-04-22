@@ -1613,18 +1613,31 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       {/* Tabs Navigation */}
       <div className="flex p-1 bg-slate-100/50 rounded-2xl w-full lg:w-fit border border-slate-200 backdrop-blur-sm overflow-x-auto no-scrollbar scroll-smooth">
-        {(["General", "Consultas", "Progreso"] as TabType[]).map((tab) => (
+        {([
+          { label: "General", disabled: false },
+          { label: "Consultas", disabled: false },
+          { label: "Progreso", disabled: false },
+          { label: "Exámenes", disabled: true },
+        ] as Array<{ label: TabType | "Exámenes"; disabled: boolean }>).map((tab) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
+            key={tab.label}
+            onClick={() => {
+              if (!tab.disabled) setActiveTab(tab.label as TabType);
+            }}
+            disabled={tab.disabled}
             className={cn(
               "px-6 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-300 cursor-pointer whitespace-nowrap flex-1 lg:flex-none",
-              activeTab === tab
+              tab.disabled
+                ? "text-slate-300 bg-slate-100/80 cursor-not-allowed"
+                : activeTab === tab.label
                 ? "bg-white text-emerald-700 shadow-sm ring-1 ring-slate-200/50"
                 : "text-slate-500 hover:text-slate-700 hover:bg-white/50",
             )}
           >
-            {tab}
+            <span className="inline-flex items-center gap-1.5">
+              {tab.label}
+              {tab.disabled && <Lock className="h-3.5 w-3.5" />}
+            </span>
           </button>
         ))}
       </div>

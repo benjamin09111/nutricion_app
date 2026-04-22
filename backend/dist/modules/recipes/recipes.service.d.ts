@@ -2,6 +2,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { EstimateMacrosDto } from './dto/estimate-macros.dto';
 import { AiFillRecipesDto } from './dto/ai-fill-recipes.dto';
+import { QuickAiFillRecipesDto } from './dto/quick-ai-fill-recipes.dto';
 import { CacheService } from '../../common/services/cache.service';
 type AiRecipeOutput = {
     slotId: string;
@@ -59,6 +60,16 @@ export declare class RecipesService {
     private validateReplacementGuide;
     private validateWeekVariety;
     fillWithAi(userId: string, dto: AiFillRecipesDto): Promise<AiFillDayResponse | AiFillWeekResponse>;
+    private sanitizeStringList;
+    private parseQuickAiResponse;
+    private normalizeQuickDish;
+    private buildQuickAiPrompt;
+    quickFillWithAi(userId: string, dto: QuickAiFillRecipesDto): Promise<{
+        dishes: any;
+        meta: {
+            note: any;
+        };
+    }>;
     create(userId: string, createDto: CreateRecipeDto): Promise<{
         ingredients: ({
             ingredient: {

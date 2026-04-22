@@ -32,7 +32,7 @@ export function SaveCreationModal({
           <p className="text-sm font-medium text-slate-600">{subtitle}</p>
           <Textarea
             value={description}
-            onChange={(e) => onDescriptionChange(e.target.value)}
+            onChange={(event) => onDescriptionChange(event.target.value)}
             placeholder="Ej: Plan inicial para paciente con foco en ordenar horarios y mejorar adherencia."
             className="min-h-[120px] rounded-xl border-slate-200 bg-slate-50 px-4 py-3 focus:bg-white"
             maxLength={240}

@@ -1,8 +1,6 @@
 import React from "react";
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 
-// -- Data model aligned with QuickDish in QuickRecipesClient --
-
 export interface QuickRecipeIngredientPdf {
   name: string;
   quantity?: string;
@@ -23,13 +21,17 @@ export interface QuickDishPdf {
 
 export interface QuickRecipesPdfData {
   title: string;
+  dietName?: string;
   patientName?: string | null;
   nutritionistNotes?: string;
+  allowedFoodsMain?: string[];
+  restrictedFoods?: string[];
+  specialConsiderations?: string;
+  referenceDishes?: string[];
+  resources?: string[];
   dishes: QuickDishPdf[];
   generatedAt?: string;
 }
-
-// -- Styles --
 
 const styles = StyleSheet.create({
   page: {
@@ -62,10 +64,18 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: "row",
     gap: 12,
+    flexWrap: "wrap",
   },
   meta: {
     fontSize: 8,
     color: "#64748b",
+  },
+  infoBox: {
+    marginBottom: 8,
+    padding: 8,
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: 4,
   },
   notesBox: {
     marginBottom: 10,
@@ -74,12 +84,24 @@ const styles = StyleSheet.create({
     border: "1px solid #fde68a",
     borderRadius: 4,
   },
+  boxLabel: {
+    fontSize: 7,
+    fontFamily: "Helvetica-Bold",
+    color: "#475569",
+    textTransform: "uppercase",
+    marginBottom: 3,
+  },
   notesLabel: {
     fontSize: 7,
     fontFamily: "Helvetica-Bold",
     color: "#92400e",
     textTransform: "uppercase",
     marginBottom: 3,
+  },
+  boxText: {
+    fontSize: 8,
+    color: "#334155",
+    lineHeight: 1.5,
   },
   notesText: {
     fontSize: 8,
@@ -140,7 +162,6 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     color: "#374151",
     lineHeight: 1.55,
-    whiteSpace: "pre-wrap",
   },
   macroRow: {
     flexDirection: "row",
@@ -228,35 +249,71 @@ const styles = StyleSheet.create({
   },
 });
 
-// -- Helper to safely format a macro value --
 function formatMacro(value: number | string | undefined): string {
   const num = Number(value);
   if (!value || !Number.isFinite(num)) return "-";
   return String(Math.round(num));
 }
 
-// -- Component --
+const joinList = (items?: string[]) =>
+  Array.isArray(items) && items.length > 0 ? items.join(" · ") : "";
 
 export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData }) {
   const generatedAt = data.generatedAt || new Date().toLocaleDateString("es-CL");
+  const allowedFoods = joinList(data.allowedFoodsMain);
+  const restrictedFoods = joinList(data.restrictedFoods);
+  const referenceDishes = joinList(data.referenceDishes);
+  const resources = joinList(data.resources);
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.brand}>NutriSaaS</Text>
           <Text style={styles.docTitle}>{data.title || "Recetas Rápidas"}</Text>
           <View style={styles.metaRow}>
-            {data.patientName ? (
-              <Text style={styles.meta}>Paciente: {data.patientName}</Text>
-            ) : null}
+            {data.dietName ? <Text style={styles.meta}>Dieta: {data.dietName}</Text> : null}
+            {data.patientName ? <Text style={styles.meta}>Paciente: {data.patientName}</Text> : null}
             <Text style={styles.meta}>Generado: {generatedAt}</Text>
             <Text style={styles.meta}>{data.dishes.length} plato(s)</Text>
           </View>
         </View>
 
-        {/* Nutritionist Notes */}
+        {allowedFoods ? (
+          <View style={styles.infoBox}>
+            <Text style={styles.boxLabel}>Alimentos permitidos principales</Text>
+            <Text style={styles.boxText}>{allowedFoods}</Text>
+          </View>
+        ) : null}
+
+        {restrictedFoods ? (
+          <View style={styles.infoBox}>
+            <Text style={styles.boxLabel}>Restricciones de alimentos</Text>
+            <Text style={styles.boxText}>{restrictedFoods}</Text>
+          </View>
+        ) : null}
+
+        {data.specialConsiderations?.trim() ? (
+          <View style={styles.infoBox}>
+            <Text style={styles.boxLabel}>Consideraciones especiales</Text>
+            <Text style={styles.boxText}>{data.specialConsiderations}</Text>
+          </View>
+        ) : null}
+
+        {referenceDishes ? (
+          <View style={styles.infoBox}>
+            <Text style={styles.boxLabel}>Platos de referencia</Text>
+            <Text style={styles.boxText}>{referenceDishes}</Text>
+          </View>
+        ) : null}
+
+        {resources ? (
+          <View style={styles.infoBox}>
+            <Text style={styles.boxLabel}>Recursos</Text>
+            <Text style={styles.boxText}>{resources}</Text>
+          </View>
+        ) : null}
+
         {data.nutritionistNotes?.trim() ? (
           <View style={styles.notesBox}>
             <Text style={styles.notesLabel}>Notas del nutricionista</Text>
@@ -264,13 +321,11 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
           </View>
         ) : null}
 
-        {/* Dishes */}
         {data.dishes.length === 0 ? (
           <Text style={styles.muted}>Sin platos registrados.</Text>
         ) : (
           data.dishes.map((dish, index) => (
             <View key={index} style={styles.dishCard} wrap={false}>
-              {/* Dish Header */}
               <View style={styles.dishHeader}>
                 <Text style={styles.dishTitle}>{dish.title || `Plato ${index + 1}`}</Text>
                 {dish.mealSection ? (
@@ -279,12 +334,10 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
               </View>
 
               <View style={styles.dishBody}>
-                {/* Description */}
                 {dish.description?.trim() ? (
                   <Text style={styles.description}>{dish.description}</Text>
                 ) : null}
 
-                {/* Macros */}
                 <View style={styles.macroRow}>
                   <View style={styles.macroBox}>
                     <Text style={styles.macroValue}>{formatMacro(dish.calories)} kcal</Text>
@@ -304,7 +357,6 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
                   </View>
                 </View>
 
-                {/* Recommended Portion */}
                 {dish.recommendedPortion?.trim() ? (
                   <View style={styles.portionRow}>
                     <Text style={styles.portionLabel}>Porción recomendada:</Text>
@@ -312,18 +364,17 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
                   </View>
                 ) : null}
 
-                {/* Ingredients */}
                 {dish.ingredients && dish.ingredients.length > 0 ? (
                   <>
                     <Text style={styles.sectionLabel}>Ingredientes</Text>
                     <View style={styles.ingredientsGrid}>
                       {dish.ingredients
-                        .filter((ing) => ing.name?.trim())
-                        .map((ing, ingIdx) => (
-                          <View key={ingIdx} style={styles.ingredientChip}>
-                            <Text style={styles.ingredientName}>{ing.name}</Text>
-                            {ing.quantity?.trim() ? (
-                              <Text style={styles.ingredientQty}>· {ing.quantity}</Text>
+                        .filter((ingredient) => ingredient.name?.trim())
+                        .map((ingredient, ingredientIndex) => (
+                          <View key={ingredientIndex} style={styles.ingredientChip}>
+                            <Text style={styles.ingredientName}>{ingredient.name}</Text>
+                            {ingredient.quantity?.trim() ? (
+                              <Text style={styles.ingredientQty}>· {ingredient.quantity}</Text>
                             ) : null}
                           </View>
                         ))}
@@ -331,7 +382,6 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
                   </>
                 ) : null}
 
-                {/* Preparation */}
                 {dish.preparation?.trim() ? (
                   <>
                     <Text style={styles.sectionLabel}>Preparación</Text>
@@ -343,7 +393,6 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
           ))
         )}
 
-        {/* Footer */}
         <View style={styles.footer}>
           <Text>NutriSaaS · Recetas Express</Text>
           <Text>Generado el {generatedAt}</Text>

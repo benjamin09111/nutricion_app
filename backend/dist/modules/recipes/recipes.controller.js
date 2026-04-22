@@ -19,6 +19,7 @@ const create_recipe_dto_1 = require("./dto/create-recipe.dto");
 const estimate_macros_dto_1 = require("./dto/estimate-macros.dto");
 const compatible_recipes_dto_1 = require("./dto/compatible-recipes.dto");
 const ai_fill_recipes_dto_1 = require("./dto/ai-fill-recipes.dto");
+const quick_ai_fill_recipes_dto_1 = require("./dto/quick-ai-fill-recipes.dto");
 const auth_guard_1 = require("../auth/guards/auth.guard");
 const http_cache_interceptor_1 = require("../../common/interceptors/http-cache.interceptor");
 const cache_manager_1 = require("@nestjs/cache-manager");
@@ -49,6 +50,9 @@ let RecipesController = class RecipesController {
     }
     fillWithAi(req, dto) {
         return this.recipesService.fillWithAi(req.user.id, dto);
+    }
+    fillQuickWithAi(req, dto) {
+        return this.recipesService.quickFillWithAi(req.user.id, dto);
     }
     findAll(req) {
         return this.recipesService.findAll(req.user.id);
@@ -95,6 +99,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, ai_fill_recipes_dto_1.AiFillRecipesDto]),
     __metadata("design:returntype", void 0)
 ], RecipesController.prototype, "fillWithAi", null);
+__decorate([
+    (0, common_1.Post)('quick-ai-fill'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, quick_ai_fill_recipes_dto_1.QuickAiFillRecipesDto]),
+    __metadata("design:returntype", void 0)
+], RecipesController.prototype, "fillQuickWithAi", null);
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Request)()),

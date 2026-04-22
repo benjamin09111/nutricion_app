@@ -285,6 +285,111 @@ let RecipesService = RecipesService_1 = class RecipesService {
         this.validateWeekVariety(result, payload.existingAssignments);
         return result;
     }
+    sanitizeStringList(value) {
+        if (!Array.isArray(value))
+            return [];
+        return Array.from(new Set(value
+            .map((item) => (typeof item === 'string' ? item.trim() : ''))
+            .filter(Boolean)));
+    }
+    parseQuickAiResponse(rawContent) {
+        const jsonContent = this.extractJsonFromResponse(rawContent);
+        try {
+            return JSON.parse(jsonContent);
+        }
+        catch {
+            const recovered = this.extractFirstJsonValue(rawContent.trim());
+            if (recovered) {
+                return JSON.parse(recovered);
+            }
+            throw new common_1.BadRequestException('La IA devolvió un formato inválido para recetas rápidas.');
+        }
+    }
+    normalizeQuickDish(dish) {
+        const ingredientsSource = Array.isArray(dish?.ingredients) ? dish.ingredients : [];
+        const ingredients = ingredientsSource
+            .map((item) => {
+            if (typeof item === 'string') {
+                const name = item.trim();
+                if (!name)
+                    return null;
+                return { name, quantity: '' };
+            }
+            if (item && typeof item === 'object') {
+                const name = typeof item.name === 'string' ? item.name.trim() : '';
+                if (!name)
+                    return null;
+                const quantity = typeof item.quantity === 'string' ? item.quantity.trim() : '';
+                return { name, quantity };
+            }
+            return null;
+        })
+            .filter((item) => !!item);
+        const title = typeof dish?.title === 'string' ? dish.title.trim() : '';
+        const mealSection = typeof dish?.mealSection === 'string' ? dish.mealSection.trim() : '';
+        const recommendedPortion = typeof dish?.recommendedPortion === 'string' ? dish.recommendedPortion.trim() : '';
+        if (!title || !mealSection || !recommendedPortion) {
+            throw new common_1.BadRequestException('La IA devolvió un plato incompleto en recetas rápidas.');
+        }
+        return {
+            title,
+            mealSection,
+            description: typeof dish?.description === 'string' ? dish.description.trim() : '',
+            preparation: typeof dish?.preparation === 'string' ? dish.preparation.trim() : '',
+            recommendedPortion,
+            protein: Number.isFinite(Number(dish?.protein)) ? Number(dish.protein) : 0,
+            calories: Number.isFinite(Number(dish?.calories)) ? Number(dish.calories) : 0,
+            carbs: Number.isFinite(Number(dish?.carbs)) ? Number(dish.carbs) : 0,
+            fats: Number.isFinite(Number(dish?.fats)) ? Number(dish.fats) : 0,
+            ingredients,
+        };
+    }
+    buildQuickAiPrompt(payload) {
+        const safePayload = {
+            dietName: payload.dietName || '',
+            notes: payload.notes || '',
+            allowedFoodsMain: this.sanitizeStringList(payload.allowedFoodsMain),
+            restrictedFoods: this.sanitizeStringList(payload.restrictedFoods),
+            specialConsiderations: payload.specialConsiderations || '',
+            referenceDishes: this.sanitizeStringList(payload.referenceDishes),
+            resources: this.sanitizeStringList(payload.resources),
+            patient: payload.patient || null,
+            existingDishes: Array.isArray(payload.existingDishes) ? payload.existingDishes : [],
+            desiredDishCount: payload.desiredDishCount || 4,
+        };
+        return [
+            'Objetivo: generar platos para el módulo rápido de recetas.',
+            'Respeta SIEMPRE las restricciones alimentarias y evita ingredientes prohibidos.',
+            'Prioriza alimentos permitidos principales, y considera gustos/restricciones del paciente si vienen informados.',
+            'Devuelve entre 2 y 8 platos según desiredDishCount.',
+            'Estructura exacta de salida JSON:',
+            '{"dishes":[{"title":"string","mealSection":"string","description":"string","preparation":"string","recommendedPortion":"string","protein":0,"calories":0,"carbs":0,"fats":0,"ingredients":[{"name":"string","quantity":"string"}]}],"meta":{"note":"string"}}',
+            'Secciones sugeridas para mealSection: Desayuno, Colación AM, Almuerzo, Colación PM, Once, Cena, Post entreno.',
+            'Si falta información, asume criterios nutricionales generales y recetas realistas de cocina chilena/latam.',
+            'No incluyas texto fuera del JSON.',
+            `CONTEXTO: ${JSON.stringify(safePayload)}`,
+        ].join('\n');
+    }
+    async quickFillWithAi(userId, dto) {
+        await this.getNutritionistId(userId);
+        const payload = dto.payload || {};
+        const content = await this.callGeminiJson('Eres un nutricionista clínico experto. Responde solo JSON válido.', this.buildQuickAiPrompt(payload));
+        const parsed = this.parseQuickAiResponse(content);
+        const dishes = Array.isArray(parsed?.dishes) ? parsed.dishes : [];
+        if (dishes.length === 0) {
+            throw new common_1.BadRequestException('La IA no devolvió platos para recetas rápidas.');
+        }
+        const normalizedDishes = dishes.map((dish) => this.normalizeQuickDish(dish));
+        const note = typeof parsed?.meta?.note === 'string' && parsed.meta.note.trim()
+            ? parsed.meta.note.trim()
+            : 'Platos generados con IA según contexto proporcionado.';
+        return {
+            dishes: normalizedDishes,
+            meta: {
+                note,
+            },
+        };
+    }
     async create(userId, createDto) {
         console.log('[RecipesService.create] userId:', userId, 'createDto:', JSON.stringify(createDto, null, 2));
         try {

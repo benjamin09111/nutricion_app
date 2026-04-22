@@ -4,6 +4,7 @@ import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { EstimateMacrosDto } from './dto/estimate-macros.dto';
 import { CompatibleRecipesDto } from './dto/compatible-recipes.dto';
 import { AiFillRecipesDto } from './dto/ai-fill-recipes.dto';
+import { QuickAiFillRecipesDto } from './dto/quick-ai-fill-recipes.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
 import { CacheTTL } from '@nestjs/cache-manager';
@@ -45,6 +46,11 @@ export class RecipesController {
     @Post('ai-fill')
     fillWithAi(@Request() req: any, @Body() dto: AiFillRecipesDto) {
         return this.recipesService.fillWithAi(req.user.id, dto);
+    }
+
+    @Post('quick-ai-fill')
+    fillQuickWithAi(@Request() req: any, @Body() dto: QuickAiFillRecipesDto) {
+        return this.recipesService.quickFillWithAi(req.user.id, dto);
     }
 
     @Get()

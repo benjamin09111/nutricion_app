@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   ClipboardCheck,
   Download,
@@ -20,7 +20,9 @@ import {
   Pencil,
   Layout,
   X,
+  ChevronDown,
   ChevronLeft,
+  ChevronUp,
   Search,
   UserPlus,
   AlertCircle,
@@ -28,7 +30,7 @@ import {
   FileUp,
   RotateCcw,
   Library,
-  GripVertical,
+  Lock,
   Plus,
 } from "lucide-react";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
@@ -65,6 +67,10 @@ interface ResourceTemplate {
   id: string;
   title: string;
   content: string;
+  category?: string;
+  tags?: string[];
+  isMine?: boolean;
+  isPublic?: boolean;
   variablePlaceholders?: string[];
 }
 
@@ -92,6 +98,10 @@ type PreviousStageSummary = {
     name: string | null;
     foodCount: number;
     restrictions: string[];
+  };
+  recipes: {
+    hasData: boolean;
+    recipeCount: number;
   };
   patient: {
     hasData: boolean;
@@ -241,6 +251,7 @@ const sanitizeSectionIds = (sectionIds: string[] = []) =>
 
 const EMPTY_STAGE_SUMMARY: PreviousStageSummary = {
   diet: { hasData: false, name: null, foodCount: 0, restrictions: [] },
+  recipes: { hasData: false, recipeCount: 0 },
   patient: { hasData: false, name: null, description: null },
   cart: { hasData: false, foodCount: 0 },
 };
@@ -258,11 +269,72 @@ const normalizeStringList = (value: unknown): string[] => {
   return Array.from(new Set(next));
 };
 
+const normalizeWelcomeTemplates = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  value.forEach((item) => {
+    const text = safeString(item).replace(/\s+/g, " ").trim();
+    if (!text) return;
+    const key = text.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    normalized.push(text);
+  });
+  return normalized;
+};
+
+const isCoverResource = (resource: ResourceTemplate | undefined | null): boolean => {
+  if (!resource) return false;
+  return /portada|cover|introducci/i.test(
+    `${resource.title || ""} ${resource.content || ""}`,
+  );
+};
+
+const getRecipeDayCount = (recipes: any): number => {
+  const weekSlots = recipes?.weekSlots;
+  if (!weekSlots || typeof weekSlots !== "object") return 0;
+  return Object.values(weekSlots).filter((slots) => Array.isArray(slots) && slots.length > 0)
+    .length;
+};
+
+const hasObjectContent = (value: unknown): boolean =>
+  Boolean(value && typeof value === "object" && Object.keys(value as Record<string, unknown>).length > 0);
+
+const getRecipeCountFromDraft = (draftRecipes: any): number => {
+  if (!draftRecipes || typeof draftRecipes !== "object") return 0;
+
+  if (Array.isArray(draftRecipes.dishes)) {
+    return draftRecipes.dishes.filter((dish: any) => safeString(dish?.title)).length;
+  }
+
+  if (Array.isArray(draftRecipes.weekSlots)) {
+    return draftRecipes.weekSlots.filter((slot: any) => safeString(slot?.recipe?.title)).length;
+  }
+
+  if (draftRecipes.weekSlots && typeof draftRecipes.weekSlots === "object") {
+    return Object.values(draftRecipes.weekSlots).reduce<number>((total, slots: unknown) => {
+      if (!Array.isArray(slots)) return total;
+      return total + slots.filter((slot: any) => safeString(slot?.recipe?.title)).length;
+    }, 0);
+  }
+
+  if (Array.isArray(draftRecipes.days)) {
+    return draftRecipes.days.reduce((total: number, day: any) => {
+      if (!Array.isArray(day?.recipes)) return total;
+      return total + day.recipes.filter((recipe: any) => safeString(recipe?.title)).length;
+    }, 0);
+  }
+
+  return 0;
+};
+
 const buildPreviousStageSummary = (
   draft: any,
   selectedPatient: any,
 ): PreviousStageSummary => {
   const diet = draft?.diet || {};
+  const recipes = draft?.recipes || {};
   const cart = draft?.cart || {};
   const patientMeta = draft?.patientMeta || {};
 
@@ -291,6 +363,7 @@ const buildPreviousStageSummary = (
     null;
 
   const cartItems = Array.isArray(cart?.items) ? cart.items : [];
+  const recipeCount = getRecipeCountFromDraft(recipes);
 
   return {
     diet: {
@@ -298,6 +371,10 @@ const buildPreviousStageSummary = (
       name: safeString(diet?.dietName) || safeString(diet?.name) || null,
       foodCount: dietFoods.length,
       restrictions: dietRestrictions,
+    },
+    recipes: {
+      hasData: recipeCount > 0,
+      recipeCount,
     },
     patient: {
       hasData: Boolean(patientName),
@@ -322,6 +399,10 @@ export default function DeliverableClient() {
     ),
   );
   const [includeLogo, setIncludeLogo] = useState(true);
+  const [welcomeMessage, setWelcomeMessage] = useState("");
+  const [welcomeTemplateOptions, setWelcomeTemplateOptions] = useState<string[]>([]);
+  const [selectedWelcomeTemplate, setSelectedWelcomeTemplate] = useState("");
+  const [isSavingWelcomeTemplate, setIsSavingWelcomeTemplate] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
@@ -352,16 +433,23 @@ export default function DeliverableClient() {
     useState<PreviousStageSummary>(EMPTY_STAGE_SUMMARY);
   const [resources, setResources] = useState<ResourceTemplate[]>([]);
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
+  const [resourceModalMode, setResourceModalMode] = useState<"extra" | "cover">("extra");
   const [selectedResourceId, setSelectedResourceId] = useState("");
   const [resourceVariables, setResourceVariables] = useState<Record<string, string>>({});
   const [resolvedResourcePages, setResolvedResourcePages] = useState<ResolvedResourcePage[]>([]);
+  const [resourceSearchQuery, setResourceSearchQuery] = useState("");
+  const [resourceCategoryFilter, setResourceCategoryFilter] = useState("Todas");
+  const [resourceOwnerFilter, setResourceOwnerFilter] = useState<
+    "all" | "mine" | "public"
+  >("all");
+  const [resourceHashtagQuery, setResourceHashtagQuery] = useState("");
+  const [isFlowSummaryOpen, setIsFlowSummaryOpen] = useState(false);
 
   // Export Wizard State
   const [isExportWizardOpen, setIsExportWizardOpen] = useState(false);
   const [exportMode, setExportMode] = useState<"single" | "advanced">("single");
   const [exportPackages, setExportPackages] = useState<ExportPackage[]>([]);
   const [contentFilter, setContentFilter] = useState<"all" | "practical" | "theory">("all");
-  const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(
     projectIdFromUrl,
   );
@@ -375,6 +463,32 @@ export default function DeliverableClient() {
   useEffect(() => {
     setCurrentProjectId(projectIdFromUrl);
   }, [projectIdFromUrl]);
+
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (!storedUser) return;
+      const parsedUser = JSON.parse(storedUser);
+      const fromSettings = normalizeWelcomeTemplates(
+        parsedUser?.nutritionist?.settings?.deliverableWelcomeTemplates,
+      );
+      setWelcomeTemplateOptions(fromSettings);
+    } catch (error) {
+      console.error("Error loading welcome templates from settings", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const current = safeString(welcomeMessage).replace(/\s+/g, " ").trim();
+    if (!current) {
+      setSelectedWelcomeTemplate("");
+      return;
+    }
+    const matched = welcomeTemplateOptions.find(
+      (option) => option.toLowerCase() === current.toLowerCase(),
+    );
+    setSelectedWelcomeTemplate(matched || "");
+  }, [welcomeMessage, welcomeTemplateOptions]);
 
   const refreshPreviousStagesSummary = (
     draftOverride?: any,
@@ -397,6 +511,26 @@ export default function DeliverableClient() {
         patientOverride !== undefined ? patientOverride : selectedPatient,
       ),
     );
+  };
+
+  const persistDeliverableDraftNow = (
+    resourcePagesOverride?: ResolvedResourcePage[],
+  ) => {
+    const storedDraft = localStorage.getItem("nutri_active_draft");
+    const draft = storedDraft ? JSON.parse(storedDraft) : {};
+
+    draft.deliverable = {
+      selectedSections,
+      includeLogo,
+      welcomeMessage,
+      exportPackages,
+      resourcePages: resourcePagesOverride ?? resolvedResourcePages,
+      updatedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+    refreshPreviousStagesSummary(draft, selectedPatient);
+    return draft;
   };
 
   const openFilteredCreationImport = (type: "DIET" | "SHOPPING_LIST" | "RECIPE") => {
@@ -431,7 +565,8 @@ export default function DeliverableClient() {
           const hasLocalDeliverable = Boolean(
             existingDraft?.deliverable?.updatedAt ||
             existingDraft?.deliverable?.selectedSections ||
-            existingDraft?.deliverable?.resourcePages,
+            existingDraft?.deliverable?.resourcePages ||
+            existingDraft?.deliverable?.welcomeMessage,
           );
 
           if (project.patient) {
@@ -476,6 +611,11 @@ export default function DeliverableClient() {
               ),
             );
             setIncludeLogo(deliverableContent.includeLogo ?? true);
+            setWelcomeMessage(
+              typeof deliverableContent.welcomeMessage === "string"
+                ? deliverableContent.welcomeMessage
+                : "",
+            );
             setExportPackages(deliverableContent.exportPackages || []);
             setResolvedResourcePages(deliverableContent.resourcePages || []);
           } else if (project.activeDeliverableCreationId) {
@@ -492,6 +632,11 @@ export default function DeliverableClient() {
               ),
             );
             setIncludeLogo(deliverableContent.includeLogo ?? true);
+            setWelcomeMessage(
+              typeof deliverableContent.welcomeMessage === "string"
+                ? deliverableContent.welcomeMessage
+                : "",
+            );
             setExportPackages(deliverableContent.exportPackages || []);
             setResolvedResourcePages(deliverableContent.resourcePages || []);
             draft.deliverable = deliverableContent;
@@ -537,6 +682,9 @@ export default function DeliverableClient() {
           }
           if (draft.deliverable.includeLogo !== undefined) {
             setIncludeLogo(draft.deliverable.includeLogo);
+          }
+          if (typeof draft.deliverable.welcomeMessage === "string") {
+            setWelcomeMessage(draft.deliverable.welcomeMessage);
           }
           if (Array.isArray(draft.deliverable.resourcePages)) {
             setResolvedResourcePages(draft.deliverable.resourcePages);
@@ -585,6 +733,7 @@ export default function DeliverableClient() {
     draft.deliverable = {
       selectedSections,
       includeLogo,
+      welcomeMessage,
       exportPackages,
       resourcePages: resolvedResourcePages,
       updatedAt: new Date().toISOString(),
@@ -592,7 +741,7 @@ export default function DeliverableClient() {
 
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
     refreshPreviousStagesSummary(draft, selectedPatient);
-  }, [selectedSections, includeLogo, exportPackages, resolvedResourcePages, selectedPatient]);
+  }, [selectedSections, includeLogo, welcomeMessage, exportPackages, resolvedResourcePages, selectedPatient]);
 
   // Load stored patient
   useEffect(() => {
@@ -645,16 +794,171 @@ export default function DeliverableClient() {
     .map((id) => availableSections.find((section) => section.id === id))
     .filter(Boolean) as (SectionItem & { disabled?: boolean })[];
 
-  const moveSelectedSection = (sourceId: string, targetId: string) => {
-    if (sourceId === targetId) return;
-    const sourceIndex = selectedSections.indexOf(sourceId);
-    const targetIndex = selectedSections.indexOf(targetId);
-    if (sourceIndex < 0 || targetIndex < 0) return;
+  const resolveExportDraftData = async () => {
+    const storedDraft = localStorage.getItem("nutri_active_draft");
+    const draftData = storedDraft ? JSON.parse(storedDraft) : {};
+    const merged: any = { ...draftData };
 
-    const next = [...selectedSections];
-    const [moved] = next.splice(sourceIndex, 1);
-    next.splice(targetIndex, 0, moved);
-    setSelectedSections(next);
+    if (selectedPatient && !merged.patientMeta) {
+      merged.patientMeta = {
+        id: selectedPatient.id,
+        fullName: selectedPatient.fullName,
+        restrictions: Array.isArray(selectedPatient.dietRestrictions)
+          ? selectedPatient.dietRestrictions
+          : [],
+        weight: selectedPatient.weight,
+        height: selectedPatient.height,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    const projectId = currentProjectId || projectIdFromUrl;
+    if (projectId) {
+      try {
+        const project = await fetchProject(projectId);
+
+        if (project.patient && !merged.patientMeta) {
+          merged.patientMeta = {
+            id: project.patient.id,
+            fullName: project.patient.fullName,
+            restrictions: Array.isArray(project.patient.dietRestrictions)
+              ? project.patient.dietRestrictions
+              : [],
+            weight: project.patient.weight,
+            height: project.patient.height,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+
+        const [dietCreation, cartCreation, recipesCreation, deliverableCreation] =
+          await Promise.all([
+            project.activeDietCreationId ? fetchCreation(project.activeDietCreationId) : null,
+            project.activeCartCreationId ? fetchCreation(project.activeCartCreationId) : null,
+            project.activeRecipeCreationId ? fetchCreation(project.activeRecipeCreationId) : null,
+            project.activeDeliverableCreationId ? fetchCreation(project.activeDeliverableCreationId) : null,
+          ]);
+
+        if (
+          dietCreation?.content &&
+          typeof dietCreation.content === "object" &&
+          !hasObjectContent(merged.diet)
+        ) {
+          merged.diet = dietCreation.content;
+        }
+        if (
+          cartCreation?.content &&
+          typeof cartCreation.content === "object" &&
+          !hasObjectContent(merged.cart)
+        ) {
+          merged.cart = cartCreation.content;
+        }
+        if (
+          recipesCreation?.content &&
+          typeof recipesCreation.content === "object" &&
+          !hasObjectContent(merged.recipes)
+        ) {
+          merged.recipes = recipesCreation.content;
+        }
+        if (
+          deliverableCreation?.content &&
+          typeof deliverableCreation.content === "object"
+        ) {
+          if (
+            deliverableCreation.content?.draftData &&
+            typeof deliverableCreation.content.draftData === "object"
+          ) {
+            const embedded = deliverableCreation.content.draftData;
+            if (!hasObjectContent(merged.diet) && embedded.diet) merged.diet = embedded.diet;
+            if (!hasObjectContent(merged.cart) && embedded.cart) merged.cart = embedded.cart;
+            if (!hasObjectContent(merged.recipes) && embedded.recipes) merged.recipes = embedded.recipes;
+            if (!hasObjectContent(merged.patientMeta) && embedded.patientMeta) {
+              merged.patientMeta = embedded.patientMeta;
+            }
+          }
+          if (!hasObjectContent(merged.deliverable)) {
+            merged.deliverable = deliverableCreation.content;
+          }
+        }
+      } catch (error) {
+        console.error("Error resolving export data from project context", error);
+      }
+    }
+
+    if (!hasObjectContent(merged.patientMeta)) {
+      const fallbackPatient =
+        merged?.cart?.selectedPatient ||
+        merged?.recipes?.selectedPatient ||
+        merged?.diet?.selectedPatient ||
+        null;
+      if (fallbackPatient) {
+        merged.patientMeta = {
+          id: fallbackPatient.id,
+          fullName: fallbackPatient.fullName || fallbackPatient.name,
+          restrictions: Array.isArray(fallbackPatient.dietRestrictions)
+            ? fallbackPatient.dietRestrictions
+            : [],
+          weight: fallbackPatient.weight,
+          height: fallbackPatient.height,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+    }
+
+    merged.deliverable = {
+      ...(merged.deliverable || {}),
+      selectedSections,
+      includeLogo,
+      welcomeMessage,
+      exportPackages,
+      resourcePages: resolvedResourcePages,
+      updatedAt: new Date().toISOString(),
+    };
+
+    return merged;
+  };
+
+  const getExportSections = (draftData: any): string[] => {
+    const next = new Set<string>(selectedSections);
+    next.add("cover");
+
+    const hasPatient = Boolean(
+      draftData?.patientMeta?.fullName ||
+      draftData?.patientMeta?.weight ||
+      draftData?.patientMeta?.height,
+    );
+    const hasCartData = Array.isArray(draftData?.cart?.items) && draftData.cart.items.length > 0;
+    const hasRecipesData =
+      getRecipeCountFromDraft(draftData?.recipes) > 0 || getRecipeDayCount(draftData?.recipes) > 0;
+
+    if (hasPatient) next.add("patientInfo");
+    if (hasCartData) next.add("shoppingList");
+    if (hasRecipesData) next.add("recipes");
+
+    return DELIVERABLE_SECTIONS
+      .map((section) => section.id)
+      .filter((id) => next.has(id));
+  };
+
+  const getExportStats = (draftData: any) => {
+    const dietFoods = Array.isArray(draftData?.diet?.includedFoods)
+      ? draftData.diet.includedFoods.length
+      : Array.isArray(draftData?.diet?.foods)
+        ? draftData.diet.foods.length
+        : 0;
+    const cartItems = Array.isArray(draftData?.cart?.items) ? draftData.cart.items.length : 0;
+    const recipeCount = getRecipeCountFromDraft(draftData?.recipes);
+    const hasPatient = Boolean(
+      draftData?.patientMeta?.fullName ||
+      draftData?.patientMeta?.weight ||
+      draftData?.patientMeta?.height,
+    );
+    return {
+      dietFoods,
+      cartItems,
+      recipeCount,
+      hasPatient,
+      hasAnyContent: dietFoods > 0 || cartItems > 0 || recipeCount > 0 || hasPatient,
+    };
   };
 
   const handleExportSingle = async () => {
@@ -669,8 +973,17 @@ export default function DeliverableClient() {
       const { StandardTemplate } =
         await import("@/features/deliverable/components/StandardTemplate");
 
-      const storedDraft = localStorage.getItem("nutri_active_draft");
-      const draftData = storedDraft ? JSON.parse(storedDraft) : {};
+      const draftData = await resolveExportDraftData();
+      const exportSections = getExportSections(draftData);
+      const exportStats = getExportStats(draftData);
+
+      if (!exportStats.hasAnyContent) {
+        toast.error("El entregable está vacío. Importa Dieta/Carrito/Recetas antes de exportar.", {
+          id: "pdf-toast",
+        });
+        setIsExporting(false);
+        return;
+      }
 
       const userStr = localStorage.getItem("user");
       const userObj = userStr ? JSON.parse(userStr) : null;
@@ -678,7 +991,7 @@ export default function DeliverableClient() {
 
       const config = {
         includeLogo,
-        selectedSections,
+        selectedSections: exportSections,
         brandSettings,
       };
 
@@ -698,6 +1011,9 @@ export default function DeliverableClient() {
       toast.success("¡PDF generado y descargado exitosamente!", {
         id: "pdf-toast",
       });
+      toast.info(
+        `Exportado con dieta ${exportStats.dietFoods}, carrito ${exportStats.cartItems}, recetas ${exportStats.recipeCount}.`,
+      );
       setIsExportWizardOpen(false);
     } catch (error) {
       console.error("Error generating PDF:", error);
@@ -720,22 +1036,48 @@ export default function DeliverableClient() {
       const { StandardTemplate } =
         await import("@/features/deliverable/components/StandardTemplate");
 
-      const storedDraft = localStorage.getItem("nutri_active_draft");
-      const draftData = storedDraft ? JSON.parse(storedDraft) : {};
+      const draftData = await resolveExportDraftData();
+      const exportSections = getExportSections(draftData);
+      const exportStats = getExportStats(draftData);
+
+      if (!exportStats.hasAnyContent) {
+        toast.error("El entregable está vacío. Importa Dieta/Carrito/Recetas antes de exportar.", {
+          id: "pdf-toast",
+        });
+        setIsExporting(false);
+        return;
+      }
 
       // Filter out empty packages
-      const validPackages = exportPackages.filter(p => p.sections.length > 0 && p.name.trim() !== "");
+      const validPackages = exportPackages.filter(
+        (p) => p.sections.length > 0 && p.name.trim() !== "",
+      );
 
-      if (validPackages.length === 0) {
+      const packagesToUse: ExportPackage[] =
+        validPackages.length > 0
+          ? validPackages
+          : [
+              {
+                id: crypto.randomUUID(),
+                name: "Plan Completo",
+                sections: exportSections,
+                exportAs: "single",
+              },
+            ];
+
+      if (packagesToUse.length === 0 || exportSections.length === 0) {
         toast.error("Debes tener al menos un paquete con módulos seleccionados", { id: "pdf-toast" });
         setIsExporting(false);
         return;
       }
 
       const tasks: { pkgName: string; sections: string[] }[] = [];
-      validPackages.forEach((pkg) => {
+      packagesToUse.forEach((pkg) => {
         if (pkg.exportAs === "single") {
-          tasks.push({ pkgName: pkg.name, sections: pkg.sections });
+          tasks.push({
+            pkgName: pkg.name,
+            sections: pkg.sections.length > 0 ? pkg.sections : exportSections,
+          });
           return;
         }
         pkg.sections.forEach((sectionId) => {
@@ -809,6 +1151,7 @@ export default function DeliverableClient() {
       defaultPackages.push({ id: crypto.randomUUID(), name: "Documento en Blanco", sections: [], exportAs: "single" });
     }
 
+    setExportMode("single");
     setExportPackages(defaultPackages);
     setIsExportWizardOpen(true);
   };
@@ -829,8 +1172,7 @@ export default function DeliverableClient() {
   const handleSaveToCreations = async (description?: string) => {
     setIsSaving(true);
     try {
-      const storedDraft = localStorage.getItem("nutri_active_draft");
-      const draftData = storedDraft ? JSON.parse(storedDraft) : {};
+      const draftData = await resolveExportDraftData();
 
       const savedCreation = await saveCreation({
         name:
@@ -841,6 +1183,7 @@ export default function DeliverableClient() {
         content: {
           selectedSections,
           includeLogo,
+          welcomeMessage,
           exportPackages,
           resourcePages: resolvedResourcePages,
           draftData,
@@ -887,6 +1230,76 @@ export default function DeliverableClient() {
     }
   };
 
+  const handleApplyWelcomeTemplate = (templateText: string) => {
+    setSelectedWelcomeTemplate(templateText);
+    if (!templateText) return;
+    setWelcomeMessage(templateText);
+  };
+
+  const handleSaveWelcomeTemplate = async () => {
+    const templateText = safeString(welcomeMessage).replace(/\s+/g, " ").trim();
+    if (!templateText) {
+      toast.error("Escribe un mensaje antes de guardarlo como plantilla.");
+      return;
+    }
+
+    const existingTemplates = normalizeWelcomeTemplates(welcomeTemplateOptions);
+    const duplicate = existingTemplates.some(
+      (option) => option.toLowerCase() === templateText.toLowerCase(),
+    );
+    if (duplicate) {
+      toast.info("Esta plantilla ya existe en tus detalles.");
+      setSelectedWelcomeTemplate(
+        existingTemplates.find(
+          (option) => option.toLowerCase() === templateText.toLowerCase(),
+        ) || "",
+      );
+      return;
+    }
+
+    const nextTemplates = [templateText, ...existingTemplates];
+    setIsSavingWelcomeTemplate(true);
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(`/users/me/settings`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          deliverableWelcomeTemplates: nextTemplates,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo guardar la plantilla en detalles.");
+      }
+
+      setWelcomeTemplateOptions(nextTemplates);
+      setSelectedWelcomeTemplate(templateText);
+
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser?.nutritionist) {
+          parsedUser.nutritionist.settings = {
+            ...(parsedUser.nutritionist.settings || {}),
+            deliverableWelcomeTemplates: nextTemplates,
+          };
+          localStorage.setItem("user", JSON.stringify(parsedUser));
+        }
+      }
+
+      toast.success("Plantilla guardada y lista para reutilizar.");
+    } catch (error: any) {
+      console.error("Error saving welcome template", error);
+      toast.error(error?.message || "No se pudo guardar la plantilla.");
+    } finally {
+      setIsSavingWelcomeTemplate(false);
+    }
+  };
+
   const extractVariablesFromContent = (content: string): string[] => {
     const regex = /\^([a-zA-Z0-9_\- ]+)\^/g;
     const variables = new Set<string>();
@@ -912,10 +1325,15 @@ export default function DeliverableClient() {
     }
   };
 
-  const openResourceModal = async () => {
+  const openResourceModal = async (mode: "extra" | "cover" = "extra") => {
     await fetchResources();
+    setResourceModalMode(mode);
     setSelectedResourceId("");
     setResourceVariables({});
+    setResourceSearchQuery("");
+    setResourceCategoryFilter("Todas");
+    setResourceOwnerFilter("all");
+    setResourceHashtagQuery("");
     setIsResourceModalOpen(true);
   };
 
@@ -943,21 +1361,55 @@ export default function DeliverableClient() {
       const data = await response.json();
       const page: ResolvedResourcePage = {
         resourceId: resource.id,
-        title: resource.title,
+        title: resourceModalMode === "cover" ? `Portada · ${resource.title}` : resource.title,
         content: data.resolvedContent || resource.content,
         variables: resourceVariables,
       };
-      setResolvedResourcePages((prev) => [...prev, page]);
+      const nextResourcePages =
+        resourceModalMode === "cover"
+          ? [
+              page,
+              ...resolvedResourcePages.filter(
+                (item) => !/portada|cover|introducci/i.test(item.title || ""),
+              ),
+            ]
+          : [...resolvedResourcePages, page];
+
+      setResolvedResourcePages(nextResourcePages);
+      persistDeliverableDraftNow(nextResourcePages);
       setIsResourceModalOpen(false);
-      toast.success("Página extra agregada al entregable.");
+      toast.success(
+        resourceModalMode === "cover"
+          ? "Portada importada desde recursos."
+          : "Página extra agregada al entregable.",
+      );
     } catch (error) {
       console.error(error);
       toast.error("No se pudo resolver variables del recurso.");
     }
   };
 
+  useEffect(() => {
+    void fetchResources();
+  }, []);
+
+  const handleSelectResourceId = (resourceId: string) => {
+    setSelectedResourceId(resourceId);
+    const selectedResource = filteredResourceOptions.find((item) => item.id === resourceId);
+    const variables = extractVariablesFromContent(selectedResource?.content || "");
+    const initialInputs: Record<string, string> = {};
+    variables.forEach((variableKey) => {
+      initialInputs[variableKey] = "";
+    });
+    setResourceVariables(initialInputs);
+  };
+
   const handleEditSection = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+    if (id === "cover") {
+      toast.info("Importar portada está bloqueado por ahora. Se usa portada base de NutriSaaS.");
+      return;
+    }
     toast.info(`Abriendo editor de ${id}...`);
   };
 
@@ -1042,6 +1494,7 @@ export default function DeliverableClient() {
   const resetDeliverable = () => {
     setSelectedSections(sanitizeSectionIds(getBlankDeliverableSections()));
     setIncludeLogo(true);
+    setWelcomeMessage("");
     setResolvedResourcePages([]);
     setExportPackages([]);
     toast.info("Configuración del entregable reiniciada.");
@@ -1056,6 +1509,7 @@ export default function DeliverableClient() {
     setSelectedPatient(null);
     setSelectedSections(sanitizeSectionIds(getBlankDeliverableSections()));
     setIncludeLogo(true);
+    setWelcomeMessage("");
     setResolvedResourcePages([]);
     setExportPackages([]);
     setSelectedResourceId("");
@@ -1071,74 +1525,18 @@ export default function DeliverableClient() {
 
   const actionDockItems: ActionDockItem[] = [
     {
-      id: "import-creation",
-      icon: Library,
-      label: "Importar Creación",
-      variant: "indigo",
-      onClick: () => {
-        setImportCreationDefaultType(undefined);
-        setImportCreationAllowedTypes(undefined);
-        setIsImportCreationModalOpen(true);
-      },
-    },
-    {
-      id: "link-patient",
-      icon: User,
-      label: selectedPatient ? "Cambiar Paciente" : "Importar Paciente",
-      variant: "emerald",
-      onClick: () => {
-        setIsImportPatientModalOpen(true);
-        fetchPatients();
-      },
-    },
-    {
-      id: "preview",
-      icon: Eye,
-      label: "Vista Previa",
-      variant: "slate",
-      onClick: () => toast.info("Generando vista previa temporal..."),
-    },
-    {
       id: "save-creations",
       icon: Save,
-      label: "Guardar Creación",
+      label: "Guardar Entregable",
       variant: "slate",
       onClick: () => setIsSaveCreationModalOpen(true),
     },
     {
-      id: "print-json",
-      icon: FileText,
-      label: "Imprimir JSON",
-      variant: "slate",
-      onClick: printJson,
-    },
-    {
       id: "export-pdf",
       icon: Download,
-      label: "Exportar PDF",
+      label: "Descargar PDF",
       variant: "slate",
       onClick: openExportWizard,
-    },
-    {
-      id: "upload-pdf",
-      icon: FileUp,
-      label: "Subir PDF",
-      variant: "slate",
-      onClick: () => toast.info("Módulo de escaneo de PDF próximamente... 📄"),
-    },
-    {
-      id: "attach-resource-page",
-      icon: Plus,
-      label: "Agregar Recurso",
-      variant: "slate",
-      onClick: openResourceModal,
-    },
-    {
-      id: "reset",
-      icon: RotateCcw,
-      label: "Reiniciar Todo",
-      variant: "rose",
-      onClick: resetDeliverable,
     },
   ];
 
@@ -1176,6 +1574,115 @@ export default function DeliverableClient() {
       toast.error("Error al importar la creación.");
     }
   };
+
+  const moduleChecklist = [
+    {
+      id: "diet",
+      label: "Dieta",
+      isDone: previousStagesSummary.diet.hasData,
+      detail: previousStagesSummary.diet.hasData
+        ? `${previousStagesSummary.diet.foodCount} alimento(s)`
+        : "Faltante",
+      actionLabel: "Importar dieta",
+      onImport: () => openFilteredCreationImport("DIET"),
+    },
+    {
+      id: "patient",
+      label: "Paciente",
+      isDone: previousStagesSummary.patient.hasData,
+      detail: previousStagesSummary.patient.hasData
+        ? previousStagesSummary.patient.name || "Paciente vinculado"
+        : "Faltante",
+      actionLabel: "Vincular paciente",
+      onImport: handlePatientLoad,
+    },
+    {
+      id: "recipes",
+      label: "Recetas y porciones",
+      isDone: previousStagesSummary.recipes.hasData,
+      detail: previousStagesSummary.recipes.hasData
+        ? `${previousStagesSummary.recipes.recipeCount} receta(s)`
+        : "Faltante",
+      actionLabel: "Importar recetas",
+      onImport: () => openFilteredCreationImport("RECIPE"),
+    },
+    {
+      id: "cart",
+      label: "Carrito",
+      isDone: previousStagesSummary.cart.hasData,
+      detail: previousStagesSummary.cart.hasData
+        ? `${previousStagesSummary.cart.foodCount} alimento(s)`
+        : "Faltante",
+      actionLabel: "Importar carrito",
+      onImport: () => openFilteredCreationImport("SHOPPING_LIST"),
+    },
+  ];
+  const baseResourceOptions =
+    resourceModalMode === "cover"
+      ? resources.filter((resource) => isCoverResource(resource))
+      : resources.filter((resource) => !isCoverResource(resource));
+  const resourceCategories = useMemo(() => {
+    const categories = baseResourceOptions
+      .map((resource) => safeString(resource.category))
+      .filter(Boolean);
+    return ["Todas", ...Array.from(new Set(categories))];
+  }, [baseResourceOptions]);
+  const resourceHashtags = useMemo(() => {
+    const tags = baseResourceOptions.flatMap((resource) =>
+      Array.isArray(resource.tags)
+        ? resource.tags
+            .map((tag) => safeString(tag).replace(/^#/, ""))
+            .filter(Boolean)
+        : [],
+    );
+    return Array.from(new Set(tags)).slice(0, 16);
+  }, [baseResourceOptions]);
+  const filteredResourceOptions = useMemo(() => {
+    const textQuery = resourceSearchQuery.trim().toLowerCase();
+    const tagQuery = resourceHashtagQuery.trim().replace(/^#/, "").toLowerCase();
+
+    return baseResourceOptions.filter((resource) => {
+      const category = safeString(resource.category);
+      const title = safeString(resource.title).toLowerCase();
+      const content = safeString(resource.content).toLowerCase();
+      const tags = Array.isArray(resource.tags)
+        ? resource.tags
+            .map((tag) => safeString(tag).replace(/^#/, "").toLowerCase())
+            .filter(Boolean)
+        : [];
+
+      if (resourceCategoryFilter !== "Todas" && category !== resourceCategoryFilter) {
+        return false;
+      }
+
+      if (resourceOwnerFilter === "mine" && !resource.isMine) {
+        return false;
+      }
+
+      if (resourceOwnerFilter === "public" && resource.isMine) {
+        return false;
+      }
+
+      if (tagQuery && !tags.some((tag) => tag.includes(tagQuery))) {
+        return false;
+      }
+
+      if (!textQuery) return true;
+
+      return (
+        title.includes(textQuery) ||
+        content.includes(textQuery) ||
+        category.toLowerCase().includes(textQuery) ||
+        tags.some((tag) => tag.includes(textQuery))
+      );
+    });
+  }, [
+    baseResourceOptions,
+    resourceCategoryFilter,
+    resourceHashtagQuery,
+    resourceOwnerFilter,
+    resourceSearchQuery,
+  ]);
 
   return (
     <>
@@ -1311,23 +1818,16 @@ export default function DeliverableClient() {
             </button>
 
             <button
-              onClick={() => {
-                setExportMode("advanced");
-                setSplitQuickPreset(); // Auto-fill on first switch
-              }}
-              className={cn(
-                "flex flex-col text-left p-4 border-2 rounded-2xl transition-all cursor-pointer",
-                exportMode === "advanced"
-                  ? "bg-emerald-50/50 border-emerald-500 shadow-sm"
-                  : "bg-white border-slate-200 hover:border-emerald-300"
-              )}
+              type="button"
+              disabled
+              className="flex flex-col text-left p-4 border-2 rounded-2xl transition-all cursor-not-allowed bg-slate-50 border-slate-200 opacity-70"
             >
               <div className="flex items-center gap-3 mb-2">
-                <Layout className={cn("h-5 w-5", exportMode === "advanced" ? "text-emerald-600" : "text-slate-400")} />
-                <h4 className={cn("font-black text-sm", exportMode === "advanced" ? "text-emerald-900" : "text-slate-700")}>Paquetes Separados</h4>
+                <Lock className="h-5 w-5 text-slate-400" />
+                <h4 className="font-black text-sm text-slate-700">Paquetes Separados</h4>
               </div>
               <p className="text-xs text-slate-500 font-medium">
-                Genera múltiples archivos PDF separados por temática (Ej: Recetario y Plan por separado).
+                Bloqueado por ahora. Próximamente podrás generar múltiples archivos PDF.
               </p>
             </button>
           </div>
@@ -1476,19 +1976,83 @@ export default function DeliverableClient() {
       <Modal
         isOpen={isResourceModalOpen}
         onClose={() => setIsResourceModalOpen(false)}
-        title="Agregar Recurso Personalizable"
+        title={
+          resourceModalMode === "cover"
+            ? "Importar Recurso de Portada"
+            : "Agregar Recurso Personalizable"
+        }
       >
         <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Input
+              value={resourceSearchQuery}
+              onChange={(e) => setResourceSearchQuery(e.target.value)}
+              placeholder="Buscar recurso, contenido o categoría..."
+              className="h-10"
+            />
+            <Input
+              value={resourceHashtagQuery}
+              onChange={(e) => setResourceHashtagQuery(e.target.value)}
+              placeholder="Filtrar por hashtag (ej: #diabetes)"
+              className="h-10"
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <select
+              value={resourceCategoryFilter}
+              onChange={(e) => setResourceCategoryFilter(e.target.value)}
+              className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 focus:border-emerald-400 focus:outline-none"
+            >
+              {resourceCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+            <select
+              value={resourceOwnerFilter}
+              onChange={(e) =>
+                setResourceOwnerFilter(e.target.value as "all" | "mine" | "public")
+              }
+              className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 focus:border-emerald-400 focus:outline-none"
+            >
+              <option value="all">Todos los recursos</option>
+              <option value="mine">Mis recursos</option>
+              <option value="public">Recursos públicos</option>
+            </select>
+          </div>
+          {resourceHashtags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {resourceHashtags.map((tag) => {
+                const isActive = resourceHashtagQuery.replace(/^#/, "").toLowerCase() === tag.toLowerCase();
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setResourceHashtagQuery(isActive ? "" : `#${tag}`)}
+                    className={cn(
+                      "px-2 py-1 rounded-lg border text-[10px] font-black uppercase",
+                      isActive
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300",
+                    )}
+                  >
+                    #{tag}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <div className="space-y-1">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-              Recurso
+              {resourceModalMode === "cover" ? "Recurso de portada" : "Recurso"}
             </p>
             <select
               value={selectedResourceId}
               onChange={(e) => {
                 const resourceId = e.target.value;
                 setSelectedResourceId(resourceId);
-                const selectedResource = resources.find((item) => item.id === resourceId);
+                const selectedResource = filteredResourceOptions.find((item) => item.id === resourceId);
                 const variables = extractVariablesFromContent(selectedResource?.content || "");
                 const initialInputs: Record<string, string> = {};
                 variables.forEach((variableKey) => {
@@ -1498,13 +2062,22 @@ export default function DeliverableClient() {
               }}
               className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 focus:border-emerald-400 focus:outline-none"
             >
-              <option value="">Selecciona recurso</option>
-              {resources.map((resource) => (
+              <option value="">
+                {resourceModalMode === "cover"
+                  ? "Selecciona recurso de portada"
+                  : "Selecciona recurso"}
+              </option>
+              {filteredResourceOptions.map((resource) => (
                 <option key={resource.id} value={resource.id}>
                   {resource.title}
                 </option>
               ))}
             </select>
+            {filteredResourceOptions.length === 0 && (
+              <p className="text-xs font-medium text-rose-600 mt-2">
+                No se encontraron recursos con estos filtros.
+              </p>
+            )}
           </div>
 
           {Object.keys(resourceVariables).length > 0 && (
@@ -1570,163 +2143,184 @@ export default function DeliverableClient() {
           mode={currentProjectMode}
           moduleLabel="Entregable"
         />
-        <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+        <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
           <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
+              Bienvenida opcional
+            </p>
+            <h3 className="mt-1 text-sm font-black uppercase tracking-widest text-slate-900">
+              Mensaje después de portada
+            </h3>
+          </div>
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                Plantillas guardadas (detalles)
+              </p>
+              <select
+                value={selectedWelcomeTemplate}
+                onChange={(event) => handleApplyWelcomeTemplate(event.target.value)}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:border-emerald-400 focus:outline-none"
+              >
+                <option value="">Seleccionar mensaje guardado...</option>
+                {welcomeTemplateOptions.map((template) => (
+                  <option key={template} value={template}>
+                    {template.length > 120 ? `${template.slice(0, 120)}...` : template}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button
+              type="button"
+              onClick={handleSaveWelcomeTemplate}
+              isLoading={isSavingWelcomeTemplate}
+              className="h-11 w-full md:w-auto bg-emerald-600 text-white"
+            >
+              Guardar plantilla
+            </Button>
+          </div>
+          <textarea
+            value={welcomeMessage}
+            onChange={(e) => setWelcomeMessage(e.target.value)}
+            placeholder="Escribe un mensaje breve de bienvenida para tu paciente..."
+            className="min-h-[110px] w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-700 focus:border-emerald-400 focus:bg-white focus:outline-none"
+            maxLength={900}
+          />
+          <div className="flex justify-end">
+            <span className="text-[11px] font-bold text-slate-400">
+              {welcomeMessage.trim().length}/900
+            </span>
+          </div>
+        </div>
+        <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <button
+            type="button"
+            onClick={() => setIsFlowSummaryOpen((prev) => !prev)}
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50"
+          >
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
               Resumen de etapas previas
             </p>
             <h3 className="mt-1 text-sm font-black uppercase tracking-widest text-slate-900">
               Estado acumulado del flujo
             </h3>
-          </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-1">
-              <div className="flex items-center justify-between">
+            <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-700">
+              {isFlowSummaryOpen ? (
+                <ChevronUp className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5" />
+              )}
+              <span>{isFlowSummaryOpen ? "Clic para ocultar" : "Clic para desplegar"}</span>
+            </div>
+            <p className="mt-1 text-[11px] font-medium text-slate-500">
+              {isFlowSummaryOpen ? "Ocultar resumen" : "Ver resumen rápido"}
+            </p>
+          </button>
+
+          {isFlowSummaryOpen && (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-1">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                   Dieta
                 </p>
-                <button
-                  type="button"
-                  onClick={() => openFilteredCreationImport("DIET")}
-                  className="h-6 w-6 rounded-md border border-slate-300 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
-                  title="Cargar dieta desde creaciones"
-                >
-                  <Plus className="mx-auto h-3.5 w-3.5" />
-                </button>
-              </div>
-              {previousStagesSummary.diet.hasData ? (
-                <>
-                  <p className="text-xs font-bold text-slate-800">
-                    Nombre: {previousStagesSummary.diet.name || "Sin nombre"}
-                  </p>
-                  <p className="text-xs font-medium text-slate-600">
-                    Alimentos: {previousStagesSummary.diet.foodCount}
-                  </p>
-                  <p className="text-xs font-medium text-slate-600">
-                    Restricciones:{" "}
-                    {previousStagesSummary.diet.restrictions.length > 0
-                      ? previousStagesSummary.diet.restrictions.join(", ")
-                      : "No registradas"}
-                  </p>
-                </>
-              ) : (
-                <p className="text-xs font-medium text-rose-600">
-                  Etapa de dieta no cargada.
+                <p className="text-xs font-medium text-slate-700">
+                  {previousStagesSummary.diet.hasData
+                    ? `${previousStagesSummary.diet.foodCount} alimento(s) · ${previousStagesSummary.diet.restrictions.length} restricción(es)`
+                    : "Sin datos cargados"}
                 </p>
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-1">
-              <div className="flex items-center justify-between">
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-1">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                   Paciente
                 </p>
-                <button
-                  type="button"
-                  onClick={handlePatientLoad}
-                  className="h-6 w-6 rounded-md border border-slate-300 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
-                  title="Asignar paciente"
-                >
-                  <Plus className="mx-auto h-3.5 w-3.5" />
-                </button>
-              </div>
-              {previousStagesSummary.patient.hasData ? (
-                <>
-                  <p className="text-xs font-bold text-slate-800">
-                    Nombre: {previousStagesSummary.patient.name}
-                  </p>
-                  <p className="text-xs font-medium text-slate-600">
-                    Descripción:{" "}
-                    {previousStagesSummary.patient.description || "No registrada"}
-                  </p>
-                </>
-              ) : (
-                <p className="text-xs font-medium text-rose-600">
-                  Paciente no asignado.
+                <p className="text-xs font-medium text-slate-700">
+                  {previousStagesSummary.patient.hasData
+                    ? previousStagesSummary.patient.name
+                    : "Sin paciente vinculado"}
                 </p>
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-1">
-              <div className="flex items-center justify-between">
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Recetas y porciones
+                </p>
+                <p className="text-xs font-medium text-slate-700">
+                  {previousStagesSummary.recipes.hasData
+                    ? `${previousStagesSummary.recipes.recipeCount} receta(s)`
+                    : "Sin recetas cargadas"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-1">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                   Carrito
                 </p>
-                <button
-                  type="button"
-                  onClick={() => openFilteredCreationImport("SHOPPING_LIST")}
-                  className="h-6 w-6 rounded-md border border-slate-300 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
-                  title="Cargar carrito desde creaciones"
-                >
-                  <Plus className="mx-auto h-3.5 w-3.5" />
-                </button>
+                <p className="text-xs font-medium text-slate-700">
+                  {previousStagesSummary.cart.hasData
+                    ? `${previousStagesSummary.cart.foodCount} alimento(s)`
+                    : "Sin carrito cargado"}
+                </p>
               </div>
-              {previousStagesSummary.cart.hasData ? (
-                <p className="text-xs font-medium text-slate-600">
-                  Alimentos: {previousStagesSummary.cart.foodCount}
-                </p>
-              ) : (
-                <p className="text-xs font-medium text-rose-600">
-                  Carrito no cargado.
-                </p>
-              )}
             </div>
+          )}
+        </div>
+
+        <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
+              Revisión de módulos
+            </p>
+            <h3 className="mt-1 text-sm font-black uppercase tracking-widest text-slate-900">
+              Módulos previos requeridos
+            </h3>
           </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            {moduleChecklist.map((module) => (
+              <div
+                key={module.id}
+                className={cn(
+                  "rounded-2xl border p-4",
+                  module.isDone
+                    ? "border-emerald-200 bg-emerald-50"
+                    : "border-rose-200 bg-rose-50",
+                )}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      {module.label}
+                    </p>
+                    <p
+                      className={cn(
+                        "text-xs font-bold",
+                        module.isDone ? "text-emerald-700" : "text-rose-700",
+                      )}
+                    >
+                      {module.detail}
+                    </p>
+                  </div>
+                  {!module.isDone && (
+                    <button
+                      type="button"
+                      onClick={module.onImport}
+                      className="h-7 w-7 rounded-lg border border-slate-300 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
+                      title={module.actionLabel}
+                    >
+                      <Plus className="mx-auto h-4 w-4" />
+                    </button>
+                  )}
+                  {module.isDone && (
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-xs font-semibold text-slate-500">
+            Este módulo está hecho para completarse después de los demás módulos.
+          </p>
         </div>
         <div className="space-y-12 mt-8">
-          <div className="p-6 rounded-3xl border border-slate-200 bg-white space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-widest text-slate-900">
-                  Páginas Extra desde Recursos
-                </h4>
-                <p className="text-[11px] text-slate-500 font-medium mt-1">
-                  Agrega contenido reutilizable con variables personalizadas para este paciente.
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                className="h-9 text-xs font-black uppercase"
-                onClick={openResourceModal}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Agregar
-              </Button>
-            </div>
-
-            {resolvedResourcePages.length > 0 ? (
-              <div className="space-y-2">
-                {resolvedResourcePages.map((page, index) => (
-                  <div
-                    key={`${page.resourceId}-${index}`}
-                    className="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3"
-                  >
-                    <div>
-                      <p className="text-sm font-black text-slate-900">{page.title}</p>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase">
-                        Variables: {Object.keys(page.variables || {}).length}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() =>
-                        setResolvedResourcePages((prev) =>
-                          prev.filter((_, row) => row !== index),
-                        )
-                      }
-                      className="h-8 w-8 rounded-lg text-rose-500 hover:bg-rose-50"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-500 font-medium">
-                No has agregado páginas extra todavía.
-              </p>
-            )}
-          </div>
-
           {/* Main Selection Grid */}
           <div className="space-y-12">
             <section className="space-y-4">
@@ -1735,30 +2329,20 @@ export default function DeliverableClient() {
                   <Layout className="h-5 w-5 text-indigo-600" />
                 </div>
                 <h3 className="font-black text-slate-800 text-sm uppercase tracking-widest">
-                  Orden del Entregable (Arrastra como Playlist)
+                  Orden del Entregable
                 </h3>
               </div>
               <div className="p-4 rounded-2xl border border-slate-200 bg-white space-y-2">
                 {selectedSectionItems.length === 0 && (
                   <p className="text-xs text-slate-500 font-medium">
-                    Selecciona módulos para ordenar el entregable.
+                    Selecciona módulos para incluir en el entregable.
                   </p>
                 )}
                 {selectedSectionItems.map((section) => (
                   <div
                     key={`order-${section.id}`}
-                    draggable
-                    onDragStart={() => setDraggingSectionId(section.id)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => {
-                      if (!draggingSectionId) return;
-                      moveSelectedSection(draggingSectionId, section.id);
-                      setDraggingSectionId(null);
-                    }}
-                    onDragEnd={() => setDraggingSectionId(null)}
                     className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-indigo-300 transition-colors bg-slate-50/50"
                   >
-                    <GripVertical className="h-4 w-4 text-slate-400" />
                     <section.icon className="h-4 w-4 text-slate-600" />
                     <span className="text-xs font-bold text-slate-800 flex-1">{section.label}</span>
                     <span className={cn(
@@ -1786,7 +2370,6 @@ export default function DeliverableClient() {
               <div className="flex flex-col gap-3">
                 {availableSections
                   .filter((s) => s.category === "core")
-                  .filter((s) => contentFilter === "all" || s.contentType === contentFilter)
                   .map((section) => (
                     <div
                       key={section.id}
@@ -1835,10 +2418,24 @@ export default function DeliverableClient() {
                             size="sm"
                             variant="ghost"
                             onClick={(e) => handleEditSection(e, section.id)}
-                            className="h-8 px-3 rounded-lg text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 font-bold text-[10px] uppercase flex items-center gap-2"
+                            className={cn(
+                              "h-8 px-3 rounded-lg font-bold text-[10px] uppercase flex items-center gap-2",
+                              section.id === "cover"
+                                ? "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                                : "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700",
+                            )}
                           >
-                            <Pencil className="h-3 w-3" />
-                            Editar
+                            {section.id === "cover" ? (
+                              <>
+                                <Lock className="h-3 w-3" />
+                                Bloqueado
+                              </>
+                            ) : (
+                              <>
+                                <Pencil className="h-3 w-3" />
+                                Editar
+                              </>
+                            )}
                           </Button>
                         )}
 
@@ -1896,11 +2493,12 @@ export default function DeliverableClient() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3">
-                {availableSections
-                  .filter((s) => s.category === "info")
-                  .filter((s) => contentFilter === "all" || s.contentType === contentFilter)
-                  .map((section) => (
+              <div className="min-h-[420px] max-h-[560px] overflow-y-auto pr-1">
+                <div className="flex flex-col gap-3">
+                  {availableSections
+                    .filter((s) => s.category === "info")
+                    .filter((s) => contentFilter === "all" || s.contentType === contentFilter)
+                    .map((section) => (
                     <div
                       key={section.id}
                       onClick={() =>
@@ -1961,9 +2559,11 @@ export default function DeliverableClient() {
                         )}
                       </div>
                     </div>
-                  ))}
+                    ))}
+                </div>
               </div>
             </section>
+
           </div>
 
           {/* Floating indicator for 'Manual preview' - subtle */}

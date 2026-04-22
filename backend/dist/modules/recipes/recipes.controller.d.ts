@@ -3,6 +3,7 @@ import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { EstimateMacrosDto } from './dto/estimate-macros.dto';
 import { CompatibleRecipesDto } from './dto/compatible-recipes.dto';
 import { AiFillRecipesDto } from './dto/ai-fill-recipes.dto';
+import { QuickAiFillRecipesDto } from './dto/quick-ai-fill-recipes.dto';
 import { RecipeMatchingService } from './recipe-matching.service';
 export declare class RecipesController {
     private readonly recipesService;
@@ -174,6 +175,12 @@ export declare class RecipesController {
                 mealSection: string;
                 suggestions: string[];
             }[];
+        };
+    }>;
+    fillQuickWithAi(req: any, dto: QuickAiFillRecipesDto): Promise<{
+        dishes: any;
+        meta: {
+            note: any;
         };
     }>;
     findAll(req: any): Promise<any[]>;
