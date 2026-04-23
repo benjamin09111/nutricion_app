@@ -1,4 +1,4 @@
-const FALLBACK_API_ORIGINS = [
+const LOCAL_DEV_API_ORIGINS = [
   "http://127.0.0.1:3001",
   "http://localhost:3001",
   "http://127.0.0.1:3002",
@@ -8,13 +8,51 @@ const FALLBACK_API_ORIGINS = [
 let preferredApiOrigin: string | null = null;
 
 const normalizeOrigin = (origin: string) => origin.replace(/\/$/, "");
+const isProductionBuild = process.env.NODE_ENV === "production";
+
+const isLoopbackHost = (host: string) =>
+  host === "localhost" || host === "127.0.0.1" || host === "::1";
+
+const isLoopbackOrigin = (origin: string) => {
+  try {
+    const parsed = new URL(origin);
+    return isLoopbackHost(parsed.hostname);
+  } catch {
+    return false;
+  }
+};
+
+const isLocalDevRuntime = () => {
+  const isDev = process.env.NODE_ENV !== "production";
+
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    const isLocalHost = host === "localhost" || host === "127.0.0.1";
+    return isDev || isLocalHost;
+  }
+
+  return isDev;
+};
+
+const getSameOriginCandidate = () =>
+  typeof window !== "undefined" && window.location?.origin
+    ? normalizeOrigin(window.location.origin)
+    : null;
 
 export const getApiOriginCandidates = () => {
   const configuredOrigin = process.env.NEXT_PUBLIC_API_URL;
+  const safeConfiguredOrigin =
+    configuredOrigin &&
+    !(isProductionBuild && isLoopbackOrigin(configuredOrigin))
+      ? normalizeOrigin(configuredOrigin)
+      : null;
+  const sameOrigin = getSameOriginCandidate();
+  const localDevOrigins = isLocalDevRuntime() ? LOCAL_DEV_API_ORIGINS : [];
   const candidates = [
-    configuredOrigin ? normalizeOrigin(configuredOrigin) : null,
+    safeConfiguredOrigin,
+    sameOrigin,
     preferredApiOrigin,
-    ...FALLBACK_API_ORIGINS,
+    ...localDevOrigins,
   ].filter((origin): origin is string => Boolean(origin));
 
   return Array.from(new Set(candidates.map(normalizeOrigin)));
@@ -22,9 +60,10 @@ export const getApiOriginCandidates = () => {
 
 export const getApiUrl = () =>
   preferredApiOrigin ||
-  (process.env.NEXT_PUBLIC_API_URL
+  (process.env.NEXT_PUBLIC_API_URL &&
+  !(isProductionBuild && isLoopbackOrigin(process.env.NEXT_PUBLIC_API_URL))
     ? normalizeOrigin(process.env.NEXT_PUBLIC_API_URL)
-    : FALLBACK_API_ORIGINS[0]);
+    : getSameOriginCandidate() || (isLocalDevRuntime() ? LOCAL_DEV_API_ORIGINS[0] : ""));
 
 export async function fetchApi(
   path: string,
