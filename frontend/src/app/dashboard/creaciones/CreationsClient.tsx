@@ -138,7 +138,12 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
     content?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
   }) => ({
-    name: typeof raw.content?.title === "string" ? raw.content.title : raw.name,
+    name:
+      typeof raw.content?.title === "string"
+        ? raw.content.title
+        : typeof raw.name === "string" && raw.name.trim()
+          ? raw.name
+          : "Entregable",
     patientName:
       typeof raw.metadata?.patientName === "string"
         ? raw.metadata.patientName

@@ -1260,7 +1260,7 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
                       const macros = `Kcal ${entry.calories ?? "-"} | Prot ${entry.protein ?? "-"}g | HC ${entry.carbs ?? "-"}g | Grasas ${entry.fats ?? "-"}g`;
                       return (
                         <View key={`${day}-${idx}-${entry.title}`} style={S.recipeCard} wrap={false}>
-                          <Image src={entry.image || DEFAULT_RECIPE_IMAGE} style={S.recipeCardImage} alt="" />
+                          <Image src={entry.image || DEFAULT_RECIPE_IMAGE} style={S.recipeCardImage} />
                           <View style={S.recipeCardBody}>
                             <Text style={S.recipeTitle}>{entry.title}</Text>
                             <Text style={S.recipeMeta}>{entry.time} | {entry.section}</Text>

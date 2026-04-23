@@ -17,8 +17,8 @@ interface Metric {
 }
 
 interface MetricTagInputProps {
-  value: Array<{ key?: string; label: string; unit?: string }>;
-  onChange: (metrics: Array<{ key?: string; label: string; unit?: string }>) => void;
+  value: Array<{ key?: string; label: string; unit?: string; value?: string | number }>;
+  onChange: (metrics: Array<{ key?: string; label: string; unit?: string; value?: string | number }>) => void;
   registeredKeys?: string[];
   placeholder?: string;
   className?: string;
@@ -78,7 +78,7 @@ export function MetricTagInput({
   const addMetric = (metric: Metric) => {
     const isDuplicate = value.some((m) => m.key === metric.key);
     if (!isDuplicate) {
-      onChange([...value, { key: metric.key, label: metric.name, unit: metric.unit }]);
+      onChange([...value, { key: metric.key, label: metric.name, unit: metric.unit, value: "" }]);
       setInputValue("");
       setShowSuggestions(false);
     } else {

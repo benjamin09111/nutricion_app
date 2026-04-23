@@ -531,7 +531,17 @@ export default function CreatePatientClient() {
               </p>
               <MetricTagInput
                 value={selectedMetrics}
-                onChange={(metrics) => updateDraft({ customVariables: metrics })}
+                onChange={(metrics) =>
+                  updateDraft({
+                    customVariables: metrics
+                      .filter((metric) => typeof metric.key === "string" && metric.key.trim().length > 0)
+                      .map((metric) => ({
+                        key: String(metric.key),
+                        label: metric.label,
+                        unit: metric.unit,
+                        value: metric.value,
+                      })),
+                  })}
                 placeholder="Ej: Grasa Corporal, Plicometría, Brazo..."
                 className="mt-2"
               />

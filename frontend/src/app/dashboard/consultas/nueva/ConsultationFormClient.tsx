@@ -441,7 +441,17 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                     value={formData.metrics}
                                     registeredKeys={registeredMetricKeys}
                                     placeholder="Busca: Peso, Cintura, % Grasa..."
-                                    onChange={(newMetrics) => setFormData({ ...formData, metrics: newMetrics })}
+                                    onChange={(newMetrics) =>
+                                        setFormData({
+                                            ...formData,
+                                            metrics: newMetrics.map((metric) => ({
+                                                ...metric,
+                                                value:
+                                                    metric.value === undefined || metric.value === null
+                                                        ? ""
+                                                        : metric.value,
+                                            })),
+                                        })}
                                 />
                             </div>
 

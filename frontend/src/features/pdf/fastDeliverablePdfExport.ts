@@ -12,7 +12,7 @@ export async function downloadFastDeliverablePdf(
   ]);
 
   const doc = React.createElement(FastDeliverablePdfDocument, { data });
-  const blob = await pdf(doc).toBlob();
+  const blob = await pdf(doc as unknown as Parameters<typeof pdf>[0]).toBlob();
 
   const safeName =
     data.name.replace(/\s+/g, "_").replace(/[^\w-]/g, "") ||

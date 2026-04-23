@@ -11,22 +11,6 @@ import { Ingredient } from "@/features/foods";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
 
-interface IngredientFormValues {
-  name: string;
-  brand: string;
-  category: string;
-  unit: string;
-  amount: number;
-  calories: number;
-  proteins: number;
-  lipids: number;
-  carbs: number;
-  sugars?: number;
-  fiber?: number;
-  sodium?: number;
-  tags?: string[];
-}
-
 const ingredientSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
   brand: z.string().min(1, "La marca es obligatoria"),
@@ -91,6 +75,9 @@ const ingredientSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
+type IngredientFormInput = z.input<typeof ingredientSchema>;
+type IngredientFormValues = z.output<typeof ingredientSchema>;
+
 interface CreateIngredientModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -132,7 +119,7 @@ export default function CreateIngredientModal({
     control,
     reset,
     formState: { errors },
-  } = useForm<IngredientFormValues>({
+  } = useForm<IngredientFormInput, unknown, IngredientFormValues>({
     resolver: zodResolver(ingredientSchema),
     defaultValues: {
       amount: 100,

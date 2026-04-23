@@ -202,7 +202,7 @@ export default function CrearPlatoClient() {
       };
 
       console.log("[CrearPlato] Payload:", JSON.stringify(payload, null, 2));
-      const response = await fetch(`${apiUrl}/recipes`, {
+      const response = await fetchApi("/recipes", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
