@@ -9,6 +9,7 @@ export declare class FoodsService {
     private readonly draftMarker;
     private readonly logger;
     constructor(prisma: PrismaService, cacheService: CacheService);
+    private normalizeText;
     private parseDraftIngredientField;
     private buildDraftIngredientField;
     private buildNonDraftWhere;
@@ -20,6 +21,7 @@ export declare class FoodsService {
     private getOrCreateBrand;
     private getOrCreateCategory;
     private getOrCreateTags;
+    private findDuplicateIngredient;
     private invalidateFoodCaches;
     create(createFoodDto: CreateFoodDto, userId: string): Promise<any>;
     findAll(params: {

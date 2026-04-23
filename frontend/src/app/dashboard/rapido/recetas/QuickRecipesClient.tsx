@@ -103,6 +103,8 @@ const MEAL_SECTIONS = [
 const DEFAULT_TITLE = "Receta rápida";
 const DEFAULT_DIET_NAME = "Plan nutricional personalizado";
 const DRAFT_KEY = "nutri_quick_recipes_draft";
+const DISHES_PER_CATEGORY_PAGE = 3;
+const WEEKLY_CORE_SECTIONS = ["Desayuno", "Almuerzo", "Once", "Cena"];
 
 const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -135,6 +137,25 @@ const parseLines = (value: string): string[] =>
         .filter(Boolean),
     ),
   );
+const normalizeMealSectionKey = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+type MealGenerationTarget = {
+  mealSection: string;
+  enabled: boolean;
+  count: number;
+};
+
+const createDefaultGenerationTargets = (): MealGenerationTarget[] =>
+  MEAL_SECTIONS.map((mealSection) => ({
+    mealSection,
+    enabled: WEEKLY_CORE_SECTIONS.includes(mealSection),
+    count: WEEKLY_CORE_SECTIONS.includes(mealSection) ? 2 : 1,
+  }));
 
 const toTextAreaValue = (value: unknown): string => {
   if (!Array.isArray(value)) return "";
@@ -196,15 +217,18 @@ export default function QuickRecipesClient() {
   const [allowedFoodsMainText, setAllowedFoodsMainText] = useState("");
   const [restrictedFoodsText, setRestrictedFoodsText] = useState("");
   const [specialConsiderations, setSpecialConsiderations] = useState("");
-  const [referenceDishesText, setReferenceDishesText] = useState("");
-  const [resourcesText, setResourcesText] = useState("");
+  const [finalPdfNotes, setFinalPdfNotes] = useState("");
   const [dishes, setDishes] = useState<QuickDish[]>([createDish()]);
+  const [mealGenerationTargets, setMealGenerationTargets] = useState<MealGenerationTarget[]>(
+    createDefaultGenerationTargets(),
+  );
+  const [activeMealSectionFilter, setActiveMealSectionFilter] = useState("Todos");
+  const [categoryPageMap, setCategoryPageMap] = useState<Record<string, number>>({});
   const [selectedPatient, setSelectedPatient] = useState<QuickPatient | null>(null);
 
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
-  const [isImportReferencesModalOpen, setIsImportReferencesModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [creationDescription, setCreationDescription] = useState("");
 
@@ -213,8 +237,7 @@ export default function QuickRecipesClient() {
   const [patientSearch, setPatientSearch] = useState("");
 
   const [isGenerating, setIsGenerating] = useState(false);
-  const [aiNotes, setAiNotes] = useState("");
-  const [showAiModal, setShowAiModal] = useState(false);
+  const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   useEffect(() => {
@@ -238,9 +261,15 @@ export default function QuickRecipesClient() {
           ? parsed.specialConsiderations
           : "",
       );
-      setReferenceDishesText(toTextAreaValue(parsed.referenceDishes));
-      setResourcesText(toTextAreaValue(parsed.resources));
+      setFinalPdfNotes(
+        typeof parsed.finalPdfNotes === "string" ? parsed.finalPdfNotes : "",
+      );
       setDishes(normalizeImportedDishes(parsed.dishes));
+      setMealGenerationTargets(
+        Array.isArray(parsed.mealGenerationTargets)
+          ? (parsed.mealGenerationTargets as MealGenerationTarget[])
+          : createDefaultGenerationTargets(),
+      );
       setSelectedPatient(
         parsed.selectedPatient && typeof parsed.selectedPatient === "object"
           ? (parsed.selectedPatient as QuickPatient)
@@ -261,9 +290,11 @@ export default function QuickRecipesClient() {
         allowedFoodsMain: parseLines(allowedFoodsMainText),
         restrictedFoods: parseLines(restrictedFoodsText),
         specialConsiderations,
-        referenceDishes: parseLines(referenceDishesText),
-        resources: parseLines(resourcesText),
+        finalPdfNotes,
         dishes,
+        mealGenerationTargets,
+        activeMealSectionFilter,
+        categoryPageMap,
         selectedPatient,
       }),
     );
@@ -274,9 +305,11 @@ export default function QuickRecipesClient() {
     allowedFoodsMainText,
     restrictedFoodsText,
     specialConsiderations,
-    referenceDishesText,
-    resourcesText,
+    finalPdfNotes,
     dishes,
+    mealGenerationTargets,
+    activeMealSectionFilter,
+    categoryPageMap,
     selectedPatient,
   ]);
 
@@ -306,9 +339,15 @@ export default function QuickRecipesClient() {
             ? content.specialConsiderations
             : "",
         );
-        setReferenceDishesText(toTextAreaValue(content.referenceDishes));
-        setResourcesText(toTextAreaValue(content.resources));
+        setFinalPdfNotes(
+          typeof content.finalPdfNotes === "string" ? content.finalPdfNotes : "",
+        );
         setDishes(normalizeImportedDishes(content.dishes));
+        setMealGenerationTargets(
+          Array.isArray(content.mealGenerationTargets)
+            ? (content.mealGenerationTargets as MealGenerationTarget[])
+            : createDefaultGenerationTargets(),
+        );
 
         if (creation.metadata?.patientName) {
           setSelectedPatient({
@@ -355,7 +394,7 @@ export default function QuickRecipesClient() {
     setSelectedPatient(patient);
     setIsPatientModalOpen(false);
     toast.success(
-      `Paciente "${patient.fullName}" vinculado. Sus restricciones y gustos se usarán en IA.`,
+      `Paciente "${patient.fullName}" vinculado. La IA considerará restricciones y características del paciente (edad, sexo, objetivos y contexto clínico).`,
     );
   };
 
@@ -422,16 +461,9 @@ export default function QuickRecipesClient() {
       ),
     );
   };
-
-  const appendReferenceDishes = (titles: string[]) => {
-    if (titles.length === 0) return;
-    const merged = Array.from(new Set([...parseLines(referenceDishesText), ...titles]));
-    setReferenceDishesText(merged.join("\n"));
-  };
-
   const applyImportedCreation = (creation: ImportedCreation) => {
     if (creation.type !== "RECIPE") {
-      toast.error("Solo puedes importar recetas en este módulo.");
+      toast.error("Solo puedes importar recetas en este modulo.");
       return;
     }
     const content = (creation.content || {}) as Record<string, unknown>;
@@ -453,9 +485,15 @@ export default function QuickRecipesClient() {
     setSpecialConsiderations(
       typeof content.specialConsiderations === "string" ? content.specialConsiderations : "",
     );
-    setReferenceDishesText(toTextAreaValue(content.referenceDishes));
-    setResourcesText(toTextAreaValue(content.resources));
+    setFinalPdfNotes(
+      typeof content.finalPdfNotes === "string" ? content.finalPdfNotes : "",
+    );
     setDishes(normalizeImportedDishes(content.dishes));
+    setMealGenerationTargets(
+      Array.isArray(content.mealGenerationTargets)
+        ? (content.mealGenerationTargets as MealGenerationTarget[])
+        : createDefaultGenerationTargets(),
+    );
 
     const patientName =
       typeof creation.metadata?.patientName === "string" ? creation.metadata.patientName : null;
@@ -466,29 +504,32 @@ export default function QuickRecipesClient() {
     toast.success("Receta importada al borrador actual.");
   };
 
-  const applyImportedReferenceCreation = (creation: ImportedCreation) => {
-    if (creation.type !== "RECIPE") {
-      toast.error("Solo puedes importar recetas.");
-      return;
-    }
-    const content = (creation.content || {}) as Record<string, unknown>;
-    const titles = Array.isArray(content.dishes)
-      ? content.dishes
-          .map((item) => {
-            if (!item || typeof item !== "object") return "";
-            const title = (item as Record<string, unknown>).title;
-            return typeof title === "string" ? title.trim() : "";
-          })
-          .filter(Boolean)
-      : [];
-    appendReferenceDishes(titles);
-    setIsImportReferencesModalOpen(false);
-    toast.success("Platos añadidos a referencias para la IA.");
+  const updateGenerationTarget = (
+    mealSection: string,
+    field: "enabled" | "count",
+    value: boolean | number,
+  ) => {
+    setMealGenerationTargets((prev) =>
+      prev.map((target) => {
+        if (target.mealSection !== mealSection) return target;
+        if (field === "enabled") {
+          return { ...target, enabled: Boolean(value) };
+        }
+        const nextCount = Number(value);
+        return {
+          ...target,
+          count: Number.isFinite(nextCount) ? Math.max(1, Math.min(14, nextCount)) : 1,
+        };
+      }),
+    );
   };
 
-  const handleAiGenerate = async () => {
-    setIsGenerating(true);
-    setShowAiModal(false);
+  const generateWithAi = async (mode: "single" | "weekly") => {
+    if (mode === "single") {
+      setIsGenerating(true);
+    } else {
+      setIsGeneratingWeekly(true);
+    }
 
     try {
       const token = getAuthToken();
@@ -500,6 +541,35 @@ export default function QuickRecipesClient() {
         ? selectedPatient?.tags.filter(Boolean)
         : [];
       const userRestricted = parseLines(restrictedFoodsText);
+      const normalizedCore = new Set(WEEKLY_CORE_SECTIONS.map(normalizeMealSectionKey));
+      const effectiveTargets = mealGenerationTargets.map((target) => {
+        if (mode !== "weekly") return target;
+        const isCore = normalizedCore.has(normalizeMealSectionKey(target.mealSection));
+        if (!isCore) return target;
+        return {
+          ...target,
+          enabled: true,
+          count: Math.max(7, target.count || 1),
+        };
+      });
+
+      const selectedTargets = effectiveTargets
+        .filter((target) => target.enabled)
+        .map((target) => ({
+          mealSection: target.mealSection,
+          count: Math.max(1, Math.min(14, target.count || 1)),
+        }));
+
+      if (selectedTargets.length === 0) {
+        toast.error("Selecciona al menos una categoria para generar platos.");
+        return;
+      }
+
+      const desiredDishCount = selectedTargets.reduce((sum, target) => sum + target.count, 0);
+      const aiInstruction =
+        mode === "weekly"
+          ? "Generar plan semanal. Ser creativo para que no se aburran."
+          : "Ser creativo para que no se aburran.";
 
       const response = await fetchApi("/recipes/quick-ai-fill", {
         method: "POST",
@@ -510,15 +580,15 @@ export default function QuickRecipesClient() {
         body: JSON.stringify({
           payload: {
             dietName: dietName.trim() || DEFAULT_DIET_NAME,
-            notes: (aiNotes || nutritionistNotes).trim(),
+            notes: [nutritionistNotes.trim(), aiInstruction].filter(Boolean).join(" | "),
             allowedFoodsMain: parseLines(allowedFoodsMainText),
             restrictedFoods: Array.from(
               new Set([...userRestricted, ...patientRestrictions, ...patientHealthTags]),
             ),
             specialConsiderations: specialConsiderations.trim(),
-            referenceDishes: parseLines(referenceDishesText),
-            resources: parseLines(resourcesText),
-            desiredDishCount: Math.max(2, Math.min(8, dishes.length || 4)),
+            desiredDishCount: Math.max(2, Math.min(60, desiredDishCount)),
+            mealSectionTargets: selectedTargets,
+            generationMode: mode,
             existingDishes: dishes
               .filter((dish) => dish.title.trim())
               .map((dish) => ({ title: dish.title.trim(), mealSection: dish.mealSection })),
@@ -548,7 +618,7 @@ export default function QuickRecipesClient() {
       const data = await response.json();
       const aiDishes = Array.isArray(data?.dishes) ? (data.dishes as QuickAiDishResponse[]) : [];
       if (aiDishes.length === 0) {
-        throw new Error("La IA no devolvió platos.");
+        throw new Error("La IA no devolvio platos.");
       }
 
       const mapped: QuickDish[] = aiDishes.map((dish) => ({
@@ -585,15 +655,27 @@ export default function QuickRecipesClient() {
       }));
 
       setDishes(mapped);
-      toast.success("Platos generados correctamente con IA.");
+      if (mode === "weekly") {
+        setMealGenerationTargets(effectiveTargets);
+      }
+      setCategoryPageMap({});
+      setActiveMealSectionFilter("Todos");
+      toast.success(
+        mode === "weekly"
+          ? "Plan semanal generado con IA segun categorias."
+          : "Platos generados correctamente con IA.",
+      );
     } catch (error) {
       console.error("Quick AI generation error", error);
-      toast.error("No se pudo generar con IA. Revisa conexión o configuración de Gemini.");
+      toast.error("No se pudo generar con IA. Revisa conexion o configuracion de Gemini.");
     } finally {
-      setIsGenerating(false);
+      if (mode === "single") {
+        setIsGenerating(false);
+      } else {
+        setIsGeneratingWeekly(false);
+      }
     }
   };
-
   const buildContent = () => ({
     title,
     dietName,
@@ -601,9 +683,9 @@ export default function QuickRecipesClient() {
     allowedFoodsMain: parseLines(allowedFoodsMainText),
     restrictedFoods: parseLines(restrictedFoodsText),
     specialConsiderations,
-    referenceDishes: parseLines(referenceDishesText),
-    resources: parseLines(resourcesText),
+    finalPdfNotes,
     dishes,
+    mealGenerationTargets,
     updatedAt: new Date().toISOString(),
   });
 
@@ -646,9 +728,11 @@ export default function QuickRecipesClient() {
     setAllowedFoodsMainText("");
     setRestrictedFoodsText("");
     setSpecialConsiderations("");
-    setReferenceDishesText("");
-    setResourcesText("");
+    setFinalPdfNotes("");
     setDishes([createDish()]);
+    setMealGenerationTargets(createDefaultGenerationTargets());
+    setActiveMealSectionFilter("Todos");
+    setCategoryPageMap({});
     setSelectedPatient(null);
     localStorage.removeItem(DRAFT_KEY);
     toast.success("Borrador reiniciado.");
@@ -662,8 +746,7 @@ export default function QuickRecipesClient() {
     allowedFoodsMain: parseLines(allowedFoodsMainText),
     restrictedFoods: parseLines(restrictedFoodsText),
     specialConsiderations: specialConsiderations.trim() || undefined,
-    referenceDishes: parseLines(referenceDishesText),
-    resources: parseLines(resourcesText),
+    finalNotes: finalPdfNotes.trim() || undefined,
     dishes: dishes.map((dish) => ({
       title: dish.title,
       mealSection: dish.mealSection,
@@ -709,13 +792,6 @@ export default function QuickRecipesClient() {
       onClick: openPatientModal,
     },
     {
-      id: "ai",
-      icon: Sparkles,
-      label: isGenerating ? "Generando..." : "Generar con IA",
-      variant: "indigo",
-      onClick: () => setShowAiModal(true),
-    },
-    {
       id: "export-pdf",
       icon: Download,
       label: isExportingPdf ? "Exportando..." : "Exportar PDF",
@@ -750,6 +826,65 @@ export default function QuickRecipesClient() {
       onClick: handleReset,
     },
   ];
+
+  const mealSectionTabs = useMemo(() => {
+    const ordered = MEAL_SECTIONS.filter((section) =>
+      dishes.some((dish) => normalizeMealSectionKey(dish.mealSection) === normalizeMealSectionKey(section)),
+    );
+    const custom = Array.from(
+      new Set(
+        dishes
+          .map((dish) => dish.mealSection.trim())
+          .filter(
+            (section) =>
+              section.length > 0 &&
+              !MEAL_SECTIONS.some(
+                (known) => normalizeMealSectionKey(known) === normalizeMealSectionKey(section),
+              ),
+          ),
+      ),
+    );
+    return ["Todos", ...ordered, ...custom];
+  }, [dishes]);
+
+  const filteredDishesByCategory = useMemo(() => {
+    if (activeMealSectionFilter === "Todos") return dishes;
+    return dishes.filter(
+      (dish) =>
+        normalizeMealSectionKey(dish.mealSection) ===
+        normalizeMealSectionKey(activeMealSectionFilter),
+    );
+  }, [activeMealSectionFilter, dishes]);
+
+  const currentCategoryPage = Math.max(
+    1,
+    categoryPageMap[activeMealSectionFilter] || 1,
+  );
+  const totalCategoryPages = Math.max(
+    1,
+    Math.ceil(filteredDishesByCategory.length / DISHES_PER_CATEGORY_PAGE),
+  );
+  const pagedDishes = filteredDishesByCategory.slice(
+    (Math.min(currentCategoryPage, totalCategoryPages) - 1) * DISHES_PER_CATEGORY_PAGE,
+    Math.min(currentCategoryPage, totalCategoryPages) * DISHES_PER_CATEGORY_PAGE,
+  );
+  const selectedGenerationTotal = mealGenerationTargets
+    .filter((target) => target.enabled)
+    .reduce((sum, target) => sum + Math.max(1, target.count || 1), 0);
+
+  useEffect(() => {
+    if (mealSectionTabs.includes(activeMealSectionFilter)) return;
+    setActiveMealSectionFilter("Todos");
+  }, [activeMealSectionFilter, mealSectionTabs]);
+
+  useEffect(() => {
+    setCategoryPageMap((prev) => {
+      const current = prev[activeMealSectionFilter] || 1;
+      const bounded = Math.max(1, Math.min(current, totalCategoryPages));
+      if (bounded === current) return prev;
+      return { ...prev, [activeMealSectionFilter]: bounded };
+    });
+  }, [activeMealSectionFilter, totalCategoryPages]);
 
   return (
     <>
@@ -817,7 +952,8 @@ export default function QuickRecipesClient() {
               <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">
                 <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span>
-                  Puedes vincular paciente para incluir restricciones de salud y gustos en la
+                  Puedes vincular paciente para incluir restricciones y características del
+                  paciente (edad, sexo, peso/talla, objetivos y contexto clínico) en la
                   generación IA.
                 </span>
               </div>
@@ -872,41 +1008,9 @@ export default function QuickRecipesClient() {
                 maxLength={700}
               />
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Platos de referencia (opcional)
-                  </label>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 rounded-xl border-slate-200 text-xs"
-                    onClick={() => setIsImportReferencesModalOpen(true)}
-                  >
-                    <Library className="mr-1.5 h-3.5 w-3.5" />
-                    Desde creación
-                  </Button>
-                </div>
-                <Textarea
-                  value={referenceDishesText}
-                  onChange={(event) => setReferenceDishesText(event.target.value)}
-                  placeholder="Ej: bowl de quinoa, tortilla de verduras..."
-                  className="min-h-[92px] rounded-xl border-slate-200 bg-slate-50 text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Recursos adicionales (opcional)
-                </label>
-                <Textarea
-                  value={resourcesText}
-                  onChange={(event) => setResourcesText(event.target.value)}
-                  placeholder="Ej: batch cooking domingo, guía de porciones, lista de compras base..."
-                  className="min-h-[92px] rounded-xl border-slate-200 bg-slate-50 text-sm"
-                />
-              </div>
-            </div>
+            <p className="text-xs text-slate-500">
+              Las instrucciones de arriba se usan directamente para generar con IA.
+            </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -922,31 +1026,174 @@ export default function QuickRecipesClient() {
             />
           </div>
 
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Notas finales para el PDF
+            </label>
+            <Textarea
+              value={finalPdfNotes}
+              onChange={(event) => setFinalPdfNotes(event.target.value)}
+              placeholder="Ej: Recuerda hidratarte, prioriza consistencia y avisa cualquier molestia digestiva."
+              className="min-h-[84px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+              maxLength={900}
+            />
+          </div>
+
           <div className="space-y-4">
+            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-sm font-black uppercase tracking-widest text-indigo-700">
+                  Generar con IA segun instrucciones
+                </h3>
+                <div className="text-xs font-semibold text-indigo-700">
+                  Total a generar: {selectedGenerationTotal}
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {mealGenerationTargets.map((target) => (
+                  <label
+                    key={target.mealSection}
+                    className="flex items-center justify-between rounded-xl border border-indigo-100 bg-white px-3 py-2"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={target.enabled}
+                        onChange={(event) =>
+                          updateGenerationTarget(
+                            target.mealSection,
+                            "enabled",
+                            event.target.checked,
+                          )
+                        }
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      {target.mealSection}
+                    </span>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="14"
+                      value={target.count}
+                      disabled={!target.enabled}
+                      onChange={(event) =>
+                        updateGenerationTarget(
+                          target.mealSection,
+                          "count",
+                          Number(event.target.value || "1"),
+                        )
+                      }
+                      className="h-9 w-16 rounded-lg border-slate-200 bg-slate-50 px-2 text-center text-sm"
+                    />
+                  </label>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Button
+                  className="rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+                  onClick={() => generateWithAi("single")}
+                  disabled={isGenerating || isGeneratingWeekly}
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  {isGenerating ? "Generando..." : "Generar platos IA"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-100"
+                  onClick={() => generateWithAi("weekly")}
+                  disabled={isGenerating || isGeneratingWeekly}
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  {isGeneratingWeekly ? "Generando..." : "Generar plan semanal IA"}
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {mealSectionTabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveMealSectionFilter(tab)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold ${
+                    activeMealSectionFilter === tab
+                      ? "bg-slate-900 text-white"
+                      : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
             <div className="flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-500">
                 <ChefHat className="h-4 w-4 text-amber-500" />
-                Platos ({dishes.length})
+                Platos ({filteredDishesByCategory.length})
               </h2>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addDish}
-                className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
-              >
-                <Plus className="mr-1.5 h-4 w-4" />
-                Agregar plato
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCategoryPageMap((prev) => ({
+                      ...prev,
+                      [activeMealSectionFilter]: Math.max(1, currentCategoryPage - 1),
+                    }))
+                  }
+                  disabled={currentCategoryPage <= 1}
+                  className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
+                >
+                  Anterior
+                </Button>
+                <span className="text-xs font-semibold text-slate-500">
+                  Pagina {Math.min(currentCategoryPage, totalCategoryPages)} de {totalCategoryPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCategoryPageMap((prev) => ({
+                      ...prev,
+                      [activeMealSectionFilter]: Math.min(
+                        totalCategoryPages,
+                        currentCategoryPage + 1,
+                      ),
+                    }))
+                  }
+                  disabled={currentCategoryPage >= totalCategoryPages}
+                  className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
+                >
+                  Siguiente
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addDish}
+                  className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
+                >
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Agregar plato
+                </Button>
+              </div>
             </div>
 
-            {dishes.map((dish, index) => (
+            {pagedDishes.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+                No hay platos en esta categoria.
+              </div>
+            ) : (
+              pagedDishes.map((dish, index) => (
               <div
                 key={dish.id}
                 className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
               >
                 <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Plato {index + 1}
+                    Plato{" "}
+                    {(Math.min(currentCategoryPage, totalCategoryPages) - 1) *
+                      DISHES_PER_CATEGORY_PAGE +
+                      index +
+                      1}
                   </span>
                   <button
                     onClick={() => removeDish(dish.id)}
@@ -1106,7 +1353,8 @@ export default function QuickRecipesClient() {
                   </div>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </ModuleLayout>
@@ -1114,7 +1362,8 @@ export default function QuickRecipesClient() {
       <Modal isOpen={isPatientModalOpen} onClose={() => setIsPatientModalOpen(false)} title="Importar paciente">
         <div className="space-y-4">
           <p className="text-sm text-slate-500">
-            Al importar un paciente, sus restricciones y gustos se incluyen en la generación IA.
+            Al importar un paciente, la IA considera restricciones y características personales
+            como edad, sexo, peso/talla, objetivos y resumen clínico.
           </p>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -1150,47 +1399,6 @@ export default function QuickRecipesClient() {
         </div>
       </Modal>
 
-      <Modal isOpen={showAiModal} onClose={() => setShowAiModal(false)} title="Generar platos con IA">
-        <div className="space-y-4">
-          <p className="text-sm text-slate-500">
-            Se usarán nombre de dieta, permitidos, restricciones, consideraciones, platos de
-            referencia, recursos y datos del paciente vinculado.
-          </p>
-          <div>
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Instrucciones adicionales
-            </label>
-            <Textarea
-              value={aiNotes}
-              onChange={(event) => setAiNotes(event.target.value)}
-              placeholder="Ej: 4 platos variados, fáciles, máximo 20 minutos de preparación."
-              className="min-h-[100px] rounded-xl border-slate-200 bg-slate-50 text-sm"
-              maxLength={400}
-            />
-          </div>
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" className="rounded-xl border-slate-200" onClick={() => setShowAiModal(false)}>
-              Cancelar
-            </Button>
-            <Button
-              className="rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
-              onClick={handleAiGenerate}
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generando...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" /> Generar platos
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
       <SaveCreationModal
         isOpen={isSaveCreationModalOpen}
         onClose={() => setIsSaveCreationModalOpen(false)}
@@ -1209,12 +1417,11 @@ export default function QuickRecipesClient() {
         allowedTypes={["RECIPE"]}
       />
 
-      <ImportCreationModal
-        isOpen={isImportReferencesModalOpen}
-        onClose={() => setIsImportReferencesModalOpen(false)}
-        onImport={applyImportedReferenceCreation}
-        allowedTypes={["RECIPE"]}
-      />
     </>
   );
 }
+
+
+
+
+

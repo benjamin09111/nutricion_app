@@ -284,6 +284,12 @@ const normalizeWelcomeTemplates = (value: unknown): string[] => {
   return normalized;
 };
 
+const formatTemplateOptionLabel = (text: string, maxLength = 90) => {
+  const singleLine = safeString(text).replace(/\s+/g, " ");
+  if (singleLine.length <= maxLength) return singleLine;
+  return `${singleLine.slice(0, maxLength).trim()}...`;
+};
+
 const isCoverResource = (resource: ResourceTemplate | undefined | null): boolean => {
   if (!resource) return false;
   return /portada|cover|introducci/i.test(
@@ -388,6 +394,31 @@ const buildPreviousStageSummary = (
   };
 };
 
+const normalizePatientMeta = (patient: any) => {
+  if (!patient || typeof patient !== "object") return null;
+  const restrictions = Array.isArray(patient.dietRestrictions)
+    ? patient.dietRestrictions
+    : Array.isArray(patient.restrictions)
+      ? patient.restrictions
+      : [];
+
+  const validRestrictions = restrictions.filter(
+    (r: string) => r && r.trim() !== "",
+  );
+
+  const normalized = {
+    ...patient,
+    fullName:
+      safeString(patient.fullName) ||
+      safeString(patient.name) ||
+      "Paciente sin nombre",
+    restrictions: validRestrictions,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return normalized;
+};
+
 export default function DeliverableClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -403,6 +434,10 @@ export default function DeliverableClient() {
   const [welcomeTemplateOptions, setWelcomeTemplateOptions] = useState<string[]>([]);
   const [selectedWelcomeTemplate, setSelectedWelcomeTemplate] = useState("");
   const [isSavingWelcomeTemplate, setIsSavingWelcomeTemplate] = useState(false);
+  const [professionalInstagram, setProfessionalInstagram] = useState("");
+  const [professionalPhone, setProfessionalPhone] = useState("");
+  const [professionalEmail, setProfessionalEmail] = useState("");
+  const [isSavingProfessionalContact, setIsSavingProfessionalContact] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
@@ -449,7 +484,7 @@ export default function DeliverableClient() {
   const [isExportWizardOpen, setIsExportWizardOpen] = useState(false);
   const [exportMode, setExportMode] = useState<"single" | "advanced">("single");
   const [exportPackages, setExportPackages] = useState<ExportPackage[]>([]);
-  const [contentFilter, setContentFilter] = useState<"all" | "practical" | "theory">("all");
+  const [contentFilter, setContentFilter] = useState<"all" | "practical" | "theory" | "my-resources">("all");
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(
     projectIdFromUrl,
   );
@@ -469,10 +504,14 @@ export default function DeliverableClient() {
       const storedUser = localStorage.getItem("user");
       if (!storedUser) return;
       const parsedUser = JSON.parse(storedUser);
+      const settings = parsedUser?.nutritionist?.settings || {};
       const fromSettings = normalizeWelcomeTemplates(
-        parsedUser?.nutritionist?.settings?.deliverableWelcomeTemplates,
+        settings?.deliverableWelcomeTemplates,
       );
       setWelcomeTemplateOptions(fromSettings);
+      setProfessionalInstagram(safeString(settings?.professionalInstagram));
+      setProfessionalPhone(safeString(settings?.professionalPhone));
+      setProfessionalEmail(safeString(settings?.professionalEmail));
     } catch (error) {
       console.error("Error loading welcome templates from settings", error);
     }
@@ -571,19 +610,13 @@ export default function DeliverableClient() {
 
           if (project.patient) {
             const localPatient = localStorage.getItem("nutri_patient");
+            const normalizedProjectPatient = normalizePatientMeta(project.patient);
             if (!localPatient) {
-              setSelectedPatient(project.patient);
-              localStorage.setItem("nutri_patient", JSON.stringify(project.patient));
+              setSelectedPatient(normalizedProjectPatient);
+              localStorage.setItem("nutri_patient", JSON.stringify(normalizedProjectPatient));
             }
             if (!draft.patientMeta) {
-              draft.patientMeta = {
-                id: project.patient.id,
-                fullName: project.patient.fullName,
-                restrictions: project.patient.dietRestrictions || [],
-                weight: project.patient.weight,
-                height: project.patient.height,
-                updatedAt: new Date().toISOString(),
-              };
+              draft.patientMeta = normalizedProjectPatient;
             }
           }
 
@@ -800,16 +833,7 @@ export default function DeliverableClient() {
     const merged: any = { ...draftData };
 
     if (selectedPatient && !merged.patientMeta) {
-      merged.patientMeta = {
-        id: selectedPatient.id,
-        fullName: selectedPatient.fullName,
-        restrictions: Array.isArray(selectedPatient.dietRestrictions)
-          ? selectedPatient.dietRestrictions
-          : [],
-        weight: selectedPatient.weight,
-        height: selectedPatient.height,
-        updatedAt: new Date().toISOString(),
-      };
+      merged.patientMeta = normalizePatientMeta(selectedPatient);
     }
 
     const projectId = currentProjectId || projectIdFromUrl;
@@ -818,16 +842,7 @@ export default function DeliverableClient() {
         const project = await fetchProject(projectId);
 
         if (project.patient && !merged.patientMeta) {
-          merged.patientMeta = {
-            id: project.patient.id,
-            fullName: project.patient.fullName,
-            restrictions: Array.isArray(project.patient.dietRestrictions)
-              ? project.patient.dietRestrictions
-              : [],
-            weight: project.patient.weight,
-            height: project.patient.height,
-            updatedAt: new Date().toISOString(),
-          };
+          merged.patientMeta = normalizePatientMeta(project.patient);
         }
 
         const [dietCreation, cartCreation, recipesCreation, deliverableCreation] =
@@ -891,16 +906,7 @@ export default function DeliverableClient() {
         merged?.diet?.selectedPatient ||
         null;
       if (fallbackPatient) {
-        merged.patientMeta = {
-          id: fallbackPatient.id,
-          fullName: fallbackPatient.fullName || fallbackPatient.name,
-          restrictions: Array.isArray(fallbackPatient.dietRestrictions)
-            ? fallbackPatient.dietRestrictions
-            : [],
-          weight: fallbackPatient.weight,
-          height: fallbackPatient.height,
-          updatedAt: new Date().toISOString(),
-        };
+        merged.patientMeta = normalizePatientMeta(fallbackPatient);
       }
     }
 
@@ -1300,6 +1306,50 @@ export default function DeliverableClient() {
     }
   };
 
+  const handleSaveProfessionalContact = async () => {
+    setIsSavingProfessionalContact(true);
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(`/users/me/settings`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          professionalInstagram: safeString(professionalInstagram),
+          professionalPhone: safeString(professionalPhone),
+          professionalEmail: safeString(professionalEmail),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo guardar el contacto del profesional.");
+      }
+
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser?.nutritionist) {
+          parsedUser.nutritionist.settings = {
+            ...(parsedUser.nutritionist.settings || {}),
+            professionalInstagram: safeString(professionalInstagram),
+            professionalPhone: safeString(professionalPhone),
+            professionalEmail: safeString(professionalEmail),
+          };
+          localStorage.setItem("user", JSON.stringify(parsedUser));
+        }
+      }
+
+      toast.success("Contacto profesional guardado. Se reflejará en la portada.");
+    } catch (error: any) {
+      console.error("Error saving professional contact", error);
+      toast.error(error?.message || "No se pudo guardar el contacto profesional.");
+    } finally {
+      setIsSavingProfessionalContact(false);
+    }
+  };
+
   const extractVariablesFromContent = (content: string): string[] => {
     const regex = /\^([a-zA-Z0-9_\- ]+)\^/g;
     const variables = new Set<string>();
@@ -1389,6 +1439,50 @@ export default function DeliverableClient() {
     }
   };
 
+  const handleAddMyResource = async (resource: ResourceTemplate) => {
+    const alreadyAdded = resolvedResourcePages.some(
+      (page) => page.resourceId === resource.id && page.title === resource.title,
+    );
+    if (alreadyAdded) {
+      toast.info("Este recurso ya está agregado al entregable.");
+      return;
+    }
+
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(`/resources/resolve-variables`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          content: resource.content,
+          inputs: {},
+        }),
+      });
+
+      const resolvedContent = response.ok
+        ? (await response.json())?.resolvedContent || resource.content
+        : resource.content;
+
+      const page: ResolvedResourcePage = {
+        resourceId: resource.id,
+        title: resource.title,
+        content: resolvedContent,
+        variables: {},
+      };
+
+      const nextResourcePages = [...resolvedResourcePages, page];
+      setResolvedResourcePages(nextResourcePages);
+      persistDeliverableDraftNow(nextResourcePages);
+      toast.success("Recurso agregado al capítulo de recursos.");
+    } catch (error) {
+      console.error("Error adding my resource", error);
+      toast.error("No se pudo agregar este recurso.");
+    }
+  };
+
   useEffect(() => {
     void fetchResources();
   }, []);
@@ -1440,37 +1534,39 @@ export default function DeliverableClient() {
     }
   };
 
-  const handleSelectPatient = (patient: any) => {
-    setSelectedPatient(patient);
-    localStorage.setItem("nutri_patient", JSON.stringify(patient));
+  const handleSelectPatient = async (patient: any) => {
+    let patientDetail = patient;
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(`/patients/${patient.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        patientDetail = await response.json();
+      }
+    } catch (error) {
+      console.error("Error fetching full patient detail", error);
+    }
 
-    // Sync metadata to global draft
+    const normalizedPatient =
+      normalizePatientMeta(patientDetail) || normalizePatientMeta(patient);
+    if (!normalizedPatient) {
+      toast.error("No se pudo vincular el paciente.");
+      return;
+    }
+
+    setSelectedPatient(normalizedPatient);
+    localStorage.setItem("nutri_patient", JSON.stringify(normalizedPatient));
+
+    // Sync metadata to global draft with full patient payload
     const storedDraft = localStorage.getItem("nutri_active_draft");
-    let draft = storedDraft ? JSON.parse(storedDraft) : {};
-
-    const restrictions = Array.isArray(patient.dietRestrictions)
-      ? patient.dietRestrictions
-      : [];
-    const validRestrictions = restrictions.filter(
-      (r: string) => r && r.trim() !== "",
-    );
-
-    draft.patientMeta = {
-      id: patient.id,
-      fullName: patient.fullName,
-      restrictions: validRestrictions,
-      nutritionalFocus: patient.nutritionalFocus,
-      fitnessGoals: patient.fitnessGoals,
-      birthDate: patient.birthDate,
-      weight: patient.weight,
-      height: patient.height,
-      gender: patient.gender,
-      updatedAt: new Date().toISOString(),
-    };
+    const draft = storedDraft ? JSON.parse(storedDraft) : {};
+    draft.patientMeta = normalizedPatient;
 
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+    refreshPreviousStagesSummary(draft, normalizedPatient);
 
-    toast.success(`Paciente vinculado: ${patient.fullName}`);
+    toast.success(`Paciente vinculado: ${normalizedPatient.fullName}`);
     setIsImportPatientModalOpen(false);
     setPatientSearchQuery("");
   };
@@ -1683,6 +1779,13 @@ export default function DeliverableClient() {
     resourceOwnerFilter,
     resourceSearchQuery,
   ]);
+  const myResourcesForSection = useMemo(
+    () =>
+      resources.filter(
+        (resource) => resource.isMine && !isCoverResource(resource),
+      ),
+    [resources],
+  );
 
   return (
     <>
@@ -2143,6 +2246,66 @@ export default function DeliverableClient() {
           mode={currentProjectMode}
           moduleLabel="Entregable"
         />
+        <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
+              Portada del entregable
+            </p>
+            <h3 className="mt-1 text-sm font-black uppercase tracking-widest text-slate-900">
+              Contacto del profesional
+            </h3>
+            <p className="mt-1 text-xs font-medium text-slate-500">
+              Estos datos se muestran en la portada del PDF y puedes completarlos aquí mismo.
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                Instagram
+              </p>
+              <Input
+                value={professionalInstagram}
+                onChange={(e) => setProfessionalInstagram(e.target.value)}
+                placeholder="@tuusuario"
+                maxLength={80}
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                Celular
+              </p>
+              <Input
+                value={professionalPhone}
+                onChange={(e) => setProfessionalPhone(e.target.value)}
+                placeholder="+56 9 1234 5678"
+                maxLength={40}
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                Correo de contacto
+              </p>
+              <Input
+                value={professionalEmail}
+                onChange={(e) => setProfessionalEmail(e.target.value)}
+                placeholder="contacto@tudominio.cl"
+                maxLength={120}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              onClick={handleSaveProfessionalContact}
+              isLoading={isSavingProfessionalContact}
+              className="h-10 bg-emerald-600 text-white"
+            >
+              Guardar contacto para portada
+            </Button>
+          </div>
+        </div>
         <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
@@ -2165,7 +2328,7 @@ export default function DeliverableClient() {
                 <option value="">Seleccionar mensaje guardado...</option>
                 {welcomeTemplateOptions.map((template) => (
                   <option key={template} value={template}>
-                    {template.length > 120 ? `${template.slice(0, 120)}...` : template}
+                    {formatTemplateOptionLabel(template)}
                   </option>
                 ))}
               </select>
@@ -2490,15 +2653,70 @@ export default function DeliverableClient() {
                   >
                     Teoría
                   </Button>
+                  <Button
+                    variant={contentFilter === "my-resources" ? "default" : "ghost"}
+                    size="sm"
+                    className="h-8 text-[10px] uppercase font-black flex items-center gap-1"
+                    onClick={() => {
+                      setContentFilter("my-resources");
+                      void fetchResources();
+                    }}
+                  >
+                    <Library className="h-3.5 w-3.5" />
+                    Mis recursos
+                  </Button>
                 </div>
               </div>
 
               <div className="min-h-[420px] max-h-[560px] overflow-y-auto pr-1">
-                <div className="flex flex-col gap-3">
-                  {availableSections
-                    .filter((s) => s.category === "info")
-                    .filter((s) => contentFilter === "all" || s.contentType === contentFilter)
-                    .map((section) => (
+                {contentFilter === "my-resources" ? (
+                  <div className="flex flex-col gap-3">
+                    {myResourcesForSection.length === 0 ? (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center">
+                        <p className="text-xs font-bold text-slate-600">
+                          Aún no tienes recursos propios creados.
+                        </p>
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          Crea recursos en el módulo de recursos y aparecerán aquí.
+                        </p>
+                      </div>
+                    ) : (
+                      myResourcesForSection.map((resource) => (
+                        <div
+                          key={`my-resource-${resource.id}`}
+                          className="p-5 rounded-2xl border border-indigo-200 bg-indigo-50/40 space-y-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1">
+                              <h4 className="font-black text-slate-800 text-xs uppercase tracking-wider">
+                                {resource.title}
+                              </h4>
+                              <p className="text-[11px] font-medium text-slate-600 leading-snug">
+                                {safeString(resource.content).slice(0, 180)}
+                                {safeString(resource.content).length > 180 ? "..." : ""}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              className="h-8 px-3 bg-indigo-600 text-white text-[10px] font-black uppercase"
+                              onClick={() => void handleAddMyResource(resource)}
+                            >
+                              Agregar
+                            </Button>
+                          </div>
+                          <p className="text-[10px] font-bold text-indigo-700">
+                            Se agregará al capítulo de recursos como subtítulo + texto.
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {availableSections
+                      .filter((s) => s.category === "info")
+                      .filter((s) => contentFilter === "all" || s.contentType === contentFilter)
+                      .map((section) => (
                     <div
                       key={section.id}
                       onClick={() =>
@@ -2559,8 +2777,9 @@ export default function DeliverableClient() {
                         )}
                       </div>
                     </div>
-                    ))}
-                </div>
+                      ))}
+                  </div>
+                )}
               </div>
             </section>
 

@@ -2,6 +2,10 @@ declare class QuickAiExistingDishDto {
     title?: string;
     mealSection?: string;
 }
+declare class QuickAiMealTargetDto {
+    mealSection: string;
+    count: number;
+}
 declare class QuickAiPatientDto {
     fullName?: string;
     restrictions?: string[];
@@ -26,6 +30,8 @@ declare class QuickAiFillPayloadDto {
     patient?: QuickAiPatientDto;
     existingDishes?: QuickAiExistingDishDto[];
     desiredDishCount?: number;
+    mealSectionTargets?: QuickAiMealTargetDto[];
+    generationMode?: 'single' | 'weekly';
 }
 export declare class QuickAiFillRecipesDto {
     payload: QuickAiFillPayloadDto;

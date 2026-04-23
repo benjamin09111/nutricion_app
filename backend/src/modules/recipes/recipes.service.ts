@@ -507,8 +507,25 @@ export class RecipesService {
             ingredients,
         };
     }
-
     private buildQuickAiPrompt(payload: QuickAiFillPayload): string {
+        const mealSectionTargets = Array.isArray((payload as any).mealSectionTargets)
+            ? (payload as any).mealSectionTargets
+                .filter((target: any) => target && typeof target.mealSection === 'string')
+                .map((target: any) => ({
+                    mealSection: String(target.mealSection).trim(),
+                    count: Number.isFinite(Number(target.count))
+                        ? Math.max(1, Math.min(14, Number(target.count)))
+                        : 1,
+                }))
+                .filter((target: { mealSection: string; count: number }) => target.mealSection.length > 0)
+            : [];
+
+        const desiredByTargets = mealSectionTargets.reduce((sum, target) => sum + target.count, 0);
+        const desiredDishCount = Math.max(
+            2,
+            Math.min(60, desiredByTargets > 0 ? desiredByTargets : payload.desiredDishCount || 4),
+        );
+
         const safePayload = {
             dietName: payload.dietName || '',
             notes: payload.notes || '',
@@ -519,23 +536,27 @@ export class RecipesService {
             resources: this.sanitizeStringList(payload.resources),
             patient: payload.patient || null,
             existingDishes: Array.isArray(payload.existingDishes) ? payload.existingDishes : [],
-            desiredDishCount: payload.desiredDishCount || 4,
+            desiredDishCount,
+            generationMode: (payload as any).generationMode || 'single',
+            mealSectionTargets,
         };
 
         return [
-            'Objetivo: generar platos para el módulo rápido de recetas.',
+            'Objetivo: generar platos para el modulo rapido de recetas.',
             'Respeta SIEMPRE las restricciones alimentarias y evita ingredientes prohibidos.',
+            'Debes ser creativo para que el paciente no se aburra, sin perder simplicidad ni realismo.',
             'Prioriza alimentos permitidos principales, y considera gustos/restricciones del paciente si vienen informados.',
-            'Devuelve entre 2 y 8 platos según desiredDishCount.',
+            'Devuelve la cantidad exacta pedida en desiredDishCount (minimo 2, maximo 60).',
+            'Si mealSectionTargets viene informado, respeta exactamente la cantidad solicitada por cada mealSection.',
+            'Si generationMode es weekly, prioriza variedad semanal evitando repetir platos muy similares.',
             'Estructura exacta de salida JSON:',
             '{"dishes":[{"title":"string","mealSection":"string","description":"string","preparation":"string","recommendedPortion":"string","protein":0,"calories":0,"carbs":0,"fats":0,"ingredients":[{"name":"string","quantity":"string"}]}],"meta":{"note":"string"}}',
-            'Secciones sugeridas para mealSection: Desayuno, Colación AM, Almuerzo, Colación PM, Once, Cena, Post entreno.',
-            'Si falta información, asume criterios nutricionales generales y recetas realistas de cocina chilena/latam.',
+            'Secciones sugeridas para mealSection: Desayuno, Colacion AM, Almuerzo, Colacion PM, Once, Cena, Post entreno.',
+            'Si falta informacion, asume criterios nutricionales generales y recetas realistas de cocina chilena/latam.',
             'No incluyas texto fuera del JSON.',
             `CONTEXTO: ${JSON.stringify(safePayload)}`,
         ].join('\n');
     }
-
     async quickFillWithAi(userId: string, dto: QuickAiFillRecipesDto) {
         await this.getNutritionistId(userId);
 
@@ -837,3 +858,4 @@ export class RecipesService {
         return deleted;
     }
 }
+

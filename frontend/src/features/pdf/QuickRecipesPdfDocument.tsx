@@ -24,6 +24,7 @@ export interface QuickRecipesPdfData {
   dietName?: string;
   patientName?: string | null;
   nutritionistNotes?: string;
+  finalNotes?: string;
   allowedFoodsMain?: string[];
   restrictedFoods?: string[];
   specialConsiderations?: string;
@@ -318,6 +319,13 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
           <View style={styles.notesBox}>
             <Text style={styles.notesLabel}>Notas del nutricionista</Text>
             <Text style={styles.notesText}>{data.nutritionistNotes}</Text>
+          </View>
+        ) : null}
+
+        {data.finalNotes?.trim() ? (
+          <View style={styles.infoBox}>
+            <Text style={styles.boxLabel}>Notas finales</Text>
+            <Text style={styles.boxText}>{data.finalNotes}</Text>
           </View>
         ) : null}
 

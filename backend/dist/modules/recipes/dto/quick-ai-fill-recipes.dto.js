@@ -26,6 +26,20 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], QuickAiExistingDishDto.prototype, "mealSection", void 0);
+class QuickAiMealTargetDto {
+    mealSection;
+    count;
+}
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], QuickAiMealTargetDto.prototype, "mealSection", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    (0, class_validator_1.Max)(14),
+    __metadata("design:type", Number)
+], QuickAiMealTargetDto.prototype, "count", void 0);
 class QuickAiPatientDto {
     fullName;
     restrictions;
@@ -105,6 +119,8 @@ class QuickAiFillPayloadDto {
     patient;
     existingDishes;
     desiredDishCount;
+    mealSectionTargets;
+    generationMode;
 }
 __decorate([
     (0, class_validator_1.IsString)(),
@@ -161,10 +177,23 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsInt)(),
     (0, class_validator_1.Min)(1),
-    (0, class_validator_1.Max)(12),
+    (0, class_validator_1.Max)(60),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], QuickAiFillPayloadDto.prototype, "desiredDishCount", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => QuickAiMealTargetDto),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], QuickAiFillPayloadDto.prototype, "mealSectionTargets", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsIn)(['single', 'weekly']),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], QuickAiFillPayloadDto.prototype, "generationMode", void 0);
 class QuickAiFillRecipesDto {
     payload;
 }

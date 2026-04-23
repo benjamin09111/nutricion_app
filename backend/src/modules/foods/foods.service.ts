@@ -20,6 +20,12 @@ export class FoodsService {
         private readonly cacheService: CacheService
     ) { }
 
+    private normalizeText(value?: string | null) {
+        return (value ?? '')
+            .trim()
+            .replace(/\s+/g, ' ');
+    }
+
     private parseDraftIngredientField(rawValue?: string | null) {
         const value = typeof rawValue === 'string' ? rawValue : '';
         const isDraft = value.includes(this.draftMarker);
@@ -129,7 +135,7 @@ export class FoodsService {
 
     private async getOrCreateBrand(name?: string) {
         if (!name) return null;
-        const normalized = name.trim();
+        const normalized = this.normalizeText(name);
         return (this.prisma as any).ingredientBrand.upsert({
             where: { name: normalized },
             update: {},
@@ -138,7 +144,7 @@ export class FoodsService {
     }
 
     private async getOrCreateCategory(name: string) {
-        const normalized = name.trim();
+        const normalized = this.normalizeText(name);
         return (this.prisma as any).ingredientCategory.upsert({
             where: { name: normalized },
             update: {},
@@ -150,7 +156,7 @@ export class FoodsService {
         if (!names || names.length === 0) return [];
         const tags = [];
         for (const name of names) {
-            const normalized = name.trim();
+            const normalized = this.normalizeText(name);
             const tag = await (this.prisma as any).tag.upsert({
                 where: { name: normalized },
                 update: {},
@@ -159,6 +165,29 @@ export class FoodsService {
             tags.push(tag);
         }
         return tags;
+    }
+
+    private async findDuplicateIngredient(params: {
+        name: string;
+        brandId?: string | null;
+        excludeIngredientId?: string;
+    }) {
+        const normalizedName = this.normalizeText(params.name);
+
+        return (this.prisma as any).ingredient.findFirst({
+            where: {
+                ...(params.excludeIngredientId ? { id: { not: params.excludeIngredientId } } : {}),
+                name: {
+                    equals: normalizedName,
+                    mode: 'insensitive',
+                },
+                ...(params.brandId ? { brandId: params.brandId } : { brandId: null }),
+            },
+            select: {
+                id: true,
+                name: true,
+            },
+        });
     }
 
     private async invalidateFoodCaches(params: {
@@ -187,6 +216,7 @@ export class FoodsService {
 
     async create(createFoodDto: CreateFoodDto, userId: string) {
         const { brand, category, tags, isPublic, isDraft, ingredients, ...rest } = createFoodDto;
+        const normalizedName = this.normalizeText(rest.name);
 
         // Find nutritionist profile from Account ID
         const nutritionist = await (this.prisma as any).nutritionist.findUnique({
@@ -201,27 +231,20 @@ export class FoodsService {
         const categoryRecord = await this.getOrCreateCategory(category);
         const tagRecords = await this.getOrCreateTags(tags);
 
-        // Check for duplicates (Name + Brand)
-        if (brandRecord) {
-            const existing = await (this.prisma as any).ingredient.findFirst({
-                where: {
-                    name: rest.name,
-                    brandId: brandRecord.id,
-                }
-            });
-
-            if (existing) {
-                // If it exists, we could either return it or throw error.
-                // User said "alimentos son unicos en nombre, y unicos en marca".
-                // Implies we should reject creation of duplicate.
-                throw new Error(`Ya existe un alimento llamado '${rest.name}' de la marca '${brand}'.`);
-            }
+        // Check for duplicates (Name + Brand), also when no brand exists.
+        const existing = await this.findDuplicateIngredient({
+            name: normalizedName,
+            brandId: brandRecord?.id ?? null,
+        });
+        if (existing) {
+            throw new Error(`Ya existe un alimento llamado '${normalizedName}' para esa marca.`);
         }
 
         const ingredient = await (this.prisma as any).$transaction(async (tx: any) => {
             const ingredient = await tx.ingredient.create({
                 data: {
                     ...rest,
+                    name: normalizedName,
                     ingredients: this.buildDraftIngredientField(ingredients, isDraft),
                     brand: brandRecord ? { connect: { id: brandRecord.id } } : undefined,
                     category: { connect: { id: categoryRecord.id } },
@@ -628,15 +651,29 @@ export class FoodsService {
         this.assertIngredientOwnership(existing, nutritionistId);
 
         const { brand, category, tags, ingredients, isDraft, ...rest } = updateFoodDto;
+        const normalizedName =
+            rest.name !== undefined ? this.normalizeText(rest.name) : this.normalizeText(existing.name);
 
         const brandRecord = brand ? await this.getOrCreateBrand(brand) : undefined;
         const categoryRecord = category ? await this.getOrCreateCategory(category) : undefined;
         const tagRecords = tags ? await this.getOrCreateTags(tags) : undefined;
+        const finalBrandId =
+            brand !== undefined ? (brandRecord?.id ?? null) : (existing.brandId ?? null);
+
+        const duplicate = await this.findDuplicateIngredient({
+            name: normalizedName,
+            brandId: finalBrandId,
+            excludeIngredientId: existing.id,
+        });
+        if (duplicate) {
+            throw new Error(`Ya existe un alimento llamado '${normalizedName}' para esa marca.`);
+        }
 
         const ingredient = await (this.prisma as any).ingredient.update({
             where: { id },
             data: {
                 ...rest,
+                ...(rest.name !== undefined ? { name: normalizedName } : {}),
                 ingredients: this.resolveIngredientNotesForWrite({
                     existingIngredients: existing.ingredients,
                     incomingIngredients: ingredients,

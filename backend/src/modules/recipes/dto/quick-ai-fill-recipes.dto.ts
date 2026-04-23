@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
     IsArray,
+    IsIn,
     IsInt,
     IsObject,
     IsOptional,
@@ -18,6 +19,16 @@ class QuickAiExistingDishDto {
     @IsString()
     @IsOptional()
     mealSection?: string;
+}
+
+class QuickAiMealTargetDto {
+    @IsString()
+    mealSection: string;
+
+    @IsInt()
+    @Min(1)
+    @Max(14)
+    count: number;
 }
 
 class QuickAiPatientDto {
@@ -112,9 +123,20 @@ class QuickAiFillPayloadDto {
 
     @IsInt()
     @Min(1)
-    @Max(12)
+    @Max(60)
     @IsOptional()
     desiredDishCount?: number;
+
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => QuickAiMealTargetDto)
+    @IsOptional()
+    mealSectionTargets?: QuickAiMealTargetDto[];
+
+    @IsString()
+    @IsIn(['single', 'weekly'])
+    @IsOptional()
+    generationMode?: 'single' | 'weekly';
 }
 
 export class QuickAiFillRecipesDto {

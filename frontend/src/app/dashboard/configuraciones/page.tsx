@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Lock, Save, Eye, EyeOff, Sparkles } from "lucide-react";
+import { User, Lock, Save, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { authService } from "@/features/auth/services/auth.service";
@@ -24,10 +24,11 @@ export default function SettingsPage() {
     settings?: any;
   } | null>(null);
 
-  // Branding State
-  const [primaryColorHex, setPrimaryColorHex] = useState("#10b981");
-  const [brandBackgroundUrl, setBrandBackgroundUrl] = useState("");
-  const [isSavingBranding, setIsSavingBranding] = useState(false);
+  const [professionalInstagram, setProfessionalInstagram] = useState("");
+  const [professionalPhone, setProfessionalPhone] = useState("");
+  const [professionalEmail, setProfessionalEmail] = useState("");
+  const [isSavingProfessionalContact, setIsSavingProfessionalContact] =
+    useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -40,8 +41,9 @@ export default function SettingsPage() {
           fullName: user.nutritionist?.fullName || "Profesional",
           settings,
         });
-        setPrimaryColorHex(settings.primaryColorHex || "#10b981");
-        setBrandBackgroundUrl(settings.brandBackgroundUrl || "");
+        setProfessionalInstagram(settings.professionalInstagram || "");
+        setProfessionalPhone(settings.professionalPhone || "");
+        setProfessionalEmail(settings.professionalEmail || "");
       } catch (e) {
         console.error("Error loading user data", e);
       }
@@ -84,9 +86,9 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveBranding = async (e: React.FormEvent) => {
+  const handleSaveProfessionalContact = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSavingBranding(true);
+    setIsSavingProfessionalContact(true);
     try {
       const token = localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/me/settings`, {
@@ -96,30 +98,35 @@ export default function SettingsPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          primaryColorHex,
-          brandBackgroundUrl,
+          professionalInstagram: professionalInstagram.trim(),
+          professionalPhone: professionalPhone.trim(),
+          professionalEmail: professionalEmail.trim(),
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Error al guardar marca personal");
+        throw new Error("No se pudo guardar el contacto profesional");
       }
 
-      toast.success("Ajustes de marca guardados correctamente");
-      
-      // Update local storage
+      toast.success("Contacto profesional guardado correctamente");
+
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         const user = JSON.parse(storedUser);
         if (user.nutritionist) {
-          user.nutritionist.settings = { ...user.nutritionist.settings, primaryColorHex, brandBackgroundUrl };
+          user.nutritionist.settings = {
+            ...user.nutritionist.settings,
+            professionalInstagram: professionalInstagram.trim(),
+            professionalPhone: professionalPhone.trim(),
+            professionalEmail: professionalEmail.trim(),
+          };
           localStorage.setItem("user", JSON.stringify(user));
         }
       }
     } catch (error: any) {
       toast.error(error.message || "Hubo un error");
     } finally {
-      setIsSavingBranding(false);
+      setIsSavingProfessionalContact(false);
     }
   };
 
@@ -191,6 +198,58 @@ export default function SettingsPage() {
               * Para cambiar tu nombre o correo, contacta con soporte
               administrativo.
             </p>
+
+            <form onSubmit={handleSaveProfessionalContact} className="mt-6 space-y-4">
+              <div className="grid gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Instagram (Portada Entregable)
+                  </label>
+                  <Input
+                    type="text"
+                    value={professionalInstagram}
+                    onChange={(e) => setProfessionalInstagram(e.target.value)}
+                    placeholder="@tuusuario"
+                    maxLength={80}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Número de Celular (Portada Entregable)
+                  </label>
+                  <Input
+                    type="text"
+                    value={professionalPhone}
+                    onChange={(e) => setProfessionalPhone(e.target.value)}
+                    placeholder="+56 9 1234 5678"
+                    maxLength={40}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Correo de Contacto (Portada Entregable)
+                  </label>
+                  <Input
+                    type="email"
+                    value={professionalEmail}
+                    onChange={(e) => setProfessionalEmail(e.target.value)}
+                    placeholder="contacto@tudominio.cl"
+                    maxLength={120}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  isLoading={isSavingProfessionalContact}
+                  className="flex items-center gap-2 font-bold"
+                >
+                  {!isSavingProfessionalContact && <Save className="h-4 w-4" />}
+                  Guardar Contacto Profesional
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
 
@@ -302,89 +361,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Advanced Information (Locked/Pro Feature) - Compact Version */}
-      <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 p-6 flex flex-col sm:flex-row items-center justify-between text-sm mb-6">
-        <div className="flex items-center gap-x-4 text-emerald-900 mb-4 sm:mb-0">
-          <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-            <Sparkles className="h-5 w-5 text-emerald-600" />
-          </div>
-          <div>
-            <span className="font-bold text-base block mb-0.5">
-              Potencia tu Marca Personal
-            </span>
-            <span className="text-emerald-700/80 font-medium">
-              Vincula tus redes sociales (Instagram, LinkedIn) y añade un fondo global tipo Canva para tus PDF.
-            </span>
-          </div>
-        </div>
-        <div className="hidden sm:block shrink-0">
-          <span className="inline-flex items-center rounded-md bg-emerald-600 px-3 py-1 text-xs font-bold text-white shadow-sm">
-            NUEVO
-          </span>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm font-medium mb-12">
-        <div className="border-b border-slate-200 px-6 py-4">
-          <div className="flex items-center gap-x-2">
-            <Sparkles className="h-5 w-5 text-indigo-600" />
-            <h2 className="font-semibold text-slate-900">
-              Personalización de Entregables (PDF)
-            </h2>
-          </div>
-        </div>
-        <div className="p-6">
-          <form onSubmit={handleSaveBranding} className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">
-                  Color Principal (Hex)
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={primaryColorHex}
-                    onChange={(e) => setPrimaryColorHex(e.target.value)}
-                    className="h-10 w-10 rounded cursor-pointer border-0 p-0"
-                  />
-                  <Input
-                    type="text"
-                    value={primaryColorHex}
-                    onChange={(e) => setPrimaryColorHex(e.target.value)}
-                    placeholder="#10b981"
-                    className="flex-1 font-mono uppercase"
-                  />
-                </div>
-                <p className="mt-2 text-xs text-slate-500">Este color se usará para los títulos, íconos y tablas de tus PDF.</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">
-                  URL de Hoja Membretada (Fondo PDF)
-                </label>
-                <Input
-                  type="text"
-                  placeholder="Ej: https://miservidor.com/mi-fondo-canva.png"
-                  value={brandBackgroundUrl}
-                  onChange={(e) => setBrandBackgroundUrl(e.target.value)}
-                />
-                <p className="mt-2 text-xs text-slate-500">Sube una imagen A4 diseñada en Canva. Se usará como fondo en cada hoja generada por NutriSaaS.</p>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-100 flex justify-end">
-              <Button
-                type="submit"
-                isLoading={isSavingBranding}
-                className="flex items-center gap-2 font-bold px-8 bg-indigo-600 hover:bg-indigo-700 text-white"
-              >
-                {!isSavingBranding && <Save className="h-4 w-4" />}
-                Guardar Personalización
-              </Button>
-            </div>
-          </form>
-        </div>
-      </div>
     </div>
   );
 }
