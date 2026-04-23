@@ -508,7 +508,9 @@ export class RecipesService {
         };
     }
     private buildQuickAiPrompt(payload: QuickAiFillPayload): string {
-        const mealSectionTargets = Array.isArray((payload as any).mealSectionTargets)
+        type MealSectionTarget = { mealSection: string; count: number };
+
+        const mealSectionTargets: MealSectionTarget[] = Array.isArray((payload as any).mealSectionTargets)
             ? (payload as any).mealSectionTargets
                 .filter((target: any) => target && typeof target.mealSection === 'string')
                 .map((target: any) => ({
@@ -520,7 +522,7 @@ export class RecipesService {
                 .filter((target: { mealSection: string; count: number }) => target.mealSection.length > 0)
             : [];
 
-        const desiredByTargets = mealSectionTargets.reduce((sum, target) => sum + target.count, 0);
+        const desiredByTargets = mealSectionTargets.reduce((sum: number, target: MealSectionTarget) => sum + target.count, 0);
         const desiredDishCount = Math.max(
             2,
             Math.min(60, desiredByTargets > 0 ? desiredByTargets : payload.desiredDishCount || 4),
@@ -858,4 +860,5 @@ export class RecipesService {
         return deleted;
     }
 }
+
 
