@@ -11,7 +11,8 @@ import * as express from 'express';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // app.use('/uploads', ...); // Removed manual upload serving
+  // Trust reverse proxy (Render, Vercel) so real client IPs are used for rate limiting
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   // Security
   // app.use(helmet()); // Temporarily disabled to debug connectivity
@@ -24,10 +25,10 @@ async function bootstrap() {
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 100, // limit each IP to 100 requests per windowMs
-      message: 'Too many requests from this IP, please try again after 15 minutes',
-      standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-      legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+      max: 500, // increased for production proxy environments
+      message: { statusCode: 429, message: 'Demasiadas solicitudes. Intenta de nuevo en 15 minutos.' },
+      standardHeaders: true,
+      legacyHeaders: false,
     }),
   );
 
