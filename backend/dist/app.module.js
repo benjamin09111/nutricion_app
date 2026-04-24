@@ -26,7 +26,6 @@ const ingredient_groups_module_1 = require("./modules/ingredient-groups/ingredie
 const recipes_module_1 = require("./modules/recipes/recipes.module");
 const schedule_1 = require("@nestjs/schedule");
 const cache_manager_1 = require("@nestjs/cache-manager");
-const cache_manager_redis_yet_1 = require("cache-manager-redis-yet");
 const http_logger_middleware_1 = require("./common/middleware/http-logger.middleware");
 const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
 const creations_module_1 = require("./modules/creations/creations.module");
@@ -66,15 +65,9 @@ exports.AppModule = AppModule = __decorate([
             ingredient_groups_module_1.IngredientGroupsModule,
             recipes_module_1.RecipesModule,
             schedule_1.ScheduleModule.forRoot(),
-            cache_manager_1.CacheModule.registerAsync({
+            cache_manager_1.CacheModule.register({
                 isGlobal: true,
-                useFactory: async () => ({
-                    store: await (0, cache_manager_redis_yet_1.redisStore)({
-                        url: process.env.REDIS_URL,
-                        ttl: 300000,
-                        pingInterval: 10000,
-                    }),
-                }),
+                ttl: 300,
             }),
             dashboard_module_1.DashboardModule,
             creations_module_1.CreationsModule,

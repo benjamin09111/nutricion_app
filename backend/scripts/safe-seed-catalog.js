@@ -18,6 +18,10 @@ function parseInteger(raw) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function normalizeIngredientKey(name) {
+  return String(name).trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 function readLines(filePath) {
   return fs
     .readFileSync(filePath, 'utf-8')
@@ -29,6 +33,22 @@ function readLines(filePath) {
 
 function buildSql(categories, ingredients) {
   const parts = ['BEGIN;'];
+  parts.push(`
+WITH ranked AS (
+  SELECT
+    id,
+    ROW_NUMBER() OVER (
+      PARTITION BY lower(btrim("name")), COALESCE("brand_id", '')
+      ORDER BY "verified" DESC, "is_public" DESC, "createdAt" ASC, id ASC
+    ) AS rn
+  FROM "ingredients"
+)
+DELETE FROM "ingredients"
+WHERE id IN (
+  SELECT id
+  FROM ranked
+  WHERE rn > 1
+);`);
 
   for (const categoryName of categories) {
     const safeCategoryName = escapeSql(categoryName);
@@ -87,7 +107,7 @@ WHERE lower(c."name") = lower('${safeCategoryName}')
     SELECT 1
     FROM "ingredients" i
     WHERE lower(i."name") = lower('${safeName}')
-      AND i."category_id" = c."id"
+      AND i."brand_id" IS NULL
   );`);
   }
 
@@ -97,6 +117,7 @@ WHERE lower(c."name") = lower('${safeCategoryName}')
 
 function parseIngredients(lines, validCategories) {
   const rows = [];
+  const seenKeys = new Set();
 
   for (const line of lines) {
     const cols = line.split(',');
@@ -109,8 +130,15 @@ function parseIngredients(lines, validCategories) {
       continue;
     }
 
+    const name = cols[0].trim();
+    const key = normalizeIngredientKey(name);
+    if (seenKeys.has(key)) {
+      continue;
+    }
+    seenKeys.add(key);
+
     rows.push({
-      name: cols[0].trim(),
+      name,
       categoryName,
       calories: parseNumber(cols[2]),
       proteins: parseNumber(cols[3]),

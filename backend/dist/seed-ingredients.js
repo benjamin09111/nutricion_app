@@ -37,6 +37,9 @@ const client_1 = require("@prisma/client");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const prisma = new client_1.PrismaClient();
+function normalizeIngredientKey(name) {
+    return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
 async function main() {
     console.log('Starting seed process...');
     const categoriesPath = path.join(__dirname, '..', '..', 'categories.txt');
@@ -58,6 +61,7 @@ async function main() {
     console.log(`Found ${lines.length} ingredients.`);
     await prisma.ingredient.deleteMany({ where: { isPublic: true, verified: true } });
     const ingredientsData = [];
+    const seenKeys = new Set();
     for (const line of lines) {
         const parts = line.split(',');
         if (parts.length < 12)
@@ -68,8 +72,14 @@ async function main() {
             console.warn(`Category not found for ingredient: ${name} (${categoryName})`);
             continue;
         }
+        const normalizedName = name.trim();
+        const duplicateKey = normalizeIngredientKey(normalizedName);
+        if (seenKeys.has(duplicateKey)) {
+            continue;
+        }
+        seenKeys.add(duplicateKey);
         ingredientsData.push({
-            name: name.trim(),
+            name: normalizedName,
             categoryId,
             calories: parseFloat(calories) || 0,
             proteins: parseFloat(proteins) || 0,

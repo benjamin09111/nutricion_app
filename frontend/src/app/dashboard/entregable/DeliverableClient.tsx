@@ -1840,9 +1840,13 @@ export default function DeliverableClient() {
         ? `${previousStagesSummary.cart.foodCount} alimento(s)`
         : "Faltante",
       actionLabel: "Importar carrito",
-      onImport: () => openFilteredCreationImport("SHOPPING_LIST"),
     },
   ];
+
+  const isExportDisabled = useMemo(() => {
+    return moduleChecklist.some((module) => !module.isDone);
+  }, [moduleChecklist]);
+
   const baseResourceOptions =
     resourceModalMode === "cover"
       ? resources.filter((resource) => isCoverResource(resource))

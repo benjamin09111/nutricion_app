@@ -37,6 +37,10 @@ function parseInteger(raw: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function normalizeIngredientKey(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 function readLines(filePath: string): string[] {
   return fs
     .readFileSync(filePath, 'utf-8')
@@ -106,13 +110,14 @@ WHERE lower(c."name") = lower('${safeCategoryName}')
     SELECT 1
     FROM "ingredients" i
     WHERE lower(i."name") = lower('${safeName}')
-      AND i."category_id" = c."id"
+      AND i."brand_id" IS NULL
   );`;
   });
 }
 
 function parseIngredientRows(lines: string[], validCategories: Set<string>): IngredientRow[] {
   const rows: IngredientRow[] = [];
+  const seenKeys = new Set<string>();
 
   for (const line of lines) {
     const cols = line.split(',');
@@ -125,8 +130,15 @@ function parseIngredientRows(lines: string[], validCategories: Set<string>): Ing
       continue;
     }
 
+    const name = cols[0].trim();
+    const key = normalizeIngredientKey(name);
+    if (seenKeys.has(key)) {
+      continue;
+    }
+    seenKeys.add(key);
+
     rows.push({
-      name: cols[0].trim(),
+      name,
       categoryName,
       calories: parseNumber(cols[2]),
       proteins: parseNumber(cols[3]),
@@ -161,6 +173,21 @@ function main() {
   const statements = [
     '-- Generated file. Rebuild with: npx tsx prisma/generate_seed_sql.ts',
     'BEGIN;',
+    `WITH ranked AS (
+  SELECT
+    id,
+    ROW_NUMBER() OVER (
+      PARTITION BY lower(btrim("name")), COALESCE("brand_id", '')
+      ORDER BY "verified" DESC, "is_public" DESC, "createdAt" ASC, id ASC
+    ) AS rn
+  FROM "ingredients"
+)
+DELETE FROM "ingredients"
+WHERE id IN (
+  SELECT id
+  FROM ranked
+  WHERE rn > 1
+);`,
     ...buildCategoryStatements(categories),
     ...buildIngredientStatements(ingredientRows),
     'COMMIT;',

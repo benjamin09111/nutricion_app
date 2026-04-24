@@ -38,6 +38,7 @@ declare class AiPatientProfileDto {
     heightCm?: number;
     nutritionalFocus?: string;
     fitnessGoals?: string;
+    likes?: string;
     activityLevel?: 'sedentario' | 'deportista';
     restrictions?: string[];
 }

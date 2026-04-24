@@ -7,6 +7,10 @@ loadPrismaEnv();
 
 const prisma = new PrismaClient();
 
+function normalizeIngredientKey(name: string) {
+    return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 async function main() {
     console.log('Start seeding ingredients and categories (without deletion)...');
 
@@ -65,6 +69,7 @@ async function main() {
         isPublic: true;
         verified: true;
     }> = [];
+    const seenKeys = new Set<string>();
     let skipped = 0;
 
     for (const line of lines) {
@@ -82,6 +87,12 @@ async function main() {
             skipped += 1;
             continue;
         }
+
+        const duplicateKey = normalizeIngredientKey(name);
+        if (seenKeys.has(duplicateKey)) {
+            continue;
+        }
+        seenKeys.add(duplicateKey);
 
         parsedIngredients.push({
             name,

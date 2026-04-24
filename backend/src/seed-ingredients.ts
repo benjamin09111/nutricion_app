@@ -5,6 +5,10 @@ import * as path from 'path';
 
 const prisma = new PrismaClient();
 
+function normalizeIngredientKey(name: string) {
+    return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 async function main() {
     console.log('Starting seed process...');
 
@@ -37,6 +41,7 @@ async function main() {
     await prisma.ingredient.deleteMany({ where: { isPublic: true, verified: true } });
 
     const ingredientsData = [];
+    const seenKeys = new Set<string>();
     for (const line of lines) {
         const parts = line.split(',');
         if (parts.length < 12) continue;
@@ -49,8 +54,15 @@ async function main() {
             continue;
         }
 
+        const normalizedName = name.trim();
+        const duplicateKey = normalizeIngredientKey(normalizedName);
+        if (seenKeys.has(duplicateKey)) {
+            continue;
+        }
+        seenKeys.add(duplicateKey);
+
         ingredientsData.push({
-            name: name.trim(),
+            name: normalizedName,
             categoryId,
             calories: parseFloat(calories) || 0,
             proteins: parseFloat(proteins) || 0,
