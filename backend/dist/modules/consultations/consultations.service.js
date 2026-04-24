@@ -44,6 +44,16 @@ let ConsultationsService = class ConsultationsService {
     }
     async findAll(nutritionistId, page = 1, limit = 20, search, patientId, type) {
         const skip = (page - 1) * limit;
+        if (!nutritionistId) {
+            return {
+                data: [],
+                meta: {
+                    total: 0,
+                    page,
+                    lastPage: 0,
+                },
+            };
+        }
         const where = {
             nutritionistId,
         };

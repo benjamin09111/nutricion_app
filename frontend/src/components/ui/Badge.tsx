@@ -1,5 +1,8 @@
+"use client";
+
 import { HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/context/ThemeContext";
 
 export interface BadgeProps extends HTMLAttributes<HTMLDivElement> {
   variant?:
@@ -12,6 +15,8 @@ export interface BadgeProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 function Badge({ className, variant = "default", ...props }: BadgeProps) {
+  const { isDarkMode } = useTheme();
+
   return (
     <div
       className={cn(
@@ -28,6 +33,18 @@ function Badge({ className, variant = "default", ...props }: BadgeProps) {
             variant === "success",
           "border-transparent bg-amber-100 text-amber-700":
             variant === "warning",
+          "border-transparent bg-slate-800 text-emerald-50 hover:bg-slate-700":
+            isDarkMode && variant === "default",
+          "border-transparent bg-slate-700 text-emerald-50 hover:bg-slate-600":
+            isDarkMode && variant === "secondary",
+          "border-transparent bg-red-500/20 text-red-100 hover:bg-red-500/30":
+            isDarkMode && variant === "destructive",
+          "border-slate-700 text-emerald-50":
+            isDarkMode && variant === "outline",
+          "border-transparent bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/20":
+            isDarkMode && variant === "success",
+          "border-transparent bg-amber-500/15 text-amber-100 hover:bg-amber-500/20":
+            isDarkMode && variant === "warning",
         },
         className,
       )}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { Loader2, Search, Library, Tag as TagIcon } from "lucide-react";
@@ -54,8 +54,12 @@ export function ImportCreationModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    setSelectedTypes(["ALL"]);
-  }, [isOpen, defaultType]);
+    const normalizedDefaultType =
+      defaultType && defaultType !== "ALL" && (!allowedTypes || allowedTypes.includes(defaultType))
+        ? defaultType
+        : "ALL";
+    setSelectedTypes([normalizedDefaultType]);
+  }, [isOpen, defaultType, allowedTypes]);
 
   const fetchCreations = async () => {
     setLoading(true);

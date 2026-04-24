@@ -671,22 +671,7 @@ const buildQuantityText = (item: Record<string, unknown>, frequencyMultiplier = 
   return `${formatGramsValue(totalGrams)} (${portionsText} ${portionLabel})`;
 };
 
-const DEFAULT_RECIPE_IMAGE =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800">
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#dbeafe"/>
-          <stop offset="100%" stop-color="#bfdbfe"/>
-        </linearGradient>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#g)"/>
-      <circle cx="600" cy="350" r="130" fill="#93c5fd"/>
-      <rect x="430" y="520" width="340" height="26" rx="13" fill="#1d4ed8" opacity="0.75"/>
-      <text x="600" y="680" text-anchor="middle" font-family="Arial" font-size="44" fill="#1e3a8a">NutriSaaS</text>
-    </svg>
-  `);
+const DEFAULT_RECIPE_IMAGE = null;
 
 const normalizeRecipeImageSrc = (value?: string): string | undefined => {
   const raw = safeString(value);
@@ -695,16 +680,13 @@ const normalizeRecipeImageSrc = (value?: string): string | undefined => {
   const lower = raw.toLowerCase();
   if (lower.startsWith("data:image/")) return raw;
   if (lower.startsWith("blob:") || lower.startsWith("file:")) return undefined;
-  if (!lower.startsWith("http://") && !lower.startsWith("https://")) return undefined;
+  
+  // If it's a URL, we allow it. React PDF will handle the fetching.
+  // We remove the strict extension check because many dynamic URLs (Supabase, S3) 
+  // don't end in .jpg/.png but are still valid images.
+  if (lower.startsWith("http://") || lower.startsWith("https://")) return raw;
 
-  // React PDF is most reliable with jpg/png URLs.
-  const pathWithoutQuery = lower.split("?")[0];
-  const supported =
-    pathWithoutQuery.endsWith(".jpg") ||
-    pathWithoutQuery.endsWith(".jpeg") ||
-    pathWithoutQuery.endsWith(".png");
-
-  return supported ? raw : undefined;
+  return undefined;
 };
 
 const getDayOrder = (dayRaw: string) => {
@@ -1067,7 +1049,15 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
           <View style={S.coverGlowRight} />
 
           <View style={S.coverContent}>
-            <Text style={S.coverBrandTop}>nutrisaas</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={S.coverBrandTop}>nutrisaas</Text>
+              {Boolean(config.includeLogo && brandSettings.brandBackgroundUrl) && (
+                <Image 
+                  src={brandSettings.brandBackgroundUrl as string} 
+                  style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'contain' }} 
+                />
+              )}
+            </View>
 
             <View style={S.coverCenter}>
               <Text style={S.coverTitle}>Plan Nutricional{"\n"}Personalizado</Text>
@@ -1260,7 +1250,15 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
                       const macros = `Kcal ${entry.calories ?? "-"} | Prot ${entry.protein ?? "-"}g | HC ${entry.carbs ?? "-"}g | Grasas ${entry.fats ?? "-"}g`;
                       return (
                         <View key={`${day}-${idx}-${entry.title}`} style={S.recipeCard} wrap={false}>
-                          <Image src={entry.image || DEFAULT_RECIPE_IMAGE} style={S.recipeCardImage} />
+                        {entry.image ? (
+                          <Image src={entry.image} style={S.recipeCardImage} />
+                        ) : (
+                          <View style={[S.recipeCardImage, { backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' }]}>
+                             <Svg width={40} height={40} viewBox="0 0 24 24">
+                                <Path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke="#94a3b8" strokeWidth={1} fill="none" />
+                             </Svg>
+                          </View>
+                        )}
                           <View style={S.recipeCardBody}>
                             <Text style={S.recipeTitle}>{entry.title}</Text>
                             <Text style={S.recipeMeta}>{entry.time} | {entry.section}</Text>

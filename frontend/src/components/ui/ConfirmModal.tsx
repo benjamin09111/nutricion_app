@@ -4,6 +4,8 @@ import { useState } from "react";
 import { X, AlertTriangle } from "lucide-react";
 import { Button } from "./Button";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import { cn } from "@/lib/utils";
+import { useTheme } from "@/context/ThemeContext";
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -29,6 +31,7 @@ export function ConfirmModal({
   isLoading = false,
 }: ConfirmModalProps) {
   useScrollLock(isOpen);
+  const { isDarkMode } = useTheme();
 
   if (!isOpen) return null;
 
@@ -51,18 +54,28 @@ export function ConfirmModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+      <div
+        className={cn(
+          "w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl animate-in zoom-in-95 duration-200",
+          isDarkMode && "dashboard-surface-strong border border-slate-200",
+        )}
+      >
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${styles.icon}`}>
               <AlertTriangle className="h-5 w-5" />
             </div>
-            <h3 className="font-semibold text-slate-900">{title}</h3>
+            <h3 className={cn("font-semibold", isDarkMode ? "text-emerald-50" : "text-slate-900")}>{title}</h3>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+            className={cn(
+              "cursor-pointer transition-colors",
+              isDarkMode
+                ? "text-emerald-100/45 hover:text-emerald-50"
+                : "text-slate-400 hover:text-slate-600",
+            )}
             disabled={isLoading}
           >
             <X className="h-5 w-5" />
@@ -71,7 +84,7 @@ export function ConfirmModal({
 
         {/* Body */}
         <div className="px-6 py-4">
-          <p className="text-slate-600">{message}</p>
+          <p className={cn(isDarkMode ? "text-emerald-100/75" : "text-slate-600")}>{message}</p>
         </div>
 
         {/* Footer */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Download,
@@ -77,6 +77,13 @@ type QuickPatient = {
   id?: string;
   fullName: string;
   email?: string | null;
+  ageYears?: number | null;
+  gender?: string | null;
+  nutritionalFocus?: string | null;
+  fitnessGoals?: string | null;
+  restrictions?: string[];
+  likes?: string | null;
+  source?: "manual" | "imported";
 };
 
 type ImportedCreation = {
@@ -129,6 +136,18 @@ const createPortionGuideRow = (
   category: "",
   portion: "",
   ...row,
+});
+
+const createEmptyQuickPatient = (): QuickPatient => ({
+  fullName: "",
+  email: null,
+  ageYears: null,
+  gender: "",
+  nutritionalFocus: "",
+  fitnessGoals: "",
+  restrictions: [],
+  likes: "",
+  source: "manual",
 });
 
 function extractVariablesFromContent(content: string): string[] {
@@ -192,7 +211,7 @@ export default function QuickDeliverableClient() {
   const [resourceSearch, setResourceSearch] = useState("");
   const [resourceCategoryFilter, setResourceCategoryFilter] = useState("Todas");
   const [patients, setPatients] = useState<QuickPatient[]>([]);
-  const [selectedPatient, setSelectedPatient] = useState<QuickPatient | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<QuickPatient>(createEmptyQuickPatient());
   const [patientSearch, setPatientSearch] = useState("");
   const [creationDescription, setCreationDescription] = useState("");
   const [currentProjectName, setCurrentProjectName] = useState<string | null>(null);
@@ -203,6 +222,9 @@ export default function QuickDeliverableClient() {
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const identitySectionRef = useRef<HTMLElement | null>(null);
+  const mealsSectionRef = useRef<HTMLElement | null>(null);
+  const avoidFoodsSectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const draft = localStorage.getItem("nutri_quick_deliverable_draft");
@@ -238,7 +260,7 @@ export default function QuickDeliverableClient() {
           ? parsed.portionGuideRows
           : QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)),
       );
-      setSelectedPatient(parsed.selectedPatient || null);
+      setSelectedPatient(parsed.selectedPatient || createEmptyQuickPatient());
     } catch (error) {
       console.error("Error loading quick draft", error);
     }
@@ -279,6 +301,7 @@ export default function QuickDeliverableClient() {
     const loadCreation = async () => {
       if (!creationId) return;
       try {
+        setSelectedPatient(createEmptyQuickPatient());
         const creation = await fetchCreation(creationId);
         const content = creation.content || {};
         setTitle(content.title || creation.name || DEFAULT_TITLE);
@@ -314,6 +337,7 @@ export default function QuickDeliverableClient() {
           setSelectedPatient({
             id: creation.metadata?.patientId,
             fullName: creation.metadata.patientName,
+            source: creation.metadata?.patientId ? "imported" : "manual",
           });
         }
       } catch (error) {
@@ -329,11 +353,16 @@ export default function QuickDeliverableClient() {
     const loadProject = async () => {
       if (!projectId) return;
       try {
+        setSelectedPatient(createEmptyQuickPatient());
         const project = await fetchProject(projectId);
         setCurrentProjectName(project.name || null);
         setCurrentProjectMode(project.mode || null);
         if (project.patient) {
-          setSelectedPatient((current) => current || (project.patient as QuickPatient));
+          setSelectedPatient((current) =>
+            current.fullName?.trim()
+              ? current
+              : { ...(project.patient as QuickPatient), source: "imported" },
+          );
         }
       } catch (error) {
         console.error("Error loading project", error);
@@ -393,6 +422,42 @@ export default function QuickDeliverableClient() {
       ),
     [resolvedResourcePages, selectedResourceKeys],
   );
+
+  const isExportDisabled = useMemo(() => {
+    const hasAtLeastOneMeal = includeMeals && meals.some((m) => m.mealText.trim().length > 0);
+    const hasAtLeastOneAvoidFood = includeAvoidFoods && validAvoidFoods.length > 0;
+
+    return !hasAtLeastOneMeal && !hasAtLeastOneAvoidFood;
+  }, [includeMeals, meals, includeAvoidFoods, validAvoidFoods]);
+
+  const missingRequirements = useMemo(() => {
+    const missing: Array<{ id: string; label: string; ref: React.RefObject<HTMLElement | null> }> = [];
+    if (!includeMeals && !includeAvoidFoods) {
+      missing.push({
+        id: "meals",
+        label: "Activa comidas o alimentos a evitar *",
+        ref: mealsSectionRef,
+      });
+      return missing;
+    }
+    if (includeMeals && !meals.some((m) => m.mealText.trim().length > 0)) {
+      missing.push({ id: "meals", label: "Tabla de comidas *", ref: mealsSectionRef });
+    }
+    if (includeAvoidFoods && validAvoidFoods.length === 0) {
+      missing.push({ id: "avoidFoods", label: "Alimentos a evitar *", ref: avoidFoodsSectionRef });
+    }
+    return missing;
+  }, [includeMeals, meals, includeAvoidFoods, validAvoidFoods.length]);
+
+  const scrollToRequirement = (requirementId?: string) => {
+    const target =
+      requirementId === "meals"
+          ? mealsSectionRef.current
+          : requirementId === "avoidFoods"
+            ? avoidFoodsSectionRef.current
+            : missingRequirements[0]?.ref.current;
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const portionGuideCount = useMemo(
     () =>
@@ -481,8 +546,9 @@ export default function QuickDeliverableClient() {
         ? {
             id: patientId,
             fullName: patientName,
+            source: patientId ? "imported" : "manual",
           }
-        : null,
+        : createEmptyQuickPatient(),
     );
 
     setIsImportCreationModalOpen(false);
@@ -652,9 +718,39 @@ export default function QuickDeliverableClient() {
       : [],
     supplementNote: getProteinSupplementNote(),
     generatedAt: new Date().toLocaleDateString("es-CL"),
+    ...(selectedPatient.fullName.trim() ||
+    selectedPatient.ageYears !== null ||
+    Boolean(selectedPatient.gender) ||
+    Boolean(selectedPatient.nutritionalFocus) ||
+    Boolean(selectedPatient.fitnessGoals) ||
+    (selectedPatient.restrictions || []).length > 0 ||
+    Boolean(selectedPatient.likes)
+      ? {
+          patient: {
+            name: selectedPatient.fullName || null,
+            ageYears: selectedPatient.ageYears ?? null,
+            gender: selectedPatient.gender || null,
+            nutritionalFocus: selectedPatient.nutritionalFocus || null,
+            fitnessGoals: selectedPatient.fitnessGoals || null,
+            restrictions: selectedPatient.restrictions || [],
+            likes: selectedPatient.likes || null,
+            source: selectedPatient.source || "manual",
+          },
+        }
+      : {}),
   });
 
   const handleExportPdf = async () => {
+    if (isExportDisabled) {
+      toast.error("Faltan datos obligatorios para generar el PDF.", {
+        description:
+          missingRequirements.length > 0
+            ? `Haz clic para ir a ${missingRequirements[0].label.toLowerCase()}.`
+            : "Revisa el contenido mínimo del entregable.",
+      });
+      scrollToRequirement(missingRequirements[0]?.id);
+      return;
+    }
     setIsExportingPdf(true);
     try {
       await downloadFastDeliverablePdf(buildPdfPayload());
@@ -695,7 +791,7 @@ export default function QuickDeliverableClient() {
         },
         metadata: {
           ...(creationDescription.trim() ? { description: creationDescription.trim() } : {}),
-          ...(selectedPatient
+          ...(selectedPatient.fullName
             ? { patientId: selectedPatient.id, patientName: selectedPatient.fullName }
             : {}),
           mealCount: includeMeals ? meals.length : 0,
@@ -723,6 +819,7 @@ export default function QuickDeliverableClient() {
     setTitle(DEFAULT_TITLE);
     setMeals([createMeal("Desayuno"), createMeal("Almuerzo"), createMeal("Cena")]);
     setAvoidFoods([createAvoidFoodRow()]);
+    setSelectedPatient(createEmptyQuickPatient());
     setResolvedResourcePages([]);
     setSelectedResourceKeys([]);
     setIncludeMeals(true);
@@ -745,7 +842,7 @@ export default function QuickDeliverableClient() {
     {
       id: "patient",
       icon: User,
-      label: selectedPatient ? "Cambiar paciente" : "Asignar paciente",
+      label: selectedPatient.fullName?.trim() ? "Cambiar paciente" : "Sin paciente asignado",
       variant: "emerald",
       onClick: openPatientModal,
     },
@@ -799,12 +896,25 @@ export default function QuickDeliverableClient() {
             <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
               Formato resumido para consulta única
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              {isExportDisabled && (
+                <button
+                  type="button"
+                  onClick={() => scrollToRequirement(missingRequirements[0]?.id)}
+                  className="flex items-center gap-2 px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-[10px] font-bold animate-pulse text-left hover:bg-rose-100"
+                >
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>
+                    Faltan datos obligatorios. Haz clic para ir a:
+                    {missingRequirements.map((item) => ` ${item.label}`).join(", ")}
+                  </span>
+                </button>
+              )}
               <Button variant="outline" className="h-11 rounded-2xl border-slate-200" onClick={() => setIsSaveCreationModalOpen(true)}>
                 <Save className="mr-2 h-4 w-4" />
                 Guardar
               </Button>
-              <Button className="h-11 rounded-2xl bg-slate-900 px-6 text-white hover:bg-slate-800" onClick={handleExportPdf} disabled={isExportingPdf}>
+              <Button className="h-11 rounded-2xl bg-slate-900 px-6 text-white hover:bg-slate-800" onClick={handleExportPdf} disabled={isExportingPdf || isExportDisabled}>
                 <Download className="mr-2 h-4 w-4" />
                 {isExportingPdf ? "Generando..." : "Descargar PDF"}
               </Button>
@@ -828,10 +938,15 @@ export default function QuickDeliverableClient() {
               </p>
             </div>
           </div>
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-medium text-slate-600 shadow-sm">
+            Los campos con <strong>*</strong> son obligatorios para generar el PDF. El paciente es opcional en este modo.
+          </div>
 
           <div className="grid gap-6 xl:grid-cols-[1.5fr,0.9fr]">
             <div className="space-y-6">
-              <section className={cn(
+              <section
+                ref={identitySectionRef}
+                className={cn(
                 "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm",
                 !includeResources && "opacity-55",
               )}>
@@ -847,22 +962,178 @@ export default function QuickDeliverableClient() {
                       placeholder={DEFAULT_TITLE}
                     />
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                    {selectedPatient?.fullName
-                      ? `Paciente: ${selectedPatient.fullName}`
-                      : "Sin paciente asignado"}
+                  <div className="flex flex-col items-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={openPatientModal}
+                      className={cn(
+                        "rounded-2xl border font-bold",
+                        selectedPatient.fullName?.trim()
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                          : "border-slate-200 bg-white text-slate-700",
+                      )}
+                    >
+                      <User className="mr-2 h-4 w-4" />
+                      {selectedPatient.fullName?.trim()
+                        ? `Paciente: ${selectedPatient.fullName}`
+                        : "Sin paciente asignado"}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPatient(createEmptyQuickPatient())}
+                      className="text-xs font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800"
+                    >
+                      O completa manualmente sin reutilizar uno existente.
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      Nombre
+                    </p>
+                    <Input
+                      value={selectedPatient.fullName}
+                      onChange={(e) =>
+                        setSelectedPatient((current) => ({
+                          ...current,
+                          fullName: e.target.value,
+                          source: current.source || "manual",
+                        }))
+                      }
+                      placeholder="Nombre y apellido"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      Edad
+                    </p>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={selectedPatient.ageYears ?? ""}
+                      onChange={(e) =>
+                        setSelectedPatient((current) => ({
+                          ...current,
+                          ageYears:
+                            e.target.value === ""
+                              ? null
+                              : Math.max(0, Math.round(Number(e.target.value) || 0)),
+                          source: current.source || "manual",
+                        }))
+                      }
+                      placeholder="Ej: 42"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      Sexo
+                    </p>
+                    <select
+                      value={selectedPatient.gender || ""}
+                      onChange={(e) =>
+                        setSelectedPatient((current) => ({
+                          ...current,
+                          gender: e.target.value,
+                          source: current.source || "manual",
+                        }))
+                      }
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900"
+                    >
+                      <option value="">Seleccionar</option>
+                      <option value="Femenino">Femenino</option>
+                      <option value="Masculino">Masculino</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      Objetivo / enfoque
+                    </p>
+                    <Input
+                      value={selectedPatient.nutritionalFocus || ""}
+                      onChange={(e) =>
+                        setSelectedPatient((current) => ({
+                          ...current,
+                          nutritionalFocus: e.target.value,
+                          source: current.source || "manual",
+                        }))
+                      }
+                      placeholder="Ej: mejorar energía, ordenar horarios..."
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      Metas
+                    </p>
+                    <Input
+                      value={selectedPatient.fitnessGoals || ""}
+                      onChange={(e) =>
+                        setSelectedPatient((current) => ({
+                          ...current,
+                          fitnessGoals: e.target.value,
+                          source: current.source || "manual",
+                        }))
+                      }
+                      placeholder="Ej: bajar grasa, ganar masa muscular..."
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      Restricciones
+                    </p>
+                    <Input
+                      value={(selectedPatient.restrictions || []).join(", ")}
+                      onChange={(e) =>
+                        setSelectedPatient((current) => ({
+                          ...current,
+                          restrictions: e.target.value
+                            .split(",")
+                            .map((item) => item.trim())
+                            .filter(Boolean),
+                          source: current.source || "manual",
+                        }))
+                      }
+                      placeholder="Ej: sin gluten, evitar lactosa"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      Gustos
+                    </p>
+                    <Input
+                      value={selectedPatient.likes || ""}
+                      onChange={(e) =>
+                        setSelectedPatient((current) => ({
+                          ...current,
+                          likes: e.target.value,
+                          source: current.source || "manual",
+                        }))
+                      }
+                      placeholder="Ej: preparaciones saladas, frutas, yogurt..."
+                    />
                   </div>
                 </div>
               </section>
 
-              <section className={cn(
+              <section
+                ref={mealsSectionRef}
+                className={cn(
                 "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm",
                 !includeMeals && "opacity-55",
               )}>
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h2 className="text-xl font-black text-slate-900">
-                      Tabla de comidas
+                      Tabla de comidas <span className="text-rose-600">*</span>
                     </h2>
                     <p className="mt-1 text-sm text-slate-500">
                       Arrastra los bloques para ordenar el día y completa hora,
@@ -994,14 +1265,16 @@ export default function QuickDeliverableClient() {
                 </div>
               </section>
 
-              <section className={cn(
+              <section
+                ref={avoidFoodsSectionRef}
+                className={cn(
                 "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm",
                 !includeAvoidFoods && "opacity-55",
               )}>
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-black text-slate-900">
-                      Alimentos a evitar
+                      Alimentos a evitar <span className="text-rose-600">*</span>
                     </h2>
                     <p className="mt-1 text-sm text-slate-500">
                       Agrega filas simples para dejar restricciones o

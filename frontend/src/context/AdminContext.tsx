@@ -54,8 +54,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const toggleViewMode = () => {
-    if (!checkIsAdmin(role)) return;
-    setViewMode((prev) => (prev === "ADMIN" ? "NUTRITIONIST" : "ADMIN"));
+    // Logic removed to prevent admins from seeing nutritionist-specific data
+    console.warn("View switching is disabled for Admins to ensure data isolation.");
   };
 
   const value = {

@@ -63,7 +63,7 @@ export function Modal({
       <div
         ref={modalRef}
         className={cn(
-          "bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 relative",
+          "dashboard-surface-strong w-full max-w-md overflow-hidden rounded-2xl border shadow-2xl relative animate-in zoom-in-95 duration-200",
           className,
         )}
       >
@@ -76,7 +76,7 @@ export function Modal({
           </button>
         )}
         {title && (
-          <div className="px-8 py-5 border-b border-slate-100 bg-white flex items-center justify-between">
+          <div className="flex items-center justify-between border-b border-slate-100 bg-white px-8 py-5">
             <h2 className="font-black text-slate-900 uppercase tracking-tight text-sm">{title}</h2>
             <button
               onClick={onClose}

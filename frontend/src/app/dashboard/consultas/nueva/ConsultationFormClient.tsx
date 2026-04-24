@@ -361,7 +361,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                             </h3>
                         </div>
                         <div className="p-6 lg:p-8 space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="flex flex-col gap-6">
                                 <div className="space-y-3">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                                         Paciente
@@ -378,10 +378,12 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                 </div>
                                 <div className="space-y-3">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                                        Fecha de la Visita
+                                        Fecha de la Sesión
                                     </label>
-                                    <div className="relative">
-                                        <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500" />
+                                    <div className="relative group">
+                                        <div className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500 group-focus-within:bg-emerald-500 group-focus-within:text-white transition-all duration-300 pointer-events-none">
+                                            <Calendar className="h-5 w-5" />
+                                        </div>
                                         <input
                                             type="date"
                                             className="w-full h-14 pl-14 pr-5 rounded-2xl bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-700 cursor-pointer shadow-sm"

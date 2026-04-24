@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import {
@@ -12,6 +12,7 @@ import {
   Sparkles,
   Trash2,
   Camera,
+  Droplet,
   Image as ImageIcon,
   Search,
   Check,
@@ -58,6 +59,28 @@ export default function CrearPlatoClient() {
   const [isSearchingFoods, setIsSearchingFoods] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setFoodSuggestions([]);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setFoodSuggestions([]);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
 
   useEffect(() => {
     if (foodSearch.trim().length < 2) {
@@ -363,7 +386,7 @@ export default function CrearPlatoClient() {
             <div className="text-xs text-black font-normal normal-case">
               Si no encuentras el alimento, inclúyelo en Alimentos opcionales. Si es un alimento importante, ve a Ingredientes y ¡crealo por ti mismo para ayudar a la comunidad!
             </div>
-            <div className="relative">
+            <div className="relative" ref={searchRef}>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
@@ -460,7 +483,8 @@ export default function CrearPlatoClient() {
               <Input
                 type="number"
                 placeholder="Cant."
-                value={ing.amount || ""}
+                disabled={ing.unit === "a gusto"}
+                value={ing.unit === "a gusto" ? "" : (ing.amount || "")}
                 onChange={(e) => {
                   const next = [...customIngredients];
                   next[index] = { ...next[index], amount: Number(e.target.value) || 0 };
@@ -470,6 +494,7 @@ export default function CrearPlatoClient() {
               />
               <Input
                 placeholder="g"
+                disabled={ing.unit === "a gusto"}
                 value={ing.unit}
                 onChange={(e) => {
                   const next = [...customIngredients];
@@ -478,6 +503,26 @@ export default function CrearPlatoClient() {
                 }}
                 className="w-16 text-slate-900 font-medium"
               />
+              <Button
+                type="button"
+                variant="ghost"
+                title="Marcar como 'A gusto'"
+                className={cn(
+                  "p-2 h-10 w-10 shrink-0 transition-colors",
+                  ing.unit === "a gusto" ? "text-emerald-600 bg-emerald-50" : "text-slate-400 hover:bg-slate-50"
+                )}
+                onClick={() => {
+                  const next = [...customIngredients];
+                  if (ing.unit === "a gusto") {
+                    next[index] = { ...next[index], amount: 1, unit: "g" };
+                  } else {
+                    next[index] = { ...next[index], amount: 0, unit: "a gusto" };
+                  }
+                  setCustomIngredients(next);
+                }}
+              >
+                <Droplet className="h-4 w-4" />
+              </Button>
               <Button
                 type="button"
                 variant="ghost"

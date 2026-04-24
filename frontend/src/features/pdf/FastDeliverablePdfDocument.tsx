@@ -19,6 +19,16 @@ export interface FastDeliverableResourcePage {
 export interface FastDeliverablePdfData {
   name: string;
   patientName?: string | null;
+  patient?: {
+    name?: string | null;
+    ageYears?: number | null;
+    gender?: string | null;
+    nutritionalFocus?: string | null;
+    fitnessGoals?: string | null;
+    restrictions?: string[];
+    likes?: string | null;
+    source?: "manual" | "imported";
+  };
   meals: FastMealPlanItem[];
   avoidFoods: string[];
   resources: FastDeliverableResourcePage[];
@@ -67,6 +77,33 @@ const styles = StyleSheet.create({
     color: "#111827",
     marginBottom: 6,
     textTransform: "uppercase",
+  },
+  patientCard: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: 8,
+  },
+  patientGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  patientItem: {
+    width: "48%",
+    marginBottom: 6,
+  },
+  patientLabel: {
+    fontSize: 7,
+    color: "#64748b",
+    textTransform: "uppercase",
+    fontFamily: "Helvetica-Bold",
+    marginBottom: 2,
+  },
+  patientValue: {
+    fontSize: 9,
+    color: "#0f172a",
   },
   tableHeader: {
     flexDirection: "row",
@@ -171,6 +208,54 @@ export function FastDeliverablePdfDocument({
 }: {
   data: FastDeliverablePdfData;
 }) {
+  const patientFields = data.patient
+    ? [
+        {
+          label: "Nombre",
+          value: data.patient.name?.trim() || "",
+        },
+        {
+          label: "Edad",
+          value:
+            data.patient.ageYears !== null && data.patient.ageYears !== undefined
+              ? `${data.patient.ageYears} años`
+              : "",
+        },
+        {
+          label: "Sexo",
+          value: data.patient.gender?.trim() || "",
+        },
+        {
+          label: "Origen",
+          value:
+            data.patient.source === "imported"
+              ? "Paciente importado"
+              : data.patient.source === "manual"
+                ? "Datos manuales"
+                : "",
+        },
+        {
+          label: "Enfoque",
+          value: data.patient.nutritionalFocus?.trim() || "",
+        },
+        {
+          label: "Metas",
+          value: data.patient.fitnessGoals?.trim() || "",
+        },
+        {
+          label: "Restricciones",
+          value: (data.patient.restrictions || [])
+            .map((restriction) => restriction.trim())
+            .filter(Boolean)
+            .join(", "),
+        },
+        {
+          label: "Gustos",
+          value: data.patient.likes?.trim() || "",
+        },
+      ].filter((item) => item.value.trim().length > 0)
+    : [];
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -182,6 +267,58 @@ export function FastDeliverablePdfDocument({
             • {data.generatedAt || new Date().toLocaleDateString("es-CL")}
           </Text>
         </View>
+
+        {data.patient ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Datos del paciente</Text>
+            <View style={styles.patientCard}>
+              <View style={styles.patientGrid}>
+                <View style={styles.patientItem}>
+                  <Text style={styles.patientLabel}>Nombre</Text>
+                  <Text style={styles.patientValue}>{data.patient.name || "-"}</Text>
+                </View>
+                <View style={styles.patientItem}>
+                  <Text style={styles.patientLabel}>Edad</Text>
+                  <Text style={styles.patientValue}>
+                    {data.patient.ageYears !== null && data.patient.ageYears !== undefined
+                      ? `${data.patient.ageYears} años`
+                      : "-"}
+                  </Text>
+                </View>
+                <View style={styles.patientItem}>
+                  <Text style={styles.patientLabel}>Sexo</Text>
+                  <Text style={styles.patientValue}>{data.patient.gender || "-"}</Text>
+                </View>
+                <View style={styles.patientItem}>
+                  <Text style={styles.patientLabel}>Origen</Text>
+                  <Text style={styles.patientValue}>
+                    {data.patient.source === "imported" ? "Paciente importado" : "Datos manuales"}
+                  </Text>
+                </View>
+                <View style={styles.patientItem}>
+                  <Text style={styles.patientLabel}>Enfoque</Text>
+                  <Text style={styles.patientValue}>{data.patient.nutritionalFocus || "-"}</Text>
+                </View>
+                <View style={styles.patientItem}>
+                  <Text style={styles.patientLabel}>Metas</Text>
+                  <Text style={styles.patientValue}>{data.patient.fitnessGoals || "-"}</Text>
+                </View>
+              </View>
+              <View style={{ marginTop: 6 }}>
+                <Text style={styles.patientLabel}>Restricciones</Text>
+                <Text style={styles.patientValue}>
+                  {data.patient.restrictions && data.patient.restrictions.length > 0
+                    ? data.patient.restrictions.join(", ")
+                    : "-"}
+                </Text>
+              </View>
+              <View style={{ marginTop: 6 }}>
+                <Text style={styles.patientLabel}>Gustos</Text>
+                <Text style={styles.patientValue}>{data.patient.likes || "-"}</Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Tabla de comidas</Text>
