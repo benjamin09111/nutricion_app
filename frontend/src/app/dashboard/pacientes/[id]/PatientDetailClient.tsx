@@ -67,6 +67,7 @@ import Cookies from "js-cookie";
 import jsPDF from "jspdf";
 import { domToPng } from "modern-screenshot";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
+import { validateRut, formatRut } from "@/lib/rut-utils";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
