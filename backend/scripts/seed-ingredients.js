@@ -5,6 +5,10 @@ const path = require('path');
 
 const prisma = new PrismaClient();
 
+function normalizeIngredientKey(name) {
+    return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 const FIXED_CATEGORIES = [
     "Lácteos",
     "Huevos",
@@ -62,6 +66,7 @@ async function main() {
         console.log(`Step 3: Found ${lines.length} potential records.`);
 
         const ingredientsData = [];
+        const seenKeys = new Set();
         let skipCount = 0;
 
         for (const line of lines) {
@@ -76,6 +81,12 @@ async function main() {
                 skipCount++;
                 continue;
             }
+
+            const duplicateKey = normalizeIngredientKey(name);
+            if (seenKeys.has(duplicateKey)) {
+                continue;
+            }
+            seenKeys.add(duplicateKey);
 
             const calories = parseFloat(cols[2]) || 0;
             const proteins = parseFloat(cols[3]) || 0;

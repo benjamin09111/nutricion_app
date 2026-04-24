@@ -4,6 +4,10 @@ import * as path from 'path';
 
 const prisma = new PrismaClient();
 
+function normalizeIngredientKey(name: string) {
+    return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 async function main() {
     console.log('🔄 Start seeding ingredients + recipes...');
 
@@ -25,6 +29,7 @@ async function main() {
     // 3. Process CSVs
     const csvFiles = ['ingredients.csv', 'recipes.csv'];
     const ingredientsData: any[] = [];
+    const seenKeys = new Set<string>();
     let errorCount = 0;
 
     for (const fileName of csvFiles) {
@@ -66,6 +71,12 @@ async function main() {
                 errorCount++;
                 continue;
             }
+
+            const duplicateKey = normalizeIngredientKey(name);
+            if (seenKeys.has(duplicateKey)) {
+                continue;
+            }
+            seenKeys.add(duplicateKey);
 
             ingredientsData.push({
                 name,

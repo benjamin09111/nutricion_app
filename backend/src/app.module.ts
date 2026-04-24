@@ -49,15 +49,9 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
     IngredientGroupsModule,
     RecipesModule,
     ScheduleModule.forRoot(),
-    CacheModule.registerAsync({
+    CacheModule.register({
       isGlobal: true,
-      useFactory: async () => ({
-        store: await redisStore({
-          url: process.env.REDIS_URL,
-          ttl: 300000, // 5 minutes
-          pingInterval: 10000, // Keep connection alive
-        }),
-      }),
+      ttl: 300, // 5 minutes
     }),
     DashboardModule,
     CreationsModule,

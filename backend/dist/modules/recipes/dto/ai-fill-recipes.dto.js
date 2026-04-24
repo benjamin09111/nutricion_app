@@ -149,6 +149,7 @@ class AiPatientProfileDto {
     heightCm;
     nutritionalFocus;
     fitnessGoals;
+    likes;
     activityLevel;
     restrictions;
 }
@@ -188,6 +189,11 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], AiPatientProfileDto.prototype, "fitnessGoals", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], AiPatientProfileDto.prototype, "likes", void 0);
 __decorate([
     (0, class_validator_1.IsIn)(['sedentario', 'deportista']),
     (0, class_validator_1.IsOptional)(),

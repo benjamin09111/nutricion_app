@@ -128,6 +128,10 @@ class AiPatientProfileDto {
     @IsOptional()
     fitnessGoals?: string;
 
+    @IsString()
+    @IsOptional()
+    likes?: string;
+
     @IsIn(['sedentario', 'deportista'])
     @IsOptional()
     activityLevel?: 'sedentario' | 'deportista';

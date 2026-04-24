@@ -70,8 +70,8 @@ export declare class PatientsService {
             description: string | null;
             date: Date;
             patientId: string;
-            title: string;
             metrics: import("@prisma/client/runtime/library").JsonValue | null;
+            title: string;
         }[];
         exams: {
             name: string;

@@ -66,6 +66,11 @@ class QuickAiPatientDto {
     @IsOptional()
     gender?: string;
 
+    @IsInt()
+    @Min(0)
+    @IsOptional()
+    ageYears?: number;
+
     @IsString()
     @IsOptional()
     birthDate?: string;

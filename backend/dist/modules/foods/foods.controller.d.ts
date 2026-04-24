@@ -5,7 +5,7 @@ export declare class FoodsController {
     private readonly foodsService;
     constructor(foodsService: FoodsService);
     create(createFoodDto: CreateFoodDto, req: any): Promise<any>;
-    findAll(req: any, search?: string, category?: string, tag?: string, tab?: string, page?: string, limit?: string): Promise<any>;
+    findAll(req: any, search?: string, category?: string, tag?: string, tab?: string, page?: string, limit?: string): Promise<any[]>;
     updatePreferences(id: string, req: any, data: {
         isFavorite?: boolean;
         isNotRecommended?: boolean;

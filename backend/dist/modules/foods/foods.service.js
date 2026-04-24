@@ -435,8 +435,18 @@ let FoodsService = FoodsService_1 = class FoodsService {
             take: limit,
             orderBy: { name: 'asc' },
         });
+        const dedupedIngredients = [];
+        const seenIngredientKeys = new Set();
+        for (const ingredient of ingredients) {
+            const key = `${this.normalizeText(ingredient.name).toLowerCase()}::${ingredient.brandId ?? ''}`;
+            if (seenIngredientKeys.has(key)) {
+                continue;
+            }
+            seenIngredientKeys.add(key);
+            dedupedIngredients.push(ingredient);
+        }
         if (shouldDebug) {
-            const sample = ingredients.slice(0, 5).map((ingredient) => ({
+            const sample = dedupedIngredients.slice(0, 5).map((ingredient) => ({
                 id: ingredient.id,
                 name: ingredient.name,
                 preference: ingredient.preferences?.[0]
@@ -449,9 +459,9 @@ let FoodsService = FoodsService_1 = class FoodsService {
                     : null,
                 globalTagCount: ingredient.tags?.length ?? 0,
             }));
-            this.logger.log(`[findAll] tab=${tab} results=${ingredients.length} sample=${JSON.stringify(sample)}`);
+            this.logger.log(`[findAll] tab=${tab} results=${dedupedIngredients.length} sample=${JSON.stringify(sample)}`);
         }
-        return ingredients.map((ing) => this.serializeIngredient(ing, nutritionistId));
+        return dedupedIngredients.map((ing) => this.serializeIngredient(ing, nutritionistId));
     }
     async togglePreference(ingredientId, userId, data) {
         this.logger.log(`[togglePreference] accountId=${userId} ingredientId=${ingredientId} payload=${JSON.stringify(data)}`);

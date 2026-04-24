@@ -32,7 +32,7 @@ export declare class FoodsService {
         tab?: string;
         page?: number;
         limit?: number;
-    }): Promise<any>;
+    }): Promise<any[]>;
     togglePreference(ingredientId: string, userId: string, data: {
         isFavorite?: boolean;
         isNotRecommended?: boolean;

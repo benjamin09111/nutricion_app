@@ -12,6 +12,7 @@
     "db:use:testing": "node scripts/switch-db-profile.js --profile=testing",
     "db:migrate:safe": "node scripts/safe-migrate.js",
     "db:seed:catalog:safe": "node scripts/safe-seed-catalog.js",
+    "db:cleanup:ingredient-duplicates": "node scripts/cleanup-duplicate-ingredients.js",
     "db:resources:replace": "tsx prisma/seed-resources.ts",
     "db:resources:wipe": "tsx prisma/wipe-all-resources.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",

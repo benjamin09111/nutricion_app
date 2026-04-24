@@ -98,7 +98,15 @@ async function main() {
         }
 
         // Skip if exists to save time, or upsert
-        const existing = await prisma.ingredient.findFirst({ where: { name } });
+        const existing = await prisma.ingredient.findFirst({
+          where: {
+            name: {
+              equals: name.trim(),
+              mode: 'insensitive',
+            },
+            brandId: brandId ?? null,
+          },
+        });
         if (!existing) {
           await prisma.ingredient.create({
             data: {
@@ -156,6 +164,20 @@ async function main() {
           update: {},
           create: { name: brandName },
         }) : null;
+
+        const existing = await prisma.ingredient.findFirst({
+          where: {
+            name: {
+              equals: rest.name.trim(),
+              mode: 'insensitive',
+            },
+            brandId: brand?.id ?? null,
+          },
+        });
+
+        if (existing) {
+          continue;
+        }
 
         await prisma.ingredient.create({
           data: {

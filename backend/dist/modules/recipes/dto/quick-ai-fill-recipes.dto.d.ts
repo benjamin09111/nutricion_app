@@ -15,6 +15,7 @@ declare class QuickAiPatientDto {
     nutritionalFocus?: string;
     fitnessGoals?: string;
     gender?: string;
+    ageYears?: number;
     birthDate?: string;
     weight?: number;
     height?: number;

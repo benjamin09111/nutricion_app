@@ -486,8 +486,20 @@ export class FoodsService {
             orderBy: { name: 'asc' },
         });
 
+        const dedupedIngredients: any[] = [];
+        const seenIngredientKeys = new Set<string>();
+
+        for (const ingredient of ingredients) {
+            const key = `${this.normalizeText(ingredient.name).toLowerCase()}::${ingredient.brandId ?? ''}`;
+            if (seenIngredientKeys.has(key)) {
+                continue;
+            }
+            seenIngredientKeys.add(key);
+            dedupedIngredients.push(ingredient);
+        }
+
         if (shouldDebug) {
-            const sample = ingredients.slice(0, 5).map((ingredient: any) => ({
+            const sample = dedupedIngredients.slice(0, 5).map((ingredient: any) => ({
                 id: ingredient.id,
                 name: ingredient.name,
                 preference: ingredient.preferences?.[0]
@@ -502,12 +514,12 @@ export class FoodsService {
             }));
 
             this.logger.log(
-                `[findAll] tab=${tab} results=${ingredients.length} sample=${JSON.stringify(sample)}`,
+                `[findAll] tab=${tab} results=${dedupedIngredients.length} sample=${JSON.stringify(sample)}`,
             );
         }
 
         // Add isMine property to each ingredient
-        return ingredients.map((ing: any) => this.serializeIngredient(ing, nutritionistId));
+        return dedupedIngredients.map((ing: any) => this.serializeIngredient(ing, nutritionistId));
     }
 
     async togglePreference(ingredientId: string, userId: string, data: {

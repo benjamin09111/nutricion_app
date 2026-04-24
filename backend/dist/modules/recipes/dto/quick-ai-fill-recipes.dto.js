@@ -49,6 +49,7 @@ class QuickAiPatientDto {
     nutritionalFocus;
     fitnessGoals;
     gender;
+    ageYears;
     birthDate;
     weight;
     height;
@@ -95,6 +96,12 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], QuickAiPatientDto.prototype, "gender", void 0);
+__decorate([
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], QuickAiPatientDto.prototype, "ageYears", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
