@@ -78,7 +78,9 @@ export function TutorialProvider({
     null,
   );
   const [showCoachmark, setShowCoachmark] = useState(false);
-  const [coachmarkSeen] = useState(() => hasSeenTutorialCoachmark());
+  const [coachmarkSeen, setCoachmarkSeen] = useState(
+    () => hasSeenTutorialCoachmark(),
+  );
 
   const currentTutorial = useMemo(
     () => getTutorialForPath(pathname || "/"),

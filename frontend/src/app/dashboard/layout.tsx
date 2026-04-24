@@ -11,6 +11,8 @@ import {
   useDashboardShell,
 } from "@/context/DashboardShellContext";
 import { TutorialProvider } from "@/context/TutorialContext";
+import { useTheme } from "@/context/ThemeContext";
+import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
@@ -19,19 +21,20 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const { isAdminView, isLoading } = useAdmin();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isSidebarCollapsed } = useDashboardShell();
+  const { isDarkMode } = useTheme();
   const pathname = usePathname();
   const isRecipesModule = pathname.startsWith("/dashboard/recetas");
 
   if (isLoading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-white">
+      <div className={cn("flex h-screen w-full items-center justify-center", isDarkMode ? "dashboard-shell-bg" : "bg-white")}>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="h-full bg-white relative">
+    <div className="dashboard-shell-bg relative h-full">
       {/* Mobile Sidebar (Drawer) */}
       <div className={`fixed inset-0 z-9999 lg:hidden ${sidebarOpen ? "block" : "hidden"}`}>
         {/* Backdrop */}
@@ -41,11 +44,16 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         />
         
         {/* Content */}
-        <div className={`fixed inset-y-0 left-0 w-72 bg-white shadow-2xl transition-transform duration-300 transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className={`dashboard-sidebar-bg fixed inset-y-0 left-0 w-72 shadow-2xl transition-transform duration-300 transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
           <div className="absolute top-4 right-4 animate-in fade-in duration-500">
             <button
               type="button"
-              className="p-2 text-slate-400 hover:text-rose-500 transition-colors bg-slate-50 rounded-lg border border-slate-100"
+              className={cn(
+                "rounded-lg border p-2 transition-colors",
+                isDarkMode
+                  ? "border-emerald-400/10 bg-emerald-500/8 text-emerald-100/65 hover:text-rose-300"
+                  : "border-slate-100 bg-slate-50 text-slate-400 hover:text-rose-500",
+              )}
               onClick={() => setSidebarOpen(false)}
             >
               <X className="h-6 w-6" />
@@ -74,7 +82,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       >
         <Navbar onMenuClick={() => setSidebarOpen(true)} />
         <main
-          className={`flex-1 py-6 lg:py-10 ${isAdminView ? "bg-indigo-50/10" : ""}`}
+          className={cn(
+            "flex-1 py-6 lg:py-10",
+            isAdminView && !isDarkMode && "bg-indigo-50/10",
+          )}
         >
           <div
             className={`mx-auto w-full ${

@@ -1465,9 +1465,25 @@ export default function CartClient() {
         draft.diet = content;
         localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
         syncRecipeDependency(draft);
-        toast.info("Dieta importada", {
-          description: "Ahora completa la dieta para habilitar el carrito.",
-        });
+        const dietItems = buildCartItemsFromDiet(draft);
+        setProteinSupplement(normalizeProteinSupplement(content.proteinSupplement || draft?.recipes?.proteinSupplement));
+
+        if (dietItems.length > 0) {
+          setItems(
+            dietItems.map((item) => ({
+              ...item,
+              cantidadMes: Number(
+                ((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2),
+              ),
+            })),
+          );
+          setCartSourceLabel(`Generado desde la dieta: ${creation.name}`);
+          toast.success(`Dieta "${creation.name}" importada al carrito.`);
+        } else {
+          toast.info("Dieta importada", {
+            description: "No se encontraron alimentos suficientes para generar el carrito.",
+          });
+        }
         return;
 
       }
@@ -1512,7 +1528,7 @@ export default function CartClient() {
         isOpen={isImportCreationModalOpen}
         onClose={() => setIsImportCreationModalOpen(false)}
         onImport={handleImportCreation}
-        defaultType="RECIPE"
+        defaultType="DIET"
       />
 
       <Modal

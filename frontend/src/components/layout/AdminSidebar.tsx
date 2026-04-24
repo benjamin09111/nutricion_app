@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
 import { useDashboardShell } from "@/context/DashboardShellContext";
+import { useTheme } from "@/context/ThemeContext";
 
 interface SidebarItem {
   name: string;
@@ -93,6 +94,7 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const [pendingCount, setPendingCount] = useState(0);
   const { isSidebarCollapsed } = useDashboardShell();
+  const { isDarkMode } = useTheme();
 
   useEffect(() => {
     const fetchPendingCount = async () => {
@@ -124,7 +126,7 @@ export function AdminSidebar() {
   return (
     <div
       className={cn(
-        "flex grow flex-col gap-y-4 overflow-y-auto border-r border-indigo-100 bg-slate-50/50 pb-4 transition-all duration-300",
+        "dashboard-sidebar-bg flex grow flex-col gap-y-4 overflow-y-auto border-r pb-4 transition-all duration-300",
         isSidebarCollapsed ? "px-2" : "px-4",
       )}
     >
@@ -139,7 +141,7 @@ export function AdminSidebar() {
             <span className="font-bold text-white text-lg">A</span>
           </div>
           {!isSidebarCollapsed && (
-            <span className="text-xl font-bold tracking-wide text-indigo-900">
+            <span className={cn("text-xl font-bold tracking-wide", isDarkMode ? "text-indigo-100" : "text-indigo-900")}>
               Admin Panel
             </span>
           )}
@@ -150,7 +152,12 @@ export function AdminSidebar() {
           {groups.map((group) => (
             <li key={group.title}>
               {!isSidebarCollapsed && (
-                <div className="text-[0.8rem] font-bold uppercase tracking-wider text-indigo-400 mb-1 pl-2">
+                <div
+                  className={cn(
+                    "mb-1 pl-2 text-[0.8rem] font-bold uppercase tracking-wider",
+                    isDarkMode ? "text-indigo-200/45" : "text-indigo-400",
+                  )}
+                >
                   {group.title}
                 </div>
               )}
@@ -167,8 +174,12 @@ export function AdminSidebar() {
                         href={item.href}
                         className={cn(
                           isActive
-                            ? "bg-indigo-100 text-indigo-700"
-                            : "text-slate-600 hover:text-indigo-700 hover:bg-indigo-50",
+                            ? isDarkMode
+                              ? "bg-indigo-500/14 text-indigo-100"
+                              : "bg-indigo-100 text-indigo-700"
+                            : isDarkMode
+                              ? "text-indigo-100/75 hover:bg-indigo-500/8 hover:text-indigo-50"
+                              : "text-slate-600 hover:text-indigo-700 hover:bg-indigo-50",
                           "group flex gap-x-2 rounded-md p-2 leading-5 font-medium transition-colors items-center cursor-pointer",
                           isSidebarCollapsed && "justify-center",
                         )}
@@ -177,8 +188,12 @@ export function AdminSidebar() {
                         <item.icon
                           className={cn(
                             isActive
-                              ? "text-indigo-700"
-                              : "text-slate-400 group-hover:text-indigo-600",
+                              ? isDarkMode
+                                ? "text-indigo-200"
+                                : "text-indigo-700"
+                              : isDarkMode
+                                ? "text-indigo-100/35 group-hover:text-indigo-200"
+                                : "text-slate-400 group-hover:text-indigo-600",
                             "h-4 w-4 shrink-0",
                           )}
                           aria-hidden="true"

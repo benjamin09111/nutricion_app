@@ -226,6 +226,19 @@ export default function QuickRecipesClient() {
   const [categoryPageMap, setCategoryPageMap] = useState<Record<string, number>>({});
   const [selectedPatient, setSelectedPatient] = useState<QuickPatient | null>(null);
 
+    const isGenerationDisabled = useMemo(() => {
+    // Fundamental: patient or at least manual instructions
+    const hasPatient = !!selectedPatient;
+    const hasInstructions = !!allowedFoodsMainText.trim() || !!nutritionistNotes.trim();
+    return !hasPatient && !hasInstructions;
+  }, [selectedPatient, allowedFoodsMainText, nutritionistNotes]);
+
+  const isExportDisabled = useMemo(() => {
+    const hasPatient = !!selectedPatient;
+    const hasAtLeastOneDish = dishes.some(d => d.title.trim().length > 0);
+    return !hasPatient || !hasAtLeastOneDish;
+  }, [selectedPatient, dishes]);
+
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
@@ -797,6 +810,7 @@ export default function QuickRecipesClient() {
       label: isExportingPdf ? "Exportando..." : "Exportar PDF",
       variant: "slate",
       onClick: handleExportPdf,
+      disabled: isExportingPdf || isExportDisabled,
     },
     {
       id: "save",
@@ -899,7 +913,13 @@ export default function QuickRecipesClient() {
             <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
               Modo Express · Recetas reutilizables
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              {isExportDisabled && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-[10px] font-bold animate-pulse">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>Faltan datos fundamentales (Paciente + Platos)</span>
+                </div>
+              )}
               <Button
                 variant="outline"
                 className="h-11 rounded-2xl border-slate-200"

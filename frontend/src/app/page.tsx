@@ -22,8 +22,11 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
+import { useTheme } from "@/context/ThemeContext";
+import { cn } from "@/lib/utils";
 
 export default function LandingPage() {
+  const { isDarkMode, toggleTheme } = useTheme();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
@@ -87,32 +90,35 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white selection:bg-indigo-100 selection:text-indigo-900">
+    <div className={cn("min-h-screen selection:bg-indigo-100 selection:text-indigo-900", isDarkMode ? "bg-slate-950 text-emerald-50 selection:bg-emerald-500/20 selection:text-emerald-50" : "bg-white")}>
       {/* Header / Nav */}
-      <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-indigo-50">
+      <header className={cn("fixed top-0 z-50 w-full border-b backdrop-blur-md", isDarkMode ? "bg-slate-950/80 border-emerald-400/10" : "bg-white/80 border-indigo-50")}>
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="h-10 w-10 rounded-xl bg-linear-to-br from-indigo-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-200">
               <Leaf className="h-6 w-6 text-white" />
             </div>
-            <span className="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-indigo-900 to-indigo-600">
+            <span className={cn("text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r", isDarkMode ? "from-emerald-50 to-emerald-300" : "from-indigo-900 to-indigo-600")}>
               NutriSaaS
             </span>
           </div>
           <div className="flex items-center gap-6">
             <a
               href="#planes"
-              className="text-sm font-semibold text-slate-600 hover:text-indigo-600 transition-colors"
+              className={cn("text-sm font-semibold transition-colors", isDarkMode ? "text-emerald-100/70 hover:text-emerald-50" : "text-slate-600 hover:text-indigo-600")}
             >
               Planes
             </a>
             <Link
               href="/login"
-              className="text-sm font-semibold text-slate-600 hover:text-indigo-600 transition-colors"
+              className={cn("text-sm font-semibold transition-colors", isDarkMode ? "text-emerald-100/70 hover:text-emerald-50" : "text-slate-600 hover:text-indigo-600")}
             >
               Iniciar Sesión
             </Link>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 rounded-full h-11 px-8">
+            <button type="button" onClick={toggleTheme} className={cn("inline-flex h-11 items-center gap-2 rounded-full border px-4 text-[11px] font-black uppercase tracking-[0.2em] transition-all", isDarkMode ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50 hover:bg-emerald-500/18" : "border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700")} aria-label={isDarkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}>
+              {isDarkMode ? "Light" : "Dark"}
+            </button>
+            <Button className={cn("rounded-full h-11 px-8", isDarkMode ? "bg-emerald-500 hover:bg-emerald-400" : "bg-indigo-600 hover:bg-indigo-700")}>
               Empieza Gratis
             </Button>
           </div>

@@ -1429,6 +1429,16 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               </div>
             )}
             <div className="flex items-center gap-3 mb-1">
+              <div
+                onClick={toggleStatus}
+                className={cn(
+                  "w-3.5 h-3.5 rounded-full cursor-pointer transition-all hover:scale-125 border-2",
+                  patient.status !== "Inactive"
+                    ? "bg-emerald-500 border-emerald-100 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+                    : "bg-slate-300 border-slate-100"
+                )}
+                title={patient.status !== "Inactive" ? "Paciente Activo" : "Paciente Inactivo"}
+              />
               <h1
                 className={cn(
                   "text-2xl font-semibold transition-all",
@@ -1447,17 +1457,15 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   patient.fullName
                 )}
               </h1>
-              <button
-                onClick={toggleStatus}
-                className={cn(
-                  "px-3 py-1 rounded-xl text-xs font-semibold border transition-all cursor-pointer hover:scale-105 active:scale-95",
-                  patient.status !== "Inactive"
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100"
-                    : "bg-slate-50 text-slate-400 border-slate-100 hover:bg-slate-100",
-                )}
-              >
-                {patient.status !== "Inactive" ? "Activo" : "Inactivo"}
-              </button>
+              {!isEditing && (
+                <button
+                  onClick={handleEdit}
+                  className="p-2 hover:bg-emerald-50 rounded-xl text-slate-700 hover:text-emerald-700 transition-all cursor-pointer group/edit bg-slate-50/50 border border-slate-100"
+                  title="Editar perfil"
+                >
+                  <Edit2 className="w-4 h-4 transition-transform group-hover/edit:scale-110" />
+                </button>
+              )}
             </div>
             <p className="text-slate-400 font-bold text-xs flex items-center gap-2">
               EXPEDIENTE INTEGRADO <ChevronRight className="w-3 h-3" />{" "}
@@ -1478,7 +1486,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 Cancelar
               </Button>
               <Button
-                onClick={handleSave}
+                onClick={() => {
+                  if (editForm.documentId && !validateRut(editForm.documentId)) {
+                    toast.error("El RUT ingresado no es válido.");
+                    return;
+                  }
+                  handleSave();
+                }}
                 className="flex-2 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-11 lg:h-10 px-6 rounded-2xl shadow-sm transition-all active:scale-95"
               >
                 <Save className="w-5 h-5 mr-2" />
@@ -1488,24 +1502,14 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           ) : (
             <>
               <Button
-                onClick={handleEdit}
-                variant="ghost"
-                className="flex-1 sm:flex-none rounded-2xl h-11 lg:h-10 px-4 text-slate-400 hover:text-slate-900 hover:bg-white border border-transparent hover:border-slate-100 font-semibold text-xs"
+                onClick={() =>
+                  router.push("/dashboard/consultas/nueva?patientId=" + patient.id)
+                }
+                className="flex-2 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-11 lg:h-10 px-6 rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
               >
-                <Edit2 className="w-4 h-4 mr-2" />
-                Editar
+                <Plus className="w-5 h-5" />
+                CONSULTA
               </Button>
-              {!isEditing && (
-                <Button
-                  onClick={() =>
-                    router.push("/dashboard/consultas/nueva?patientId=" + patient.id)
-                  }
-                  className="flex-2 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-11 lg:h-10 px-6 rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-5 h-5" />
-                  CONSULTA
-                </Button>
-              )}
               <Button
                 disabled
                 className="bg-slate-50 border border-slate-100 text-slate-400 font-bold h-10 px-4 rounded-2xl cursor-not-allowed opacity-60 flex items-center gap-2"
@@ -1580,23 +1584,40 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               </p>
               <div className="text-2xl font-semibold text-slate-900 flex items-baseline gap-1">
                 {isEditing && stat.field ? (
-                  <Input
-                    type={
-                      stat.field === "weight" || stat.field === "height"
-                        ? "number"
-                        : "text"
-                    }
-                    step="any"
-                    value={
-                      (editForm[stat.field as keyof Patient] as
-                        | string
-                        | number) || ""
-                    }
-                    onChange={(e) =>
-                      updateField(stat.field as keyof Patient, e.target.value)
-                    }
-                    className="h-8 border-none bg-slate-50 font-semibold p-1 text-xl"
-                  />
+                  stat.field === "gender" ? (
+                    <select
+                      value={editForm.gender || ""}
+                      onChange={(e) => updateField("gender", e.target.value)}
+                      className="w-full h-8 border-none bg-slate-50 font-semibold p-1 text-base rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:outline-none cursor-pointer"
+                    >
+                      <option value="">Sexo...</option>
+                      <option value="Masculino">Masculino</option>
+                      <option value="Femenino">Femenino</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                  ) : (
+                    <Input
+                      type={
+                        stat.field === "weight" || stat.field === "height"
+                          ? "number"
+                          : "text"
+                      }
+                      step="any"
+                      value={
+                        (editForm[stat.field as keyof Patient] as
+                          | string
+                          | number) || ""
+                      }
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        if (stat.field === "documentId") {
+                          val = formatRut(val);
+                        }
+                        updateField(stat.field as keyof Patient, val);
+                      }}
+                      className="h-8 border-none bg-slate-50 font-semibold p-1 text-xl"
+                    />
+                  )
                 ) : (
                   <>
                     {stat.value}
@@ -1644,9 +1665,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       {/* Main Content Area */}
       {activeTab === "General" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-500">
+        <div className="flex flex-col gap-6 lg:gap-10 animate-in fade-in duration-500">
           {/* Left Column: Clinical & Dietary */}
-          <div className="lg:col-span-8 space-y-6 lg:space-y-10">
+          <div className="w-full space-y-6 lg:space-y-10">
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm shadow-slate-200/50 overflow-hidden">
               <div className="p-5 lg:p-6 border-b border-slate-50 bg-slate-50/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <h3 className="text-xl lg:text-2xl font-semibold text-slate-900 flex items-center gap-3 lg:gap-4">
@@ -1840,7 +1861,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           </div>
 
           {/* Right Column: Health Status */}
-          <div className="lg:col-span-4 space-y-10" >
+          <div className="w-full space-y-10" >
             <div className="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative overflow-hidden group" >
               <h4 className="flex items-center gap-3 font-semibold text-emerald-600 text-xs mb-8" >
                 <Target className="w-4 h-4" />
@@ -3201,16 +3222,16 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       />
 
       {/* Footer / Danger Zone */}
-      <div className="pt-20 border-t border-slate-100 mt-20 flex flex-col items-center gap-4">
-        <p className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em]">
+      <div className="pt-24 border-t border-slate-200 mt-24 flex flex-col items-center gap-6">
+        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.3em]">
           Ecosistema NutriSaaS v1.1
         </p>
         <button
           onClick={() => setIsDeletePatientConfirmOpen(true)}
-          className="group flex items-center gap-3 px-6 py-3 text-slate-300 hover:text-rose-500 transition-all cursor-pointer opacity-30 hover:opacity-100"
+          className="group flex items-center gap-3 px-8 py-3.5 text-slate-900 hover:text-rose-700 hover:bg-rose-50 rounded-2xl border border-slate-200 hover:border-rose-200 transition-all cursor-pointer font-black shadow-sm"
         >
-          <Trash2 className="w-4 h-4" />
-          <span className="text-[10px] font-black uppercase tracking-widest">
+          <Trash2 className="w-4.5 h-4.5 group-hover:scale-110 transition-transform text-slate-500 group-hover:text-rose-600" />
+          <span className="text-[11px] uppercase tracking-widest">
             Eliminar Paciente
           </span>
         </button>

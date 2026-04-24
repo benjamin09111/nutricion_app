@@ -16,21 +16,24 @@ import {
   ClipboardCheck,
   MessageSquare,
   Lock,
-  PlayCircle,
   Folder,
   FolderPlus,
   Dumbbell,
   Bot,
   Bell,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDashboardShell } from "@/context/DashboardShellContext";
+import { useTheme } from "@/context/ThemeContext";
 
 interface SidebarItem {
   name: string;
   href: string;
   icon: React.ElementType;
+  tutorialPath?: string;
   disabled?: boolean;
   locked?: boolean;
 }
@@ -51,33 +54,33 @@ const groups: SidebarGroup[] = [
   {
     title: "PRINCIPAL",
     items: [
-      { name: "Dieta", href: "/dashboard/dieta", icon: Utensils },
-      { name: "Recetas y Porciones", href: "/dashboard/recetas", icon: ChefHat },
-      { name: "Carrito", href: "/dashboard/carrito", icon: ShoppingCart },
-      { name: "Entregable", href: "/dashboard/entregable", icon: ClipboardCheck },
+      { name: "Dieta", href: "/dashboard/dieta", icon: Utensils, tutorialPath: "/dashboard/dieta" },
+      { name: "Recetas y Porciones", href: "/dashboard/recetas", icon: ChefHat, tutorialPath: "/dashboard/recetas" },
+      { name: "Carrito", href: "/dashboard/carrito", icon: ShoppingCart, tutorialPath: "/dashboard/carrito" },
+      { name: "Entregable", href: "/dashboard/entregable", icon: ClipboardCheck, tutorialPath: "/dashboard/entregable" },
     ],
   },
   {
     title: "Administración",
     items: [
-      { name: "Pacientes", href: "/dashboard/pacientes", icon: Users },
-      { name: "Consultas", href: "/dashboard/consultas", icon: CalendarDays },
+      { name: "Pacientes", href: "/dashboard/pacientes", icon: Users, tutorialPath: "/dashboard/pacientes" },
+      { name: "Consultas", href: "/dashboard/consultas", icon: CalendarDays, tutorialPath: "/dashboard/consultas" },
     ],
   },
   {
     title: "Alimentos",
     items: [
-      { name: "Ingredientes", href: "/dashboard/alimentos", icon: Apple },
+      { name: "Ingredientes", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
       { name: "Grupos", href: "/dashboard/alimentos?tab=Mis grupos", icon: FolderPlus },
     ],
   },
   {
     title: "Herramientas",
     items: [
-      { name: "Creaciones", href: "/dashboard/creaciones", icon: Folder },
-      { name: "Recursos & Material", href: "/dashboard/recursos", icon: FileText },
-      { name: "Detalles", href: "/dashboard/detalles", icon: FileText },
-      { name: "Platos", href: "/dashboard/platos", icon: ChefHat },
+      { name: "Creaciones", href: "/dashboard/creaciones", icon: Folder, tutorialPath: "/dashboard/creaciones" },
+      { name: "Recursos & Material", href: "/dashboard/recursos", icon: FileText, tutorialPath: "/dashboard/recursos" },
+      { name: "Detalles", href: "/dashboard/detalles", icon: FileText, tutorialPath: "/dashboard/detalles" },
+      { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos" },
     ],
   },
   {
@@ -92,14 +95,14 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Notificaciones", href: "/dashboard/ajustes/notificaciones", icon: Bell },
       { name: "Feedback & Soporte", href: "/dashboard/feedback", icon: MessageSquare },
-      { name: "Tutoriales", href: "/dashboard/tutoriales", icon: PlayCircle, locked: true },
     ],
   },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { isSidebarCollapsed } = useDashboardShell();
+  const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
+  const { isDarkMode } = useTheme();
   const getGroupPriority = (group: SidebarGroup) => {
     const hrefs = group.items.map((item) => item.href);
     if (hrefs.some((href) => href.startsWith("/dashboard/pacientes") || href.startsWith("/dashboard/consultas"))) {
@@ -131,34 +134,65 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        "sidebar-scroll flex grow flex-col gap-y-4 overflow-y-auto border-r border-slate-200 bg-white pb-4 h-full transition-all duration-300",
+        "sidebar-scroll dashboard-sidebar-bg flex h-full grow flex-col gap-y-4 overflow-y-auto border-r pb-4 transition-all duration-300",
         isSidebarCollapsed ? "px-2" : "px-4",
       )}
       style={{ scrollbarWidth: "thin" }}
     >
       <div
         className={cn(
-          "flex h-16 shrink-0 items-center",
-          isSidebarCollapsed ? "justify-center" : "pl-2",
+          "flex h-16 shrink-0 items-center justify-between",
+          isSidebarCollapsed ? "flex-col gap-2 pt-4" : "pl-2",
         )}
       >
         <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded bg-emerald-500 flex items-center justify-center">
+          <div className="h-8 w-8 rounded bg-emerald-500 flex items-center justify-center shrink-0">
             <span className="font-bold text-white text-lg">N</span>
           </div>
           {!isSidebarCollapsed && (
-            <span className="text-xl font-bold tracking-wide text-slate-900">
+            <span className={cn("text-xl font-bold tracking-wide", isDarkMode ? "text-emerald-50" : "text-slate-900")}>
               NutriSaaS
             </span>
           )}
         </div>
+
+        {/* Sidebar Toggle (Desktop Internal) */}
+        <button
+          type="button"
+          onClick={toggleSidebarCollapsed}
+          className={cn(
+            "hidden lg:inline-flex items-center justify-center rounded-xl p-2 transition-all transition-colors",
+            isDarkMode
+              ? "text-emerald-100/40 hover:text-emerald-50 hover:bg-emerald-500/10"
+              : "text-slate-400 hover:text-emerald-600 hover:bg-slate-50",
+            isSidebarToggleHighlighted && "animate-pulse ring-2 ring-emerald-500/20",
+            isSidebarCollapsed && "mt-2",
+          )}
+          title={isSidebarCollapsed ? "Mostrar menú" : "Contraer menú"}
+        >
+          {isSidebarCollapsed ? (
+            <PanelLeftOpen className="h-5 w-5" />
+          ) : (
+            <PanelLeftClose className="h-5 w-5" />
+          )}
+        </button>
       </div>
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-2">
           {orderedGroups.map((group) => (
-            <li key={group.title}>
+            <li
+              key={group.title}
+              className={cn(
+                (group.title === "PRINCIPAL" || group.title === "RÁPIDO") && "hidden lg:block"
+              )}
+            >
               {!isSidebarCollapsed && (
-                <div className="text-[0.7rem] font-bold uppercase tracking-wider text-slate-400 mb-1 pl-2">
+                <div
+                  className={cn(
+                    "mb-1 pl-2 text-[0.7rem] font-bold uppercase tracking-wider",
+                    isDarkMode ? "text-emerald-100/45" : "text-slate-400",
+                  )}
+                >
                   {group.title}
                 </div>
               )}
@@ -181,28 +215,43 @@ export function Sidebar() {
                         }}
                         className={cn(
                           isActive
-                            ? "bg-slate-50 text-emerald-600 font-bold"
-                            : "text-slate-600 hover:text-emerald-600 hover:bg-slate-50 font-medium",
+                            ? isDarkMode
+                              ? "bg-emerald-500/12 text-emerald-50 font-bold"
+                              : "bg-slate-50 text-emerald-600 font-bold"
+                            : isDarkMode
+                              ? "text-emerald-100/72 hover:bg-emerald-500/8 hover:text-emerald-50 font-medium"
+                              : "text-slate-600 hover:text-emerald-600 hover:bg-slate-50 font-medium",
                           isLocked && "opacity-50 cursor-not-allowed grayscale",
                           "group flex gap-x-2 rounded-md p-2 leading-5 transition-colors items-center cursor-pointer",
                           isSidebarCollapsed && "justify-center",
                         )}
                         title={item.name}
                       >
-                        <item.icon
-                          className={cn(
-                            isActive
-                              ? "text-emerald-600"
-                              : "text-slate-400 group-hover:text-emerald-600",
-                            "h-4 w-4 shrink-0",
-                          )}
-                          aria-hidden="true"
-                        />
+                        <span className="relative inline-flex">
+                          <item.icon
+                            className={cn(
+                              isActive
+                                ? isDarkMode
+                                  ? "text-emerald-300"
+                                  : "text-emerald-600"
+                                : isDarkMode
+                                  ? "text-emerald-100/35 group-hover:text-emerald-300"
+                                  : "text-slate-400 group-hover:text-emerald-600",
+                              "h-4 w-4 shrink-0",
+                            )}
+                            aria-hidden="true"
+                          />
+                        </span>
                         {!isSidebarCollapsed && (
                           <span className="flex-1">{item.name}</span>
                         )}
                         {isLocked && (
-                          <Lock className="h-3 w-3 text-slate-400" />
+                          <Lock
+                            className={cn(
+                              "h-3 w-3",
+                              isDarkMode ? "text-emerald-100/35" : "text-slate-400",
+                            )}
+                          />
                         )}
                       </Link>
                     </li>

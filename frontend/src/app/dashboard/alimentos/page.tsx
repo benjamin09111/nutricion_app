@@ -34,7 +34,10 @@ export default async function FoodsPage() {
     <div className="space-y-6">
       <div className="md:flex md:items-center md:justify-between px-2">
         <div>
-          <h2 className="text-3xl font-black tracking-tight text-slate-900">
+          <h2
+            id="foods-page-title"
+            className="text-3xl font-black tracking-tight text-slate-900"
+          >
             Catálogo de Ingredientes
           </h2>
           <p className="mt-1 text-sm font-medium text-slate-500">

@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, KeyboardEvent, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { X, Globe, User as UserIcon, Trash2 } from "lucide-react";
@@ -7,6 +9,7 @@ import { toast } from "sonner";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { fetchApi } from "@/lib/api-base";
+import { useTheme } from "@/context/ThemeContext";
 interface TagInputProps {
   value: string[];
   onChange: (tags: string[]) => void;
@@ -30,6 +33,7 @@ export function TagInput({
   disableDelete = false,
   includeSystemSuggestions = true,
 }: TagInputProps) {
+  const { isDarkMode } = useTheme();
   const [inputValue, setInputValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [fetchedSuggestions, setFetchedSuggestions] = useState<string[]>([]);
@@ -207,7 +211,10 @@ export function TagInput({
               onFocus={() => setShowSuggestions(true)}
               placeholder={placeholder}
               className={cn(
-                "h-11 rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-medium text-sm",
+                "h-11 rounded-xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all font-medium text-sm",
+                isDarkMode
+                  ? "bg-slate-950/65 border-emerald-400/12 focus:bg-slate-950"
+                  : "bg-slate-50/50 border-slate-200 focus:bg-white",
                 className
               )}
             />
@@ -221,9 +228,17 @@ export function TagInput({
 
         {/* Suggestions Dropdown */}
         {showSuggestions && allSuggestions.length > 0 && (
-          <div className="fixed inset-x-4 sm:inset-x-auto sm:absolute z-50 mt-2 bg-white border border-slate-200/80 rounded-2xl shadow-2xl shadow-slate-200/50 max-h-72 overflow-auto animate-in fade-in slide-in-from-top-2 duration-200 sm:w-full">
-            <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/80">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+          <div className={cn(
+            "fixed inset-x-4 sm:inset-x-auto sm:absolute z-50 mt-2 border rounded-2xl max-h-72 overflow-auto animate-in fade-in slide-in-from-top-2 duration-200 sm:w-full",
+            isDarkMode
+              ? "bg-slate-950 border-emerald-400/12 shadow-black/40"
+              : "bg-white border-slate-200/80 shadow-2xl shadow-slate-200/50",
+          )}>
+            <div className={cn(
+              "px-3 py-2 border-b",
+              isDarkMode ? "bg-slate-900/90 border-emerald-400/10" : "border-slate-100 bg-slate-50/80",
+            )}>
+              <p className={cn("text-[10px] font-black uppercase tracking-[0.22em] text-slate-400", isDarkMode && "text-emerald-100/45")}>
                 Sugerencias Globales
               </p>
             </div>
@@ -234,12 +249,18 @@ export function TagInput({
               return (
                 <div
                   key={suggestion}
-                  className="w-full transition-colors border-b border-slate-100 last:border-0 flex items-center group/item hover:bg-slate-50"
+                  className={cn(
+                    "w-full transition-colors border-b border-slate-100 last:border-0 flex items-center group/item hover:bg-slate-50",
+                    isDarkMode && "hover:bg-emerald-500/6",
+                  )}
                 >
                   <button
                     type="button"
                     onClick={() => addTag(suggestion)}
-                    className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 cursor-pointer"
+                    className={cn(
+                      "flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 cursor-pointer",
+                      isDarkMode && "text-emerald-100/80",
+                    )}
                     title={isSystem ? "Tag del sistema" : "Tag creado por nutri"}
                   >
                     <div
@@ -257,10 +278,10 @@ export function TagInput({
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate font-semibold text-slate-700">
+                      <div className={cn("truncate font-semibold text-slate-700", isDarkMode && "text-emerald-50")}>
                         {suggestion}
                       </div>
-                      <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400">
+                      <div className={cn("mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400", isDarkMode && "text-emerald-100/45")}>
                         {isSystem ? (
                           <>
                             <Globe className="h-3 w-3" />
@@ -283,7 +304,10 @@ export function TagInput({
                         setTagToDelete(suggestion);
                         setIsDeleteConfirmOpen(true);
                       }}
-                      className="mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-colors opacity-0 group-hover/item:opacity-100 cursor-pointer"
+                      className={cn(
+                        "mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-colors opacity-0 group-hover/item:opacity-100 cursor-pointer",
+                        isDarkMode && "hover:bg-rose-500/10",
+                      )}
                       title="Eliminar tag"
                     >
                       <Trash2 className="w-4 h-4" />

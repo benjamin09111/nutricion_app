@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, HelpCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { createPortal } from "react-dom";
+import { useTheme } from "@/context/ThemeContext";
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export function ConfirmationModal({
   isLoading = false,
 }: ConfirmationModalProps) {
   useScrollLock(isOpen);
+  const { isDarkMode } = useTheme();
 
   if (!isOpen) return null;
 
@@ -70,7 +72,12 @@ export function ConfirmationModal({
   const content = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300 min-h-screen">
       <div className="fixed inset-0" />
-      <div className="relative bg-white w-full max-w-md rounded-4xl shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+      <div
+        className={cn(
+          "relative w-full max-w-md overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300",
+          isDarkMode && "dashboard-surface-strong",
+        )}
+      >
         <div className="p-8 text-center space-y-6">
           <div
             className={cn(
@@ -82,10 +89,12 @@ export function ConfirmationModal({
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-xl font-black text-slate-900 leading-tight">
+            <h3 className={cn("text-xl font-black leading-tight", isDarkMode ? "text-emerald-50" : "text-slate-900")}>
               {title}
             </h3>
-            <p className="text-sm font-medium text-slate-500">{description}</p>
+            <p className={cn("text-sm font-medium", isDarkMode ? "text-emerald-100/65" : "text-slate-500")}>
+              {description}
+            </p>
           </div>
 
           <div className="flex gap-3 pt-2">

@@ -1,6 +1,9 @@
+"use client";
+
 import { useState, useRef, useEffect } from "react";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/context/ThemeContext";
 
 interface Option {
   value: string;
@@ -30,6 +33,7 @@ export function SearchableSelect({
   isLoading,
   disabled,
 }: SearchableSelectProps) {
+  const { isDarkMode } = useTheme();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -73,14 +77,21 @@ export function SearchableSelect({
         onClick={() => setOpen(!open)}
         disabled={disabled}
         className={cn(
-          "w-full h-11 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed",
+          "w-full h-11 flex items-center justify-between rounded-xl border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed",
+          isDarkMode
+            ? "border-emerald-400/12 bg-slate-950/65 text-emerald-50"
+            : "border-slate-200 bg-white text-slate-900",
           triggerClassName,
         )}
       >
         <span
           className={cn(
             "truncate flex-1 text-left",
-            !value ? "text-slate-400 font-normal" : "text-slate-900 font-bold",
+            !value
+              ? "text-slate-400 font-normal"
+              : isDarkMode
+                ? "text-emerald-50 font-bold"
+                : "text-slate-900 font-bold",
           )}
         >
           {selectedLabel || placeholder}
@@ -89,13 +100,24 @@ export function SearchableSelect({
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 max-h-[220px] w-full overflow-auto rounded-xl bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm animate-in fade-in zoom-in-95 duration-100">
-          <div className="sticky top-0 z-10 bg-white px-2 py-1.5 border-b border-slate-100">
+        <div className={cn(
+          "absolute z-50 mt-1 max-h-[220px] w-full overflow-auto rounded-xl py-1 text-base shadow-lg ring-1 focus:outline-none sm:text-sm animate-in fade-in zoom-in-95 duration-100",
+          isDarkMode ? "bg-slate-950 ring-emerald-400/10" : "bg-white ring-black/5",
+        )}>
+          <div className={cn(
+            "sticky top-0 z-10 px-2 py-1.5 border-b border-slate-100",
+            isDarkMode ? "bg-slate-950 border-emerald-400/10" : "bg-white",
+          )}>
             <div className="relative">
-              <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-slate-400" />
+              <Search className={cn("absolute left-2 top-2 h-3.5 w-3.5 text-slate-400", isDarkMode && "text-emerald-100/45")} />
               <input
                 type="text"
-                className="w-full rounded-md border border-slate-200 bg-slate-50 py-1.5 pl-8 pr-2 text-xs text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className={cn(
+                  "w-full rounded-md border py-1.5 pl-8 pr-2 text-xs focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500",
+                  isDarkMode
+                    ? "border-emerald-400/12 bg-slate-900 text-emerald-50"
+                    : "border-slate-200 bg-slate-50 text-slate-900",
+                )}
                 placeholder="Buscar..."
                 value={search}
                 onChange={(e) => handleSearchChange(e.target.value)}
@@ -104,11 +126,11 @@ export function SearchableSelect({
             </div>
           </div>
           {isLoading ? (
-            <div className="relative cursor-default select-none px-4 py-2 text-slate-500 text-xs text-center italic">
+            <div className={cn("relative cursor-default select-none px-4 py-2 text-xs text-center italic", isDarkMode ? "text-emerald-100/60" : "text-slate-500")}>
               Cargando...
             </div>
           ) : filteredOptions.length === 0 ? (
-            <div className="relative cursor-default select-none px-4 py-2 text-slate-500 text-xs text-center italic">
+            <div className={cn("relative cursor-default select-none px-4 py-2 text-xs text-center italic", isDarkMode ? "text-emerald-100/60" : "text-slate-500")}>
               {search.length === 0 && onSearch
                 ? "Escribe para buscar..."
                 : "No encontrado."}
@@ -120,8 +142,12 @@ export function SearchableSelect({
                 className={cn(
                   "relative cursor-pointer select-none py-2.5 pl-3 pr-9 hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-sm",
                   value === option.value
-                    ? "bg-emerald-50 text-emerald-700 font-bold"
-                    : "text-slate-900",
+                    ? isDarkMode
+                      ? "bg-emerald-500/12 text-emerald-200 font-bold"
+                      : "bg-emerald-50 text-emerald-700 font-bold"
+                    : isDarkMode
+                      ? "text-emerald-50 hover:bg-emerald-500/8 hover:text-emerald-200"
+                      : "text-slate-900",
                 )}
                 onClick={() => {
                   onChange(option.value);

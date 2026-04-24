@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button"; // Adjusted import path just in case
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/context/ThemeContext";
 
 interface PaginationProps {
   currentPage: number;
@@ -20,6 +21,7 @@ export function Pagination({
   onPageChange,
   className,
 }: PaginationProps) {
+  const { isDarkMode } = useTheme();
   // Generate page numbers to display
   const getPageNumbers = () => {
     const delta = 1; // Number of pages to show on each side of current
@@ -132,7 +134,9 @@ export function Pagination({
                 "h-8 w-8 p-0 font-bold transition-all text-xs rounded-lg",
                 currentPage === page
                   ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-200"
-                  : "text-slate-500 hover:text-slate-900 hover:bg-slate-100",
+                  : isDarkMode
+                    ? "text-emerald-100/70 hover:text-emerald-50 hover:bg-emerald-500/8"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-100",
               )}
               onClick={() => onPageChange(page)}
             >
@@ -141,7 +145,10 @@ export function Pagination({
           ) : (
             <span
               key={`ellipsis-${index}`}
-              className="px-1 text-slate-300 text-xs font-bold select-none"
+              className={cn(
+                "px-1 text-xs font-bold select-none",
+                isDarkMode ? "text-emerald-100/30" : "text-slate-300",
+              )}
             >
               ...
             </span>

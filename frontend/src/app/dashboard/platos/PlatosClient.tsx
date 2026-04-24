@@ -11,6 +11,7 @@ import {
   Globe,
   User,
   Trash2,
+  Pencil,
   Sparkles,
   Search,
   ArrowUpDown,
@@ -63,6 +64,7 @@ export default function PlatosClient() {
   const [searchName, setSearchName] = useState<string>("");
   const [searchIngredient, setSearchIngredient] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("newest");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const token = Cookies.get("auth_token") || "";
 
@@ -209,16 +211,6 @@ export default function PlatosClient() {
                 </Button>
               )}
 
-              <Button
-                variant="outline"
-                onClick={() => {
-                  toast.info("Generación de platos con IA próximamente");
-                }}
-                className="inline-flex items-center gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-              >
-                <Sparkles className="h-4 w-4" />
-                Generación de platos
-              </Button>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -314,7 +306,11 @@ export default function PlatosClient() {
               return (
                 <div
                   key={recipe.id}
-                  className="p-5 rounded-3xl border border-slate-200 bg-white space-y-3"
+                  onClick={() => setExpandedId(expandedId === recipe.id ? null : recipe.id)}
+                  className={cn(
+                    "p-5 rounded-3xl border border-slate-200 bg-white space-y-3 cursor-pointer hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 group",
+                    expandedId === recipe.id && "border-emerald-500 ring-4 ring-emerald-500/5 shadow-xl scale-[1.01]"
+                  )}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -328,14 +324,44 @@ export default function PlatosClient() {
                       </p>
                     </div>
                     {(recipe.isMine || isAdmin) ? (
-                      <Button
-                        variant="ghost"
-                        onClick={() => deleteDish(recipe.id)}
-                        className="p-2 h-auto text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    ) : null}
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/dashboard/platos/${recipe.id}/editar`);
+                          }}
+                          className="p-2 h-8 w-8 text-emerald-600 hover:bg-emerald-50 rounded-full transition-all"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteDish(recipe.id);
+                          }}
+                          className="p-2 h-8 w-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-full transition-all"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-emerald-500 transition-colors">
+                        <ArrowUpDown className={cn("h-4 w-4 transition-transform duration-500", expandedId === recipe.id ? "rotate-180" : "")} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                      "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] transition-all duration-300",
+                      expandedId === recipe.id 
+                        ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" 
+                        : "bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white group-hover:shadow-lg group-hover:shadow-emerald-600/20"
+                    )}>
+                      {expandedId === recipe.id ? "Ocultar información" : "Ver información completa"}
+                    </div>
                   </div>
 
                   {/* Image Section */}
@@ -414,6 +440,62 @@ export default function PlatosClient() {
                       Compartido por: {recipe.nutritionist?.fullName || "Comunidad"}
                     </p>
                   ) : null}
+
+                  {/* Expanded Content */}
+                  {expandedId === recipe.id && (
+                    <div className="pt-4 mt-4 border-t border-slate-100 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                      {recipe.description && (
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-black text-slate-900 uppercase">Descripción</h4>
+                          <p className="text-sm text-slate-600 leading-relaxed">{recipe.description}</p>
+                        </div>
+                      )}
+                      
+                      {recipe.ingredients && recipe.ingredients.length > 0 && (
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-black text-slate-900 uppercase">Ingredientes</h4>
+                          <ul className="grid grid-cols-1 gap-1">
+                            {recipe.ingredients.map((i, idx) => (
+                              <li key={idx} className="text-sm text-slate-600 flex items-center gap-2">
+                                <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", i.isMain ? "bg-emerald-500" : "bg-slate-300")} />
+                                <span>{i.ingredient.name}</span>
+                                {i.isMain && <span className="text-[10px] font-bold text-emerald-600 uppercase">(Principal)</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {recipe.preparation && (
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-black text-slate-900 uppercase">Preparación</h4>
+                          <div className="space-y-2">
+                            {recipe.preparation.split("\n").filter(step => step.trim()).map((step, idx) => (
+                              <div key={idx} className="flex gap-3">
+                                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold flex items-center justify-center">
+                                  {idx + 1}
+                                </span>
+                                <p className="text-sm text-slate-600 leading-snug pt-0.5">
+                                  {step.replace(/^\d+\.\s*/, "").trim()}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="grid grid-cols-2 gap-2 pt-2">
+                        <div className="p-2 rounded-lg bg-orange-50 border border-orange-100">
+                          <p className="font-black text-orange-700">{recipe.carbs} g</p>
+                          <p className="text-orange-600/70 text-[10px] font-bold uppercase">Carbohidratos</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-blue-50 border border-blue-100">
+                          <p className="font-black text-blue-700">{recipe.lipids} g</p>
+                          <p className="text-blue-600/70 text-[10px] font-bold uppercase">Lípidos</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

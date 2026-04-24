@@ -46,6 +46,7 @@ import { useAdmin } from "@/context/AdminContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Textarea";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
@@ -91,6 +92,24 @@ interface SectionItem {
   contentType: "practical" | "theory";
   editable?: boolean;
 }
+
+type DeliverablePatientContext = {
+  id?: string;
+  importedPatientId?: string | null;
+  source: "manual" | "imported";
+  fullName: string;
+  ageYears?: number | null;
+  gender?: string;
+  restrictions: string[];
+  noDietaryRestrictions?: boolean;
+  likes?: string;
+  nutritionalFocus?: string;
+  fitnessGoals?: string;
+  birthDate?: string;
+  weight?: number;
+  height?: number;
+  updatedAt: string;
+};
 
 type PreviousStageSummary = {
   diet: {
@@ -261,6 +280,19 @@ const safeString = (value: unknown) => {
   return value.trim();
 };
 
+const calculateAgeYears = (birthDate?: string) => {
+  if (!birthDate) return undefined;
+  const date = new Date(birthDate);
+  if (Number.isNaN(date.getTime())) return undefined;
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+    age -= 1;
+  }
+  return age >= 0 ? age : undefined;
+};
+
 const normalizeStringList = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   const next = value
@@ -408,16 +440,69 @@ const normalizePatientMeta = (patient: any) => {
 
   const normalized = {
     ...patient,
+    id: typeof patient.id === "string" && patient.id ? patient.id : undefined,
+    importedPatientId:
+      typeof patient.importedPatientId === "string"
+        ? patient.importedPatientId
+        : typeof patient.id === "string" && patient.id
+          ? patient.id
+          : null,
+    source:
+      patient.source === "manual" || !patient.id ? "manual" : "imported",
     fullName:
       safeString(patient.fullName) ||
       safeString(patient.name) ||
       "Paciente sin nombre",
+    ageYears:
+      Number.isFinite(Number(patient.ageYears))
+        ? Math.max(0, Math.round(Number(patient.ageYears)))
+        : calculateAgeYears(patient.birthDate) ?? null,
     restrictions: validRestrictions,
+    noDietaryRestrictions:
+      typeof patient.noDietaryRestrictions === "boolean"
+        ? patient.noDietaryRestrictions
+        : validRestrictions.length === 0,
+    likes: safeString(patient.likes),
+    nutritionalFocus: safeString(patient.nutritionalFocus),
+    fitnessGoals: safeString(patient.fitnessGoals),
+    gender: safeString(patient.gender),
+    birthDate: safeString(patient.birthDate) || undefined,
+    weight:
+      Number.isFinite(Number(patient.weight)) && Number(patient.weight) > 0
+        ? Number(patient.weight)
+        : undefined,
+    height:
+      Number.isFinite(Number(patient.height)) && Number(patient.height) > 0
+        ? Number(patient.height)
+        : undefined,
     updatedAt: new Date().toISOString(),
   };
 
   return normalized;
 };
+
+const createEmptyPatientMeta = (): DeliverablePatientContext => ({
+  source: "manual",
+  fullName: "",
+  ageYears: null,
+  gender: "",
+  restrictions: [],
+  noDietaryRestrictions: false,
+  likes: "",
+  nutritionalFocus: "",
+  fitnessGoals: "",
+  updatedAt: new Date().toISOString(),
+});
+
+const parseDelimitedList = (value: string) =>
+  Array.from(
+    new Set(
+      value
+        .split(/[,;\n]/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
 
 export default function DeliverableClient() {
   const router = useRouter();
@@ -442,7 +527,7 @@ export default function DeliverableClient() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [creationDescription, setCreationDescription] = useState("");
-  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [selectedPatient, setSelectedPatient] = useState<any>(createEmptyPatientMeta());
 
   // Track available modules
   const [hasCart, setHasCart] = useState(false);
@@ -494,6 +579,18 @@ export default function DeliverableClient() {
   const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(
     null,
   );
+
+  const updateSelectedPatient = (
+    updater: (current: DeliverablePatientContext) => DeliverablePatientContext,
+  ) => {
+    setSelectedPatient((current: DeliverablePatientContext | null) => {
+      const base = normalizePatientMeta(current) || createEmptyPatientMeta();
+      return {
+        ...updater(base),
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  };
 
   useEffect(() => {
     setCurrentProjectId(projectIdFromUrl);
@@ -618,6 +715,8 @@ export default function DeliverableClient() {
             if (!draft.patientMeta) {
               draft.patientMeta = normalizedProjectPatient;
             }
+          } else if (draft.patientMeta) {
+            setSelectedPatient(normalizePatientMeta(draft.patientMeta));
           }
 
           if (project.activeDietCreationId && !hasLocalDiet) {
@@ -743,6 +842,10 @@ export default function DeliverableClient() {
           setSelectedSections(availableDefaults);
         }
 
+        if (draft.patientMeta && !storedPatient) {
+          setSelectedPatient(normalizePatientMeta(draft.patientMeta));
+        }
+
         internalHasCart = !!draft.cart;
         internalHasRecipes = !!draft.recipes;
         refreshPreviousStagesSummary(draft, null);
@@ -772,6 +875,15 @@ export default function DeliverableClient() {
       updatedAt: new Date().toISOString(),
     };
 
+    if (selectedPatient) {
+      const normalizedPatient = normalizePatientMeta(selectedPatient);
+      draft.patientMeta = normalizedPatient;
+      localStorage.setItem("nutri_patient", JSON.stringify(normalizedPatient));
+    } else {
+      delete draft.patientMeta;
+      localStorage.removeItem("nutri_patient");
+    }
+
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
     refreshPreviousStagesSummary(draft, selectedPatient);
   }, [selectedSections, includeLogo, welcomeMessage, exportPackages, resolvedResourcePages, selectedPatient]);
@@ -781,7 +893,7 @@ export default function DeliverableClient() {
     const storedPatient = localStorage.getItem("nutri_patient");
     if (storedPatient) {
       try {
-        const parsedPatient = JSON.parse(storedPatient);
+        const parsedPatient = normalizePatientMeta(JSON.parse(storedPatient));
         setSelectedPatient(parsedPatient);
         refreshPreviousStagesSummary(undefined, parsedPatient);
       } catch (e) {
@@ -796,6 +908,24 @@ export default function DeliverableClient() {
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
     );
   };
+
+  const hasImportedPatient = Boolean(
+    selectedPatient?.source === "imported" && selectedPatient?.importedPatientId,
+  );
+  const hasManualPatientData = Boolean(
+    selectedPatient &&
+      (
+        safeString(selectedPatient.fullName) ||
+        selectedPatient.ageYears !== null ||
+        safeString(selectedPatient.gender) ||
+        (Array.isArray(selectedPatient.restrictions) && selectedPatient.restrictions.length > 0) ||
+        Boolean(selectedPatient.noDietaryRestrictions) ||
+        safeString(selectedPatient.likes) ||
+        safeString(selectedPatient.nutritionalFocus) ||
+        safeString(selectedPatient.fitnessGoals)
+      ),
+  );
+  const hasPatientAssigned = hasImportedPatient || hasManualPatientData;
 
   const availableSections = DELIVERABLE_SECTIONS.map((section) => {
     let disabled = false;
@@ -814,7 +944,7 @@ export default function DeliverableClient() {
       }
     }
     if (section.id === "patientInfo") {
-      if (!selectedPatient) {
+      if (!hasPatientAssigned) {
         disabled = true;
         finalDescription = "⚠️ Requiere asignar paciente o cargar métricas.";
       }
@@ -1202,9 +1332,9 @@ export default function DeliverableClient() {
           sectionCount: selectedSections.length,
           hasCart,
           hasRecipes,
-          ...(selectedPatient
+          ...(selectedPatient?.importedPatientId
             ? {
-                patientId: selectedPatient.id,
+                patientId: selectedPatient.importedPatientId,
                 patientName: selectedPatient.fullName,
               }
             : {}),
@@ -1215,7 +1345,7 @@ export default function DeliverableClient() {
       if (currentProjectId) {
         await updateProject(currentProjectId, {
           activeDeliverableCreationId: savedCreation.id,
-          patientId: selectedPatient?.id,
+          patientId: selectedPatient?.importedPatientId || undefined,
           metadata: {
             sourceModule: "deliverable",
             selectedSections,
@@ -1577,7 +1707,7 @@ export default function DeliverableClient() {
   };
 
   const handleUnlinkPatient = () => {
-    setSelectedPatient(null);
+    setSelectedPatient(createEmptyPatientMeta());
     localStorage.removeItem("nutri_patient");
     const storedDraft = localStorage.getItem("nutri_active_draft");
     const draft = storedDraft ? JSON.parse(storedDraft) : {};
@@ -1602,7 +1732,7 @@ export default function DeliverableClient() {
     setHasCart(false);
     setHasRecipes(false);
     setHasDraftMemory(false);
-    setSelectedPatient(null);
+    setSelectedPatient(createEmptyPatientMeta());
     setSelectedSections(sanitizeSectionIds(getBlankDeliverableSections()));
     setIncludeLogo(true);
     setWelcomeMessage("");
@@ -1956,7 +2086,7 @@ export default function DeliverableClient() {
               </div>
 
               <div className="flex justify-end pt-4">
-                <Button onClick={handleExportSingle} disabled={isExporting} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-8 h-12 uppercase tracking-widest text-xs font-black">
+                <Button onClick={handleExportSingle} disabled={isExporting || !previousStagesSummary.diet.hasData || !previousStagesSummary.patient.hasData || !previousStagesSummary.recipes.hasData || !previousStagesSummary.cart.hasData} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-8 h-12 uppercase tracking-widest text-xs font-black">
                   {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
                   Exportar Documento Único
                 </Button>
@@ -2227,7 +2357,7 @@ export default function DeliverableClient() {
               <Button
                 className="h-12 px-8 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-200 uppercase tracking-widest text-xs flex items-center gap-2"
                 onClick={openExportWizard}
-                disabled={isExporting}
+                disabled={isExporting || !previousStagesSummary.diet.hasData || !previousStagesSummary.patient.hasData || !previousStagesSummary.recipes.hasData || !previousStagesSummary.cart.hasData}
               >
                 {isExporting ? (
                   <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -2356,6 +2486,221 @@ export default function DeliverableClient() {
           </div>
         </div>
         <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
+                Paciente del entregable
+              </p>
+              <h3 className="mt-1 text-sm font-black uppercase tracking-widest text-slate-900">
+                Datos manuales o paciente importado
+              </h3>
+              <p className="mt-1 text-xs font-medium text-slate-500">
+                Puedes preparar el entregable para un paciente reutilizable o completar solo la información de una visita puntual.
+              </p>
+            </div>
+            <div className="flex flex-col items-start gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePatientLoad}
+                className={cn(
+                  "rounded-2xl border font-bold",
+                  hasImportedPatient
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : "border-slate-200 bg-white text-slate-700",
+                )}
+              >
+                {hasImportedPatient ? (
+                  <UserPlus className="mr-2 h-4 w-4" />
+                ) : (
+                  <Search className="mr-2 h-4 w-4" />
+                )}
+                {hasImportedPatient ? "Paciente importado" : "Sin paciente asignado"}
+              </Button>
+              <button
+                type="button"
+                onClick={() => setSelectedPatient(createEmptyPatientMeta())}
+                className="text-left text-xs font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800"
+              >
+                O completar manualmente sin reutilizar uno existente.
+              </button>
+              {hasImportedPatient ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleUnlinkPatient}
+                  className="rounded-2xl border-rose-200 bg-rose-50 font-bold text-rose-700"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Quitar paciente importado
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest">
+              <span className={cn(
+                "rounded-full px-3 py-1",
+                hasImportedPatient ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600",
+              )}>
+                {hasImportedPatient ? "Paciente importado" : "Datos manuales"}
+              </span>
+              {!hasPatientAssigned ? (
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-700">
+                  Sin paciente asignado
+                </span>
+              ) : null}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Nombre
+                </p>
+                <Input
+                  value={selectedPatient.fullName || ""}
+                  onChange={(e) =>
+                    updateSelectedPatient((current) => ({
+                      ...current,
+                      fullName: e.target.value,
+                    }))
+                  }
+                  placeholder="Nombre y apellido"
+                />
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Edad
+                </p>
+                <Input
+                  type="number"
+                  min={0}
+                  value={selectedPatient.ageYears ?? ""}
+                  onChange={(e) =>
+                    updateSelectedPatient((current) => ({
+                      ...current,
+                      ageYears:
+                        e.target.value === ""
+                          ? null
+                          : Math.max(0, Math.round(Number(e.target.value) || 0)),
+                    }))
+                  }
+                  placeholder="Ej: 42"
+                />
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Sexo
+                </p>
+                <select
+                  value={selectedPatient.gender || ""}
+                  onChange={(e) =>
+                    updateSelectedPatient((current) => ({
+                      ...current,
+                      gender: e.target.value,
+                    }))
+                  }
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus:border-emerald-400 focus:outline-none"
+                >
+                  <option value="">Seleccionar</option>
+                  <option value="Femenino">Femenino</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Objetivo / enfoque
+                </p>
+                <Input
+                  value={selectedPatient.nutritionalFocus || ""}
+                  onChange={(e) =>
+                    updateSelectedPatient((current) => ({
+                      ...current,
+                      nutritionalFocus: e.target.value,
+                    }))
+                  }
+                  placeholder="Ej: mejorar energía, ordenar horarios, salud digestiva..."
+                />
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Metas
+                </p>
+                <Input
+                  value={selectedPatient.fitnessGoals || ""}
+                  onChange={(e) =>
+                    updateSelectedPatient((current) => ({
+                      ...current,
+                      fitnessGoals: e.target.value,
+                    }))
+                  }
+                  placeholder="Ej: bajar grasa, ganar masa muscular..."
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Restricciones
+                </p>
+                <Textarea
+                  value={
+                    selectedPatient.noDietaryRestrictions
+                      ? ""
+                      : (selectedPatient.restrictions || []).join(", ")
+                  }
+                  onChange={(e) =>
+                    updateSelectedPatient((current) => ({
+                      ...current,
+                      noDietaryRestrictions: false,
+                      restrictions: parseDelimitedList(e.target.value),
+                    }))
+                  }
+                  placeholder="Ej: sin gluten, evitar lactosa, no mariscos..."
+                  className="min-h-[96px]"
+                />
+                <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(selectedPatient.noDietaryRestrictions)}
+                    onChange={(e) =>
+                      updateSelectedPatient((current) => ({
+                        ...current,
+                        noDietaryRestrictions: e.target.checked,
+                        restrictions: e.target.checked ? ["Ninguna"] : [],
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                  Sin restricciones
+                </label>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Gustos
+                </p>
+                <Textarea
+                  value={selectedPatient.likes || ""}
+                  onChange={(e) =>
+                    updateSelectedPatient((current) => ({
+                      ...current,
+                      likes: e.target.value,
+                    }))
+                  }
+                  placeholder="Ej: preparaciones saladas, desayuno liviano, frutas, yogurt..."
+                  className="min-h-[96px]"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
           <button
             type="button"
             onClick={() => setIsFlowSummaryOpen((prev) => !prev)}
@@ -2432,8 +2777,14 @@ export default function DeliverableClient() {
               Revisión de módulos
             </p>
             <h3 className="mt-1 text-sm font-black uppercase tracking-widest text-slate-900">
-              Módulos previos requeridos
+              Módulos obligatorios para exportación
             </h3>
+            {isExportDisabled && (
+              <p className="mt-2 text-xs font-bold text-rose-600 flex items-center gap-2 animate-in fade-in slide-in-from-left duration-500">
+                <AlertCircle className="h-4 w-4" />
+                Debes completar todos los módulos marcados en rojo para habilitar la descarga del PDF.
+              </p>
+            )}
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
@@ -2621,7 +2972,13 @@ export default function DeliverableClient() {
 
             {/* Info / Resource Modules (Unchecked by default) */}
             <section className="space-y-6">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+              {isExportDisabled && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-xs font-bold animate-pulse">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>Faltan completar etapas obligatorias</span>
+                </div>
+              )}
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <Sparkles className="h-5 w-5 text-blue-600" />
                 </div>

@@ -227,10 +227,10 @@ export default function PatientsClient() {
                 setPage(1);
               }}
               className={cn(
-                "px-6 py-2.5 text-sm font-bold rounded-xl transition-all duration-200 cursor-pointer whitespace-nowrap flex-1 lg:flex-none",
+                "px-4 py-2 text-sm transition-all duration-200 cursor-pointer whitespace-nowrap flex-1 lg:flex-none font-bold",
                 activeTab === tab
-                  ? "bg-white text-emerald-700 shadow-sm ring-1 ring-slate-200/50"
-                  : "text-slate-500 hover:text-slate-700 hover:bg-white/50",
+                  ? "text-emerald-700"
+                  : "text-slate-500 hover:text-slate-800",
               )}
             >
               {tab === "Todos" && `Todos (${meta.total})`}
@@ -251,8 +251,8 @@ export default function PatientsClient() {
 
       <div className="relative mb-8 group">
         <div className="absolute inset-0 bg-linear-to-r from-emerald-500/5 to-blue-500/5 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <div className="relative bg-white p-4 lg:p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
-          <div className="flex items-center gap-2">
+        <div className="relative bg-white p-3 lg:p-4 rounded-3xl shadow-sm border border-slate-200">
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-3">
             <div className="pl-2">
               <Search className="h-5 w-5 text-slate-400" />
             </div>
@@ -273,8 +273,8 @@ export default function PatientsClient() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
                 Rut / ID
               </label>
@@ -286,16 +286,16 @@ export default function PatientsClient() {
                   setDocumentIdFilter(e.target.value);
                   setPage(1);
                 }}
-                className="h-11 rounded-2xl bg-slate-50 border-slate-200"
+                className="h-10 rounded-xl bg-slate-50 border-slate-200 text-sm"
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
                 Fecha Desde
               </label>
               <div className="relative">
-                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                 <Input
                   type="date"
                   value={startDateFilter}
@@ -303,17 +303,17 @@ export default function PatientsClient() {
                     setStartDateFilter(e.target.value);
                     setPage(1);
                   }}
-                  className="h-11 pl-11 rounded-2xl bg-slate-50 border-slate-200"
+                  className="h-10 pl-10 rounded-xl bg-slate-50 border-slate-200 text-sm"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
                 Fecha Hasta
               </label>
               <div className="relative">
-                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                 <Input
                   type="date"
                   value={endDateFilter}
@@ -322,14 +322,14 @@ export default function PatientsClient() {
                     setEndDateFilter(e.target.value);
                     setPage(1);
                   }}
-                  className="h-11 pl-11 rounded-2xl bg-slate-50 border-slate-200"
+                  className="h-10 pl-10 rounded-xl bg-slate-50 border-slate-200 text-sm"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
-                Etiquetas de Clasificación
+                Clasificación
               </label>
               <TagInput
                 value={classificationTags}
@@ -338,26 +338,25 @@ export default function PatientsClient() {
                   setPage(1);
                 }}
                 fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                placeholder="Filtrar por etiquetas..."
-                className="rounded-2xl bg-slate-50 border-slate-200"
+                placeholder="Etiquetas..."
+                className="rounded-xl bg-slate-50 border-slate-200 h-10 text-sm"
               />
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <p className="text-xs font-medium text-slate-500">
-              {meta.filteredTotal} resultado{meta.filteredTotal === 1 ? "" : "s"} con los filtros actuales
-            </p>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={resetPatients}
-              className="h-10 px-4 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50"
-            >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Limpiar filtros
-            </Button>
-          </div>
+          {(searchTerm || documentIdFilter || startDateFilter || endDateFilter || classificationTags.length > 0) && (
+            <div className="flex justify-end pt-1">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={resetPatients}
+                className="h-8 px-3 rounded-lg text-rose-500 hover:text-rose-600 hover:bg-rose-50 text-[11px] font-bold uppercase tracking-wider"
+              >
+                <RotateCcw className="h-3 w-3 mr-1.5" />
+                Limpiar filtros
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

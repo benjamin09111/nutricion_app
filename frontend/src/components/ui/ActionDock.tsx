@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { LucideIcon, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/context/ThemeContext";
 
 export interface ActionDockItem {
   id: string;
@@ -21,6 +22,7 @@ interface ActionDockProps {
 
 export function ActionDock({ items, className }: ActionDockProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isDarkMode } = useTheme();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -45,7 +47,10 @@ export function ActionDock({ items, className }: ActionDockProps) {
     >
       <div
         className={cn(
-          "bg-white/80 backdrop-blur-xl border border-slate-200 rounded-4xl shadow-2xl transition-all duration-200",
+          "backdrop-blur-xl border rounded-4xl shadow-2xl transition-all duration-200",
+          isDarkMode
+            ? "border-emerald-400/12 bg-slate-950/70 shadow-black/30"
+            : "bg-white/80 border-slate-200",
           isCollapsed ? "p-1.5" : "p-2",
         )}
       >
@@ -55,7 +60,10 @@ export function ActionDock({ items, className }: ActionDockProps) {
           aria-label={isCollapsed ? "Expandir acciones" : "Minimizar acciones"}
           title={isCollapsed ? "Expandir acciones" : "Minimizar acciones"}
           className={cn(
-            "group flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900",
+            "group flex items-center justify-center rounded-full border text-slate-600 shadow-sm transition-all",
+            isDarkMode
+              ? "border-emerald-400/12 bg-slate-900/80 text-emerald-100 hover:bg-emerald-500/10 hover:text-emerald-50"
+              : "border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900",
             isCollapsed ? "h-11 w-11" : "mb-2 h-10 w-10",
           )}
         >
@@ -73,17 +81,17 @@ export function ActionDock({ items, className }: ActionDockProps) {
                 return (
                   <div
                     key={`sep-${index}`}
-                    className="h-px bg-slate-100 mx-2 my-1"
+                    className={cn("mx-2 my-1 h-px", isDarkMode ? "bg-emerald-400/10" : "bg-slate-100")}
                   />
                 );
               }
 
               const variantStyles = {
-                indigo: "bg-indigo-50 text-indigo-600 hover:bg-indigo-100",
-                emerald: "bg-emerald-50 text-emerald-600 hover:bg-emerald-100",
-                amber: "bg-amber-50 text-amber-600 hover:bg-amber-100",
-                rose: "bg-rose-50 text-rose-600 hover:bg-rose-100",
-                slate: "bg-slate-50 text-slate-600 hover:bg-slate-100",
+                indigo: isDarkMode ? "bg-indigo-500/12 text-indigo-100 hover:bg-indigo-500/18" : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100",
+                emerald: isDarkMode ? "bg-emerald-500/12 text-emerald-50 hover:bg-emerald-500/18" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100",
+                amber: isDarkMode ? "bg-amber-500/12 text-amber-50 hover:bg-amber-500/18" : "bg-amber-50 text-amber-600 hover:bg-amber-100",
+                rose: isDarkMode ? "bg-rose-500/12 text-rose-50 hover:bg-rose-500/18" : "bg-rose-50 text-rose-600 hover:bg-rose-100",
+                slate: isDarkMode ? "bg-slate-800/80 text-emerald-50 hover:bg-slate-700/80" : "bg-slate-50 text-slate-600 hover:bg-slate-100",
               };
 
               const Icon = item.icon;
@@ -103,7 +111,7 @@ export function ActionDock({ items, className }: ActionDockProps) {
                   )}
                 >
                   <Icon className="h-6 w-6 group-hover:scale-110 transition-transform" />
-                  <span className="absolute right-full mr-4 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase tracking-widest whitespace-nowrap z-[60]">
+                  <span className={cn("absolute right-full mr-4 top-1/2 -translate-y-1/2 px-3 py-1.5 text-[10px] font-black rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase tracking-widest whitespace-nowrap z-[60]", isDarkMode ? "bg-slate-950 text-emerald-50" : "bg-slate-900 text-white")}>
                     {item.label}
                   </span>
                 </button>

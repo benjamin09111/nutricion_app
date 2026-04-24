@@ -121,6 +121,14 @@ export const getTutorialForPath = (pathname: string) => {
 export const hasTutorialSteps = (tutorial: TutorialDefinition | null) =>
   Boolean(tutorial && tutorial.steps.length > 0);
 
+export const isTutorialUnseen = (tutorial: TutorialDefinition | null) => {
+  if (!tutorial || !hasTutorialSteps(tutorial) || tutorial.status !== "ready") {
+    return false;
+  }
+
+  return getTutorialProgress(tutorial).status === "new";
+};
+
 export const createDefaultProgress = (
   tutorial: TutorialDefinition,
 ): TutorialPersistedProgress => ({

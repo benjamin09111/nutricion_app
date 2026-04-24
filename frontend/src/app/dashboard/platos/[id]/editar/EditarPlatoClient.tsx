@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -24,16 +25,18 @@ import { Input } from "@/components/ui/Input";
 import { TagInput } from "@/components/ui/TagInput";
 import mealSectionsData from "@/content/meal-sections.json";
 import { fetchApi } from "@/lib/api-base";
+import { cn } from "@/lib/utils";
 
 const MEAL_SECTIONS = [
   { value: "", label: "Sin sección" },
   ...mealSectionsData,
 ] as const;
 
-export default function CrearPlatoClient() {
+export default function EditarPlatoClient({ id }: { id: string }) {
   const router = useRouter();
   const token = Cookies.get("auth_token") || "";
 
+  const [isLoading, setIsLoading] = useState(true);
   const [form, setForm] = useState({
     name: "",
     isPublic: true,
@@ -44,7 +47,7 @@ export default function CrearPlatoClient() {
   const [preparationSteps, setPreparationSteps] = useState<string[]>([]);
   const [customIngredients, setCustomIngredients] = useState<
     { name: string; amount: number; unit: string }[]
-  >([{ name: "", amount: 100, unit: "g" }]);
+  >([]);
   const [customAporte, setCustomAporte] = useState({
     calories: 0,
     proteins: 0,
@@ -54,12 +57,69 @@ export default function CrearPlatoClient() {
   const [mainIngredients, setMainIngredients] = useState<
     { id: string; name: string; amount: number; unit: string }[]
   >([]);
+  
   const [foodSearch, setFoodSearch] = useState("");
   const [foodSuggestions, setFoodSuggestions] = useState<any[]>([]);
   const [isSearchingFoods, setIsSearchingFoods] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // Load existing data
+  useEffect(() => {
+    const fetchDish = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetchApi(`/recipes/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setForm({
+            name: data.name || "",
+            isPublic: data.isPublic ?? true,
+            tags: data.metadata?.tags || [],
+            mealSection: data.metadata?.mealSection || "",
+            imageUrl: data.imageUrl || "",
+          });
+          
+          if (data.preparation) {
+            setPreparationSteps(data.preparation.split("\n").map((s: string) => s.replace(/^\d+\.\s*/, "")));
+          }
+
+          if (data.customIngredients) {
+            setCustomIngredients(data.customIngredients);
+          }
+
+          if (data.ingredients) {
+            setMainIngredients(data.ingredients.map((i: any) => ({
+              id: i.ingredient.id,
+              name: i.ingredient.name,
+              amount: i.amount,
+              unit: i.unit
+            })));
+          }
+
+          setCustomAporte({
+            calories: data.calories || 0,
+            proteins: data.proteins || 0,
+            carbs: data.carbs || 0,
+            lipids: data.lipids || 0,
+          });
+        } else {
+          toast.error("No se pudo cargar el plato.");
+          router.push("/dashboard/platos");
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Error de conexión.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (id && token) fetchDish();
+  }, [id, token, router]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -96,8 +156,6 @@ export default function CrearPlatoClient() {
         });
         if (res.ok) {
           const data = await res.json();
-          // API returns an array or { items: [] } depending on version. 
-          // Based on service it returns an array directly after mapping.
           setFoodSuggestions(Array.isArray(data) ? data : data.items || []);
         }
       } catch (err) {
@@ -123,8 +181,6 @@ export default function CrearPlatoClient() {
     setFoodSuggestions([]);
   };
 
-  const [imageSearch, setImageSearch] = useState("");
-
   const handleRellenarConIA = async () => {
     const validIngredients = customIngredients
       .filter((i) => i.name.trim())
@@ -144,19 +200,10 @@ export default function CrearPlatoClient() {
         body: JSON.stringify({ ingredientNames: validIngredients }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        const msg =
-          err?.message ||
-          "Configura tu API key de OpenAI para usar esta función.";
-        toast.error(msg);
+        toast.error("No se pudo estimar con IA.");
         return;
       }
-      const data = (await res.json()) as {
-        calories?: number;
-        proteins?: number;
-        carbs?: number;
-        lipids?: number;
-      };
+      const data = await res.json();
       setCustomAporte((prev) => ({
         calories: data.calories ?? prev.calories,
         proteins: data.proteins ?? prev.proteins,
@@ -165,7 +212,7 @@ export default function CrearPlatoClient() {
       }));
       toast.success("Aporte estimado con IA aplicado.");
     } catch {
-      toast.error("Configura tu API key de OpenAI para usar esta función.");
+      toast.error("Error al conectar con el servicio de IA.");
     } finally {
       setIsAiLoading(false);
     }
@@ -176,34 +223,25 @@ export default function CrearPlatoClient() {
       toast.error("Nombre del plato es obligatorio.");
       return;
     }
-    if (!form.mealSection) {
-      toast.error("Debes seleccionar una hora de comida.");
-      return;
-    }
     const validCustom = customIngredients.filter((i) => i.name.trim());
     const validMain = mainIngredients.filter((i) => i.name.trim());
 
     if (validCustom.length === 0 && validMain.length === 0) {
-      toast.error("Agrega al menos un ingrediente (principal u opcional).");
+      toast.error("Agrega al menos un ingrediente.");
       return;
     }
-    const validSteps = preparationSteps.filter((s) => s.trim());
 
     setIsSaving(true);
     try {
-      const preparationText =
-        preparationSteps.filter((s) => s.trim()).length > 0
-          ? preparationSteps
-            .filter((s) => s.trim())
-            .map((s, i) => `${i + 1}. ${s.trim()}`)
-            .join("\n")
-          : undefined;
+      const preparationText = preparationSteps
+        .filter((s) => s.trim())
+        .map((s, i) => `${i + 1}. ${s.trim()}`)
+        .join("\n");
 
       const payload = {
         name: form.name,
-        preparation: preparationText,
+        preparation: preparationText || undefined,
         imageUrl: form.imageUrl || undefined,
-        portions: 1,
         isPublic: form.isPublic,
         tags: form.tags.length ? form.tags : undefined,
         mealSection: form.mealSection || undefined,
@@ -224,34 +262,36 @@ export default function CrearPlatoClient() {
         lipids: customAporte.lipids,
       };
 
-      console.log("[CrearPlato] Payload:", JSON.stringify(payload, null, 2));
-      const response = await fetchApi("/recipes", {
-        method: "POST",
+      const response = await fetchApi(`/recipes/${id}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
-      const responseData = await response.json().catch(() => ({}));
-      console.log("[CrearPlato] Response status:", response.status, "body:", responseData);
+
       if (!response.ok) {
-        console.error("[CrearPlato] Error:", responseData);
-        const errMsg = Array.isArray(responseData?.message)
-          ? responseData.message.join(", ")
-          : responseData?.message || "No se pudo crear el plato.";
-        throw new Error(errMsg);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Error al actualizar el plato.");
       }
-      toast.success("Plato creado correctamente.");
+
+      toast.success("Plato actualizado correctamente.");
       router.push("/dashboard/platos");
     } catch (err: any) {
-      console.error("[CrearPlato] Caught error:", err);
-      const msg = err?.message || (typeof err === "string" ? err : "Error al guardar el plato.");
-      toast.error(msg);
+      toast.error(err.message || "Error al guardar el plato.");
     } finally {
       setIsSaving(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-10 h-10 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 pb-24 animate-in fade-in duration-500">
@@ -269,22 +309,7 @@ export default function CrearPlatoClient() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-8">
         <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
           <ChefHat className="h-5 w-5 text-emerald-600" />
-          <h1 className="text-xl font-bold text-slate-900">Crear Plato</h1>
-        </div>
-
-        {/* Tutorial / Description */}
-        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex gap-3 animate-in fade-in slide-in-from-top-2 duration-500">
-          <div className="bg-white p-2 rounded-xl border border-emerald-100 h-fit text-emerald-600 shadow-sm shrink-0">
-            <Info size={18} />
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
-              Consejo para crear platos efectivos
-            </p>
-            <p className="text-[11px] leading-relaxed text-emerald-700/80 font-medium italic">
-              "Recuerda que al crear un plato, priorizamos que tenga la menor cantidad de ingredientes, sea simple y fácil de preparar. Para una buena organización de la página, los principales ingredientes debes indicarlos, todo plato se puede reducir a, por ejemplo, Arroz y Pollo."
-            </p>
-          </div>
+          <h1 className="text-xl font-bold text-slate-900">Editar Plato</h1>
         </div>
 
         <div className="space-y-2">
@@ -319,27 +344,22 @@ export default function CrearPlatoClient() {
                   }
                 />
               </div>
-              <p className="text-[10px] text-slate-400 leading-relaxed italic">
-                * Si no agregas una imagen, se usará una por defecto que se verá profesional en el plan.
-              </p>
             </div>
 
-            <div className="relative w-full h-44 rounded-3xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center group shadow-inner">
+            <div className="relative w-full h-44 rounded-3xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center shadow-inner">
               {form.imageUrl ? (
                 <img
                   src={form.imageUrl}
                   alt="Vista previa"
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="w-full h-full object-cover"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop";
                   }}
                 />
               ) : (
                 <div className="text-center space-y-2">
-                  <div className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 inline-block">
-                    <ImageIcon className="h-6 w-6 text-slate-400" />
-                  </div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Sin imagen personalizada</p>
+                  <ImageIcon className="h-8 w-8 text-slate-400 mx-auto" />
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Sin imagen</p>
                 </div>
               )}
             </div>
@@ -348,7 +368,7 @@ export default function CrearPlatoClient() {
 
         <div className="space-y-2">
           <label className="text-xs font-bold uppercase text-slate-500 tracking-wider">
-            Tags <span className="text-slate-400 font-normal normal-case">(opcional)</span>
+            Tags
           </label>
           <TagInput
             value={form.tags}
@@ -359,10 +379,10 @@ export default function CrearPlatoClient() {
 
         <div className="space-y-2">
           <label className="text-xs font-bold uppercase text-slate-500 tracking-wider">
-            Hora de comida <span className="text-rose-500">*</span>
+            Hora de comida
           </label>
           <select
-            className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 font-medium focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none"
+            className="w-full h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium outline-none focus:border-emerald-500"
             value={form.mealSection}
             onChange={(e) =>
               setForm((prev) => ({ ...prev, mealSection: e.target.value }))
@@ -377,20 +397,16 @@ export default function CrearPlatoClient() {
           </select>
         </div>
 
-        {/* Alimentos Principales (Database) */}
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-slate-500 tracking-wider flex items-center gap-2">
-              Alimentos Principales (Base de datos) <span className="text-rose-500">*</span>
+            <label className="text-xs font-bold uppercase text-slate-500 tracking-wider">
+              Alimentos Principales (Base de Datos)
             </label>
-            <div className="text-xs text-black font-normal normal-case">
-              Si no encuentras el alimento, inclúyelo en Alimentos opcionales. Si es un alimento importante, ve a Ingredientes y ¡crealo por ti mismo para ayudar a la comunidad!
-            </div>
             <div className="relative" ref={searchRef}>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                  placeholder="Buscar alimentos (pasta, arroz, pollo...)"
+                  placeholder="Buscar alimentos..."
                   value={foodSearch}
                   onChange={(e) => setFoodSearch(e.target.value)}
                   className="pl-9 h-11"
@@ -401,17 +417,14 @@ export default function CrearPlatoClient() {
               </div>
 
               {foodSuggestions.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto overflow-x-hidden">
+                <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
                   {foodSuggestions.map((food) => (
                     <button
                       key={food.id}
                       onClick={() => addMainIngredient(food)}
-                      className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center justify-between group transition-colors"
+                      className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center justify-between group"
                     >
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-slate-900 group-hover:text-emerald-600 transition-colors">{food.name}</span>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{food.category?.name || "General"}</span>
-                      </div>
+                      <span className="text-sm font-semibold">{food.name}</span>
                       <Plus className="h-4 w-4 text-slate-300 group-hover:text-emerald-500" />
                     </button>
                   ))}
@@ -422,38 +435,33 @@ export default function CrearPlatoClient() {
 
           <div className="space-y-2">
             {mainIngredients.map((ing, index) => (
-              <div key={ing.id} className="flex gap-2 items-center animate-in slide-in-from-left-2 duration-300">
+              <div key={ing.id} className="flex gap-2 items-center">
                 <div className="flex-1 h-11 border border-emerald-100 bg-emerald-50/30 rounded-xl px-4 flex items-center">
                   <span className="text-sm font-bold text-slate-700">{ing.name}</span>
                 </div>
                 <Input
                   type="number"
-                  placeholder="Cant."
-                  value={ing.amount || ""}
+                  className="w-20"
+                  value={ing.amount}
                   onChange={(e) => {
                     const next = [...mainIngredients];
-                    next[index] = { ...next[index], amount: Number(e.target.value) || 0 };
+                    next[index].amount = Number(e.target.value) || 0;
                     setMainIngredients(next);
                   }}
-                  className="w-20 h-11 text-slate-900 font-medium"
                 />
                 <Input
-                  placeholder="g"
+                  className="w-16"
                   value={ing.unit}
                   onChange={(e) => {
                     const next = [...mainIngredients];
-                    next[index] = { ...next[index], unit: e.target.value };
+                    next[index].unit = e.target.value;
                     setMainIngredients(next);
                   }}
-                  className="w-16 h-11 text-slate-900 font-medium"
                 />
                 <Button
-                  type="button"
                   variant="ghost"
-                  className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 p-2 h-10 w-10 shrink-0"
-                  onClick={() =>
-                    setMainIngredients((prev) => prev.filter((_, i) => i !== index))
-                  }
+                  className="text-rose-600"
+                  onClick={() => setMainIngredients(prev => prev.filter((_, i) => i !== index))}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -462,54 +470,49 @@ export default function CrearPlatoClient() {
           </div>
         </div>
 
-        {/* Alimentos Opcionales (Manual) */}
-        <div className="space-y-3 pt-4 border-t border-slate-100">
+        <div className="space-y-3 pt-4 border-t">
           <label className="text-xs font-bold uppercase text-slate-500 tracking-wider">
-            Alimentos Opcionales / Condimentos (Manual) <span className="text-slate-400 font-normal normal-case">(opcional)</span>
+            Alimentos Opcionales / Condimentos
           </label>
-          <p className="text-[10px] text-slate-400 -mt-1 pb-2">Agrega especias, salsas o toques adicionales que no son la base del plato.</p>
           {customIngredients.map((ing, index) => (
             <div key={index} className="flex gap-2 items-center">
               <Input
-                className="flex-1 min-w-0 text-slate-900 font-medium"
-                placeholder="Ej. Sal, pimienta, orégano..."
+                className="flex-1"
+                placeholder="Nombre..."
                 value={ing.name}
                 onChange={(e) => {
                   const next = [...customIngredients];
-                  next[index] = { ...next[index], name: e.target.value };
+                  next[index].name = e.target.value;
                   setCustomIngredients(next);
                 }}
               />
               <Input
                 type="number"
-                placeholder="Cant."
+                className="w-20"
                 disabled={ing.unit === "a gusto"}
-                value={ing.unit === "a gusto" ? "" : (ing.amount || "")}
+                value={ing.unit === "a gusto" ? "" : ing.amount}
                 onChange={(e) => {
                   const next = [...customIngredients];
-                  next[index] = { ...next[index], amount: Number(e.target.value) || 0 };
+                  next[index].amount = Number(e.target.value) || 0;
                   setCustomIngredients(next);
                 }}
-                className="w-20 text-slate-900 font-medium"
               />
               <Input
-                placeholder="g"
+                className="w-16"
                 disabled={ing.unit === "a gusto"}
                 value={ing.unit}
                 onChange={(e) => {
                   const next = [...customIngredients];
-                  next[index] = { ...next[index], unit: e.target.value };
+                  next[index].unit = e.target.value;
                   setCustomIngredients(next);
                 }}
-                className="w-16 text-slate-900 font-medium"
               />
               <Button
                 type="button"
                 variant="ghost"
-                title="Marcar como 'A gusto'"
                 className={cn(
-                  "p-2 h-10 w-10 shrink-0 transition-colors",
-                  ing.unit === "a gusto" ? "text-emerald-600 bg-emerald-50" : "text-slate-400 hover:bg-slate-50"
+                  "p-2 h-10 w-10 shrink-0",
+                  ing.unit === "a gusto" ? "text-emerald-600 bg-emerald-50" : "text-slate-400"
                 )}
                 onClick={() => {
                   const next = [...customIngredients];
@@ -524,111 +527,41 @@ export default function CrearPlatoClient() {
                 <Droplet className="h-4 w-4" />
               </Button>
               <Button
-                type="button"
                 variant="ghost"
-                className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 p-2 h-10 w-10 shrink-0"
-                onClick={() =>
-                  setCustomIngredients((prev) => prev.filter((_, i) => i !== index))
-                }
+                className="text-rose-600"
+                onClick={() => setCustomIngredients(prev => prev.filter((_, i) => i !== index))}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           ))}
           <Button
-            type="button"
             variant="outline"
-            onClick={() =>
-              setCustomIngredients((prev) => [...prev, { name: "", amount: 1, unit: "pizca" }])
-            }
-            className="w-full border-dashed border-slate-300 text-slate-500 hover:text-slate-700"
+            className="w-full border-dashed"
+            onClick={() => setCustomIngredients(prev => [...prev, { name: "", amount: 1, unit: "g" }])}
           >
             <Plus className="h-4 w-4 mr-2" />
-            Agregar alimento opcional
+            Agregar opcional
           </Button>
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <label className="text-xs font-bold uppercase text-slate-500 tracking-wider">
-              Aporte estimado por porción <span className="text-rose-500">*</span>
-            </label>
-            <div title="Función bloqueada temporalmente">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={true}
-                onClick={handleRellenarConIA}
-                className="text-slate-400 border-slate-200 cursor-not-allowed bg-slate-50"
-              >
-                <Sparkles className="h-4 w-4 mr-2" />
-                Rellenar con IA (Próximamente)
-              </Button>
-            </div>
-          </div>
+        <div className="p-4 bg-slate-50 rounded-xl space-y-3">
+          <label className="text-xs font-bold uppercase text-slate-500">Aporte por Porción</label>
           <div className="grid grid-cols-2 gap-3">
-            <Input
-              type="number"
-              placeholder="kcal"
-              value={customAporte.calories || ""}
-              onChange={(e) =>
-                setCustomAporte((prev) => ({
-                  ...prev,
-                  calories: Number(e.target.value) || 0,
-                }))
-              }
-              className="text-slate-900 font-medium"
-            />
-            <Input
-              type="number"
-              placeholder="Proteínas (g)"
-              value={customAporte.proteins || ""}
-              onChange={(e) =>
-                setCustomAporte((prev) => ({
-                  ...prev,
-                  proteins: Number(e.target.value) || 0,
-                }))
-              }
-              className="text-slate-900 font-medium"
-            />
-            <Input
-              type="number"
-              placeholder="Carbos (g)"
-              value={customAporte.carbs || ""}
-              onChange={(e) =>
-                setCustomAporte((prev) => ({
-                  ...prev,
-                  carbs: Number(e.target.value) || 0,
-                }))
-              }
-              className="text-slate-900 font-medium"
-            />
-            <Input
-              type="number"
-              placeholder="Grasas (g)"
-              value={customAporte.lipids || ""}
-              onChange={(e) =>
-                setCustomAporte((prev) => ({
-                  ...prev,
-                  lipids: Number(e.target.value) || 0,
-                }))
-              }
-              className="text-slate-900 font-medium"
-            />
+            <Input type="number" placeholder="kcal" value={customAporte.calories} onChange={e => setCustomAporte(prev => ({ ...prev, calories: Number(e.target.value) }))} />
+            <Input type="number" placeholder="Prot (g)" value={customAporte.proteins} onChange={e => setCustomAporte(prev => ({ ...prev, proteins: Number(e.target.value) }))} />
+            <Input type="number" placeholder="Carb (g)" value={customAporte.carbs} onChange={e => setCustomAporte(prev => ({ ...prev, carbs: Number(e.target.value) }))} />
+            <Input type="number" placeholder="Grasa (g)" value={customAporte.lipids} onChange={e => setCustomAporte(prev => ({ ...prev, lipids: Number(e.target.value) }))} />
           </div>
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase text-slate-500 tracking-wider">
-            Forma de preparación (pasos) <span className="text-slate-400 font-normal normal-case">(opcional)</span>
-          </label>
+          <label className="text-xs font-bold uppercase text-slate-500">Preparación</label>
           {preparationSteps.map((step, index) => (
             <div key={index} className="flex gap-2 items-center">
-              <span className="text-slate-500 font-bold w-6">{index + 1}.</span>
+              <span className="text-slate-400 font-bold w-4 text-xs">{index + 1}</span>
               <Input
-                className="flex-1 text-slate-900 font-medium"
-                placeholder={`Paso ${index + 1}`}
+                className="flex-1"
                 value={step}
                 onChange={(e) => {
                   const next = [...preparationSteps];
@@ -636,63 +569,30 @@ export default function CrearPlatoClient() {
                   setPreparationSteps(next);
                 }}
               />
-              <Button
-                type="button"
-                variant="ghost"
-                className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 p-2 h-10 w-10 shrink-0"
-                onClick={() =>
-                  setPreparationSteps((prev) => prev.filter((_, i) => i !== index))
-                }
-              >
+              <Button variant="ghost" className="text-rose-600" onClick={() => setPreparationSteps(prev => prev.filter((_, i) => i !== index))}>
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           ))}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setPreparationSteps((prev) => [...prev, ""])}
-            className="w-full"
-          >
+          <Button variant="outline" className="w-full" onClick={() => setPreparationSteps(prev => [...prev, ""])}>
             <Plus className="h-4 w-4 mr-2" />
             Agregar paso
           </Button>
         </div>
 
-        <div className="space-y-3">
-          <label className="flex items-center justify-between p-4 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50/50 transition-colors shadow-sm">
-            <span className="text-xs font-bold uppercase tracking-widest text-slate-600 inline-flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-indigo-500" />
-              Compartir en comunidad (Público)
-            </span>
-            <input
-              type="checkbox"
-              className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-              checked={form.isPublic}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, isPublic: e.target.checked }))
-              }
-            />
-          </label>
-          {!form.isPublic && (
-            <p className="text-[11px] font-medium text-amber-600 italic px-2 animate-in fade-in slide-in-from-top-1 duration-300">
-              * Entendemos que prefieras mantenerlo en privado, pero ¡agradeceríamos mucho tu aporte a la comunidad de la aplicación! Al compartirlo, otros nutris también podrán usarlo.
-            </p>
-          )}
+        <div className="flex items-center justify-between p-4 border rounded-xl">
+          <span className="text-xs font-bold uppercase text-slate-600">Público (Comunidad)</span>
+          <input
+            type="checkbox"
+            checked={form.isPublic}
+            onChange={e => setForm(prev => ({ ...prev, isPublic: e.target.checked }))}
+            className="w-5 h-5 accent-emerald-600"
+          />
         </div>
 
-        <Button
-          onClick={saveDish}
-          disabled={isSaving}
-          variant="default"
-          className="w-full h-12"
-        >
-          {isSaving ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
-          Guardar Plato
+        <Button onClick={saveDish} disabled={isSaving} className="w-full h-12 bg-emerald-600 hover:bg-emerald-700">
+          {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+          Guardar Cambios
         </Button>
       </div>
     </div>

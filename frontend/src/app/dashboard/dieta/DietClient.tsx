@@ -481,7 +481,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       if (retries > 0) {
         setTimeout(() => fetchAvailableTags(retries - 1), 2000);
       } else {
-        console.warn("Backend no disponible para cargar tags a�n.");
+        console.warn("Backend no disponible para cargar tags aún.");
       }
     }
   };
@@ -589,7 +589,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   ): Promise<DietPatient | null> => {
     const token = getAuthToken();
     if (!token) {
-      throw new Error("No se encontr� una sesi�n activa.");
+      throw new Error("No se encontró una sesión activa.");
     }
 
     const response = await fetchApi(`/patients/${patientId}`, {
@@ -669,7 +669,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     if (shouldShowToast) {
       if (validRestrictions.length > 0) {
         toast.success(`Paciente vinculado: ${normalizedPatient.fullName}`, {
-          description: `${validRestrictions.length} restricciones sincronizadas autom�ticamente.`,
+          description: `${validRestrictions.length} restricciones sincronizadas automáticamente.`,
         });
       } else {
         toast.success(`Paciente vinculado: ${normalizedPatient.fullName}`);
@@ -689,7 +689,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     try {
       const token = getAuthToken();
       if (!token) {
-        throw new Error("No se encontr� una sesi�n activa.");
+        throw new Error("No se encontró una sesión activa.");
       }
 
       const queryParams = new URLSearchParams({
@@ -773,7 +773,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
     if (validRestrictions.length > 0) {
       toast.success(`Paciente vinculado: ${patient.fullName}`, {
-        description: `${validRestrictions.length} restricciones sincronizadas autom�ticamente.`,
+        description: `${validRestrictions.length} restricciones sincronizadas automáticamente.`,
       });
     } else {
       toast.success(`Paciente vinculado: ${patient.fullName}`);
@@ -796,7 +796,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       console.error("Error selecting patient", error);
       handleSelectPatientLegacy(normalizePatient(patient));
       toast.warning(
-        "Se vincul� el paciente, pero no fue posible traer todo su expediente completo.",
+        "Se vinculó el paciente, pero no fue posible traer todo su expediente completo.",
       );
     } finally {
       setIsLoadingPatients(false);
@@ -821,14 +821,14 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }
 
     saveDraft({ activeConstraints: [] });
-    toast.info("Paciente desvinculado de esta sesi�n");
+    toast.info("Paciente desvinculado de esta sesión");
   };
 
   const handleImportCreation = (creation: any) => {
     try {
       const { type, content } = creation;
       if (!content) {
-        toast.error("Esta creaci�n no tiene contenido v�lido");
+        toast.error("Esta creación no tiene contenido válido");
         return;
       }
 
@@ -898,7 +898,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       setDietSearchQuery("");
     } catch (e) {
       console.error("Error importing creation", e);
-      toast.error("Error al importar la creaci�n.");
+      toast.error("Error al importar la creación.");
     }
   };
 
@@ -954,7 +954,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           const text = await response.text();
           if (!text) {
             console.warn(
-              "La respuesta del servidor est� vac�a para el ID:",
+              "La respuesta del servidor está vacía para el ID:",
               id,
             );
             localStorage.removeItem("currentDietEditId");
@@ -965,7 +965,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             const data = JSON.parse(text);
             handleImportCreation(data);
           } catch (parseError) {
-            console.error("Error parseando JSON de la creaci�n:", parseError);
+            console.error("Error parseando JSON de la creación:", parseError);
           }
         } else if (response.status === 404) {
           localStorage.removeItem("currentDietEditId");
@@ -977,7 +977,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           setTimeout(() => loadFromBackend(id, retries - 1), 2000);
         } else {
           console.warn(
-            "Error al cargar la creaci�n para editar (backend no disponible)",
+            "Error al cargar la creación para editar (backend no disponible)",
           );
         }
       } finally {
@@ -1088,14 +1088,14 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             )
           ) {
             const meatGroups = [
-              "Carnes y V�sceras",
+              "Carnes y Vísceras",
               "Pescados y Mariscos",
               "Huevos",
             ];
             if (meatGroups.includes(food.grupo)) return false;
           }
           if (
-            normalizedConstraints.includes("diab�tico") ||
+            normalizedConstraints.includes("diabético") ||
             normalizedConstraints.includes("diabetico")
           ) {
             if (food.azucares !== undefined && food.azucares > 10) return false;
@@ -1116,7 +1116,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           }
           if (
             normalizedConstraints.includes("celiaco") ||
-            normalizedConstraints.includes("cel�aco") ||
+            normalizedConstraints.includes("celíaco") ||
             normalizedConstraints.includes("gluten") ||
             normalizedConstraints.includes("sin gluten")
           ) {
@@ -1145,7 +1145,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   }, [initialFoods, manualAdditions, foodStatus, activeConstraints]);
 
   // Totales
-  // Totales removidos por no tener sentido sin porciones
+              {/* Porción */}
 
   const saveDraft = (overrides: any = {}) => {
     try {
@@ -1319,7 +1319,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         `Dieta "${dietName}" guardada correctamente en Mis Creaciones.`,
         {
           description:
-            "Las restricciones seleccionadas generar�n contenido educativo autom�ticamente.",
+            "Las restricciones seleccionadas generarán contenido educativo automáticamente.",
           action: {
             label: "Ir a Creaciones",
             onClick: () => router.push("/dashboard/creaciones"),
@@ -1331,7 +1331,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     } catch (error: any) {
       console.error("Error saving creation:", error);
       toast.error(
-        error.message || "No se pudo guardar la creaci�n en la base de datos.",
+        error.message || "No se pudo guardar la creación en la base de datos.",
       );
     }
   };
@@ -1357,7 +1357,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         `Dieta "${dietName}" guardada correctamente en Mis Creaciones.`,
         {
           description:
-            "Las restricciones seleccionadas generar�n contenido educativo autom�ticamente.",
+            "Las restricciones seleccionadas generarán contenido educativo automáticamente.",
           action: {
             label: "Ir a Creaciones",
             onClick: () => router.push("/dashboard/creaciones"),
@@ -1371,7 +1371,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     } catch (error: any) {
       console.error("Error saving creation:", error);
       toast.error(
-        error.message || "No se pudo guardar la creaci�n en la base de datos.",
+        error.message || "No se pudo guardar la creación en la base de datos.",
       );
     }
   };
@@ -1436,11 +1436,11 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   };
 
   const handleVerifyRestrictions = async () => {
-    toast.info("La validaci�n de restricciones estar� disponible pr�ximamente.");
+    toast.info("La validación de restricciones estará disponible próximamente.");
     return;
 
     if (activeConstraints.length === 0) {
-      toast.error("Primero agrega al menos una restricci�n.");
+      toast.error("Primero agrega al menos una restricción.");
       return;
     }
     if (includedFoods.length === 0) {
@@ -1461,7 +1461,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
     if (validFoodIds.length === 0) {
       toast.error(
-        "Los alimentos actuales no tienen IDs v�lidos para validaci�n autom�tica.",
+        "Los alimentos actuales no tienen IDs válidos para validación automática.",
       );
       return;
     }
@@ -1540,7 +1540,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       const savedCreation = await saveCreation(buildDietCreationPayload());
       const projectId = await ensureProjectForWorkflow(savedCreation.id);
       sessionStorage.setItem("nutri_cart_draft_decided", "keep");
-      toast.success("Progreso guardado. Pasando a Recetas y Porciones...");
+              {/* Porción */}
       setTimeout(
         () =>
           router.push(buildProjectAwarePath("/dashboard/recetas", projectId)),
@@ -1804,7 +1804,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
   const handlePatientLoad = () => {
     const patientData = {
-      name: "Juan P�rez",
+      name: "Juan Pérez",
       age: 34,
       weight: 88,
       height: 1.82,
@@ -1815,7 +1815,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       fitnessGoals: {
         weights: { enabled: true, minutes: 60, freq: 4 },
         cardio: { enabled: true, level: "moderado", minutes: 30, freq: 3 },
-        sports: { enabled: false, type: "F�tbol", minutes: 90, freq: 1 },
+        sports: { enabled: false, type: "Fútbol", minutes: 90, freq: 1 },
         lowImpact: { enabled: true, type: "Caminata", minutes: 45, freq: 2 },
       },
     };
@@ -1825,7 +1825,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     window.dispatchEvent(new Event("patient-updated"));
 
     toast.success(
-      "Perfil de Juan P�rez cargado. Los objetivos han sido actualizados.",
+      "Perfil de Juan Pérez cargado. Los objetivos han sido actualizados.",
     );
   };
 
@@ -1868,7 +1868,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         ]);
       }
     }
-    toast.success(`${food.producto} a�adido.`);
+    toast.success(`${food.producto} añadido.`);
     setIsAddFoodModalOpen(false);
   };
 
@@ -1893,7 +1893,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
     const token = getAuthToken();
     if (!token) {
-      toast.error("No se encontr� una sesi�n activa.");
+      toast.error("No se encontró una sesión activa.");
       return;
     }
 
@@ -1941,7 +1941,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       console.error("Error updating draft ingredient", error);
       toast.error(
         error?.message ||
-          "No se pudo guardar la informaci�n nutricional del alimento.",
+          "No se pudo guardar la información nutricional del alimento.",
       );
     } finally {
       setIsSavingDraftFood(false);
@@ -1950,7 +1950,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
   const handleCreateGroup = () => {
     const name = newGroupNameInput.trim();
-    if (!name) return toast.error("Nombre vac�o.");
+    if (!name) return toast.error("Nombre vacío.");
     if (Object.keys(allGroupsToRender).includes(name))
       return toast.error("Grupo duplicado.");
     setCustomGroups((prev) => [...prev, name]);
@@ -2122,7 +2122,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         });
       } else {
         toast.success("Preferencias aplicadas ?", {
-          description: `Agregados: ${uniqueAddedFoods.length} � Favoritos: ${uniqueFavoritedFoods.length} � Eliminados: ${uniqueRemovedFoods.length}`,
+          description: `Agregados: ${uniqueAddedFoods.length} · Favoritos: ${uniqueFavoritedFoods.length} · Eliminados: ${uniqueRemovedFoods.length}`,
         });
         showPreferenceChangeToasts(
           "Ingredientes agregados",
@@ -2173,7 +2173,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             "base" | "favorite" | "removed" | "added"
           > = { ...prev };
 
-          // Quitar no recomendados (con comparaci�n insensible a may�sculas)
+          // Quitar no recomendados (con comparación insensible a mayúsculas)
           notRec.forEach((name: string) => {
             const nameLow = name.toLowerCase().trim();
             const baseMatch = initialFoods.find(
@@ -2197,7 +2197,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               removedFoods.push(manualMatch.producto);
             } else {
               console.log(
-                `DEBUG - No recomendado "${name}" no se encontr� en la dieta actual (ni base ni manual).`,
+                `DEBUG - No recomendado "${name}" no se encontró en la dieta actual (ni base ni manual).`,
               );
             }
           });
@@ -2222,7 +2222,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         });
 
         setManualAdditions((prev) => {
-          // Normalizar nombres existentes para evitar duplicados por min�sculas/may�sculas
+          // Normalizar nombres existentes para evitar duplicados por minúsculas/mayúsculas
           const existingNamesLower = new Set([
             ...initialFoods.map((f) => f.producto.toLowerCase().trim()),
             ...prev.map((ma) => ma.producto.toLowerCase().trim()),
@@ -2235,7 +2235,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           const newFavs = favorites
             .filter((f: any) => {
               const nameLow = f.name.toLowerCase().trim();
-              // No a�adir si ya existe o si es un alimento no recomendado
+              // No añadir si ya existe o si es un alimento no recomendado
               return (
                 !existingNamesLower.has(nameLow) &&
                 !notRecNamesLower.has(nameLow)
@@ -2275,7 +2275,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           });
         } else {
           toast.success("Preferencias aplicadas ?", {
-            description: `Agregados: ${addedFoods.length} � Eliminados: ${uniqueRemovedFoods.length}`,
+            description: `Agregados: ${addedFoods.length} · Eliminados: ${uniqueRemovedFoods.length}`,
           });
           showPreferenceChangeToasts(
             "Ingredientes agregados",
@@ -2328,7 +2328,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         setSmartGroups([]);
       }
     } catch (error) {
-      toast.error("Error al cargar datos para adici�n inteligente");
+      toast.error("Error al cargar datos para adición inteligente");
     } finally {
       setIsLoadingSmart(false);
     }
@@ -2446,11 +2446,11 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       ),
     );
 
-    toast.success(`${foodsToAdd.length} alimentos a�adidos a la dieta`, {
+    toast.success(`${foodsToAdd.length} alimentos añadidos a la dieta`, {
       description:
         groupedSummary.length > 0
-          ? `Se ubicaron autom�ticamente en: ${groupedSummary.join(", ")}.`
-          : "Se ubicaron autom�ticamente en sus secciones.",
+          ? `Se ubicaron automáticamente en: ${groupedSummary.join(", ")}.`
+          : "Se ubicaron automáticamente en sus secciones.",
     });
     setIsSmartModalOpen(false);
     setSelectedFoods(new Set());
@@ -2461,7 +2461,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       {
         id: "import-creation",
         icon: Library,
-        label: "Importar Creaci�n",
+        label: "Importar Creación",
         variant: "indigo",
         onClick: () => {
           setIsImportCreationModalOpen(true);
@@ -2487,7 +2487,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       {
         id: "verify-foods",
         icon: AlertCircle,
-        label: "Validar Restricciones (Pr�ximamente)",
+        label: "Validar Restricciones (Próximamente)",
         variant: "slate",
         onClick: handleVerifyRestrictions,
         disabled: true,
@@ -2549,9 +2549,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         isOpen={isResetConfirmOpen}
         onClose={() => setIsResetConfirmOpen(false)}
         onConfirm={resetDiet}
-        title="�Reiniciar dieta?"
-        description="Se borrar� todo el avance local de este m�dulo y volver�s a empezar desde cero."
-        confirmText="S�, reiniciar"
+        title="¿Reiniciar dieta?"
+        description="Se borrará todo el avance local de este módulo y volverás a empezar desde cero."
+        confirmText="Sí, reiniciar"
         variant="destructive"
       />
       <ConfirmationModal
@@ -2561,9 +2561,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           setIsExportConfirmOpen(false);
           void performExportPdf();
         }}
-        title="�Exportar PDF ahora?"
-        description="Todav�a no hiciste cambios en ingredientes. Si fue un clic accidental, puedes volver atr�s antes de generar el PDF."
-        confirmText="S�, exportar"
+        title="¿Exportar PDF ahora?"
+        description="Todavía no hiciste cambios en ingredientes. Si fue un clic accidental, puedes volver atrás antes de generar el PDF."
+        confirmText="Sí, exportar"
       />
       <ConfirmationModal
         isOpen={isContinueDraftWarningOpen}
@@ -2573,7 +2573,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           void continueToRecipes();
         }}
         title="Hay alimentos con información pendiente"
-        description={`Todav�a tienes ${draftFoodsPendingCompletion.length} alimento${draftFoodsPendingCompletion.length === 1 ? "" : "s"} creado${draftFoodsPendingCompletion.length === 1 ? "" : "s"} como borrador, sin sus caracter�sticas nutricionales completas. Si contin�as ahora, los c�lculos de la siguiente etapa pueden quedar imprecisos.`}
+        description={`Todavía tienes ${draftFoodsPendingCompletion.length} alimento${draftFoodsPendingCompletion.length === 1 ? "" : "s"} creado${draftFoodsPendingCompletion.length === 1 ? "" : "s"} como borrador, sin sus características nutricionales completas. Si continúas ahora, los cálculos de la siguiente etapa pueden quedar imprecisos.`}
         confirmText="Continuar igual"
       />
       <ConfirmationModal
@@ -2585,36 +2585,36 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           }
           setPendingTagCreation(null);
         }}
-        title="�Crear tambi�n en Detalles?"
+        title="¿Crear también en Detalles?"
         description={
           pendingTagCreation
-            ? pendingTagCreation.type === "classification"
-              ? `El tag "${pendingTagCreation.name}" se agreg� a esta dieta, pero todav�a no existe en Detalles. �Quieres crearlo tambi�n como etiqueta de clasificaci�n global?`
-              : `La restricci�n "${pendingTagCreation.name}" se agreg� a esta dieta, pero todav�a no existe en Detalles. �Quieres crearla tambi�n como restricci�n global?`
+              ? pendingTagCreation.type === "classification"
+                ? `El tag "${pendingTagCreation.name}" se agregó a esta dieta, pero todavía no existe en Detalles. ¿Quieres crearlo también como etiqueta de clasificación global?`
+                : `La restricción "${pendingTagCreation.name}" se agregó a esta dieta, pero todavía no existe en Detalles. ¿Quieres crearla también como restricción global?`
             : ""
         }
-        confirmText="S�, crear en Detalles"
-        cancelText="No, solo usar aqu�"
+        confirmText="Sí, crear en Detalles"
+        cancelText="No, solo usar aquí"
       />
       <ModuleLayout
-        title="Dise�ador de Dieta General"
+        title="Diseñador de Dieta General"
         description={
           <div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 px-5 py-4 shadow-sm">
             <p className="text-sm font-semibold text-slate-700">
-              Aqu� defines, de forma simple y general, los alimentos que consumir� tu paciente.
+              Aquí defines, de forma simple y general, los alimentos que consumirá tu paciente.
             </p>
             <div className="mt-3 grid gap-2 text-sm text-slate-600">
               <div className="flex items-start gap-2">
                 <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
-                <span>Tu objetivo es elegir los alimentos que consumir� tu paciente.</span>
+                <span>Tu objetivo es elegir los alimentos que consumirá tu paciente.</span>
               </div>
               <div className="flex items-start gap-2">
                 <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
-                <span>Hazlo de manera muy general, sin especificar a�n cantidades exactas ni detalles finos.</span>
+                <span>Hazlo de manera muy general, sin especificar aún cantidades exactas ni detalles finos.</span>
               </div>
               <div className="flex items-start gap-2">
                 <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
-                <span>Piensa primero en los alimentos que realmente consumir� en su d�a a d�a.</span>
+                <span>Piensa primero en los alimentos que realmente consumirá en su día a día.</span>
               </div>
             </div>
           </div>
@@ -2636,7 +2636,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               <div className="bg-indigo-100 p-1.5 rounded-lg group-hover:scale-110 transition-transform">
                 <Brain className="h-5 w-5" />
               </div>
-              A�adir alimentos inteligente
+              Añadir alimentos inteligente
             </Button>
 
             <div className="flex gap-3">
@@ -2650,7 +2650,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   setIsSaveCreationModalOpen(true);
                 }}
               >
-                Guardar Creaci�n
+                Guardar Creación
               </Button>
               <Button
                 className="h-12 px-8 bg-emerald-600"
@@ -2709,7 +2709,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             </div>
             <div className="space-y-3">
               <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
-                Etiquetas de Clasificaci�n
+                Etiquetas de Clasificación
               </label>
               <TagInput
                 value={dietTags}
@@ -2727,7 +2727,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   }
                   saveDraft({ dietTags: newTags });
                 }}
-                placeholder="A�adir tags (Keto, Vegano...)"
+                placeholder="Añadir tags (Keto, Vegano...)"
                 suggestions={availableClassificationTags}
                 includeSystemSuggestions={false}
                 className="min-h-[56px] rounded-2xl border-slate-200 bg-slate-50/80 shadow-sm"
@@ -2739,7 +2739,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             <div className="flex items-center justify-between">
               <label className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 text-rose-500" />
-                Restricciones Cl�nicas del Plan
+                Restricciones Clínicas del Plan
               </label>
             </div>
 
@@ -2765,7 +2765,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   }
                   saveDraft({ activeConstraints: normalizedTags });
                 }}
-                placeholder="Buscar o a�adir restricci�n..."
+                placeholder="Buscar o añadir restricción..."
                 suggestions={availableConstraintTags}
                 disableDelete={true}
               />
@@ -2807,7 +2807,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             ) : (
               <Filter className="h-5 w-5" />
             )}
-            A�adir favoritos y quitar no recomendados
+            Añadir favoritos y quitar no recomendados
           </Button>
         </div>
 
@@ -2846,13 +2846,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 {foods.map((food, idx) => (
                   <div
                     key={`${food.producto}-${idx}`}
-                    className="p-4 flex items-center justify-between group hover:bg-emerald-50/30 transition-colors"
+                    className="p-5 flex flex-col gap-5 group hover:bg-emerald-50/10 transition-all border-b border-slate-50 last:border-0"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-lg">
+                    <div className="flex flex-col gap-4">
+                      <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center text-xl shrink-0 border border-slate-200/50">
                         ???
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <p className="font-bold text-slate-900 text-sm">
                             {food.producto}
@@ -2867,21 +2867,21 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                           <span className="text-orange-600 font-bold">
                             {food.calorias || 0} kcal
                           </span>
-                          <span>�</span>
+                          <span>·</span>
                           <span className="text-blue-600">
                             P: {food.proteinas || 0}g
                           </span>
-                          <span>�</span>
+                          <span>·</span>
                           <span className="text-emerald-600">
                             C: {food.carbohidratos || 0}g
                           </span>
-                          <span>�</span>
+                          <span>·</span>
                           <span className="text-yellow-600">
                             L: {food.lipidos || 0}g
                           </span>
                           {food.azucares !== undefined && food.azucares > 0 && (
                             <>
-                              <span>�</span>
+                              <span>·</span>
                               <span className="text-slate-500">
                                 Az: {food.azucares}g
                               </span>
@@ -2889,7 +2889,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                           )}
                           {food.fibra !== undefined && food.fibra > 0 && (
                             <>
-                              <span>�</span>
+                              <span>·</span>
                               <span className="text-slate-500">
                                 Fib: {food.fibra}g
                               </span>
@@ -2897,7 +2897,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                           )}
                           {food.sodio !== undefined && food.sodio > 0 && (
                             <>
-                              <span>�</span>
+                              <span>·</span>
                               <span className="text-slate-500">
                                 Na: {food.sodio}mg
                               </span>
@@ -2906,14 +2906,15 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex justify-end gap-2 pt-2 border-t border-dashed border-slate-100">
                       {food.isDraft && (
                         <button
                           onClick={() => openDraftFoodEditor(food)}
-                          className="p-2 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl cursor-pointer transition-colors"
-                          title="Completar informaci�n nutricional"
+                          className="flex items-center gap-2 px-3 py-2 text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-xl cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none"
+                          title="Completar información nutricional"
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="h-3.5 w-3.5" />
+                          Completar
                         </button>
                       )}
                       <button
@@ -2921,15 +2922,17 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                           setSelectedFoodForInfo(food);
                           setIsFoodInfoModalOpen(true);
                         }}
-                        className="p-2 text-slate-400 hover:text-indigo-600 rounded-xl cursor-pointer transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-xl cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none border border-slate-200/50"
                       >
-                        <Info className="h-5 w-5" />
+                        <Info className="h-3.5 w-3.5" />
+                        Detalles
                       </button>
                       <button
                         onClick={() => removeFood(food.producto)}
-                        className="p-2 text-slate-400 hover:text-red-500 rounded-xl cursor-pointer"
+                        className="flex items-center gap-2 px-3 py-2 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-xl cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none border border-rose-200/30"
                       >
-                        <X className="h-5 w-5" />
+                        <X className="h-3.5 w-3.5" />
+                        Quitar
                       </button>
                     </div>
                   </div>
@@ -2939,7 +2942,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   className="w-full p-3 text-xs font-bold text-emerald-600 hover:bg-emerald-50 flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
                   <Plus className="h-4 w-4" />
-                  A�adir alimento a {name}
+                  Añadir alimento a {name}
                 </button>
               </div>
             </div>
@@ -2950,7 +2953,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             className="w-full py-6 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 font-bold hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/10 cursor-pointer transition-all active:scale-[0.99]"
           >
             <Plus className="h-5 w-5 mx-auto mb-1" />
-            A�adir nueva categor�a personalizada
+            Añadir nueva categoría personalizada
           </button>
         </div>
       </div>
@@ -2959,14 +2962,14 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         isOpen={isDeleteGroupConfirmOpen}
         onClose={() => setIsDeleteGroupConfirmOpen(false)}
         onConfirm={confirmDeleteGroup}
-        title={`�Eliminar grupo "${groupToDelete}"?`}
-        description="Esto quitar� los alimentos de esta vista."
+        title={`¿Eliminar grupo "${groupToDelete}"?`}
+        description="Esto quitará los alimentos de esta vista."
       />
 
       <Modal
         isOpen={isAddFoodModalOpen}
         onClose={() => setIsAddFoodModalOpen(false)}
-        title={`A�adir a "${activeGroupForAddition}"`}
+        title={`Añadir a "${activeGroupForAddition}"`}
       >
         <div className="space-y-4">
           <Input
@@ -2987,38 +2990,41 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               searchResultFoods.map((f) => (
                 <div
                   key={f.id}
-                  className="w-full flex justify-between items-center p-3 hover:bg-slate-50 rounded-lg transition-colors group"
+                  className="w-full flex flex-col p-4 hover:bg-slate-50 rounded-2xl border border-slate-100/50 hover:border-emerald-200 transition-all group gap-4"
                 >
-                  <div className="flex-1">
-                    <p className="font-bold text-sm text-slate-900">
-                      {f.producto}
-                    </p>
-                    <div className="flex gap-2 text-xs text-slate-500 mt-0.5">
-                      <span className="text-orange-600 font-bold">
-                        {f.calorias || 0} kcal
-                      </span>
-                      <span>�</span>
-                      <span className="text-blue-600">
-                        P: {f.proteinas || 0}g
-                      </span>
+                  <div className="flex flex-col gap-3">
+                    <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-lg shrink-0 border border-slate-200/50">
+                      ???
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-slate-900 leading-tight">
+                        {f.producto}
+                      </p>
+                      <div className="flex gap-2 text-xs text-slate-500 mt-1 font-medium">
+                        <span className="text-orange-600 font-bold">{f.calorias || 0} kcal</span>
+                        <span>·</span>
+                        <span className="text-blue-600">P: {f.proteinas || 0}g</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedFoodForInfo(f);
                         setIsFoodInfoModalOpen(true);
                       }}
-                      className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg transition-colors"
+                      className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                      title="Ver información"
                     >
                       <Info className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleAddFromSearch(f)}
-                      className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-black text-[10px] uppercase tracking-widest shadow-sm shadow-emerald-100"
                     >
                       <Plus className="h-4 w-4" />
+                      Añadir
                     </button>
                   </div>
                 </div>
@@ -3026,7 +3032,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             ) : foodSearchQuery.trim() ? (
               <div className="py-6 text-center">
                 <p className="text-sm text-slate-400 mb-3">
-                  No se encontraron resultados.
+                  No se encontróóóaron resultados.
                 </p>
                 <Button
                   variant="outline"
@@ -3035,7 +3041,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   onClick={async () => {
                     const token = Cookies.get("auth_token");
                     if (!token) {
-                      toast.error("No se encontr� una sesi�n activa.");
+                      toast.error("No se encontró una sesión activa.");
                       return;
                     }
 
@@ -3122,11 +3128,11 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         </div>
       </Modal>
 
-      {/* Modal de Adici�n Inteligente */}
+      {/* Modal de Adición Inteligente */}
       <Modal
         isOpen={isSmartModalOpen}
         onClose={() => setIsSmartModalOpen(false)}
-        title="Selecci�n Inteligente"
+        title="Selección Inteligente"
         className="sm:max-w-2xl"
       >
         <div className="space-y-6">
@@ -3216,33 +3222,41 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                       key={f.id}
                       onClick={() => toggleSmartSelection(f.id)}
                       className={cn(
-                        "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+                        "p-5 rounded-[2rem] border-2 transition-all cursor-pointer flex flex-col gap-4 group relative overflow-hidden",
                         selectedFoods.has(f.id)
-                          ? "border-indigo-500 bg-indigo-50/50"
-                          : "border-slate-100 bg-white hover:border-indigo-200",
+                          ? "border-emerald-500 bg-emerald-50/50 shadow-lg shadow-emerald-500/5 ring-1 ring-emerald-500/20"
+                          : "border-slate-100 bg-white hover:border-emerald-200",
                       )}
                     >
-                      <div className="flex-1">
-                        <p className="font-black text-slate-800 text-sm mb-1">
-                          {f.name}
-                        </p>
-                        <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-black uppercase">
-                          {f.category?.name || "Varios"}
-                        </span>
+                      {selectedFoods.has(f.id) && (
+                        <div className="absolute top-4 right-4 bg-emerald-600 text-white rounded-full p-1 shadow-lg ring-4 ring-emerald-50">
+                          <Check className="h-4 w-4" />
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl shrink-0 border border-slate-100 group-hover:scale-110 transition-transform">
+                          ???
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-black text-slate-800 text-sm mb-1 truncate">
+                            {f.name}
+                          </p>
+                          <span className="text-[10px] bg-slate-100 text-slate-400 px-2 py-0.5 rounded-lg font-black uppercase tracking-tight">
+                            {f.category?.name || "Varios"}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-end gap-2 border-t border-slate-100/50 pt-3">
                         {renderSmartInfoTrigger(f)}
                         <div
                           className={cn(
-                            "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                            "h-7 w-7 rounded-full border-2 flex items-center justify-center transition-all",
                             selectedFoods.has(f.id)
-                              ? "bg-indigo-600 border-indigo-600 text-white"
-                              : "border-slate-200 group-hover:border-indigo-300",
+                              ? "bg-emerald-600 border-emerald-600 text-white"
+                              : "border-slate-200 group-hover:border-emerald-300",
                           )}
                         >
-                          {selectedFoods.has(f.id) && (
-                            <Plus className="h-4 w-4" />
-                          )}
+                          {selectedFoods.has(f.id) && <Check className="h-4 w-4" />}
                         </div>
                       </div>
                     </div>
@@ -3252,7 +3266,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
                   <Star className="h-10 w-10 text-slate-200 mx-auto mb-3" />
                   <p className="text-slate-400 font-bold text-sm px-10">
-                    No tienes alimentos favoritos marcados a�n.
+                    No tienes alimentos favoritos marcados aún.
                   </p>
                 </div>
               )
@@ -3296,7 +3310,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {group.ingredients?.map((rel: any) => (
                             <div
                               key={rel.ingredient?.id}
@@ -3304,29 +3318,39 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                                 toggleSmartSelection(rel.ingredient?.id)
                               }
                               className={cn(
-                                "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+                                "p-5 rounded-[2rem] border-2 transition-all cursor-pointer flex flex-col gap-4 group relative overflow-hidden",
                                 selectedFoods.has(rel.ingredient?.id)
-                                  ? "border-indigo-500 bg-indigo-50/50"
-                                  : "border-slate-100 bg-white hover:border-indigo-200",
+                                  ? "border-emerald-500 bg-emerald-50/50 shadow-lg shadow-emerald-500/5 ring-1 ring-emerald-500/20"
+                                  : "border-slate-100 bg-white hover:border-emerald-200",
                               )}
                             >
-                              <div className="flex-1">
-                                <p className="font-black text-slate-800 text-sm mb-1">
-                                  {rel.ingredient?.name}
-                                </p>
-                                <span className="text-[10px] text-slate-400 font-bold">
-                                  {rel.amount || 100}{" "}
-                                  {rel.ingredient?.unit || rel.unit || "g"}
-                                </span>
+                              {selectedFoods.has(rel.ingredient?.id) && (
+                                <div className="absolute top-4 right-4 bg-emerald-600 text-white rounded-full p-1 shadow-lg ring-4 ring-emerald-50">
+                                  <Check className="h-4 w-4" />
+                                </div>
+                              )}
+                              <div className="flex flex-col gap-3">
+                                <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl shrink-0 border border-slate-100 group-hover:scale-110 transition-transform">
+                                  ???
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-black text-slate-800 text-sm mb-1 truncate">
+                                    {rel.ingredient?.name}
+                                  </p>
+                                  <span className="text-[10px] bg-slate-100 text-slate-400 px-2 py-0.5 rounded-lg font-black uppercase tracking-tight">
+                                    {rel.amount || 100}{" "}
+                                    {rel.ingredient?.unit || rel.unit || "g"}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center justify-end gap-2 border-t border-slate-100/50 pt-3">
                                 {renderSmartInfoTrigger(rel.ingredient)}
                                 <div
                                   className={cn(
-                                    "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                                    "h-7 w-7 rounded-full border-2 flex items-center justify-center transition-all",
                                     selectedFoods.has(rel.ingredient?.id)
-                                      ? "bg-indigo-600 border-indigo-600 text-white"
-                                      : "border-slate-200 group-hover:border-indigo-300",
+                                      ? "bg-emerald-600 border-emerald-600 text-white"
+                                      : "border-slate-200 group-hover:border-emerald-300",
                                   )}
                                 >
                                   {selectedFoods.has(rel.ingredient?.id) ? (
@@ -3347,45 +3371,53 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
                   <FolderPlus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
                   <p className="text-slate-400 font-bold text-sm px-10">
-                    No has creado grupos de ingredientes a�n.
+                    No has creado grupos de ingredientes aún.
                   </p>
                 </div>
               )
             ) : smartAddTab === "myproducts" ? (
               smartMyProducts.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {smartMyProducts.map((f) => (
                     <div
                       key={f.id}
                       onClick={() => toggleSmartSelection(f.id)}
                       className={cn(
-                        "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+                        "p-5 rounded-[2rem] border-2 transition-all cursor-pointer flex flex-col gap-4 group relative overflow-hidden",
                         selectedFoods.has(f.id)
-                          ? "border-indigo-500 bg-indigo-50/50"
-                          : "border-slate-100 bg-white hover:border-indigo-200",
+                          ? "border-emerald-500 bg-emerald-50/50 shadow-lg shadow-emerald-500/5 ring-1 ring-emerald-500/20"
+                          : "border-slate-100 bg-white hover:border-emerald-200",
                       )}
                     >
-                      <div className="flex-1">
-                        <p className="font-black text-slate-800 text-sm mb-1">
-                          {f.name}
-                        </p>
-                        <span className="text-[10px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded font-black uppercase">
-                          Creado por ti
-                        </span>
+                      {selectedFoods.has(f.id) && (
+                        <div className="absolute top-4 right-4 bg-emerald-600 text-white rounded-full p-1 shadow-lg ring-4 ring-emerald-50">
+                          <Check className="h-4 w-4" />
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl shrink-0 border border-slate-100 group-hover:scale-110 transition-transform">
+                          ???
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-black text-slate-800 text-sm mb-1 truncate">
+                            {f.name}
+                          </p>
+                          <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-lg font-black uppercase tracking-tight">
+                            Creado por ti
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-end gap-2 border-t border-slate-100/50 pt-3">
                         {renderSmartInfoTrigger(f, "Creado por ti")}
                         <div
                           className={cn(
-                            "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                            "h-7 w-7 rounded-full border-2 flex items-center justify-center transition-all",
                             selectedFoods.has(f.id)
-                              ? "bg-indigo-600 border-indigo-600 text-white"
-                              : "border-slate-200 group-hover:border-indigo-300",
+                              ? "bg-emerald-600 border-emerald-600 text-white"
+                              : "border-slate-200 group-hover:border-emerald-300",
                           )}
                         >
-                          {selectedFoods.has(f.id) && (
-                            <Plus className="h-4 w-4" />
-                          )}
+                          {selectedFoods.has(f.id) && <Check className="h-4 w-4" />}
                         </div>
                       </div>
                     </div>
@@ -3395,7 +3427,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
                   <Plus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
                   <p className="text-slate-400 font-bold text-sm px-10">
-                    No has creado productos personalizados a�n.
+                    No has creado productos personalizados aún.
                   </p>
                 </div>
               )
@@ -3408,39 +3440,47 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   </p>
                 </div>
               ) : smartSearchResults.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {smartSearchResults.map((f) => (
                     <div
                       key={f.id}
                       onClick={() => toggleSmartSelection(f.id)}
                       className={cn(
-                        "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group",
+                        "p-5 rounded-[2rem] border-2 transition-all cursor-pointer flex flex-col gap-4 group relative overflow-hidden",
                         selectedFoods.has(f.id)
-                          ? "border-indigo-500 bg-indigo-50/50"
-                          : "border-slate-100 bg-white hover:border-indigo-200",
+                          ? "border-emerald-500 bg-emerald-50/50 shadow-lg shadow-emerald-500/5 ring-1 ring-emerald-500/20"
+                          : "border-slate-100 bg-white hover:border-emerald-200",
                       )}
                     >
-                      <div className="flex-1">
-                        <p className="font-black text-slate-800 text-sm mb-1">
-                          {f.name}
-                        </p>
-                        <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-black uppercase">
-                          {f.category?.name || "Varios"}
-                        </span>
+                      {selectedFoods.has(f.id) && (
+                        <div className="absolute top-4 right-4 bg-emerald-600 text-white rounded-full p-1 shadow-lg ring-4 ring-emerald-50">
+                          <Check className="h-4 w-4" />
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl shrink-0 border border-slate-100 group-hover:scale-110 transition-transform">
+                          ???
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-black text-slate-800 text-sm mb-1 truncate">
+                            {f.name}
+                          </p>
+                          <span className="text-[10px] bg-slate-100 text-slate-400 px-2 py-0.5 rounded-lg font-black uppercase tracking-tight">
+                            {f.category?.name || "Varios"}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-end gap-2 border-t border-slate-100/50 pt-3">
                         {renderSmartInfoTrigger(f)}
                         <div
                           className={cn(
-                            "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                            "h-7 w-7 rounded-full border-2 flex items-center justify-center transition-all",
                             selectedFoods.has(f.id)
-                              ? "bg-indigo-600 border-indigo-600 text-white"
-                              : "border-slate-200 group-hover:border-indigo-300",
+                              ? "bg-emerald-600 border-emerald-600 text-white"
+                              : "border-slate-200 group-hover:border-emerald-300",
                           )}
                         >
-                          {selectedFoods.has(f.id) && (
-                            <Plus className="h-4 w-4" />
-                          )}
+                          {selectedFoods.has(f.id) && <Check className="h-4 w-4" />}
                         </div>
                       </div>
                     </div>
@@ -3450,7 +3490,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
                   <Search className="h-10 w-10 text-slate-200 mx-auto mb-3" />
                   <p className="text-slate-400 font-bold text-sm px-10">
-                    No se encontraron productos para "{smartSearchQuery}"
+                    No se encontróóóaron productos para "{smartSearchQuery}"
                   </p>
                 </div>
               ) : (
@@ -3486,7 +3526,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 disabled={selectedFoods.size === 0}
               >
                 <CheckCircle2 className="h-5 w-5" />
-                A�adir todo(s)
+                Añadir todo(s)
               </Button>
             </div>
           </div>
@@ -3529,7 +3569,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
                     <p className="text-xs font-bold text-orange-600 mb-1">
-                      Calor�as
+                      Calorías
                     </p>
                     <p className="text-2xl font-black text-orange-700">
                       {selectedFoodForInfo.calorias || 0}
@@ -3540,7 +3580,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   </div>
                   <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <p className="text-xs font-bold text-blue-600 mb-1">
-                      Prote�nas
+                      Proteínas
                     </p>
                     <p className="text-2xl font-black text-blue-700">
                       {selectedFoodForInfo.proteinas || 0}
@@ -3562,7 +3602,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   </div>
                   <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100">
                     <p className="text-xs font-bold text-yellow-600 mb-1">
-                      L�pidos
+                      Lípidos
                     </p>
                     <p className="text-2xl font-black text-yellow-700">
                       {selectedFoodForInfo.lipidos || 0}
@@ -3580,13 +3620,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 (selectedFoodForInfo as any).sodio > 0) && (
                   <div>
                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
-                      Informaci�n Adicional
+                      Información Adicional
                     </h3>
                     <div className="space-y-2">
                       {(selectedFoodForInfo as any).azucares > 0 && (
                         <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                           <span className="text-sm font-bold text-slate-700">
-                            Az�cares
+                            Azúcares
                           </span>
                           <span className="text-sm font-black text-slate-900">
                             {(selectedFoodForInfo as any).azucares}g
@@ -3617,10 +3657,10 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   </div>
                 )}
 
-              {/* Porci�n */}
+              {/* Porción */}
               <div>
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
-                  Porci�n de Referencia
+              {/* Porción */}
                 </h3>
                 <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
                   <p className="text-sm font-bold text-indigo-600 mb-1">
@@ -3678,7 +3718,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       <Modal
         isOpen={isVerificationModalOpen}
         onClose={() => setIsVerificationModalOpen(false)}
-        title="Validaci�n de Restricciones"
+        title="Validación de Restricciones"
       >
         <div className="space-y-4">
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
@@ -3722,7 +3762,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                     </span>
                   </div>
                   <p className="text-xs font-bold text-slate-700 mt-1">
-                    Restricci�n: {conflict.restriction}
+                    Restricción: {conflict.restriction}
                   </p>
                   <p className="text-xs text-slate-600 mt-1">{conflict.reason}</p>
                 </div>
@@ -3783,7 +3823,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         {patient.fullName}
                       </h3>
                       <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
-                        {patient.email || "Sin email"} �{" "}
+                        {patient.email || "Sin email"} ·{" "}
                         {patient.weight
                           ? `${patient.weight}kg`
                           : "Peso no reg."}
@@ -3820,8 +3860,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 <UserPlus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
                 <p className="text-sm text-slate-400 font-bold">
                   {patientSearchQuery.trim()
-                    ? "No encontramos pacientes con ese criterio."
-                    : "No se encontraron pacientes registrados."}
+                    ? "No encontróóóamos pacientes con ese criterio."
+                    : "No se encontróóóaron pacientes registrados."}
                 </p>
               </div>
             )}
@@ -3843,16 +3883,16 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           setIsAddGroupModalOpen(false);
           setNewGroupNameInput("");
         }}
-        title="Nueva Categor�a"
+        title="Nueva Categoría"
       >
         <div className="space-y-5">
           <p className="text-sm text-slate-500">
-            Crea una categor�a personalizada para organizar alimentos espec�ficos en tu plan.
+            Crea una categoría personalizada para organizar alimentos específicos en tu plan.
           </p>
 
           <div className="space-y-2">
             <label className="text-xs font-black text-slate-500 uppercase tracking-widest">
-              Nombre de la Categor�a
+              Nombre de la Categoría
             </label>
             <Input
               placeholder="Ej: Snacks, Bebidas, Suplementos..."
@@ -3865,7 +3905,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             {newGroupNameInput.trim() && Object.keys(allGroupsToRender).map(g => g.toLowerCase()).includes(newGroupNameInput.trim().toLowerCase()) && (
               <p className="text-xs text-rose-500 font-bold flex items-center gap-1.5">
                 <AlertCircle className="h-3.5 w-3.5" />
-                Ya existe una categor�a con ese nombre.
+                Ya existe una categoría con ese nombre.
               </p>
             )}
           </div>
@@ -3873,7 +3913,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           {Object.keys(allGroupsToRender).length > 0 && (
             <div className="space-y-2">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Categor�as actuales
+                Categorías actuales
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {Object.keys(allGroupsToRender).map((g) => (
@@ -3895,7 +3935,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               }
             >
               <FolderPlus className="h-4 w-4 mr-2" />
-              Crear Categor�a
+              Crear Categoría
             </Button>
             <Button
               variant="outline"
@@ -3917,7 +3957,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-500">
-            Completa la informaci�n nutricional base para que los c�lculos de las siguientes etapas sean correctos.
+            Completa la información nutricional base para que los cálculos de las siguientes etapas sean correctos.
           </p>
 
           <div className="grid grid-cols-2 gap-3">
@@ -3952,7 +3992,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             </div>
             <div className="space-y-2">
               <label className="text-xs font-black uppercase tracking-widest text-slate-400">
-                Calor�as
+                Calorías
               </label>
               <Input
                 type="number"
@@ -3967,7 +4007,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             </div>
             <div className="space-y-2">
               <label className="text-xs font-black uppercase tracking-widest text-slate-400">
-                Prote�nas
+                Proteínas
               </label>
               <Input
                 type="number"
@@ -3997,7 +4037,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             </div>
             <div className="space-y-2">
               <label className="text-xs font-black uppercase tracking-widest text-slate-400">
-                L�pidos
+                Lípidos
               </label>
               <Input
                 type="number"
@@ -4012,7 +4052,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             </div>
             <div className="space-y-2">
               <label className="text-xs font-black uppercase tracking-widest text-slate-400">
-                Az�cares
+                Azúcares
               </label>
               <Input
                 type="number"
@@ -4071,7 +4111,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               onClick={handleSaveDraftFood}
               disabled={isSavingDraftFood}
             >
-              {isSavingDraftFood ? "Guardando..." : "Guardar informaci�n"}
+              {isSavingDraftFood ? "Guardando..." : "Guardar información"}
             </Button>
           </div>
         </div>
@@ -4083,7 +4123,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         description={creationDescription}
         onDescriptionChange={setCreationDescription}
         title="Guardar dieta"
-        subtitle="A�ade una breve descripci�n para reconocer esta dieta dentro de Mis creaciones."
+        subtitle="Añade una breve descripción para reconocer esta dieta dentro de Mis creaciones."
       />
     </ModuleLayout >
   </>

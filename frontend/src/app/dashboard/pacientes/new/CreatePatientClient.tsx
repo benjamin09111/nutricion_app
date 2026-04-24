@@ -23,6 +23,7 @@ import { usePatientDraft } from "@/features/patients/hooks/usePatientDraft";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { validateRut, formatRut } from "@/lib/rut-utils";
 import { cn } from "@/lib/utils";
 import { DEFAULT_METRICS } from "@/lib/constants";
 import Cookies from "js-cookie";
@@ -63,6 +64,10 @@ export default function CreatePatientClient() {
       toast.error(
         "Por favor completa los campos obligatorios (Nombre y Email).",
       );
+      return;
+    }
+    if (draft.documentId && !validateRut(draft.documentId)) {
+      toast.error("El RUT ingresado no es válido.");
       return;
     }
     setShowSaveConfirm(true);
@@ -269,7 +274,7 @@ export default function CreatePatientClient() {
                 placeholder="12.345.678-9"
                 className="h-11 rounded-xl bg-slate-50/50 border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all"
                 value={draft.documentId || ""}
-                onChange={(e) => updateDraft({ documentId: e.target.value })}
+                onChange={(e) => updateDraft({ documentId: formatRut(e.target.value) })}
               />
             </div>
 
@@ -289,23 +294,16 @@ export default function CreatePatientClient() {
               <label className="text-xs font-semibold text-slate-500 ml-1">
                 Sexo biológico
               </label>
-              <div className="grid grid-cols-3 gap-3">
-                {["Masculino", "Femenino", "Otro"].map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => updateDraft({ gender: g })}
-                    className={cn(
-                      "h-10 rounded-lg text-sm font-medium transition-all border",
-                      draft.gender === g
-                        ? "bg-emerald-50 border-emerald-500 text-emerald-700"
-                        : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300",
-                    )}
-                  >
-                    {g}
-                  </button>
-                ))}
-              </div>
+              <select
+                value={draft.gender || ""}
+                onChange={(e) => updateDraft({ gender: e.target.value })}
+                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all cursor-pointer"
+              >
+                <option value="">Seleccionar sexo...</option>
+                <option value="Masculino">Masculino</option>
+                <option value="Femenino">Femenino</option>
+                <option value="Otro">Otro</option>
+              </select>
             </div>
 
             <div className="space-y-2 md:col-span-2 pt-6 border-t border-slate-100">
