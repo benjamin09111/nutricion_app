@@ -10,6 +10,7 @@ import {
   DashboardShellProvider,
   useDashboardShell,
 } from "@/context/DashboardShellContext";
+import { TutorialProvider } from "@/context/TutorialContext";
 import { X } from "lucide-react";
 
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
@@ -99,7 +100,9 @@ export default function DashboardLayout({
     <AdminProvider>
       <SubscriptionProvider>
         <DashboardShellProvider>
-          <DashboardContent>{children}</DashboardContent>
+          <TutorialProvider>
+            <DashboardContent>{children}</DashboardContent>
+          </TutorialProvider>
         </DashboardShellProvider>
       </SubscriptionProvider>
     </AdminProvider>

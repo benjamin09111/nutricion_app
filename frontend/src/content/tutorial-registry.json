@@ -7,6 +7,20 @@
     "status": "planned"
   },
   {
+    "id": "quickDeliverable",
+    "moduleKey": "quickDeliverable",
+    "label": "Entregable Rápido",
+    "routePatterns": ["/dashboard/rapido"],
+    "status": "planned"
+  },
+  {
+    "id": "quickRecipes",
+    "moduleKey": "quickRecipes",
+    "label": "Recetas Rápidas",
+    "routePatterns": ["/dashboard/rapido/recetas"],
+    "status": "planned"
+  },
+  {
     "id": "recipes",
     "moduleKey": "recipes",
     "label": "Recetas y Porciones",
@@ -30,8 +44,8 @@
   {
     "id": "foods",
     "moduleKey": "foods",
-    "label": "Alimentos",
-    "routePatterns": ["/dashboard/alimentos"],
+    "label": "Ingredientes",
+    "routePatterns": ["/dashboard/alimentos", "/dashboard/alimentos/*"],
     "status": "planned"
   },
   {
@@ -51,8 +65,15 @@
   {
     "id": "resources",
     "moduleKey": "resources",
-    "label": "Recursos",
+    "label": "Recursos & Material",
     "routePatterns": ["/dashboard/recursos", "/dashboard/recursos/*"],
+    "status": "planned"
+  },
+  {
+    "id": "dishes",
+    "moduleKey": "dishes",
+    "label": "Platos",
+    "routePatterns": ["/dashboard/platos", "/dashboard/platos/*"],
     "status": "planned"
   },
   {

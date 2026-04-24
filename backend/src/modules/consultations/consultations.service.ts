@@ -41,6 +41,17 @@ export class ConsultationsService {
     async findAll(nutritionistId: string, page: number = 1, limit: number = 20, search?: string, patientId?: string, type?: 'CLINICAL' | 'METRIC' | 'ALL') {
         const skip = (page - 1) * limit;
 
+        if (!nutritionistId) {
+            return {
+                data: [],
+                meta: {
+                    total: 0,
+                    page,
+                    lastPage: 0,
+                },
+            };
+        }
+
         const where: any = {
             nutritionistId,
         };

@@ -39,6 +39,20 @@ export class PatientsService {
     ) {
         const skip = (page - 1) * limit;
 
+        if (!nutritionistId) {
+            return {
+                data: [],
+                meta: {
+                    total: 0,
+                    filteredTotal: 0,
+                    activeCount: 0,
+                    inactiveCount: 0,
+                    page,
+                    lastPage: 0,
+                },
+            };
+        }
+
         const where: any = {
             nutritionistId,
         };

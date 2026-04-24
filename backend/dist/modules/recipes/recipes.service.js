@@ -510,14 +510,12 @@ let RecipesService = RecipesService_1 = class RecipesService {
     }
     async findAll(userId) {
         try {
-            const nutritionistId = await this.getNutritionistId(userId);
+            const nutritionistId = await this.getNutritionistId(userId).catch(() => null);
+            const where = nutritionistId
+                ? { OR: [{ isPublic: true }, { nutritionistId }] }
+                : { isPublic: true };
             const recipes = await this.prisma.recipe.findMany({
-                where: {
-                    OR: [
-                        { isPublic: true },
-                        { nutritionistId }
-                    ]
-                },
+                where,
                 include: {
                     _count: { select: { ingredients: true } },
                     nutritionist: { select: { fullName: true } },
@@ -531,9 +529,13 @@ let RecipesService = RecipesService_1 = class RecipesService {
                 },
                 orderBy: { updatedAt: 'desc' }
             });
-            return recipes.map((r) => ({ ...r, isMine: r.nutritionistId === nutritionistId }));
+            return recipes.map((r) => ({
+                ...r,
+                isMine: nutritionistId ? r.nutritionistId === nutritionistId : false
+            }));
         }
         catch (error) {
+            console.error('[RecipesService.findAll] Fallback to public recipes:', error);
             const recipes = await this.prisma.recipe.findMany({
                 where: { isPublic: true },
                 include: {
@@ -546,7 +548,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
         }
     }
     async findOne(id, userId) {
-        const nutritionistId = await this.getNutritionistId(userId);
+        const nutritionistId = await this.getNutritionistId(userId).catch(() => null);
         const recipe = await this.prisma.recipe.findUnique({
             where: { id },
             include: {
@@ -560,7 +562,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
         });
         if (!recipe)
             throw new common_1.NotFoundException('Recipe not found');
-        if (!recipe.isPublic && recipe.nutritionistId !== nutritionistId) {
+        if (!recipe.isPublic && (!nutritionistId || recipe.nutritionistId !== nutritionistId)) {
             throw new common_1.ForbiddenException('Access denied');
         }
         return recipe;

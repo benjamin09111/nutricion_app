@@ -10,14 +10,15 @@ const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const sanitization_pipe_1 = require("./common/pipes/sanitization.pipe");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
     app.enableCors({
         origin: true,
         credentials: true,
     });
     app.use((0, express_rate_limit_1.default)({
         windowMs: 15 * 60 * 1000,
-        max: 100,
-        message: 'Too many requests from this IP, please try again after 15 minutes',
+        max: 500,
+        message: { statusCode: 429, message: 'Demasiadas solicitudes. Intenta de nuevo en 15 minutos.' },
         standardHeaders: true,
         legacyHeaders: false,
     }));

@@ -593,100 +593,99 @@ export class RecipesService {
         try {
             const nutritionistId = await this.getNutritionistId(userId);
             console.log('[RecipesService.create] nutritionistId:', nutritionistId);
-        const { ingredients, tags, mealSection, customIngredientNames, customIngredients, ...data } = createDto;
+            const { ingredients, tags, mealSection, customIngredientNames, customIngredients, ...data } = createDto;
 
-        const metadata =
-            (tags?.length || mealSection || customIngredientNames?.length || customIngredients?.length)
-                ? JSON.parse(JSON.stringify({ tags: tags || [], mealSection: mealSection || null, customIngredientNames: customIngredientNames || [], customIngredients: customIngredients || [] }))
-                : undefined;
+            const metadata =
+                (tags?.length || mealSection || customIngredientNames?.length || customIngredients?.length)
+                    ? JSON.parse(JSON.stringify({ tags: tags || [], mealSection: mealSection || null, customIngredientNames: customIngredientNames || [], customIngredients: customIngredients || [] }))
+                    : undefined;
 
-        const portions = data.portions ?? 1;
+            const portions = data.portions ?? 1;
 
-        // Calculate Macros if not provided
-        let calcMacros = {
-            calories: data.calories ?? 0,
-            proteins: data.proteins ?? 0,
-            carbs: data.carbs ?? 0,
-            lipids: data.lipids ?? 0,
-            fiber: 0,
-            sodium: 0
-        };
+            let calcMacros = {
+                calories: data.calories ?? 0,
+                proteins: data.proteins ?? 0,
+                carbs: data.carbs ?? 0,
+                lipids: data.lipids ?? 0,
+                fiber: 0,
+                sodium: 0
+            };
 
-        if (ingredients && ingredients.length > 0 && (data.calories == null || data.proteins == null || data.fiber == null || data.sodium == null)) {
-            const ingredientIds = ingredients.map(i => i.ingredientId);
-            const dbIngredients = await this.prisma.ingredient.findMany({
-                where: { id: { in: ingredientIds } }
-            });
+            if (ingredients && ingredients.length > 0 && (data.calories == null || data.proteins == null || data.fiber == null || data.sodium == null)) {
+                const ingredientIds = ingredients.map(i => i.ingredientId);
+                const dbIngredients = await this.prisma.ingredient.findMany({
+                    where: { id: { in: ingredientIds } }
+                });
 
-            let totalCalories = 0;
-            let totalProteins = 0;
-            let totalCarbs = 0;
-            let totalLipids = 0;
-            let totalFiber = 0;
-            let totalSodium = 0;
+                let totalCalories = 0;
+                let totalProteins = 0;
+                let totalCarbs = 0;
+                let totalLipids = 0;
+                let totalFiber = 0;
+                let totalSodium = 0;
 
-            ingredients.forEach(ing => {
-                const dbIng = dbIngredients.find(d => d.id === ing.ingredientId);
-                if (dbIng) {
-                    const factor = ing.amount / 100;
-                    totalCalories += dbIng.calories * factor;
-                    totalProteins += dbIng.proteins * factor;
-                    totalCarbs += dbIng.carbs * factor;
-                    totalLipids += dbIng.lipids * factor;
-                    totalFiber += (dbIng.fiber ?? 0) * factor;
-                    totalSodium += (dbIng.sodium ?? 0) * factor;
-                }
-            });
+                ingredients.forEach(ing => {
+                    const dbIng = dbIngredients.find(d => d.id === ing.ingredientId);
+                    if (dbIng) {
+                        const factor = ing.amount / 100;
+                        totalCalories += dbIng.calories * factor;
+                        totalProteins += dbIng.proteins * factor;
+                        totalCarbs += dbIng.carbs * factor;
+                        totalLipids += dbIng.lipids * factor;
+                        totalFiber += (dbIng.fiber ?? 0) * factor;
+                        totalSodium += (dbIng.sodium ?? 0) * factor;
+                    }
+                });
 
-            if (data.calories == null) calcMacros.calories = parseFloat((totalCalories / portions).toFixed(2));
-            if (data.proteins == null) calcMacros.proteins = parseFloat((totalProteins / portions).toFixed(2));
-            if (data.carbs == null) calcMacros.carbs = parseFloat((totalCarbs / portions).toFixed(2));
-            if (data.lipids == null) calcMacros.lipids = parseFloat((totalLipids / portions).toFixed(2));
-            if (data.fiber == null) calcMacros.fiber = parseFloat((totalFiber / portions).toFixed(2));
-            if (data.sodium == null) calcMacros.sodium = parseFloat((totalSodium / portions).toFixed(2));
-        }
-
-        const recipe = await this.prisma.recipe.create({
-            data: {
-                name: data.name,
-                description: data.description,
-                preparation: data.preparation,
-                imageUrl: data.imageUrl,
-                portionSize: data.portionSize,
-                portions,
-                nutritionist: { connect: { id: nutritionistId } },
-                calories: data.calories ?? calcMacros.calories,
-                proteins: data.proteins ?? calcMacros.proteins,
-                carbs: data.carbs ?? calcMacros.carbs,
-                lipids: data.lipids ?? calcMacros.lipids,
-                fiber: data.fiber ?? calcMacros.fiber,
-                sodium: data.sodium ?? calcMacros.sodium,
-                isPublic: data.isPublic ?? false,
-                metadata: metadata,
-                ingredients: ingredients?.length
-                    ? {
-                        create: ingredients.map(ing => ({
-                            ingredientId: ing.ingredientId,
-                            amount: ing.amount,
-                            unit: ing.unit,
-                            brandSuggestion: ing.brandSuggestion,
-                            isMain: ing.isMain ?? true
-                        }))
-                    } : undefined
-            },
-            include: {
-                ingredients: {
-                    include: { ingredient: true }
-                }
+                if (data.calories == null) calcMacros.calories = parseFloat((totalCalories / portions).toFixed(2));
+                if (data.proteins == null) calcMacros.proteins = parseFloat((totalProteins / portions).toFixed(2));
+                if (data.carbs == null) calcMacros.carbs = parseFloat((totalCarbs / portions).toFixed(2));
+                if (data.lipids == null) calcMacros.lipids = parseFloat((totalLipids / portions).toFixed(2));
+                if (data.fiber == null) calcMacros.fiber = parseFloat((totalFiber / portions).toFixed(2));
+                if (data.sodium == null) calcMacros.sodium = parseFloat((totalSodium / portions).toFixed(2));
             }
-        });
 
-        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'recipes');
-        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
-        await this.cacheService.invalidateNutritionistPrefix(userId, 'recipes');
-        await this.cacheService.invalidateNutritionistPrefix(userId, 'dashboard');
-        console.log('[RecipesService.create] Success, recipe id:', recipe.id);
-        return recipe;
+            const recipe = await this.prisma.recipe.create({
+                data: {
+                    name: data.name,
+                    description: data.description,
+                    preparation: data.preparation,
+                    imageUrl: data.imageUrl,
+                    portionSize: data.portionSize,
+                    portions,
+                    nutritionist: { connect: { id: nutritionistId } },
+                    calories: data.calories ?? calcMacros.calories,
+                    proteins: data.proteins ?? calcMacros.proteins,
+                    carbs: data.carbs ?? calcMacros.carbs,
+                    lipids: data.lipids ?? calcMacros.lipids,
+                    fiber: data.fiber ?? calcMacros.fiber,
+                    sodium: data.sodium ?? calcMacros.sodium,
+                    isPublic: data.isPublic ?? false,
+                    metadata: metadata,
+                    ingredients: ingredients?.length
+                        ? {
+                            create: ingredients.map(ing => ({
+                                ingredientId: ing.ingredientId,
+                                amount: ing.amount,
+                                unit: ing.unit,
+                                brandSuggestion: ing.brandSuggestion,
+                                isMain: ing.isMain ?? true
+                            }))
+                        } : undefined
+                },
+                include: {
+                    ingredients: {
+                        include: { ingredient: true }
+                    }
+                }
+            });
+
+            await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'recipes');
+            await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+            await this.cacheService.invalidateNutritionistPrefix(userId, 'recipes');
+            await this.cacheService.invalidateNutritionistPrefix(userId, 'dashboard');
+            console.log('[RecipesService.create] Success, recipe id:', recipe.id);
+            return recipe;
         } catch (err) {
             console.error('[RecipesService.create] Error:', err);
             throw err;
@@ -695,14 +694,14 @@ export class RecipesService {
 
     async findAll(userId: string) {
         try {
-            const nutritionistId = await this.getNutritionistId(userId);
+            const nutritionistId = await this.getNutritionistId(userId).catch(() => null);
+            
+            const where: any = nutritionistId 
+                ? { OR: [{ isPublic: true }, { nutritionistId }] }
+                : { isPublic: true };
+
             const recipes = await this.prisma.recipe.findMany({
-                where: {
-                    OR: [
-                        { isPublic: true },
-                        { nutritionistId }
-                    ]
-                },
+                where,
                 include: {
                     _count: { select: { ingredients: true } },
                     nutritionist: { select: { fullName: true } },
@@ -716,10 +715,12 @@ export class RecipesService {
                 },
                 orderBy: { updatedAt: 'desc' }
             });
-            return recipes.map((r: any) => ({ ...r, isMine: r.nutritionistId === nutritionistId }));
+            return recipes.map((r: any) => ({ 
+                ...r, 
+                isMine: nutritionistId ? r.nutritionistId === nutritionistId : false 
+            }));
         } catch (error) {
-            // If nutritionist profile not found, return only public recipes
-            // or return empty if we want strictness. But likely better to show public ones.
+            console.error('[RecipesService.findAll] Fallback to public recipes:', error);
             const recipes = await this.prisma.recipe.findMany({
                 where: { isPublic: true },
                 include: {
@@ -733,7 +734,7 @@ export class RecipesService {
     }
 
     async findOne(id: string, userId: string) {
-        const nutritionistId = await this.getNutritionistId(userId);
+        const nutritionistId = await this.getNutritionistId(userId).catch(() => null);
         const recipe = await this.prisma.recipe.findUnique({
             where: { id },
             include: {
@@ -749,7 +750,7 @@ export class RecipesService {
         if (!recipe) throw new NotFoundException('Recipe not found');
 
         // Allow if public OR owned
-        if (!recipe.isPublic && recipe.nutritionistId !== nutritionistId) {
+        if (!recipe.isPublic && (!nutritionistId || recipe.nutritionistId !== nutritionistId)) {
             throw new ForbiddenException('Access denied');
         }
 
@@ -860,5 +861,3 @@ export class RecipesService {
         return deleted;
     }
 }
-
-

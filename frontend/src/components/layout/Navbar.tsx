@@ -6,11 +6,6 @@ import {
   LogOut,
   ChevronDown,
   Settings,
-  Glasses,
-  ScanEye,
-  CreditCard,
-  Check,
-  Crown,
   Bell,
   Sparkles,
   Menu,
@@ -60,7 +55,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { isAdmin, isAdminView, toggleViewMode } = useAdmin();
+  const { isAdmin, isAdminView } = useAdmin();
   const { plan, planName, trialEndsAt } = useSubscription();
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
     useNotifications();
@@ -71,15 +66,6 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   } = useDashboardShell();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
-  const daysLeft = trialEndsAt
-    ? Math.max(
-      0,
-      Math.ceil(
-        (trialEndsAt.getTime() - new Date().getTime()) /
-        (1000 * 60 * 60 * 24),
-      ),
-    )
-    : 0;
 
   const [userEmail, setUserEmail] = useState<string>("usuario@demo.com");
 
@@ -291,42 +277,8 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
             </div>
           )}
 
-          {/* View Switcher for Admins */}
-          {isAdmin && (
-            <div className="hidden sm:flex items-center gap-4 border-r border-slate-200 pr-4 sm:pr-6">
-              <button
-                onClick={toggleViewMode}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
-                  isAdminView
-                    ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 ring-1 ring-indigo-500/20"
-                    : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 ring-1 ring-emerald-500/20",
-                )}
-                title={
-                  isAdminView
-                    ? "Cambiar a Vista Nutricionista"
-                    : "Cambiar a Vista Admin"
-                }
-              >
-                {isAdminView ? (
-                  <>
-                    <Glasses className="h-4 w-4" />
-                    <span className="hidden md:inline">Vista Admin</span>
-                  </>
-                ) : (
-                  <>
-                    <ScanEye className="h-4 w-4" />
-                    <span className="hidden md:inline">
-                      Vista Nutricionista
-                    </span>
-                  </>
-                )}
-              </button>
-
-              {/* DEV: Plan Switcher */}
-              {!isAdminView && <SubscriptionSwitcher />}
-            </div>
-          )}
+          {/* DEV: Plan Switcher for testing, only visible to Admins but NOT as a view switcher */}
+          {isAdmin && <SubscriptionSwitcher />}
 
           {/* Profile Dropdown */}
           <div className="relative" ref={dropdownRef}>
@@ -338,7 +290,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
               <div
                 className={cn(
                   "h-8 w-8 rounded-full flex items-center justify-center text-white border border-slate-200",
-                  isAdminView ? "bg-indigo-600" : "bg-emerald-500", // Change avatar bg based on view
+                  isAdminView ? "bg-indigo-600" : "bg-emerald-500",
                 )}
               >
                 {isAdminView ? "A" : <User className="h-4 w-4" />}
@@ -388,27 +340,6 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                       : planName}
                   </p>
                 </div>
-
-                {/* Mobile View Switcher (inside dropdown for mobile) */}
-                {isAdmin && (
-                  <div className="sm:hidden px-2 py-1">
-                    <button
-                      onClick={() => {
-                        toggleViewMode();
-                        setIsProfileOpen(false);
-                      }}
-                      className={cn(
-                        "w-full text-left px-2 py-1.5 text-xs rounded-md flex items-center gap-2",
-                        isAdminView
-                          ? "bg-indigo-50 text-indigo-700"
-                          : "bg-emerald-50 text-emerald-700",
-                      )}
-                    >
-                      <Glasses className="h-3 w-3" />
-                      Cambiar a {isAdminView ? "Vista Nutri" : "Vista Admin"}
-                    </button>
-                  </div>
-                )}
 
                 <Link
                   href="/dashboard/configuraciones"
