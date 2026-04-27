@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo } from "react";
 import {
@@ -31,6 +31,16 @@ import {
   Globe,
   Hash,
   Heart,
+  Clock3,
+  Link2,
+  Copy,
+  Send,
+  ExternalLink,
+  Sparkles,
+  ShieldCheck,
+  MessageSquare,
+  Filter,
+  Reply,
 } from "lucide-react";
 import { DEFAULT_METRICS } from "@/lib/constants";
 import {
@@ -54,8 +64,14 @@ import {
   ConsultationsResponse,
   Metric,
 } from "@/features/consultations";
+import {
+  PatientPortalOverview,
+  PortalInviteResponse,
+  PatientPortalEntry,
+} from "@/features/patient-portal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Textarea";
 import { MetricTagInput } from "@/components/ui/metric-tag-input";
 import { Modal } from "@/components/ui/Modal";
 import { TagInput } from "@/components/ui/TagInput";
@@ -93,11 +109,11 @@ const METRIC_KEY_MAP: Record<string, string> = {
 };
 
 /**
- * Normaliza etiquetas de métricas para usarlas como llaves consistentes en gráficas.
+ * Normaliza etiquetas de mÃ©tricas para usarlas como llaves consistentes en grÃ¡ficas.
  * Evita duplicados como "Peso" vs "weight".
  */
 const normalizeMetricKey = (label: string = "", key?: string) => {
-  // 1. Si ya tiene una llave técnica conocida
+  // 1. Si ya tiene una llave tÃ©cnica conocida
   if (key && METRIC_KEY_MAP[key.toLowerCase()]) {
     return METRIC_KEY_MAP[key.toLowerCase()];
   }
@@ -121,6 +137,14 @@ const normalizeText = (value: string = "") =>
 const isIndependentMetricsConsultation = (
   consultation: Pick<Consultation, "title">,
 ) => normalizeText(consultation.title).includes(INDEPENDENT_METRICS_REGISTRY_TITLE);
+
+const formatDateTime = (value?: string | Date | null) => {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("es-CL", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+};
 
 const toDateOnly = (value?: string | Date | null) => {
   if (!value) return "";
@@ -149,7 +173,7 @@ const formatDateOnlyForLocale = (
   const [year, month, day] = dateOnly.split("-").map(Number);
   if (!year || !month || !day) return "";
 
-  // Mediodía UTC para evitar desfases de huso horario al formatear.
+  // MediodÃ­a UTC para evitar desfases de huso horario al formatear.
   const stableDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
   return stableDate.toLocaleDateString("es-ES", options);
 };
@@ -166,7 +190,7 @@ interface PatientDetailClientProps {
   id: string;
 }
 
-type TabType = "General" | "Consultas" | "Progreso";
+type TabType = "General" | "Consultas" | "Progreso" | "Acompañamiento";
 
 export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const router = useRouter();
@@ -208,6 +232,24 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const [metricKeyToDelete, setMetricKeyToDelete] = useState<string | null>(
     null,
   );
+  const [portalOverview, setPortalOverview] = useState<PatientPortalOverview | null>(null);
+  const [isPortalInviteModalOpen, setIsPortalInviteModalOpen] = useState(false);
+  const [portalInviteEmail, setPortalInviteEmail] = useState("");
+  const [portalInviteDays, setPortalInviteDays] = useState("30");
+  const [generatedPortalLink, setGeneratedPortalLink] = useState("");
+  const [generatedPortalCode, setGeneratedPortalCode] = useState("");
+  const [isCreatingPortalInvite, setIsCreatingPortalInvite] = useState(false);
+  const [isCopyingPortalLink, setIsCopyingPortalLink] = useState(false);
+  const [portalFilter, setPortalFilter] = useState({
+    from: "",
+    to: "",
+    kind: "ALL" as "ALL" | "QUESTION" | "TRACKING" | "REPLY",
+    section: "ALL" as "ALL" | "alimentacion" | "suplementos" | "actividadFisica",
+    search: "",
+  });
+  const [replyTarget, setReplyTarget] = useState<PatientPortalEntry | null>(null);
+  const [replyMessage, setReplyMessage] = useState("");
+  const [isSubmittingPortalReply, setIsSubmittingPortalReply] = useState(false);
 
   const [isDeletePatientConfirmOpen, setIsDeletePatientConfirmOpen] = useState(false);
   const [isDeleteConsultationConfirmOpen, setIsDeleteConsultationConfirmOpen] = useState(false);
@@ -229,7 +271,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         )
       : false;
 
-    // 1. Añadir registro base del perfil del paciente si existe
+    // 1. AÃ±adir registro base del perfil del paciente si existe
     if (patient) {
       const baseline: any = {
         date: new Date(patient.createdAt || Date.now()).toLocaleDateString(
@@ -252,7 +294,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       if (hasBaselineData) dataPoints.push(baseline);
     }
 
-    // 2. Añadir registros de consultas / métricas independientes
+    // 2. AÃ±adir registros de consultas / mÃ©tricas independientes
     if (Array.isArray(consultations)) {
       const consultationPoints = [...consultations]
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -458,6 +500,21 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     }
   };
 
+  const fetchPortalOverview = async () => {
+    try {
+      const response = await fetchApi(`/patient-portals/patients/${id}/overview`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data: PatientPortalOverview = await response.json();
+        setPortalOverview(data);
+      }
+    } catch (error) {
+      console.error("Error fetching portal overview", error);
+    }
+  };
+
   const smartMetrics = useMemo(
     () => [
       {
@@ -500,10 +557,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   );
 
   const availableMetricSuggestions = useMemo(() => {
-    // Combinamos las métricas estáticas recomendadas con las globales creadas
+    // Combinamos las mÃ©tricas estÃ¡ticas recomendadas con las globales creadas
     const combined = [...smartMetrics];
 
-    // Añadir globales que no estén ya en smartMetrics
+    // AÃ±adir globales que no estÃ©n ya en smartMetrics
     globalMetrics.forEach((gm) => {
       const gmKey = normalizeMetricKey(gm.name, gm.key);
       if (
@@ -537,6 +594,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       fetchPatient();
       fetchConsultations();
       fetchGlobalMetrics();
+      fetchPortalOverview();
     }
   }, [id]);
 
@@ -544,6 +602,128 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     if (!patient) return;
     setEditForm(patient);
     setIsEditing(true);
+  };
+
+  const handleCreatePortalInvite = async () => {
+    if (!patient) return;
+
+    const expiresInDays = Number(portalInviteDays);
+    setIsCreatingPortalInvite(true);
+    try {
+      const response = await fetchApi(`/patient-portals/patients/${patient.id}/invitations`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          email: portalInviteEmail.trim() || undefined,
+          expiresInDays: Number.isFinite(expiresInDays) && expiresInDays > 0 ? expiresInDays : 14,
+        }),
+      });
+
+      const data: PortalInviteResponse = await response.json();
+      if (!response.ok) {
+        throw new Error((data as any)?.message || "No se pudo generar la invitaciÃ³n");
+      }
+
+      setGeneratedPortalLink(data.shareUrl);
+      setGeneratedPortalCode(data.accessCode);
+      setIsPortalInviteModalOpen(false);
+      setPortalInviteEmail("");
+      setPortalInviteDays("30");
+      await fetchPortalOverview();
+      toast.success("Portal del paciente activado.");
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo generar la invitaciÃ³n.");
+    } finally {
+      setIsCreatingPortalInvite(false);
+    }
+  };
+
+  const handleCopyPortalLink = async (value?: string) => {
+    const link = value || generatedPortalLink;
+    if (!link) return;
+
+    setIsCopyingPortalLink(true);
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("Link copiado al portapapeles.");
+    } catch (error) {
+      toast.error("No se pudo copiar automÃ¡ticamente.");
+    } finally {
+      setIsCopyingPortalLink(false);
+    }
+  };
+
+  const handleTogglePortalAccess = async (status: "ACTIVE" | "BLOCKED") => {
+    if (!patient) return;
+
+    try {
+      const response = await fetchApi(`/patient-portals/patients/${patient.id}/access-status`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      const data: { overview?: PatientPortalOverview; message?: string } = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message || "No se pudo actualizar el acceso.");
+      }
+
+      if (data.overview) {
+        setPortalOverview(data.overview);
+      } else {
+        await fetchPortalOverview();
+      }
+
+      toast.success(status === "BLOCKED" ? "Acceso bloqueado." : "Acceso reactivado.");
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo cambiar el estado del portal.");
+    }
+  };
+
+  const handleReplyPortalQuestion = async () => {
+    if (!patient || !replyTarget || !replyMessage.trim()) {
+      return;
+    }
+
+    setIsSubmittingPortalReply(true);
+    try {
+      const response = await fetchApi(`/patient-portals/patients/${patient.id}/replies`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          questionId: replyTarget.id,
+          message: replyMessage.trim(),
+        }),
+      });
+
+      const data: { overview?: PatientPortalOverview; message?: string } = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message || "No se pudo guardar la respuesta.");
+      }
+
+      if (data.overview) {
+        setPortalOverview(data.overview);
+      } else {
+        await fetchPortalOverview();
+      }
+
+      setReplyTarget(null);
+      setReplyMessage("");
+      toast.success("Respuesta enviada al portal del paciente.");
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo enviar la respuesta.");
+    } finally {
+      setIsSubmittingPortalReply(false);
+    }
   };
 
   const resetMetricForm = (metrics: Metric[] = []) => {
@@ -583,7 +763,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     // Validate metrics: Must have values if they have a label
     const incompleteMetrics = metricForm.metrics.filter(m => m.label.trim() !== "" && (m.value === undefined || m.value === null || m.value.toString().trim() === ""));
     if (incompleteMetrics.length > 0) {
-      toast.error(`La métrica "${incompleteMetrics[0].label}" debe tener un valor.`);
+      toast.error(`La mÃ©trica "${incompleteMetrics[0].label}" debe tener un valor.`);
       return;
     }
 
@@ -593,7 +773,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     );
 
     if (validMetrics.length === 0) {
-      toast.error("Agrega al menos una métrica con valor");
+      toast.error("Agrega al menos una mÃ©trica con valor");
       return;
     }
 
@@ -674,12 +854,12 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         );
 
         if (response.ok) {
-          toast.success("Métricas actualizadas correctamente");
+          toast.success("MÃ©tricas actualizadas correctamente");
           closeMetricLogger();
           setConflictingConsultationId(null);
           await Promise.all([fetchConsultations(), fetchPatient()]);
         } else {
-          toast.error("Error al actualizar métricas");
+          toast.error("Error al actualizar mÃ©tricas");
         }
       } else {
         // POST nuevo
@@ -692,7 +872,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           body: JSON.stringify({
             patientId: id,
             date: metricForm.date,
-            title: "Registro de Métricas Independiente",
+            title: "Registro de MÃ©tricas Independiente",
             description: "Entrada manual de datos de seguimiento.",
             metrics: metricForm.metrics
               .filter((m) => m.label.trim() !== "" && m.value !== undefined && m.value !== null && m.value.toString().trim() !== "")
@@ -705,17 +885,17 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
         if (response.ok) {
           const newConsultation = await response.json();
-          toast.success("Métricas registradas correctamente");
+          toast.success("MÃ©tricas registradas correctamente");
           closeMetricLogger();
           setConflictingConsultationId(null);
           setConsultations((prev) => [newConsultation, ...prev]);
           await Promise.all([fetchConsultations(), fetchPatient()]);
         } else {
-          toast.error("Error al guardar métricas");
+          toast.error("Error al guardar mÃ©tricas");
         }
       }
     } catch (error) {
-      toast.error("Error de conexión");
+      toast.error("Error de conexiÃ³n");
     }
   };
 
@@ -730,7 +910,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       (s) => s.label.toLowerCase() === newMetric.name.toLowerCase()
     );
     if (exists) {
-      toast.info(`La métrica "${newMetric.name}" ya existe con la unidad "${exists.unit}". No es necesario crearla.`);
+      toast.info(`La mÃ©trica "${newMetric.name}" ya existe con la unidad "${exists.unit}". No es necesario crearla.`);
       return;
     }
 
@@ -745,7 +925,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       });
 
       if (response.ok) {
-        toast.success("Métrica global creada");
+        toast.success("MÃ©trica global creada");
         setIsAddMetricModalOpen(false);
         setNewMetric({
           name: "",
@@ -757,15 +937,15 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         fetchGlobalMetrics();
       } else {
         const err = await response.json().catch(() => ({}));
-        // Si el backend dice que ya existe, lo mostramos explícitamente como aviso no como error fatal
+        // Si el backend dice que ya existe, lo mostramos explÃ­citamente como aviso no como error fatal
         if (response.status === 400 || response.status === 409) {
-          toast.info(err.message || "Esta métrica ya existe en el sistema.");
+          toast.info(err.message || "Esta mÃ©trica ya existe en el sistema.");
         } else {
-          toast.error(err.message || "Error al crear la métrica");
+          toast.error(err.message || "Error al crear la mÃ©trica");
         }
       }
     } catch (error) {
-      toast.error("Error de conexión");
+      toast.error("Error de conexiÃ³n");
     }
   };
 
@@ -840,7 +1020,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         toast.error("Error al eliminar el registro base");
         return;
       } catch {
-        toast.error("Error de conexión");
+        toast.error("Error de conexiÃ³n");
         return;
       }
     }
@@ -886,7 +1066,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         toast.error("Error al eliminar el registro");
       }
     } catch (e) {
-      toast.error("Error de conexión");
+      toast.error("Error de conexiÃ³n");
     }
   };
 
@@ -933,14 +1113,14 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             body: JSON.stringify({
               patientId: id,
               date: newDate,
-              title: "Registro de Métricas Independiente",
+              title: "Registro de MÃ©tricas Independiente",
               description: "Entrada manual de datos de seguimiento.",
               metrics: [{ key: "weight", label: "Peso", value: parsedWeight.toString(), unit: "kg" }],
             }),
           });
 
           if (!consultationRes.ok) {
-            toast.error("Error al guardar el nuevo registro histórico de peso");
+            toast.error("Error al guardar el nuevo registro histÃ³rico de peso");
             return;
           }
         }
@@ -950,7 +1130,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         await fetchConsultations();
         toast.success(
           changedDate
-            ? "Peso actualizado y convertido a registro histórico editable"
+            ? "Peso actualizado y convertido a registro histÃ³rico editable"
             : "Valor del perfil actualizado",
         );
       } else {
@@ -978,13 +1158,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           setConsultations((prev) =>
             prev.map((c) => (c.id === record.id ? updated : c)),
           );
-          toast.success("Registro histórico actualizado");
+          toast.success("Registro histÃ³rico actualizado");
         } else {
           toast.error("Error al actualizar la consulta");
         }
       }
     } catch (e) {
-      toast.error("Error al guardar cambios históricos");
+      toast.error("Error al guardar cambios histÃ³ricos");
     }
   };
 
@@ -1003,7 +1183,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     );
 
     if (isDuplicate) {
-      toast.error(`${metric.label} ya está en la lista`);
+      toast.error(`${metric.label} ya estÃ¡ en la lista`);
       return;
     }
 
@@ -1024,7 +1204,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     const newMetrics = [...metricForm.metrics];
     const updatedMetric = { ...newMetrics[index], [field]: value };
 
-    // Si cambiamos el label, verificamos si es una métrica conocida para bloquear la unidad
+    // Si cambiamos el label, verificamos si es una mÃ©trica conocida para bloquear la unidad
     if (field === "label") {
       const known = availableMetricSuggestions.find(
         (s) =>
@@ -1053,7 +1233,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(22);
       doc.setTextColor(16, 185, 129); // Emerald-500
-      doc.text("INFORME DE EVOLUCIÓN", margin, currentY);
+      doc.text("INFORME DE EVOLUCIÃ“N", margin, currentY);
       currentY += 10;
 
       doc.setFontSize(14);
@@ -1071,7 +1251,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         currentY += 15;
       }
 
-      // 2. Resumen de Evolución (Texto)
+      // 2. Resumen de EvoluciÃ³n (Texto)
       doc.setFontSize(12);
       doc.setTextColor(30, 41, 59);
       doc.text("RESUMEN DE CAMBIOS", margin, currentY);
@@ -1109,11 +1289,11 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       currentY += 15;
 
-      // 3. Gráficas (Imágenes)
+      // 3. GrÃ¡ficas (ImÃ¡genes)
       for (const key of metricKeys) {
         const container = document.getElementById(`export-chart-${key}`);
         if (container) {
-          // Si estamos cerca del final de la página, saltar
+          // Si estamos cerca del final de la pÃ¡gina, saltar
           if (currentY > 180) {
             doc.addPage();
             currentY = 20;
@@ -1134,7 +1314,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           doc.setFont("helvetica", "bold");
           doc.setFontSize(12);
           doc.setTextColor(30, 41, 59);
-          doc.text(`Gráfico: ${info.label} (${info.unit})`, margin, currentY);
+          doc.text(`GrÃ¡fico: ${info.label} (${info.unit})`, margin, currentY);
           currentY += 5;
 
           const imgWidth = pageWidth - (margin * 2);
@@ -1146,10 +1326,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         }
       }
 
-      // Pie de página
+      // Pie de pÃ¡gina
       doc.setFontSize(8);
       doc.setTextColor(148, 163, 184);
-      doc.text(`Generado automáticamente por NutriSaaS - ${new Date().toLocaleDateString("es-ES")}`, margin, 285);
+      doc.text(`Generado automÃ¡ticamente por NutriSaaS - ${new Date().toLocaleDateString("es-ES")}`, margin, 285);
 
       doc.save(`Evolucion_${(patient?.fullName || "Paciente").replace(/\s+/g, "_")}.pdf`);
       toast.success("PDF generado correctamente");
@@ -1181,7 +1361,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           (cv) => normalizeMetricKey(cv.label, cv.key) === key,
         );
 
-      // Identificar todas las consultas que contienen esta métrica
+      // Identificar todas las consultas que contienen esta mÃ©trica
       const consultationsToUpdate = consultations.filter((c) =>
         (c.metrics || []).some(
           (m) => normalizeMetricKey(m.label, m.key) === key,
@@ -1189,7 +1369,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       );
 
       if (consultationsToUpdate.length === 0 && !isWeight && !hasInCustomVars) {
-        toast.info("No hay registros históricos para eliminar");
+        toast.info("No hay registros histÃ³ricos para eliminar");
         setMetricKeyToDelete(null);
         return;
       }
@@ -1200,7 +1380,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           (m) => normalizeMetricKey(m.label, m.key) !== key,
         );
 
-        // Si la consulta es un "Registro de Métricas Independiente" y ahora quedó vacía, la eliminamos por completo
+        // Si la consulta es un "Registro de MÃ©tricas Independiente" y ahora quedÃ³ vacÃ­a, la eliminamos por completo
         if (
           newMetrics.length === 0 &&
           isIndependentMetricsConsultation(c)
@@ -1211,7 +1391,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           });
         }
 
-        // Si no está vacía o es una consulta clínica real, solo removemos la métrica específica
+        // Si no estÃ¡ vacÃ­a o es una consulta clÃ­nica real, solo removemos la mÃ©trica especÃ­fica
           return fetchApi(`/consultations/${c.id}`, {
             method: "PATCH",
           headers: {
@@ -1320,7 +1500,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         toast.error("Error al actualizar");
       }
     } catch (error) {
-      toast.error("Error de conexión");
+      toast.error("Error de conexiÃ³n");
     }
   };
 
@@ -1364,7 +1544,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         toast.error("Error al eliminar paciente");
       }
     } catch (error) {
-      toast.error("Error de conexión");
+      toast.error("Error de conexiÃ³n");
     } finally {
       setIsDeletePatientConfirmOpen(false);
     }
@@ -1395,6 +1575,45 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       toast.error("Error al cambiar estado");
     }
   };
+
+  const portalEntries = portalOverview?.entries || [];
+  const filteredPortalEntries = useMemo(() => {
+    const fromDate = portalFilter.from ? new Date(`${portalFilter.from}T00:00:00`) : null;
+    const toDate = portalFilter.to ? new Date(`${portalFilter.to}T23:59:59.999`) : null;
+    const search = portalFilter.search.trim().toLowerCase();
+
+    return portalEntries.filter((entry) => {
+      const createdAt = new Date(entry.createdAt);
+      if (fromDate && createdAt < fromDate) return false;
+      if (toDate && createdAt > toDate) return false;
+      if (portalFilter.kind !== "ALL" && entry.kind !== portalFilter.kind) return false;
+
+      const sections = entry.payload?.sections || {};
+      if (portalFilter.section !== "ALL") {
+        if (entry.kind !== "TRACKING") return false;
+        if (!sections[portalFilter.section]) return false;
+      }
+
+      if (!search) return true;
+
+      const haystack = [
+        entry.body || "",
+        entry.replyTo?.body || "",
+        sections.alimentacion || "",
+        sections.suplementos || "",
+        sections.actividadFisica || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(search);
+    });
+  }, [portalEntries, portalFilter]);
+
+  const filteredPortalQuestions = filteredPortalEntries.filter((entry) => entry.kind === "QUESTION");
+  const filteredPortalTracking = filteredPortalEntries.filter((entry) => entry.kind === "TRACKING");
+  const filteredPortalReplies = filteredPortalEntries.filter((entry) => entry.kind === "REPLY");
+  const portalAccessCode = portalOverview?.portal.latestInvitation?.accessCode || generatedPortalCode;
 
   if (isLoading && !patient) {
     return (
@@ -1489,7 +1708,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <Button
                 onClick={() => {
                   if (editForm.documentId && !validateRut(editForm.documentId)) {
-                    toast.error("El RUT ingresado no es válido.");
+                    toast.error("El RUT ingresado no es vÃ¡lido.");
                     return;
                   }
                   handleSave();
@@ -1512,9 +1731,17 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 CONSULTA
               </Button>
               <Button
+                onClick={() => setIsPortalInviteModalOpen(true)}
+                variant="outline"
+                className="flex-2 sm:flex-none h-11 lg:h-10 px-6 rounded-2xl border-emerald-100 text-emerald-700 bg-emerald-50/70 hover:bg-emerald-50 font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                <Link2 className="w-4 h-4" />
+                Portal paciente
+              </Button>
+              <Button
                 disabled
                 className="bg-slate-50 border border-slate-100 text-slate-400 font-bold h-10 px-4 rounded-2xl cursor-not-allowed opacity-60 flex items-center gap-2"
-                title="Próximamente: Carga y análisis de exámenes clínicos con IA"
+                title="PrÃ³ximamente: Carga y anÃ¡lisis de exÃ¡menes clÃ­nicos con IA"
               >
                 <FileText className="w-4 h-4" />
                 <span className="text-[10px] uppercase tracking-widest">
@@ -1551,7 +1778,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             field: "height",
           },
           {
-            label: "Género",
+            label: "GÃ©nero",
             value: patient.gender,
             icon: User,
             color: "text-amber-600",
@@ -1639,8 +1866,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           { label: "General", disabled: false },
           { label: "Consultas", disabled: false },
           { label: "Progreso", disabled: false },
-          { label: "Exámenes", disabled: true },
-        ] as Array<{ label: TabType | "Exámenes"; disabled: boolean }>).map((tab) => (
+          { label: "AcompaÃ±amiento", disabled: false },
+          { label: "ExÃ¡menes", disabled: true },
+        ] as Array<{ label: TabType | "ExÃ¡menes"; disabled: boolean }>).map((tab) => (
           <button
             key={tab.label}
             onClick={() => {
@@ -1673,7 +1901,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <div className="p-5 lg:p-6 border-b border-slate-50 bg-slate-50/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <h3 className="text-xl lg:text-2xl font-semibold text-slate-900 flex items-center gap-3 lg:gap-4">
                   <Activity className="w-6 h-6 lg:w-8 lg:h-8 text-emerald-500" />
-                  Inteligencia Clínica
+                  Inteligencia ClÃ­nica
                 </h3>
                 <div className="px-5 py-2 bg-emerald-50 text-emerald-600 rounded-2xl text-xs font-semibold border border-emerald-100 w-fit">
                   Sincronizado
@@ -1684,7 +1912,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 <div className="space-y-8">
                   <div className="space-y-4">
                     <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3">
-                      Información de Contacto
+                      InformaciÃ³n de Contacto
                     </h4>
                     <div className="space-y-4">
                       <div className="flex items-center gap-4 group">
@@ -1716,7 +1944,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-slate-400">
-                            Teléfono
+                            TelÃ©fono
                           </p>
                           {isEditing ? (
                             <Input
@@ -1751,7 +1979,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           }
                           fetchSuggestionsUrl={`${getApiUrl()}/tags`}
                           className="mt-2"
-                          placeholder="Agregar restricción..."
+                          placeholder="Agregar restricciÃ³n..."
                         />
                       ) : (
                         <>
@@ -1781,7 +2009,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   <div className="space-y-5">
                     <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3 flex items-center gap-2">
                       <Hash className="w-3.5 h-3.5 text-emerald-500" />
-                      Etiquetas de Clasificación
+                      Etiquetas de ClasificaciÃ³n
                     </h4>
                     <div className="flex flex-wrap gap-3">
                       {isEditing ? (
@@ -1824,7 +2052,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <div className="px-10 pb-10" >
                 <div className="space-y-4" >
                   <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3 flex items-center justify-between" >
-                    Resumen / Observaciones Clínicas
+                    Resumen / Observaciones ClÃ­nicas
                     {!isEditing && (
                       <span className="text-emerald-500 lowercase font-bold tracking-normal opacity-50" >
                         Solo visible para el nutricionista
@@ -1838,7 +2066,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         updateField("clinicalSummary", e.target.value)
                       }
                       className="w-full h-32 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
-                      placeholder="Ingresa notas clínicas, antecedentes importantes o evolución general..."
+                      placeholder="Ingresa notas clÃ­nicas, antecedentes importantes o evoluciÃ³n general..."
                     />
                   ) : (
                     <div className="p-8 bg-slate-50/50 rounded-2xl border border-slate-50 min-h-[100px]" >
@@ -1850,7 +2078,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         <div className="flex flex-col items-center justify-center gap-3 py-4 text-slate-300" >
                           <ClipboardList className="w-8 h-8 opacity-20" />
                           <p className="text-xs font-bold" >
-                            Sin observaciones clínicas registradas
+                            Sin observaciones clÃ­nicas registradas
                           </p>
                         </div>
                       )}
@@ -1881,7 +2109,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         updateField("nutritionalFocus", e.target.value)
                       }
                       className="bg-slate-100 border-none text-slate-800 font-semibold text-2xl h-12 p-2 focus:ring-1 focus:ring-emerald-500"
-                      placeholder="Ej. Déficit Calórico"
+                      placeholder="Ej. DÃ©ficit CalÃ³rico"
                     />
                   ) : (
                     <p className="text-2xl font-semibold tracking-tight leading-tight" >
@@ -1929,17 +2157,17 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                     <div className="space-y-4 relative z-10">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Calorías (kcal)</label>
+                          <label className="text-[10px] font-black uppercase text-slate-400">CalorÃ­as (kcal)</label>
                           {isEditing ? (
-                            <Input type="number" value={getCV("targetCalories")} onChange={e => updateCV("targetCalories", "Calorías Meta", e.target.value, "kcal")} className="font-bold border-slate-200" />
+                            <Input type="number" value={getCV("targetCalories")} onChange={e => updateCV("targetCalories", "CalorÃ­as Meta", e.target.value, "kcal")} className="font-bold border-slate-200" />
                           ) : (
                             <p className="font-bold text-amber-600">{getCV("targetCalories") || "No definido"}</p>
                           )}
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Proteína (g)</label>
+                          <label className="text-[10px] font-black uppercase text-slate-400">ProteÃ­na (g)</label>
                           {isEditing ? (
-                            <Input type="number" value={getCV("targetProtein")} onChange={e => updateCV("targetProtein", "Proteína Meta", e.target.value, "g")} className="font-bold border-slate-200" />
+                            <Input type="number" value={getCV("targetProtein")} onChange={e => updateCV("targetProtein", "ProteÃ­na Meta", e.target.value, "g")} className="font-bold border-slate-200" />
                           ) : (
                             <p className="font-bold text-emerald-600">{getCV("targetProtein") || "No definido"}</p>
                           )}
@@ -2026,7 +2254,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                       updateField("fitnessGoals", e.target.value)
                     }
                     className="w-full h-24 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-rose-500/20 transition-all resize-none"
-                    placeholder="Ej. Maratón en Septiembre, Hipertrofia tren inferior..."
+                    placeholder="Ej. MaratÃ³n en Septiembre, Hipertrofia tren inferior..."
                   />
                 ) : (
                   <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100" >
@@ -2036,7 +2264,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                       </p>
                     ) : (
                       <p className="text-xs font-semibold text-slate-400 text-center" >
-                        No se han definido objetivos aún.
+                        No se han definido objetivos aÃºn.
                       </p>
                     )}
                   </div>
@@ -2118,8 +2346,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <div className="space-y-4" >
                 <p className="text-xs text-slate-500 leading-relaxed font-medium" >
                   {patient.status === "Active"
-                    ? "El paciente está activo y siguiendo sus planes. Puedes pausar su seguimiento si ha terminado su tratamiento o está fuera por un tiempo."
-                    : "El paciente está inactivo. Sus planes no aparecerán en las listas por defecto, pero su historial clínico se mantiene intacto."}
+                    ? "El paciente estÃ¡ activo y siguiendo sus planes. Puedes pausar su seguimiento si ha terminado su tratamiento o estÃ¡ fuera por un tiempo."
+                    : "El paciente estÃ¡ inactivo. Sus planes no aparecerÃ¡n en las listas por defecto, pero su historial clÃ­nico se mantiene intacto."}
                 </p>
                 <Button
                   onClick={toggleStatus}
@@ -2146,7 +2374,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         <div className="space-y-6 lg:space-y-10 animate-in slide-in-from-right-4 duration-500 px-1 lg:px-6 py-2">
           <div className="bg-white p-6 lg:p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div>
-              <h2 className="text-xl lg:text-2xl font-bold text-slate-900">Historial Clínico</h2>
+              <h2 className="text-xl lg:text-2xl font-bold text-slate-900">Historial ClÃ­nico</h2>
               <p className="text-xs lg:text-sm font-medium text-slate-400">Visualiza y gestiona las consultas del paciente</p>
             </div>
             <Button
@@ -2263,7 +2491,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-10 px-4 rounded-2xl transition-all shadow-xl shadow-emerald-200/50 active:scale-95"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Iniciar Evaluación
+                    Iniciar EvaluaciÃ³n
                   </Button>
                 </div>
               )}
@@ -2280,10 +2508,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
               <div>
                 <h3 className="text-xl font-semibold text-slate-900">
-                  Seguimiento Biométrico
+                  Seguimiento BiomÃ©trico
                 </h3>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-tight">
-                  Gestiona la evolución física del paciente
+                  Gestiona la evoluciÃ³n fÃ­sica del paciente
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -2301,7 +2529,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
                 >
                   <Plus className="w-5 h-5 text-emerald-400" />
-                  Registrar Métrica
+                  Registrar MÃ©trica
                 </button>
               </div>
             </div>
@@ -2397,7 +2625,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           {info.label}
                         </h3>
                         <p className="text-xs font-semibold text-slate-400 opacity-80">
-                          Tendencia histórica ({info.unit})
+                          Tendencia histÃ³rica ({info.unit})
                         </p>
                         <div className="grid grid-cols-3 gap-2 mt-3">
                           <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
@@ -2415,7 +2643,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           </div>
                           <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight min-h-[18px]">
-                              Último valor
+                              Ãšltimo valor
                             </p>
                             <div className="flex items-baseline gap-1 flex-wrap mt-2">
                               <span className="text-sm font-black text-slate-700 leading-none">
@@ -2465,7 +2693,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           onClick={() => openMetricLogger(key)}
                           data-no-export="true"
                           className="p-3 bg-emerald-50 text-emerald-600 hover:text-white hover:bg-emerald-600 rounded-xl transition-all active:scale-95 cursor-pointer border border-emerald-100"
-                          title={`Registrar ${info.label} rápidamente`}
+                          title={`Registrar ${info.label} rÃ¡pidamente`}
                         >
                           <Plus className="w-4 h-4" />
                         </button>
@@ -2487,7 +2715,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           }}
                           data-no-export="true"
                           className="p-3 bg-slate-50 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all active:scale-95 cursor-pointer border border-transparent hover:border-rose-100"
-                          title={`Eliminar toda la métrica ${info.label}`}
+                          title={`Eliminar toda la mÃ©trica ${info.label}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -2587,7 +2815,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           );
                         }
 
-                        // Si solo hay un punto o ninguno, mostramos una visualización informativa
+                        // Si solo hay un punto o ninguno, mostramos una visualizaciÃ³n informativa
                         return (
                           <div className="h-full flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100 gap-4 group-hover:bg-slate-50 transition-colors">
                             <div className="w-20 h-20 bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center animate-in zoom-in-50 duration-500">
@@ -2613,7 +2841,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                               <p className="text-[10px] font-semibold text-slate-400 leading-tight">
                                 {latestPoint
                                   ? "Se necesitan al menos 2 registros en fechas distintas para generar la curva de tendencia."
-                                  : `No hay datos históricos para ${info.label.toLowerCase()}.`}
+                                  : `No hay datos histÃ³ricos para ${info.label.toLowerCase()}.`}
                               </p>
                             </div>
                           </div>
@@ -2663,7 +2891,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
                 <div className="space-y-4">
                   <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-tight ml-1">
-                    Observaciones Clínicas
+                    Observaciones ClÃ­nicas
                   </h4>
                   <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-slate-600 font-medium leading-relaxed">
                     {selectedConsultation.description || "Sin notas registradas."}
@@ -2674,7 +2902,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   selectedConsultation.metrics.length > 0 && (
                     <div className="space-y-4">
                       <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-tight ml-1">
-                        Métricas Clave
+                        MÃ©tricas Clave
                       </h4>
                       <div className="grid grid-cols-2 gap-4">
                         {selectedConsultation.metrics.map((m, i) => (
@@ -2720,10 +2948,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <div>
                   <h3 className="text-2xl font-semibold text-slate-900 tracking-tight">
-                    Registrar Evolución
+                    Registrar EvoluciÃ³n
                   </h3>
                   <p className="text-slate-500 font-medium text-xs mt-1">
-                    Añade datos biométricos fuera de consulta
+                    AÃ±ade datos biomÃ©tricos fuera de consulta
                   </p>
                 </div>
                 <button
@@ -2755,7 +2983,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 <div className="space-y-6">
                   <div className="flex justify-between items-center">
                     <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-tight">
-                      Seleccionar Métricas
+                      Seleccionar MÃ©tricas
                     </h4>
                     <div className="flex items-center gap-2">
                       <button
@@ -2773,7 +3001,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         onClick={addMetricToForm}
                         className="text-xs font-semibold bg-slate-50 text-slate-500 px-4 py-2 rounded-xl border border-slate-100 hover:bg-slate-100 transition-all flex items-center gap-2 cursor-pointer"
                       >
-                        <Plus className="w-4 h-4" /> FILA VACÍA
+                        <Plus className="w-4 h-4" /> FILA VACÃA
                       </button>
                     </div>
                   </div>
@@ -2856,8 +3084,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                 </option>
                                 <option value="kg">kg (Kilogramos)</option>
                                 <option value="g">g (Gramos)</option>
-                                <option value="cm">cm (Centímetros)</option>
-                                <option value="mm">mm (Milímetros)</option>
+                                <option value="cm">cm (CentÃ­metros)</option>
+                                <option value="mm">mm (MilÃ­metros)</option>
                                 <option value="%">% (Porcentaje)</option>
                                 <option value="mg/dL">mg/dL</option>
                                 <option value="mmol/L">mmol/L</option>
@@ -2909,7 +3137,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         )
       }
 
-      {/* Modal de edición de historial detallado */}
+      {/* Modal de ediciÃ³n de historial detallado */}
       {
         isEditMetricHistoryModalOpen && editingMetricKey && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
@@ -2950,7 +3178,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   <div className="py-20 text-center flex flex-col items-center gap-4">
                     <ClipboardList className="w-12 h-12 text-slate-200" />
                     <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">
-                      No hay registros para esta métrica
+                      No hay registros para esta mÃ©trica
                     </p>
                   </div>
                 )}
@@ -2969,21 +3197,569 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         )
       }
 
-      {/* Modal para Nueva Métrica (Global) */}
+      {activeTab === "Acompañamiento" && (
+        <div className="space-y-8 animate-in fade-in duration-500">
+          <div className="flex flex-col gap-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h3 className="text-xl font-semibold text-slate-900">Seguimiento compartido</h3>
+              <p className="text-xs font-semibold uppercase tracking-tight text-slate-400">
+                El paciente deja consultas, seguimiento y respuestas asincrónicas; tú puedes filtrar por fecha y secciones.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={() => setIsPortalInviteModalOpen(true)}
+                className="rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white shadow-sm hover:bg-emerald-700"
+              >
+                <Link2 className="mr-2 h-4 w-4" />
+                Invitar / regenerar link
+              </Button>
+              {generatedPortalLink && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleCopyPortalLink()}
+                  isLoading={isCopyingPortalLink}
+                  className="rounded-2xl px-5 py-3 font-semibold"
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copiar link
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              {
+                label: "Entradas filtradas",
+                value: filteredPortalEntries.length,
+                icon: CalendarDays,
+                color: "text-emerald-600",
+                bg: "bg-emerald-50",
+              },
+              {
+                label: "Consultas",
+                value: filteredPortalQuestions.length,
+                icon: MessageSquare,
+                color: "text-amber-600",
+                bg: "bg-amber-50",
+              },
+              {
+                label: "Seguimiento",
+                value: filteredPortalTracking.length,
+                icon: Sparkles,
+                color: "text-slate-600",
+                bg: "bg-slate-50",
+              },
+              {
+                label: "Respuestas",
+                value: filteredPortalReplies.length,
+                icon: Reply,
+                color: "text-blue-600",
+                bg: "bg-blue-50",
+              },
+            ].map((card) => (
+              <div key={card.label} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${card.bg}`}>
+                    <card.icon className={`h-5 w-5 ${card.color}`} />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.22em] text-slate-300">{card.label}</span>
+                </div>
+                <p className="mt-4 text-3xl font-black text-slate-900">{card.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {portalOverview?.summary.alerts?.length ? (
+            <div className="space-y-3 rounded-3xl border border-amber-100 bg-amber-50/60 p-6">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-600">Alertas del acompañamiento</p>
+              <div className="grid gap-3 md:grid-cols-2">
+                {portalOverview.summary.alerts.map((alert) => (
+                  <div
+                    key={alert}
+                    className="rounded-2xl border border-amber-100 bg-white px-4 py-3 text-sm font-medium text-amber-950 shadow-sm"
+                  >
+                    {alert}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm">
+              Todavía no hay alertas. Cuando el paciente deje de registrar o aparezcan preguntas sin respuesta, aparecerán aquí.
+            </div>
+          )}
+
+          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="space-y-6">
+              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Filtros</p>
+                    <h4 className="mt-2 text-2xl font-semibold text-slate-900">Filtra por fecha, tipo y sección</h4>
+                  </div>
+                  <Filter className="h-5 w-5 text-emerald-500" />
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Desde</label>
+                    <Input
+                      type="date"
+                      value={portalFilter.from}
+                      onChange={(e) => setPortalFilter((prev) => ({ ...prev, from: e.target.value }))}
+                      className="h-12 rounded-2xl border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Hasta</label>
+                    <Input
+                      type="date"
+                      value={portalFilter.to}
+                      onChange={(e) => setPortalFilter((prev) => ({ ...prev, to: e.target.value }))}
+                      className="h-12 rounded-2xl border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Tipo</label>
+                    <select
+                      value={portalFilter.kind}
+                      onChange={(e) =>
+                        setPortalFilter((prev) => ({
+                          ...prev,
+                          kind: e.target.value as typeof portalFilter.kind,
+                        }))
+                      }
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none"
+                    >
+                      <option value="ALL">Todos</option>
+                      <option value="QUESTION">Consultas</option>
+                      <option value="TRACKING">Seguimiento</option>
+                      <option value="REPLY">Respuestas</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Sección</label>
+                    <select
+                      value={portalFilter.section}
+                      onChange={(e) =>
+                        setPortalFilter((prev) => ({
+                          ...prev,
+                          section: e.target.value as typeof portalFilter.section,
+                        }))
+                      }
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none"
+                    >
+                      <option value="ALL">Todas</option>
+                      <option value="alimentacion">Alimentación</option>
+                      <option value="suplementos">Suplementos</option>
+                      <option value="actividadFisica">Actividad física</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2 xl:col-span-1">
+                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Buscar</label>
+                    <Input
+                      value={portalFilter.search}
+                      onChange={(e) => setPortalFilter((prev) => ({ ...prev, search: e.target.value }))}
+                      className="h-12 rounded-2xl border-slate-200"
+                      placeholder="texto libre"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {replyTarget && (
+                <div className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-5 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Responder</p>
+                      <h4 className="mt-2 text-xl font-semibold text-slate-900">Mensaje para el paciente</h4>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setReplyTarget(null);
+                        setReplyMessage("");
+                      }}
+                      className="text-xs font-black uppercase tracking-[0.22em] text-slate-400"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                  <p className="mt-3 text-sm text-slate-600">{replyTarget.body}</p>
+                  <Textarea
+                    value={replyMessage}
+                    onChange={(e) => setReplyMessage(e.target.value)}
+                    className="mt-4 min-h-[120px] rounded-3xl border-slate-200"
+                    placeholder="Escribe la respuesta que verá el paciente en la tab de Respuestas del nutri."
+                  />
+                  <div className="mt-4 flex gap-3">
+                    <Button
+                      onClick={handleReplyPortalQuestion}
+                      isLoading={isSubmittingPortalReply}
+                      className="rounded-2xl bg-slate-950 px-5 font-semibold text-white hover:bg-slate-800"
+                    >
+                      Enviar respuesta
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setReplyTarget(null);
+                        setReplyMessage("");
+                      }}
+                      className="rounded-2xl px-5 font-semibold"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Historial</p>
+                    <h4 className="mt-2 text-2xl font-semibold text-slate-900">Últimos registros filtrados</h4>
+                  </div>
+                  <MessageSquare className="h-5 w-5 text-emerald-500" />
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  {filteredPortalEntries.length > 0 ? (
+                    filteredPortalEntries.map((entry) => {
+                      if (entry.kind === "QUESTION") {
+                        return (
+                          <article key={entry.id} className="rounded-3xl border border-slate-100 bg-slate-50/70 p-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                  Consulta del paciente
+                                </p>
+                              </div>
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  setReplyTarget(entry);
+                                  setReplyMessage("");
+                                }}
+                                className="rounded-2xl px-4 py-2 text-xs font-semibold"
+                              >
+                                Responder
+                              </Button>
+                            </div>
+                            <p className="mt-4 text-sm leading-7 text-slate-700">{entry.body}</p>
+                            <div className="mt-4 space-y-3">
+                              {(entry.replies || []).length > 0 ? (
+                                entry.replies!.map((reply) => (
+                                  <div key={reply.id} className="rounded-2xl border border-emerald-100 bg-white p-4">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">
+                                      Respuesta guardada
+                                    </p>
+                                    <p className="mt-2 text-sm leading-7 text-slate-700">{reply.body}</p>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">
+                                  Todavía no hay respuesta.
+                                </div>
+                              )}
+                            </div>
+                          </article>
+                        );
+                      }
+
+                      if (entry.kind === "TRACKING") {
+                        const sections = entry.payload?.sections || {};
+                        return (
+                          <article key={entry.id} className="rounded-3xl border border-slate-100 bg-slate-50/70 p-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                  Seguimiento del paciente
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-100">
+                                JSON simple
+                              </span>
+                            </div>
+                            <div className="mt-4 grid gap-3">
+                              {sections.alimentacion && (
+                                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Alimentación</p>
+                                  <p className="mt-2 text-sm leading-7 text-slate-700">{sections.alimentacion}</p>
+                                </div>
+                              )}
+                              {sections.suplementos && (
+                                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Suplementos</p>
+                                  <p className="mt-2 text-sm leading-7 text-slate-700">{sections.suplementos}</p>
+                                </div>
+                              )}
+                              {sections.actividadFisica && (
+                                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Actividad física</p>
+                                  <p className="mt-2 text-sm leading-7 text-slate-700">{sections.actividadFisica}</p>
+                                </div>
+                              )}
+                            </div>
+                          </article>
+                        );
+                      }
+
+                      return (
+                        <article key={entry.id} className="rounded-3xl border border-slate-100 bg-slate-50/70 p-5">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                Respuesta enviada
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-600 ring-1 ring-blue-100">
+                              Respuesta
+                            </span>
+                          </div>
+                          <p className="mt-4 text-sm leading-7 text-slate-700">{entry.body}</p>
+                          {entry.replyTo?.body && (
+                            <div className="mt-4 rounded-2xl border border-blue-100 bg-white p-4">
+                              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-600">Respondió a</p>
+                              <p className="mt-2 text-sm leading-7 text-slate-600">{entry.replyTo.body}</p>
+                            </div>
+                          )}
+                        </article>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                      No hay registros con esos filtros todavía.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Link activo</p>
+                    <h4 className="mt-2 text-2xl font-semibold text-slate-900">Estado de invitación</h4>
+                  </div>
+                  <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                </div>
+                <div className="mt-5 space-y-3 rounded-3xl border border-slate-100 bg-slate-50/70 p-5">
+                  <p className="text-sm font-semibold text-slate-700">
+                    {portalOverview?.portal.activeInvitation
+                      ? `Activo hasta ${new Date(portalOverview.portal.activeInvitation.expiresAt).toLocaleDateString("es-CL")}`
+                      : "Aún no hay una invitación activa"}
+                  </p>
+                  <p className="text-xs leading-6 text-slate-500">
+                    Si generas uno nuevo, el anterior se revoca. Si bloqueas el acceso, el paciente no podrá entrar aunque recuerde el código.
+                  </p>
+                  {generatedPortalLink ? (
+                    <div className="rounded-2xl bg-white p-4 ring-1 ring-emerald-100">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Link generado</p>
+                      <p className="mt-2 break-all text-sm font-medium text-slate-800">{generatedPortalLink}</p>
+                      {portalAccessCode && (
+                        <div className="mt-3 rounded-2xl border border-dashed border-emerald-100 bg-emerald-50 px-4 py-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">Código fijo</p>
+                          <p className="mt-1 text-lg font-black tracking-[0.28em] text-slate-900">{portalAccessCode}</p>
+                        </div>
+                      )}
+                      <div className="mt-4 flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => handleCopyPortalLink()}
+                          isLoading={isCopyingPortalLink}
+                          className="flex-1 rounded-2xl"
+                        >
+                          <Copy className="mr-2 h-4 w-4" />
+                          Copiar
+                        </Button>
+                        <Button
+                          variant="default"
+                          onClick={() => window.open(generatedPortalLink, "_blank", "noopener,noreferrer")}
+                          className="flex-1 rounded-2xl"
+                        >
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Abrir
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">
+                      Aquí aparecerá el enlace recién generado para compartir por WhatsApp o correo.
+                    </div>
+                  )}
+                  {portalOverview?.portal.latestInvitation && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          handleTogglePortalAccess(
+                            portalOverview.portal.latestInvitation?.status === "BLOCKED" ? "ACTIVE" : "BLOCKED",
+                          )
+                        }
+                        className="flex-1 rounded-2xl"
+                      >
+                        {portalOverview.portal.latestInvitation?.status === "BLOCKED" ? "Reactivar acceso" : "Bloquear acceso"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Material asignado</p>
+                <h4 className="mt-2 text-2xl font-semibold text-slate-900">Lo que el paciente está trabajando</h4>
+                <div className="mt-5 space-y-3">
+                  {(portalOverview?.patient.projects || patient.projects || []).length > 0 ? (
+                    (portalOverview?.patient.projects || patient.projects || []).map((project) => (
+                      <div key={project.id} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-4">
+                        <p className="text-sm font-black text-slate-900">{project.name}</p>
+                        <p className="mt-1 text-xs text-slate-500">{project.description || "Sin descripción"}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {project.activeDietCreation && (
+                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-emerald-100">
+                              {project.activeDietCreation.name}
+                            </span>
+                          )}
+                          {project.activeRecipeCreation && (
+                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-blue-700 ring-1 ring-blue-100">
+                              {project.activeRecipeCreation.name}
+                            </span>
+                          )}
+                          {project.activeDeliverableCreation && (
+                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-700 ring-1 ring-amber-100">
+                              {project.activeDeliverableCreation.name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
+                      Todavía no hay material asignado.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Modal
+        isOpen={isPortalInviteModalOpen}
+        onClose={() => setIsPortalInviteModalOpen(false)}
+        title="Invitar al portal del paciente"
+      >
+        <div className="space-y-5 py-2">
+          <div className="rounded-3xl border border-emerald-100 bg-emerald-50/70 p-4">
+            <p className="text-sm font-semibold text-emerald-900">
+              Genera un acceso privado para que el paciente registre su seguimiento fuera de consulta.
+            </p>
+            <p className="mt-2 text-xs leading-6 text-emerald-900/75">
+              El enlace se puede compartir por WhatsApp o email y el código fijo de 6 dígitos funciona como su llave personal.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+              Correo del paciente
+            </label>
+            <Input
+              type="email"
+              value={portalInviteEmail}
+              onChange={(e) => setPortalInviteEmail(e.target.value)}
+              placeholder="paciente@correo.com"
+              className="h-12 rounded-2xl border-slate-200"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+              Vigencia del enlace (dÃ­as)
+            </label>
+            <Input
+              type="number"
+              min="1"
+              max="90"
+              value={portalInviteDays}
+              onChange={(e) => setPortalInviteDays(e.target.value)}
+              className="h-12 rounded-2xl border-slate-200"
+            />
+          </div>
+
+          {generatedPortalLink && (
+            <div className="space-y-3 rounded-3xl border border-slate-100 bg-slate-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Ãšltimo enlace generado</p>
+              <p className="break-all text-sm font-medium text-slate-800">{generatedPortalLink}</p>
+              {portalAccessCode && (
+                <div className="rounded-2xl border border-emerald-100 bg-white px-4 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Código fijo</p>
+                  <p className="mt-1 text-lg font-black tracking-[0.28em] text-slate-900">{portalAccessCode}</p>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 rounded-2xl"
+                  onClick={() => handleCopyPortalLink()}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copiar
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 rounded-2xl"
+                  onClick={() => window.open(generatedPortalLink, "_blank", "noopener,noreferrer")}
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Abrir
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              variant="ghost"
+              onClick={() => setIsPortalInviteModalOpen(false)}
+              className="rounded-2xl px-5"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreatePortalInvite}
+              isLoading={isCreatingPortalInvite}
+              className="rounded-2xl bg-emerald-600 px-5 text-white hover:bg-emerald-700"
+            >
+              <Send className="mr-2 h-4 w-4" />
+              Generar link
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal para Nueva MÃ©trica (Global) */}
       <Modal
         isOpen={isAddMetricModalOpen}
         onClose={() => setIsAddMetricModalOpen(false)}
-        title="Crear Nueva Métrica"
+        title="Crear Nueva MÃ©trica"
       >
         <div className="space-y-6 py-4 px-2">
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Nombre de la Métrica
+                Nombre de la MÃ©trica
               </label>
               <div className="relative">
                 <Input
-                  placeholder="Ej: Circunferencia de Brazo, Pliegue Cutáneo..."
+                  placeholder="Ej: Circunferencia de Brazo, Pliegue CutÃ¡neo..."
                   value={newMetric.name}
                   onChange={(e) => {
                     const val = e.target.value;
@@ -3000,7 +3776,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   const known = availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase());
                   return known ? (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="h-5 w-5 rounded-full bg-amber-100 flex items-center justify-center border border-amber-200" title="Esta métrica ya existe">
+                      <div className="h-5 w-5 rounded-full bg-amber-100 flex items-center justify-center border border-amber-200" title="Esta mÃ©trica ya existe">
                         <AlertCircle className="w-3 h-3 text-amber-600" />
                       </div>
                     </div>
@@ -3011,7 +3787,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 const known = availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase());
                 return known ? (
                   <p className="text-[10px] font-bold text-amber-600 animate-in fade-in slide-in-from-top-1">
-                    Esta métrica ya está registrada en el sistema.
+                    Esta mÃ©trica ya estÃ¡ registrada en el sistema.
                   </p>
                 ) : null;
               })()}
@@ -3042,8 +3818,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   </option>
                   <option value="kg">kg (Kilogramos)</option>
                   <option value="g">g (Gramos)</option>
-                  <option value="cm">cm (Centímetros)</option>
-                  <option value="mm">mm (Milímetros)</option>
+                  <option value="cm">cm (CentÃ­metros)</option>
+                  <option value="mm">mm (MilÃ­metros)</option>
                   <option value="%">% (Porcentaje)</option>
                   <option value="mg/dL">mg/dL</option>
                   <option value="mmol/L">mmol/L</option>
@@ -3063,9 +3839,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             </div>
             <p className="text-xs text-slate-400 mt-2 font-medium">
               <Globe className="w-3 h-3 inline mr-1 text-emerald-500" />
-              Esta métrica será{" "}
+              Esta mÃ©trica serÃ¡{" "}
               <span className="text-emerald-600 font-bold">Global</span>. Otros
-              nutricionistas podrán verla y reutilizarla. Solo tú podrás
+              nutricionistas podrÃ¡n verla y reutilizarla. Solo tÃº podrÃ¡s
               eliminarla.
             </p>
           </div>
@@ -3087,7 +3863,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         </div>
       </Modal>
 
-      {/* Modal Confirmación Sobreescribir Métrica */}
+      {/* Modal ConfirmaciÃ³n Sobreescribir MÃ©trica */}
       <ConfirmationModal
         isOpen={isOverwriteConfirmOpen}
         onClose={() => {
@@ -3095,12 +3871,12 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           setConflictingConsultationId(null);
         }}
         onConfirm={confirmSaveMetrics}
-        title="¿Sobreescribir Valores?"
-        description="Ya existe un registro con esta fecha. Los valores nuevos reemplazarán a los existentes para las métricas que coincidan. Las demás métricas de esa fecha se mantendrán intactas."
-        confirmText="Sí, sobreescribir"
+        title="Â¿Sobreescribir Valores?"
+        description="Ya existe un registro con esta fecha. Los valores nuevos reemplazarÃ¡n a los existentes para las mÃ©tricas que coincidan. Las demÃ¡s mÃ©tricas de esa fecha se mantendrÃ¡n intactas."
+        confirmText="SÃ­, sobreescribir"
         cancelText="Cancelar"
       />
-      {/* Modal de Exportación PDF con aviso de IA */}
+      {/* Modal de ExportaciÃ³n PDF con aviso de IA */}
       <Modal
         isOpen={isExportModalOpen}
         onClose={() => !isExporting && setIsExportModalOpen(false)}
@@ -3112,8 +3888,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <Zap className="w-6 h-6 animate-pulse" />
             </div>
             <div className="space-y-2">
-              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Próximamente: Análisis por IA</h4>
-                En futuras actualizaciones, nuestro motor de IA realizará un análisis automático de estas tendencias para identificar patrones de éxito y áreas de mejora en el tratamiento de <strong>{patient?.fullName || "Paciente"}</strong>.
+              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">PrÃ³ximamente: AnÃ¡lisis por IA</h4>
+                En futuras actualizaciones, nuestro motor de IA realizarÃ¡ un anÃ¡lisis automÃ¡tico de estas tendencias para identificar patrones de Ã©xito y Ã¡reas de mejora en el tratamiento de <strong>{patient?.fullName || "Paciente"}</strong>.
             </div>
           </div>
 
@@ -3129,7 +3905,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 <CalendarDays className="w-5 h-5 text-slate-400" />
                 <div className="flex-1">
                    <p className="text-[10px] font-black uppercase text-slate-400">Contenido</p>
-                   <p className="text-xs font-bold text-slate-700">Resumen textual + Gráficos de tendencia</p>
+                   <p className="text-xs font-bold text-slate-700">Resumen textual + GrÃ¡ficos de tendencia</p>
                 </div>
              </div>
           </div>
@@ -3164,7 +3940,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         </div>
       </Modal>
 
-      {/* Modal Confirmación Borrar Métrica Completa */}
+      {/* Modal ConfirmaciÃ³n Borrar MÃ©trica Completa */}
       <ConfirmationModal
         isOpen={isDeleteEntireMetricConfirmOpen}
         onClose={() => {
@@ -3172,9 +3948,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           setMetricKeyToDelete(null);
         }}
         onConfirm={handleDeleteEntireMetric}
-        title={`¿Eliminar Historial de ${metricKeyToDelete ? getMetricInfo(metricKeyToDelete).label : ""}?`}
-        description="Esta acción eliminará TODOS los registros históricos de esta métrica para este paciente (incluyendo el valor inicial si aplica). Esta acción no se puede deshacer."
-        confirmText="Sí, eliminar todo"
+        title={`Â¿Eliminar Historial de ${metricKeyToDelete ? getMetricInfo(metricKeyToDelete).label : ""}?`}
+        description="Esta acciÃ³n eliminarÃ¡ TODOS los registros histÃ³ricos de esta mÃ©trica para este paciente (incluyendo el valor inicial si aplica). Esta acciÃ³n no se puede deshacer."
+        confirmText="SÃ­, eliminar todo"
         cancelText="Cancelar"
         variant="destructive"
       />
@@ -3183,9 +3959,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         isOpen={isDeletePatientConfirmOpen}
         onClose={() => setIsDeletePatientConfirmOpen(false)}
         onConfirm={handleDelete}
-        title="¿Eliminar paciente?"
-        description="¿Estás seguro de que deseas eliminar este paciente? Esta acción es irreversible."
-        confirmText="Sí, eliminar"
+        title="Â¿Eliminar paciente?"
+        description="Â¿EstÃ¡s seguro de que deseas eliminar este paciente? Esta acciÃ³n es irreversible."
+        confirmText="SÃ­, eliminar"
         variant="destructive"
       />
 
@@ -3216,9 +3992,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             setConsultationToDelete(null);
           }
         }}
-        title="¿Eliminar consulta?"
-        description="¿Estás seguro de que deseas eliminar esta consulta? Se eliminarán también las métricas asociadas a ella."
-        confirmText="Sí, eliminar"
+        title="Â¿Eliminar consulta?"
+        description="Â¿EstÃ¡s seguro de que deseas eliminar esta consulta? Se eliminarÃ¡n tambiÃ©n las mÃ©tricas asociadas a ella."
+        confirmText="SÃ­, eliminar"
         variant="destructive"
       />
 
@@ -3242,7 +4018,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 }
 
 /**
- * Sub-componente para gestionar una fila de historial de métrica
+ * Sub-componente para gestionar una fila de historial de mÃ©trica
  */
 function MetricRecordRow({
   record,
@@ -3364,9 +4140,9 @@ function MetricRecordRow({
         isOpen={isDeleteConfirmOpen}
         onClose={() => setIsDeleteConfirmOpen(false)}
         onConfirm={handleDelete}
-        title="¿Eliminar registro?"
-        description="Esta acción eliminará permanentemente este valor de métrica del historial del paciente. ¿Deseas continuar?"
-        confirmText="Sí, eliminar"
+        title="Â¿Eliminar registro?"
+        description="Esta acciÃ³n eliminarÃ¡ permanentemente este valor de mÃ©trica del historial del paciente. Â¿Deseas continuar?"
+        confirmText="SÃ­, eliminar"
         cancelText="No, cancelar"
         variant="destructive"
       />

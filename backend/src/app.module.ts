@@ -29,6 +29,7 @@ import { CommonModule } from './common/common.module';
 import { DietModule } from './modules/diet/diet.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
+import { PatientPortalsModule } from './modules/patient-portals/patient-portals.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
     DietModule,
     ProjectsModule,
     PermissionsModule,
+    PatientPortalsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

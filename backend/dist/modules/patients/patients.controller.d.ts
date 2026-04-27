@@ -68,8 +68,31 @@ export declare class PatientsController {
             description: string | null;
             date: Date;
             patientId: string;
-            metrics: import("@prisma/client/runtime/library").JsonValue | null;
             title: string;
+            metrics: import("@prisma/client/runtime/library").JsonValue | null;
+        }[];
+        projects: {
+            name: string;
+            id: string;
+            mode: string;
+            status: string;
+            updatedAt: Date;
+            description: string | null;
+            activeDeliverableCreation: {
+                name: string;
+                id: string;
+                type: string;
+            } | null;
+            activeDietCreation: {
+                name: string;
+                id: string;
+                type: string;
+            } | null;
+            activeRecipeCreation: {
+                name: string;
+                id: string;
+                type: string;
+            } | null;
         }[];
         exams: {
             name: string;

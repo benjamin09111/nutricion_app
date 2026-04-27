@@ -157,6 +157,27 @@ let MailService = class MailService {
             throw error;
         }
     }
+    async sendPatientPortalInvitationEmail(data) {
+        try {
+            await this.mailerService.sendMail({
+                to: data.email,
+                subject: `Tu portal de seguimiento - ${data.nutritionistName}`,
+                template: 'patient-portal-invitation',
+                context: {
+                    patientName: data.patientName,
+                    nutritionistName: data.nutritionistName,
+                    shareUrl: data.shareUrl,
+                    accessCode: data.accessCode,
+                    expiresAt: data.expiresAt.toLocaleDateString('es-CL'),
+                    year: new Date().getFullYear(),
+                },
+            });
+            console.log(`✅ Invitación de portal enviada a: ${data.email}`);
+        }
+        catch (error) {
+            console.error('❌ Error enviando invitación de portal:', error);
+        }
+    }
 };
 exports.MailService = MailService;
 exports.MailService = MailService = __decorate([

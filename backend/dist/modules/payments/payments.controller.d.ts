@@ -17,10 +17,10 @@ export declare class PaymentsController {
         updatedAt: Date;
         accountId: string;
         currency: string;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         method: import(".prisma/client").$Enums.PaymentMethod;
         transactionId: string | null;
         idempotencyKey: string | null;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         paidAt: Date | null;
     })[]>;
     findRecent(limit: string): Promise<({
@@ -37,10 +37,10 @@ export declare class PaymentsController {
         updatedAt: Date;
         accountId: string;
         currency: string;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         method: import(".prisma/client").$Enums.PaymentMethod;
         transactionId: string | null;
         idempotencyKey: string | null;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         paidAt: Date | null;
     })[]>;
     getStats(): Promise<{
@@ -62,10 +62,10 @@ export declare class PaymentsController {
             updatedAt: Date;
             accountId: string;
             currency: string;
+            metadata: import("@prisma/client/runtime/library").JsonValue | null;
             method: import(".prisma/client").$Enums.PaymentMethod;
             transactionId: string | null;
             idempotencyKey: string | null;
-            metadata: import("@prisma/client/runtime/library").JsonValue | null;
             paidAt: Date | null;
         };
         subscription: {

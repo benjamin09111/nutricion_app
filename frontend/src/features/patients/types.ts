@@ -28,6 +28,25 @@ export interface Patient {
   // UI specific/Legacy fields
   status?: "Active" | "Inactive";
   lastVisit?: string;
+  projects?: PatientProject[];
+}
+
+export interface PatientProject {
+  id: string;
+  name: string;
+  description?: string | null;
+  mode: string;
+  status: string;
+  updatedAt: string;
+  activeDietCreation?: ProjectCreationSummary | null;
+  activeRecipeCreation?: ProjectCreationSummary | null;
+  activeDeliverableCreation?: ProjectCreationSummary | null;
+}
+
+export interface ProjectCreationSummary {
+  id: string;
+  name: string;
+  type: string;
 }
 
 export interface ExamResultValue {

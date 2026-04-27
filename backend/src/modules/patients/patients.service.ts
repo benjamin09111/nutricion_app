@@ -134,6 +134,38 @@ export class PatientsService {
                 exams: {
                     orderBy: { date: 'desc' },
                 },
+                projects: {
+                    orderBy: { updatedAt: 'desc' },
+                    select: {
+                        id: true,
+                        name: true,
+                        description: true,
+                        mode: true,
+                        status: true,
+                        updatedAt: true,
+                        activeDietCreation: {
+                            select: {
+                                id: true,
+                                name: true,
+                                type: true,
+                            },
+                        },
+                        activeRecipeCreation: {
+                            select: {
+                                id: true,
+                                name: true,
+                                type: true,
+                            },
+                        },
+                        activeDeliverableCreation: {
+                            select: {
+                                id: true,
+                                name: true,
+                                type: true,
+                            },
+                        },
+                    },
+                },
             },
         });
 

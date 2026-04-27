@@ -54,11 +54,11 @@ export declare class ProjectsService {
         updatedAt: Date;
         description: string | null;
         patientId: string | null;
-        metadata: Prisma.JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;
         activeCartCreationId: string | null;
         activeDeliverableCreationId: string | null;
+        metadata: Prisma.JsonValue | null;
     }>;
     findAll(nutritionistId: string, search?: string, status?: string): Promise<({
         patient: {
@@ -103,11 +103,11 @@ export declare class ProjectsService {
         updatedAt: Date;
         description: string | null;
         patientId: string | null;
-        metadata: Prisma.JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;
         activeCartCreationId: string | null;
         activeDeliverableCreationId: string | null;
+        metadata: Prisma.JsonValue | null;
     })[]>;
     findOne(nutritionistId: string, id: string): Promise<{
         patient: {
@@ -152,11 +152,11 @@ export declare class ProjectsService {
         updatedAt: Date;
         description: string | null;
         patientId: string | null;
-        metadata: Prisma.JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;
         activeCartCreationId: string | null;
         activeDeliverableCreationId: string | null;
+        metadata: Prisma.JsonValue | null;
     }>;
     update(nutritionistId: string, id: string, dto: UpdateProjectDto): Promise<{
         patient: {
@@ -201,10 +201,10 @@ export declare class ProjectsService {
         updatedAt: Date;
         description: string | null;
         patientId: string | null;
-        metadata: Prisma.JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;
         activeCartCreationId: string | null;
         activeDeliverableCreationId: string | null;
+        metadata: Prisma.JsonValue | null;
     }>;
 }
