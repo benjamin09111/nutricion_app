@@ -77,7 +77,9 @@ type RecipeMetadata = {
   tags?: string[];
   mealSection?: string;
   customIngredientNames?: string[];
-  customIngredients?: string[];
+  customIngredients?: Array<string | { name?: string }>;
+  ingredients?: string[];
+  source?: string;
 };
 
 type RecipeApiSummary = {
@@ -801,12 +803,25 @@ export default function RecipesClient() {
   };
 
   const mapRecipeSummaryToRecipe = (recipe: RecipeApiSummary): Recipe => {
-    const ingredientNames = (recipe.ingredients || []).map(
-      (item) => item.ingredient.name,
-    );
-    const mainIngredients = (recipe.ingredients || [])
+    const ingredientNames = (recipe.ingredients || []).map((item) => item.ingredient.name);
+    const metadataIngredientNames = Array.from(
+      new Set([
+        ...(recipe.metadata?.customIngredientNames || []),
+        ...(recipe.metadata?.customIngredients || []).map((item) =>
+          typeof item === "string" ? item : item?.name || "",
+        ),
+        ...(recipe.metadata?.ingredients || []),
+      ]),
+    ).filter(Boolean);
+    const resolvedIngredientNames =
+      ingredientNames.length > 0 ? ingredientNames : metadataIngredientNames;
+    const resolvedMainIngredients = (recipe.ingredients || [])
       .filter((item) => item.isMain)
       .map((item) => item.ingredient.name);
+    const mainIngredients =
+      resolvedMainIngredients.length > 0
+        ? resolvedMainIngredients
+        : resolvedIngredientNames.slice(0, Math.max(1, Math.min(3, resolvedIngredientNames.length)));
 
     return {
       id: recipe.id,
@@ -817,14 +832,14 @@ export default function RecipesClient() {
         "Plato disponible para asignar a este bloque.",
       preparation: recipe.preparation || undefined,
       complexity:
-        ingredientNames.length > 6 || (recipe.preparation || "").length > 180
+        resolvedIngredientNames.length > 6 || (recipe.preparation || "").length > 180
           ? "elaborada"
           : "simple",
       protein: recipe.proteins || 0,
       calories: recipe.calories || 0,
       carbs: recipe.carbs || 0,
       fats: recipe.lipids || 0,
-      ingredients: ingredientNames,
+      ingredients: resolvedIngredientNames,
       source: classifyRecipeSource(recipe),
       authorLabel: recipe.nutritionist?.fullName || undefined,
       mainIngredients,
@@ -1886,6 +1901,51 @@ export default function RecipesClient() {
     toast.success(`Bloque actualizado con ${recipe.title}`);
   };
 
+  const fillCurrentDayWithMyRecipes = () => {
+    const myRecipes = recipeLibrary.filter((recipe) => recipe.source === "mine");
+
+    if (myRecipes.length === 0) {
+      toast.error("Todavía no tienes platos creados para rellenar.");
+      return;
+    }
+
+    let filledCount = 0;
+
+    setWeekSlots((prev) => {
+      const next = { ...prev };
+      const daySlots = [...(next[currentDay] || [])];
+      const usedIds = new Set<string>();
+
+      const updatedSlots = daySlots.map((slot) => {
+        if (slot.recipe) return slot;
+
+        const selectedRecipe = myRecipes.find(
+          (recipe) => !usedIds.has(recipe.id) && isRecipeMealSectionCompatible(recipe, slot),
+        );
+
+        if (!selectedRecipe) return slot;
+
+        usedIds.add(selectedRecipe.id);
+        filledCount += 1;
+        return {
+          ...slot,
+          recipe: selectedRecipe,
+        };
+      });
+
+      next[currentDay] = updatedSlots;
+      return next;
+    });
+
+    if (filledCount === 0) {
+      toast.info("No encontramos platos creados que coincidan con los bloques de hoy.");
+      return;
+    }
+
+    setShowAiFillModal(false);
+    toast.success(`Se rellenaron ${filledCount} bloques con tus platos creados.`);
+  };
+
   const availableMealSectionsToAdd = useMemo(() => {
     const currentSections = new Set(
       getStructureTemplate(currentSlots).map(
@@ -2558,6 +2618,36 @@ export default function RecipesClient() {
   const actionDockItems: ActionDockItem[] = useMemo(
     () => [
       {
+        id: "created-recipes",
+        icon: ChefHat,
+        label: showOnlyMyRecipes ? "Mis platos creados" : "Mostrar mis platos",
+        variant: "emerald",
+        onClick: () => {
+          setShowOnlyMyRecipes(true);
+          setShowMatchingOnly(true);
+          setRecipeModalTab("mine");
+          setRecipeSearch("");
+          setRecipeMealSectionFilter("");
+          setRecipeLibraryPage(1);
+          toast.success("Mostrando tus platos creados.");
+        },
+      },
+      {
+        id: "created-recipes-anyway",
+        icon: Library,
+        label: "Importar aunque no coincidan",
+        variant: "slate",
+        onClick: () => {
+          setShowOnlyMyRecipes(true);
+          setShowMatchingOnly(false);
+          setRecipeModalTab("mine");
+          setRecipeSearch("");
+          setRecipeMealSectionFilter("");
+          setRecipeLibraryPage(1);
+          toast.info("Ahora puedes elegir platos creados aunque no coincidan al 100%.");
+        },
+      },
+      {
         id: "import-creation",
         icon: Library,
         label: "Importar Creación",
@@ -2601,7 +2691,7 @@ export default function RecipesClient() {
         disabled: isRecipesLocked,
       },
     ].filter(Boolean) as ActionDockItem[],
-    [isRecipesLocked, printJson, resetRecipes, selectedPatient, sleepTime, targetCalories, targetCarbs, targetFats, targetProtein, wakeUpTime, weekSlots],
+    [isRecipesLocked, printJson, resetRecipes, selectedPatient, showOnlyMyRecipes, sleepTime, targetCalories, targetCarbs, targetFats, targetProtein, wakeUpTime, weekSlots],
   );
 
   const assignedSourceSummary = useMemo(() => {
@@ -3210,6 +3300,16 @@ export default function RecipesClient() {
                     {isGenerating
                       ? "Generando..."
                       : "Generar con IA"}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={fillCurrentDayWithMyRecipes}
+                    disabled={isGenerating || recipeTabCounts.mine === 0}
+                    className="rounded-2xl font-bold flex items-center gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <ChefHat className="h-4 w-4" />
+                    Rellenar con mis platos
                   </Button>
                 </div>
               </div>

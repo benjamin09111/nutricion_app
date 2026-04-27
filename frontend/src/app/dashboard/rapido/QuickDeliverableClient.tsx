@@ -8,10 +8,16 @@ import {
   Library,
   NotebookText,
   Plus,
+  ChefHat,
+  Search,
+  Filter,
   RotateCcw,
   Save,
   Trash2,
   User,
+  CheckCircle2,
+  X,
+  Loader2,
 } from "lucide-react";
 import Cookies from "js-cookie";
 import { useSearchParams } from "next/navigation";
@@ -94,6 +100,40 @@ type ImportedCreation = {
   metadata?: Record<string, unknown>;
 };
 
+type CreatedRecipeSummary = {
+  id: string;
+  name: string;
+  description?: string | null;
+  preparation?: string | null;
+  mealSection?: string | null;
+  calories?: number;
+  proteins?: number;
+  carbs?: number;
+  lipids?: number;
+  isMine?: boolean;
+  metadata?: {
+    mealSection?: string | null;
+    source?: string | null;
+    ingredients?: string[];
+    customIngredientNames?: string[];
+    customIngredients?: Array<{ name?: string }>;
+  } | null;
+};
+
+type RecipeApiResponseItem = {
+  id: string;
+  name: string;
+  description?: string | null;
+  preparation?: string | null;
+  mealSection?: string | null;
+  calories?: number;
+  proteins?: number;
+  carbs?: number;
+  lipids?: number;
+  isMine?: boolean;
+  metadata?: CreatedRecipeSummary["metadata"];
+};
+
 const QUICK_SECTIONS: QuickSection[] = [
   "Desayuno",
   "Colación AM",
@@ -149,6 +189,13 @@ const createEmptyQuickPatient = (): QuickPatient => ({
   likes: "",
   source: "manual",
 });
+
+const normalizeQuickText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 
 function extractVariablesFromContent(content: string): string[] {
   const regex = /\^([a-zA-Z0-9_\- ]+)\^/g;
@@ -218,6 +265,12 @@ export default function QuickDeliverableClient() {
   const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(null);
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
+  const [isCreatedRecipesModalOpen, setIsCreatedRecipesModalOpen] = useState(false);
+  const [isLoadingCreatedRecipes, setIsLoadingCreatedRecipes] = useState(false);
+  const [createdRecipes, setCreatedRecipes] = useState<CreatedRecipeSummary[]>([]);
+  const [createdRecipesSearch, setCreatedRecipesSearch] = useState("");
+  const [createdRecipesOnlyMine, setCreatedRecipesOnlyMine] = useState(true);
+  const [createdRecipesAllowMismatch, setCreatedRecipesAllowMismatch] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -467,6 +520,37 @@ export default function QuickDeliverableClient() {
     [portionGuideRows],
   );
 
+  const filteredCreatedRecipes = useMemo(() => {
+    const search = createdRecipesSearch.trim().toLowerCase();
+    return createdRecipes.filter((recipe) => {
+      if (createdRecipesOnlyMine && recipe.isMine === false) {
+        return false;
+      }
+      if (!search) return true;
+      const haystack = [
+        recipe.name,
+        recipe.description || "",
+        recipe.preparation || "",
+        recipe.mealSection || "",
+        ...(recipe.metadata?.ingredients || []),
+        ...(recipe.metadata?.customIngredientNames || []),
+        ...(recipe.metadata?.customIngredients || []).map((item) => item?.name || ""),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(search);
+    });
+  }, [createdRecipes, createdRecipesOnlyMine, createdRecipesSearch]);
+
+  const createdRecipeMatches = useMemo(() => {
+    return meals.reduce((total, meal) => {
+      const hasMatch = filteredCreatedRecipes.some(
+        (recipe) => getCreatedRecipeMatchScore(recipe, meal.section) >= 80,
+      );
+      return total + (hasMatch ? 1 : 0);
+    }, 0);
+  }, [filteredCreatedRecipes, meals]);
+
   const applyImportedQuickCreation = (creation: ImportedCreation) => {
     if (creation.type !== "FAST_DELIVERABLE") {
       toast.error("Solo puedes importar entregables rápidos en este módulo.");
@@ -555,6 +639,114 @@ export default function QuickDeliverableClient() {
     toast.success("Entregable rápido importado al borrador actual.");
   };
 
+  const loadCreatedRecipes = async () => {
+    setIsLoadingCreatedRecipes(true);
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi("/recipes", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        throw new Error("No se pudieron cargar los platos creados.");
+      }
+
+      const data = await response.json();
+      const normalized: CreatedRecipeSummary[] = Array.isArray(data)
+        ? (data as RecipeApiResponseItem[]).map((recipe) => ({
+            id: recipe.id,
+            name: recipe.name,
+            description: recipe.description || null,
+            preparation: recipe.preparation || null,
+            mealSection: recipe.metadata?.mealSection || recipe.mealSection || null,
+            calories: recipe.calories || 0,
+            proteins: recipe.proteins || 0,
+            carbs: recipe.carbs || 0,
+            lipids: recipe.lipids || 0,
+            isMine: Boolean(recipe.isMine),
+            metadata: recipe.metadata || null,
+          }))
+        : [];
+
+      setCreatedRecipes(normalized);
+    } catch (error) {
+      console.error("Error loading created recipes", error);
+      toast.error("No se pudieron cargar los platos creados.");
+    } finally {
+      setIsLoadingCreatedRecipes(false);
+    }
+  };
+
+  const getCreatedRecipeMatchScore = (recipe: CreatedRecipeSummary, section: QuickSection) => {
+    const normalizedSection = normalizeQuickText(section);
+    const recipeSection = normalizeQuickText(recipe.mealSection || "");
+    if (recipeSection && recipeSection === normalizedSection) return 100;
+    if (recipeSection && recipeSection.includes(normalizedSection)) return 80;
+    if (normalizedSection.includes(recipeSection)) return 60;
+    return 0;
+  };
+
+  const fillMealsWithCreatedRecipes = () => {
+    const pool = createdRecipes
+      .filter((recipe) => (createdRecipesOnlyMine ? recipe.isMine !== false : true))
+      .filter((recipe) => {
+        const search = createdRecipesSearch.trim().toLowerCase();
+        if (!search) return true;
+        const haystack = [
+          recipe.name,
+          recipe.description || "",
+          recipe.preparation || "",
+          recipe.mealSection || "",
+          ...(recipe.metadata?.ingredients || []),
+          ...(recipe.metadata?.customIngredientNames || []),
+          ...(recipe.metadata?.customIngredients || []).map((item) => item?.name || ""),
+        ]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(search);
+      });
+
+    if (pool.length === 0) {
+      toast.error("No encontramos platos creados para rellenar.");
+      return;
+    }
+
+    const sortedPool = [...pool];
+
+    setMeals((current) => {
+      const usedIds = new Set<string>();
+      const nextMeals = current.map((meal) => {
+        const exactMatch = sortedPool.find(
+          (recipe) =>
+            !usedIds.has(recipe.id) &&
+            getCreatedRecipeMatchScore(recipe, meal.section) >= 80,
+        );
+
+        const fallbackMatch = createdRecipesAllowMismatch
+          ? sortedPool.find((recipe) => !usedIds.has(recipe.id))
+          : undefined;
+
+        const selectedRecipe = exactMatch || fallbackMatch;
+        if (!selectedRecipe) {
+          return {
+            ...meal,
+            mealText: "",
+          };
+        }
+
+        usedIds.add(selectedRecipe.id);
+        return {
+          ...meal,
+          mealText: selectedRecipe.name,
+        };
+      });
+
+      return nextMeals;
+    });
+
+    setIsCreatedRecipesModalOpen(false);
+    toast.success("Tus platos creados se usaron para rellenar la tabla.");
+  };
+
   const openPatientModal = async () => {
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
@@ -571,6 +763,12 @@ export default function QuickDeliverableClient() {
     setPatientSearch("");
     setIsPatientModalOpen(true);
   };
+
+  useEffect(() => {
+    if (isCreatedRecipesModalOpen) {
+      void loadCreatedRecipes();
+    }
+  }, [isCreatedRecipesModalOpen]);
 
   const fetchResources = async () => {
     try {
@@ -852,6 +1050,13 @@ export default function QuickDeliverableClient() {
       label: "Agregar recurso",
       variant: "indigo",
       onClick: openResourceModal,
+    },
+    {
+      id: "created-recipes",
+      icon: ChefHat,
+      label: "Platos creados",
+      variant: "emerald",
+      onClick: () => setIsCreatedRecipesModalOpen(true),
     },
     {
       id: "save",
@@ -1180,7 +1385,7 @@ export default function QuickDeliverableClient() {
                     <thead className="bg-slate-50">
                       <tr className="border-b border-slate-200">
                         <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                          Sección
+                          Categoría
                         </th>
                         <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
                           Alimentos
@@ -1797,6 +2002,128 @@ export default function QuickDeliverableClient() {
           >
             Agregar seleccionados
           </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isCreatedRecipesModalOpen}
+        onClose={() => setIsCreatedRecipesModalOpen(false)}
+        title="Platos creados"
+        className="max-w-3xl"
+      >
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 text-sm text-slate-700">
+            <p className="font-black text-slate-900">Rellenado rápido</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Usamos tus platos creados o guardados para completar solo la columna
+              de alimentos con el nombre del plato.{" "}
+              {createdRecipeMatches > 0
+                ? `Hay ${createdRecipeMatches} coincidencias directas con las categorías actuales.`
+                : "Si no hay coincidencias exactas, puedes permitir rellenar igual."}
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                value={createdRecipesSearch}
+                onChange={(e) => setCreatedRecipesSearch(e.target.value)}
+                placeholder="Buscar por nombre, sección o ingrediente..."
+                className="h-11 rounded-2xl border-slate-200 bg-slate-50 pl-11"
+              />
+            </div>
+            <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-600">
+              <input
+                type="checkbox"
+                checked={createdRecipesOnlyMine}
+                onChange={(e) => setCreatedRecipesOnlyMine(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+              />
+              Solo mis platos
+            </label>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-600">
+              <input
+                type="checkbox"
+                checked={createdRecipesAllowMismatch}
+                onChange={(e) => setCreatedRecipesAllowMismatch(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+              />
+              Elegir platos aunque no coincidan todos sus ingredientes
+            </label>
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-black uppercase tracking-widest text-emerald-700">
+              <Filter className="h-3.5 w-3.5" />
+              {filteredCreatedRecipes.length} platos disponibles
+            </div>
+          </div>
+
+          <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
+            {isLoadingCreatedRecipes ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+              </div>
+            ) : filteredCreatedRecipes.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                Todavía no tienes platos creados visibles para este filtro.
+              </div>
+            ) : (
+              filteredCreatedRecipes.map((recipe) => {
+                const matchScore = getCreatedRecipeMatchScore(recipe, meals[0]?.section || "Desayuno");
+                return (
+                  <div
+                    key={recipe.id}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-black text-slate-900">{recipe.name}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {recipe.mealSection || "Sin categoría"} · {Math.round(recipe.calories || 0)} kcal
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest",
+                            matchScore >= 80
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-slate-100 text-slate-500",
+                          )}
+                        >
+                          <CheckCircle2 className="h-3 w-3" />
+                          {matchScore >= 80 ? "Coincide" : "Manual"}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
+                      {recipe.description || recipe.preparation || "Plato creado en tu perfil."}
+                    </p>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              className="rounded-2xl border-slate-200"
+              onClick={() => setIsCreatedRecipesModalOpen(false)}
+            >
+              <X className="mr-2 h-4 w-4" />
+              Cerrar
+            </Button>
+            <Button
+              className="rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
+              onClick={fillMealsWithCreatedRecipes}
+              disabled={isLoadingCreatedRecipes || filteredCreatedRecipes.length === 0}
+            >
+              Rellenar tabla
+            </Button>
+          </div>
         </div>
       </Modal>
 

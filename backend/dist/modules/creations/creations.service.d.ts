@@ -5,9 +5,9 @@ export declare class CreationsService {
     private readonly cacheService;
     constructor(prisma: PrismaService, cacheService: CacheService);
     create(nutritionistId: string, data: any): Promise<{
-        name: string;
-        tags: string[];
         id: string;
+        tags: string[];
+        name: string;
         nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
@@ -17,9 +17,9 @@ export declare class CreationsService {
         content: import("@prisma/client/runtime/library").JsonValue;
     }>;
     findAll(nutritionistId: string, type?: string): Promise<{
-        name: string;
-        tags: string[];
         id: string;
+        tags: string[];
+        name: string;
         nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
@@ -29,9 +29,9 @@ export declare class CreationsService {
         content: import("@prisma/client/runtime/library").JsonValue;
     }[]>;
     findOne(id: string, nutritionistId: string): Promise<{
-        name: string;
-        tags: string[];
         id: string;
+        tags: string[];
+        name: string;
         nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;

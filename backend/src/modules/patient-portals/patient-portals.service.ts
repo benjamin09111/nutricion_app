@@ -1,4 +1,4 @@
-﻿import {
+import {
   BadRequestException,
   ForbiddenException,
   Injectable,
@@ -357,7 +357,7 @@ export class PatientPortalsService {
   async createTrackingEntry(session: PortalSessionPayload, dto: CreatePatientPortalEntryDto) {
     const sections = this.buildTrackingSections(dto);
     if (!sections) {
-      throw new BadRequestException('Agrega al menos una secciÃ³n para guardar tu seguimiento');
+      throw new BadRequestException('Agrega al menos una sección para guardar tu seguimiento');
     }
 
     const summary = this.buildTrackingSummary(sections);
@@ -573,9 +573,9 @@ export class PatientPortalsService {
 
     const alerts: string[] = [];
     if (!latestEntryAt) {
-      alerts.push('TodavÃ­a no hay registros en el portal.');
+      alerts.push('Todavía no hay registros en el portal.');
     } else if (daysSinceLastEntry != null && daysSinceLastEntry >= 4) {
-      alerts.push(`Hace ${daysSinceLastEntry} dÃ­as que no se actualiza el seguimiento.`);
+      alerts.push(`Hace ${daysSinceLastEntry} días que no se actualiza el seguimiento.`);
     }
 
     if (pendingQuestions > 0) {
@@ -583,7 +583,7 @@ export class PatientPortalsService {
     }
 
     if (trackingEntries.length > 0 && sectionCounts.actividadFisica === 0) {
-      alerts.push('TodavÃ­a no hay actividad fÃ­sica registrada.');
+      alerts.push('Todavía no hay actividad física registrada.');
     }
 
     return {
@@ -617,12 +617,12 @@ export class PatientPortalsService {
 
   private buildTrackingSummary(sections: TrackingSections) {
     const pieces = [
-      sections.alimentacion ? `AlimentaciÃ³n: ${sections.alimentacion}` : null,
+      sections.alimentacion ? `Alimentación: ${sections.alimentacion}` : null,
       sections.suplementos ? `Suplementos: ${sections.suplementos}` : null,
-      sections.actividadFisica ? `Actividad fÃ­sica: ${sections.actividadFisica}` : null,
+      sections.actividadFisica ? `Actividad física: ${sections.actividadFisica}` : null,
     ].filter(Boolean) as string[];
 
-    return pieces.join(' Â· ');
+    return pieces.join(' · ');
   }
 
   private normalizeEntry(entry: {
@@ -699,7 +699,7 @@ export class PatientPortalsService {
     });
 
     if (!invitation) {
-      throw new NotFoundException('La invitaciÃ³n no existe');
+      throw new NotFoundException('La invitación no existe');
     }
 
     return invitation;

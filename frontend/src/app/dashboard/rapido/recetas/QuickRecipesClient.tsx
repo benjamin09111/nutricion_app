@@ -226,13 +226,6 @@ export default function QuickRecipesClient() {
   const [categoryPageMap, setCategoryPageMap] = useState<Record<string, number>>({});
   const [selectedPatient, setSelectedPatient] = useState<QuickPatient | null>(null);
 
-    const isGenerationDisabled = useMemo(() => {
-    // Fundamental: patient or at least manual instructions
-    const hasPatient = !!selectedPatient;
-    const hasInstructions = !!allowedFoodsMainText.trim() || !!nutritionistNotes.trim();
-    return !hasPatient && !hasInstructions;
-  }, [selectedPatient, allowedFoodsMainText, nutritionistNotes]);
-
   const isExportDisabled = useMemo(() => {
     const hasPatient = !!selectedPatient;
     const hasAtLeastOneDish = dishes.some(d => d.title.trim().length > 0);
@@ -702,6 +695,85 @@ export default function QuickRecipesClient() {
     updatedAt: new Date().toISOString(),
   });
 
+  const persistGeneratedDishesToProfile = async (savedCreationId?: string) => {
+    const token = getAuthToken();
+    if (!token || dishes.length === 0) return 0;
+
+    let createdCount = 0;
+
+    for (const dish of dishes) {
+      if (!dish.title.trim()) continue;
+
+      const response = await fetchApi("/recipes", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: dish.title.trim(),
+          description: dish.description?.trim() || undefined,
+          preparation: dish.preparation?.trim() || undefined,
+          portions: 1,
+          portionSize: 100,
+          calories: Number(dish.calories) || 0,
+          proteins: Number(dish.protein) || 0,
+          carbs: Number(dish.carbs) || 0,
+          lipids: Number(dish.fats) || 0,
+          isPublic: false,
+          mealSection: dish.mealSection || undefined,
+          tags: Array.from(
+            new Set([
+              "rapido",
+              "plato-creado",
+              savedCreationId ? "sincronizado-con-creacion" : "",
+              dish.mealSection ? dish.mealSection : "",
+            ].filter(Boolean)),
+          ),
+          customIngredientNames: Array.isArray(dish.ingredients)
+            ? dish.ingredients
+                .map((ingredient) => ingredient.name.trim())
+                .filter(Boolean)
+            : [],
+          customIngredients: Array.isArray(dish.ingredients)
+            ? dish.ingredients
+                .map((ingredient) => {
+                  const name = ingredient.name.trim();
+                  if (!name) return null;
+                  return {
+                    name,
+                    amount: 1,
+                    unit: "porción",
+                  };
+                })
+                .filter(
+                  (
+                    item,
+                  ): item is { name: string; amount: number; unit: string } => Boolean(item),
+                )
+            : [],
+          metadata: {
+            source: "rapido",
+            quickCreationId: savedCreationId || null,
+            mealSection: dish.mealSection || null,
+            ingredients: Array.isArray(dish.ingredients)
+              ? dish.ingredients.map((ingredient) => ingredient.name.trim()).filter(Boolean)
+              : [],
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "No se pudo guardar un plato en el perfil.");
+      }
+
+      createdCount += 1;
+    }
+
+    return createdCount;
+  };
+
   const handleSaveToCreations = async () => {
     if (!title.trim()) {
       toast.error("Por favor ingresa un título antes de guardar.");
@@ -709,7 +781,7 @@ export default function QuickRecipesClient() {
     }
     setIsSaving(true);
     try {
-      await saveCreation({
+      const savedCreation = await saveCreation({
         name: title.trim(),
         type: "RECIPE",
         content: buildContent(),
@@ -723,7 +795,13 @@ export default function QuickRecipesClient() {
         },
         tags: ["rapido", "receta"],
       });
-      toast.success("Receta rápida guardada en creaciones.");
+
+      const savedDishCount = await persistGeneratedDishesToProfile(savedCreation.id);
+      toast.success(
+        savedDishCount > 0
+          ? `Receta rápida guardada y ${savedDishCount} platos quedaron en tu perfil.`
+          : "Receta rápida guardada en creaciones.",
+      );
       setIsSaveCreationModalOpen(false);
       setCreationDescription("");
     } catch (error: unknown) {

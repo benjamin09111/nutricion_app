@@ -6,6 +6,42 @@ import { normalizeFoodName } from '../../common/utils/string.util';
 export class RecipeMatchingService {
     constructor(private prisma: PrismaService) {}
 
+    private normalizeList(value: unknown): string[] {
+        if (!Array.isArray(value)) return [];
+        return Array.from(
+            new Set(
+                value
+                    .map((item) => (typeof item === 'string' ? normalizeFoodName(item) : ''))
+                    .filter(Boolean),
+            ),
+        );
+    }
+
+    private getRecipeIngredientNames(recipe: any): string[] {
+        const relationNames = Array.isArray(recipe?.ingredients)
+            ? recipe.ingredients
+                .map((item: any) => item?.ingredient?.name || '')
+                .filter(Boolean)
+            : [];
+
+        const metadata = (recipe?.metadata as Record<string, any>) || {};
+        const customNames = this.normalizeList(metadata.customIngredientNames);
+        const customIngredients = Array.isArray(metadata.customIngredients)
+            ? metadata.customIngredients
+                .map((item: any) => (typeof item?.name === 'string' ? item.name : ''))
+                .filter(Boolean)
+            : [];
+        const rawIngredients = this.normalizeList(metadata.ingredients);
+
+        return Array.from(
+            new Set(
+                [...relationNames, ...customNames, ...customIngredients, ...rawIngredients]
+                    .map((item) => normalizeFoodName(item))
+                    .filter(Boolean),
+            ),
+        );
+    }
+
     async findCompatibleRecipes(
         nutritionistId: string,
         ingredientNames: string[],
@@ -51,12 +87,19 @@ export class RecipeMatchingService {
 
             if (!meetsRestrictions) continue;
 
-            const mainIngredients = recipe.ingredients.filter(ri => ri.isMain);
-            if (mainIngredients.length === 0) continue; // Requires at least one main ingredient to match
+            const relationMainIngredients = Array.isArray(recipe.ingredients)
+                ? recipe.ingredients.filter((ri: any) => ri.isMain)
+                : [];
+            const fallbackIngredientNames = this.getRecipeIngredientNames(recipe);
+            const candidateMainIngredients = relationMainIngredients.length > 0
+                ? relationMainIngredients.map((ri: any) => normalizeFoodName(ri.ingredient?.name || ''))
+                : fallbackIngredientNames;
+
+            if (candidateMainIngredients.length === 0) continue; // Requires at least one ingredient to match
             
             let matchCount = 0;
-            for (const ri of mainIngredients) {
-                const normalizedRecipeReq = normalizeFoodName(ri.ingredient.name);
+            for (const recipeIngredient of candidateMainIngredients) {
+                const normalizedRecipeReq = normalizeFoodName(recipeIngredient);
                 
                 let hasMatch = false;
                 for (const input of normalizedInput) {
@@ -70,14 +113,14 @@ export class RecipeMatchingService {
                 }
             }
 
-            const matchPercentage = (matchCount / mainIngredients.length) * 100;
+            const matchPercentage = (matchCount / candidateMainIngredients.length) * 100;
 
             if (matchPercentage >= 80) {
                 scoredRecipes.push({
                     recipe,
                     matchPercentage,
                     matchCount,
-                    totalMain: mainIngredients.length
+                    totalMain: candidateMainIngredients.length
                 });
             }
         }

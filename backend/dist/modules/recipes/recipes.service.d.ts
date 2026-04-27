@@ -73,6 +73,9 @@ export declare class RecipesService {
     create(userId: string, createDto: CreateRecipeDto): Promise<{
         ingredients: ({
             ingredient: {
+                ingredients: string | null;
+                id: string;
+                isPublic: boolean;
                 name: string;
                 price: number;
                 unit: string;
@@ -84,9 +87,6 @@ export declare class RecipesService {
                 sugars: number | null;
                 fiber: number | null;
                 sodium: number | null;
-                ingredients: string | null;
-                isPublic: boolean;
-                id: string;
                 nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
@@ -95,15 +95,17 @@ export declare class RecipesService {
                 categoryId: string;
             };
         } & {
+            id: string;
             unit: string;
             amount: number;
-            id: string;
             brandSuggestion: string | null;
             ingredientId: string;
             isMain: boolean;
             recipeId: string;
         })[];
     } & {
+        id: string;
+        isPublic: boolean;
         name: string;
         calories: number;
         proteins: number;
@@ -111,8 +113,6 @@ export declare class RecipesService {
         carbs: number;
         fiber: number | null;
         sodium: number | null;
-        isPublic: boolean;
-        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
@@ -125,8 +125,23 @@ export declare class RecipesService {
     }>;
     findAll(userId: string): Promise<any[]>;
     findOne(id: string, userId: string): Promise<{
+        nutritionist: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            accountId: string;
+            fullName: string;
+            professionalId: string | null;
+            specialty: string | null;
+            phone: string | null;
+            avatarUrl: string | null;
+            settings: import("@prisma/client/runtime/library").JsonValue | null;
+        } | null;
         ingredients: ({
             ingredient: {
+                ingredients: string | null;
+                id: string;
+                isPublic: boolean;
                 name: string;
                 price: number;
                 unit: string;
@@ -138,9 +153,6 @@ export declare class RecipesService {
                 sugars: number | null;
                 fiber: number | null;
                 sodium: number | null;
-                ingredients: string | null;
-                isPublic: boolean;
-                id: string;
                 nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
@@ -149,27 +161,17 @@ export declare class RecipesService {
                 categoryId: string;
             };
         } & {
+            id: string;
             unit: string;
             amount: number;
-            id: string;
             brandSuggestion: string | null;
             ingredientId: string;
             isMain: boolean;
             recipeId: string;
         })[];
-        nutritionist: {
-            id: string;
-            fullName: string;
-            phone: string | null;
-            professionalId: string | null;
-            specialty: string | null;
-            createdAt: Date;
-            updatedAt: Date;
-            accountId: string;
-            avatarUrl: string | null;
-            settings: import("@prisma/client/runtime/library").JsonValue | null;
-        } | null;
     } & {
+        id: string;
+        isPublic: boolean;
         name: string;
         calories: number;
         proteins: number;
@@ -177,8 +179,6 @@ export declare class RecipesService {
         carbs: number;
         fiber: number | null;
         sodium: number | null;
-        isPublic: boolean;
-        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
@@ -191,15 +191,17 @@ export declare class RecipesService {
     }>;
     update(id: string, userId: string, userRole: string, updateDto: CreateRecipeDto): Promise<{
         ingredients: {
+            id: string;
             unit: string;
             amount: number;
-            id: string;
             brandSuggestion: string | null;
             ingredientId: string;
             isMain: boolean;
             recipeId: string;
         }[];
     } & {
+        id: string;
+        isPublic: boolean;
         name: string;
         calories: number;
         proteins: number;
@@ -207,8 +209,6 @@ export declare class RecipesService {
         carbs: number;
         fiber: number | null;
         sodium: number | null;
-        isPublic: boolean;
-        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
@@ -226,6 +226,8 @@ export declare class RecipesService {
         lipids: number;
     }>;
     remove(id: string, userId: string, userRole: string): Promise<{
+        id: string;
+        isPublic: boolean;
         name: string;
         calories: number;
         proteins: number;
@@ -233,8 +235,6 @@ export declare class RecipesService {
         carbs: number;
         fiber: number | null;
         sodium: number | null;
-        isPublic: boolean;
-        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
