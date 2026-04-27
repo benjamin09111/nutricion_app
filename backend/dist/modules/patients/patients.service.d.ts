@@ -73,6 +73,29 @@ export declare class PatientsService {
             metrics: import("@prisma/client/runtime/library").JsonValue | null;
             title: string;
         }[];
+        projects: {
+            name: string;
+            id: string;
+            mode: string;
+            status: string;
+            updatedAt: Date;
+            description: string | null;
+            activeDeliverableCreation: {
+                name: string;
+                id: string;
+                type: string;
+            } | null;
+            activeDietCreation: {
+                name: string;
+                id: string;
+                type: string;
+            } | null;
+            activeRecipeCreation: {
+                name: string;
+                id: string;
+                type: string;
+            } | null;
+        }[];
         exams: {
             name: string;
             id: string;

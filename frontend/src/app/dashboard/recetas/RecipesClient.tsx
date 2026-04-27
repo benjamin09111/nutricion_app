@@ -1548,7 +1548,7 @@ export default function RecipesClient() {
           existingDishes: currentSlots
             .filter((s) => s.recipe)
             .map((s) => ({
-              title: s.recipe?.name || "",
+              title: s.recipe?.title || "",
               mealSection: s.mealSection || "",
             })),
         },
@@ -1601,16 +1601,18 @@ export default function RecipesClient() {
               ...daySlots[slotIndex],
               recipe: {
                 id: dish.id,
-                name: dish.title,
+                title: dish.title,
                 description: dish.description,
                 preparation: dish.preparation,
                 recommendedPortion: dish.recommendedPortion,
                 calories: dish.calories,
-                proteins: dish.protein,
+                protein: dish.protein,
                 carbs: dish.carbs,
-                lipids: dish.fats,
+                fats: dish.fats,
                 ingredients: dish.ingredients.map(ing => ing.name),
-                isAiGenerated: true
+                mainIngredients: dish.ingredients.map(ing => ing.name),
+                complexity: "simple",
+                source: "app",
               }
             };
           }

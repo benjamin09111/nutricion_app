@@ -24,6 +24,12 @@ import { Input } from "@/components/ui/Input";
 import { TagInput } from "@/components/ui/TagInput";
 import mealSectionsData from "@/content/meal-sections.json";
 import { fetchApi } from "@/lib/api-base";
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 const MEAL_SECTIONS = [
   { value: "", label: "Sin sección" },

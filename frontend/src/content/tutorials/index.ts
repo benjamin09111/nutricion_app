@@ -14,7 +14,7 @@ import resources from "./resources.json";
 import details from "./details.json";
 import dishes from "./dishes.json";
 
-export const tutorialContentById = {
+export const tutorialContentById: Record<string, TutorialContentDefinition> = {
   patients,
   consultations,
   foods,
@@ -28,5 +28,5 @@ export const tutorialContentById = {
   resources,
   details,
   dishes,
-} satisfies Record<string, TutorialContentDefinition>;
+};
 

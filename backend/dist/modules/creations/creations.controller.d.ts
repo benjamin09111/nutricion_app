@@ -11,8 +11,8 @@ export declare class CreationsController {
         updatedAt: Date;
         type: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        content: import("@prisma/client/runtime/library").JsonValue;
         format: string;
+        content: import("@prisma/client/runtime/library").JsonValue;
     }>;
     findAll(req: any, type?: string): Promise<{
         name: string;
@@ -23,8 +23,8 @@ export declare class CreationsController {
         updatedAt: Date;
         type: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        content: import("@prisma/client/runtime/library").JsonValue;
         format: string;
+        content: import("@prisma/client/runtime/library").JsonValue;
     }[]>;
     getTags(req: any): Promise<any[]>;
     findOne(req: any, id: string): Promise<{
@@ -36,8 +36,8 @@ export declare class CreationsController {
         updatedAt: Date;
         type: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        content: import("@prisma/client/runtime/library").JsonValue;
         format: string;
+        content: import("@prisma/client/runtime/library").JsonValue;
     }>;
     delete(req: any, id: string): Promise<import(".prisma/client").Prisma.BatchPayload>;
 }

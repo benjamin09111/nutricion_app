@@ -46,6 +46,9 @@ model Nutritionist {
   metricDefinitions     MetricDefinition[]
   account               Account                @relation(fields: [accountId], references: [id], onDelete: Cascade)
   patients              Patient[]
+  patientPortalInvitations PatientPortalInvitation[]
+  patientPortalEntries   PatientPortalEntry[]
+  patientPortalCheckIns  PatientPortalCheckIn[]
   projects              Project[]
   recipes               Recipe[]
   resourceSections      ResourceSection[]
@@ -139,6 +142,9 @@ model Patient {
   likes            String?
   consultations    Consultation[]
   exams            PatientExam[]
+  portalInvitations PatientPortalInvitation[]
+  portalEntries     PatientPortalEntry[]
+  portalCheckIns    PatientPortalCheckIn[]
   nutritionist     Nutritionist   @relation(fields: [nutritionistId], references: [id])
   projects         Project[]
 
@@ -178,6 +184,83 @@ model Consultation {
   @@index([patientId])
   @@index([nutritionistId])
   @@map("consultations")
+}
+
+model PatientPortalInvitation {
+    id          String     @id @default(uuid())
+    patientId   String     @map("patient_id")
+    nutritionistId String  @map("nutritionist_id")
+    email       String?
+    tokenHash   String     @unique @map("token_hash")
+    status      String     @default("ACTIVE")
+    expiresAt   DateTime   @map("expires_at")
+    revokedAt   DateTime?  @map("revoked_at")
+    blockedAt   DateTime?  @map("blocked_at")
+    verifiedAt  DateTime?  @map("verified_at")
+    lastSentAt  DateTime?  @map("last_sent_at")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  patient     Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  nutritionist Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  entries     PatientPortalEntry[]
+  checkIns    PatientPortalCheckIn[]
+
+  @@index([patientId])
+  @@index([nutritionistId])
+  @@index([expiresAt])
+  @@map("patient_portal_invitations")
+}
+
+model PatientPortalCheckIn {
+  id              String      @id @default(uuid())
+  patientId       String      @map("patient_id")
+  nutritionistId  String      @map("nutritionist_id")
+  invitationId    String?     @map("invitation_id")
+  checkInDate     DateTime    @default(now()) @map("check_in_date")
+  weight          Float?
+  waterLiters     Float?      @map("water_liters")
+  activityMinutes Int?        @map("activity_minutes")
+  mood            String?
+  energy          String?
+  hunger          String?
+  symptoms        Json        @default("[]")
+  meals           Json        @default("[]")
+  notes           String?
+  photos          Json        @default("[]")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  patient         Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  nutritionist    Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  invitation      PatientPortalInvitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+
+  @@index([patientId])
+  @@index([nutritionistId])
+  @@index([checkInDate])
+  @@map("patient_portal_check_ins")
+}
+
+model PatientPortalEntry {
+  id              String                 @id @default(uuid())
+  patientId       String                 @map("patient_id")
+  nutritionistId  String                 @map("nutritionist_id")
+  invitationId    String?                @map("invitation_id")
+  replyToId       String?                @map("reply_to_id")
+  kind            String                 @default("QUESTION")
+  body            String?
+  payload         Json                   @default("{}")
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  patient         Patient                @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  nutritionist    Nutritionist           @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  invitation      PatientPortalInvitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+  replyTo         PatientPortalEntry?    @relation("PatientPortalEntryReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies         PatientPortalEntry[]   @relation("PatientPortalEntryReplies")
+
+  @@index([patientId])
+  @@index([nutritionistId])
+  @@index([kind])
+  @@index([replyToId])
+  @@map("patient_portal_entries")
 }
 
 model Ingredient {
