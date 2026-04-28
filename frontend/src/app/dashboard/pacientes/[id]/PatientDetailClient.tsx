@@ -38,6 +38,7 @@ import {
   ExternalLink,
   Sparkles,
   ShieldCheck,
+  Bell,
   MessageSquare,
   Filter,
   Reply,
@@ -240,10 +241,15 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const [generatedPortalCode, setGeneratedPortalCode] = useState("");
   const [isCreatingPortalInvite, setIsCreatingPortalInvite] = useState(false);
   const [isCopyingPortalLink, setIsCopyingPortalLink] = useState(false);
+  const [isPortalNotificationModalOpen, setIsPortalNotificationModalOpen] = useState(false);
+  const [portalNotificationTitle, setPortalNotificationTitle] = useState("");
+  const [portalNotificationMessage, setPortalNotificationMessage] = useState("");
+  const [portalNotificationSendEmail, setPortalNotificationSendEmail] = useState(true);
+  const [isCreatingPortalNotification, setIsCreatingPortalNotification] = useState(false);
   const [portalFilter, setPortalFilter] = useState({
     from: "",
     to: "",
-    kind: "ALL" as "ALL" | "QUESTION" | "TRACKING" | "REPLY",
+    kind: "ALL" as "ALL" | "QUESTION" | "TRACKING" | "NOTIFICATION" | "REPLY",
     section: "ALL" as "ALL" | "alimentacion" | "suplementos" | "actividadFisica",
     search: "",
   });
@@ -653,6 +659,53 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       toast.error("No se pudo copiar automÃ¡ticamente.");
     } finally {
       setIsCopyingPortalLink(false);
+    }
+  };
+
+  const handleCreatePortalNotification = async () => {
+    if (!patient) return;
+
+    const message = portalNotificationMessage.trim();
+    if (!message) {
+      toast.error("Escribe un mensaje para la notificación.");
+      return;
+    }
+
+    setIsCreatingPortalNotification(true);
+    try {
+      const response = await fetchApi(`/patient-portals/patients/${patient.id}/notifications`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: portalNotificationTitle.trim() || undefined,
+          message,
+          sendEmail: portalNotificationSendEmail,
+        }),
+      });
+
+      const data: { overview?: PatientPortalOverview; message?: string } = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message || "No se pudo enviar la notificación.");
+      }
+
+      if (data.overview) {
+        setPortalOverview(data.overview);
+      } else {
+        await fetchPortalOverview();
+      }
+
+      setPortalNotificationTitle("");
+      setPortalNotificationMessage("");
+      setPortalNotificationSendEmail(true);
+      setIsPortalNotificationModalOpen(false);
+      toast.success("Notificación enviada al portal del paciente.");
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo enviar la notificación.");
+    } finally {
+      setIsCreatingPortalNotification(false);
     }
   };
 
@@ -1739,6 +1792,14 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 Portal paciente
               </Button>
               <Button
+                onClick={() => setIsPortalNotificationModalOpen(true)}
+                variant="outline"
+                className="flex-2 sm:flex-none h-11 lg:h-10 px-6 rounded-2xl border-sky-100 text-sky-700 bg-sky-50/70 hover:bg-sky-50 font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                <Bell className="w-4 h-4" />
+                Notificación
+              </Button>
+              <Button
                 disabled
                 className="bg-slate-50 border border-slate-100 text-slate-400 font-bold h-10 px-4 rounded-2xl cursor-not-allowed opacity-60 flex items-center gap-2"
                 title="PrÃ³ximamente: Carga y anÃ¡lisis de exÃ¡menes clÃ­nicos con IA"
@@ -1866,7 +1927,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           { label: "General", disabled: false },
           { label: "Consultas", disabled: false },
           { label: "Progreso", disabled: false },
-          { label: "AcompaÃ±amiento", disabled: false },
+          { label: "AcompaÃ±amiento", disabled: true },
           { label: "ExÃ¡menes", disabled: true },
         ] as Array<{ label: TabType | "ExÃ¡menes"; disabled: boolean }>).map((tab) => (
           <button
@@ -3336,6 +3397,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                       <option value="ALL">Todos</option>
                       <option value="QUESTION">Consultas</option>
                       <option value="TRACKING">Seguimiento</option>
+                      <option value="NOTIFICATION">Notificaciones</option>
                       <option value="REPLY">Respuestas</option>
                     </select>
                   </div>
@@ -3504,6 +3566,35 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                 </div>
                               )}
                             </div>
+                          </article>
+                        );
+                      }
+
+                      if (entry.kind === "NOTIFICATION") {
+                        return (
+                          <article key={entry.id} className="rounded-3xl border border-sky-100 bg-sky-50/70 p-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                  Notificación del nutri
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-sky-600 ring-1 ring-sky-100">
+                                {entry.payload?.notificationType || "INFO"}
+                              </span>
+                            </div>
+                            <p className="mt-4 text-sm leading-7 text-slate-700">{entry.body}</p>
+                            {entry.payload?.notificationTitle && (
+                              <div className="mt-4 rounded-2xl border border-sky-100 bg-white p-4">
+                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-600">
+                                  Título
+                                </p>
+                                <p className="mt-2 text-sm leading-7 text-slate-600">
+                                  {entry.payload.notificationTitle}
+                                </p>
+                              </div>
+                            )}
                           </article>
                         );
                       }
@@ -3740,6 +3831,75 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             >
               <Send className="mr-2 h-4 w-4" />
               Generar link
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isPortalNotificationModalOpen}
+        onClose={() => setIsPortalNotificationModalOpen(false)}
+        title="Enviar notificación al paciente"
+      >
+        <div className="space-y-5 py-2">
+          <div className="rounded-3xl border border-sky-100 bg-sky-50/70 p-4">
+            <p className="text-sm font-semibold text-sky-900">
+              Envía un aviso puntual a este paciente desde su contacto especializado.
+            </p>
+            <p className="mt-2 text-xs leading-6 text-sky-900/75">
+              La notificación queda guardada en el portal y, si tiene email activo, también se le envía por correo.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+              Título
+            </label>
+            <Input
+              value={portalNotificationTitle}
+              onChange={(e) => setPortalNotificationTitle(e.target.value)}
+              placeholder="Ej: Recuerda tu comida post entrenamiento"
+              className="h-12 rounded-2xl border-slate-200"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+              Mensaje
+            </label>
+            <Textarea
+              value={portalNotificationMessage}
+              onChange={(e) => setPortalNotificationMessage(e.target.value)}
+              placeholder="Escribe el aviso o indicación que debe ver el paciente."
+              className="min-h-[160px] rounded-2xl border-slate-200"
+            />
+          </div>
+
+          <label className="inline-flex items-center gap-3 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              checked={portalNotificationSendEmail}
+              onChange={(e) => setPortalNotificationSendEmail(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+            />
+            Enviar también por correo si el paciente tiene email activo
+          </label>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              variant="ghost"
+              onClick={() => setIsPortalNotificationModalOpen(false)}
+              className="rounded-2xl px-5"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreatePortalNotification}
+              isLoading={isCreatingPortalNotification}
+              className="rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
+            >
+              <Bell className="mr-2 h-4 w-4" />
+              Enviar notificación
             </Button>
           </div>
         </div>

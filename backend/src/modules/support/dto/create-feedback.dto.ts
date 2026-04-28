@@ -6,8 +6,8 @@ export class CreateFeedbackDto {
     @IsOptional()
     message?: string;
 
-    @IsEnum(['FEEDBACK', 'COMPLAINT', 'IDEA'])
-    type: 'FEEDBACK' | 'COMPLAINT' | 'IDEA';
+    @IsEnum(['FEEDBACK', 'TESTIMONIO', 'COMPLAINT', 'IDEA'])
+    type: 'FEEDBACK' | 'TESTIMONIO' | 'COMPLAINT' | 'IDEA';
 
     @IsString()
     @IsOptional()

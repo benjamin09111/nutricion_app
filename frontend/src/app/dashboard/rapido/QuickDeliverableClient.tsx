@@ -26,6 +26,7 @@ import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { type ActionDockItem } from "@/components/ui/ActionDock";
 import { fetchApi } from "@/lib/api-base";
+import exchangePortionGuide from "@/content/exchange-portions.json";
 import { cn } from "@/lib/utils";
 import { fetchCreation, fetchProject, saveCreation } from "@/lib/workflow";
 import { downloadFastDeliverablePdf } from "@/features/pdf/fastDeliverablePdfExport";
@@ -105,13 +106,7 @@ const QUICK_SECTIONS: QuickSection[] = [
 ];
 
 const QUICK_PORTION_GUIDE = [
-  { category: "Verduras y ensaladas", portion: "2 tazas crudas o 1 taza cocida por comida principal." },
-  { category: "Frutas", portion: "1 unidad mediana o 1 taza picada." },
-  { category: "Cereales y tubérculos", portion: "1/2 a 1 taza cocida, según hambre y objetivo." },
-  { category: "Legumbres", portion: "3/4 taza cocida como porción base." },
-  { category: "Proteínas", portion: "90 a 120 g cocidos, equivalente a la palma de la mano." },
-  { category: "Lácteos o equivalentes", portion: "1 taza de leche o yogur, o 1 lámina de queso fresco." },
-  { category: "Grasas saludables", portion: "1 cda de aceite o 1/4 de palta." },
+  ...((Array.isArray(exchangePortionGuide) ? exchangePortionGuide : []) as Array<{ category: string; portion: string }>),
 ];
 
 const DEFAULT_TITLE = "Entregable rápido";

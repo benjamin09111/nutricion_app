@@ -172,6 +172,15 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     contentType: "practical",
   },
   {
+    id: "exchangePortions",
+    label: "Porciones de Intercambio",
+    description: "Tabla oficial para validar equivalencias y porciones.",
+    icon: ClipboardCheck,
+    defaultSelected: false,
+    category: "core",
+    contentType: "practical",
+  },
+  {
     id: "hormonalIntel",
     label: "Inteligencia Hormonal",
     description: "Ajustes según fase del ciclo menstrual.",

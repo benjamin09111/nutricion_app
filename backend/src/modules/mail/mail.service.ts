@@ -172,4 +172,32 @@ export class MailService {
             console.error('❌ Error enviando invitación de portal:', error);
         }
     }
+    async sendPatientPortalNotificationEmail(data: {
+      email: string;
+      patientName: string;
+      nutritionistName: string;
+      title: string;
+      message: string;
+    }) {
+        try {
+            await this.mailerService.sendMail({
+                to: data.email,
+                subject: `${data.nutritionistName} te envió una notificación`,
+                html: `
+                  <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
+                    <h2 style="margin: 0 0 12px;">Hola ${data.patientName},</h2>
+                    <p style="margin: 0 0 12px;">Tu nutricionista <strong>${data.nutritionistName}</strong> te envió una notificación desde tu portal de contacto especializado.</p>
+                    <div style="padding: 16px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; margin: 20px 0;">
+                      <p style="margin: 0 0 8px; font-weight: 700;">${data.title}</p>
+                      <p style="margin: 0;">${data.message.replace(/\n/g, '<br />')}</p>
+                    </div>
+                    <p style="margin: 0;">Ingresa a tu portal para revisarla junto con tus consultas y seguimiento.</p>
+                  </div>
+                `,
+            });
+            console.log(`âœ… NotificaciÃ³n de portal enviada a: ${data.email}`);
+        } catch (error) {
+            console.error('âŒ Error enviando notificaciÃ³n de portal:', error);
+        }
+    }
 }

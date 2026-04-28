@@ -297,7 +297,6 @@ export default function CartClient() {
       food.group ||
       (typeof food.category === "string" ? food.category : food.category?.name) ||
       "Varios",
-    cantidadMes: 0,
     frecuenciaSemanal: weeklyHits,
     porcionGramos: 100,
     carbohidratosPor100g: food.carbohidratos || food.carbohydrates || food.carbs || 0,
@@ -315,43 +314,122 @@ export default function CartClient() {
     ironPor100g: food.hierro || food.iron || 0,
     precioPorUnidad: food.precioPromedio || food.price || 0,
     unidad: food.unidad || food.unit || "kg",
+    cantidadMes: calculateMonthlyQuantity(
+      100,
+      food.unidad || food.unit || "kg",
+      weeklyHits,
+    ),
   });
 
-  const extractRecipeIngredientHints = (recipesContent: any) => {
-    const rawHints: Array<{ name: string; weeklyHits: number }> =
-      Array.isArray(recipesContent?.ingredientHints)
-        ? recipesContent.ingredientHints
-        : [];
+  const parseNumericValue = (value: unknown): number | null => {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === "string") {
+      const normalized = value.replace(",", ".").match(/-?\d+(\.\d+)?/);
+      if (!normalized) return null;
+      const parsed = Number(normalized[0]);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  };
 
-    const map = new Map<string, { name: string; weeklyHits: number }>();
+  const normalizeRecipeUnit = (value: unknown): string => {
+    const unit = String(value || "").trim().toLowerCase();
+    if (!unit) return "unidad";
+    if (["u", "un", "unidad", "unidades"].includes(unit)) return "unidad";
+    if (["gr", "gramos", "gramo", "g"].includes(unit)) return "g";
+    if (["lt", "l", "litro", "litros"].includes(unit)) return "l";
+    return unit;
+  };
 
-    const pushHint = (name: string, weeklyHits = 1) => {
-      const normalized = normalizeFoodKey(name);
-      if (!normalized) return;
-      const safeHits = Math.max(1, Math.round(Number(weeklyHits) || 1));
-      const current = map.get(normalized);
-      if (current) {
-        current.weeklyHits += safeHits;
-        return;
+  const calculateMonthlyQuantity = (baseValue: number, unit: string, weeklyHits: number) => {
+    const totalWeekly = Math.max(0, baseValue) * Math.max(1, weeklyHits);
+    if (unit === "kg") {
+      return Number((totalWeekly / 1000 * WEEKS_PER_MONTH).toFixed(2));
+    }
+    return Number((totalWeekly * WEEKS_PER_MONTH).toFixed(2));
+  };
+
+  const formatCartQuantity = (item: CartItem) => {
+    const value = Number(item.cantidadMes) || 0;
+    if (item.unidad === "kg") {
+      return value < 1 ? `${Math.round(value * 1000)}` : `${value}`;
+    }
+    return `${value}`;
+  };
+
+  type RecipeIngredientUsage = {
+    name: string;
+    unit: string;
+    amount: number | null;
+    quantityLabel: string;
+    weeklyHits: number;
+  };
+
+  const extractRecipeIngredientUsages = (recipesContent: any): RecipeIngredientUsage[] => {
+    const map = new Map<string, RecipeIngredientUsage>();
+
+    const pushUsage = (ingredient: any, weeklyHits = 1) => {
+      if (!ingredient) return;
+      const name = typeof ingredient === "string"
+        ? ingredient.trim()
+        : String(
+            ingredient.name ||
+              ingredient.ingredient ||
+              ingredient.food ||
+              ingredient.producto ||
+              "",
+          ).trim();
+      if (!name) return;
+
+      const unit = normalizeRecipeUnit(
+        typeof ingredient === "object" ? ingredient.unit || ingredient.unidad : "",
+      );
+      const amount = parseNumericValue(
+        typeof ingredient === "object"
+          ? ingredient.amount ?? ingredient.quantityValue ?? ingredient.portion
+          : null,
+      );
+      const quantityLabel =
+        typeof ingredient === "object" && typeof ingredient.quantity === "string"
+          ? ingredient.quantity.trim()
+          : "";
+
+      const key = `${normalizeFoodKey(name)}|${unit}`;
+      const current =
+        map.get(key) ||
+        {
+          name,
+          unit,
+          amount: null,
+          quantityLabel,
+          weeklyHits: 0,
+        };
+
+      current.weeklyHits += Math.max(1, Math.round(Number(weeklyHits) || 1));
+      if (amount != null) {
+        current.amount = (current.amount || 0) + amount;
+      } else if (quantityLabel && !current.quantityLabel) {
+        current.quantityLabel = quantityLabel;
       }
-      map.set(normalized, { name: name.trim(), weeklyHits: safeHits });
+      map.set(key, current);
     };
 
-    rawHints.forEach((hint) => {
-      if (!hint?.name) return;
-      pushHint(hint.name, hint.weeklyHits);
-    });
+    const visitRecipe = (recipe: any, weeklyHits = 1) => {
+      if (!recipe) return;
 
-    const extractName = (ingredient: any): string => {
-      if (typeof ingredient === "string") return ingredient;
-      if (!ingredient || typeof ingredient !== "object") return "";
-      return (
-        ingredient.name ||
-        ingredient.ingredient ||
-        ingredient.food ||
-        ingredient.producto ||
-        ""
-      );
+      const structuredIngredients: any[] = Array.isArray(recipe.ingredientDetails)
+        ? recipe.ingredientDetails
+        : [];
+      const rawIngredients: any[] = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
+      const mainIngredients: any[] = Array.isArray(recipe.mainIngredients) ? recipe.mainIngredients : [];
+      const ingredients: any[] = structuredIngredients.length > 0 ? structuredIngredients : rawIngredients;
+
+      ingredients.forEach((ingredient: any) => pushUsage(ingredient, weeklyHits));
+      if (ingredients.length === 0) {
+        mainIngredients.forEach((ingredient: any) => pushUsage(ingredient, weeklyHits));
+      }
     };
 
     const weekSlots = recipesContent?.weekSlots;
@@ -359,67 +437,110 @@ export default function CartClient() {
       Object.values(weekSlots).forEach((slots) => {
         if (!Array.isArray(slots)) return;
         slots.forEach((slot: any) => {
-          const recipe = slot?.recipe;
-          if (!recipe) return;
-
-          const names: string[] = [];
-          if (Array.isArray(recipe.mainIngredients)) {
-            recipe.mainIngredients.forEach((value: any) => {
-              const name = extractName(value);
-              if (name) names.push(name);
-            });
+          if (slot?.recipe) {
+            visitRecipe(slot.recipe, 1);
           }
-          if (Array.isArray(recipe.ingredients)) {
-            recipe.ingredients.forEach((value: any) => {
-              const name = extractName(value);
-              if (name) names.push(name);
-            });
-          }
-
-          names.forEach((name) => pushHint(name, 1));
         });
       });
     }
+
+    if (Array.isArray(recipesContent?.dishes)) {
+      recipesContent.dishes.forEach((dish: any) => visitRecipe(dish, 1));
+    }
+
+    if (map.size === 0 && Array.isArray(recipesContent?.ingredientHints)) {
+      recipesContent.ingredientHints.forEach((hint: any) => {
+        if (!hint?.name) return;
+        pushUsage({ name: hint.name }, hint.weeklyHits || 1);
+      });
+    }
+
+    return Array.from(map.values()).filter((item) => item.name.trim().length > 0);
+  };
+
+  const buildCartItemFromRecipeUsage = (usage: RecipeIngredientUsage): CartItem => ({
+    id: `recipe-${normalizeFoodKey(usage.name)}-${usage.unit}`,
+    producto: usage.name,
+    grupo: "Ingredientes de platos",
+    frecuenciaSemanal: Math.max(1, Math.round(usage.weeklyHits || 1)),
+    porcionGramos: Math.max(0, usage.amount || 1),
+    carbohidratosPor100g: 0,
+    grasasPor100g: 0,
+    caloriasPor100g: 0,
+    proteinaPor100g: 0,
+    sugarsPor100g: 0,
+    fiberPor100g: 0,
+    sodiumPor100g: 0,
+    cholesterolPor100g: 0,
+    potassiumPor100g: 0,
+    vitaminAPor100g: 0,
+    vitaminCPor100g: 0,
+    calciumPor100g: 0,
+    ironPor100g: 0,
+    precioPorUnidad: 0,
+    unidad: usage.unit || (usage.amount != null ? "g" : "unidad"),
+    cantidadMes: calculateMonthlyQuantity(
+      Math.max(0, usage.amount || 1),
+      usage.unit || (usage.amount != null ? "g" : "unidad"),
+      Math.max(1, Math.round(usage.weeklyHits || 1)),
+    ),
+  });
+
+  const mergeCartItemsByKey = (baseItems: CartItem[], extraItems: CartItem[]) => {
+    const map = new Map<string, CartItem>();
+
+    const keyFor = (item: CartItem) => `${normalizeFoodKey(item.producto)}|${normalizeFoodKey(item.unidad)}`;
+
+    baseItems.forEach((item) => {
+      map.set(keyFor(item), { ...item });
+    });
+
+    extraItems.forEach((item) => {
+      const key = keyFor(item);
+      const current = map.get(key);
+      if (!current) {
+        map.set(key, { ...item });
+        return;
+      }
+
+      map.set(key, {
+        ...current,
+        frecuenciaSemanal: Math.max(current.frecuenciaSemanal, item.frecuenciaSemanal),
+        cantidadMes: Number((Number(current.cantidadMes || 0) + Number(item.cantidadMes || 0)).toFixed(2)),
+        porcionGramos: Math.max(current.porcionGramos, item.porcionGramos),
+      });
+    });
 
     return Array.from(map.values());
   };
 
   const buildCartItemsFromDiet = (draft: any, recipesOverride?: any) => {
     const recipesSource = recipesOverride || draft?.recipes || {};
-    const recipeHints = extractRecipeIngredientHints(recipesSource);
     const dietFoods = getDietSourceFoods(draft);
-
+    const recipeUsages = extractRecipeIngredientUsages(recipesSource);
     const hintForFood = (foodName: string) => {
       const normalized = normalizeFoodKey(foodName);
-      const match = recipeHints.find((hint) => {
-        const hintKey = normalizeFoodKey(hint.name);
-        return normalized.includes(hintKey) || hintKey.includes(normalized);
+      const match = recipeUsages.find((usage) => {
+        const usageKey = normalizeFoodKey(usage.name);
+        return normalized.includes(usageKey) || usageKey.includes(normalized);
       });
       return match?.weeklyHits || 3;
     };
 
-    if (dietFoods.length > 0) {
-      return dietFoods.map((food) =>
-        buildCartItemFromDietFood(food, hintForFood(food?.producto || food?.name || "")),
-      );
+    const dietItems = dietFoods.map((food) =>
+      buildCartItemFromDietFood(food, hintForFood(food?.producto || food?.name || "")),
+    );
+    const recipeItems = recipeUsages.map((usage) => buildCartItemFromRecipeUsage(usage));
+
+    if (dietItems.length === 0) {
+      return recipeItems;
     }
 
-    // Fallback: if diet is missing, build from recipe slots to avoid losing the draft plan.
-    if (recipeHints.length > 0) {
-      return recipeHints.map((hint) =>
-        buildCartItemFromDietFood(
-          {
-            id: `recipe-hint-${normalizeFoodKey(hint.name)}`,
-            producto: hint.name,
-            grupo: "Ingredientes de platos",
-            unidad: "unidad",
-          },
-          hint.weeklyHits,
-        ),
-      );
+    if (recipeItems.length === 0) {
+      return dietItems;
     }
 
-    return [];
+    return mergeCartItemsByKey(dietItems, recipeItems);
   };
 
   const WEEKS_PER_MONTH = 4;
@@ -436,20 +557,15 @@ export default function CartClient() {
     baseItems: CartItem[],
     extraIngredients: Array<{ name: string; weeklyHits: number }>,
   ) => {
-    const existingKeys = new Set(
-      baseItems.map((item) => normalizeFoodKey(item.producto)),
-    );
-
     const extraItems: CartItem[] = extraIngredients
       .filter((item) => item?.name)
-      .filter((item) => !existingKeys.has(normalizeFoodKey(item.name)))
       .map((item) => ({
         id: `extra-ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         producto: item.name,
         grupo: "Ingredientes IA",
         cantidadMes: 0,
         frecuenciaSemanal: Math.max(1, Math.round(Number(item.weeklyHits) || 1)),
-        porcionGramos: 100,
+        porcionGramos: 1,
         carbohidratosPor100g: 0,
         grasasPor100g: 0,
         caloriasPor100g: 0,
@@ -467,7 +583,7 @@ export default function CartClient() {
         unidad: "unidad",
       }));
 
-    return [...baseItems, ...extraItems];
+    return mergeCartItemsByKey(baseItems, extraItems);
   };
 
   const getPatientTargetsFromCustomVariables = (patient: any) => {
@@ -536,14 +652,7 @@ export default function CartClient() {
         const dietItems = buildCartItemsFromDiet(draft);
         setProteinSupplement(normalizeProteinSupplement(draft?.recipes?.proteinSupplement));
         if (dietItems.length > 0) {
-          setItems(
-            dietItems.map((item) => ({
-              ...item,
-              cantidadMes: Number(
-                ((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2),
-              ),
-            })),
-          );
+          setItems(dietItems);
           setCartSourceLabel("Generado desde la dieta");
           toast.success("Carrito generado usando los alimentos de la dieta.");
         } else if (draft.cart && draft.cart.items && draft.cart.items.length > 0) {
@@ -638,8 +747,10 @@ export default function CartClient() {
           setItems(
             dietItems.map((item) => ({
               ...item,
-              cantidadMes: Number(
-                ((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2),
+              cantidadMes: calculateMonthlyQuantity(
+                item.porcionGramos,
+                item.unidad,
+                item.frecuenciaSemanal,
               ),
             })),
           );
@@ -875,9 +986,7 @@ export default function CartClient() {
       prev.map((item) => {
         if (item.id === id) {
           const newFreq = numValue;
-          const newQty = Number(
-            ((item.porcionGramos * newFreq * 4) / 1000).toFixed(2),
-          );
+          const newQty = calculateMonthlyQuantity(item.porcionGramos, item.unidad, newFreq);
           return { ...item, frecuenciaSemanal: newFreq, cantidadMes: newQty };
         }
         return item;
@@ -891,9 +1000,7 @@ export default function CartClient() {
       prev.map((item) => {
         if (item.id === id) {
           const newPortion = numValue;
-          const newQty = Number(
-            ((newPortion * item.frecuenciaSemanal * 4) / 1000).toFixed(2),
-          );
+          const newQty = calculateMonthlyQuantity(newPortion, item.unidad, item.frecuenciaSemanal);
           return { ...item, porcionGramos: newPortion, cantidadMes: newQty };
         }
         return item;
@@ -948,9 +1055,7 @@ export default function CartClient() {
     setItems((prev) =>
       prev.map((i) => {
         if (i.id === item.id) {
-          const newQty = Number(
-            ((newGrams * i.frecuenciaSemanal * 4) / 1000).toFixed(2),
-          );
+          const newQty = calculateMonthlyQuantity(newGrams, i.unidad, i.frecuenciaSemanal);
           return { ...i, porcionGramos: newGrams, cantidadMes: newQty };
         }
         return i;
@@ -991,7 +1096,7 @@ export default function CartClient() {
           }
 
           newGrams = Math.round(newGrams);
-          const newQty = Number(((newGrams * item.frecuenciaSemanal * 4) / 1000).toFixed(2));
+          const newQty = calculateMonthlyQuantity(newGrams, item.unidad, item.frecuenciaSemanal);
 
           return {
             ...item,
@@ -1156,10 +1261,10 @@ export default function CartClient() {
     };
 
     // Calculate monthly quantity
-    newItem.cantidadMes = Number(
-      ((newItem.porcionGramos * newItem.frecuenciaSemanal * 4) / 1000).toFixed(
-        2,
-      ),
+    newItem.cantidadMes = calculateMonthlyQuantity(
+      newItem.porcionGramos,
+      newItem.unidad,
+      newItem.frecuenciaSemanal,
     );
 
     setItems((prev) => [...prev, newItem]);
@@ -1431,14 +1536,7 @@ export default function CartClient() {
           return;
         }
 
-        setItems(
-          cartItems.map((item) => ({
-            ...item,
-            cantidadMes: Number(
-              ((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2),
-            ),
-          })),
-        );
+        setItems(cartItems);
         if (extraIngredientsFromAI.length > 0) {
           toast.info(`Se agregaron ${extraIngredientsFromAI.length} ingrediente(s) extra sugeridos por IA.`);
         }
@@ -1469,14 +1567,7 @@ export default function CartClient() {
         setProteinSupplement(normalizeProteinSupplement(content.proteinSupplement || draft?.recipes?.proteinSupplement));
 
         if (dietItems.length > 0) {
-          setItems(
-            dietItems.map((item) => ({
-              ...item,
-              cantidadMes: Number(
-                ((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2),
-              ),
-            })),
-          );
+          setItems(dietItems);
           setCartSourceLabel(`Generado desde la dieta: ${creation.name}`);
           toast.success(`Dieta "${creation.name}" importada al carrito.`);
         } else {
@@ -2239,16 +2330,12 @@ export default function CartClient() {
                               <div className="relative w-28">
                                 <Input
                                   type="text"
-                                  value={
-                                    item.unidad === 'kg' && item.cantidadMes < 1
-                                      ? Math.round(item.cantidadMes * 1000)
-                                      : item.cantidadMes
-                                  }
+                                  value={formatCartQuantity(item)}
                                   readOnly
                                   className="h-10 pr-10 text-center font-black text-slate-700 border-slate-200 rounded-xl bg-slate-50/50"
                                 />
                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 pointer-events-none uppercase">
-                                  {item.unidad === 'kg' && item.cantidadMes < 1 ? 'g' : item.unidad}
+                                  {item.unidad === "kg" && Number(item.cantidadMes) < 1 ? "g" : item.unidad}
                                 </span>
                               </div>
                             </div>

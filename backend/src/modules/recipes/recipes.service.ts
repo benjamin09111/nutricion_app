@@ -51,6 +51,8 @@ type AiFillWeekResponse = {
 type QuickAiIngredientOutput = {
     name: string;
     quantity?: string;
+    amount?: number;
+    unit?: string;
 };
 
 type QuickAiDishOutput = {
@@ -59,6 +61,7 @@ type QuickAiDishOutput = {
     description: string;
     preparation: string;
     recommendedPortion: string;
+    portions: number;
     protein: number;
     calories: number;
     carbs: number;
@@ -474,33 +477,39 @@ export class RecipesService {
                     return { name, quantity: '' };
                 }
 
-                if (item && typeof item === 'object') {
-                    const name = typeof item.name === 'string' ? item.name.trim() : '';
-                    if (!name) return null;
-                    const quantity = typeof item.quantity === 'string' ? item.quantity.trim() : '';
-                    return { name, quantity };
-                }
+                  if (item && typeof item === 'object') {
+                      const name = typeof item.name === 'string' ? item.name.trim() : '';
+                      if (!name) return null;
+                      const quantity = typeof item.quantity === 'string' ? item.quantity.trim() : '';
+                      const amount = Number.isFinite(Number(item.amount)) ? Number(item.amount) : undefined;
+                      const unit = typeof item.unit === 'string' ? item.unit.trim() : undefined;
+                      return { name, quantity, amount, unit };
+                  }
 
                 return null;
             })
             .filter((item: QuickAiIngredientOutput | null): item is QuickAiIngredientOutput => !!item);
 
-        const title = typeof dish?.title === 'string' ? dish.title.trim() : '';
-        const mealSection = typeof dish?.mealSection === 'string' ? dish.mealSection.trim() : '';
-        const recommendedPortion =
-            typeof dish?.recommendedPortion === 'string' ? dish.recommendedPortion.trim() : '';
+          const title = typeof dish?.title === 'string' ? dish.title.trim() : '';
+          const mealSection = typeof dish?.mealSection === 'string' ? dish.mealSection.trim() : '';
+          const recommendedPortion =
+              typeof dish?.recommendedPortion === 'string' ? dish.recommendedPortion.trim() : '';
+          const portions = Number.isFinite(Number(dish?.portions))
+              ? Math.max(1, Math.round(Number(dish.portions)))
+              : 1;
 
         if (!title || !mealSection || !recommendedPortion) {
             throw new BadRequestException('La IA devolvió un plato incompleto en recetas rápidas.');
         }
 
         return {
-            title,
-            mealSection,
-            description: typeof dish?.description === 'string' ? dish.description.trim() : '',
-            preparation: typeof dish?.preparation === 'string' ? dish.preparation.trim() : '',
-            recommendedPortion,
-            protein: Number.isFinite(Number(dish?.protein)) ? Number(dish.protein) : 0,
+              title,
+              mealSection,
+              description: typeof dish?.description === 'string' ? dish.description.trim() : '',
+              preparation: typeof dish?.preparation === 'string' ? dish.preparation.trim() : '',
+              recommendedPortion,
+              portions,
+              protein: Number.isFinite(Number(dish?.protein)) ? Number(dish.protein) : 0,
             calories: Number.isFinite(Number(dish?.calories)) ? Number(dish.calories) : 0,
             carbs: Number.isFinite(Number(dish?.carbs)) ? Number(dish.carbs) : 0,
             fats: Number.isFinite(Number(dish?.fats)) ? Number(dish.fats) : 0,
@@ -551,8 +560,10 @@ export class RecipesService {
             'Devuelve la cantidad exacta pedida en desiredDishCount (minimo 2, maximo 60).',
             'Si mealSectionTargets viene informado, respeta exactamente la cantidad solicitada por cada mealSection.',
             'Si generationMode es weekly, prioriza variedad semanal evitando repetir platos muy similares.',
+            'Cada plato debe incluir portions como numero entero de porciones que rinde la receta.',
+            'Los campos amount y unit de cada ingrediente deben representar la cantidad TOTAL del ingrediente para la receta completa, no por porcion.',
             'Estructura exacta de salida JSON:',
-            '{"dishes":[{"title":"string","mealSection":"string","description":"string","preparation":"string","recommendedPortion":"string","protein":0,"calories":0,"carbs":0,"fats":0,"ingredients":[{"name":"string","quantity":"string"}]}],"meta":{"note":"string"}}',
+            '{"dishes":[{"title":"string","mealSection":"string","description":"string","preparation":"string","recommendedPortion":"string","portions":1,"protein":0,"calories":0,"carbs":0,"fats":0,"ingredients":[{"name":"string","quantity":"string","amount":0,"unit":"g"}]}],"meta":{"note":"string"}}',
             'Secciones sugeridas para mealSection: Desayuno, Colacion AM, Almuerzo, Colacion PM, Once, Cena, Post entreno.',
             'Si falta informacion, asume criterios nutricionales generales y recetas realistas de cocina chilena/latam.',
             'No incluyas texto fuera del JSON.',
@@ -695,30 +706,51 @@ export class RecipesService {
     async findAll(userId: string) {
         try {
             const nutritionistId = await this.getNutritionistId(userId).catch(() => null);
-            
-            const where: any = nutritionistId 
-                ? { OR: [{ isPublic: true }, { nutritionistId }] }
+            const where: any = nutritionistId
+                ? {
+                      OR: [
+                          { isPublic: true },
+                          { nutritionistId },
+                          { savedBy: { some: { nutritionistId } } },
+                      ],
+                  }
                 : { isPublic: true };
 
-            const recipes = await this.prisma.recipe.findMany({
-                where,
-                include: {
-                    _count: { select: { ingredients: true } },
-                    nutritionist: { select: { fullName: true } },
-                    ingredients: {
-                        include: {
-                            ingredient: {
-                                select: { name: true }
-                            }
+            const include = {
+                _count: { select: { ingredients: true } },
+                nutritionist: { select: { fullName: true } },
+                ingredients: {
+                    include: {
+                        ingredient: {
+                            select: { name: true }
                         }
                     }
                 },
+                ...(nutritionistId
+                    ? {
+                          savedBy: {
+                              where: { nutritionistId },
+                              select: { id: true },
+                          },
+                      }
+                    : {}),
+            };
+
+            const recipes = await this.prisma.recipe.findMany({
+                where,
+                include,
                 orderBy: { updatedAt: 'desc' }
             });
-            return recipes.map((r: any) => ({ 
-                ...r, 
-                isMine: nutritionistId ? r.nutritionistId === nutritionistId : false 
-            }));
+            return recipes.map((r: any) => {
+                const isMine = nutritionistId ? r.nutritionistId === nutritionistId : false;
+                const isAdopted = nutritionistId ? !isMine && Array.isArray(r.savedBy) && r.savedBy.length > 0 : false;
+
+                return {
+                    ...r,
+                    isMine,
+                    isAdopted,
+                };
+            });
         } catch (error) {
             console.error('[RecipesService.findAll] Fallback to public recipes:', error);
             const recipes = await this.prisma.recipe.findMany({
@@ -729,7 +761,7 @@ export class RecipesService {
                 },
                 orderBy: { updatedAt: 'desc' }
             });
-            return recipes.map((r: any) => ({ ...r, isMine: false }));
+            return recipes.map((r: any) => ({ ...r, isMine: false, isAdopted: false }));
         }
     }
 
@@ -743,18 +775,83 @@ export class RecipesService {
                         ingredient: true
                     }
                 },
-                nutritionist: true
+                nutritionist: true,
+                ...(nutritionistId
+                    ? {
+                          savedBy: {
+                              where: { nutritionistId },
+                              select: { id: true },
+                          },
+                      }
+                    : {}),
             }
         });
 
         if (!recipe) throw new NotFoundException('Recipe not found');
 
-        // Allow if public OR owned
-        if (!recipe.isPublic && (!nutritionistId || recipe.nutritionistId !== nutritionistId)) {
+        const isMine = nutritionistId ? recipe.nutritionistId === nutritionistId : false;
+        const isAdopted = nutritionistId ? Array.isArray((recipe as any).savedBy) && (recipe as any).savedBy.length > 0 : false;
+
+        // Allow if public, owned, or saved in the nutritionist library
+        if (!recipe.isPublic && !isMine && !isAdopted) {
             throw new ForbiddenException('Access denied');
         }
 
-        return recipe;
+        return {
+            ...recipe,
+            isMine,
+            isAdopted,
+        };
+    }
+
+    async addToLibrary(id: string, userId: string) {
+        const nutritionistId = await this.getNutritionistId(userId);
+        const recipe = await this.prisma.recipe.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                isPublic: true,
+                nutritionistId: true,
+            },
+        });
+
+        if (!recipe) throw new NotFoundException('Recipe not found');
+
+        if (recipe.nutritionistId === nutritionistId) {
+            return {
+                recipeId: recipe.id,
+                added: false,
+                alreadyOwned: true,
+            };
+        }
+
+        if (!recipe.isPublic) {
+            throw new ForbiddenException('Solo puedes agregar platos públicos de la comunidad.');
+        }
+
+        await this.prisma.recipeLibrary.upsert({
+            where: {
+                nutritionistId_recipeId: {
+                    nutritionistId,
+                    recipeId: recipe.id,
+                },
+            },
+            update: {},
+            create: {
+                nutritionistId,
+                recipeId: recipe.id,
+            },
+        });
+
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'recipes');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+        await this.cacheService.invalidateNutritionistPrefix(userId, 'recipes');
+        await this.cacheService.invalidateNutritionistPrefix(userId, 'dashboard');
+
+        return {
+            recipeId: recipe.id,
+            added: true,
+        };
     }
 
     async update(id: string, userId: string, userRole: string, updateDto: CreateRecipeDto) {

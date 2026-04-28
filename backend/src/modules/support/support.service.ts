@@ -16,6 +16,7 @@ export class SupportService {
         if (data.type === 'PASSWORD_RESET') dbType = SupportRequestType.PASSWORD_RESET;
         if (data.type === 'CONTACT') dbType = SupportRequestType.CONTACT;
         if (data.type === 'FEEDBACK') dbType = SupportRequestType.FEEDBACK;
+        if (data.type === 'TESTIMONIO') dbType = SupportRequestType.TESTIMONIO;
         if (data.type === 'COMPLAINT') dbType = SupportRequestType.COMPLAINT;
         if (data.type === 'IDEA') dbType = SupportRequestType.IDEA;
 
@@ -36,7 +37,9 @@ export class SupportService {
         await this.mailService.sendFeedback({
             type: data.type, // Send the specific type (FEEDBACK, IDEA, etc)
             subject: data.subject || (data.message ? data.message.substring(0, 30) + '...' : 'Sin asunto'),
-            message: data.message || 'Sin mensaje',
+            message: data.type === 'TESTIMONIO'
+                ? `Testimonio público potencial: ${data.message || 'Sin mensaje'}`
+                : data.message || 'Sin mensaje',
             fromEmail: data.email
         });
 

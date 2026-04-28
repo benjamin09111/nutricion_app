@@ -1,5 +1,6 @@
 import React from "react";
 import { Document, Image, Page, Path, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
+import exchangePortionGuide from "@/content/exchange-portions.json";
 
 interface StandardTemplateProps {
   data: Record<string, unknown>;
@@ -43,6 +44,12 @@ type WeeklyRecipeRow = {
   section: string;
   title: string;
   portion: string;
+};
+
+type ExchangePortionRow = {
+  category: string;
+  portion: string;
+  notes?: string;
 };
 
 const INFO_SECTION_CATALOG: Record<string, { title: string; subtitle: string; defaultText: string }> = {
@@ -101,6 +108,10 @@ const INFO_SECTION_CATALOG: Record<string, { title: string; subtitle: string; de
       "Guia para diferenciar hambre fisiologica de hambre emocional.",
   },
 };
+
+const EXCHANGE_PORTION_GUIDE = Array.isArray(exchangePortionGuide)
+  ? (exchangePortionGuide as ExchangePortionRow[])
+  : [];
 
 const S = StyleSheet.create({
   coverPage: {
@@ -438,6 +449,48 @@ const S = StyleSheet.create({
   c1: { width: "40%" },
   c2: { width: "30%" },
   c3: { width: "30%" },
+
+  exchangeTable: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  exchangeHeader: {
+    flexDirection: "row",
+    backgroundColor: "#ecfeff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#bfdbfe",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  exchangeRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  exchangeHeadText: {
+    fontSize: 9.2,
+    color: "#0f172a",
+    fontFamily: "Helvetica-Bold",
+    textTransform: "uppercase",
+  },
+  exchangeCell: {
+    fontSize: 10.1,
+    color: "#1f2937",
+    lineHeight: 1.35,
+  },
+  exchangeNote: {
+    fontSize: 8.6,
+    color: "#475569",
+    lineHeight: 1.3,
+  },
+  e1: { width: "28%" },
+  e2: { width: "50%" },
+  e3: { width: "22%" },
 
   recipeDay: {
     marginTop: 10,
@@ -994,6 +1047,7 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
   const brandSettings = toRecord(config.brandSettings);
   const selectedSections = Array.isArray(config.selectedSections) ? config.selectedSections : [];
   const resources = buildResourceChapters(selectedSections, deliverable.resourcePages);
+  const showExchangePortions = selectedSections.includes("exchangePortions");
 
   const patientName = safeString(patientMeta.fullName) || "Paciente sin asignar";
   const welcomeMessage = htmlToText(safeString(deliverable.welcomeMessage));
@@ -1279,9 +1333,45 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
         </View>
       </Page>
 
+      {showExchangePortions && (
+        <Page size="A4" style={S.chapterPage} wrap>
+          <View style={[S.chapterHero, { backgroundColor: "#059669" }]}>
+            <Text style={S.chapterHeroOverline}>Capitulo III</Text>
+            <Text style={S.chapterHeroTitle}>Porciones de intercambio</Text>
+            <Text style={S.chapterHeroDesc}>
+              Tabla oficial para validar equivalencias, ajustar porciones y revisar intercambios del plan.
+            </Text>
+          </View>
+          <View style={S.chapterPageBody}>
+            <View style={S.tableChunk}>
+              <View style={S.tableHeader}>
+                <View style={S.e1}><Text style={S.tableHeadText}>Categoria</Text></View>
+                <View style={S.e2}><Text style={S.tableHeadText}>Porcion oficial</Text></View>
+                <View style={S.e3}><Text style={S.tableHeadText}>Notas</Text></View>
+              </View>
+              {EXCHANGE_PORTION_GUIDE.length > 0 ? (
+                EXCHANGE_PORTION_GUIDE.map((row, index) => (
+                  <View key={`exchange-${index}`} style={S.exchangeRow} wrap={false}>
+                    <View style={S.e1}><Text style={S.exchangeCell}>{row.category}</Text></View>
+                    <View style={S.e2}><Text style={S.exchangeCell}>{row.portion}</Text></View>
+                    <View style={S.e3}><Text style={S.exchangeNote}>{row.notes || "Verificar referencia oficial"}</Text></View>
+                  </View>
+                ))
+              ) : (
+                <View style={S.tableRow}>
+                  <View style={S.c1}><Text style={S.tableCellPrimary}>Sin datos</Text></View>
+                  <View style={S.c2}><Text style={S.tableCellSecondary}>Agrega el JSON oficial de porciones.</Text></View>
+                  <View style={S.c3}><Text style={S.tableCellSecondary}>Pendiente</Text></View>
+                </View>
+              )}
+            </View>
+          </View>
+        </Page>
+      )}
+
       <Page size="A4" style={S.chapterPage} wrap>
         <View style={[S.chapterHero, { backgroundColor: "#7c3aed" }]}>
-          <Text style={S.chapterHeroOverline}>Capitulo III</Text>
+          <Text style={S.chapterHeroOverline}>{showExchangePortions ? "Capitulo IV" : "Capitulo III"}</Text>
           <Text style={S.chapterHeroTitle}>Recursos y recomendaciones</Text>
           <Text style={S.chapterHeroDesc}>
             Material educativo complementario para reforzar adherencia y autonomia.

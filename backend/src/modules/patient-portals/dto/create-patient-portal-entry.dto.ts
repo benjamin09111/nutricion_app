@@ -3,6 +3,10 @@ import { IsOptional, IsString } from 'class-validator';
 export class CreatePatientPortalEntryDto {
   @IsOptional()
   @IsString()
+  entryDate?: string;
+
+  @IsOptional()
+  @IsString()
   alimentacion?: string;
 
   @IsOptional()

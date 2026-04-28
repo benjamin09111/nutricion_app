@@ -31,6 +31,7 @@ interface Feedback {
   | "CONTACT"
   | "OTHER"
   | "FEEDBACK"
+  | "TESTIMONIO"
   | "COMPLAINT"
   | "IDEA";
   status: "PENDING" | "IN_PROGRESS" | "RESOLVED";
@@ -137,6 +138,8 @@ export default function AdminFeedbackPage() {
         return <AlertTriangle className="w-4 h-4 text-rose-600" />;
       case "IDEA":
         return <Lightbulb className="w-4 h-4 text-amber-600" />;
+      case "TESTIMONIO":
+        return <CheckCircle2 className="w-4 h-4 text-sky-600" />;
       case "PASSWORD_RESET":
         return <User className="w-4 h-4 text-indigo-600" />;
       case "CONTACT":
@@ -154,6 +157,8 @@ export default function AdminFeedbackPage() {
         return "Problema";
       case "IDEA":
         return "Idea";
+      case "TESTIMONIO":
+        return "Testimonio";
       case "PASSWORD_RESET":
         return "Reset Pass";
       case "CONTACT":
@@ -171,6 +176,8 @@ export default function AdminFeedbackPage() {
         return "bg-rose-50 text-rose-700 border-rose-200";
       case "IDEA":
         return "bg-amber-50 text-amber-700 border-amber-200";
+      case "TESTIMONIO":
+        return "bg-sky-50 text-sky-700 border-sky-200";
       case "PASSWORD_RESET":
         return "bg-indigo-50 text-indigo-700 border-indigo-200";
       case "CONTACT":
@@ -234,6 +241,7 @@ export default function AdminFeedbackPage() {
             <option value="ALL">Todos los tipos</option>
             <option value="FEEDBACK">Feedback</option>
             <option value="IDEA">Ideas</option>
+            <option value="TESTIMONIO">Testimonios</option>
             <option value="COMPLAINT">Problemas</option>
             <option value="CONTACT">Contacto</option>
             <option value="PASSWORD_RESET">Reset Password</option>
@@ -297,6 +305,11 @@ export default function AdminFeedbackPage() {
                       <h3 className="font-semibold text-slate-900 text-sm mb-1 truncate">
                         {item.email}
                       </h3>
+                      {item.type === "TESTIMONIO" && (
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-sky-700">
+                          Posible testimonio público para la página
+                        </p>
+                      )}
 
                       <p className="text-slate-600 text-sm whitespace-pre-wrap wrap-break-word leading-relaxed">
                         {item.message || (

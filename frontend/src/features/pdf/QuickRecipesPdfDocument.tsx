@@ -4,6 +4,8 @@ import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 export interface QuickRecipeIngredientPdf {
   name: string;
   quantity?: string;
+  amount?: number | string;
+  unit?: string;
 }
 
 export interface QuickDishPdf {
@@ -12,6 +14,7 @@ export interface QuickDishPdf {
   description?: string;
   preparation?: string;
   recommendedPortion?: string;
+  portions?: number | string;
   protein?: number | string;
   calories?: number | string;
   carbs?: number | string;

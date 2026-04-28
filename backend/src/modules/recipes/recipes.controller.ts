@@ -53,6 +53,11 @@ export class RecipesController {
         return this.recipesService.quickFillWithAi(req.user.id, dto);
     }
 
+    @Post(':id/library')
+    addToLibrary(@Request() req: any, @Param('id') id: string) {
+        return this.recipesService.addToLibrary(id, req.user.id);
+    }
+
     @Get()
     findAll(@Request() req: any) {
         return this.recipesService.findAll(req.user.id);

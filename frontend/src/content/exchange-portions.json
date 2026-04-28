@@ -1,0 +1,42 @@
+[
+  {
+    "category": "Verduras y ensaladas",
+    "portion": "2 tazas crudas o 1 taza cocida por comida principal.",
+    "notes": "Base libre o de bajo aporte segun contexto clinico."
+  },
+  {
+    "category": "Frutas",
+    "portion": "1 unidad mediana o 1 taza picada.",
+    "notes": "Priorizar fruta entera antes que jugos."
+  },
+  {
+    "category": "Cereales y tuberculos",
+    "portion": "1/2 a 1 taza cocida, segun hambre y objetivo.",
+    "notes": "Ajustar segun gasto energetico y metas."
+  },
+  {
+    "category": "Legumbres",
+    "portion": "3/4 taza cocida como porcion base.",
+    "notes": "Equivalente muy util para almuerzo o cena."
+  },
+  {
+    "category": "Proteinas",
+    "portion": "90 a 120 g cocidos, equivalente a la palma de la mano.",
+    "notes": "Aplicable a carnes, pescados, pollo y versiones equivalentes."
+  },
+  {
+    "category": "Lacteos o equivalentes",
+    "portion": "1 taza de leche o yogur, o 1 lamina de queso fresco.",
+    "notes": "Considerar tolerancia digestiva y sin azucar agregado."
+  },
+  {
+    "category": "Grasas saludables",
+    "portion": "1 cda de aceite o 1/4 de palta.",
+    "notes": "Usar como complemento, no como base del plato."
+  },
+  {
+    "category": "Azucares y extras",
+    "portion": "1 cucharadita a 1 cucharada segun objetivo y contexto.",
+    "notes": "Idealmente restringir o reservar para casos puntuales."
+  }
+]

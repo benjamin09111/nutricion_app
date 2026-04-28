@@ -80,6 +80,14 @@ type RecipeMetadata = {
   customIngredients?: string[];
 };
 
+type RecipeIngredientDetail = {
+  name: string;
+  quantity?: string;
+  amount?: number;
+  unit?: string;
+  isMain?: boolean;
+};
+
 type RecipeApiSummary = {
   id: string;
   name: string;
@@ -92,9 +100,10 @@ type RecipeApiSummary = {
   calories: number;
   isPublic: boolean;
   isMine?: boolean;
+  isAdopted?: boolean;
   nutritionist?: { fullName?: string | null } | null;
   metadata?: RecipeMetadata | null;
-  ingredients?: { isMain: boolean; ingredient: { name: string } }[];
+  ingredients?: { isMain: boolean; amount?: number; unit?: string; ingredient: { name: string } }[];
   matchPercentage?: number;
   matchCount?: number;
   totalMain?: number;
@@ -106,12 +115,14 @@ interface Recipe {
   description: string;
   preparation?: string;
   recommendedPortion?: string;
+  portions?: number;
   complexity: "simple" | "elaborada";
   protein: number;
   calories: number;
   carbs: number;
   fats: number;
   ingredients: string[];
+  ingredientDetails?: RecipeIngredientDetail[];
   extraIngredients?: string[];
   image?: string;
   source: RecipeCatalogTab;
@@ -137,6 +148,8 @@ interface MealSlot {
 interface QuickIngredient {
   name: string;
   quantity?: string;
+  amount?: string;
+  unit?: string;
 }
 
 interface QuickGeneratedDish {
@@ -146,11 +159,13 @@ interface QuickGeneratedDish {
   description: string;
   preparation: string;
   recommendedPortion: string;
+  portions?: number;
   protein: number;
   calories: number;
   carbs: number;
   fats: number;
   ingredients: QuickIngredient[];
+  ingredientDetails?: RecipeIngredientDetail[];
 }
 
 type MealSectionTarget = {
@@ -730,8 +745,13 @@ export default function RecipesClient() {
     const counter = new Map<string, number>();
     Object.values(slotsByDay).forEach((slots) => {
       slots.forEach((slot) => {
-        slot.recipe?.ingredients?.forEach((ingredientName) => {
-          const key = ingredientName.toLowerCase().trim();
+        const recipe = slot.recipe;
+        const ingredientNames =
+          recipe && Array.isArray(recipe.ingredientDetails) && recipe.ingredientDetails.length > 0
+            ? recipe.ingredientDetails.map((ingredient) => ingredient.name)
+            : recipe?.ingredients || [];
+        ingredientNames.forEach((ingredientName) => {
+          const key = String(ingredientName).toLowerCase().trim();
           counter.set(key, (counter.get(key) || 0) + 1);
         });
       });
@@ -793,7 +813,7 @@ export default function RecipesClient() {
     }));
 
   const classifyRecipeSource = (recipe: RecipeApiSummary): RecipeCatalogTab => {
-    if (recipe.isMine) {
+    if (recipe.isMine || recipe.isAdopted) {
       return "mine";
     }
 
@@ -816,6 +836,7 @@ export default function RecipesClient() {
         recipe.preparation ||
         "Plato disponible para asignar a este bloque.",
       preparation: recipe.preparation || undefined,
+      portions: recipe.portions,
       complexity:
         ingredientNames.length > 6 || (recipe.preparation || "").length > 180
           ? "elaborada"
@@ -825,6 +846,12 @@ export default function RecipesClient() {
       carbs: recipe.carbs || 0,
       fats: recipe.lipids || 0,
       ingredients: ingredientNames,
+      ingredientDetails: (recipe.ingredients || []).map((item) => ({
+        name: item.ingredient.name,
+        amount: Number.isFinite(Number(item.amount)) ? Number(item.amount) : undefined,
+        unit: item.unit,
+        isMain: item.isMain,
+      })),
       source: classifyRecipeSource(recipe),
       authorLabel: recipe.nutritionist?.fullName || undefined,
       mainIngredients,
@@ -1577,11 +1604,43 @@ export default function RecipesClient() {
           description: d.description || "",
           preparation: d.preparation || "",
           recommendedPortion: d.recommendedPortion || "",
+          portions: d.portions != null ? Number(d.portions) : 1,
           protein: Number(d.protein) || 0,
           calories: Number(d.calories) || 0,
           carbs: Number(d.carbs) || 0,
           fats: Number(d.fats) || 0,
-          ingredients: Array.isArray(d.ingredients) ? d.ingredients : [],
+          ingredients: Array.isArray(d.ingredients)
+            ? d.ingredients.map((ing: any) =>
+                typeof ing === "string"
+                  ? { name: ing, quantity: "" }
+                  : {
+                      name: String(ing?.name || ""),
+                      quantity: String(ing?.quantity || ""),
+                      amount: ing?.amount != null ? String(ing.amount) : undefined,
+                      unit: ing?.unit ? String(ing.unit) : undefined,
+                    },
+              )
+            : [],
+          ingredientDetails: Array.isArray(d.ingredients)
+            ? d.ingredients
+                .map((ing: any) => {
+                  if (typeof ing === "string") {
+                    const name = ing.trim();
+                    if (!name) return null;
+                    return { name, quantity: "", amount: undefined, unit: undefined };
+                  }
+                  if (!ing || typeof ing !== "object") return null;
+                  const name = String(ing.name || "").trim();
+                  if (!name) return null;
+                  return {
+                    name,
+                    quantity: String(ing.quantity || ""),
+                    amount: ing.amount != null ? Number(ing.amount) : undefined,
+                    unit: ing.unit ? String(ing.unit) : undefined,
+                  };
+                })
+                .filter((item: RecipeIngredientDetail | null): item is RecipeIngredientDetail => !!item)
+            : [],
         }),
       );
 
@@ -1605,11 +1664,13 @@ export default function RecipesClient() {
                 description: dish.description,
                 preparation: dish.preparation,
                 recommendedPortion: dish.recommendedPortion,
+                portions: dish.portions,
                 calories: dish.calories,
                 protein: dish.protein,
                 carbs: dish.carbs,
                 fats: dish.fats,
                 ingredients: dish.ingredients.map(ing => ing.name),
+                ingredientDetails: dish.ingredientDetails,
                 mainIngredients: dish.ingredients.map(ing => ing.name),
                 complexity: "simple",
                 source: "app",
@@ -1820,12 +1881,14 @@ export default function RecipesClient() {
       description: quickMealDraft.description.trim() || "Comida rápida creada manualmente.",
       preparation: quickMealDraft.preparation.trim() || undefined,
       recommendedPortion: quickMealDraft.recommendedPortion.trim() || undefined,
+      portions: 1,
       complexity: "simple",
       protein: toNumber(quickMealDraft.protein),
       calories: toNumber(quickMealDraft.calories),
       carbs: toNumber(quickMealDraft.carbs),
       fats: toNumber(quickMealDraft.fats),
       ingredients: [],
+      ingredientDetails: [],
       mainIngredients: [],
       source: "mine",
       mealSection: targetSlot.mealSection || targetSlot.type,

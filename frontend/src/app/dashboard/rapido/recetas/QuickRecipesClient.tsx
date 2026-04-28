@@ -37,6 +37,8 @@ type QuickIngredient = {
   id: string;
   name: string;
   quantity: string;
+  amount?: string;
+  unit?: string;
 };
 
 type QuickDish = {
@@ -46,6 +48,7 @@ type QuickDish = {
   description: string;
   preparation: string;
   recommendedPortion: string;
+  portions: string;
   protein: string;
   calories: string;
   carbs: string;
@@ -83,11 +86,20 @@ type QuickAiDishResponse = {
   description?: string;
   preparation?: string;
   recommendedPortion?: string;
+  portions?: number | string;
   protein?: number | string;
   calories?: number | string;
   carbs?: number | string;
   fats?: number | string;
-  ingredients?: Array<string | { name?: string; quantity?: string }>;
+  ingredients?: Array<
+    | string
+    | {
+        name?: string;
+        quantity?: string;
+        amount?: number | string;
+        unit?: string;
+      }
+  >;
 };
 
 const MEAL_SECTIONS = [
@@ -121,6 +133,7 @@ const createDish = (): QuickDish => ({
   description: "",
   preparation: "",
   recommendedPortion: "",
+  portions: "1",
   protein: "",
   calories: "",
   carbs: "",
@@ -165,6 +178,20 @@ const toTextAreaValue = (value: unknown): string => {
     .join("\n");
 };
 
+const toTextAreaValueFromFoods = (value: unknown): string => {
+  if (!Array.isArray(value)) return "";
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return "";
+      const raw = item as Record<string, unknown>;
+      if (typeof raw.producto === "string" && raw.producto.trim()) return raw.producto.trim();
+      if (typeof raw.name === "string" && raw.name.trim()) return raw.name.trim();
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+};
+
 const normalizeImportedDishes = (value: unknown): QuickDish[] => {
   if (!Array.isArray(value) || value.length === 0) return [createDish()];
 
@@ -195,6 +222,8 @@ const normalizeImportedDishes = (value: unknown): QuickDish[] => {
         preparation: typeof item.preparation === "string" ? item.preparation : "",
         recommendedPortion:
           typeof item.recommendedPortion === "string" ? item.recommendedPortion : "",
+        portions:
+          item.portions != null ? String(item.portions) : "1",
         protein: item.protein != null ? String(item.protein) : "",
         calories: item.calories != null ? String(item.calories) : "",
         carbs: item.carbs != null ? String(item.carbs) : "",
@@ -475,8 +504,8 @@ export default function QuickRecipesClient() {
     );
   };
   const applyImportedCreation = (creation: ImportedCreation) => {
-    if (creation.type !== "RECIPE") {
-      toast.error("Solo puedes importar recetas en este modulo.");
+    if (creation.type !== "RECIPE" && creation.type !== "DIET") {
+      toast.error("Solo puedes importar recetas o dietas en este modulo.");
       return;
     }
     const content = (creation.content || {}) as Record<string, unknown>;
@@ -493,8 +522,18 @@ export default function QuickRecipesClient() {
     setNutritionistNotes(
       typeof content.nutritionistNotes === "string" ? content.nutritionistNotes : "",
     );
-    setAllowedFoodsMainText(toTextAreaValue(content.allowedFoodsMain));
-    setRestrictedFoodsText(toTextAreaValue(content.restrictedFoods));
+    const dietFoodsText =
+      toTextAreaValue(content.allowedFoodsMain) ||
+      toTextAreaValue(content.includedFoods) ||
+      toTextAreaValue(content.foods) ||
+      toTextAreaValueFromFoods(content.includedFoods) ||
+      toTextAreaValueFromFoods(content.foods);
+    setAllowedFoodsMainText(dietFoodsText);
+    setRestrictedFoodsText(
+      toTextAreaValue(content.restrictedFoods) ||
+        toTextAreaValue(content.activeConstraints) ||
+        toTextAreaValue(content.customConstraints),
+    );
     setSpecialConsiderations(
       typeof content.specialConsiderations === "string" ? content.specialConsiderations : "",
     );
@@ -514,7 +553,11 @@ export default function QuickRecipesClient() {
       typeof creation.metadata?.patientId === "string" ? creation.metadata.patientId : undefined;
     setSelectedPatient(patientName ? { id: patientId, fullName: patientName } : null);
     setIsImportCreationModalOpen(false);
-    toast.success("Receta importada al borrador actual.");
+    toast.success(
+      creation.type === "DIET"
+        ? "Dieta importada al borrador actual para crear platos."
+        : "Receta importada al borrador actual.",
+    );
   };
 
   const updateGenerationTarget = (
@@ -634,19 +677,9 @@ export default function QuickRecipesClient() {
         throw new Error("La IA no devolvio platos.");
       }
 
-      const mapped: QuickDish[] = aiDishes.map((dish) => ({
-        id: createId(),
-        title: dish.title || "",
-        mealSection: dish.mealSection || "Almuerzo",
-        description: dish.description || "",
-        preparation: dish.preparation || "",
-        recommendedPortion: dish.recommendedPortion || "",
-        protein: String(dish.protein ?? ""),
-        calories: String(dish.calories ?? ""),
-        carbs: String(dish.carbs ?? ""),
-        fats: String(dish.fats ?? ""),
-        ingredients: Array.isArray(dish.ingredients)
-          ? dish.ingredients
+      const mapped: QuickDish[] = aiDishes.map((dish) => {
+        const ingredients: QuickIngredient[] = Array.isArray(dish.ingredients)
+          ? (dish.ingredients
               .map((ingredient) => {
                 if (typeof ingredient === "string") {
                   const name = ingredient.trim();
@@ -660,12 +693,31 @@ export default function QuickRecipesClient() {
                   typeof ingredient.quantity === "string"
                     ? ingredient.quantity.trim()
                     : "";
+                const amount =
+                  ingredient.amount != null ? String(ingredient.amount).trim() : "";
+                const unit =
+                  typeof ingredient.unit === "string" ? ingredient.unit.trim() : "";
                 if (!name) return null;
-                return { id: createId(), name, quantity };
+                return { id: createId(), name, quantity, amount, unit };
               })
-              .filter((ingredient): ingredient is QuickIngredient => !!ingredient)
-          : [createIngredient()],
-      }));
+              .filter(Boolean) as QuickIngredient[])
+          : [createIngredient()];
+
+        return {
+        id: createId(),
+        title: dish.title || "",
+        mealSection: dish.mealSection || "Almuerzo",
+        description: dish.description || "",
+        preparation: dish.preparation || "",
+        recommendedPortion: dish.recommendedPortion || "",
+        portions: dish.portions != null ? String(dish.portions) : "1",
+        protein: String(dish.protein ?? ""),
+        calories: String(dish.calories ?? ""),
+        carbs: String(dish.carbs ?? ""),
+        fats: String(dish.fats ?? ""),
+        ingredients,
+      };
+      });
 
       setDishes(mapped);
       if (mode === "weekly") {
@@ -766,6 +818,7 @@ export default function QuickRecipesClient() {
       description: dish.description,
       preparation: dish.preparation,
       recommendedPortion: dish.recommendedPortion,
+      portions: dish.portions,
       protein: dish.protein,
       calories: dish.calories,
       carbs: dish.carbs,
@@ -775,6 +828,8 @@ export default function QuickRecipesClient() {
         .map((ingredient) => ({
           name: ingredient.name,
           quantity: ingredient.quantity,
+          amount: ingredient.amount,
+          unit: ingredient.unit,
         })),
     })),
     generatedAt: new Date().toLocaleDateString("es-CL"),
@@ -1297,6 +1352,20 @@ export default function QuickRecipesClient() {
                         className="h-10 rounded-xl border-slate-200 bg-slate-50 text-sm"
                       />
                     </div>
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Rinde
+                      </label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={dish.portions}
+                        onChange={(event) =>
+                          updateDish(dish.id, "portions", event.target.value)
+                        }
+                        className="h-10 rounded-xl border-slate-200 bg-slate-50 text-sm"
+                      />
+                    </div>
                     {(["calories", "protein", "carbs", "fats"] as const).map((macro) => (
                       <div key={macro}>
                         <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -1360,6 +1429,32 @@ export default function QuickRecipesClient() {
                             }
                             placeholder="Cantidad"
                             className="h-9 w-28 rounded-xl border-slate-200 bg-slate-50 text-sm"
+                          />
+                          <Input
+                            value={ingredient.amount || ""}
+                            onChange={(event) =>
+                              updateIngredient(
+                                dish.id,
+                                ingredient.id,
+                                "amount",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="Monto"
+                            className="h-9 w-24 rounded-xl border-slate-200 bg-slate-50 text-sm"
+                          />
+                          <Input
+                            value={ingredient.unit || ""}
+                            onChange={(event) =>
+                              updateIngredient(
+                                dish.id,
+                                ingredient.id,
+                                "unit",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="Unidad"
+                            className="h-9 w-20 rounded-xl border-slate-200 bg-slate-50 text-sm"
                           />
                           <button
                             onClick={() => removeIngredient(dish.id, ingredient.id)}
@@ -1434,7 +1529,7 @@ export default function QuickRecipesClient() {
         isOpen={isImportCreationModalOpen}
         onClose={() => setIsImportCreationModalOpen(false)}
         onImport={applyImportedCreation}
-        allowedTypes={["RECIPE"]}
+        allowedTypes={["DIET", "RECIPE"]}
       />
 
     </>
