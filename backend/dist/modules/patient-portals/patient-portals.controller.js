@@ -20,6 +20,7 @@ const create_patient_portal_invitation_dto_1 = require("./dto/create-patient-por
 const create_patient_portal_entry_dto_1 = require("./dto/create-patient-portal-entry.dto");
 const create_patient_portal_question_dto_1 = require("./dto/create-patient-portal-question.dto");
 const create_patient_portal_reply_dto_1 = require("./dto/create-patient-portal-reply.dto");
+const create_patient_portal_notification_dto_1 = require("./dto/create-patient-portal-notification.dto");
 const patient_portal_guard_1 = require("./guards/patient-portal.guard");
 let PatientPortalsController = class PatientPortalsController {
     patientPortalsService;
@@ -47,11 +48,17 @@ let PatientPortalsController = class PatientPortalsController {
     createTracking(req, dto) {
         return this.patientPortalsService.createTrackingEntry(req.portalSession, dto);
     }
+    createJournal(req, dto) {
+        return this.patientPortalsService.createTrackingEntry(req.portalSession, dto);
+    }
     createTrackingAlias(req, dto) {
         return this.patientPortalsService.createTrackingEntry(req.portalSession, dto);
     }
     createReply(req, patientId, dto) {
         return this.patientPortalsService.createReply(req.user.nutritionistId, patientId, dto);
+    }
+    createNotification(req, patientId, dto) {
+        return this.patientPortalsService.createNotification(req.user.nutritionistId, patientId, dto);
     }
     setAccessStatus(req, patientId, body) {
         return this.patientPortalsService.setAccessStatus(req.user.nutritionistId, patientId, body.status);
@@ -120,6 +127,15 @@ __decorate([
 ], PatientPortalsController.prototype, "createTracking", null);
 __decorate([
     (0, common_1.UseGuards)(patient_portal_guard_1.PatientPortalAuthGuard),
+    (0, common_1.Post)('me/journal'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_patient_portal_entry_dto_1.CreatePatientPortalEntryDto]),
+    __metadata("design:returntype", void 0)
+], PatientPortalsController.prototype, "createJournal", null);
+__decorate([
+    (0, common_1.UseGuards)(patient_portal_guard_1.PatientPortalAuthGuard),
     (0, common_1.Post)('me/check-ins'),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Body)()),
@@ -137,6 +153,16 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, create_patient_portal_reply_dto_1.CreatePatientPortalReplyDto]),
     __metadata("design:returntype", void 0)
 ], PatientPortalsController.prototype, "createReply", null);
+__decorate([
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, common_1.Post)('patients/:patientId/notifications'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('patientId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, create_patient_portal_notification_dto_1.CreatePatientPortalNotificationDto]),
+    __metadata("design:returntype", void 0)
+], PatientPortalsController.prototype, "createNotification", null);
 __decorate([
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     (0, common_1.Post)('patients/:patientId/access-status'),

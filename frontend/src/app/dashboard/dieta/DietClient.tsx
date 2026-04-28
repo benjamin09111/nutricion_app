@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useMemo, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
@@ -2846,75 +2846,70 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 {foods.map((food, idx) => (
                   <div
                     key={`${food.producto}-${idx}`}
-                    className="p-5 flex flex-col gap-5 group hover:bg-emerald-50/10 transition-all border-b border-slate-50 last:border-0"
+                    className="p-4 flex flex-row items-center justify-between gap-4 group hover:bg-emerald-50/10 transition-all border-b border-slate-50 last:border-0"
                   >
-                    <div className="flex flex-col gap-4">
-                      <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center text-xl shrink-0 border border-slate-200/50">
-                        ???
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-bold text-slate-900 text-sm truncate">
+                          {food.producto}
+                        </p>
+                        {food.isDraft && (
+                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200 shrink-0">
+                            Borrador
+                          </span>
+                        )}
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-slate-900 text-sm">
-                            {food.producto}
-                          </p>
-                          {food.isDraft && (
-                            <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200">
-                              Borrador
+                      <div className="flex gap-2 text-[11px] text-slate-500 font-medium items-center flex-wrap">
+                        <span className="text-orange-600 font-bold">
+                          {food.calorias || 0} kcal
+                        </span>
+                        <span>·</span>
+                        <span className="text-blue-600">
+                          P: {food.proteinas || 0}g
+                        </span>
+                        <span>·</span>
+                        <span className="text-emerald-600">
+                          C: {food.carbohidratos || 0}g
+                        </span>
+                        <span>·</span>
+                        <span className="text-yellow-600">
+                          L: {food.lipidos || 0}g
+                        </span>
+                        {food.azucares !== undefined && food.azucares > 0 && (
+                          <>
+                            <span>·</span>
+                            <span className="text-slate-500">
+                              Az: {food.azucares}g
                             </span>
-                          )}
-                        </div>
-                        <div className="flex gap-2 text-xs text-slate-500 font-medium items-center flex-wrap">
-                          <span className="text-orange-600 font-bold">
-                            {food.calorias || 0} kcal
-                          </span>
-                          <span>·</span>
-                          <span className="text-blue-600">
-                            P: {food.proteinas || 0}g
-                          </span>
-                          <span>·</span>
-                          <span className="text-emerald-600">
-                            C: {food.carbohidratos || 0}g
-                          </span>
-                          <span>·</span>
-                          <span className="text-yellow-600">
-                            L: {food.lipidos || 0}g
-                          </span>
-                          {food.azucares !== undefined && food.azucares > 0 && (
-                            <>
-                              <span>·</span>
-                              <span className="text-slate-500">
-                                Az: {food.azucares}g
-                              </span>
-                            </>
-                          )}
-                          {food.fibra !== undefined && food.fibra > 0 && (
-                            <>
-                              <span>·</span>
-                              <span className="text-slate-500">
-                                Fib: {food.fibra}g
-                              </span>
-                            </>
-                          )}
-                          {food.sodio !== undefined && food.sodio > 0 && (
-                            <>
-                              <span>·</span>
-                              <span className="text-slate-500">
-                                Na: {food.sodio}mg
-                              </span>
-                            </>
-                          )}
-                        </div>
+                          </>
+                        )}
+                        {food.fibra !== undefined && food.fibra > 0 && (
+                          <>
+                            <span>·</span>
+                            <span className="text-slate-500">
+                              Fib: {food.fibra}g
+                            </span>
+                          </>
+                        )}
+                        {food.sodio !== undefined && food.sodio > 0 && (
+                          <>
+                            <span>·</span>
+                            <span className="text-slate-500">
+                              Na: {food.sodio}mg
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
-                    <div className="flex justify-end gap-2 pt-2 border-t border-dashed border-slate-100">
+                    
+                    <div className="flex items-center gap-2 shrink-0">
                       {food.isDraft && (
                         <button
                           onClick={() => openDraftFoodEditor(food)}
-                          className="flex items-center gap-2 px-3 py-2 text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-xl cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none"
+                          className="flex items-center justify-center h-8 w-8 text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg cursor-pointer transition-all"
                           title="Completar información nutricional"
                         >
-                          <Pencil className="h-3.5 w-3.5" />
-                          Completar
+                          <Pencil className="h-4 w-4" />
                         </button>
                       )}
                       <button
@@ -2922,17 +2917,19 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                           setSelectedFoodForInfo(food);
                           setIsFoodInfoModalOpen(true);
                         }}
-                        className="flex items-center gap-2 px-3 py-2 text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-xl cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none border border-slate-200/50"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-slate-500 bg-slate-50 hover:bg-slate-100 hover:text-indigo-600 rounded-lg cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none border border-slate-200/50"
+                        title="Ver Detalles"
                       >
                         <Info className="h-3.5 w-3.5" />
-                        Detalles
+                        <span className="hidden sm:inline">Detalles</span>
                       </button>
                       <button
                         onClick={() => removeFood(food.producto)}
-                        className="flex items-center gap-2 px-3 py-2 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-xl cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none border border-rose-200/30"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-rose-500 bg-rose-50 hover:bg-rose-100 hover:text-rose-600 rounded-lg cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none border border-rose-200/30"
+                        title="Quitar"
                       >
-                        <X className="h-3.5 w-3.5" />
-                        Quitar
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Quitar</span>
                       </button>
                     </div>
                   </div>
@@ -2993,9 +2990,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   className="w-full flex flex-col p-4 hover:bg-slate-50 rounded-2xl border border-slate-100/50 hover:border-emerald-200 transition-all group gap-4"
                 >
                   <div className="flex flex-col gap-3">
-                    <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-lg shrink-0 border border-slate-200/50">
-                      ???
-                    </div>
+
                     <div>
                       <p className="font-bold text-sm text-slate-900 leading-tight">
                         {f.producto}
@@ -3234,9 +3229,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         </div>
                       )}
                       <div className="flex flex-col gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl shrink-0 border border-slate-100 group-hover:scale-110 transition-transform">
-                          ???
-                        </div>
+
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-slate-800 text-sm mb-1 truncate">
                             {f.name}
@@ -3330,9 +3323,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                                 </div>
                               )}
                               <div className="flex flex-col gap-3">
-                                <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl shrink-0 border border-slate-100 group-hover:scale-110 transition-transform">
-                                  ???
-                                </div>
+
                                 <div className="flex-1 min-w-0">
                                   <p className="font-black text-slate-800 text-sm mb-1 truncate">
                                     {rel.ingredient?.name}
@@ -3395,9 +3386,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         </div>
                       )}
                       <div className="flex flex-col gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl shrink-0 border border-slate-100 group-hover:scale-110 transition-transform">
-                          ???
-                        </div>
+
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-slate-800 text-sm mb-1 truncate">
                             {f.name}
@@ -3458,9 +3447,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         </div>
                       )}
                       <div className="flex flex-col gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl shrink-0 border border-slate-100 group-hover:scale-110 transition-transform">
-                          ???
-                        </div>
+
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-slate-800 text-sm mb-1 truncate">
                             {f.name}

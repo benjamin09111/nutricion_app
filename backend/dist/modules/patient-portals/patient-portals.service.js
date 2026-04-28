@@ -107,6 +107,10 @@ let PatientPortalsService = class PatientPortalsService {
                     expiresAt,
                     status: 'ACTIVE',
                     lastSentAt: new Date(),
+                    resourceIds: Array.isArray(dto.resourceIds) ? dto.resourceIds : [],
+                    deliverableCreationIds: Array.isArray(dto.deliverableCreationIds)
+                        ? dto.deliverableCreationIds
+                        : [],
                 },
                 select: {
                     id: true,
@@ -152,19 +156,24 @@ let PatientPortalsService = class PatientPortalsService {
         }
         const normalizedCode = this.normalizeAccessCode(accessCode);
         if (!normalizedCode) {
-            throw new common_1.BadRequestException('Debes ingresar tu código de acceso');
+            throw new common_1.BadRequestException('Debes ingresar tu cÃ³digo de acceso');
         }
         const invitation = await this.findInvitationByToken(token);
-        const invitationEmail = invitation.email ? this.normalizeEmail(invitation.email) : null;
+        const invitationEmail = invitation.email
+            ? this.normalizeEmail(invitation.email)
+            : null;
         const expectedCode = this.getPortalAccessCode(invitation.patientId, invitation.nutritionistId);
         if (invitationEmail && invitationEmail !== normalizedEmail) {
-            throw new common_1.ForbiddenException('Ese correo no coincide con la invitación');
+            throw new common_1.ForbiddenException('Ese correo no coincide con la invitaciÃ³n');
         }
         if (normalizedCode !== expectedCode) {
-            throw new common_1.ForbiddenException('El código de acceso es incorrecto');
+            throw new common_1.ForbiddenException('El cÃ³digo de acceso es incorrecto');
         }
-        if (invitation.status !== 'ACTIVE' || invitation.revokedAt || invitation.blockedAt || invitation.expiresAt.getTime() < Date.now()) {
-            throw new common_1.ForbiddenException('La invitación expiró o ya no está activa');
+        if (invitation.status !== 'ACTIVE' ||
+            invitation.revokedAt ||
+            invitation.blockedAt ||
+            invitation.expiresAt.getTime() < Date.now()) {
+            throw new common_1.ForbiddenException('La invitaciÃ³n expirÃ³ o ya no estÃ¡ activa');
         }
         if (!invitation.email) {
             await this.prisma.patientPortalInvitation.update({
@@ -260,9 +269,11 @@ let PatientPortalsService = class PatientPortalsService {
     async createTrackingEntry(session, dto) {
         const sections = this.buildTrackingSections(dto);
         if (!sections) {
-            throw new common_1.BadRequestException('Agrega al menos una sección para guardar tu seguimiento');
+            throw new common_1.BadRequestException('Agrega al menos una secciÃ³n para guardar tu seguimiento');
+            throw new common_1.BadRequestException('Agrega al menos una secciÃ³n para guardar tu seguimiento');
         }
-        const summary = this.buildTrackingSummary(sections);
+        const summary = this.buildTrackingSummary(sections, dto.entryDate);
+        const entryDate = this.normalizeDiaryDate(dto.entryDate);
         const entry = await this.prisma.patientPortalEntry.create({
             data: {
                 patientId: session.patientId,
@@ -273,6 +284,7 @@ let PatientPortalsService = class PatientPortalsService {
                 payload: {
                     source: 'patient',
                     sections,
+                    entryDate,
                 },
             },
             select: ENTRY_SELECT,
@@ -312,6 +324,71 @@ let PatientPortalsService = class PatientPortalsService {
             },
             select: ENTRY_SELECT,
         });
+        return {
+            entry,
+            overview: await this.buildOverview(nutritionistId, patientId),
+        };
+    }
+    async createNotification(nutritionistId, patientId, dto) {
+        const patient = await this.prisma.patient.findFirst({
+            where: { id: patientId, nutritionistId },
+            select: {
+                id: true,
+                fullName: true,
+                email: true,
+                nutritionist: {
+                    select: {
+                        fullName: true,
+                    },
+                },
+            },
+        });
+        if (!patient) {
+            throw new common_1.NotFoundException('No encontramos ese paciente');
+        }
+        const title = dto.title?.trim() || 'NotificaciÃ³n del nutricionista';
+        const message = dto.message.trim();
+        if (!message) {
+            throw new common_1.BadRequestException('Escribe un mensaje para la notificaciÃ³n');
+        }
+        const notificationType = message.length > 220 ? 'ALERT' : 'INFO';
+        const entry = await this.prisma.patientPortalEntry.create({
+            data: {
+                patientId,
+                nutritionistId,
+                kind: 'NOTIFICATION',
+                body: message,
+                payload: {
+                    source: 'nutritionist',
+                    notificationTitle: title,
+                    notificationType,
+                },
+            },
+            select: ENTRY_SELECT,
+        });
+        const invitation = await this.prisma.patientPortalInvitation.findFirst({
+            where: {
+                patientId,
+                nutritionistId,
+                status: 'ACTIVE',
+                revokedAt: null,
+                blockedAt: null,
+            },
+            orderBy: { createdAt: 'desc' },
+            select: {
+                email: true,
+            },
+        });
+        const recipientEmail = invitation?.email || patient.email || null;
+        if (dto.sendEmail !== false && recipientEmail) {
+            await this.mailService.sendPatientPortalNotificationEmail({
+                email: recipientEmail,
+                patientName: patient.fullName,
+                nutritionistName: patient.nutritionist.fullName,
+                title,
+                message,
+            });
+        }
         return {
             entry,
             overview: await this.buildOverview(nutritionistId, patientId),
@@ -391,6 +468,8 @@ let PatientPortalsService = class PatientPortalsService {
                     revokedAt: true,
                     blockedAt: true,
                     createdAt: true,
+                    resourceIds: true,
+                    deliverableCreationIds: true,
                 },
             }),
             this.prisma.patientPortalEntry.findMany({
@@ -412,6 +491,55 @@ let PatientPortalsService = class PatientPortalsService {
             !invitation.blockedAt &&
             invitation.expiresAt.getTime() >= Date.now()) || null;
         const latestInvitation = invitations[0] || null;
+        const sharingInvitation = activeInvitation || latestInvitation;
+        const [sharedResources, sharedDeliverables] = await Promise.all([
+            sharingInvitation?.resourceIds?.length
+                ? this.prisma.resource.findMany({
+                    where: {
+                        id: { in: sharingInvitation.resourceIds },
+                        OR: [
+                            { nutritionistId },
+                            { isPublic: true },
+                            { nutritionistId: null },
+                        ],
+                    },
+                    orderBy: { updatedAt: 'desc' },
+                    select: {
+                        id: true,
+                        title: true,
+                        content: true,
+                        category: true,
+                        tags: true,
+                        isPublic: true,
+                        format: true,
+                        fileUrl: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                })
+                : Promise.resolve([]),
+            sharingInvitation?.deliverableCreationIds?.length
+                ? this.prisma.creation.findMany({
+                    where: {
+                        id: { in: sharingInvitation.deliverableCreationIds },
+                        nutritionistId,
+                        type: { in: ['DELIVERABLE', 'FAST_DELIVERABLE'] },
+                    },
+                    orderBy: { updatedAt: 'desc' },
+                    select: {
+                        id: true,
+                        name: true,
+                        type: true,
+                        format: true,
+                        content: true,
+                        metadata: true,
+                        tags: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                })
+                : Promise.resolve([]),
+        ]);
         const normalizedEntries = entries.map((entry) => this.normalizeEntry(entry));
         const questions = normalizedEntries.filter((entry) => entry.kind === 'QUESTION');
         const tracking = normalizedEntries.filter((entry) => entry.kind === 'TRACKING');
@@ -420,14 +548,21 @@ let PatientPortalsService = class PatientPortalsService {
         return {
             patient,
             portal: {
-                activeInvitation: activeInvitation ? this.formatInvitationSummary(activeInvitation, patientId, nutritionistId) : null,
-                latestInvitation: latestInvitation ? this.formatInvitationSummary(latestInvitation, patientId, nutritionistId) : null,
+                activeInvitation: activeInvitation
+                    ? this.formatInvitationSummary(activeInvitation, patientId, nutritionistId)
+                    : null,
+                latestInvitation: latestInvitation
+                    ? this.formatInvitationSummary(latestInvitation, patientId, nutritionistId)
+                    : null,
             },
             summary,
             entries: normalizedEntries,
             questions,
             tracking,
             replies,
+            notifications: normalizedEntries.filter((entry) => entry.kind === 'NOTIFICATION'),
+            sharedResources,
+            sharedDeliverables,
         };
     }
     buildSummary(entries) {
@@ -437,9 +572,11 @@ let PatientPortalsService = class PatientPortalsService {
         const latestEntry = entries[0] || null;
         const latestEntryAt = latestEntry?.createdAt || null;
         const daysSinceLastEntry = latestEntryAt
-            ? Math.floor((Date.now() - new Date(latestEntryAt).getTime()) / (1000 * 60 * 60 * 24))
+            ? Math.floor((Date.now() - new Date(latestEntryAt).getTime()) /
+                (1000 * 60 * 60 * 24))
             : null;
         const pendingQuestions = questionEntries.filter((entry) => (entry.replies?.length || 0) === 0).length;
+        const notificationsCount = entries.filter((entry) => entry.kind === 'NOTIFICATION').length;
         const sectionCounts = trackingEntries.reduce((acc, entry) => {
             const sections = entry.payload?.sections || {};
             if (sections.alimentacion)
@@ -456,16 +593,20 @@ let PatientPortalsService = class PatientPortalsService {
         });
         const alerts = [];
         if (!latestEntryAt) {
-            alerts.push('Todavía no hay registros en el portal.');
+            alerts.push('TodavÃ­a no hay registros en el portal.');
         }
         else if (daysSinceLastEntry != null && daysSinceLastEntry >= 4) {
-            alerts.push(`Hace ${daysSinceLastEntry} días que no se actualiza el seguimiento.`);
+            alerts.push(`Hace ${daysSinceLastEntry} dÃ­as que no se actualiza el seguimiento.`);
+            alerts.push(`Hace ${daysSinceLastEntry} dÃ­as que no se actualiza el seguimiento.`);
         }
         if (pendingQuestions > 0) {
             alerts.push(`${pendingQuestions} consulta${pendingQuestions === 1 ? '' : 's'} sin responder.`);
         }
+        if (notificationsCount > 0) {
+            alerts.push(`${notificationsCount} notificaciÃ³n${notificationsCount === 1 ? '' : 'es'} del nutri.`);
+        }
         if (trackingEntries.length > 0 && sectionCounts.actividadFisica === 0) {
-            alerts.push('Todavía no hay actividad física registrada.');
+            alerts.push('TodavÃ­a no hay actividad fÃ­sica registrada.');
         }
         return {
             totalEntries: entries.length,
@@ -473,6 +614,7 @@ let PatientPortalsService = class PatientPortalsService {
             trackingCount: trackingEntries.length,
             repliesCount: replyEntries.length,
             pendingQuestions,
+            notificationsCount,
             latestEntryAt,
             daysSinceLastEntry,
             sectionCounts,
@@ -492,13 +634,33 @@ let PatientPortalsService = class PatientPortalsService {
             ...(actividadFisica ? { actividadFisica } : {}),
         };
     }
-    buildTrackingSummary(sections) {
+    buildTrackingSummary(sections, entryDate) {
+        const dateLabel = this.normalizeDiaryDate(entryDate);
         const pieces = [
-            sections.alimentacion ? `Alimentación: ${sections.alimentacion}` : null,
+            dateLabel ? `DÃ­a ${dateLabel}` : null,
+            sections.alimentacion ? `AlimentaciÃ³n: ${sections.alimentacion}` : null,
             sections.suplementos ? `Suplementos: ${sections.suplementos}` : null,
-            sections.actividadFisica ? `Actividad física: ${sections.actividadFisica}` : null,
+            sections.actividadFisica
+                ? `Actividad fÃ­sica: ${sections.actividadFisica}`
+                : null,
         ].filter(Boolean);
-        return pieces.join(' · ');
+        return pieces.join(' Â· ');
+    }
+    normalizeDiaryDate(value) {
+        if (!value)
+            return null;
+        const normalized = value.trim();
+        if (!normalized)
+            return null;
+        const parsed = new Date(`${normalized}T12:00:00`);
+        if (Number.isNaN(parsed.getTime())) {
+            return normalized;
+        }
+        return parsed.toLocaleDateString('es-CL', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+        });
     }
     normalizeEntry(entry) {
         return {
@@ -523,6 +685,8 @@ let PatientPortalsService = class PatientPortalsService {
         return {
             ...invitation,
             blockedAt: invitation.blockedAt || null,
+            resourceIds: invitation.resourceIds || [],
+            deliverableCreationIds: invitation.deliverableCreationIds || [],
             accessCode: this.formatAccessCodeForDisplay(this.getPortalAccessCode(patientId, nutritionistId)),
         };
     }
@@ -547,7 +711,7 @@ let PatientPortalsService = class PatientPortalsService {
             },
         });
         if (!invitation) {
-            throw new common_1.NotFoundException('La invitación no existe');
+            throw new common_1.NotFoundException('La invitaciÃ³n no existe');
         }
         return invitation;
     }

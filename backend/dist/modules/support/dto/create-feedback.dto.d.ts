@@ -1,5 +1,5 @@
 export declare class CreateFeedbackDto {
     message?: string;
-    type: 'FEEDBACK' | 'COMPLAINT' | 'IDEA';
+    type: 'FEEDBACK' | 'TESTIMONIO' | 'COMPLAINT' | 'IDEA';
     subject?: string;
 }

@@ -9,33 +9,26 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreatePatientPortalEntryDto = void 0;
+exports.CreatePatientPortalNotificationDto = void 0;
 const class_validator_1 = require("class-validator");
-class CreatePatientPortalEntryDto {
-    entryDate;
-    alimentacion;
-    suplementos;
-    actividadFisica;
+class CreatePatientPortalNotificationDto {
+    title;
+    message;
+    sendEmail;
 }
-exports.CreatePatientPortalEntryDto = CreatePatientPortalEntryDto;
+exports.CreatePatientPortalNotificationDto = CreatePatientPortalNotificationDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreatePatientPortalEntryDto.prototype, "entryDate", void 0);
+], CreatePatientPortalNotificationDto.prototype, "title", void 0);
 __decorate([
-    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreatePatientPortalEntryDto.prototype, "alimentacion", void 0);
+], CreatePatientPortalNotificationDto.prototype, "message", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreatePatientPortalEntryDto.prototype, "suplementos", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreatePatientPortalEntryDto.prototype, "actividadFisica", void 0);
-//# sourceMappingURL=create-patient-portal-entry.dto.js.map
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreatePatientPortalNotificationDto.prototype, "sendEmail", void 0);
+//# sourceMappingURL=create-patient-portal-notification.dto.js.map

@@ -40,7 +40,7 @@ export function MetricTagInput({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [metricToDelete, setMetricToDelete] = useState<Metric | null>(null);
 
-  const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+  const token = typeof window !== "undefined" ? (Cookies.get("auth_token") || localStorage.getItem("auth_token")) : "";
 
   useEffect(() => {
     const fetchMetrics = async () => {
