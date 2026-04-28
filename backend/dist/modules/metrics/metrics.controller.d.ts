@@ -3,9 +3,9 @@ export declare class MetricsController {
     private readonly metricsService;
     constructor(metricsService: MetricsService);
     findAll(search?: string): Promise<{
+        id: string;
         name: string;
         unit: string;
-        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
@@ -20,9 +20,9 @@ export declare class MetricsController {
         icon?: string;
         color?: string;
     }, req: any): Promise<{
+        id: string;
         name: string;
         unit: string;
-        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
@@ -31,9 +31,9 @@ export declare class MetricsController {
         color: string | null;
     }>;
     remove(id: string, req: any): Promise<{
+        id: string;
         name: string;
         unit: string;
-        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;

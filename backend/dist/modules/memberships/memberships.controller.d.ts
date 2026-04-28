@@ -4,8 +4,8 @@ export declare class MembershipsController {
     constructor(membershipsService: MembershipsService);
     findActive(): Promise<{
         price: number;
-        name: string;
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
@@ -21,8 +21,8 @@ export declare class MembershipsController {
     }[]>;
     findAll(): Promise<{
         price: number;
-        name: string;
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
@@ -38,8 +38,8 @@ export declare class MembershipsController {
     }[]>;
     findOne(id: string): Promise<{
         price: number;
-        name: string;
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
@@ -54,9 +54,9 @@ export declare class MembershipsController {
         displayOrder: number;
     } | null>;
     create(createDto: any): Promise<{
+        id: string;
         name: string;
         price: import("@prisma/client/runtime/library").Decimal;
-        id: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
@@ -71,9 +71,9 @@ export declare class MembershipsController {
         displayOrder: number;
     }>;
     update(id: string, updateDto: any): Promise<{
+        id: string;
         name: string;
         price: import("@prisma/client/runtime/library").Decimal;
-        id: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
@@ -88,9 +88,9 @@ export declare class MembershipsController {
         displayOrder: number;
     }>;
     toggleActive(id: string): Promise<{
+        id: string;
         name: string;
         price: import("@prisma/client/runtime/library").Decimal;
-        id: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
@@ -105,9 +105,9 @@ export declare class MembershipsController {
         displayOrder: number;
     }>;
     remove(id: string): Promise<{
+        id: string;
         name: string;
         price: import("@prisma/client/runtime/library").Decimal;
-        id: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;

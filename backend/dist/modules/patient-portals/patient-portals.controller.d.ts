@@ -10,8 +10,8 @@ export declare class PatientPortalsController {
         invitation: {
             id: string;
             email: string | null;
-            expiresAt: Date;
             status: string;
+            expiresAt: Date;
             createdAt: Date;
         };
         shareUrl: string;
@@ -27,17 +27,20 @@ export declare class PatientPortalsController {
             };
             id: string;
             email: string | null;
-            fullName: string;
-            phone: string | null;
             status: string | null;
             createdAt: Date;
+            fullName: string;
+            phone: string | null;
+            documentId: string | null;
+            height: number | null;
+            weight: number | null;
             projects: {
                 name: string;
                 id: string;
-                mode: string;
                 status: string;
                 updatedAt: Date;
                 description: string | null;
+                mode: string;
                 activeDeliverableCreation: {
                     name: string;
                     id: string;
@@ -54,9 +57,6 @@ export declare class PatientPortalsController {
                     type: string;
                 } | null;
             }[];
-            documentId: string | null;
-            height: number | null;
-            weight: number | null;
         };
         portal: {
             activeInvitation: {
@@ -310,17 +310,20 @@ export declare class PatientPortalsController {
             };
             id: string;
             email: string | null;
-            fullName: string;
-            phone: string | null;
             status: string | null;
             createdAt: Date;
+            fullName: string;
+            phone: string | null;
+            documentId: string | null;
+            height: number | null;
+            weight: number | null;
             projects: {
                 name: string;
                 id: string;
-                mode: string;
                 status: string;
                 updatedAt: Date;
                 description: string | null;
+                mode: string;
                 activeDeliverableCreation: {
                     name: string;
                     id: string;
@@ -337,9 +340,6 @@ export declare class PatientPortalsController {
                     type: string;
                 } | null;
             }[];
-            documentId: string | null;
-            height: number | null;
-            weight: number | null;
         };
         portal: {
             activeInvitation: {
@@ -585,17 +585,20 @@ export declare class PatientPortalsController {
             };
             id: string;
             email: string | null;
-            fullName: string;
-            phone: string | null;
             status: string | null;
             createdAt: Date;
+            fullName: string;
+            phone: string | null;
+            documentId: string | null;
+            height: number | null;
+            weight: number | null;
             projects: {
                 name: string;
                 id: string;
-                mode: string;
                 status: string;
                 updatedAt: Date;
                 description: string | null;
+                mode: string;
                 activeDeliverableCreation: {
                     name: string;
                     id: string;
@@ -612,9 +615,6 @@ export declare class PatientPortalsController {
                     type: string;
                 } | null;
             }[];
-            documentId: string | null;
-            height: number | null;
-            weight: number | null;
         };
         portal: {
             activeInvitation: {
@@ -855,27 +855,27 @@ export declare class PatientPortalsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            payload: import("@prisma/client/runtime/library").JsonValue;
             kind: string;
             replyToId: string | null;
             body: string | null;
+            payload: import("@prisma/client/runtime/library").JsonValue;
             replyTo: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
+                payload: import("@prisma/client/runtime/library").JsonValue;
             } | null;
             replies: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
+                payload: import("@prisma/client/runtime/library").JsonValue;
             }[];
         };
         overview: {
@@ -887,17 +887,20 @@ export declare class PatientPortalsController {
                 };
                 id: string;
                 email: string | null;
-                fullName: string;
-                phone: string | null;
                 status: string | null;
                 createdAt: Date;
+                fullName: string;
+                phone: string | null;
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
                 projects: {
                     name: string;
                     id: string;
-                    mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
+                    mode: string;
                     activeDeliverableCreation: {
                         name: string;
                         id: string;
@@ -914,9 +917,6 @@ export declare class PatientPortalsController {
                         type: string;
                     } | null;
                 }[];
-                documentId: string | null;
-                height: number | null;
-                weight: number | null;
             };
             portal: {
                 activeInvitation: {
@@ -1158,27 +1158,27 @@ export declare class PatientPortalsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            payload: import("@prisma/client/runtime/library").JsonValue;
             kind: string;
             replyToId: string | null;
             body: string | null;
+            payload: import("@prisma/client/runtime/library").JsonValue;
             replyTo: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
+                payload: import("@prisma/client/runtime/library").JsonValue;
             } | null;
             replies: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
+                payload: import("@prisma/client/runtime/library").JsonValue;
             }[];
         };
         overview: {
@@ -1190,17 +1190,20 @@ export declare class PatientPortalsController {
                 };
                 id: string;
                 email: string | null;
-                fullName: string;
-                phone: string | null;
                 status: string | null;
                 createdAt: Date;
+                fullName: string;
+                phone: string | null;
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
                 projects: {
                     name: string;
                     id: string;
-                    mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
+                    mode: string;
                     activeDeliverableCreation: {
                         name: string;
                         id: string;
@@ -1217,9 +1220,6 @@ export declare class PatientPortalsController {
                         type: string;
                     } | null;
                 }[];
-                documentId: string | null;
-                height: number | null;
-                weight: number | null;
             };
             portal: {
                 activeInvitation: {
@@ -1461,27 +1461,27 @@ export declare class PatientPortalsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            payload: import("@prisma/client/runtime/library").JsonValue;
             kind: string;
             replyToId: string | null;
             body: string | null;
+            payload: import("@prisma/client/runtime/library").JsonValue;
             replyTo: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
+                payload: import("@prisma/client/runtime/library").JsonValue;
             } | null;
             replies: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
+                payload: import("@prisma/client/runtime/library").JsonValue;
             }[];
         };
         overview: {
@@ -1493,17 +1493,20 @@ export declare class PatientPortalsController {
                 };
                 id: string;
                 email: string | null;
-                fullName: string;
-                phone: string | null;
                 status: string | null;
                 createdAt: Date;
+                fullName: string;
+                phone: string | null;
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
                 projects: {
                     name: string;
                     id: string;
-                    mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
+                    mode: string;
                     activeDeliverableCreation: {
                         name: string;
                         id: string;
@@ -1520,9 +1523,6 @@ export declare class PatientPortalsController {
                         type: string;
                     } | null;
                 }[];
-                documentId: string | null;
-                height: number | null;
-                weight: number | null;
             };
             portal: {
                 activeInvitation: {
@@ -1764,27 +1764,27 @@ export declare class PatientPortalsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            payload: import("@prisma/client/runtime/library").JsonValue;
             kind: string;
             replyToId: string | null;
             body: string | null;
+            payload: import("@prisma/client/runtime/library").JsonValue;
             replyTo: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
+                payload: import("@prisma/client/runtime/library").JsonValue;
             } | null;
             replies: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
+                payload: import("@prisma/client/runtime/library").JsonValue;
             }[];
         };
         overview: {
@@ -1796,17 +1796,20 @@ export declare class PatientPortalsController {
                 };
                 id: string;
                 email: string | null;
-                fullName: string;
-                phone: string | null;
                 status: string | null;
                 createdAt: Date;
+                fullName: string;
+                phone: string | null;
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
                 projects: {
                     name: string;
                     id: string;
-                    mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
+                    mode: string;
                     activeDeliverableCreation: {
                         name: string;
                         id: string;
@@ -1823,9 +1826,6 @@ export declare class PatientPortalsController {
                         type: string;
                     } | null;
                 }[];
-                documentId: string | null;
-                height: number | null;
-                weight: number | null;
             };
             portal: {
                 activeInvitation: {
@@ -2068,9 +2068,9 @@ export declare class PatientPortalsController {
         invitation: {
             id: string;
             status: string;
-            updatedAt: Date;
             revokedAt: Date | null;
             blockedAt: Date | null;
+            updatedAt: Date;
         };
         overview: {
             patient: {
@@ -2081,17 +2081,20 @@ export declare class PatientPortalsController {
                 };
                 id: string;
                 email: string | null;
-                fullName: string;
-                phone: string | null;
                 status: string | null;
                 createdAt: Date;
+                fullName: string;
+                phone: string | null;
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
                 projects: {
                     name: string;
                     id: string;
-                    mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
+                    mode: string;
                     activeDeliverableCreation: {
                         name: string;
                         id: string;
@@ -2108,9 +2111,6 @@ export declare class PatientPortalsController {
                         type: string;
                     } | null;
                 }[];
-                documentId: string | null;
-                height: number | null;
-                weight: number | null;
             };
             portal: {
                 activeInvitation: {

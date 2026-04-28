@@ -260,7 +260,7 @@ let PatientPortalsService = class PatientPortalsService {
     async createTrackingEntry(session, dto) {
         const sections = this.buildTrackingSections(dto);
         if (!sections) {
-            throw new common_1.BadRequestException('Agrega al menos una secciÃ³n para guardar tu seguimiento');
+            throw new common_1.BadRequestException('Agrega al menos una sección para guardar tu seguimiento');
         }
         const summary = this.buildTrackingSummary(sections);
         const entry = await this.prisma.patientPortalEntry.create({
@@ -456,16 +456,16 @@ let PatientPortalsService = class PatientPortalsService {
         });
         const alerts = [];
         if (!latestEntryAt) {
-            alerts.push('TodavÃ­a no hay registros en el portal.');
+            alerts.push('Todavía no hay registros en el portal.');
         }
         else if (daysSinceLastEntry != null && daysSinceLastEntry >= 4) {
-            alerts.push(`Hace ${daysSinceLastEntry} dÃ­as que no se actualiza el seguimiento.`);
+            alerts.push(`Hace ${daysSinceLastEntry} días que no se actualiza el seguimiento.`);
         }
         if (pendingQuestions > 0) {
             alerts.push(`${pendingQuestions} consulta${pendingQuestions === 1 ? '' : 's'} sin responder.`);
         }
         if (trackingEntries.length > 0 && sectionCounts.actividadFisica === 0) {
-            alerts.push('TodavÃ­a no hay actividad fÃ­sica registrada.');
+            alerts.push('Todavía no hay actividad física registrada.');
         }
         return {
             totalEntries: entries.length,
@@ -494,11 +494,11 @@ let PatientPortalsService = class PatientPortalsService {
     }
     buildTrackingSummary(sections) {
         const pieces = [
-            sections.alimentacion ? `AlimentaciÃ³n: ${sections.alimentacion}` : null,
+            sections.alimentacion ? `Alimentación: ${sections.alimentacion}` : null,
             sections.suplementos ? `Suplementos: ${sections.suplementos}` : null,
-            sections.actividadFisica ? `Actividad fÃ­sica: ${sections.actividadFisica}` : null,
+            sections.actividadFisica ? `Actividad física: ${sections.actividadFisica}` : null,
         ].filter(Boolean);
-        return pieces.join(' Â· ');
+        return pieces.join(' · ');
     }
     normalizeEntry(entry) {
         return {
@@ -547,7 +547,7 @@ let PatientPortalsService = class PatientPortalsService {
             },
         });
         if (!invitation) {
-            throw new common_1.NotFoundException('La invitaciÃ³n no existe');
+            throw new common_1.NotFoundException('La invitación no existe');
         }
         return invitation;
     }
