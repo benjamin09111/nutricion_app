@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
@@ -2562,7 +2562,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           void performExportPdf();
         }}
         title="¿Exportar PDF ahora?"
-        description="Todavía no hiciste cambios en ingredientes. Si fue un clic accidental, puedes volver atrás antes de generar el PDF."
+        description="Todavía no hiciste cambios en ingredientes. Si fue un clic accidental, puedes volver atrÃ¡s antes de generar el PDF."
         confirmText="Sí, exportar"
       />
       <ConfirmationModal
@@ -2573,7 +2573,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           void continueToRecipes();
         }}
         title="Hay alimentos con información pendiente"
-        description={`Todavía tienes ${draftFoodsPendingCompletion.length} alimento${draftFoodsPendingCompletion.length === 1 ? "" : "s"} creado${draftFoodsPendingCompletion.length === 1 ? "" : "s"} como borrador, sin sus características nutricionales completas. Si continúas ahora, los cálculos de la siguiente etapa pueden quedar imprecisos.`}
+        description={`Todavía tienes ${draftFoodsPendingCompletion.length} alimento${draftFoodsPendingCompletion.length === 1 ? "" : "s"} creado${draftFoodsPendingCompletion.length === 1 ? "" : "s"} como borrador, sin sus caracterÃ­sticas nutricionales completas. Si continÃºas ahora, los cÃ¡lculos de la siguiente etapa pueden quedar imprecisos.`}
         confirmText="Continuar igual"
       />
       <ConfirmationModal
@@ -2589,8 +2589,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         description={
           pendingTagCreation
               ? pendingTagCreation.type === "classification"
-                ? `El tag "${pendingTagCreation.name}" se agregó a esta dieta, pero todavía no existe en Detalles. ¿Quieres crearlo también como etiqueta de clasificación global?`
-                : `La restricción "${pendingTagCreation.name}" se agregó a esta dieta, pero todavía no existe en Detalles. ¿Quieres crearla también como restricción global?`
+                ? `El tag "${pendingTagCreation.name}" se agregó a esta dieta, pero todavía no existe en Detalles. ¿Quieres crearlo tambiÃ©n como etiqueta de clasificaciÃ³n global?`
+                : `La restricción "${pendingTagCreation.name}" se agregó a esta dieta, pero todavía no existe en Detalles. ¿Quieres crearla tambiÃ©n como restricción global?`
             : ""
         }
         confirmText="Sí, crear en Detalles"
@@ -3032,7 +3032,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             ) : foodSearchQuery.trim() ? (
               <div className="py-6 text-center">
                 <p className="text-sm text-slate-400 mb-3">
-                  No se encontróóóaron resultados.
+                  No se encontraron resultados.
                 </p>
                 <Button
                   variant="outline"
@@ -3128,7 +3128,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         </div>
       </Modal>
 
-      {/* Modal de Adición Inteligente */}
+      {/* Modal de AdiciÃ³n Inteligente */}
       <Modal
         isOpen={isSmartModalOpen}
         onClose={() => setIsSmartModalOpen(false)}
@@ -3490,7 +3490,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
                   <Search className="h-10 w-10 text-slate-200 mx-auto mb-3" />
                   <p className="text-slate-400 font-bold text-sm px-10">
-                    No se encontróóóaron productos para "{smartSearchQuery}"
+                    No se encontraron productos para "{smartSearchQuery}"
                   </p>
                 </div>
               ) : (
@@ -3860,8 +3860,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 <UserPlus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
                 <p className="text-sm text-slate-400 font-bold">
                   {patientSearchQuery.trim()
-                    ? "No encontróóóamos pacientes con ese criterio."
-                    : "No se encontróóóaron pacientes registrados."}
+                    ? "No encontrábamos pacientes con ese criterio."
+                    : "No se encontraron pacientes registrados."}
                 </p>
               </div>
             )}
@@ -4123,10 +4123,14 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         description={creationDescription}
         onDescriptionChange={setCreationDescription}
         title="Guardar dieta"
-        subtitle="Añade una breve descripción para reconocer esta dieta dentro de Mis creaciones."
+        subtitle="Añade una breve descripciÃ³n para reconocer esta dieta dentro de Mis creaciones."
       />
     </ModuleLayout >
   </>
 );
 }
+
+
+
+
 

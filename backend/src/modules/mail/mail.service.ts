@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+﻿import { Injectable } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
@@ -48,7 +48,7 @@ export class MailService {
         try {
             await this.mailerService.sendMail({
                 to: adminEmail,
-                subject: '🔔 Nueva Solicitud de Registro',
+                subject: 'ðŸ”” Nueva Solicitud de Registro',
                 template: 'admin-notification',
                 context: {
                     fullName: requestData.fullName,
@@ -71,7 +71,7 @@ export class MailService {
         try {
             await this.mailerService.sendMail({
                 to: adminEmail,
-                subject: `💬 [${data.type}] ${data.subject}`,
+                subject: `ðŸ’¬ [${data.type}] ${data.subject}`,
                 template: 'admin-notification',
                 context: {
                     fullName: data.fromEmail.split('@')[0],
@@ -93,7 +93,7 @@ export class MailService {
         try {
             await this.mailerService.sendMail({
                 to: email,
-                subject: '💬 Recibimos tu feedback - NutriSaaS',
+                subject: 'ðŸ’¬ Recibimos tu feedback - NutriSaaS',
                 template: 'request-confirmation',
                 context: {
                     name: 'Usuario',
@@ -195,9 +195,11 @@ export class MailService {
                   </div>
                 `,
             });
-            console.log(`âœ… NotificaciÃ³n de portal enviada a: ${data.email}`);
+            console.log(`✅ Notificación de portal enviada a: ${data.email}`);
         } catch (error) {
-            console.error('âŒ Error enviando notificaciÃ³n de portal:', error);
+            console.error('❌ Error enviando notificación de portal:', error);
         }
     }
 }
+
+

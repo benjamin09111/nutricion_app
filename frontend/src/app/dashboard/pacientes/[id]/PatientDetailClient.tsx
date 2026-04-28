@@ -110,11 +110,11 @@ const METRIC_KEY_MAP: Record<string, string> = {
 };
 
 /**
- * Normaliza etiquetas de mÃ©tricas para usarlas como llaves consistentes en grÃ¡ficas.
+ * Normaliza etiquetas de métricas para usarlas como llaves consistentes en gráficas.
  * Evita duplicados como "Peso" vs "weight".
  */
 const normalizeMetricKey = (label: string = "", key?: string) => {
-  // 1. Si ya tiene una llave tÃ©cnica conocida
+  // 1. Si ya tiene una llave técnica conocida
   if (key && METRIC_KEY_MAP[key.toLowerCase()]) {
     return METRIC_KEY_MAP[key.toLowerCase()];
   }
@@ -174,7 +174,7 @@ const formatDateOnlyForLocale = (
   const [year, month, day] = dateOnly.split("-").map(Number);
   if (!year || !month || !day) return "";
 
-  // MediodÃ­a UTC para evitar desfases de huso horario al formatear.
+  // Mediodía UTC para evitar desfases de huso horario al formatear.
   const stableDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
   return stableDate.toLocaleDateString("es-ES", options);
 };
@@ -277,7 +277,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         )
       : false;
 
-    // 1. AÃ±adir registro base del perfil del paciente si existe
+    // 1. Añadir registro base del perfil del paciente si existe
     if (patient) {
       const baseline: any = {
         date: new Date(patient.createdAt || Date.now()).toLocaleDateString(
@@ -300,7 +300,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       if (hasBaselineData) dataPoints.push(baseline);
     }
 
-    // 2. AÃ±adir registros de consultas / mÃ©tricas independientes
+    // 2. Añadir registros de consultas / métricas independientes
     if (Array.isArray(consultations)) {
       const consultationPoints = [...consultations]
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -563,10 +563,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   );
 
   const availableMetricSuggestions = useMemo(() => {
-    // Combinamos las mÃ©tricas estÃ¡ticas recomendadas con las globales creadas
+    // Combinamos las métricas estáticas recomendadas con las globales creadas
     const combined = [...smartMetrics];
 
-    // AÃ±adir globales que no estÃ©n ya en smartMetrics
+    // Añadir globales que no estÃ©n ya en smartMetrics
     globalMetrics.forEach((gm) => {
       const gmKey = normalizeMetricKey(gm.name, gm.key);
       if (
@@ -630,7 +630,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       const data: PortalInviteResponse = await response.json();
       if (!response.ok) {
-        throw new Error((data as any)?.message || "No se pudo generar la invitaciÃ³n");
+        throw new Error((data as any)?.message || "No se pudo generar la invitación");
       }
 
       setGeneratedPortalLink(data.shareUrl);
@@ -641,7 +641,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       await fetchPortalOverview();
       toast.success("Portal del paciente activado.");
     } catch (error: any) {
-      toast.error(error?.message || "No se pudo generar la invitaciÃ³n.");
+      toast.error(error?.message || "No se pudo generar la invitación.");
     } finally {
       setIsCreatingPortalInvite(false);
     }
@@ -656,7 +656,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       await navigator.clipboard.writeText(link);
       toast.success("Link copiado al portapapeles.");
     } catch (error) {
-      toast.error("No se pudo copiar automÃ¡ticamente.");
+      toast.error("No se pudo copiar automáticamente.");
     } finally {
       setIsCopyingPortalLink(false);
     }
@@ -816,7 +816,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     // Validate metrics: Must have values if they have a label
     const incompleteMetrics = metricForm.metrics.filter(m => m.label.trim() !== "" && (m.value === undefined || m.value === null || m.value.toString().trim() === ""));
     if (incompleteMetrics.length > 0) {
-      toast.error(`La mÃ©trica "${incompleteMetrics[0].label}" debe tener un valor.`);
+      toast.error(`La métrica "${incompleteMetrics[0].label}" debe tener un valor.`);
       return;
     }
 
@@ -826,7 +826,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     );
 
     if (validMetrics.length === 0) {
-      toast.error("Agrega al menos una mÃ©trica con valor");
+      toast.error("Agrega al menos una métrica con valor");
       return;
     }
 
@@ -907,12 +907,12 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         );
 
         if (response.ok) {
-          toast.success("MÃ©tricas actualizadas correctamente");
+          toast.success("Métricas actualizadas correctamente");
           closeMetricLogger();
           setConflictingConsultationId(null);
           await Promise.all([fetchConsultations(), fetchPatient()]);
         } else {
-          toast.error("Error al actualizar mÃ©tricas");
+          toast.error("Error al actualizar métricas");
         }
       } else {
         // POST nuevo
@@ -925,7 +925,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           body: JSON.stringify({
             patientId: id,
             date: metricForm.date,
-            title: "Registro de MÃ©tricas Independiente",
+            title: "Registro de Métricas Independiente",
             description: "Entrada manual de datos de seguimiento.",
             metrics: metricForm.metrics
               .filter((m) => m.label.trim() !== "" && m.value !== undefined && m.value !== null && m.value.toString().trim() !== "")
@@ -938,17 +938,17 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
         if (response.ok) {
           const newConsultation = await response.json();
-          toast.success("MÃ©tricas registradas correctamente");
+          toast.success("Métricas registradas correctamente");
           closeMetricLogger();
           setConflictingConsultationId(null);
           setConsultations((prev) => [newConsultation, ...prev]);
           await Promise.all([fetchConsultations(), fetchPatient()]);
         } else {
-          toast.error("Error al guardar mÃ©tricas");
+          toast.error("Error al guardar métricas");
         }
       }
     } catch (error) {
-      toast.error("Error de conexiÃ³n");
+      toast.error("Error de conexión");
     }
   };
 
@@ -963,7 +963,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       (s) => s.label.toLowerCase() === newMetric.name.toLowerCase()
     );
     if (exists) {
-      toast.info(`La mÃ©trica "${newMetric.name}" ya existe con la unidad "${exists.unit}". No es necesario crearla.`);
+      toast.info(`La métrica "${newMetric.name}" ya existe con la unidad "${exists.unit}". No es necesario crearla.`);
       return;
     }
 
@@ -992,13 +992,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         const err = await response.json().catch(() => ({}));
         // Si el backend dice que ya existe, lo mostramos explÃ­citamente como aviso no como error fatal
         if (response.status === 400 || response.status === 409) {
-          toast.info(err.message || "Esta mÃ©trica ya existe en el sistema.");
+          toast.info(err.message || "Esta métrica ya existe en el sistema.");
         } else {
-          toast.error(err.message || "Error al crear la mÃ©trica");
+          toast.error(err.message || "Error al crear la métrica");
         }
       }
     } catch (error) {
-      toast.error("Error de conexiÃ³n");
+      toast.error("Error de conexión");
     }
   };
 
@@ -1073,7 +1073,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         toast.error("Error al eliminar el registro base");
         return;
       } catch {
-        toast.error("Error de conexiÃ³n");
+        toast.error("Error de conexión");
         return;
       }
     }
@@ -1119,7 +1119,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         toast.error("Error al eliminar el registro");
       }
     } catch (e) {
-      toast.error("Error de conexiÃ³n");
+      toast.error("Error de conexión");
     }
   };
 
@@ -1166,14 +1166,14 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             body: JSON.stringify({
               patientId: id,
               date: newDate,
-              title: "Registro de MÃ©tricas Independiente",
+              title: "Registro de Métricas Independiente",
               description: "Entrada manual de datos de seguimiento.",
               metrics: [{ key: "weight", label: "Peso", value: parsedWeight.toString(), unit: "kg" }],
             }),
           });
 
           if (!consultationRes.ok) {
-            toast.error("Error al guardar el nuevo registro histÃ³rico de peso");
+            toast.error("Error al guardar el nuevo registro histórico de peso");
             return;
           }
         }
@@ -1183,7 +1183,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         await fetchConsultations();
         toast.success(
           changedDate
-            ? "Peso actualizado y convertido a registro histÃ³rico editable"
+            ? "Peso actualizado y convertido a registro histórico editable"
             : "Valor del perfil actualizado",
         );
       } else {
@@ -1211,13 +1211,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           setConsultations((prev) =>
             prev.map((c) => (c.id === record.id ? updated : c)),
           );
-          toast.success("Registro histÃ³rico actualizado");
+          toast.success("Registro histórico actualizado");
         } else {
           toast.error("Error al actualizar la consulta");
         }
       }
     } catch (e) {
-      toast.error("Error al guardar cambios histÃ³ricos");
+      toast.error("Error al guardar cambios históricos");
     }
   };
 
@@ -1236,7 +1236,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     );
 
     if (isDuplicate) {
-      toast.error(`${metric.label} ya estÃ¡ en la lista`);
+      toast.error(`${metric.label} ya está en la lista`);
       return;
     }
 
@@ -1257,7 +1257,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     const newMetrics = [...metricForm.metrics];
     const updatedMetric = { ...newMetrics[index], [field]: value };
 
-    // Si cambiamos el label, verificamos si es una mÃ©trica conocida para bloquear la unidad
+    // Si cambiamos el label, verificamos si es una métrica conocida para bloquear la unidad
     if (field === "label") {
       const known = availableMetricSuggestions.find(
         (s) =>
@@ -1286,7 +1286,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(22);
       doc.setTextColor(16, 185, 129); // Emerald-500
-      doc.text("INFORME DE EVOLUCIÃ“N", margin, currentY);
+      doc.text("INFORME DE EVOLUCIÓN", margin, currentY);
       currentY += 10;
 
       doc.setFontSize(14);
@@ -1346,7 +1346,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       for (const key of metricKeys) {
         const container = document.getElementById(`export-chart-${key}`);
         if (container) {
-          // Si estamos cerca del final de la pÃ¡gina, saltar
+          // Si estamos cerca del final de la página, saltar
           if (currentY > 180) {
             doc.addPage();
             currentY = 20;
@@ -1379,10 +1379,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         }
       }
 
-      // Pie de pÃ¡gina
+      // Pie de página
       doc.setFontSize(8);
       doc.setTextColor(148, 163, 184);
-      doc.text(`Generado automÃ¡ticamente por NutriSaaS - ${new Date().toLocaleDateString("es-ES")}`, margin, 285);
+      doc.text(`Generado automáticamente por NutriSaaS - ${new Date().toLocaleDateString("es-ES")}`, margin, 285);
 
       doc.save(`Evolucion_${(patient?.fullName || "Paciente").replace(/\s+/g, "_")}.pdf`);
       toast.success("PDF generado correctamente");
@@ -1414,7 +1414,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           (cv) => normalizeMetricKey(cv.label, cv.key) === key,
         );
 
-      // Identificar todas las consultas que contienen esta mÃ©trica
+      // Identificar todas las consultas que contienen esta métrica
       const consultationsToUpdate = consultations.filter((c) =>
         (c.metrics || []).some(
           (m) => normalizeMetricKey(m.label, m.key) === key,
@@ -1422,7 +1422,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       );
 
       if (consultationsToUpdate.length === 0 && !isWeight && !hasInCustomVars) {
-        toast.info("No hay registros histÃ³ricos para eliminar");
+        toast.info("No hay registros históricos para eliminar");
         setMetricKeyToDelete(null);
         return;
       }
@@ -1433,7 +1433,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           (m) => normalizeMetricKey(m.label, m.key) !== key,
         );
 
-        // Si la consulta es un "Registro de MÃ©tricas Independiente" y ahora quedÃ³ vacÃ­a, la eliminamos por completo
+        // Si la consulta es un "Registro de Métricas Independiente" y ahora quedÃ³ vacía, la eliminamos por completo
         if (
           newMetrics.length === 0 &&
           isIndependentMetricsConsultation(c)
@@ -1444,7 +1444,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           });
         }
 
-        // Si no estÃ¡ vacÃ­a o es una consulta clÃ­nica real, solo removemos la mÃ©trica especÃ­fica
+        // Si no está vacía o es una consulta clÃ­nica real, solo removemos la métrica especÃ­fica
           return fetchApi(`/consultations/${c.id}`, {
             method: "PATCH",
           headers: {
@@ -1553,7 +1553,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         toast.error("Error al actualizar");
       }
     } catch (error) {
-      toast.error("Error de conexiÃ³n");
+      toast.error("Error de conexión");
     }
   };
 
@@ -1597,7 +1597,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         toast.error("Error al eliminar paciente");
       }
     } catch (error) {
-      toast.error("Error de conexiÃ³n");
+      toast.error("Error de conexión");
     } finally {
       setIsDeletePatientConfirmOpen(false);
     }
@@ -1761,7 +1761,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <Button
                 onClick={() => {
                   if (editForm.documentId && !validateRut(editForm.documentId)) {
-                    toast.error("El RUT ingresado no es vÃ¡lido.");
+                    toast.error("El RUT ingresado no es válido.");
                     return;
                   }
                   handleSave();
@@ -1802,7 +1802,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <Button
                 disabled
                 className="bg-slate-50 border border-slate-100 text-slate-400 font-bold h-10 px-4 rounded-2xl cursor-not-allowed opacity-60 flex items-center gap-2"
-                title="PrÃ³ximamente: Carga y anÃ¡lisis de exÃ¡menes clÃ­nicos con IA"
+                title="Próximamente: Carga y análisis de exÃ¡menes clÃ­nicos con IA"
               >
                 <FileText className="w-4 h-4" />
                 <span className="text-[10px] uppercase tracking-widest">
@@ -1839,7 +1839,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             field: "height",
           },
           {
-            label: "GÃ©nero",
+            label: "Género",
             value: patient.gender,
             icon: User,
             color: "text-amber-600",
@@ -1927,9 +1927,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           { label: "General", disabled: false },
           { label: "Consultas", disabled: false },
           { label: "Progreso", disabled: false },
-          { label: "AcompaÃ±amiento", disabled: true },
-          { label: "ExÃ¡menes", disabled: true },
-        ] as Array<{ label: TabType | "ExÃ¡menes"; disabled: boolean }>).map((tab) => (
+          { label: "Acompañamiento", disabled: true },
+          { label: "Exámenes", disabled: true },
+        ] as Array<{ label: TabType | "Exámenes"; disabled: boolean }>).map((tab) => (
           <button
             key={tab.label}
             onClick={() => {
@@ -2005,7 +2005,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-slate-400">
-                            TelÃ©fono
+                            Teléfono
                           </p>
                           {isEditing ? (
                             <Input
@@ -2040,7 +2040,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           }
                           fetchSuggestionsUrl={`${getApiUrl()}/tags`}
                           className="mt-2"
-                          placeholder="Agregar restricciÃ³n..."
+                          placeholder="Agregar restricción..."
                         />
                       ) : (
                         <>
@@ -2113,7 +2113,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <div className="px-10 pb-10" >
                 <div className="space-y-4" >
                   <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3 flex items-center justify-between" >
-                    Resumen / Observaciones ClÃ­nicas
+                    Resumen / Observaciones Clínicas
                     {!isEditing && (
                       <span className="text-emerald-500 lowercase font-bold tracking-normal opacity-50" >
                         Solo visible para el nutricionista
@@ -2127,7 +2127,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         updateField("clinicalSummary", e.target.value)
                       }
                       className="w-full h-32 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
-                      placeholder="Ingresa notas clÃ­nicas, antecedentes importantes o evoluciÃ³n general..."
+                      placeholder="Ingresa notas clÃ­nicas, antecedentes importantes o evolución general..."
                     />
                   ) : (
                     <div className="p-8 bg-slate-50/50 rounded-2xl border border-slate-50 min-h-[100px]" >
@@ -2218,17 +2218,17 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                     <div className="space-y-4 relative z-10">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">CalorÃ­as (kcal)</label>
+                          <label className="text-[10px] font-black uppercase text-slate-400">Calorías (kcal)</label>
                           {isEditing ? (
-                            <Input type="number" value={getCV("targetCalories")} onChange={e => updateCV("targetCalories", "CalorÃ­as Meta", e.target.value, "kcal")} className="font-bold border-slate-200" />
+                            <Input type="number" value={getCV("targetCalories")} onChange={e => updateCV("targetCalories", "Calorías Meta", e.target.value, "kcal")} className="font-bold border-slate-200" />
                           ) : (
                             <p className="font-bold text-amber-600">{getCV("targetCalories") || "No definido"}</p>
                           )}
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">ProteÃ­na (g)</label>
+                          <label className="text-[10px] font-black uppercase text-slate-400">Proteína (g)</label>
                           {isEditing ? (
-                            <Input type="number" value={getCV("targetProtein")} onChange={e => updateCV("targetProtein", "ProteÃ­na Meta", e.target.value, "g")} className="font-bold border-slate-200" />
+                            <Input type="number" value={getCV("targetProtein")} onChange={e => updateCV("targetProtein", "Proteína Meta", e.target.value, "g")} className="font-bold border-slate-200" />
                           ) : (
                             <p className="font-bold text-emerald-600">{getCV("targetProtein") || "No definido"}</p>
                           )}
@@ -2407,8 +2407,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <div className="space-y-4" >
                 <p className="text-xs text-slate-500 leading-relaxed font-medium" >
                   {patient.status === "Active"
-                    ? "El paciente estÃ¡ activo y siguiendo sus planes. Puedes pausar su seguimiento si ha terminado su tratamiento o estÃ¡ fuera por un tiempo."
-                    : "El paciente estÃ¡ inactivo. Sus planes no aparecerÃ¡n en las listas por defecto, pero su historial clÃ­nico se mantiene intacto."}
+                    ? "El paciente está activo y siguiendo sus planes. Puedes pausar su seguimiento si ha terminado su tratamiento o está fuera por un tiempo."
+                    : "El paciente está inactivo. Sus planes no aparecerÃ¡n en las listas por defecto, pero su historial clÃ­nico se mantiene intacto."}
                 </p>
                 <Button
                   onClick={toggleStatus}
@@ -2435,7 +2435,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         <div className="space-y-6 lg:space-y-10 animate-in slide-in-from-right-4 duration-500 px-1 lg:px-6 py-2">
           <div className="bg-white p-6 lg:p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div>
-              <h2 className="text-xl lg:text-2xl font-bold text-slate-900">Historial ClÃ­nico</h2>
+              <h2 className="text-xl lg:text-2xl font-bold text-slate-900">Historial Clínico</h2>
               <p className="text-xs lg:text-sm font-medium text-slate-400">Visualiza y gestiona las consultas del paciente</p>
             </div>
             <Button
@@ -2572,7 +2572,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   Seguimiento BiomÃ©trico
                 </h3>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-tight">
-                  Gestiona la evoluciÃ³n fÃ­sica del paciente
+                  Gestiona la evolución fÃ­sica del paciente
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -2704,7 +2704,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           </div>
                           <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight min-h-[18px]">
-                              Ãšltimo valor
+                              Último valor
                             </p>
                             <div className="flex items-baseline gap-1 flex-wrap mt-2">
                               <span className="text-sm font-black text-slate-700 leading-none">
@@ -2776,7 +2776,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           }}
                           data-no-export="true"
                           className="p-3 bg-slate-50 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all active:scale-95 cursor-pointer border border-transparent hover:border-rose-100"
-                          title={`Eliminar toda la mÃ©trica ${info.label}`}
+                          title={`Eliminar toda la métrica ${info.label}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -2902,7 +2902,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                               <p className="text-[10px] font-semibold text-slate-400 leading-tight">
                                 {latestPoint
                                   ? "Se necesitan al menos 2 registros en fechas distintas para generar la curva de tendencia."
-                                  : `No hay datos histÃ³ricos para ${info.label.toLowerCase()}.`}
+                                  : `No hay datos históricos para ${info.label.toLowerCase()}.`}
                               </p>
                             </div>
                           </div>
@@ -2952,7 +2952,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
                 <div className="space-y-4">
                   <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-tight ml-1">
-                    Observaciones ClÃ­nicas
+                    Observaciones Clínicas
                   </h4>
                   <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-slate-600 font-medium leading-relaxed">
                     {selectedConsultation.description || "Sin notas registradas."}
@@ -2963,7 +2963,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   selectedConsultation.metrics.length > 0 && (
                     <div className="space-y-4">
                       <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-tight ml-1">
-                        MÃ©tricas Clave
+                        Métricas Clave
                       </h4>
                       <div className="grid grid-cols-2 gap-4">
                         {selectedConsultation.metrics.map((m, i) => (
@@ -3044,7 +3044,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 <div className="space-y-6">
                   <div className="flex justify-between items-center">
                     <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-tight">
-                      Seleccionar MÃ©tricas
+                      Seleccionar Métricas
                     </h4>
                     <div className="flex items-center gap-2">
                       <button
@@ -3239,7 +3239,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   <div className="py-20 text-center flex flex-col items-center gap-4">
                     <ClipboardList className="w-12 h-12 text-slate-200" />
                     <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">
-                      No hay registros para esta mÃ©trica
+                      No hay registros para esta métrica
                     </p>
                   </div>
                 )}
@@ -3772,7 +3772,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-              Vigencia del enlace (dÃ­as)
+              Vigencia del enlace (días)
             </label>
             <Input
               type="number"
@@ -3786,7 +3786,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
           {generatedPortalLink && (
             <div className="space-y-3 rounded-3xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Ãšltimo enlace generado</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Último enlace generado</p>
               <p className="break-all text-sm font-medium text-slate-800">{generatedPortalLink}</p>
               {portalAccessCode && (
                 <div className="rounded-2xl border border-emerald-100 bg-white px-4 py-3">
@@ -3936,7 +3936,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   const known = availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase());
                   return known ? (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="h-5 w-5 rounded-full bg-amber-100 flex items-center justify-center border border-amber-200" title="Esta mÃ©trica ya existe">
+                      <div className="h-5 w-5 rounded-full bg-amber-100 flex items-center justify-center border border-amber-200" title="Esta métrica ya existe">
                         <AlertCircle className="w-3 h-3 text-amber-600" />
                       </div>
                     </div>
@@ -3947,7 +3947,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 const known = availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase());
                 return known ? (
                   <p className="text-[10px] font-bold text-amber-600 animate-in fade-in slide-in-from-top-1">
-                    Esta mÃ©trica ya estÃ¡ registrada en el sistema.
+                    Esta métrica ya está registrada en el sistema.
                   </p>
                 ) : null;
               })()}
@@ -3999,7 +3999,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             </div>
             <p className="text-xs text-slate-400 mt-2 font-medium">
               <Globe className="w-3 h-3 inline mr-1 text-emerald-500" />
-              Esta mÃ©trica serÃ¡{" "}
+              Esta métrica serÃ¡{" "}
               <span className="text-emerald-600 font-bold">Global</span>. Otros
               nutricionistas podrÃ¡n verla y reutilizarla. Solo tÃº podrÃ¡s
               eliminarla.
@@ -4031,9 +4031,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           setConflictingConsultationId(null);
         }}
         onConfirm={confirmSaveMetrics}
-        title="Â¿Sobreescribir Valores?"
-        description="Ya existe un registro con esta fecha. Los valores nuevos reemplazarÃ¡n a los existentes para las mÃ©tricas que coincidan. Las demÃ¡s mÃ©tricas de esa fecha se mantendrÃ¡n intactas."
-        confirmText="SÃ­, sobreescribir"
+        title="¿Sobreescribir Valores?"
+        description="Ya existe un registro con esta fecha. Los valores nuevos reemplazarÃ¡n a los existentes para las métricas que coincidan. Las demÃ¡s métricas de esa fecha se mantendrÃ¡n intactas."
+        confirmText="Sí, sobreescribir"
         cancelText="Cancelar"
       />
       {/* Modal de ExportaciÃ³n PDF con aviso de IA */}
@@ -4048,8 +4048,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <Zap className="w-6 h-6 animate-pulse" />
             </div>
             <div className="space-y-2">
-              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">PrÃ³ximamente: AnÃ¡lisis por IA</h4>
-                En futuras actualizaciones, nuestro motor de IA realizarÃ¡ un anÃ¡lisis automÃ¡tico de estas tendencias para identificar patrones de Ã©xito y Ã¡reas de mejora en el tratamiento de <strong>{patient?.fullName || "Paciente"}</strong>.
+              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Próximamente: AnÃ¡lisis por IA</h4>
+                En futuras actualizaciones, nuestro motor de IA realizarÃ¡ un análisis automático de estas tendencias para identificar patrones de Ã©xito y Ã¡reas de mejora en el tratamiento de <strong>{patient?.fullName || "Paciente"}</strong>.
             </div>
           </div>
 
@@ -4108,9 +4108,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           setMetricKeyToDelete(null);
         }}
         onConfirm={handleDeleteEntireMetric}
-        title={`Â¿Eliminar Historial de ${metricKeyToDelete ? getMetricInfo(metricKeyToDelete).label : ""}?`}
-        description="Esta acciÃ³n eliminarÃ¡ TODOS los registros histÃ³ricos de esta mÃ©trica para este paciente (incluyendo el valor inicial si aplica). Esta acciÃ³n no se puede deshacer."
-        confirmText="SÃ­, eliminar todo"
+        title={`¿Eliminar Historial de ${metricKeyToDelete ? getMetricInfo(metricKeyToDelete).label : ""}?`}
+        description="Esta acciÃ³n eliminarÃ¡ TODOS los registros históricos de esta métrica para este paciente (incluyendo el valor inicial si aplica). Esta acciÃ³n no se puede deshacer."
+        confirmText="Sí, eliminar todo"
         cancelText="Cancelar"
         variant="destructive"
       />
@@ -4119,9 +4119,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         isOpen={isDeletePatientConfirmOpen}
         onClose={() => setIsDeletePatientConfirmOpen(false)}
         onConfirm={handleDelete}
-        title="Â¿Eliminar paciente?"
-        description="Â¿EstÃ¡s seguro de que deseas eliminar este paciente? Esta acciÃ³n es irreversible."
-        confirmText="SÃ­, eliminar"
+        title="¿Eliminar paciente?"
+        description="¿EstÃ¡s seguro de que deseas eliminar este paciente? Esta acciÃ³n es irreversible."
+        confirmText="Sí, eliminar"
         variant="destructive"
       />
 
@@ -4152,9 +4152,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             setConsultationToDelete(null);
           }
         }}
-        title="Â¿Eliminar consulta?"
-        description="Â¿EstÃ¡s seguro de que deseas eliminar esta consulta? Se eliminarÃ¡n tambiÃ©n las mÃ©tricas asociadas a ella."
-        confirmText="SÃ­, eliminar"
+        title="¿Eliminar consulta?"
+        description="¿EstÃ¡s seguro de que deseas eliminar esta consulta? Se eliminarÃ¡n tambiÃ©n las métricas asociadas a ella."
+        confirmText="Sí, eliminar"
         variant="destructive"
       />
 
@@ -4178,7 +4178,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 }
 
 /**
- * Sub-componente para gestionar una fila de historial de mÃ©trica
+ * Sub-componente para gestionar una fila de historial de métrica
  */
 function MetricRecordRow({
   record,
@@ -4300,13 +4300,15 @@ function MetricRecordRow({
         isOpen={isDeleteConfirmOpen}
         onClose={() => setIsDeleteConfirmOpen(false)}
         onConfirm={handleDelete}
-        title="Â¿Eliminar registro?"
-        description="Esta acciÃ³n eliminarÃ¡ permanentemente este valor de mÃ©trica del historial del paciente. Â¿Deseas continuar?"
-        confirmText="SÃ­, eliminar"
+        title="¿Eliminar registro?"
+        description="Esta acciÃ³n eliminarÃ¡ permanentemente este valor de métrica del historial del paciente. ¿Deseas continuar?"
+        confirmText="Sí, eliminar"
         cancelText="No, cancelar"
         variant="destructive"
       />
     </div>
   );
 }
+
+
 
