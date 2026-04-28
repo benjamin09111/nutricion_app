@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 type UserRole = "ADMIN" | "ADMIN_MASTER" | "ADMIN_GENERAL" | "NUTRITIONIST";
 type ViewMode = "ADMIN" | "NUTRITIONIST";
@@ -18,40 +18,39 @@ interface AdminContextType {
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("NUTRITIONIST");
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
+  const pathname = usePathname();
+  const [role] = useState<UserRole | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
 
-  const checkIsAdmin = (r: string | null) =>
-    r ? ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(r) : false;
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) {
+      return null;
+    }
+
+    try {
+      const user = JSON.parse(storedUser);
+      return user.role as UserRole;
+    } catch {
+      return null;
+    }
+  });
+  const router = useRouter();
+  function checkIsAdmin(r: string | null) {
+    return r ? ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(r) : false;
+  }
+
+  const viewMode: ViewMode = checkIsAdmin(role) ? "ADMIN" : "NUTRITIONIST";
+  const isLoading = false;
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        const userRole = user.role as UserRole;
-        setRole(userRole);
-
-        if (checkIsAdmin(userRole)) {
-          setViewMode("ADMIN");
-          // Ensure they are on the admin path if they just logged in/initialized
-          if (window.location.pathname === "/dashboard") {
-            router.push("/dashboard/admin");
-          }
-        } else {
-          setViewMode("NUTRITIONIST");
-          if (window.location.pathname === "/dashboard") {
-            router.push("/dashboard/pacientes");
-          }
-        }
-      } catch (e) {
-        console.error("Error parsing user role", e);
+    if (checkIsAdmin(role)) {
+      if (pathname === "/dashboard") {
+        router.push("/dashboard/admin");
       }
     }
-    setIsLoading(false);
-  }, [router]);
+  }, [pathname, role, router]);
 
   const toggleViewMode = () => {
     // Logic removed to prevent admins from seeing nutritionist-specific data

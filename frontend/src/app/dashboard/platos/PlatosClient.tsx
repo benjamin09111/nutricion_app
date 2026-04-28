@@ -15,6 +15,7 @@ import {
   Sparkles,
   Search,
   ArrowUpDown,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
@@ -41,6 +42,7 @@ type RecipeSummary = {
   calories: number;
   isPublic: boolean;
   isMine?: boolean;
+  isAdopted?: boolean;
   imageUrl?: string;
   nutritionist?: { fullName?: string };
   metadata?: RecipeMetadata | null;
@@ -81,6 +83,24 @@ export default function PlatosClient() {
     }
   };
 
+  const addToMyRecipes = async (id: string) => {
+    try {
+      const response = await fetchApi(`/recipes/${id}/library`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "No se pudo agregar el plato.");
+      }
+      toast.success("Plato agregado a Mis platos.");
+      await fetchRecipes();
+    } catch (error) {
+      console.error("Error adding recipe to library", error);
+      toast.error("No se pudo agregar el plato a Mis platos.");
+    }
+  };
+
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
@@ -93,7 +113,7 @@ export default function PlatosClient() {
   const filteredRecipes = useMemo(() => {
     let result = recipes.filter((r) => {
       // "Mis Platos" shows only dishes created by the user
-      if (activeTab === "mine" && !r.isMine) return false;
+      if (activeTab === "mine" && !r.isMine && !r.isAdopted) return false;
       // "Comunidad" shows only public dishes (including those from the user)
       if (activeTab === "community" && !r.isPublic) return false;
 
@@ -299,6 +319,7 @@ export default function PlatosClient() {
           <div className="grid lg:grid-cols-2 gap-4">
             {filteredRecipes.map((recipe) => {
               const fromCommunity = !!recipe.isPublic && !!recipe.nutritionist;
+              const canAddToLibrary = !!recipe.isPublic && !recipe.isMine && !recipe.isAdopted;
               const meta = recipe.metadata;
               const tags = meta?.tags ?? [];
               const mealSection = meta?.mealSection ?? "";
@@ -342,10 +363,22 @@ export default function PlatosClient() {
                             deleteDish(recipe.id);
                           }}
                           className="p-2 h-8 w-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-full transition-all"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                       </div>
+                    ) : canAddToLibrary ? (
+                      <Button
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addToMyRecipes(recipe.id);
+                        }}
+                        className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Añadir
+                      </Button>
                     ) : (
                       <div className="h-8 w-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-emerald-500 transition-colors">
                         <ArrowUpDown className={cn("h-4 w-4 transition-transform duration-500", expandedId === recipe.id ? "rotate-180" : "")} />
@@ -434,6 +467,10 @@ export default function PlatosClient() {
                   {recipe.isMine ? (
                     <p className="text-[10px] text-emerald-600 font-black uppercase tracking-wider">
                       Creado por mí
+                    </p>
+                  ) : recipe.isAdopted ? (
+                    <p className="text-[10px] text-emerald-600 font-black uppercase tracking-wider">
+                      Guardado en mi repertorio
                     </p>
                   ) : fromCommunity ? (
                     <p className="text-[10px] text-slate-500 font-bold uppercase">

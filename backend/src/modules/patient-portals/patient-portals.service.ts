@@ -13,6 +13,7 @@ import { CreatePatientPortalInvitationDto } from './dto/create-patient-portal-in
 import { CreatePatientPortalEntryDto } from './dto/create-patient-portal-entry.dto';
 import { CreatePatientPortalQuestionDto } from './dto/create-patient-portal-question.dto';
 import { CreatePatientPortalReplyDto } from './dto/create-patient-portal-reply.dto';
+import { CreatePatientPortalNotificationDto } from './dto/create-patient-portal-notification.dto';
 
 type PortalSessionPayload = {
   kind: 'patient-portal';
@@ -21,7 +22,7 @@ type PortalSessionPayload = {
   invitationId: string;
 };
 
-type PortalEntryKind = 'QUESTION' | 'TRACKING' | 'REPLY';
+type PortalEntryKind = 'QUESTION' | 'TRACKING' | 'REPLY' | 'NOTIFICATION';
 
 type NormalizedPortalEntry = {
   id: string;
@@ -52,8 +53,23 @@ type NormalizedPortalEntry = {
 };
 
 type PortalEntryPayload = {
+  entryDate?: string;
   sections?: TrackingSections;
   source?: 'patient' | 'nutritionist';
+  notificationTitle?: string;
+  notificationType?: 'INFO' | 'REMINDER' | 'ALERT';
+};
+
+type PortalEntryRecord = {
+  id: string;
+  kind: string;
+  body: string | null;
+  payload: unknown;
+  replyToId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  replyTo?: PortalEntryRecord | null;
+  replies?: PortalEntryRecord[];
 };
 
 type InvitationSummary = {
@@ -65,8 +81,35 @@ type InvitationSummary = {
   verifiedAt: Date | null;
   revokedAt: Date | null;
   blockedAt: Date | null;
+  resourceIds: string[];
+  deliverableCreationIds: string[];
   createdAt: Date;
   accessCode: string;
+};
+
+type PortalResource = {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  tags: string[];
+  isPublic: boolean;
+  format: string;
+  fileUrl: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type PortalDeliverable = {
+  id: string;
+  name: string;
+  type: string;
+  format: string;
+  content: unknown;
+  metadata: unknown;
+  tags: string[];
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 type TrackingSections = {
@@ -143,13 +186,16 @@ export class PatientPortalsService {
       throw new NotFoundException('No encontramos ese paciente');
     }
 
-    const expiresInDays = dto.expiresInDays && dto.expiresInDays > 0 ? dto.expiresInDays : 30;
+    const expiresInDays =
+      dto.expiresInDays && dto.expiresInDays > 0 ? dto.expiresInDays : 30;
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
     const token = randomBytes(32).toString('hex');
     const tokenHash = this.hashToken(token);
-    const accessCode = this.formatAccessCodeForDisplay(this.getPortalAccessCode(patientId, nutritionistId));
+    const accessCode = this.formatAccessCodeForDisplay(
+      this.getPortalAccessCode(patientId, nutritionistId),
+    );
 
     const invitation = await this.prisma.$transaction(async (tx) => {
       await tx.patientPortalInvitation.updateMany({
@@ -174,6 +220,10 @@ export class PatientPortalsService {
           expiresAt,
           status: 'ACTIVE',
           lastSentAt: new Date(),
+          resourceIds: Array.isArray(dto.resourceIds) ? dto.resourceIds : [],
+          deliverableCreationIds: Array.isArray(dto.deliverableCreationIds)
+            ? dto.deliverableCreationIds
+            : [],
         },
         select: {
           id: true,
@@ -230,8 +280,13 @@ export class PatientPortalsService {
     }
 
     const invitation = await this.findInvitationByToken(token);
-    const invitationEmail = invitation.email ? this.normalizeEmail(invitation.email) : null;
-    const expectedCode = this.getPortalAccessCode(invitation.patientId, invitation.nutritionistId);
+    const invitationEmail = invitation.email
+      ? this.normalizeEmail(invitation.email)
+      : null;
+    const expectedCode = this.getPortalAccessCode(
+      invitation.patientId,
+      invitation.nutritionistId,
+    );
 
     if (invitationEmail && invitationEmail !== normalizedEmail) {
       throw new ForbiddenException('Ese correo no coincide con la invitación');
@@ -241,7 +296,12 @@ export class PatientPortalsService {
       throw new ForbiddenException('El código de acceso es incorrecto');
     }
 
-    if (invitation.status !== 'ACTIVE' || invitation.revokedAt || invitation.blockedAt || invitation.expiresAt.getTime() < Date.now()) {
+    if (
+      invitation.status !== 'ACTIVE' ||
+      invitation.revokedAt ||
+      invitation.blockedAt ||
+      invitation.expiresAt.getTime() < Date.now()
+    ) {
       throw new ForbiddenException('La invitación expiró o ya no está activa');
     }
 
@@ -277,7 +337,10 @@ export class PatientPortalsService {
       },
     );
 
-    const overview = await this.buildOverview(invitation.nutritionistId, invitation.patientId);
+    const overview = await this.buildOverview(
+      invitation.nutritionistId,
+      invitation.patientId,
+    );
 
     return {
       accessToken,
@@ -293,7 +356,11 @@ export class PatientPortalsService {
     return this.buildOverview(nutritionistId, patientId);
   }
 
-  async setAccessStatus(nutritionistId: string, patientId: string, status: 'ACTIVE' | 'BLOCKED') {
+  async setAccessStatus(
+    nutritionistId: string,
+    patientId: string,
+    status: 'ACTIVE' | 'BLOCKED',
+  ) {
     const invitation = await this.prisma.patientPortalInvitation.findFirst({
       where: {
         patientId,
@@ -303,7 +370,9 @@ export class PatientPortalsService {
     });
 
     if (!invitation) {
-      throw new NotFoundException('No encontramos un acceso para este paciente');
+      throw new NotFoundException(
+        'No encontramos un acceso para este paciente',
+      );
     }
 
     const updated = await this.prisma.patientPortalInvitation.update({
@@ -328,7 +397,10 @@ export class PatientPortalsService {
     };
   }
 
-  async createQuestion(session: PortalSessionPayload, dto: CreatePatientPortalQuestionDto) {
+  async createQuestion(
+    session: PortalSessionPayload,
+    dto: CreatePatientPortalQuestionDto,
+  ) {
     const body = dto.message.trim();
     if (!body) {
       throw new BadRequestException('Escribe tu pregunta o consulta');
@@ -350,17 +422,24 @@ export class PatientPortalsService {
 
     return {
       entry,
-      overview: await this.buildOverview(session.nutritionistId, session.patientId),
+      overview: await this.buildOverview(
+        session.nutritionistId,
+        session.patientId,
+      ),
     };
   }
 
-  async createTrackingEntry(session: PortalSessionPayload, dto: CreatePatientPortalEntryDto) {
+  async createTrackingEntry(
+    session: PortalSessionPayload,
+    dto: CreatePatientPortalEntryDto,
+  ) {
     const sections = this.buildTrackingSections(dto);
     if (!sections) {
       throw new BadRequestException('Agrega al menos una sección para guardar tu seguimiento');
     }
 
-    const summary = this.buildTrackingSummary(sections);
+    const summary = this.buildTrackingSummary(sections, dto.entryDate);
+    const entryDate = this.normalizeDiaryDate(dto.entryDate);
 
     const entry = await this.prisma.patientPortalEntry.create({
       data: {
@@ -372,6 +451,7 @@ export class PatientPortalsService {
         payload: {
           source: 'patient',
           sections,
+          entryDate,
         },
       },
       select: ENTRY_SELECT,
@@ -379,11 +459,18 @@ export class PatientPortalsService {
 
     return {
       entry,
-      overview: await this.buildOverview(session.nutritionistId, session.patientId),
+      overview: await this.buildOverview(
+        session.nutritionistId,
+        session.patientId,
+      ),
     };
   }
 
-  async createReply(nutritionistId: string, patientId: string, dto: CreatePatientPortalReplyDto) {
+  async createReply(
+    nutritionistId: string,
+    patientId: string,
+    dto: CreatePatientPortalReplyDto,
+  ) {
     const question = await this.prisma.patientPortalEntry.findFirst({
       where: {
         id: dto.questionId,
@@ -416,6 +503,83 @@ export class PatientPortalsService {
       },
       select: ENTRY_SELECT,
     });
+
+    return {
+      entry,
+      overview: await this.buildOverview(nutritionistId, patientId),
+    };
+  }
+
+  async createNotification(
+    nutritionistId: string,
+    patientId: string,
+    dto: CreatePatientPortalNotificationDto,
+  ) {
+    const patient = await this.prisma.patient.findFirst({
+      where: { id: patientId, nutritionistId },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        nutritionist: {
+          select: {
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    if (!patient) {
+      throw new NotFoundException('No encontramos ese paciente');
+    }
+
+    const title = dto.title?.trim() || 'Notificación del nutricionista';
+    const message = dto.message.trim();
+    if (!message) {
+      throw new BadRequestException('Escribe un mensaje para la notificación');
+    }
+
+    const notificationType = message.length > 220 ? 'ALERT' : 'INFO';
+
+    const entry = await this.prisma.patientPortalEntry.create({
+      data: {
+        patientId,
+        nutritionistId,
+        kind: 'NOTIFICATION',
+        body: message,
+        payload: {
+          source: 'nutritionist',
+          notificationTitle: title,
+          notificationType,
+        },
+      },
+      select: ENTRY_SELECT,
+    });
+
+    const invitation = await this.prisma.patientPortalInvitation.findFirst({
+      where: {
+        patientId,
+        nutritionistId,
+        status: 'ACTIVE',
+        revokedAt: null,
+        blockedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        email: true,
+      },
+    });
+
+    const recipientEmail = invitation?.email || patient.email || null;
+    if (dto.sendEmail !== false && recipientEmail) {
+      await this.mailService.sendPatientPortalNotificationEmail({
+        email: recipientEmail,
+        patientName: patient.fullName,
+        nutritionistName: patient.nutritionist.fullName,
+        title,
+        message,
+      });
+    }
 
     return {
       entry,
@@ -497,6 +661,8 @@ export class PatientPortalsService {
           revokedAt: true,
           blockedAt: true,
           createdAt: true,
+          resourceIds: true,
+          deliverableCreationIds: true,
         },
       }),
       this.prisma.patientPortalEntry.findMany({
@@ -515,18 +681,75 @@ export class PatientPortalsService {
       throw new NotFoundException('No encontramos ese paciente');
     }
 
-    const activeInvitation = invitations.find(
-      (invitation) =>
-        invitation.status === 'ACTIVE' &&
-        !invitation.revokedAt &&
-        !invitation.blockedAt &&
-        invitation.expiresAt.getTime() >= Date.now(),
-    ) || null;
+    const activeInvitation =
+      invitations.find(
+        (invitation) =>
+          invitation.status === 'ACTIVE' &&
+          !invitation.revokedAt &&
+          !invitation.blockedAt &&
+          invitation.expiresAt.getTime() >= Date.now(),
+      ) || null;
     const latestInvitation = invitations[0] || null;
+    const sharingInvitation = activeInvitation || latestInvitation;
 
-    const normalizedEntries = entries.map((entry) => this.normalizeEntry(entry));
-    const questions = normalizedEntries.filter((entry) => entry.kind === 'QUESTION');
-    const tracking = normalizedEntries.filter((entry) => entry.kind === 'TRACKING');
+    const [sharedResources, sharedDeliverables] = await Promise.all([
+      sharingInvitation?.resourceIds?.length
+        ? this.prisma.resource.findMany({
+            where: {
+              id: { in: sharingInvitation.resourceIds },
+              OR: [
+                { nutritionistId },
+                { isPublic: true },
+                { nutritionistId: null },
+              ],
+            },
+            orderBy: { updatedAt: 'desc' },
+            select: {
+              id: true,
+              title: true,
+              content: true,
+              category: true,
+              tags: true,
+              isPublic: true,
+              format: true,
+              fileUrl: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          })
+        : Promise.resolve([] as PortalResource[]),
+      sharingInvitation?.deliverableCreationIds?.length
+        ? this.prisma.creation.findMany({
+            where: {
+              id: { in: sharingInvitation.deliverableCreationIds },
+              nutritionistId,
+              type: { in: ['DELIVERABLE', 'FAST_DELIVERABLE'] },
+            },
+            orderBy: { updatedAt: 'desc' },
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              format: true,
+              content: true,
+              metadata: true,
+              tags: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          })
+        : Promise.resolve([] as PortalDeliverable[]),
+    ]);
+
+    const normalizedEntries = entries.map((entry) =>
+      this.normalizeEntry(entry),
+    );
+    const questions = normalizedEntries.filter(
+      (entry) => entry.kind === 'QUESTION',
+    );
+    const tracking = normalizedEntries.filter(
+      (entry) => entry.kind === 'TRACKING',
+    );
     const replies = normalizedEntries.filter((entry) => entry.kind === 'REPLY');
 
     const summary = this.buildSummary(normalizedEntries);
@@ -534,27 +757,56 @@ export class PatientPortalsService {
     return {
       patient,
       portal: {
-        activeInvitation: activeInvitation ? this.formatInvitationSummary(activeInvitation, patientId, nutritionistId) : null,
-        latestInvitation: latestInvitation ? this.formatInvitationSummary(latestInvitation, patientId, nutritionistId) : null,
+        activeInvitation: activeInvitation
+          ? this.formatInvitationSummary(
+              activeInvitation,
+              patientId,
+              nutritionistId,
+            )
+          : null,
+        latestInvitation: latestInvitation
+          ? this.formatInvitationSummary(
+              latestInvitation,
+              patientId,
+              nutritionistId,
+            )
+          : null,
       },
       summary,
       entries: normalizedEntries,
       questions,
       tracking,
       replies,
+      notifications: normalizedEntries.filter(
+        (entry) => entry.kind === 'NOTIFICATION',
+      ),
+      sharedResources,
+      sharedDeliverables,
     };
   }
 
   private buildSummary(entries: NormalizedPortalEntry[]) {
-    const questionEntries = entries.filter((entry) => entry.kind === 'QUESTION');
-    const trackingEntries = entries.filter((entry) => entry.kind === 'TRACKING');
+    const questionEntries = entries.filter(
+      (entry) => entry.kind === 'QUESTION',
+    );
+    const trackingEntries = entries.filter(
+      (entry) => entry.kind === 'TRACKING',
+    );
     const replyEntries = entries.filter((entry) => entry.kind === 'REPLY');
     const latestEntry = entries[0] || null;
     const latestEntryAt = latestEntry?.createdAt || null;
     const daysSinceLastEntry = latestEntryAt
-      ? Math.floor((Date.now() - new Date(latestEntryAt).getTime()) / (1000 * 60 * 60 * 24))
+      ? Math.floor(
+          (Date.now() - new Date(latestEntryAt).getTime()) /
+            (1000 * 60 * 60 * 24),
+        )
       : null;
-    const pendingQuestions = questionEntries.filter((entry) => (entry.replies?.length || 0) === 0).length;
+    const pendingQuestions = questionEntries.filter(
+      (entry) => (entry.replies?.length || 0) === 0,
+    ).length;
+    const notificationsCount = entries.filter(
+      (entry) => entry.kind === 'NOTIFICATION',
+    ).length;
 
     const sectionCounts = trackingEntries.reduce(
       (acc, entry) => {
@@ -579,7 +831,15 @@ export class PatientPortalsService {
     }
 
     if (pendingQuestions > 0) {
-      alerts.push(`${pendingQuestions} consulta${pendingQuestions === 1 ? '' : 's'} sin responder.`);
+      alerts.push(
+        `${pendingQuestions} consulta${pendingQuestions === 1 ? '' : 's'} sin responder.`,
+      );
+    }
+
+    if (notificationsCount > 0) {
+      alerts.push(
+        `${notificationsCount} notificación${notificationsCount === 1 ? '' : 'es'} del nutri.`,
+      );
     }
 
     if (trackingEntries.length > 0 && sectionCounts.actividadFisica === 0) {
@@ -592,6 +852,7 @@ export class PatientPortalsService {
       trackingCount: trackingEntries.length,
       repliesCount: replyEntries.length,
       pendingQuestions,
+      notificationsCount,
       latestEntryAt,
       daysSinceLastEntry,
       sectionCounts,
@@ -599,7 +860,9 @@ export class PatientPortalsService {
     };
   }
 
-  private buildTrackingSections(dto: CreatePatientPortalEntryDto): TrackingSections | null {
+  private buildTrackingSections(
+    dto: CreatePatientPortalEntryDto,
+  ): TrackingSections | null {
     const alimentacion = dto.alimentacion?.trim();
     const suplementos = dto.suplementos?.trim();
     const actividadFisica = dto.actividadFisica?.trim();
@@ -615,37 +878,49 @@ export class PatientPortalsService {
     };
   }
 
-  private buildTrackingSummary(sections: TrackingSections) {
+  private buildTrackingSummary(sections: TrackingSections, entryDate?: string) {
+    const dateLabel = this.normalizeDiaryDate(entryDate);
     const pieces = [
+      dateLabel ? `Día ${dateLabel}` : null,
       sections.alimentacion ? `Alimentación: ${sections.alimentacion}` : null,
       sections.suplementos ? `Suplementos: ${sections.suplementos}` : null,
-      sections.actividadFisica ? `Actividad física: ${sections.actividadFisica}` : null,
+      sections.actividadFisica
+        ? `Actividad física: ${sections.actividadFisica}`
+        : null,
     ].filter(Boolean) as string[];
 
     return pieces.join(' · ');
   }
 
-  private normalizeEntry(entry: {
-    id: string;
-    kind: string;
-    body: string | null;
-    payload: unknown;
-    replyToId: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-    replyTo?: any;
-    replies?: any[];
-  }): NormalizedPortalEntry {
+  private normalizeDiaryDate(value?: string) {
+    if (!value) return null;
+
+    const normalized = value.trim();
+    if (!normalized) return null;
+
+    const parsed = new Date(`${normalized}T12:00:00`);
+    if (Number.isNaN(parsed.getTime())) {
+      return normalized;
+    }
+
+    return parsed.toLocaleDateString('es-CL', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+
+  private normalizeEntry(entry: PortalEntryRecord): NormalizedPortalEntry {
     return {
       ...entry,
       kind: entry.kind as PortalEntryKind,
       payload: (entry.payload || {}) as PortalEntryPayload,
       replyTo: entry.replyTo
         ? {
-          ...entry.replyTo,
-          kind: entry.replyTo.kind as PortalEntryKind,
-          payload: (entry.replyTo.payload || {}) as PortalEntryPayload,
-        }
+            ...entry.replyTo,
+            kind: entry.replyTo.kind as PortalEntryKind,
+            payload: (entry.replyTo.payload || {}) as PortalEntryPayload,
+          }
         : null,
       replies: (entry.replies || []).map((reply) => ({
         ...reply,
@@ -665,6 +940,8 @@ export class PatientPortalsService {
       verifiedAt: Date | null;
       revokedAt: Date | null;
       blockedAt?: Date | null;
+      resourceIds?: string[];
+      deliverableCreationIds?: string[];
       createdAt: Date;
     },
     patientId: string,
@@ -673,7 +950,11 @@ export class PatientPortalsService {
     return {
       ...invitation,
       blockedAt: invitation.blockedAt || null,
-      accessCode: this.formatAccessCodeForDisplay(this.getPortalAccessCode(patientId, nutritionistId)),
+      resourceIds: invitation.resourceIds || [],
+      deliverableCreationIds: invitation.deliverableCreationIds || [],
+      accessCode: this.formatAccessCodeForDisplay(
+        this.getPortalAccessCode(patientId, nutritionistId),
+      ),
     };
   }
 
@@ -746,5 +1027,3 @@ export class PatientPortalsService {
     return code.replace(/\D/g, '').slice(0, 6);
   }
 }
-
-

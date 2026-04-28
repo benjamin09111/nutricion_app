@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   User,
@@ -8,12 +8,13 @@ import {
   Mail,
   Heart,
   Plus,
-  FileCode,
   RotateCcw,
   ArrowRight,
   Eye,
   Edit2,
   Trash2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
@@ -24,7 +25,6 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { ActionDockItem } from "@/components/ui/ActionDock";
 import Cookies from "js-cookie";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
@@ -50,6 +50,7 @@ export default function PatientsClient() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const [documentIdFilter, setDocumentIdFilter] = useState("");
   const [classificationTags, setClassificationTags] = useState<string[]>([]);
   const [startDateFilter, setStartDateFilter] = useState("");
@@ -182,6 +183,7 @@ export default function PatientsClient() {
 
   const resetPatients = () => {
     setSearchTerm("");
+    setShowFilters(false);
     setDocumentIdFilter("");
     setClassificationTags([]);
     setStartDateFilter("");
@@ -190,26 +192,6 @@ export default function PatientsClient() {
     setPage(1);
     toast.info("Lista de pacientes reiniciada.");
   };
-
-  const actionDockItems: ActionDockItem[] = useMemo(
-    () => [
-      {
-        id: "export-json",
-        icon: FileCode,
-        label: "Imprimir JSON",
-        variant: "slate",
-        onClick: printJson,
-      },
-      {
-        id: "reset",
-        icon: RotateCcw,
-        label: "Refrescar",
-        variant: "rose",
-        onClick: () => fetchPatients(),
-      },
-    ],
-    [patients],
-  );
 
   return (
     <ModuleLayout
@@ -252,27 +234,43 @@ export default function PatientsClient() {
       <div className="relative mb-8 group">
         <div className="absolute inset-0 bg-linear-to-r from-emerald-500/5 to-blue-500/5 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         <div className="relative bg-white p-3 lg:p-4 rounded-3xl shadow-sm border border-slate-200">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-3">
-            <div className="pl-2">
-              <Search className="h-5 w-5 text-slate-400" />
-            </div>
-            <Input
-              type="search"
-              placeholder="Buscar por nombre, correo o documento..."
-              className="border-none bg-transparent h-10 text-sm focus-visible:ring-0 placeholder:text-slate-400 font-medium"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(1);
-              }}
-            />
-            {isLoading && (
-              <div className="pr-2">
-                <RotateCcw className="h-4 w-4 text-emerald-500 animate-spin" />
+          <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 mb-3">
+            <div className="flex items-center gap-2">
+              <div className="pl-2">
+                <Search className="h-5 w-5 text-slate-400" />
               </div>
-            )}
+              <Input
+                type="search"
+                placeholder="Buscar por nombre, correo o documento..."
+                className="h-10 text-sm border border-slate-200 bg-white focus-visible:border-emerald-500 placeholder:text-slate-400 font-medium"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(1);
+                }}
+              />
+              {isLoading && (
+                <div className="pr-2">
+                  <RotateCcw className="h-4 w-4 text-emerald-500 animate-spin" />
+                </div>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowFilters((current) => !current)}
+                className="h-10 shrink-0 rounded-xl border-slate-200 px-4 text-xs font-black uppercase tracking-wider text-slate-600 hover:bg-slate-50"
+              >
+                {showFilters ? "Cerrar filtros" : "Abrir filtros"}
+                {showFilters ? (
+                  <ChevronUp className="ml-2 h-4 w-4" />
+                ) : (
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </div>
 
+          {showFilters && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
             <div className="space-y-1.5">
               <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
@@ -343,6 +341,7 @@ export default function PatientsClient() {
               />
             </div>
           </div>
+          )}
 
           {(searchTerm || documentIdFilter || startDateFilter || endDateFilter || classificationTags.length > 0) && (
             <div className="flex justify-end pt-1">

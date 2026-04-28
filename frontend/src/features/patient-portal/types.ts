@@ -1,6 +1,7 @@
-export type PatientPortalEntryKind = "QUESTION" | "TRACKING" | "REPLY";
+export type PatientPortalEntryKind = "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
 
 export interface PatientPortalTrackingSections {
+  entryDate?: string;
   alimentacion?: string;
   suplementos?: string;
   actividadFisica?: string;
@@ -8,7 +9,10 @@ export interface PatientPortalTrackingSections {
 
 export interface PatientPortalEntryPayload {
   source?: "patient" | "nutritionist";
+  entryDate?: string;
   sections?: PatientPortalTrackingSections;
+  notificationTitle?: string;
+  notificationType?: "INFO" | "REMINDER" | "ALERT";
 }
 
 export interface PatientPortalEntry {
@@ -44,7 +48,33 @@ export interface PatientPortalSummary {
     suplementos: number;
     actividadFisica: number;
   };
+  notificationsCount?: number;
   alerts: string[];
+}
+
+export interface PatientPortalResource {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  tags: string[];
+  isPublic: boolean;
+  format: string;
+  fileUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PatientPortalDeliverable {
+  id: string;
+  name: string;
+  type: string;
+  format: string;
+  content: Record<string, unknown> | unknown;
+  metadata?: Record<string, unknown> | null;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PatientPortalProject {
@@ -99,6 +129,8 @@ export interface PatientPortalInvitationSummary {
   verifiedAt?: string | null;
   revokedAt?: string | null;
   blockedAt?: string | null;
+  resourceIds?: string[];
+  deliverableCreationIds?: string[];
   createdAt: string;
 }
 
@@ -113,6 +145,9 @@ export interface PatientPortalOverview {
   questions: PatientPortalEntry[];
   tracking: PatientPortalEntry[];
   replies: PatientPortalEntry[];
+  notifications: PatientPortalEntry[];
+  sharedResources: PatientPortalResource[];
+  sharedDeliverables: PatientPortalDeliverable[];
 }
 
 export interface PortalInviteResponse {

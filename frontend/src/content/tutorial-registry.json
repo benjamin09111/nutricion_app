@@ -21,6 +21,13 @@
     "status": "planned"
   },
   {
+    "id": "exchangePortions",
+    "moduleKey": "exchangePortions",
+    "label": "Porciones de Intercambio",
+    "routePatterns": ["/dashboard/herramientas/porciones-intercambio"],
+    "status": "ready"
+  },
+  {
     "id": "recipes",
     "moduleKey": "recipes",
     "label": "Recetas y Porciones",

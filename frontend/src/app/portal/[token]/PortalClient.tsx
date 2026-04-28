@@ -1,24 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Bell,
+  BookOpen,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
   Clock3,
+  Bell,
+  Download,
   Dumbbell,
   FileText,
-  Filter,
+  Globe,
   Leaf,
+  Library,
   MessageSquare,
+  Package,
   Reply,
   Send,
   ShieldCheck,
-  Sparkles,
   UtensilsCrossed,
   Waves,
 } from "lucide-react";
+import jsPDF from "jspdf";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
 import { Button } from "@/components/ui/Button";
@@ -27,7 +31,6 @@ import { Textarea } from "@/components/ui/Textarea";
 import {
   PatientPortalOverview,
   PortalVerificationResponse,
-  PatientPortalEntry,
 } from "@/features/patient-portal";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +41,7 @@ interface PortalPreview {
   expiresAt: string;
 }
 
-type PortalTab = "consultas" | "seguimiento" | "respuestas";
+type PortalTab = "diario" | "recursos" | "notificaciones" | "consultas" | "entregables";
 
 const getPortalStorageKey = (token: string) => `patient-portal-session-${token}`;
 
@@ -57,6 +60,24 @@ const formatDate = (value: string) =>
     year: "numeric",
   });
 
+const getTodayDateInputValue = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const safeJsonText = (value: unknown) => {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+};
+
 export default function PortalClient({ token }: { token: string }) {
   const [preview, setPreview] = useState<PortalPreview | null>(null);
   const [overview, setOverview] = useState<PatientPortalOverview | null>(null);
@@ -70,12 +91,13 @@ export default function PortalClient({ token }: { token: string }) {
   const [questionMessage, setQuestionMessage] = useState("");
   const [accessCode, setAccessCode] = useState("");
   const [trackingForm, setTrackingForm] = useState({
+    entryDate: getTodayDateInputValue(),
     alimentacion: "",
     suplementos: "",
     actividadFisica: "",
   });
 
-  const loadPortal = async (sessionToken: string) => {
+  const loadPortal = useCallback(async (sessionToken: string) => {
     try {
       const response = await fetchApi(`/patient-portals/me`, {
         headers: {
@@ -89,13 +111,13 @@ export default function PortalClient({ token }: { token: string }) {
 
       const data: PatientPortalOverview = await response.json();
       setOverview(data);
-    } catch (error) {
+    } catch {
       localStorage.removeItem(getPortalStorageKey(token));
       setAccessToken(null);
       setOverview(null);
       toast.error("Tu sesión del portal expiró. Vuelve a confirmar tu correo.");
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     const stored = localStorage.getItem(getPortalStorageKey(token));
@@ -112,13 +134,11 @@ export default function PortalClient({ token }: { token: string }) {
         if (response.ok) {
           const data: PortalPreview = await response.json();
           setPreview(data);
-          if (!email && data.patientEmail) {
-            setEmail(data.patientEmail);
-          }
+          setEmail((current) => current || data.patientEmail || "");
         } else {
           toast.error("El enlace no está disponible o ya expiró.");
         }
-      } catch (error) {
+      } catch {
         toast.error("No pudimos abrir el portal de seguimiento.");
       } finally {
         setIsLoading(false);
@@ -131,7 +151,7 @@ export default function PortalClient({ token }: { token: string }) {
   useEffect(() => {
     if (!accessToken) return;
     loadPortal(accessToken);
-  }, [accessToken]);
+  }, [accessToken, loadPortal]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,16 +176,16 @@ export default function PortalClient({ token }: { token: string }) {
 
       const data: PortalVerificationResponse = await response.json();
       if (!response.ok) {
-        throw new Error((data as any)?.message || "No pudimos validar tu acceso");
+        throw new Error((data as { message?: string })?.message || "No pudimos validar tu acceso");
       }
 
       localStorage.setItem(getPortalStorageKey(token), data.accessToken);
       setAccessToken(data.accessToken);
       setOverview(data);
       setActiveTab("consultas");
-      toast.success("Portal activado. Ya puedes registrar tu seguimiento.");
-    } catch (error: any) {
-      toast.error(error?.message || "No se pudo verificar el correo.");
+      toast.success("Portal activado. Ya puedes revisar tus materiales.");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "No se pudo verificar el correo.");
     } finally {
       setIsVerifying(false);
     }
@@ -202,9 +222,9 @@ export default function PortalClient({ token }: { token: string }) {
 
       setQuestionMessage("");
       setOverview(data.overview);
-      toast.success("Tu consulta quedó guardada para que el nutri la vea.");
-    } catch (error: any) {
-      toast.error(error?.message || "No se pudo enviar tu mensaje.");
+      toast.success("Tu pregunta quedó guardada para el nutri.");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "No se pudo enviar tu mensaje.");
     } finally {
       setIsSubmittingQuestion(false);
     }
@@ -244,14 +264,15 @@ export default function PortalClient({ token }: { token: string }) {
       }
 
       setTrackingForm({
+        entryDate: getTodayDateInputValue(),
         alimentacion: "",
         suplementos: "",
         actividadFisica: "",
       });
       setOverview(data.overview);
-      toast.success("Tu seguimiento quedó guardado con fecha y hora.");
-    } catch (error: any) {
-      toast.error(error?.message || "No se pudo guardar tu seguimiento.");
+      toast.success("Tu diario quedó guardado con fecha.");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "No se pudo guardar tu seguimiento.");
     } finally {
       setIsSubmittingTracking(false);
     }
@@ -262,33 +283,48 @@ export default function PortalClient({ token }: { token: string }) {
   const summaryCards = useMemo(
     () => [
       {
-        label: "Entradas",
-        value: overview?.summary.totalEntries ?? 0,
-        icon: CalendarDays,
+        label: "Diario",
+        value: overview?.tracking.length ?? 0,
+        icon: BookOpen,
       },
       {
         label: "Consultas",
         value: overview?.summary.questionsCount ?? 0,
         icon: MessageSquare,
       },
-      {
-        label: "Seguimiento",
-        value: overview?.summary.trackingCount ?? 0,
-        icon: Sparkles,
-      },
-      {
-        label: "Pendientes",
-        value: overview?.summary.pendingQuestions ?? 0,
-        icon: Clock3,
-      },
+        {
+          label: "Recursos",
+          value: overview?.sharedResources.length ?? 0,
+          icon: Library,
+        },
+        {
+          label: "Avisos",
+          value: overview?.summary.notificationsCount ?? overview?.notifications?.length ?? 0,
+          icon: Bell,
+        },
+        {
+          label: "Entregables",
+          value: overview?.sharedDeliverables.length ?? 0,
+          icon: Package,
+        },
     ],
     [overview],
   );
 
   const questions = overview?.questions || [];
-  const replies = overview?.replies || [];
   const tracking = overview?.tracking || [];
   const recentTracking = tracking.slice(0, 6);
+  const notifications = overview?.notifications || [];
+  const sharedResources = overview?.sharedResources || [];
+  const sharedDeliverables = overview?.sharedDeliverables || [];
+
+  const tabButtonClass = (tab: PortalTab) =>
+    cn(
+      "rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-[0.18em] transition-all",
+      activeTab === tab
+        ? "bg-slate-950 text-white shadow-lg shadow-slate-900/10"
+        : "bg-white text-slate-500 ring-1 ring-slate-200 hover:text-slate-900",
+    );
 
   if (isLoading || isHydratingSession) {
     return (
@@ -313,12 +349,12 @@ export default function PortalClient({ token }: { token: string }) {
               </div>
               <div className="space-y-4">
                 <h1 className="text-4xl font-black tracking-tight text-slate-950 md:text-6xl">
-                  Tu seguimiento, fuera de consulta, en un solo lugar
+                  Tu espacio compartido con el nutri, ordenado por fecha
                 </h1>
                 <p className="max-w-xl text-base leading-7 text-slate-600 md:text-lg">
                   Este espacio fue compartido por{" "}
                   <span className="font-semibold text-slate-900">{preview?.nutritionistName || "tu nutricionista"}</span>.
-                  Aquí puedes dejar consultas, registrar tu seguimiento y revisar respuestas cuando el nutri las vaya leyendo.
+                  Aquí puedes dejar tu diario, hacer preguntas, revisar recursos y descargar entregables compartidos.
                   Para entrar, usa tu correo y el código fijo de 6 dígitos que te compartieron.
                 </p>
               </div>
@@ -361,9 +397,9 @@ export default function PortalClient({ token }: { token: string }) {
 
               <div className="grid gap-3 sm:grid-cols-3">
                 {[
-                  { label: "Consultas", icon: MessageSquare },
-                  { label: "Alimentación", icon: UtensilsCrossed },
-                  { label: "Actividad física", icon: Dumbbell },
+                  { label: "Preguntas", icon: MessageSquare },
+                  { label: "Diario", icon: BookOpen },
+                  { label: "Material", icon: FileText },
                 ].map((item) => (
                   <div
                     key={item.label}
@@ -390,17 +426,17 @@ export default function PortalClient({ token }: { token: string }) {
                     <ShieldCheck className="h-7 w-7 text-emerald-100" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-100/70">Acompañamiento premium</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-100/70">Acompañamiento</p>
                     <p className="text-2xl font-black">Seguimiento simple, útil y constante</p>
                   </div>
                 </div>
                 <div className="space-y-3 rounded-[1.5rem] border border-white/15 bg-white/8 p-5 backdrop-blur">
-                  <p className="text-sm font-semibold text-emerald-50/90">Qué puedes registrar</p>
+                  <p className="text-sm font-semibold text-emerald-50/90">Qué puedes hacer</p>
                   <ul className="space-y-3 text-sm text-emerald-50/90">
                     {[
-                      "Preguntas o dudas para tu nutri, sin chat en vivo",
-                      "Alimentación, suplementos y actividad física",
-                      "Todo se guarda con fecha y hora automática",
+                      "Escribir tu día a día con fecha",
+                      "Dejar preguntas para el nutri",
+                      "Revisar recursos y entregables compartidos",
                     ].map((item) => (
                       <li key={item} className="flex items-start gap-3">
                         <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-200" />
@@ -431,76 +467,376 @@ export default function PortalClient({ token }: { token: string }) {
 
   const activeInvitationExpiresAt = overview.portal.activeInvitation?.expiresAt || preview?.expiresAt || null;
 
-  const tabButtonClass = (tab: PortalTab) =>
-    cn(
-      "rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-[0.18em] transition-all",
-      activeTab === tab
-        ? "bg-slate-950 text-white shadow-lg shadow-slate-900/10"
-        : "bg-white text-slate-500 ring-1 ring-slate-200 hover:text-slate-900",
-    );
-
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.16),transparent_35%),linear-gradient(180deg,#f8fafc_0%,#effdf7_100%)] px-4 py-6 text-slate-900 md:px-6 md:py-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 shadow-2xl shadow-emerald-100/70 backdrop-blur">
-          <div className="grid gap-6 bg-[linear-gradient(135deg,#0f172a_0%,#0f766e_55%,#34d399_100%)] px-6 py-8 text-white md:grid-cols-[1.2fr_0.8fr] md:px-8">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.16),transparent_40%),linear-gradient(180deg,#f8fafc_0%,#effdf6_100%)] px-4 py-6 md:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-8">
+        <div className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/90 p-6 shadow-2xl shadow-emerald-100/60 backdrop-blur md:p-8">
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.25em] text-emerald-50/85">
-                <Sparkles className="h-4 w-4" />
-                Portal activo
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 text-[11px] font-black uppercase tracking-[0.25em] text-emerald-700">
+                <Leaf className="h-4 w-4" />
+                Portal privado
               </div>
-              <div>
-                <h1 className="text-3xl font-black tracking-tight md:text-5xl">
-                  Hola, {overview.patient.fullName}
+              <div className="space-y-3">
+                <h1 className="text-3xl font-black tracking-tight text-slate-950 md:text-5xl">
+                  {preview?.patientName || overview.patient.fullName}
                 </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-emerald-50/85 md:text-base">
-                  Este portal no es un chat en vivo. Tú dejas consultas, seguimiento y contexto; el nutri revisa y responde
-                  cuando puede. Todo queda como historial ordenado.
+                <p className="max-w-2xl text-sm leading-7 text-slate-600 md:text-base">
+                  Usa este espacio para escribir tu diario, dejar preguntas, revisar materiales y descargar los entregables
+                  que tu nutri compartió especialmente contigo.
                 </p>
               </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {summaryCards.map((card) => (
-                <div
-                  key={card.label}
-                  className="rounded-3xl border border-white/15 bg-white/10 p-4 shadow-lg shadow-black/5 backdrop-blur"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-50/60">{card.label}</p>
-                    <card.icon className="h-4 w-4 text-emerald-100" />
+              <div className="flex flex-wrap gap-3">
+                {summaryCards.map((card) => (
+                  <div key={card.label} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm">
+                      <card.icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{card.label}</p>
+                      <p className="text-lg font-black text-slate-900">{card.value}</p>
+                    </div>
                   </div>
-                  <p className="mt-3 text-2xl font-black text-white">{card.value}</p>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-[1.75rem] bg-slate-950 p-6 text-white shadow-xl">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
+                  <ShieldCheck className="h-6 w-6 text-emerald-300" />
                 </div>
-              ))}
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-200/70">Acceso activo</p>
+                  <p className="text-lg font-bold">Portal de {preview?.nutritionistName || "tu nutricionista"}</p>
+                </div>
+              </div>
+              <div className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-5 text-sm leading-7 text-slate-200">
+                <p>• Diario con fecha y hora guardada.</p>
+                <p>• Preguntas asincrónicas para el nutri.</p>
+                <p>• Recursos y entregables compartidos por invitación.</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-300/70">Vigencia</p>
+                  <p className="mt-2 text-sm font-semibold text-white">
+                    {activeInvitationExpiresAt ? formatDate(activeInvitationExpiresAt) : "—"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-300/70">Pendientes</p>
+                  <p className="mt-2 text-sm font-semibold text-white">
+                    {overview.summary.pendingQuestions} consultas
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {overview.summary.alerts.length > 0 && (
-          <div className="grid gap-3 md:grid-cols-3">
-            {overview.summary.alerts.map((alert) => (
-              <div
-                key={alert}
-                className="flex items-start gap-3 rounded-3xl border border-amber-100 bg-amber-50/80 p-4 text-amber-950 shadow-sm"
-              >
-                <Bell className="mt-0.5 h-4 w-4 text-amber-600" />
-                <p className="text-sm font-medium">{alert}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
         <div className="flex flex-wrap gap-3">
           {[
-            { id: "consultas" as const, label: "Consultas al nutri" },
-            { id: "seguimiento" as const, label: "Seguimiento" },
-            { id: "respuestas" as const, label: "Respuestas del nutri" },
+            { id: "diario" as const, label: "Diario" },
+            { id: "recursos" as const, label: "Recursos" },
+            { id: "notificaciones" as const, label: "Avisos" },
+            { id: "consultas" as const, label: "Preguntas" },
+            { id: "entregables" as const, label: "Entregables" },
           ].map((tab) => (
             <button key={tab.id} className={tabButtonClass(tab.id)} onClick={() => setActiveTab(tab.id)}>
               {tab.label}
             </button>
           ))}
         </div>
+
+        {activeTab === "diario" && (
+          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+            <form
+              onSubmit={handleSubmitTracking}
+              className="space-y-5 rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-emerald-600">Diario</p>
+                  <h2 className="mt-2 text-2xl font-black text-slate-950">Registra tu día a día</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Escribe con fecha. El nutri verá cada registro como una entrada ordenada en el tiempo.
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-right">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">Fecha</p>
+                  <p className="text-sm font-semibold text-emerald-900">{formatDate(trackingForm.entryDate)}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">Fecha del diario</label>
+                <Input
+                  type="date"
+                  value={trackingForm.entryDate}
+                  onChange={(e) => setTrackingForm((prev) => ({ ...prev, entryDate: e.target.value }))}
+                  className="h-12 rounded-3xl border-slate-200"
+                />
+              </div>
+
+              {[
+                {
+                  key: "alimentacion" as const,
+                  label: "Alimentación",
+                  icon: UtensilsCrossed,
+                  placeholder:
+                    "Cuenta lo que comiste, horarios, antojos, porciones o cambios que quieras registrar.",
+                },
+                {
+                  key: "suplementos" as const,
+                  label: "Suplementos",
+                  icon: Waves,
+                  placeholder:
+                    "Escribe qué tomaste, dosis, horario y si hubo algún cambio o duda.",
+                },
+                {
+                  key: "actividadFisica" as const,
+                  label: "Actividad física",
+                  icon: Dumbbell,
+                  placeholder:
+                    "Puedes colocar el tiempo, intensidad, tipo de ejercicio o cómo te sentiste.",
+                },
+              ].map((section) => (
+                <div key={section.key} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <section.icon className="h-4 w-4 text-emerald-500" />
+                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">{section.label}</label>
+                  </div>
+                  <Textarea
+                    value={trackingForm[section.key]}
+                    onChange={(e) => setTrackingForm((prev) => ({ ...prev, [section.key]: e.target.value }))}
+                    className="min-h-[120px] rounded-3xl border-slate-200"
+                    placeholder={section.placeholder}
+                  />
+                </div>
+              ))}
+
+              <Button
+                type="submit"
+                isLoading={isSubmittingTracking}
+                className="h-12 rounded-2xl bg-slate-950 px-6 font-black text-white shadow-lg shadow-slate-900/10 hover:bg-slate-800"
+              >
+                Guardar diario
+              </Button>
+            </form>
+
+            <div className="space-y-6">
+              <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Resumen</p>
+                    <h2 className="mt-2 text-2xl font-black text-slate-950">Lo que ya dejaste registrado</h2>
+                  </div>
+                  <CalendarDays className="h-5 w-5 text-emerald-500" />
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  {[
+                    { label: "Alimentación", value: overview.summary.sectionCounts.alimentacion, icon: UtensilsCrossed },
+                    { label: "Suplementos", value: overview.summary.sectionCounts.suplementos, icon: Waves },
+                    { label: "Actividad", value: overview.summary.sectionCounts.actividadFisica, icon: Dumbbell },
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-4">
+                      <item.icon className="h-5 w-5 text-emerald-500" />
+                      <p className="mt-3 text-sm font-semibold text-slate-500">{item.label}</p>
+                      <p className="mt-1 text-2xl font-black text-slate-950">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Historial</p>
+                    <h2 className="mt-2 text-2xl font-black text-slate-950">Últimos registros del diario</h2>
+                  </div>
+                  <Clock3 className="h-5 w-5 text-emerald-500" />
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  {recentTracking.length > 0 ? (
+                    recentTracking.map((entry) => {
+                      const sections = entry.payload.sections || {};
+                      return (
+                        <article key={entry.id} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-5">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                {entry.payload?.entryDate ? `Fecha del diario: ${entry.payload.entryDate}` : "Registro de diario"}
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-100">
+                              Guardado
+                            </span>
+                          </div>
+
+                          <div className="mt-4 grid gap-3">
+                            {sections.alimentacion && (
+                              <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
+                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Alimentación</p>
+                                <p className="mt-2 text-sm leading-7 text-slate-700">{sections.alimentacion}</p>
+                              </div>
+                            )}
+                            {sections.suplementos && (
+                              <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
+                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Suplementos</p>
+                                <p className="mt-2 text-sm leading-7 text-slate-700">{sections.suplementos}</p>
+                              </div>
+                            )}
+                            {sections.actividadFisica && (
+                              <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
+                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Actividad física</p>
+                                <p className="mt-2 text-sm leading-7 text-slate-700">{sections.actividadFisica}</p>
+                              </div>
+                            )}
+                          </div>
+                        </article>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                      Todavía no hay registros de diario.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "recursos" && (
+          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Recursos compartidos</p>
+                  <h2 className="mt-2 text-2xl font-black text-slate-950">Lo que tu nutri te dejó para revisar</h2>
+                </div>
+                <Library className="h-5 w-5 text-emerald-500" />
+              </div>
+
+              <div className="mt-6 space-y-4">
+                {sharedResources.length > 0 ? (
+                  sharedResources.map((resource) => (
+                    <article key={resource.id} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-5">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-black text-slate-900">{resource.title}</p>
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{resource.category}</p>
+                        </div>
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                          {resource.isPublic ? "Público" : "Privado"}
+                        </span>
+                      </div>
+                      <p className="mt-4 text-sm leading-7 text-slate-700">{resource.content}</p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {(resource.tags || []).map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 ring-1 ring-slate-100"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      {resource.fileUrl && (
+                        <div className="mt-4">
+                          <Button variant="outline" className="rounded-2xl" onClick={() => window.open(resource.fileUrl || "", "_blank", "noopener,noreferrer")}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Abrir archivo
+                          </Button>
+                        </div>
+                      )}
+                    </article>
+                  ))
+                ) : (
+                  <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                    Todavía no hay recursos compartidos en este portal.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Cómo funciona</p>
+                    <h2 className="mt-2 text-2xl font-black text-slate-950">Recursos y materiales</h2>
+                  </div>
+                  <Globe className="h-5 w-5 text-emerald-500" />
+                </div>
+                <div className="mt-5 space-y-3 rounded-3xl border border-slate-100 bg-slate-50/80 p-5 text-sm leading-7 text-slate-700">
+                  <p>• Estos recursos se comparten de forma específica para tu acceso.</p>
+                  <p>• Puedes volver a abrirlos cuando quieras.</p>
+                  <p>• Si el nutri te comparte más material en una nueva invitación, lo verás aquí.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "notificaciones" && (
+          <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+            <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Avisos</p>
+                  <h2 className="mt-2 text-2xl font-black text-slate-950">Mensajes directos del nutri</h2>
+                </div>
+                <Bell className="h-5 w-5 text-emerald-500" />
+              </div>
+
+              <div className="mt-6 space-y-4">
+                {notifications.length > 0 ? (
+                  notifications.map((entry) => (
+                    <article key={entry.id} className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-5">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-black text-slate-900">
+                            {entry.payload?.notificationTitle || "Notificación del nutricionista"}
+                          </p>
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                            {formatDateTime(entry.createdAt)}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                          {entry.payload?.notificationType || "INFO"}
+                        </span>
+                      </div>
+                      <p className="mt-4 text-sm leading-7 text-slate-700">{entry.body}</p>
+                    </article>
+                  ))
+                ) : (
+                  <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                    Todavía no hay avisos directos del nutri.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Uso</p>
+                  <h2 className="mt-2 text-2xl font-black text-slate-950">Para qué sirven</h2>
+                </div>
+                <Bell className="h-5 w-5 text-emerald-500" />
+              </div>
+              <div className="mt-5 space-y-3 rounded-3xl border border-slate-100 bg-slate-50/80 p-5 text-sm leading-7 text-slate-700">
+                <p>• Tu nutri puede enviarte avisos concretos para este paciente.</p>
+                <p>• Si existe un correo activo en la invitación, también llega por email.</p>
+                <p>• El mensaje queda guardado en el portal para que no se pierda entre preguntas.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {activeTab === "consultas" && (
           <div className="grid gap-6 lg:grid-cols-[1fr_0.95fr]">
@@ -510,16 +846,13 @@ export default function PortalClient({ token }: { token: string }) {
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-emerald-600">Consultas al nutri</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-emerald-600">Preguntas</p>
                   <h2 className="mt-2 text-2xl font-black text-slate-950">Deja tu pregunta o comentario</h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    Escribe dudas, avisos o temas que quieras que el nutri revise cuando tenga espacio.
+                    Escribe lo que necesites. El nutri podrá verlo y responderte cuando revise tu portal.
                   </p>
                 </div>
-                <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-right">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">Actualizado</p>
-                  <p className="text-sm font-semibold text-emerald-900">{formatDateTime(new Date().toISOString())}</p>
-                </div>
+                <MessageSquare className="h-5 w-5 text-emerald-500" />
               </div>
 
               <div className="space-y-2">
@@ -528,14 +861,14 @@ export default function PortalClient({ token }: { token: string }) {
                   value={questionMessage}
                   onChange={(e) => setQuestionMessage(e.target.value)}
                   className="min-h-[180px] rounded-3xl border-slate-200"
-                  placeholder="Ej: Me costó seguir el plan en la cena del viernes, ¿te parece si ajustamos las porciones?"
+                  placeholder="Escribe aquí tu consulta, duda o actualización breve para tu nutri."
                 />
               </div>
 
               <div className="rounded-3xl border border-dashed border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-950">
                 <p className="font-semibold">Tip</p>
                 <p className="mt-1 text-emerald-900/80">
-                  Escribe todo lo que creas útil. El nutri lo verá como historial, no como chat en vivo.
+                  Mientras más claro lo escribas, más fácil será para el nutri responder cuando revise tus mensajes.
                 </p>
               </div>
 
@@ -609,195 +942,83 @@ export default function PortalClient({ token }: { token: string }) {
           </div>
         )}
 
-        {activeTab === "seguimiento" && (
+        {activeTab === "entregables" && (
           <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-            <form
-              onSubmit={handleSubmitTracking}
-              className="space-y-5 rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-emerald-600">Seguimiento</p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-950">Registra tu día a día</h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Completa las secciones que quieras. El nutri las leerá como historial y verá la fecha y hora
-                    automáticamente.
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-right">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">Auto-guardado</p>
-                  <p className="text-sm font-semibold text-emerald-900">Fecha y hora actual</p>
-                </div>
-              </div>
-
-              {[
-                {
-                  key: "alimentacion" as const,
-                  label: "Alimentación",
-                  icon: UtensilsCrossed,
-                  placeholder:
-                    "Cuenta todo lo que comiste, horarios, antojos, porciones o cualquier cambio que quieras que el nutri lea.",
-                },
-                {
-                  key: "suplementos" as const,
-                  label: "Suplementos",
-                  icon: Waves,
-                  placeholder:
-                    "Escribe cuál tomaste, dosis, horario y si lo olvidaste. También puedes agregar cambios o dudas.",
-                },
-                {
-                  key: "actividadFisica" as const,
-                  label: "Actividad física",
-                  icon: Dumbbell,
-                  placeholder:
-                    "Puedes colocar el tiempo, si seguiste alguna rutina, intensidad, tipo de ejercicio o cómo te sentiste.",
-                },
-              ].map((section) => (
-                <div key={section.key} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <section.icon className="h-4 w-4 text-emerald-500" />
-                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">{section.label}</label>
-                  </div>
-                  <Textarea
-                    value={trackingForm[section.key]}
-                    onChange={(e) => setTrackingForm((prev) => ({ ...prev, [section.key]: e.target.value }))}
-                    className="min-h-[120px] rounded-3xl border-slate-200"
-                    placeholder={section.placeholder}
-                  />
-                </div>
-              ))}
-
-              <Button
-                type="submit"
-                isLoading={isSubmittingTracking}
-                className="h-12 rounded-2xl bg-slate-950 px-6 font-black text-white shadow-lg shadow-slate-900/10 hover:bg-slate-800"
-              >
-                Guardar seguimiento
-              </Button>
-            </form>
-
-            <div className="space-y-6">
-              <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Resumen</p>
-                    <h2 className="mt-2 text-2xl font-black text-slate-950">Lo que ya dejaste registrado</h2>
-                  </div>
-                  <CalendarDays className="h-5 w-5 text-emerald-500" />
-                </div>
-
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  {[
-                    { label: "Alimentación", value: overview.summary.sectionCounts.alimentacion, icon: UtensilsCrossed },
-                    { label: "Suplementos", value: overview.summary.sectionCounts.suplementos, icon: Waves },
-                    { label: "Actividad", value: overview.summary.sectionCounts.actividadFisica, icon: Dumbbell },
-                  ].map((item) => (
-                    <div key={item.label} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-4">
-                      <item.icon className="h-5 w-5 text-emerald-500" />
-                      <p className="mt-3 text-sm font-semibold text-slate-500">{item.label}</p>
-                      <p className="mt-1 text-2xl font-black text-slate-950">{item.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Historial</p>
-                    <h2 className="mt-2 text-2xl font-black text-slate-950">Últimos registros de seguimiento</h2>
-                  </div>
-                  <Clock3 className="h-5 w-5 text-emerald-500" />
-                </div>
-
-                <div className="mt-6 space-y-4">
-                  {recentTracking.length > 0 ? (
-                    recentTracking.map((entry) => {
-                      const sections = entry.payload.sections || {};
-                      return (
-                        <article key={entry.id} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-5">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                Registro de seguimiento
-                              </p>
-                            </div>
-                            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-100">
-                              Guardado automático
-                            </span>
-                          </div>
-
-                          <div className="mt-4 grid gap-3">
-                            {sections.alimentacion && (
-                              <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
-                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Alimentación</p>
-                                <p className="mt-2 text-sm leading-7 text-slate-700">{sections.alimentacion}</p>
-                              </div>
-                            )}
-                            {sections.suplementos && (
-                              <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
-                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Suplementos</p>
-                                <p className="mt-2 text-sm leading-7 text-slate-700">{sections.suplementos}</p>
-                              </div>
-                            )}
-                            {sections.actividadFisica && (
-                              <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
-                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Actividad física</p>
-                                <p className="mt-2 text-sm leading-7 text-slate-700">{sections.actividadFisica}</p>
-                              </div>
-                            )}
-                          </div>
-                        </article>
-                      );
-                    })
-                  ) : (
-                    <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-                      Todavía no hay registros de seguimiento.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "respuestas" && (
-          <div className="grid gap-6 lg:grid-cols-[1fr_0.95fr]">
             <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Respuestas del nutri</p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-950">Mensajes que te dejó el nutri</h2>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Entregables compartidos</p>
+                  <h2 className="mt-2 text-2xl font-black text-slate-950">Tus archivos listos para descargar</h2>
                 </div>
-                <Reply className="h-5 w-5 text-emerald-500" />
+                <FileText className="h-5 w-5 text-emerald-500" />
               </div>
 
               <div className="mt-6 space-y-4">
-                {replies.length > 0 ? (
-                  replies.map((reply) => (
-                    <article key={reply.id} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-5">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-black text-slate-900">{formatDateTime(reply.createdAt)}</p>
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Respuesta del nutri</p>
+                {sharedDeliverables.length > 0 ? (
+                  sharedDeliverables.map((deliverable) => {
+                    const downloadPdf = () => {
+                      const doc = new jsPDF("p", "mm", "a4");
+                      const margin = 16;
+                      let y = 18;
+                      const pageWidth = doc.internal.pageSize.getWidth();
+
+                      doc.setFont("helvetica", "bold");
+                      doc.setFontSize(18);
+                      doc.text(deliverable.name, margin, y);
+                      y += 8;
+
+                      doc.setFont("helvetica", "normal");
+                      doc.setFontSize(11);
+                      doc.text(`Tipo: ${deliverable.type}`, margin, y);
+                      y += 6;
+                      doc.text(`Formato: ${deliverable.format}`, margin, y);
+                      y += 6;
+                      doc.text(`Actualizado: ${formatDateTime(deliverable.updatedAt)}`, margin, y);
+                      y += 10;
+
+                      const body = safeJsonText(deliverable.content);
+                      const lines = doc.splitTextToSize(body || "Sin contenido disponible", pageWidth - margin * 2);
+                      doc.text(lines, margin, y);
+
+                      doc.save(`${deliverable.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "entregable"}.pdf`);
+                    };
+
+                    return (
+                      <article key={deliverable.id} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-black text-slate-900">{deliverable.name}</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{deliverable.type}</p>
+                          </div>
+                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                            PDF
+                          </span>
                         </div>
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
-                          Mensaje guardado
-                        </span>
-                      </div>
-                      <p className="mt-4 text-sm leading-7 text-slate-700">{reply.body}</p>
-                      {reply.replyTo?.body && (
-                        <div className="mt-4 rounded-2xl border border-emerald-100 bg-white p-4">
-                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">Respondió a</p>
-                          <p className="mt-2 text-sm leading-7 text-slate-600">{reply.replyTo.body}</p>
+                        <p className="mt-4 text-sm leading-7 text-slate-700">
+                          {safeJsonText(deliverable.content) || "Sin contenido disponible"}
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {(deliverable.tags || []).map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 ring-1 ring-slate-100"
+                            >
+                              {tag}
+                            </span>
+                          ))}
                         </div>
-                      )}
-                    </article>
-                  ))
+                        <div className="mt-4">
+                          <Button className="rounded-2xl" onClick={downloadPdf}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Descargar PDF
+                          </Button>
+                        </div>
+                      </article>
+                    );
+                  })
                 ) : (
                   <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-                    Aquí aparecerán las respuestas que el nutri te vaya dejando. No necesitas estar conectado al mismo tiempo.
+                    Todavía no hay entregables compartidos.
                   </div>
                 )}
               </div>
@@ -807,35 +1028,15 @@ export default function PortalClient({ token }: { token: string }) {
               <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Estado</p>
-                    <h2 className="mt-2 text-2xl font-black text-slate-950">Cómo funciona este espacio</h2>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Qué recibes</p>
+                    <h2 className="mt-2 text-2xl font-black text-slate-950">Tus entregables en PDF</h2>
                   </div>
-                  <FileText className="h-5 w-5 text-emerald-500" />
+                  <Package className="h-5 w-5 text-emerald-500" />
                 </div>
                 <div className="mt-5 space-y-3 rounded-3xl border border-slate-100 bg-slate-50/80 p-5 text-sm leading-7 text-slate-700">
-                  <p>• Todo queda guardado como historial simple y liviano.</p>
-                  <p>• Las consultas no son en vivo, pero sí quedan ordenadas para revisar luego.</p>
-                  <p>• Las respuestas del nutri aparecen como una conversación guardada.</p>
-                </div>
-              </div>
-
-              <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Invitación</p>
-                    <h2 className="mt-2 text-2xl font-black text-slate-950">Tu acceso actual</h2>
-                  </div>
-                  <ShieldCheck className="h-5 w-5 text-emerald-500" />
-                </div>
-                <div className="mt-5 space-y-3 rounded-3xl border border-slate-100 bg-slate-50/80 p-5">
-                  <p className="text-sm font-semibold text-slate-700">
-                    {activeInvitationExpiresAt
-                      ? `Activo hasta ${formatDate(String(activeInvitationExpiresAt))}`
-                      : "Acceso activo"}
-                  </p>
-                  <p className="text-xs leading-6 text-slate-500">
-                    Si tu nutri renueva el enlace, el portal seguirá funcionando con la invitación más reciente.
-                  </p>
+                  <p>• Aquí verás los materiales exportados que tu nutri decidió compartir contigo.</p>
+                  <p>• El PDF se genera desde el contenido del entregable para que puedas guardarlo o reenviarlo.</p>
+                  <p>• Cada invitación puede tener su propio conjunto de materiales, así que el acceso es personalizado.</p>
                 </div>
               </div>
             </div>

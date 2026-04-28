@@ -56,14 +56,19 @@ export class RecipeMatchingService {
             where: {
                 OR: [
                     { isPublic: true },
-                    { nutritionistId }
+                    { nutritionistId },
+                    { savedBy: { some: { nutritionistId } } }
                 ]
             },
             include: {
                 ingredients: {
                     include: { ingredient: true }
                 },
-                nutritionist: { select: { fullName: true } }
+                nutritionist: { select: { fullName: true } },
+                savedBy: {
+                    where: { nutritionistId },
+                    select: { id: true }
+                }
             }
         });
 
@@ -134,7 +139,8 @@ export class RecipeMatchingService {
             .map(sr => ({
                 ...sr.recipe,
                 matchPercentage: Math.round(sr.matchPercentage),
-                isMine: sr.recipe.nutritionistId === nutritionistId
+                isMine: sr.recipe.nutritionistId === nutritionistId,
+                isAdopted: sr.recipe.nutritionistId !== nutritionistId && Array.isArray(sr.recipe.savedBy) && sr.recipe.savedBy.length > 0
             }));
     }
 }

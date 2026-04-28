@@ -1,10 +1,19 @@
-import { Body, Controller, Get, Param, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PatientPortalsService } from './patient-portals.service';
 import { CreatePatientPortalInvitationDto } from './dto/create-patient-portal-invitation.dto';
 import { CreatePatientPortalEntryDto } from './dto/create-patient-portal-entry.dto';
 import { CreatePatientPortalQuestionDto } from './dto/create-patient-portal-question.dto';
 import { CreatePatientPortalReplyDto } from './dto/create-patient-portal-reply.dto';
+import { CreatePatientPortalNotificationDto } from './dto/create-patient-portal-notification.dto';
 import { PatientPortalAuthGuard } from './guards/patient-portal.guard';
 
 @Controller('patient-portals')
@@ -18,13 +27,23 @@ export class PatientPortalsController {
     @Param('patientId') patientId: string,
     @Body() dto: CreatePatientPortalInvitationDto,
   ) {
-    return this.patientPortalsService.createInvitation(req.user.nutritionistId, patientId, dto);
+    return this.patientPortalsService.createInvitation(
+      req.user.nutritionistId,
+      patientId,
+      dto,
+    );
   }
 
   @UseGuards(AuthGuard('jwt'))
   @Get('patients/:patientId/overview')
-  getPatientOverview(@Request() req: any, @Param('patientId') patientId: string) {
-    return this.patientPortalsService.getPortalOverview(req.user.nutritionistId, patientId);
+  getPatientOverview(
+    @Request() req: any,
+    @Param('patientId') patientId: string,
+  ) {
+    return this.patientPortalsService.getPortalOverview(
+      req.user.nutritionistId,
+      patientId,
+    );
   }
 
   @Get('invitations/:token/preview')
@@ -37,13 +56,19 @@ export class PatientPortalsController {
     @Param('token') token: string,
     @Body() body: { email: string; accessCode: string },
   ) {
-    return this.patientPortalsService.verifyInvitation(token, body.email, body.accessCode);
+    return this.patientPortalsService.verifyInvitation(
+      token,
+      body.email,
+      body.accessCode,
+    );
   }
 
   @UseGuards(PatientPortalAuthGuard)
   @Get('me')
   getMyPortal(@Request() req: any) {
-    return this.patientPortalsService.getPortalSessionOverview(req.portalSession);
+    return this.patientPortalsService.getPortalSessionOverview(
+      req.portalSession,
+    );
   }
 
   @UseGuards(PatientPortalAuthGuard)
@@ -61,7 +86,19 @@ export class PatientPortalsController {
     @Request() req: any,
     @Body() dto: CreatePatientPortalEntryDto,
   ) {
-    return this.patientPortalsService.createTrackingEntry(req.portalSession, dto);
+    return this.patientPortalsService.createTrackingEntry(
+      req.portalSession,
+      dto,
+    );
+  }
+
+  @UseGuards(PatientPortalAuthGuard)
+  @Post('me/journal')
+  createJournal(@Request() req: any, @Body() dto: CreatePatientPortalEntryDto) {
+    return this.patientPortalsService.createTrackingEntry(
+      req.portalSession,
+      dto,
+    );
   }
 
   @UseGuards(PatientPortalAuthGuard)
@@ -70,7 +107,10 @@ export class PatientPortalsController {
     @Request() req: any,
     @Body() dto: CreatePatientPortalEntryDto,
   ) {
-    return this.patientPortalsService.createTrackingEntry(req.portalSession, dto);
+    return this.patientPortalsService.createTrackingEntry(
+      req.portalSession,
+      dto,
+    );
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -80,7 +120,25 @@ export class PatientPortalsController {
     @Param('patientId') patientId: string,
     @Body() dto: CreatePatientPortalReplyDto,
   ) {
-    return this.patientPortalsService.createReply(req.user.nutritionistId, patientId, dto);
+    return this.patientPortalsService.createReply(
+      req.user.nutritionistId,
+      patientId,
+      dto,
+    );
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('patients/:patientId/notifications')
+  createNotification(
+    @Request() req: any,
+    @Param('patientId') patientId: string,
+    @Body() dto: CreatePatientPortalNotificationDto,
+  ) {
+    return this.patientPortalsService.createNotification(
+      req.user.nutritionistId,
+      patientId,
+      dto,
+    );
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -90,6 +148,10 @@ export class PatientPortalsController {
     @Param('patientId') patientId: string,
     @Body() body: { status: 'ACTIVE' | 'BLOCKED' },
   ) {
-    return this.patientPortalsService.setAccessStatus(req.user.nutritionistId, patientId, body.status);
+    return this.patientPortalsService.setAccessStatus(
+      req.user.nutritionistId,
+      patientId,
+      body.status,
+    );
   }
 }

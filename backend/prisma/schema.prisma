@@ -51,6 +51,7 @@ model Nutritionist {
   patientPortalCheckIns  PatientPortalCheckIn[]
   projects              Project[]
   recipes               Recipe[]
+  savedRecipes          RecipeLibrary[]
   resourceSections      ResourceSection[]
   resources             Resource[]
   substitutes           Substitute[]
@@ -187,22 +188,24 @@ model Consultation {
 }
 
 model PatientPortalInvitation {
-    id          String     @id @default(uuid())
-    patientId   String     @map("patient_id")
-    nutritionistId String  @map("nutritionist_id")
-    email       String?
-    tokenHash   String     @unique @map("token_hash")
-    status      String     @default("ACTIVE")
-    expiresAt   DateTime   @map("expires_at")
-    revokedAt   DateTime?  @map("revoked_at")
-    blockedAt   DateTime?  @map("blocked_at")
-    verifiedAt  DateTime?  @map("verified_at")
-    lastSentAt  DateTime?  @map("last_sent_at")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  patient     Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  nutritionist Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
-  entries     PatientPortalEntry[]
+  id          String     @id @default(uuid())
+  patientId   String     @map("patient_id")
+  nutritionistId String  @map("nutritionist_id")
+  email       String?
+  tokenHash   String     @unique @map("token_hash")
+  status      String     @default("ACTIVE")
+  expiresAt   DateTime   @map("expires_at")
+  revokedAt   DateTime?  @map("revoked_at")
+  blockedAt   DateTime?  @map("blocked_at")
+  verifiedAt  DateTime?  @map("verified_at")
+  lastSentAt  DateTime?  @map("last_sent_at")
+  resourceIds String[]   @default([]) @map("resource_ids")
+  deliverableCreationIds String[] @default([]) @map("deliverable_creation_ids")
+createdAt   DateTime   @default(now())
+updatedAt   DateTime   @updatedAt
+patient     Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+nutritionist Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+entries     PatientPortalEntry[]
   checkIns    PatientPortalCheckIn[]
 
   @@index([patientId])
@@ -549,6 +552,7 @@ model Recipe {
   imageUrl       String?            @map("image_url")
   metadata       Json?
   ingredients    RecipeIngredient[]
+  savedBy        RecipeLibrary[]
   nutritionist   Nutritionist?      @relation(fields: [nutritionistId], references: [id])
 
   @@map("recipes")
@@ -568,6 +572,20 @@ model RecipeIngredient {
   @@index([recipeId])
   @@index([ingredientId])
   @@map("recipe_ingredients")
+}
+
+model RecipeLibrary {
+  id             String       @id @default(uuid())
+  nutritionistId String       @map("nutritionist_id")
+  recipeId       String       @map("recipe_id")
+  createdAt      DateTime     @default(now())
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  recipe         Recipe       @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([nutritionistId, recipeId])
+  @@index([nutritionistId])
+  @@index([recipeId])
+  @@map("recipe_library")
 }
 
 model Announcement {
@@ -648,6 +666,7 @@ enum SupportRequestType {
   CONTACT
   OTHER
   FEEDBACK
+  TESTIMONIO
   COMPLAINT
   IDEA
 }

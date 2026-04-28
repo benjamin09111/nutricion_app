@@ -74,15 +74,16 @@ const groups: SidebarGroup[] = [
       { name: "Grupos", href: "/dashboard/alimentos?tab=Mis grupos", icon: FolderPlus },
     ],
   },
-  {
-    title: "Herramientas",
-    items: [
-      { name: "Creaciones", href: "/dashboard/creaciones", icon: Folder, tutorialPath: "/dashboard/creaciones" },
-      { name: "Recursos & Material", href: "/dashboard/recursos", icon: FileText, tutorialPath: "/dashboard/recursos" },
-      { name: "Detalles", href: "/dashboard/detalles", icon: FileText, tutorialPath: "/dashboard/detalles" },
-      { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos" },
-    ],
-  },
+    {
+      title: "Herramientas",
+      items: [
+        { name: "Creaciones", href: "/dashboard/creaciones", icon: Folder, tutorialPath: "/dashboard/creaciones" },
+        { name: "Recursos & Material", href: "/dashboard/recursos", icon: FileText, tutorialPath: "/dashboard/recursos" },
+        { name: "Porciones de Intercambio", href: "/dashboard/herramientas/porciones-intercambio", icon: ClipboardCheck, tutorialPath: "/dashboard/herramientas/porciones-intercambio" },
+        { name: "Detalles", href: "/dashboard/detalles", icon: FileText, tutorialPath: "/dashboard/detalles" },
+        { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos" },
+      ],
+    },
   {
     title: "Agentes & IA",
     items: [

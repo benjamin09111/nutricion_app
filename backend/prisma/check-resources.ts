@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   const nutritionists = await prisma.nutritionist.findMany({
-    select: { id: true, email: true }
+    select: { id: true, fullName: true }
   });
   console.log("Nutritionists in DB:", nutritionists);
 
