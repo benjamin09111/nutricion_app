@@ -6,12 +6,13 @@ const STORAGE_KEY = "nutrisaas_patient_creation_draft";
 const INITIAL_STATE: Partial<Patient> = {
   fullName: "",
   email: "",
-  phone: "",
+  phone: "+56",
   birthDate: "",
   gender: "Masculino",
   height: 170,
   weight: 70,
   dietRestrictions: [],
+  activityLevel: "sedentario",
 };
 
 export function usePatientDraft() {

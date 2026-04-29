@@ -9,10 +9,14 @@ import {
   Save,
   RotateCcw,
   AlertCircle,
-  ChevronRight,
-  Activity,
-  Heart,
   Plus,
+  Info,
+  ChevronRight,
+  ClipboardList,
+  Flame,
+  Dumbbell,
+  HeartPulse,
+  Activity,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -21,11 +25,10 @@ import { MetricTagInput } from "@/components/ui/metric-tag-input";
 import { Patient } from "@/features/patients";
 import { usePatientDraft } from "@/features/patients/hooks/usePatientDraft";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { validateRut, formatRut } from "@/lib/rut-utils";
 import { cn } from "@/lib/utils";
-import { DEFAULT_METRICS } from "@/lib/constants";
 import Cookies from "js-cookie";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 
@@ -35,35 +38,22 @@ export default function CreatePatientClient() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const selectedMetrics = draft.customVariables || [];
 
-  const getDraftCustomVariables = () =>
-    (Array.isArray(draft.customVariables) ? [...(draft.customVariables as any[])] : []);
-
-  const getActivityLevelDraft = () => {
-    const item = getDraftCustomVariables().find((entry: any) => entry?.key === "activityLevel");
-    const value = String(item?.value || "").toLowerCase();
-    return value === "deportista" ? "deportista" : "sedentario";
-  };
-
-  const setActivityLevelDraft = (value: "sedentario" | "deportista") => {
-    const customVariables = getDraftCustomVariables();
-    const index = customVariables.findIndex((entry: any) => entry?.key === "activityLevel");
-    const nextValue = { key: "activityLevel", label: "Nivel de actividad", value, unit: "" };
-    if (index >= 0) customVariables[index] = nextValue;
-    else customVariables.push(nextValue);
-    updateDraft({ customVariables });
-  };
-
-
+  // Filter out internal variables from the tags/goals list
+  const selectedMetrics = (draft.customVariables || []).filter(m => m.key !== "activityLevel");
 
   if (!isLoaded) return null;
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    if (!val.startsWith("+")) val = "+" + val.replace(/\+/g, "");
+    const cleanVal = "+" + val.substring(1).replace(/\D/g, "");
+    updateDraft({ phone: cleanVal });
+  };
+
   const handleSaveClick = () => {
     if (!draft.fullName || !draft.email) {
-      toast.error(
-        "Por favor completa los campos obligatorios (Nombre y Email).",
-      );
+      toast.error("Por favor completa los campos obligatorios (Nombre y Email).");
       return;
     }
     if (draft.documentId && !validateRut(draft.documentId)) {
@@ -76,38 +66,29 @@ export default function CreatePatientClient() {
   const handleConfirmSave = async () => {
     setIsSaving(true);
     setShowSaveConfirm(false);
-
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
-
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const method = draft.id ? "PATCH" : "POST";
       const url = draft.id ? `/patients/${draft.id}` : "/patients";
-
-      // Clean payload to match precisely backend CreatePatientDto
+      
       const payload: any = {
         fullName: draft.fullName,
         email: draft.email || undefined,
         phone: draft.phone || undefined,
         documentId: draft.documentId || undefined,
-        birthDate: draft.birthDate
-          ? new Date(draft.birthDate).toISOString()
-          : undefined,
+        birthDate: draft.birthDate ? new Date(draft.birthDate).toISOString() : undefined,
         gender: draft.gender || undefined,
-        height: draft.height
-          ? Number(draft.height.toString().replace(",", "."))
-          : undefined,
-        weight: draft.weight
-          ? Number(draft.weight.toString().replace(",", "."))
-          : undefined,
+        height: draft.height ? Number(draft.height.toString().replace(",", ".")) : undefined,
+        weight: draft.weight ? Number(draft.weight.toString().replace(",", ".")) : undefined,
         dietRestrictions: draft.dietRestrictions || [],
         clinicalSummary: draft.clinicalSummary || undefined,
         nutritionalFocus: draft.nutritionalFocus || undefined,
         fitnessGoals: draft.fitnessGoals || undefined,
         likes: draft.likes || undefined,
         customVariables: draft.customVariables || [],
+        activityLevel: draft.activityLevel || "sedentario",
       };
-
+      
       const response = await fetchApi(url, {
         method,
         headers: {
@@ -119,11 +100,7 @@ export default function CreatePatientClient() {
 
       if (response.ok) {
         const savedPatient = await response.json();
-        toast.success(
-          draft.id
-            ? "Expediente actualizado."
-            : "Paciente registrado con éxito.",
-        );
+        toast.success(draft.id ? "Expediente actualizado." : "Paciente registrado con éxito.");
         clearDraft();
         router.push(`/dashboard/pacientes/${savedPatient.id}`);
       } else {
@@ -139,435 +116,344 @@ export default function CreatePatientClient() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-24 animate-in fade-in duration-700 px-1 sm:px-0">
-      {/* Navigation Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="group flex items-center gap-2 hover:bg-slate-100/50 rounded-xl px-4 py-2 transition-all w-fit"
-        >
-          <ArrowLeft className="h-4 w-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
-          <span className="text-sm font-medium text-slate-500 group-hover:text-slate-800 transition-colors">
-            Volver
-          </span>
-        </Button>
+    <div className="relative max-w-7xl mx-auto pb-24 animate-in fade-in duration-700 px-2 sm:px-4">
+      {/* Sidebar Actions Menu (Sticky Right) */}
+      <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4">
+        <div className="bg-white/80 backdrop-blur-xl p-3 rounded-3xl border border-slate-200 shadow-2xl flex flex-col gap-3">
+          <button
+            onClick={() => setShowResetConfirm(true)}
+            className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-600 transition-all flex items-center justify-center group relative"
+            title="Reiniciar Formulario"
+          >
+            <RotateCcw className="w-6 h-6 group-hover:rotate-[-45deg] transition-transform duration-300" />
+            <span className="absolute right-full mr-4 bg-slate-900 text-white text-[10px] font-black uppercase px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap tracking-wider">
+              Reiniciar
+            </span>
+          </button>
+          
+          <div className="h-px bg-slate-100 mx-2" />
+          
+          <button
+            onClick={handleSaveClick}
+            disabled={isSaving}
+            className={cn(
+              "w-14 h-14 rounded-2xl transition-all flex items-center justify-center group relative shadow-lg shadow-emerald-200/50",
+              isSaving ? "bg-slate-100" : "bg-emerald-600 hover:bg-emerald-700 text-white"
+            )}
+            title={draft.id ? "Actualizar Ficha" : "Registrar Paciente"}
+          >
+            {isSaving ? (
+              <span className="w-6 h-6 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
+            ) : (
+              <Save className="w-6 h-6 group-hover:scale-110 transition-transform" />
+            )}
+            <span className="absolute right-full mr-4 bg-slate-900 text-white text-[10px] font-black uppercase px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap tracking-wider">
+              {draft.id ? "Guardar" : "Registrar"}
+            </span>
+          </button>
+        </div>
+      </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+      {/* Mobile/Tablet Bottom Actions */}
+      <div className="xl:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-md">
+        <div className="bg-slate-900/90 backdrop-blur-xl p-2 rounded-2xl shadow-2xl flex items-center gap-2 border border-slate-700/50">
           <Button
             variant="ghost"
             onClick={() => setShowResetConfirm(true)}
-            className="flex-1 sm:flex-none h-10 px-4 text-slate-500 hover:text-rose-600 hover:bg-rose-50 font-medium rounded-xl transition-all gap-2 text-sm"
+            className="flex-1 h-12 text-slate-400 hover:text-rose-400 hover:bg-rose-400/10 rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all"
           >
-            <RotateCcw className="h-4 w-4" />
+            <RotateCcw className="w-4 h-4 mr-2" />
             Reiniciar
           </Button>
-
           <Button
             onClick={handleSaveClick}
             disabled={isSaving}
-            className="flex-2 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-10 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
+            className="flex-[2] h-12 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all shadow-lg shadow-emerald-500/20"
           >
             {isSaving ? (
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
             ) : (
-              <Save className="h-4 w-4" />
+              <Save className="w-4 h-4 mr-2" />
             )}
-            <span>{draft.id ? "Actualizar Ficha" : "Registrar"}</span>
+            {draft.id ? "Guardar Cambios" : "Registrar"}
           </Button>
         </div>
       </div>
 
-      {/* Main Branding */}
-      <div className="bg-slate-900 rounded-2xl p-6 lg:p-8 relative overflow-hidden shadow-lg border border-slate-800">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-[80px] -translate-y-1/2 translate-x-1/2 rounded-full" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/5 blur-[60px] translate-y-1/2 -translate-x-1/2 rounded-full" />
-
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-4 lg:gap-6">
-          <div className="h-12 w-12 lg:h-16 lg:w-16 rounded-xl bg-linear-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-inner border border-emerald-400/20">
-            <User className="h-6 w-6 lg:h-8 lg:w-8 text-emerald-50" />
-          </div>
-          <div>
-            <h1 className="text-xl lg:text-2xl font-semibold text-white tracking-tight mb-1">
-              Nueva Identidad Clínica
-            </h1>
-            <p className="text-emerald-100/70 text-xs lg:text-sm max-w-lg">
-              Crea un perfil detallado para un seguimiento nutricional
-              estructurado.
-            </p>
+      <div className="space-y-6 lg:space-y-8">
+        {/* Header with Navigation */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <Button variant="ghost" onClick={() => router.back()} className="group flex items-center gap-2 hover:bg-slate-100/50 rounded-xl px-4 py-2 transition-all w-fit">
+            <ArrowLeft className="h-4 w-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
+            <span className="text-sm font-medium text-slate-500 group-hover:text-slate-800 transition-colors">Volver</span>
+          </Button>
+          
+          {/* Header Buttons kept for visibility, but side menu is primary */}
+          <div className="hidden xl:flex items-center gap-2">
+             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Acceso Rápido Lateral Activo
+             </div>
           </div>
         </div>
-      </div>
 
-      {/* Form Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Panel 1: Personal Identification */}
-        <div className="lg:col-span-8 bg-white p-6 lg:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-          <div className="flex items-center gap-3 px-1 border-b border-slate-100 pb-4">
-            <User className="w-5 h-5 text-emerald-600" />
-            <h2 className="text-lg font-semibold text-slate-800">
-              Perfil de Identidad
-            </h2>
+        {/* Main Branding Banner */}
+        <div className="bg-slate-900 rounded-3xl p-6 lg:p-10 relative overflow-hidden shadow-2xl border border-slate-800">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 blur-[100px] -translate-y-1/2 translate-x-1/2 rounded-full" />
+          <div className="absolute bottom-0 left-0 w-72 h-72 bg-blue-500/5 blur-[80px] translate-y-1/2 -translate-x-1/2 rounded-full" />
+          
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-5 lg:gap-8">
+              <div className="h-16 w-16 lg:h-20 lg:w-20 rounded-2xl bg-linear-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg border border-emerald-300/30">
+                <User className="h-8 w-8 lg:h-10 lg:w-10 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight mb-2">
+                  {draft.id ? "Editando Expediente" : "Nueva Ficha Clínica"}
+                </h1>
+                <p className="text-emerald-100/60 text-sm lg:text-base max-w-xl font-medium">
+                  Completa la información necesaria para personalizar el seguimiento nutricional y optimizar los resultados del paciente.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3-Column Layout for Primary Info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+          {/* Column 1: Identity & Contact */}
+          <div className="flex flex-col">
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
+                <div className="p-2 bg-emerald-50 rounded-xl">
+                  <User className="w-5 h-5 text-emerald-600" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-800">Identidad</h2>
+              </div>
+              
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Nombre Completo *</label>
+                  <Input
+                    placeholder="Valentina Morales Lagos"
+                    className="h-12 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                    value={draft.fullName}
+                    onChange={(e) => updateDraft({ fullName: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Email *</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="valen@email.com"
+                      className="h-12 pl-11 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                      value={draft.email}
+                      onChange={(e) => updateDraft({ email: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Teléfono</label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="+56 9 1234 5678"
+                      className="h-12 pl-11 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                      value={draft.phone}
+                      onChange={handlePhoneChange}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">RUT (Opcional)</label>
+                  <Input
+                    placeholder="12.345.678-9"
+                    className="h-12 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                    value={draft.documentId || ""}
+                    onChange={(e) => updateDraft({ documentId: formatRut(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Sexo biológico</label>
+                  <select
+                    value={draft.gender || ""}
+                    onChange={(e) => updateDraft({ gender: e.target.value })}
+                    className="w-full h-12 rounded-2xl bg-slate-50 border-transparent px-4 text-sm font-semibold text-slate-700 focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all cursor-pointer appearance-none"
+                  >
+                    <option value="">Seleccionar...</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Femenino">Femenino</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-xs font-semibold text-slate-500 ml-1">
-                Nombre Completo del Paciente *
-              </label>
-              <Input
-                placeholder="Ej. Valentina Morales Lagos"
-                className="h-11 rounded-xl bg-slate-50/50 border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                value={draft.fullName}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const capitalized = val
-                    .split(" ")
-                    .map((word) =>
-                      word.length > 0
-                        ? word.charAt(0).toUpperCase() +
-                          word.slice(1).toLowerCase()
-                        : "",
-                    )
-                    .join(" ");
-                  updateDraft({ fullName: capitalized });
-                }}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-500 ml-1">
-                Correo Electrónico *
-              </label>
-              <div className="relative group">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
-                <Input
-                  type="email"
-                  placeholder="valen@email.com"
-                  className="h-11 pl-10 rounded-xl bg-slate-50/50 border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                  value={draft.email}
-                  onChange={(e) => updateDraft({ email: e.target.value })}
-                />
+          {/* Column 2: Nutrition & Body */}
+          <div className="space-y-6 flex flex-col">
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 hover:shadow-md transition-shadow">
+              <h2 className="text-lg font-bold text-slate-800 border-b border-slate-50 pb-4">Antropometría</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400">Peso (kg)</label>
+                  <Input type="number" step="any" className="h-12 rounded-2xl bg-slate-50 border-transparent text-center font-bold text-lg" value={draft.weight} onChange={(e) => updateDraft({ weight: e.target.value ? parseFloat(e.target.value) : undefined })} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400">Altura (cm)</label>
+                  <Input type="number" step="any" className="h-12 rounded-2xl bg-slate-50 border-transparent text-center font-bold text-lg" value={draft.height} onChange={(e) => updateDraft({ height: e.target.value ? parseFloat(e.target.value) : undefined })} />
+                </div>
               </div>
             </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-500 ml-1">
-                Teléfono de Contacto
-              </label>
-              <div className="relative group">
-                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
-                <Input
-                  placeholder="+56 9 1234 5678"
-                  className="h-11 pl-10 rounded-xl bg-slate-50/50 border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                  value={draft.phone}
-                  onChange={(e) => updateDraft({ phone: e.target.value })}
-                />
+            
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between border-b border-slate-50 pb-4">
+                <h2 className="text-lg font-bold text-slate-800">Métricas Meta</h2>
+                <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg uppercase tracking-widest">Opcional</span>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-500 ml-1">
-                Documento de Identidad (RUT - Opcional)
-              </label>
-              <Input
-                placeholder="12.345.678-9"
-                className="h-11 rounded-xl bg-slate-50/50 border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                value={draft.documentId || ""}
-                onChange={(e) => updateDraft({ documentId: formatRut(e.target.value) })}
+              
+              <MetricTagInput
+                value={selectedMetrics}
+                onChange={(metrics) => updateDraft({
+                  customVariables: metrics
+                    .filter((m) => typeof m.key === "string" && m.key.trim().length > 0 && m.key !== "activityLevel")
+                    .map((m) => ({ key: String(m.key), label: m.label, unit: m.unit, value: m.value })),
+                })}
+                placeholder="Grasa %, Pliegues..."
+                className="bg-white"
               />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-500 ml-1">
-                Fecha de Nacimiento
-              </label>
-              <Input
-                type="date"
-                className="h-11 rounded-xl bg-slate-50/50 border-slate-200 text-sm font-medium focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all text-slate-700"
-                value={draft.birthDate || ""}
-                onChange={(e) => updateDraft({ birthDate: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-xs font-semibold text-slate-500 ml-1">
-                Sexo biológico
-              </label>
-              <select
-                value={draft.gender || ""}
-                onChange={(e) => updateDraft({ gender: e.target.value })}
-                className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50/50 px-4 text-sm font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all cursor-pointer"
-              >
-                <option value="">Seleccionar sexo...</option>
-                <option value="Masculino">Masculino</option>
-                <option value="Femenino">Femenino</option>
-                <option value="Otro">Otro</option>
-              </select>
-            </div>
-
-            <div className="space-y-2 md:col-span-2 pt-6 border-t border-slate-100">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-lg">
-                  Información Opcional (Editable posteriormente)
-                </h3>
-              </div>
-              <label className="text-xs font-semibold text-slate-500 ml-1">
-                Propuesta de Foco Nutricional
-              </label>
-              <Input
-                placeholder="Ej. Pérdida de grasa / Recomposición corporal"
-                className="h-11 rounded-xl bg-white border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-emerald-50 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                value={draft.nutritionalFocus || ""}
-                onChange={(e) =>
-                  updateDraft({ nutritionalFocus: e.target.value })
-                }
-              />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-xs font-semibold text-slate-500 ml-1">
-                Metas Fitness / Deporte
-              </label>
-              <Input
-                placeholder="Ej. Media maratón en 3 meses"
-                className="h-11 rounded-xl bg-white border-slate-200 text-sm font-medium placeholder:text-slate-400 focus:bg-blue-50 focus:border-blue-300 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                value={draft.fitnessGoals || ""}
-                onChange={(e) => updateDraft({ fitnessGoals: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-xs font-semibold text-slate-500 ml-1">
-                Nivel de actividad
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { key: "sedentario", label: "Sedentario" },
-                  { key: "deportista", label: "Deportista" },
-                ].map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => setActivityLevelDraft(item.key as "sedentario" | "deportista")}
-                    className={cn(
-                      "h-11 rounded-xl border text-sm font-bold transition-all",
-                      getActivityLevelDraft() === item.key
-                        ? "border-emerald-600 bg-emerald-600 text-white"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
-                    )}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-xs font-semibold text-slate-500 ml-1">
-                Gustos y Preferencias Personalizadas
-              </label>
-              <textarea
-                className="w-full h-28 rounded-xl bg-white border border-slate-200 p-4 text-sm font-medium text-slate-700 focus:bg-rose-50/30 focus:border-rose-300 focus:ring-2 focus:ring-rose-500/10 transition-all resize-none"
-                placeholder="Ej. No le gusta el brócoli, ama el chocolate, prefiere desayunos dulces..."
-                value={draft.likes || ""}
-                onChange={(e) => updateDraft({ likes: e.target.value })}
-              />
-            </div>
-
-            {/* Panel Nutricional */}
-            <div className="space-y-2 md:col-span-2 pt-6 border-t border-slate-100">
-              <label className="text-xs font-semibold text-slate-500 ml-1 block mb-3">
-                Metas Nutricionales (Integración con Carrito)
-              </label>
-
-              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200">
+              
+              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-5">
                 {(() => {
                   const vars = Array.isArray(draft.customVariables) ? draft.customVariables as any[] : [];
                   const getCV = (key: string) => vars.find(v => v.key === key)?.value || "";
-
                   const updateCV = (key: string, label: string, value: string, unit: string) => {
                     const prev = Array.isArray(draft.customVariables) ? [...draft.customVariables as any[]] : [];
                     const idx = prev.findIndex(v => v.key === key);
-                    if (idx >= 0) { prev[idx] = { key, label, value, unit }; }
-                    else { prev.push({ key, label, value, unit }); }
+                    if (idx >= 0) prev[idx] = { key, label, value, unit };
+                    else prev.push({ key, label, value, unit });
                     updateDraft({ customVariables: prev });
                   };
-
                   return (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Calorías (kcal)</label>
-                          <Input type="number" value={getCV("targetCalories")} onChange={e => updateCV("targetCalories", "Calorías Meta", e.target.value, "kcal")} className="font-bold border-slate-200 bg-white" placeholder="Ej. 2000" />
+                    <div className="grid grid-cols-2 gap-4">
+                      {[
+                        { id: "Calories", label: "Calorías", unit: "kcal", color: "text-orange-600" },
+                        { id: "Protein", label: "Proteína", unit: "g", color: "text-rose-600" },
+                        { id: "Carbs", label: "Carbs", unit: "g", color: "text-blue-600" },
+                        { id: "Fats", label: "Grasas", unit: "g", color: "text-purple-600" }
+                      ].map((f) => (
+                        <div key={f.id} className="space-y-1.5">
+                          <label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">{f.label}</label>
+                          <Input type="number" value={getCV(`target${f.id}`)} onChange={e => updateCV(`target${f.id}`, `${f.label} Meta`, e.target.value, f.unit)} className={cn("h-10 font-bold bg-white rounded-xl text-sm border-transparent", f.color)} placeholder="0" />
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Proteína (g)</label>
-                          <Input type="number" value={getCV("targetProtein")} onChange={e => updateCV("targetProtein", "Proteína Meta", e.target.value, "g")} className="font-bold border-slate-200 bg-white" placeholder="Ej. 150" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Carbohidratos (g)</label>
-                          <Input type="number" value={getCV("targetCarbs")} onChange={e => updateCV("targetCarbs", "Carbohidratos Meta", e.target.value, "g")} className="font-bold border-slate-200 bg-white" placeholder="Ej. 200" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Grasas (g)</label>
-                          <Input type="number" value={getCV("targetFats")} onChange={e => updateCV("targetFats", "Grasas Meta", e.target.value, "g")} className="font-bold border-slate-200 bg-white" placeholder="Ej. 60" />
-                        </div>
-                      </div>
-
-                      <div className="pt-2">
-                        <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Temporalidad</label>
-                        <select value={getCV("targetTimeframe") || "dia"} onChange={e => updateCV("targetTimeframe", "Temporalidad", e.target.value, "")} className="w-full h-10 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 px-3 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none">
-                          <option value="dia">Diario</option>
-                          <option value="semana">Semanal</option>
-                          <option value="mes">Mensual</option>
-                        </select>
-                      </div>
+                      ))}
                     </div>
                   );
                 })()}
               </div>
             </div>
           </div>
+
+          {/* Column 3: Lifestyle & Constraints */}
+          <div className="space-y-6 flex flex-col">
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3 border-b border-slate-50 pb-4 mb-5">
+                <div className="p-2 bg-rose-50 rounded-xl">
+                  <AlertCircle className="w-5 h-5 text-rose-500" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-800">Restricciones</h2>
+              </div>
+              <TagInput value={draft.dietRestrictions || []} onChange={(tags) => updateDraft({ dietRestrictions: tags })} fetchSuggestionsUrl={`${getApiUrl()}/tags`} placeholder="Diabetes, Celiaco, Alergias..." className="mt-2" />
+            </div>
+
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
+              <h2 className="text-lg font-bold text-slate-800 border-b border-slate-50 pb-4">Foco & Fitness</h2>
+              
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Foco Nutricional</label>
+                  <Input placeholder="Ej. Pérdida de grasa corporal" className="h-12 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white transition-all" value={draft.nutritionalFocus || ""} onChange={(e) => updateDraft({ nutritionalFocus: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Metas Fitness</label>
+                  <Input placeholder="Ej. Maratón en 3 meses" className="h-12 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white transition-all" value={draft.fitnessGoals || ""} onChange={(e) => updateDraft({ fitnessGoals: e.target.value })} />
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 ml-1">
+                    <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                    <label className="text-[10px] font-black uppercase text-slate-400">Nivel de actividad habitual</label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { key: "sedentario", icon: Flame, label: "Sedentario" },
+                      { key: "deportista", icon: Dumbbell, label: "Deportista" }
+                    ].map((item) => (
+                      <button 
+                        key={item.key} 
+                        type="button" 
+                        onClick={() => {
+                          const cleanCustomVars = (draft.customVariables || []).filter(v => v.key !== "activityLevel");
+                          updateDraft({ 
+                            activityLevel: item.key as any,
+                            customVariables: cleanCustomVars
+                          });
+                        }} 
+                        className={cn(
+                          "h-14 rounded-2xl border flex flex-col items-center justify-center gap-1 transition-all",
+                          draft.activityLevel === item.key 
+                            ? "bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200" 
+                            : "bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100"
+                        )}
+                      >
+                        <item.icon className={cn("w-4 h-4", draft.activityLevel === item.key ? "text-white" : "text-slate-400")} />
+                        <span className="text-[9px] font-black uppercase tracking-widest">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Left Column: Anthropometry & Clinical */}
-        <div className="lg:col-span-4 space-y-6">
-          {/* Panel 2: Physical Parameters */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
-              <h2 className="text-base font-semibold text-slate-800">
-                Antropometría
-              </h2>
+        {/* Full Width Gallery-style Extra Info */}
+        <div className="bg-white p-8 lg:p-10 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="p-3 bg-blue-50 rounded-2xl">
+              <ClipboardList className="w-6 h-6 text-blue-600" />
             </div>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-500 ml-1">
-                  Peso Actual (kg)
-                </label>
-                <Input
-                  type="number"
-                  step="any"
-                  className="h-11 rounded-xl bg-slate-50/50 border-slate-200 text-base font-medium text-slate-800 placeholder:text-slate-300 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-500/20 transition-all text-center"
-                  value={draft.weight}
-                  onChange={(e) =>
-                    updateDraft({
-                      weight: e.target.value
-                        ? parseFloat(e.target.value)
-                        : undefined,
-                    })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-500 ml-1">
-                  Altura (cm)
-                </label>
-                <Input
-                  type="number"
-                  step="any"
-                  className="h-11 rounded-xl bg-slate-50/50 border-slate-200 text-base font-medium text-slate-800 placeholder:text-slate-300 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-500/20 transition-all text-center"
-                  value={draft.height}
-                  onChange={(e) =>
-                    updateDraft({
-                      height: e.target.value
-                        ? parseFloat(e.target.value)
-                        : undefined,
-                    })
-                  }
-                />
-              </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Información Extra</h2>
+              <p className="text-sm text-slate-500 font-medium">Detalles sobre el comportamiento, gustos y observaciones clínicas del paciente.</p>
             </div>
           </div>
 
-          {/* Panel 3: Restrictions */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
-              <AlertCircle className="w-5 h-5 text-rose-500" />
-              <h2 className="text-base font-semibold text-slate-800">
-                Restricciones
-              </h2>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-500 ml-1">
-                  Patologías / Exclusiones
-                </label>
-                <TagInput
-                  value={draft.dietRestrictions || []}
-                  onChange={(tags) => updateDraft({ dietRestrictions: tags })}
-                  fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                  placeholder="Ej: Diabetes, Celiaco..."
-                  className="mt-2"
-                />
-                <p className="text-[10px] text-slate-400 mt-2 italic flex items-center gap-1.5 ml-1 font-medium">
-                  <Plus className="w-3 h-3 text-emerald-500" />
-                  Si no existe, créala apretando
-                  <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-slate-600 font-bold">Enter</span>
-                </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="group space-y-4">
+              <div className="flex items-center gap-2 ml-1">
+                <div className="w-1.5 h-4 bg-emerald-500 rounded-full" />
+                <label className="text-xs font-black uppercase text-slate-500 tracking-wider">Gustos y Preferencias</label>
               </div>
-            </div>
-          </div>
-
-          {/* Panel 4: Metrics */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
-              <Activity className="w-5 h-5 text-emerald-500" />
-              <h2 className="text-base font-semibold text-slate-800">
-                Métricas de Seguimiento
-              </h2>
-            </div>
-            <div className="space-y-4">
-              <p className="text-sm text-slate-500">
-                Selecciona las métricas que deseas monitorear para este
-                paciente.{" "}
-                <span className="font-bold text-emerald-600">
-                  La métrica de Peso se añade automáticamente.
-                </span>
-              </p>
-              <MetricTagInput
-                value={selectedMetrics}
-                onChange={(metrics) =>
-                  updateDraft({
-                    customVariables: metrics
-                      .filter((metric) => typeof metric.key === "string" && metric.key.trim().length > 0)
-                      .map((metric) => ({
-                        key: String(metric.key),
-                        label: metric.label,
-                        unit: metric.unit,
-                        value: metric.value,
-                      })),
-                  })}
-                placeholder="Ej: Grasa Corporal, Plicometría, Brazo..."
-                className="mt-2"
+              <textarea 
+                className="w-full h-40 rounded-3xl bg-slate-50 border-transparent p-6 text-sm font-semibold text-slate-700 resize-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500/20 transition-all placeholder:text-slate-300" 
+                placeholder="Ej: Prefiere comidas calientes, le encanta el chocolate amargo, no tolera el sabor de la stevia..." 
+                value={draft.likes || ""} 
+                onChange={(e) => updateDraft({ likes: e.target.value })} 
               />
             </div>
-          </div>
-
-          {/* Panel 5: Clinical Notes */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
-              <h2 className="text-base font-semibold text-slate-800">
-                Observaciones
-              </h2>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-500 ml-1">
-                  Notas Clínicas Iniciales
-                </label>
-                <textarea
-                  className="w-full h-28 rounded-xl bg-slate-50/50 border border-slate-200 p-4 text-sm font-medium text-slate-700 focus:bg-white focus:border-emerald-300 focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
-                  placeholder="Comentarios iniciales para tener en cuenta; ej: 'No come enlatados'"
-                  value={draft.clinicalSummary || ""}
-                  onChange={(e) =>
-                    updateDraft({ clinicalSummary: e.target.value })
-                  }
-                />
+            
+            <div className="group space-y-4">
+              <div className="flex items-center gap-2 ml-1">
+                <div className="w-1.5 h-4 bg-blue-500 rounded-full" />
+                <label className="text-xs font-black uppercase text-slate-500 tracking-wider">Observaciones Clínicas (Persona)</label>
               </div>
+              <textarea 
+                className="w-full h-40 rounded-3xl bg-slate-50 border-transparent p-6 text-sm font-semibold text-slate-700 resize-none focus:bg-white focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500/20 transition-all placeholder:text-slate-300" 
+                placeholder="Ej: Es ansiosa con los dulces por la tarde, está muy motivada con el cambio, tiene poco apoyo familiar..." 
+                value={draft.clinicalSummary || ""} 
+                onChange={(e) => updateDraft({ clinicalSummary: e.target.value })} 
+              />
             </div>
           </div>
         </div>
@@ -579,27 +465,18 @@ export default function CreatePatientClient() {
         onClose={() => setShowSaveConfirm(false)}
         onConfirm={handleConfirmSave}
         title={draft.id ? "¿Actualizar Expediente?" : "¿Crear Ficha Clínica?"}
-        description={
-          draft.id
-            ? `Los cambios en el expediente de ${draft.fullName} se guardarán permanentemente.`
-            : `Estás a punto de registrar a ${draft.fullName}. Esto habilitará la creación de planes nutricionales para este paciente.`
-        }
-        confirmText={draft.id ? "Sí, Actualizar" : "Crear Expediente"}
+        description={draft.id ? `Se guardarán los cambios permanentes en el expediente de ${draft.fullName}.` : `Estás a punto de registrar a ${draft.fullName}. Esto habilitará la creación de planes nutricionales.`}
+        confirmText="Confirmar"
         variant="primary"
       />
 
       <ConfirmationModal
         isOpen={showResetConfirm}
         onClose={() => setShowResetConfirm(false)}
-        onConfirm={() => {
-          clearDraft();
-          toast.info("Formulario reiniciado.");
-          setShowResetConfirm(false);
-        }}
-        title="¿Deseas vaciar el formulario?"
-        description="Toda la información ingresada en este borrador se eliminará permanentemente."
-        confirmText="Vaciar Borrador"
-        cancelText="Mantener info"
+        onConfirm={() => { clearDraft(); toast.info("Formulario reiniciado."); setShowResetConfirm(false); }}
+        title="¿Reiniciar Formulario?"
+        description="Toda la información ingresada en este borrador se eliminará permanentemente. ¿Deseas continuar?"
+        confirmText="Vaciar Todo"
         variant="destructive"
       />
     </div>

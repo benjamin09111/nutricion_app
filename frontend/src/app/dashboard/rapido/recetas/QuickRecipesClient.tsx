@@ -725,7 +725,8 @@ export default function QuickRecipesClient() {
       );
     } catch (error) {
       console.error("Quick AI generation error", error);
-      toast.error("No se pudo generar con IA. Revisa conexion o configuracion de Gemini.");
+      toast.error("No se pudo generar con IA. Revisa la conexión o la configuración de la IA.");
+      
     } finally {
       if (mode === "single") {
         setIsGenerating(false);

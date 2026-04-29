@@ -14,14 +14,17 @@ exports.RecipesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const cache_service_1 = require("../../common/services/cache.service");
+const ai_service_1 = require("../../common/services/ai.service");
 const recipes_ai_prompts_1 = require("./recipes-ai-prompts");
 let RecipesService = RecipesService_1 = class RecipesService {
     prisma;
     cacheService;
+    aiService;
     logger = new common_1.Logger(RecipesService_1.name);
-    constructor(prisma, cacheService) {
+    constructor(prisma, cacheService, aiService) {
         this.prisma = prisma;
         this.cacheService = cacheService;
+        this.aiService = aiService;
     }
     async getNutritionistId(accountId) {
         const nutritionist = await this.prisma.nutritionist.findUnique({
@@ -50,21 +53,6 @@ let RecipesService = RecipesService_1 = class RecipesService {
         const scopePrompt = payload.scope === 'week' ? recipes_ai_prompts_1.RECIPES_AI_PROMPTS.week : recipes_ai_prompts_1.RECIPES_AI_PROMPTS.day;
         return [scopePrompt, JSON.stringify(payload)].join('\n');
     }
-    getGeminiConfig() {
-        const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-        const model = process.env.GEMINI_MODEL || process.env.GOOGLE_GEMINI_MODEL || 'gemini-2.5-flash';
-        if (!apiKey) {
-            throw new common_1.BadRequestException('Configura GEMINI_API_KEY para usar esta funcion.');
-        }
-        return { apiKey, model };
-    }
-    extractGeminiText(payload) {
-        const candidates = Array.isArray(payload?.candidates) ? payload.candidates : [];
-        const first = candidates[0];
-        const parts = Array.isArray(first?.content?.parts) ? first.content.parts : [];
-        const textPart = parts.find((part) => typeof part?.text === 'string');
-        return textPart?.text || null;
-    }
     mapAiErrorMessage(upstreamMessage) {
         const normalizedMessage = String(upstreamMessage || '').toLowerCase();
         if (normalizedMessage.includes('context_length_exceeded') ||
@@ -82,45 +70,18 @@ let RecipesService = RecipesService_1 = class RecipesService {
         }
         return upstreamMessage || 'No se pudo completar recetas con IA.';
     }
-    async callGeminiJson(systemInstruction, userPrompt) {
-        const { apiKey, model } = this.getGeminiConfig();
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        this.logger.log(`[Gemini] Request model=${model} promptChars=${userPrompt.length}`);
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                systemInstruction: {
-                    parts: [{ text: systemInstruction }],
-                },
-                contents: [
-                    {
-                        role: 'user',
-                        parts: [{ text: userPrompt }],
-                    },
-                ],
-                generationConfig: {
-                    temperature: 0.2,
-                    responseMimeType: 'application/json',
-                },
-            }),
-        });
-        const raw = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            const upstreamMessage = raw?.error?.message || raw?.message || '';
-            this.logger.error(`[Gemini] Error status=${response.status} message=${upstreamMessage || 'unknown'}`);
-            throw new common_1.BadRequestException(this.mapAiErrorMessage(upstreamMessage));
+    async callAiJson(systemInstruction, userPrompt) {
+        try {
+            const text = await this.aiService.callJson(systemInstruction, userPrompt);
+            this.logger.log(`[AI] Response ok chars=${text.length}`);
+            this.logger.log(`[AI] Raw response:\n${text}`);
+            return text;
         }
-        const text = this.extractGeminiText(raw);
-        if (!text) {
-            this.logger.error('[Gemini] Empty content in response payload');
-            throw new common_1.BadRequestException('La IA no devolvio contenido.');
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`[AI] Request failed: ${message}`);
+            throw new common_1.BadRequestException(this.mapAiErrorMessage(message));
         }
-        this.logger.log(`[Gemini] Response ok chars=${text.length}`);
-        this.logger.log(`[Gemini] Raw response:\n${text}`);
-        return text;
     }
     extractJsonFromResponse(rawContent) {
         const trimmed = rawContent.trim();
@@ -193,12 +154,12 @@ let RecipesService = RecipesService_1 = class RecipesService {
     }
     validateAiRecipe(recipe, slotMealSection, allowedFoods, allowFlexibleExternalFoods) {
         if (!recipe.slotId || !recipe.title || !recipe.mealSection || !recipe.recommendedPortion?.trim()) {
-            throw new common_1.BadRequestException('La IA devolvió una receta incompleta.');
+            throw new common_1.BadRequestException('La IA devolviÃ³ una receta incompleta.');
         }
         const normalizedSlotMealSection = this.normalizeMealSection(slotMealSection);
         const normalizedRecipeMealSection = this.normalizeMealSection(recipe.mealSection);
         if (normalizedSlotMealSection !== normalizedRecipeMealSection) {
-            throw new common_1.BadRequestException(`La IA devolvió una sección incompatible para ${recipe.slotId}.`);
+            throw new common_1.BadRequestException(`La IA devolviÃ³ una secciÃ³n incompatible para ${recipe.slotId}.`);
         }
         const allIngredients = [...(recipe.ingredients || []), ...(recipe.mainIngredients || [])]
             .map((item) => this.normalizeFoodName(item))
@@ -211,17 +172,17 @@ let RecipesService = RecipesService_1 = class RecipesService {
     }
     validateReplacementGuide(meta) {
         if (!meta) {
-            throw new common_1.BadRequestException('La IA no devolvió metadata de guía.');
+            throw new common_1.BadRequestException('La IA no devolviÃ³ metadata de guÃ­a.');
         }
         if (typeof meta.note !== 'string' || !meta.note.trim()) {
-            throw new common_1.BadRequestException('La IA no devolvió la nota general requerida.');
+            throw new common_1.BadRequestException('La IA no devolviÃ³ la nota general requerida.');
         }
         if (!Array.isArray(meta.replacementGuide)) {
-            throw new common_1.BadRequestException('La IA no devolvió replacementGuide válido.');
+            throw new common_1.BadRequestException('La IA no devolviÃ³ replacementGuide vÃ¡lido.');
         }
         meta.replacementGuide.forEach((item) => {
             if (!item.mealSection || !Array.isArray(item.suggestions)) {
-                throw new common_1.BadRequestException('La IA devolvió replacementGuide incompleto.');
+                throw new common_1.BadRequestException('La IA devolviÃ³ replacementGuide incompleto.');
             }
         });
     }
@@ -238,7 +199,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
             const titlesToCompare = previousTitles ?? fallbackPreviousTitles;
             const repeated = [...currentTitles].find((title) => titlesToCompare.has(title));
             if (repeated) {
-                throw new common_1.BadRequestException(`La IA repitió un plato en días consecutivos: ${repeated}.`);
+                throw new common_1.BadRequestException(`La IA repitiÃ³ un plato en dÃ­as consecutivos: ${repeated}.`);
             }
             previousTitles = currentTitles;
         });
@@ -247,7 +208,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
         await this.getNutritionistId(userId);
         const { payload } = dto;
         const allowedFoods = new Set(payload.allowedFoodsByDiet.map((food) => this.normalizeFoodName(food)));
-        const content = await this.callGeminiJson(recipes_ai_prompts_1.RECIPES_AI_PROMPTS.base, this.buildAiPrompt(payload));
+        const content = await this.callAiJson(recipes_ai_prompts_1.RECIPES_AI_PROMPTS.base, this.buildAiPrompt(payload));
         const parsed = this.parseAiResponse(content);
         if (payload.scope === 'day') {
             const result = parsed;
@@ -256,7 +217,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
             result.recipes.forEach((recipe) => {
                 const slot = slotMap.get(recipe.slotId);
                 if (!slot) {
-                    throw new common_1.BadRequestException(`La IA devolvió un slot desconocido: ${recipe.slotId}.`);
+                    throw new common_1.BadRequestException(`La IA devolviÃ³ un slot desconocido: ${recipe.slotId}.`);
                 }
                 const extraIngredients = this.validateAiRecipe(recipe, slot.mealSection, allowedFoods, payload.generalSnackFlexAllowed);
                 if (extraIngredients.length > 0) {
@@ -273,7 +234,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
             dayBlock.recipes.forEach((recipe) => {
                 const slot = slotMap.get(`${dayBlock.day}:${recipe.slotId}`);
                 if (!slot) {
-                    throw new common_1.BadRequestException(`La IA devolvió un slot desconocido para ${dayBlock.day}: ${recipe.slotId}.`);
+                    throw new common_1.BadRequestException(`La IA devolviÃ³ un slot desconocido para ${dayBlock.day}: ${recipe.slotId}.`);
                 }
                 const extraIngredients = this.validateAiRecipe(recipe, slot.mealSection, allowedFoods, payload.generalSnackFlexAllowed);
                 if (extraIngredients.length > 0) {
@@ -302,7 +263,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
             if (recovered) {
                 return JSON.parse(recovered);
             }
-            throw new common_1.BadRequestException('La IA devolvió un formato inválido para recetas rápidas.');
+            throw new common_1.BadRequestException('La IA devolviÃ³ un formato invÃ¡lido para recetas rÃ¡pidas.');
         }
     }
     normalizeQuickDish(dish) {
@@ -334,7 +295,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
             ? Math.max(1, Math.round(Number(dish.portions)))
             : 1;
         if (!title || !mealSection || !recommendedPortion) {
-            throw new common_1.BadRequestException('La IA devolvió un plato incompleto en recetas rápidas.');
+            throw new common_1.BadRequestException('La IA devolviÃ³ un plato incompleto en recetas rÃ¡pidas.');
         }
         return {
             title,
@@ -399,16 +360,16 @@ let RecipesService = RecipesService_1 = class RecipesService {
     async quickFillWithAi(userId, dto) {
         await this.getNutritionistId(userId);
         const payload = dto.payload || {};
-        const content = await this.callGeminiJson('Eres un nutricionista clínico experto. Responde solo JSON válido.', this.buildQuickAiPrompt(payload));
+        const content = await this.callAiJson('Eres un nutricionista clÃ­nico experto. Responde solo JSON vÃ¡lido.', this.buildQuickAiPrompt(payload));
         const parsed = this.parseQuickAiResponse(content);
         const dishes = Array.isArray(parsed?.dishes) ? parsed.dishes : [];
         if (dishes.length === 0) {
-            throw new common_1.BadRequestException('La IA no devolvió platos para recetas rápidas.');
+            throw new common_1.BadRequestException('La IA no devolviÃ³ platos para recetas rÃ¡pidas.');
         }
         const normalizedDishes = dishes.map((dish) => this.normalizeQuickDish(dish));
         const note = typeof parsed?.meta?.note === 'string' && parsed.meta.note.trim()
             ? parsed.meta.note.trim()
-            : 'Platos generados con IA según contexto proporcionado.';
+            : 'Platos generados con IA segÃºn contexto proporcionado.';
         return {
             dishes: normalizedDishes,
             meta: {
@@ -629,7 +590,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
             };
         }
         if (!recipe.isPublic) {
-            throw new common_1.ForbiddenException('Solo puedes agregar platos públicos de la comunidad.');
+            throw new common_1.ForbiddenException('Solo puedes agregar platos pÃºblicos de la comunidad.');
         }
         await this.prisma.recipeLibrary.upsert({
             where: {
@@ -705,13 +666,13 @@ let RecipesService = RecipesService_1 = class RecipesService {
     }
     async estimateMacros(dto) {
         const prompt = [
-            'Eres un nutricionista. Estima los valores nutricionales por porción para un plato con los siguientes ingredientes.',
-            'Responde SOLO un JSON válido con la forma: {"calories": número, "proteins": número, "carbs": número, "lipids": número}',
-            'Los valores deben ser por una porción razonable del plato completo.',
+            'Eres un nutricionista. Estima los valores nutricionales por porciÃ³n para un plato con los siguientes ingredientes.',
+            'Responde SOLO un JSON vÃ¡lido con la forma: {"calories": nÃºmero, "proteins": nÃºmero, "carbs": nÃºmero, "lipids": nÃºmero}',
+            'Los valores deben ser por una porciÃ³n razonable del plato completo.',
             `Ingredientes: ${JSON.stringify(dto.ingredientNames)}`,
         ].join('\n');
         try {
-            const content = await this.callGeminiJson('Eres un asistente nutricional. Responde solo JSON.', prompt);
+            const content = await this.callAiJson('Eres un asistente nutricional. Responde solo JSON.', prompt);
             const parsed = JSON.parse(content);
             return {
                 calories: Math.round(parsed.calories ?? 0),
@@ -723,7 +684,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
         catch (err) {
             if (err instanceof common_1.BadRequestException)
                 throw err;
-            throw new common_1.BadRequestException('No se pudo estimar macros con IA. Verifica GEMINI_API_KEY.');
+            throw new common_1.BadRequestException('No se pudo estimar macros con IA. Verifica DEEPSEEK_API_KEY.');
         }
     }
     async remove(id, userId, userRole) {
@@ -745,6 +706,7 @@ exports.RecipesService = RecipesService;
 exports.RecipesService = RecipesService = RecipesService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        cache_service_1.CacheService])
+        cache_service_1.CacheService,
+        ai_service_1.AiService])
 ], RecipesService);
 //# sourceMappingURL=recipes.service.js.map

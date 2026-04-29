@@ -139,6 +139,7 @@ model Patient {
   fitnessGoals     String?        @map("fitness_goals")
   nutritionalFocus String?        @map("nutritional_focus")
   status           String?        @default("Active")
+  activityLevel    String?        @map("activity_level")
   tags             String[]       @default([])
   likes            String?
   consultations    Consultation[]

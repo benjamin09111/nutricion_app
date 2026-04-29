@@ -4,6 +4,7 @@ import { EstimateMacrosDto } from './dto/estimate-macros.dto';
 import { AiFillRecipesDto } from './dto/ai-fill-recipes.dto';
 import { QuickAiFillRecipesDto } from './dto/quick-ai-fill-recipes.dto';
 import { CacheService } from '../../common/services/cache.service';
+import { AiService } from '../../common/services/ai.service';
 type AiRecipeOutput = {
     slotId: string;
     mealSection: string;
@@ -42,17 +43,16 @@ type AiFillWeekResponse = {
 export declare class RecipesService {
     private readonly prisma;
     private readonly cacheService;
+    private readonly aiService;
     private readonly logger;
-    constructor(prisma: PrismaService, cacheService: CacheService);
+    constructor(prisma: PrismaService, cacheService: CacheService, aiService: AiService);
     private getNutritionistId;
     private normalizeFoodName;
     private normalizeMealSection;
     private isStrictMealSection;
     private buildAiPrompt;
-    private getGeminiConfig;
-    private extractGeminiText;
     private mapAiErrorMessage;
-    private callGeminiJson;
+    private callAiJson;
     private extractJsonFromResponse;
     private extractFirstJsonValue;
     private parseAiResponse;

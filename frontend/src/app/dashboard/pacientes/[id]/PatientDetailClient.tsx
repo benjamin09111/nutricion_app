@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useMemo } from "react";
 import {
@@ -1561,6 +1561,20 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     setEditForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    
+    // Ensure it always starts with +
+    if (!val.startsWith("+")) {
+      val = "+" + val.replace(/\+/g, "");
+    }
+    
+    // Keep only + at start and digits elsewhere
+    const cleanVal = "+" + val.substring(1).replace(/\D/g, "");
+    
+    updateField("phone", cleanVal);
+  };
+
   const getActivityLevelFromVariables = (vars: any[]) => {
     const raw = String(vars.find((item) => item?.key === "activityLevel")?.value || "").toLowerCase();
     return raw === "deportista" ? "deportista" : "sedentario";
@@ -2010,10 +2024,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           {isEditing ? (
                             <Input
                               value={editForm.phone || ""}
-                              onChange={(e) =>
-                                updateField("phone", e.target.value)
-                              }
+                              onChange={handlePhoneChange}
                               className="h-8 border-none font-bold text-slate-800 p-0"
+                              placeholder="+56 9 1234 5678"
                             />
                           ) : (
                             <p className="font-bold text-slate-700">
@@ -2070,7 +2083,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   <div className="space-y-5">
                     <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3 flex items-center gap-2">
                       <Hash className="w-3.5 h-3.5 text-emerald-500" />
-                      Etiquetas de ClasificaciÃ³n
+                      Etiquetas de Clasificación
                     </h4>
                     <div className="flex flex-wrap gap-3">
                       {isEditing ? (
@@ -2127,7 +2140,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         updateField("clinicalSummary", e.target.value)
                       }
                       className="w-full h-32 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
-                      placeholder="Ingresa notas clÃ­nicas, antecedentes importantes o evolución general..."
+                      placeholder="Ej: 'Es ansiosa', 'está muy motivada', 'le cuesta beber agua', etc."
                     />
                   ) : (
                     <div className="p-8 bg-slate-50/50 rounded-2xl border border-slate-50 min-h-[100px]" >
@@ -2139,7 +2152,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         <div className="flex flex-col items-center justify-center gap-3 py-4 text-slate-300" >
                           <ClipboardList className="w-8 h-8 opacity-20" />
                           <p className="text-xs font-bold" >
-                            Sin observaciones clÃ­nicas registradas
+                             Sin observaciones clínicas registradas
                           </p>
                         </div>
                       )}
@@ -2315,7 +2328,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                       updateField("fitnessGoals", e.target.value)
                     }
                     className="w-full h-24 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-rose-500/20 transition-all resize-none"
-                    placeholder="Ej. MaratÃ³n en Septiembre, Hipertrofia tren inferior..."
+                    placeholder="Ej. Maratón en Septiembre, Hipertrofia tren inferior..."
                   />
                 ) : (
                   <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100" >
@@ -2325,7 +2338,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                       </p>
                     ) : (
                       <p className="text-xs font-semibold text-slate-400 text-center" >
-                        No se han definido objetivos aÃºn.
+                        No se han definido objetivos aún.
                       </p>
                     )}
                   </div>
