@@ -156,7 +156,7 @@ export default function ConsultationsClient() {
   return (
     <ModuleLayout
       title="Mis Consultas"
-      description="Sistema centralizado de seguimiento y evolución clínica de pacientes."
+      description="Historial de sesiones"
       className="pb-8"
     >
       <ConfirmationModal

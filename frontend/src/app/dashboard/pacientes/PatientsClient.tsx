@@ -11,10 +11,14 @@ import {
   RotateCcw,
   ArrowRight,
   Eye,
-  Edit2,
   Trash2,
   ChevronDown,
   ChevronUp,
+  Download,
+  Ban,
+  CheckCircle2,
+  X,
+  Phone,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
@@ -29,6 +33,7 @@ import Cookies from "js-cookie";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
+import { formatRut } from "@/lib/rut-utils";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -54,7 +59,6 @@ export default function PatientsClient() {
   const [documentIdFilter, setDocumentIdFilter] = useState("");
   const [classificationTags, setClassificationTags] = useState<string[]>([]);
   const [startDateFilter, setStartDateFilter] = useState("");
-  const [endDateFilter, setEndDateFilter] = useState("");
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({
     total: 0,
@@ -63,11 +67,12 @@ export default function PatientsClient() {
     inactiveCount: 0,
     lastPage: 1,
   });
-  const [activeTab, setActiveTab] = useState<PatientTab>("Todos");
+  const [activeTab, setActiveTab] = useState<PatientTab>("Activos");
   const router = useRouter();
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<string | null>(null);
+  const [patientPreview, setPatientPreview] = useState<Patient | null>(null);
 
   const handleDeleteConfirmed = async () => {
     if (!patientToDelete) return;
@@ -128,7 +133,6 @@ export default function PatientsClient() {
           tags: classificationTags.join(","),
         }),
         ...(startDateFilter && { startDate: startDateFilter }),
-        ...(endDateFilter && { endDate: endDateFilter }),
       });
 
       const response = await fetchApi(`/patients?${queryParams}`, {
@@ -165,7 +169,6 @@ export default function PatientsClient() {
     documentIdFilter,
     classificationTags,
     startDateFilter,
-    endDateFilter,
     page,
     activeTab,
   ]);
@@ -187,10 +190,13 @@ export default function PatientsClient() {
     setDocumentIdFilter("");
     setClassificationTags([]);
     setStartDateFilter("");
-    setEndDateFilter("");
-    setActiveTab("Todos");
+    setActiveTab("Activos");
     setPage(1);
     toast.info("Lista de pacientes reiniciada.");
+  };
+
+  const openPatientPreview = (patient: Patient) => {
+    setPatientPreview(patient);
   };
 
   return (
@@ -271,79 +277,90 @@ export default function PatientsClient() {
           </div>
 
           {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
-                Rut / ID
-              </label>
-              <Input
-                type="text"
-                placeholder="Ej: 12.345.678-9"
-                value={documentIdFilter}
-                onChange={(e) => {
-                  setDocumentIdFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="h-10 rounded-xl bg-slate-50 border-slate-200 text-sm"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
-                Fecha Desde
-              </label>
-              <div className="relative">
-                <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 animate-in slide-in-from-top-2 duration-300">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
+                  Rut / ID
+                </label>
                 <Input
-                  type="date"
-                  value={startDateFilter}
+                  type="text"
+                  placeholder="Ej: 12.345.678-9"
+                  value={documentIdFilter}
                   onChange={(e) => {
-                    setStartDateFilter(e.target.value);
+                    setDocumentIdFilter(formatRut(e.target.value));
                     setPage(1);
                   }}
-                  className="h-10 pl-10 rounded-xl bg-slate-50 border-slate-200 text-sm"
+                  className="h-10 rounded-xl bg-slate-50 border-slate-200 text-sm font-semibold"
                 />
               </div>
-            </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
-                Fecha Hasta
-              </label>
-              <div className="relative">
-                <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                <Input
-                  type="date"
-                  value={endDateFilter}
-                  min={startDateFilter || undefined}
-                  onChange={(e) => {
-                    setEndDateFilter(e.target.value);
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
+                  Fecha Desde
+                </label>
+                <div className="relative">
+                  <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  <Input
+                    type="date"
+                    value={startDateFilter}
+                    onChange={(e) => {
+                      setStartDateFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-10 pl-10 rounded-xl bg-slate-50 border-slate-200 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
+                  Clasificación
+                </label>
+                <TagInput
+                  value={classificationTags}
+                  onChange={(tags) => {
+                    setClassificationTags(tags);
                     setPage(1);
                   }}
-                  className="h-10 pl-10 rounded-xl bg-slate-50 border-slate-200 text-sm"
+                  fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                  placeholder="Etiquetas..."
+                  className="rounded-xl bg-slate-50 border-slate-200 h-10 text-sm"
                 />
               </div>
-            </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
-                Clasificación
-              </label>
-              <TagInput
-                value={classificationTags}
-                onChange={(tags) => {
-                  setClassificationTags(tags);
-                  setPage(1);
-                }}
-                fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                placeholder="Etiquetas..."
-                className="rounded-xl bg-slate-50 border-slate-200 h-10 text-sm"
-              />
+              <div className="space-y-1.5 flex flex-col justify-end pb-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1 mb-2">
+                  Mostrar Inhabilitados
+                </label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newStatus = activeTab === "Inactivos" ? "Activos" : "Inactivos";
+                      setActiveTab(newStatus);
+                      setPage(1);
+                    }}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2",
+                      activeTab === "Inactivos" ? "bg-rose-500" : "bg-slate-300"
+                    )}
+                    role="switch"
+                    aria-checked={activeTab === "Inactivos"}
+                  >
+                    <span className={cn(
+                      "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
+                      activeTab === "Inactivos" ? "translate-x-5" : "translate-x-0"
+                    )} />
+                  </button>
+                  <span className={cn("text-xs font-bold", activeTab === "Inactivos" ? "text-rose-600" : "text-slate-500")}>
+                    {activeTab === "Inactivos" ? "Inhabilitados" : "Solo Habilitados"}
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
           )}
 
-          {(searchTerm || documentIdFilter || startDateFilter || endDateFilter || classificationTags.length > 0) && (
+          {(searchTerm || documentIdFilter || startDateFilter || classificationTags.length > 0) && (
             <div className="flex justify-end pt-1">
               <Button
                 type="button"
@@ -467,9 +484,51 @@ export default function PatientsClient() {
                       </td>
                       <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)} className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"><Eye className="w-4.5 h-4.5" /></button>
-                          <button onClick={() => router.push(`/dashboard/pacientes/${patient.id}?edit=true`)} className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Edit2 className="w-4.5 h-4.5" /></button>
-                          <button onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 className="w-4.5 h-4.5" /></button>
+                          <button
+                            onClick={() => openPatientPreview(patient)}
+                            className="group relative p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                            title="Ver"
+                          >
+                            <Eye className="w-4.5 h-4.5" />
+                            <span className="pointer-events-none absolute bottom-full right-0 mb-2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
+                              Ver
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => togglePatientStatus(patient)}
+                            className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
+                            title={patient.status === "Active" ? "Inhabilitar" : "Habilitar"}
+                          >
+                            {patient.status === "Active" ? (
+                              <Ban className="w-4.5 h-4.5 text-amber-600" />
+                            ) : (
+                              <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />
+                            )}
+                            <span className="pointer-events-none absolute bottom-full right-0 mb-2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
+                              {patient.status === "Active" ? "Inhabilitar" : "Habilitar"}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled
+                            className="group relative p-2.5 text-slate-300 bg-slate-50 rounded-xl transition-all cursor-not-allowed"
+                            title="Descargar ficha"
+                          >
+                            <Download className="w-4.5 h-4.5" />
+                            <span className="pointer-events-none absolute bottom-full right-0 mb-2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
+                              Descargar ficha
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }}
+                            className="group relative p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-4.5 h-4.5" />
+                            <span className="pointer-events-none absolute bottom-full right-0 mb-2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
+                              Eliminar
+                            </span>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -561,10 +620,24 @@ export default function PatientsClient() {
                     ID: <span className="text-slate-600 ml-1">{patient.documentId || "---"}</span>
                   </div>
                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => router.push(`/dashboard/pacientes/${patient.id}?edit=true`)} className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-lg">
-                      <Edit2 className="w-4 h-4" />
+                    <button onClick={() => openPatientPreview(patient)} className="p-2 text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 rounded-lg" title="Ver">
+                      <Eye className="w-4 h-4" />
                     </button>
-                    <button onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }} className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 rounded-lg">
+                    <button
+                      onClick={() => togglePatientStatus(patient)}
+                      className="p-2 bg-slate-50 rounded-lg"
+                      title={patient.status === "Active" ? "Inhabilitar" : "Habilitar"}
+                    >
+                      {patient.status === "Active" ? (
+                        <Ban className="w-4 h-4 text-amber-600" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      )}
+                    </button>
+                    <button type="button" disabled className="p-2 text-slate-300 bg-slate-50 rounded-lg cursor-not-allowed" title="Descargar ficha">
+                      <Download className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }} className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-lg" title="Eliminar">
                       <Trash2 className="w-4 h-4" />
                     </button>
                     <button onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)} className="p-2 text-emerald-600 bg-emerald-50 rounded-lg ml-1 font-bold text-[10px] px-3 flex items-center gap-1 shadow-sm border border-emerald-100">
@@ -603,6 +676,122 @@ export default function PatientsClient() {
         confirmText="Eliminar permanentemente"
         variant="destructive"
       />
+
+      {patientPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 text-lg font-bold text-emerald-600">
+                  {patientPreview.fullName.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-slate-900">{patientPreview.fullName}</h3>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className={cn(
+                      "rounded-full px-2.5 py-1 text-[11px] font-bold",
+                      patientPreview.status === "Active"
+                        ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+                        : "bg-slate-100 text-slate-600 ring-1 ring-slate-200"
+                    )}>
+                      {patientPreview.status === "Active" ? "Activo" : "Inactivo"}
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200">
+                      {patientPreview.documentId || "Sin documento"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPatientPreview(null)}
+                className="rounded-2xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                title="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid gap-4 p-6 md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Contacto</p>
+                <div className="mt-3 space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-slate-700">
+                    <Mail className="h-4 w-4 text-slate-400" />
+                    <span>{patientPreview.email || "Sin correo"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-slate-700">
+                    <Phone className="h-4 w-4 text-slate-400" />
+                    <span>{patientPreview.phone || "Sin telefono"}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Perfil</p>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-slate-700">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Genero</p>
+                    <p className="mt-1 font-semibold">{patientPreview.gender || "No registrado"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Nacimiento</p>
+                    <p className="mt-1 font-semibold">
+                      {patientPreview.birthDate ? new Date(patientPreview.birthDate).toLocaleDateString("es-CL") : "No registrado"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Altura</p>
+                    <p className="mt-1 font-semibold">{patientPreview.height ? `${patientPreview.height} cm` : "No registrado"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Peso</p>
+                    <p className="mt-1 font-semibold">{patientPreview.weight ? `${patientPreview.weight} kg` : "No registrado"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 md:col-span-2">
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Restricciones</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {formatRestrictions(patientPreview.dietRestrictions).length > 0 ? (
+                    formatRestrictions(patientPreview.dietRestrictions).map((restriction) => (
+                      <span
+                        key={restriction}
+                        className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700"
+                      >
+                        <Heart className="h-3 w-3" />
+                        {restriction}
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-sm text-slate-400">Sin restricciones registradas.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-slate-100 p-6">
+              <Button
+                variant="ghost"
+                onClick={() => setPatientPreview(null)}
+                className="rounded-2xl px-5"
+              >
+                Cerrar
+              </Button>
+              <Button
+                onClick={() => {
+                  setPatientPreview(null);
+                  router.push(`/dashboard/pacientes/${patientPreview.id}`);
+                }}
+                className="rounded-2xl bg-emerald-600 px-5 text-white hover:bg-emerald-700"
+              >
+                Ver ficha
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </ModuleLayout>
   );
 }

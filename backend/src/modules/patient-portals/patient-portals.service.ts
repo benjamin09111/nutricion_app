@@ -1,4 +1,4 @@
-﻿import {
+import {
   BadRequestException,
   ForbiddenException,
   Injectable,
@@ -276,7 +276,7 @@ export class PatientPortalsService {
 
     const normalizedCode = this.normalizeAccessCode(accessCode);
     if (!normalizedCode) {
-      throw new BadRequestException('Debes ingresar tu cÃ³digo de acceso');
+      throw new BadRequestException('Debes ingresar tu código de acceso');
     }
 
     const invitation = await this.findInvitationByToken(token);
@@ -289,11 +289,11 @@ export class PatientPortalsService {
     );
 
     if (invitationEmail && invitationEmail !== normalizedEmail) {
-      throw new ForbiddenException('Ese correo no coincide con la invitaciÃ³n');
+      throw new ForbiddenException('Ese correo no coincide con la invitación');
     }
 
     if (normalizedCode !== expectedCode) {
-      throw new ForbiddenException('El cÃ³digo de acceso es incorrecto');
+      throw new ForbiddenException('El código de acceso es incorrecto');
     }
 
     if (
@@ -302,7 +302,7 @@ export class PatientPortalsService {
       invitation.blockedAt ||
       invitation.expiresAt.getTime() < Date.now()
     ) {
-      throw new ForbiddenException('La invitaciÃ³n expirÃ³ o ya no estÃ¡ activa');
+      throw new ForbiddenException('La invitación expiró o ya no está activa');
     }
 
     if (!invitation.email) {
@@ -435,13 +435,9 @@ export class PatientPortalsService {
   ) {
     const sections = this.buildTrackingSections(dto);
     if (!sections) {
-
-      throw new BadRequestException('Agrega al menos una secciÃ³n para guardar tu seguimiento');
-
       throw new BadRequestException(
-        'Agrega al menos una secciÃ³n para guardar tu seguimiento',
+        'Agrega al menos una sección para guardar tu seguimiento',
       );
-
     }
 
     const summary = this.buildTrackingSummary(sections, dto.entryDate);
@@ -539,10 +535,10 @@ export class PatientPortalsService {
       throw new NotFoundException('No encontramos ese paciente');
     }
 
-    const title = dto.title?.trim() || 'NotificaciÃ³n del nutricionista';
+    const title = dto.title?.trim() || 'Notificación del nutricionista';
     const message = dto.message.trim();
     if (!message) {
-      throw new BadRequestException('Escribe un mensaje para la notificaciÃ³n');
+      throw new BadRequestException('Escribe un mensaje para la notificación');
     }
 
     const notificationType = message.length > 220 ? 'ALERT' : 'INFO';
@@ -801,12 +797,6 @@ export class PatientPortalsService {
     const replyEntries = entries.filter((entry) => entry.kind === 'REPLY');
     const latestEntry = entries[0] || null;
     const latestEntryAt = latestEntry?.createdAt || null;
-    const daysSinceLastEntry = latestEntryAt
-      ? Math.floor(
-          (Date.now() - new Date(latestEntryAt).getTime()) /
-            (1000 * 60 * 60 * 24),
-        )
-      : null;
     const pendingQuestions = questionEntries.filter(
       (entry) => (entry.replies?.length || 0) === 0,
     ).length;
@@ -831,15 +821,18 @@ export class PatientPortalsService {
 
     const alerts: string[] = [];
     if (!latestEntryAt) {
-      alerts.push('TodavÃ­a no hay registros en el portal.');
-    } else if (daysSinceLastEntry != null && daysSinceLastEntry >= 4) {
-
-      alerts.push(`Hace ${daysSinceLastEntry} dÃ­as que no se actualiza el seguimiento.`);
-
-      alerts.push(
-        `Hace ${daysSinceLastEntry} dÃ­as que no se actualiza el seguimiento.`,
+      alerts.push('Todavía no hay registros en el portal.');
+    } else {
+      const lastEntry = entries[0];
+      const daysSinceLastEntry = Math.floor(
+        (Date.now() - new Date(lastEntry.createdAt).getTime()) /
+          (1000 * 60 * 60 * 24),
       );
-
+      if (daysSinceLastEntry > 3) {
+        alerts.push(
+          `Hace ${daysSinceLastEntry} días que no se actualiza el seguimiento.`,
+        );
+      }
     }
 
     if (pendingQuestions > 0) {
@@ -850,12 +843,12 @@ export class PatientPortalsService {
 
     if (notificationsCount > 0) {
       alerts.push(
-        `${notificationsCount} notificaciÃ³n${notificationsCount === 1 ? '' : 'es'} del nutri.`,
+        `${notificationsCount} notificación${notificationsCount === 1 ? '' : 'es'} del nutri.`
       );
     }
 
     if (trackingEntries.length > 0 && sectionCounts.actividadFisica === 0) {
-      alerts.push('TodavÃ­a no hay actividad fÃ­sica registrada.');
+      alerts.push('Todavía no hay actividad física registrada.');
     }
 
     return {
@@ -893,11 +886,11 @@ export class PatientPortalsService {
   private buildTrackingSummary(sections: TrackingSections, entryDate?: string) {
     const dateLabel = this.normalizeDiaryDate(entryDate);
     const pieces = [
-      dateLabel ? `DÃ­a ${dateLabel}` : null,
-      sections.alimentacion ? `AlimentaciÃ³n: ${sections.alimentacion}` : null,
+      dateLabel ? `Día ${dateLabel}` : null,
+      sections.alimentacion ? `Alimentación: ${sections.alimentacion}` : null,
       sections.suplementos ? `Suplementos: ${sections.suplementos}` : null,
       sections.actividadFisica
-        ? `Actividad fÃ­sica: ${sections.actividadFisica}`
+        ? `Actividad física: ${sections.actividadFisica}`
         : null,
     ].filter(Boolean) as string[];
 
@@ -992,7 +985,7 @@ export class PatientPortalsService {
     });
 
     if (!invitation) {
-      throw new NotFoundException('La invitaciÃ³n no existe');
+      throw new NotFoundException('La invitación no existe');
     }
 
     return invitation;

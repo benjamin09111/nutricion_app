@@ -25,7 +25,7 @@ import { MetricTagInput } from "@/components/ui/metric-tag-input";
 import { Patient } from "@/features/patients";
 import { usePatientDraft } from "@/features/patients/hooks/usePatientDraft";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { validateRut, formatRut } from "@/lib/rut-utils";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,22 @@ export default function CreatePatientClient() {
 
   // Filter out internal variables from the tags/goals list
   const selectedMetrics = (draft.customVariables || []).filter(m => m.key !== "activityLevel");
+
+  // Ensure weight is always in customVariables for new/existing patients in this form
+  useEffect(() => {
+    if (isLoaded) {
+      const vars = draft.customVariables || [];
+      const hasWeight = vars.some((v: any) => v.key === "weight");
+      if (!hasWeight) {
+        updateDraft({
+          customVariables: [
+            { key: "weight", label: "Peso", unit: "kg", value: draft.weight || "" },
+            ...vars
+          ]
+        });
+      }
+    }
+  }, [isLoaded]);
 
   if (!isLoaded) return null;
 
@@ -315,6 +331,7 @@ export default function CreatePatientClient() {
               
               <MetricTagInput
                 value={selectedMetrics}
+                mandatoryKeys={["weight"]}
                 onChange={(metrics) => updateDraft({
                   customVariables: metrics
                     .filter((m) => typeof m.key === "string" && m.key.trim().length > 0 && m.key !== "activityLevel")

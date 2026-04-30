@@ -156,7 +156,7 @@ let PatientPortalsService = class PatientPortalsService {
         }
         const normalizedCode = this.normalizeAccessCode(accessCode);
         if (!normalizedCode) {
-            throw new common_1.BadRequestException('Debes ingresar tu cÃ³digo de acceso');
+            throw new common_1.BadRequestException('Debes ingresar tu código de acceso');
         }
         const invitation = await this.findInvitationByToken(token);
         const invitationEmail = invitation.email
@@ -164,16 +164,16 @@ let PatientPortalsService = class PatientPortalsService {
             : null;
         const expectedCode = this.getPortalAccessCode(invitation.patientId, invitation.nutritionistId);
         if (invitationEmail && invitationEmail !== normalizedEmail) {
-            throw new common_1.ForbiddenException('Ese correo no coincide con la invitaciÃ³n');
+            throw new common_1.ForbiddenException('Ese correo no coincide con la invitación');
         }
         if (normalizedCode !== expectedCode) {
-            throw new common_1.ForbiddenException('El cÃ³digo de acceso es incorrecto');
+            throw new common_1.ForbiddenException('El código de acceso es incorrecto');
         }
         if (invitation.status !== 'ACTIVE' ||
             invitation.revokedAt ||
             invitation.blockedAt ||
             invitation.expiresAt.getTime() < Date.now()) {
-            throw new common_1.ForbiddenException('La invitaciÃ³n expirÃ³ o ya no estÃ¡ activa');
+            throw new common_1.ForbiddenException('La invitación expiró o ya no está activa');
         }
         if (!invitation.email) {
             await this.prisma.patientPortalInvitation.update({
@@ -269,8 +269,7 @@ let PatientPortalsService = class PatientPortalsService {
     async createTrackingEntry(session, dto) {
         const sections = this.buildTrackingSections(dto);
         if (!sections) {
-            throw new common_1.BadRequestException('Agrega al menos una secciÃ³n para guardar tu seguimiento');
-            throw new common_1.BadRequestException('Agrega al menos una secciÃ³n para guardar tu seguimiento');
+            throw new common_1.BadRequestException('Agrega al menos una sección para guardar tu seguimiento');
         }
         const summary = this.buildTrackingSummary(sections, dto.entryDate);
         const entryDate = this.normalizeDiaryDate(dto.entryDate);
@@ -346,10 +345,10 @@ let PatientPortalsService = class PatientPortalsService {
         if (!patient) {
             throw new common_1.NotFoundException('No encontramos ese paciente');
         }
-        const title = dto.title?.trim() || 'NotificaciÃ³n del nutricionista';
+        const title = dto.title?.trim() || 'Notificación del nutricionista';
         const message = dto.message.trim();
         if (!message) {
-            throw new common_1.BadRequestException('Escribe un mensaje para la notificaciÃ³n');
+            throw new common_1.BadRequestException('Escribe un mensaje para la notificación');
         }
         const notificationType = message.length > 220 ? 'ALERT' : 'INFO';
         const entry = await this.prisma.patientPortalEntry.create({
@@ -571,10 +570,6 @@ let PatientPortalsService = class PatientPortalsService {
         const replyEntries = entries.filter((entry) => entry.kind === 'REPLY');
         const latestEntry = entries[0] || null;
         const latestEntryAt = latestEntry?.createdAt || null;
-        const daysSinceLastEntry = latestEntryAt
-            ? Math.floor((Date.now() - new Date(latestEntryAt).getTime()) /
-                (1000 * 60 * 60 * 24))
-            : null;
         const pendingQuestions = questionEntries.filter((entry) => (entry.replies?.length || 0) === 0).length;
         const notificationsCount = entries.filter((entry) => entry.kind === 'NOTIFICATION').length;
         const sectionCounts = trackingEntries.reduce((acc, entry) => {
@@ -593,20 +588,24 @@ let PatientPortalsService = class PatientPortalsService {
         });
         const alerts = [];
         if (!latestEntryAt) {
-            alerts.push('TodavÃ­a no hay registros en el portal.');
+            alerts.push('Todavía no hay registros en el portal.');
         }
-        else if (daysSinceLastEntry != null && daysSinceLastEntry >= 4) {
-            alerts.push(`Hace ${daysSinceLastEntry} dÃ­as que no se actualiza el seguimiento.`);
-            alerts.push(`Hace ${daysSinceLastEntry} dÃ­as que no se actualiza el seguimiento.`);
+        else {
+            const lastEntry = entries[0];
+            const daysSinceLastEntry = Math.floor((Date.now() - new Date(lastEntry.createdAt).getTime()) /
+                (1000 * 60 * 60 * 24));
+            if (daysSinceLastEntry > 3) {
+                alerts.push(`Hace ${daysSinceLastEntry} días que no se actualiza el seguimiento.`);
+            }
         }
         if (pendingQuestions > 0) {
             alerts.push(`${pendingQuestions} consulta${pendingQuestions === 1 ? '' : 's'} sin responder.`);
         }
         if (notificationsCount > 0) {
-            alerts.push(`${notificationsCount} notificaciÃ³n${notificationsCount === 1 ? '' : 'es'} del nutri.`);
+            alerts.push(`${notificationsCount} notificación${notificationsCount === 1 ? '' : 'es'} del nutri.`);
         }
         if (trackingEntries.length > 0 && sectionCounts.actividadFisica === 0) {
-            alerts.push('TodavÃ­a no hay actividad fÃ­sica registrada.');
+            alerts.push('Todavía no hay actividad física registrada.');
         }
         return {
             totalEntries: entries.length,
@@ -637,11 +636,11 @@ let PatientPortalsService = class PatientPortalsService {
     buildTrackingSummary(sections, entryDate) {
         const dateLabel = this.normalizeDiaryDate(entryDate);
         const pieces = [
-            dateLabel ? `DÃ­a ${dateLabel}` : null,
-            sections.alimentacion ? `AlimentaciÃ³n: ${sections.alimentacion}` : null,
+            dateLabel ? `Día ${dateLabel}` : null,
+            sections.alimentacion ? `Alimentación: ${sections.alimentacion}` : null,
             sections.suplementos ? `Suplementos: ${sections.suplementos}` : null,
             sections.actividadFisica
-                ? `Actividad fÃ­sica: ${sections.actividadFisica}`
+                ? `Actividad física: ${sections.actividadFisica}`
                 : null,
         ].filter(Boolean);
         return pieces.join(' Â· ');
@@ -711,7 +710,7 @@ let PatientPortalsService = class PatientPortalsService {
             },
         });
         if (!invitation) {
-            throw new common_1.NotFoundException('La invitaciÃ³n no existe');
+            throw new common_1.NotFoundException('La invitación no existe');
         }
         return invitation;
     }

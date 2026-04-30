@@ -566,7 +566,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     // Combinamos las métricas estáticas recomendadas con las globales creadas
     const combined = [...smartMetrics];
 
-    // Añadir globales que no estÃ©n ya en smartMetrics
+    // Añadir globales que no estén ya en smartMetrics
     globalMetrics.forEach((gm) => {
       const gmKey = normalizeMetricKey(gm.name, gm.key);
       if (
@@ -978,7 +978,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       });
 
       if (response.ok) {
-        toast.success("MÃ©trica global creada");
+        toast.success("Métrica global creada");
         setIsAddMetricModalOpen(false);
         setNewMetric({
           name: "",
@@ -990,7 +990,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         fetchGlobalMetrics();
       } else {
         const err = await response.json().catch(() => ({}));
-        // Si el backend dice que ya existe, lo mostramos explÃ­citamente como aviso no como error fatal
+        // Si el backend dice que ya existe, lo mostramos explícitamente como aviso no como error fatal
         if (response.status === 400 || response.status === 409) {
           toast.info(err.message || "Esta métrica ya existe en el sistema.");
         } else {
@@ -1304,7 +1304,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         currentY += 15;
       }
 
-      // 2. Resumen de EvoluciÃ³n (Texto)
+      // 2. Resumen de Evolución (Texto)
       doc.setFontSize(12);
       doc.setTextColor(30, 41, 59);
       doc.text("RESUMEN DE CAMBIOS", margin, currentY);
@@ -1342,7 +1342,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       currentY += 15;
 
-      // 3. GrÃ¡ficas (ImÃ¡genes)
+      // 3. Gráficas (Imágenes)
       for (const key of metricKeys) {
         const container = document.getElementById(`export-chart-${key}`);
         if (container) {
@@ -1367,7 +1367,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           doc.setFont("helvetica", "bold");
           doc.setFontSize(12);
           doc.setTextColor(30, 41, 59);
-          doc.text(`GrÃ¡fico: ${info.label} (${info.unit})`, margin, currentY);
+          doc.text(`Gráfico: ${info.label} (${info.unit})`, margin, currentY);
           currentY += 5;
 
           const imgWidth = pageWidth - (margin * 2);
@@ -1433,7 +1433,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           (m) => normalizeMetricKey(m.label, m.key) !== key,
         );
 
-        // Si la consulta es un "Registro de Métricas Independiente" y ahora quedÃ³ vacía, la eliminamos por completo
+        // Si la consulta es un "Registro de Métricas Independiente" y ahora quedó vacía, la eliminamos por completo
         if (
           newMetrics.length === 0 &&
           isIndependentMetricsConsultation(c)
@@ -1444,7 +1444,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           });
         }
 
-        // Si no está vacía o es una consulta clÃ­nica real, solo removemos la métrica especÃ­fica
+        // Si no está vacía o es una consulta clínica real, solo removemos la métrica específica
           return fetchApi(`/consultations/${c.id}`, {
             method: "PATCH",
           headers: {
@@ -1816,7 +1816,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <Button
                 disabled
                 className="bg-slate-50 border border-slate-100 text-slate-400 font-bold h-10 px-4 rounded-2xl cursor-not-allowed opacity-60 flex items-center gap-2"
-                title="Próximamente: Carga y análisis de exÃ¡menes clÃ­nicos con IA"
+                title="Próximamente: Carga y análisis de exámenes clínicos con IA"
               >
                 <FileText className="w-4 h-4" />
                 <span className="text-[10px] uppercase tracking-widest">
@@ -1976,7 +1976,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <div className="p-5 lg:p-6 border-b border-slate-50 bg-slate-50/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <h3 className="text-xl lg:text-2xl font-semibold text-slate-900 flex items-center gap-3 lg:gap-4">
                   <Activity className="w-6 h-6 lg:w-8 lg:h-8 text-emerald-500" />
-                  Inteligencia ClÃ­nica
+                  Inteligencia Clínica
                 </h3>
                 <div className="px-5 py-2 bg-emerald-50 text-emerald-600 rounded-2xl text-xs font-semibold border border-emerald-100 w-fit">
                   Sincronizado
@@ -1987,7 +1987,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 <div className="space-y-8">
                   <div className="space-y-4">
                     <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3">
-                      InformaciÃ³n de Contacto
+                      Información de Contacto
                     </h4>
                     <div className="space-y-4">
                       <div className="flex items-center gap-4 group">
@@ -2183,7 +2183,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         updateField("nutritionalFocus", e.target.value)
                       }
                       className="bg-slate-100 border-none text-slate-800 font-semibold text-2xl h-12 p-2 focus:ring-1 focus:ring-emerald-500"
-                      placeholder="Ej. DÃ©ficit CalÃ³rico"
+                      placeholder="Ej. Déficit Calórico"
                     />
                   ) : (
                     <p className="text-2xl font-semibold tracking-tight leading-tight" >
@@ -2421,7 +2421,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 <p className="text-xs text-slate-500 leading-relaxed font-medium" >
                   {patient.status === "Active"
                     ? "El paciente está activo y siguiendo sus planes. Puedes pausar su seguimiento si ha terminado su tratamiento o está fuera por un tiempo."
-                    : "El paciente está inactivo. Sus planes no aparecerÃ¡n en las listas por defecto, pero su historial clÃ­nico se mantiene intacto."}
+                    : "El paciente está inactivo. Sus planes no aparecerán en las listas por defecto, pero su historial clínico se mantiene intacto."}
                 </p>
                 <Button
                   onClick={toggleStatus}
@@ -2565,7 +2565,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-10 px-4 rounded-2xl transition-all shadow-xl shadow-emerald-200/50 active:scale-95"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Iniciar EvaluaciÃ³n
+                    Iniciar Evaluación
                   </Button>
                 </div>
               )}
@@ -2582,10 +2582,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
               <div>
                 <h3 className="text-xl font-semibold text-slate-900">
-                  Seguimiento BiomÃ©trico
+                  Seguimiento Biométrico
                 </h3>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-tight">
-                  Gestiona la evolución fÃ­sica del paciente
+                  Gestiona la evolución física del paciente
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -2603,7 +2603,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
                 >
                   <Plus className="w-5 h-5 text-emerald-400" />
-                  Registrar MÃ©trica
+                  Registrar Métrica
                 </button>
               </div>
             </div>
@@ -2699,7 +2699,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           {info.label}
                         </h3>
                         <p className="text-xs font-semibold text-slate-400 opacity-80">
-                          Tendencia histÃ³rica ({info.unit})
+                          Tendencia histórica ({info.unit})
                         </p>
                         <div className="grid grid-cols-3 gap-2 mt-3">
                           <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
@@ -2767,7 +2767,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           onClick={() => openMetricLogger(key)}
                           data-no-export="true"
                           className="p-3 bg-emerald-50 text-emerald-600 hover:text-white hover:bg-emerald-600 rounded-xl transition-all active:scale-95 cursor-pointer border border-emerald-100"
-                          title={`Registrar ${info.label} rÃ¡pidamente`}
+                          title={`Registrar ${info.label} rápidamente`}
                         >
                           <Plus className="w-4 h-4" />
                         </button>
@@ -2889,7 +2889,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           );
                         }
 
-                        // Si solo hay un punto o ninguno, mostramos una visualizaciÃ³n informativa
+                        // Si solo hay un punto o ninguno, mostramos una visualización informativa
                         return (
                           <div className="h-full flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100 gap-4 group-hover:bg-slate-50 transition-colors">
                             <div className="w-20 h-20 bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center animate-in zoom-in-50 duration-500">
@@ -3022,10 +3022,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <div>
                   <h3 className="text-2xl font-semibold text-slate-900 tracking-tight">
-                    Registrar EvoluciÃ³n
+                    Registrar Evolución
                   </h3>
                   <p className="text-slate-500 font-medium text-xs mt-1">
-                    AÃ±ade datos biomÃ©tricos fuera de consulta
+                    Añade datos biométricos fuera de consulta
                   </p>
                 </div>
                 <button
@@ -3075,7 +3075,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         onClick={addMetricToForm}
                         className="text-xs font-semibold bg-slate-50 text-slate-500 px-4 py-2 rounded-xl border border-slate-100 hover:bg-slate-100 transition-all flex items-center gap-2 cursor-pointer"
                       >
-                        <Plus className="w-4 h-4" /> FILA VACÃA
+                        <Plus className="w-4 h-4" /> FILA VACÍA
                       </button>
                     </div>
                   </div>
@@ -3158,8 +3158,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                 </option>
                                 <option value="kg">kg (Kilogramos)</option>
                                 <option value="g">g (Gramos)</option>
-                                <option value="cm">cm (CentÃ­metros)</option>
-                                <option value="mm">mm (MilÃ­metros)</option>
+                                <option value="cm">cm (Centímetros)</option>
+                                <option value="mm">mm (Milímetros)</option>
                                 <option value="%">% (Porcentaje)</option>
                                 <option value="mg/dL">mg/dL</option>
                                 <option value="mmol/L">mmol/L</option>
@@ -3211,7 +3211,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         )
       }
 
-      {/* Modal de ediciÃ³n de historial detallado */}
+      {/* Modal de edición de historial detallado */}
       {
         isEditMetricHistoryModalOpen && editingMetricKey && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
@@ -3918,21 +3918,21 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         </div>
       </Modal>
 
-      {/* Modal para Nueva MÃ©trica (Global) */}
+      {/* Modal para Nueva Métrica (Global) */}
       <Modal
         isOpen={isAddMetricModalOpen}
         onClose={() => setIsAddMetricModalOpen(false)}
-        title="Crear Nueva MÃ©trica"
+        title="Crear Nueva Métrica"
       >
         <div className="space-y-6 py-4 px-2">
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Nombre de la MÃ©trica
+                Nombre de la Métrica
               </label>
               <div className="relative">
                 <Input
-                  placeholder="Ej: Circunferencia de Brazo, Pliegue CutÃ¡neo..."
+                  placeholder="Ej: Circunferencia de Brazo, Pliegue Cutáneo..."
                   value={newMetric.name}
                   onChange={(e) => {
                     const val = e.target.value;
@@ -3991,8 +3991,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   </option>
                   <option value="kg">kg (Kilogramos)</option>
                   <option value="g">g (Gramos)</option>
-                  <option value="cm">cm (CentÃ­metros)</option>
-                  <option value="mm">mm (MilÃ­metros)</option>
+                  <option value="cm">cm (Centímetros)</option>
+                  <option value="mm">mm (Milímetros)</option>
                   <option value="%">% (Porcentaje)</option>
                   <option value="mg/dL">mg/dL</option>
                   <option value="mmol/L">mmol/L</option>
@@ -4012,9 +4012,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             </div>
             <p className="text-xs text-slate-400 mt-2 font-medium">
               <Globe className="w-3 h-3 inline mr-1 text-emerald-500" />
-              Esta métrica serÃ¡{" "}
+              Esta métrica será{" "}
               <span className="text-emerald-600 font-bold">Global</span>. Otros
-              nutricionistas podrÃ¡n verla y reutilizarla. Solo tÃº podrÃ¡s
+              nutricionistas podrán verla y reutilizarla. Solo tú podrás
               eliminarla.
             </p>
           </div>
@@ -4036,7 +4036,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         </div>
       </Modal>
 
-      {/* Modal ConfirmaciÃ³n Sobreescribir MÃ©trica */}
+      {/* Modal Confirmación Sobreescribir Métrica */}
       <ConfirmationModal
         isOpen={isOverwriteConfirmOpen}
         onClose={() => {
@@ -4045,11 +4045,11 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         }}
         onConfirm={confirmSaveMetrics}
         title="¿Sobreescribir Valores?"
-        description="Ya existe un registro con esta fecha. Los valores nuevos reemplazarÃ¡n a los existentes para las métricas que coincidan. Las demÃ¡s métricas de esa fecha se mantendrÃ¡n intactas."
+        description="Ya existe un registro con esta fecha. Los valores nuevos reemplazarán a los existentes para las métricas que coincidan. Las demás métricas de esa fecha se mantendrán intactas."
         confirmText="Sí, sobreescribir"
         cancelText="Cancelar"
       />
-      {/* Modal de ExportaciÃ³n PDF con aviso de IA */}
+      {/* Modal de Exportación PDF con aviso de IA */}
       <Modal
         isOpen={isExportModalOpen}
         onClose={() => !isExporting && setIsExportModalOpen(false)}
@@ -4061,8 +4061,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <Zap className="w-6 h-6 animate-pulse" />
             </div>
             <div className="space-y-2">
-              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Próximamente: AnÃ¡lisis por IA</h4>
-                En futuras actualizaciones, nuestro motor de IA realizarÃ¡ un análisis automático de estas tendencias para identificar patrones de Ã©xito y Ã¡reas de mejora en el tratamiento de <strong>{patient?.fullName || "Paciente"}</strong>.
+              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Próximamente: Análisis por IA</h4>
+                En futuras actualizaciones, nuestro motor de IA realizará un análisis automático de estas tendencias para identificar patrones de éxito y áreas de mejora en el tratamiento de <strong>{patient?.fullName || "Paciente"}</strong>.
             </div>
           </div>
 
@@ -4078,7 +4078,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 <CalendarDays className="w-5 h-5 text-slate-400" />
                 <div className="flex-1">
                    <p className="text-[10px] font-black uppercase text-slate-400">Contenido</p>
-                   <p className="text-xs font-bold text-slate-700">Resumen textual + GrÃ¡ficos de tendencia</p>
+                   <p className="text-xs font-bold text-slate-700">Resumen textual + Gráficos de tendencia</p>
                 </div>
              </div>
           </div>
@@ -4113,7 +4113,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         </div>
       </Modal>
 
-      {/* Modal ConfirmaciÃ³n Borrar MÃ©trica Completa */}
+      {/* Modal Confirmación Borrar Métrica Completa */}
       <ConfirmationModal
         isOpen={isDeleteEntireMetricConfirmOpen}
         onClose={() => {
@@ -4122,7 +4122,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         }}
         onConfirm={handleDeleteEntireMetric}
         title={`¿Eliminar Historial de ${metricKeyToDelete ? getMetricInfo(metricKeyToDelete).label : ""}?`}
-        description="Esta acciÃ³n eliminarÃ¡ TODOS los registros históricos de esta métrica para este paciente (incluyendo el valor inicial si aplica). Esta acciÃ³n no se puede deshacer."
+        description="Esta acción eliminará TODOS los registros históricos de esta métrica para este paciente (incluyendo el valor inicial si aplica). Esta acción no se puede deshacer."
         confirmText="Sí, eliminar todo"
         cancelText="Cancelar"
         variant="destructive"
@@ -4133,7 +4133,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         onClose={() => setIsDeletePatientConfirmOpen(false)}
         onConfirm={handleDelete}
         title="¿Eliminar paciente?"
-        description="¿EstÃ¡s seguro de que deseas eliminar este paciente? Esta acciÃ³n es irreversible."
+        description="¿Estás seguro de que deseas eliminar este paciente? Esta acción es irreversible."
         confirmText="Sí, eliminar"
         variant="destructive"
       />
@@ -4166,7 +4166,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           }
         }}
         title="¿Eliminar consulta?"
-        description="¿EstÃ¡s seguro de que deseas eliminar esta consulta? Se eliminarÃ¡n tambiÃ©n las métricas asociadas a ella."
+        description="¿Estás seguro de que deseas eliminar esta consulta? Se eliminarán también las métricas asociadas a ella."
         confirmText="Sí, eliminar"
         variant="destructive"
       />
@@ -4314,7 +4314,7 @@ function MetricRecordRow({
         onClose={() => setIsDeleteConfirmOpen(false)}
         onConfirm={handleDelete}
         title="¿Eliminar registro?"
-        description="Esta acciÃ³n eliminarÃ¡ permanentemente este valor de métrica del historial del paciente. ¿Deseas continuar?"
+        description="Esta acción eliminará permanentemente este valor de métrica del historial del paciente. ¿Deseas continuar?"
         confirmText="Sí, eliminar"
         cancelText="No, cancelar"
         variant="destructive"

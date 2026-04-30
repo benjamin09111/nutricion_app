@@ -1240,7 +1240,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
     // 1. UI Local & Feedback Inmediato
     if (!isCurrentlyFavorite) {
-      toast.success(`${productName} guardado en favoritos ?`);
+      toast.success(`${productName} guardado en favoritos 🎉`);
     } else {
       toast.info(`${productName} eliminado de favoritos`);
     }
@@ -2121,7 +2121,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           description: "No hubo cambios visibles en los ingredientes actuales.",
         });
       } else {
-        toast.success("Preferencias aplicadas ?", {
+        toast.success("Preferencias aplicadas 🎉", {
           description: `Agregados: ${uniqueAddedFoods.length} · Favoritos: ${uniqueFavoritedFoods.length} · Eliminados: ${uniqueRemovedFoods.length}`,
         });
         showPreferenceChangeToasts(
@@ -2274,7 +2274,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             description: "No hubo cambios visibles en los ingredientes actuales.",
           });
         } else {
-          toast.success("Preferencias aplicadas ?", {
+          toast.success("Preferencias aplicadas 🎉", {
             description: `Agregados: ${addedFoods.length} · Eliminados: ${uniqueRemovedFoods.length}`,
           });
           showPreferenceChangeToasts(
@@ -2562,7 +2562,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           void performExportPdf();
         }}
         title="¿Exportar PDF ahora?"
-        description="Todavía no hiciste cambios en ingredientes. Si fue un clic accidental, puedes volver atrÃ¡s antes de generar el PDF."
+        description="Todavía no hiciste cambios en ingredientes. Si fue un clic accidental, puedes volver atrás antes de generar el PDF."
         confirmText="Sí, exportar"
       />
       <ConfirmationModal
@@ -2573,7 +2573,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           void continueToRecipes();
         }}
         title="Hay alimentos con información pendiente"
-        description={`Todavía tienes ${draftFoodsPendingCompletion.length} alimento${draftFoodsPendingCompletion.length === 1 ? "" : "s"} creado${draftFoodsPendingCompletion.length === 1 ? "" : "s"} como borrador, sin sus caracterÃ­sticas nutricionales completas. Si continÃºas ahora, los cÃ¡lculos de la siguiente etapa pueden quedar imprecisos.`}
+        description={`Todavía tienes ${draftFoodsPendingCompletion.length} alimento${draftFoodsPendingCompletion.length === 1 ? "" : "s"} creado${draftFoodsPendingCompletion.length === 1 ? "" : "s"} como borrador, sin sus características nutricionales completas. Si continúas ahora, los cálculos de la siguiente etapa pueden quedar imprecisos.`}
         confirmText="Continuar igual"
       />
       <ConfirmationModal
@@ -2589,8 +2589,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         description={
           pendingTagCreation
               ? pendingTagCreation.type === "classification"
-                ? `El tag "${pendingTagCreation.name}" se agregó a esta dieta, pero todavía no existe en Detalles. ¿Quieres crearlo tambiÃ©n como etiqueta de clasificaciÃ³n global?`
-                : `La restricción "${pendingTagCreation.name}" se agregó a esta dieta, pero todavía no existe en Detalles. ¿Quieres crearla tambiÃ©n como restricción global?`
+                ? `El tag "${pendingTagCreation.name}" se agregó a esta dieta, pero todavía no existe en Detalles. ¿Quieres crearlo también como etiqueta de clasificación global?`
+                : `La restricción "${pendingTagCreation.name}" se agregó a esta dieta, pero todavía no existe en Detalles. ¿Quieres crearla también como restricción global?`
             : ""
         }
         confirmText="Sí, crear en Detalles"
@@ -3123,11 +3123,11 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         </div>
       </Modal>
 
-      {/* Modal de AdiciÃ³n Inteligente */}
+      {/* Modal de Adición Inteligente */}
       <Modal
         isOpen={isSmartModalOpen}
         onClose={() => setIsSmartModalOpen(false)}
-        title="Selección Inteligente"
+        title="Selección Inteligente 🧠"
         className="sm:max-w-2xl"
       >
         <div className="space-y-6">
@@ -4110,7 +4110,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         description={creationDescription}
         onDescriptionChange={setCreationDescription}
         title="Guardar dieta"
-        subtitle="Añade una breve descripciÃ³n para reconocer esta dieta dentro de Mis creaciones."
+        subtitle="Añade una breve descripción para reconocer esta dieta dentro de Mis creaciones."
       />
     </ModuleLayout >
   </>

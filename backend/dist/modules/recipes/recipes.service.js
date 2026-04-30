@@ -60,13 +60,13 @@ let RecipesService = RecipesService_1 = class RecipesService {
             normalizedMessage.includes('too many tokens') ||
             normalizedMessage.includes('max_tokens') ||
             normalizedMessage.includes('token')) {
-            return 'La solicitud supera el limite de tokens/contexto del modelo. Reduce bloques, filtros o detalle y vuelve a intentar.';
+            return 'La solicitud supera el límite de tokens/contexto del modelo. Reduce bloques, filtros o detalle y vuelve a intentar.';
         }
         if (normalizedMessage.includes('resource_exhausted') ||
             normalizedMessage.includes('quota') ||
             normalizedMessage.includes('rate limit') ||
             normalizedMessage.includes('429')) {
-            return 'Se alcanzo el limite de uso de la IA (cuota/rate limit). Intenta mas tarde o revisa tu plan.';
+            return 'Se alcanzó el límite de uso de la IA (cuota/rate limit). Intenta más tarde o revisa tu plan.';
         }
         return upstreamMessage || 'No se pudo completar recetas con IA.';
     }
@@ -149,17 +149,17 @@ let RecipesService = RecipesService_1 = class RecipesService {
                 return JSON.parse(recovered);
             }
             this.logger.error(`[Gemini] JSON parse failed. snippet=${jsonContent.slice(0, 300)}`);
-            throw new common_1.BadRequestException('La IA devolvio un formato invalido. Intenta nuevamente.');
+            throw new common_1.BadRequestException('La IA devolvió un formato inválido. Intenta nuevamente.');
         }
     }
     validateAiRecipe(recipe, slotMealSection, allowedFoods, allowFlexibleExternalFoods) {
         if (!recipe.slotId || !recipe.title || !recipe.mealSection || !recipe.recommendedPortion?.trim()) {
-            throw new common_1.BadRequestException('La IA devolviÃ³ una receta incompleta.');
+            throw new common_1.BadRequestException('La IA devolvió una receta incompleta.');
         }
         const normalizedSlotMealSection = this.normalizeMealSection(slotMealSection);
         const normalizedRecipeMealSection = this.normalizeMealSection(recipe.mealSection);
         if (normalizedSlotMealSection !== normalizedRecipeMealSection) {
-            throw new common_1.BadRequestException(`La IA devolviÃ³ una secciÃ³n incompatible para ${recipe.slotId}.`);
+            throw new common_1.BadRequestException(`La IA devolvió una sección incompatible para ${recipe.slotId}.`);
         }
         const allIngredients = [...(recipe.ingredients || []), ...(recipe.mainIngredients || [])]
             .map((item) => this.normalizeFoodName(item))
@@ -172,17 +172,17 @@ let RecipesService = RecipesService_1 = class RecipesService {
     }
     validateReplacementGuide(meta) {
         if (!meta) {
-            throw new common_1.BadRequestException('La IA no devolviÃ³ metadata de guÃ­a.');
+            throw new common_1.BadRequestException('La IA no devolvió metadata de guía.');
         }
         if (typeof meta.note !== 'string' || !meta.note.trim()) {
-            throw new common_1.BadRequestException('La IA no devolviÃ³ la nota general requerida.');
+            throw new common_1.BadRequestException('La IA no devolvió la nota general requerida.');
         }
         if (!Array.isArray(meta.replacementGuide)) {
-            throw new common_1.BadRequestException('La IA no devolviÃ³ replacementGuide vÃ¡lido.');
+            throw new common_1.BadRequestException('La IA no devolvió replacementGuide válido.');
         }
         meta.replacementGuide.forEach((item) => {
             if (!item.mealSection || !Array.isArray(item.suggestions)) {
-                throw new common_1.BadRequestException('La IA devolviÃ³ replacementGuide incompleto.');
+                throw new common_1.BadRequestException('La IA devolvió replacementGuide incompleto.');
             }
         });
     }
@@ -199,7 +199,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
             const titlesToCompare = previousTitles ?? fallbackPreviousTitles;
             const repeated = [...currentTitles].find((title) => titlesToCompare.has(title));
             if (repeated) {
-                throw new common_1.BadRequestException(`La IA repitiÃ³ un plato en dÃ­as consecutivos: ${repeated}.`);
+                throw new common_1.BadRequestException(`La IA repitió un plato en días consecutivos: ${repeated}.`);
             }
             previousTitles = currentTitles;
         });
@@ -217,7 +217,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
             result.recipes.forEach((recipe) => {
                 const slot = slotMap.get(recipe.slotId);
                 if (!slot) {
-                    throw new common_1.BadRequestException(`La IA devolviÃ³ un slot desconocido: ${recipe.slotId}.`);
+                    throw new common_1.BadRequestException(`La IA devolvió un slot desconocido: ${recipe.slotId}.`);
                 }
                 const extraIngredients = this.validateAiRecipe(recipe, slot.mealSection, allowedFoods, payload.generalSnackFlexAllowed);
                 if (extraIngredients.length > 0) {
@@ -234,7 +234,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
             dayBlock.recipes.forEach((recipe) => {
                 const slot = slotMap.get(`${dayBlock.day}:${recipe.slotId}`);
                 if (!slot) {
-                    throw new common_1.BadRequestException(`La IA devolviÃ³ un slot desconocido para ${dayBlock.day}: ${recipe.slotId}.`);
+                    throw new common_1.BadRequestException(`La IA devolvió un slot desconocido para ${dayBlock.day}: ${recipe.slotId}.`);
                 }
                 const extraIngredients = this.validateAiRecipe(recipe, slot.mealSection, allowedFoods, payload.generalSnackFlexAllowed);
                 if (extraIngredients.length > 0) {
@@ -263,7 +263,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
             if (recovered) {
                 return JSON.parse(recovered);
             }
-            throw new common_1.BadRequestException('La IA devolviÃ³ un formato invÃ¡lido para recetas rÃ¡pidas.');
+            throw new common_1.BadRequestException('La IA devolvió un formato inválido para recetas rápidas.');
         }
     }
     normalizeQuickDish(dish) {
@@ -295,7 +295,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
             ? Math.max(1, Math.round(Number(dish.portions)))
             : 1;
         if (!title || !mealSection || !recommendedPortion) {
-            throw new common_1.BadRequestException('La IA devolviÃ³ un plato incompleto en recetas rÃ¡pidas.');
+            throw new common_1.BadRequestException('La IA devolvió un plato incompleto en recetas rápidas.');
         }
         return {
             title,
@@ -360,16 +360,16 @@ let RecipesService = RecipesService_1 = class RecipesService {
     async quickFillWithAi(userId, dto) {
         await this.getNutritionistId(userId);
         const payload = dto.payload || {};
-        const content = await this.callAiJson('Eres un nutricionista clÃ­nico experto. Responde solo JSON vÃ¡lido.', this.buildQuickAiPrompt(payload));
+        const content = await this.callAiJson('Eres un nutricionista clínico experto. Responde solo JSON válido.', this.buildQuickAiPrompt(payload));
         const parsed = this.parseQuickAiResponse(content);
         const dishes = Array.isArray(parsed?.dishes) ? parsed.dishes : [];
         if (dishes.length === 0) {
-            throw new common_1.BadRequestException('La IA no devolviÃ³ platos para recetas rÃ¡pidas.');
+            throw new common_1.BadRequestException('La IA no devolvió platos para recetas rápidas.');
         }
         const normalizedDishes = dishes.map((dish) => this.normalizeQuickDish(dish));
         const note = typeof parsed?.meta?.note === 'string' && parsed.meta.note.trim()
             ? parsed.meta.note.trim()
-            : 'Platos generados con IA segÃºn contexto proporcionado.';
+            : 'Platos generados con IA según contexto proporcionado.';
         return {
             dishes: normalizedDishes,
             meta: {
@@ -590,7 +590,7 @@ let RecipesService = RecipesService_1 = class RecipesService {
             };
         }
         if (!recipe.isPublic) {
-            throw new common_1.ForbiddenException('Solo puedes agregar platos pÃºblicos de la comunidad.');
+            throw new common_1.ForbiddenException('Solo puedes agregar platos públicos de la comunidad.');
         }
         await this.prisma.recipeLibrary.upsert({
             where: {
@@ -666,9 +666,9 @@ let RecipesService = RecipesService_1 = class RecipesService {
     }
     async estimateMacros(dto) {
         const prompt = [
-            'Eres un nutricionista. Estima los valores nutricionales por porciÃ³n para un plato con los siguientes ingredientes.',
-            'Responde SOLO un JSON vÃ¡lido con la forma: {"calories": nÃºmero, "proteins": nÃºmero, "carbs": nÃºmero, "lipids": nÃºmero}',
-            'Los valores deben ser por una porciÃ³n razonable del plato completo.',
+            'Eres un nutricionista. Estima los valores nutricionales por porción para un plato con los siguientes ingredientes.',
+            'Responde SOLO un JSON válido con la forma: {"calories": número, "proteins": número, "carbs": número, "lipids": número}',
+            'Los valores deben ser por una porción razonable del plato completo.',
             `Ingredientes: ${JSON.stringify(dto.ingredientNames)}`,
         ].join('\n');
         try {
