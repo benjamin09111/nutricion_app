@@ -21,13 +21,14 @@ let IngredientGroupsService = class IngredientGroupsService {
         this.cacheService = cacheService;
     }
     async create(nutritionistId, createDto) {
-        const { tags, ingredients, ...data } = createDto;
+        const { tags, ingredients, type, ...data } = createDto;
         const tagRecords = tags && tags.length > 0
             ? await Promise.all(tags.map((name) => this.getOrCreateTag(name)))
             : [];
         const group = await this.prisma.ingredientGroup.create({
             data: {
                 ...data,
+                type: type || 'INGREDIENT',
                 nutritionist: { connect: { id: nutritionistId } },
                 tags: {
                     connect: tagRecords.map((t) => ({ id: t.id }))
@@ -45,7 +46,8 @@ let IngredientGroupsService = class IngredientGroupsService {
                 tags: true,
                 entries: {
                     include: {
-                        ingredient: { select: { id: true, name: true, brand: true } }
+                        ingredient: { select: { id: true, name: true, brand: true } },
+                        recipe: { select: { id: true, name: true, calories: true, proteins: true, carbs: true, lipids: true, portions: true, imageUrl: true } }
                     }
                 },
                 _count: { select: { entries: true } }
@@ -54,11 +56,13 @@ let IngredientGroupsService = class IngredientGroupsService {
         await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'ingredient-groups');
         return group;
     }
-    async findAll(nutritionistId) {
+    async findAll(nutritionistId, type) {
+        const where = { nutritionistId };
+        if (type) {
+            where.type = type;
+        }
         const groups = await this.prisma.ingredientGroup.findMany({
-            where: {
-                nutritionistId
-            },
+            where,
             include: {
                 tags: true,
                 entries: {
@@ -71,7 +75,8 @@ let IngredientGroupsService = class IngredientGroupsService {
                                     where: { nutritionistId }
                                 }
                             }
-                        }
+                        },
+                        recipe: true
                     }
                 },
                 _count: { select: { entries: true } }
@@ -81,9 +86,10 @@ let IngredientGroupsService = class IngredientGroupsService {
         return groups.map(group => ({
             ...group,
             ingredients: (group.entries || [])
-                .filter(entry => entry.ingredient)
+                .filter(entry => entry.ingredient || entry.recipe)
                 .map(entry => ({
-                ingredient: entry.ingredient,
+                ingredient: entry.ingredient || undefined,
+                recipe: entry.recipe || undefined,
                 brandSuggestion: entry.brandSuggestion,
                 amount: entry.amount,
                 unit: entry.unit,
@@ -107,7 +113,8 @@ let IngredientGroupsService = class IngredientGroupsService {
                                     where: { nutritionistId }
                                 }
                             }
-                        }
+                        },
+                        recipe: true
                     }
                 },
                 nutritionist: { select: { id: true } }
@@ -120,9 +127,10 @@ let IngredientGroupsService = class IngredientGroupsService {
         return {
             ...group,
             ingredients: (group.entries || [])
-                .filter(entry => entry.ingredient)
+                .filter(entry => entry.ingredient || entry.recipe)
                 .map(entry => ({
-                ingredient: entry.ingredient,
+                ingredient: entry.ingredient || undefined,
+                recipe: entry.recipe || undefined,
                 brandSuggestion: entry.brandSuggestion,
                 amount: entry.amount,
                 unit: entry.unit,
@@ -135,12 +143,13 @@ let IngredientGroupsService = class IngredientGroupsService {
             throw new common_1.ForbiddenException('Nutritionist profile not found');
         const group = await this.prisma.ingredientGroup.findUnique({
             where: { id },
-            select: { nutritionistId: true }
+            include: { entries: true }
         });
         if (!group)
             throw new common_1.NotFoundException('Group not found');
         if (group.nutritionistId !== nutritionistId)
             throw new common_1.ForbiddenException('Access denied');
+        return group;
     }
     async update(id, nutritionistId, updateDto) {
         await this.validateGroupOwnership(id, nutritionistId);
@@ -180,13 +189,17 @@ let IngredientGroupsService = class IngredientGroupsService {
         return deleted;
     }
     async addIngredients(id, nutritionistId, dto) {
-        await this.validateGroupOwnership(id, nutritionistId);
+        const group = await this.validateGroupOwnership(id, nutritionistId);
+        const isRecipeGroup = group.type === 'RECIPE';
+        const itemIds = isRecipeGroup ? (dto.recipeIds || []) : (dto.ingredientIds || []);
+        if (itemIds.length === 0)
+            return group;
         const updated = await this.prisma.ingredientGroup.update({
             where: { id },
             data: {
                 entries: {
-                    create: dto.ingredientIds.map(ingId => ({
-                        ingredientId: ingId
+                    create: itemIds.map(itemId => ({
+                        ...(isRecipeGroup ? { recipeId: itemId } : { ingredientId: itemId })
                     }))
                 }
             },
@@ -196,13 +209,17 @@ let IngredientGroupsService = class IngredientGroupsService {
         return updated;
     }
     async removeIngredients(id, nutritionistId, dto) {
-        await this.validateGroupOwnership(id, nutritionistId);
+        const group = await this.validateGroupOwnership(id, nutritionistId);
+        const isRecipeGroup = group.type === 'RECIPE';
+        const itemIds = isRecipeGroup ? (dto.recipeIds || []) : (dto.ingredientIds || []);
+        if (itemIds.length === 0)
+            return group;
         const updated = await this.prisma.ingredientGroup.update({
             where: { id },
             data: {
                 entries: {
                     deleteMany: {
-                        ingredientId: { in: dto.ingredientIds }
+                        ...(isRecipeGroup ? { recipeId: { in: itemIds } } : { ingredientId: { in: itemIds } })
                     }
                 }
             },

@@ -39,6 +39,8 @@ import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { TagInput } from "@/components/ui/TagInput";
+import { useDashboardShell } from "@/context/DashboardShellContext";
+import { SectionProgressNav } from "@/components/shared/SectionProgressNav";
 import { MarketPrice, FoodGroup } from "@/features/foods";
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
@@ -341,6 +343,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(
     null,
   );
+
+  const { isSidebarCollapsed } = useDashboardShell();
 
   const favoritesEnabled = true; // Always enabled by request
   const selectedDefaultConstraintIds = new Set(
@@ -1411,6 +1415,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         })),
       });
       toast.success("PDF exportado correctamente.", { id: toastId });
+      setIsSaveCreationModalOpen(true);
     } catch (e) {
       console.error("Error generando PDF:", e);
       toast.error("Error al generar el PDF. Intenta de nuevo.", { id: toastId });
@@ -2514,6 +2519,26 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         variant: "rose",
         onClick: () => setIsResetConfirmOpen(true),
       },
+      {
+        id: "sep-2",
+        icon: Library,
+        label: "",
+        onClick: () => { },
+        isSeparator: true,
+      },
+      {
+        id: "continue",
+        icon: ArrowRight,
+        label: "CONTINUAR",
+        variant: "emerald",
+        onClick: () => {
+          if (draftFoodsPendingCompletion.length > 0) {
+            setIsContinueDraftWarningOpen(true);
+          } else {
+            void continueToRecipes();
+          }
+        },
+      },
     ],
     [
       printJson,
@@ -2597,25 +2622,17 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         cancelText="No, solo usar aquí"
       />
       <ModuleLayout
-        title="Diseñador de Dieta General"
+        title="Estrategia: Dieta Base"
         description={
-          <div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 px-5 py-4 shadow-sm">
-            <p className="text-sm font-semibold text-slate-700">
-              Aquí defines, de forma simple y general, los alimentos que consumirá tu paciente.
+          <div className="space-y-4">
+            <p>
+              Define la estrategia nutricional de tu paciente. Selecciona restricciones, alimentos permitidos y establece la base para las porciones y el carrito.
             </p>
-            <div className="mt-3 grid gap-2 text-sm text-slate-600">
-              <div className="flex items-start gap-2">
-                <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
-                <span>Tu objetivo es elegir los alimentos que consumirá tu paciente.</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
-                <span>Hazlo de manera muy general, sin especificar aún cantidades exactas ni detalles finos.</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
-                <span>Piensa primero en los alimentos que realmente consumirá en su día a día.</span>
-              </div>
+            <div className="flex flex-wrap gap-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              <span className="text-emerald-600 underline underline-offset-4 decoration-2">1. Estrategia</span>
+              <span>2. Cuantificación</span>
+              <span>3. Logística</span>
+              <span>4. Producto Final</span>
             </div>
           </div>
         }
@@ -2656,12 +2673,25 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 className="h-12 px-8 bg-emerald-600"
                 onClick={handleContinue}
               >
-                Continuar <ArrowRight className="ml-2 h-5 w-5" />
+                SIGUIENTE <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </div>
           </ModuleFooter>
         }
       >
+        {isSidebarCollapsed && (
+          <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
+            <SectionProgressNav
+              title="Etapas del Plan"
+              items={[
+                { id: "dieta", label: "1. Estrategia", status: "complete", active: true, onClick: () => {} },
+                { id: "recetas", label: "2. Cuantificación", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/recetas", currentProjectId)) },
+                { id: "carrito", label: "3. Logística", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/carrito", currentProjectId)) },
+                { id: "entregable", label: "4. Entregable", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/entregable", currentProjectId)) },
+              ]}
+            />
+          </div>
+        )}
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}

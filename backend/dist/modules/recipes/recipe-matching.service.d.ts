@@ -8,14 +8,8 @@ export declare class RecipeMatchingService {
         matchPercentage: number;
         isMine: boolean;
         isAdopted: boolean;
-        nutritionist: {
-            fullName: string;
-        } | null;
         ingredients: ({
             ingredient: {
-                ingredients: string | null;
-                id: string;
-                isPublic: boolean;
                 name: string;
                 price: number;
                 unit: string;
@@ -27,6 +21,9 @@ export declare class RecipeMatchingService {
                 sugars: number | null;
                 fiber: number | null;
                 sodium: number | null;
+                ingredients: string | null;
+                isPublic: boolean;
+                id: string;
                 nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
@@ -35,19 +32,20 @@ export declare class RecipeMatchingService {
                 categoryId: string;
             };
         } & {
-            id: string;
             unit: string;
             amount: number;
+            id: string;
             brandSuggestion: string | null;
             ingredientId: string;
-            isMain: boolean;
             recipeId: string;
+            isMain: boolean;
         })[];
+        nutritionist: {
+            fullName: string;
+        } | null;
         savedBy: {
             id: string;
         }[];
-        id: string;
-        isPublic: boolean;
         name: string;
         calories: number;
         proteins: number;
@@ -55,14 +53,16 @@ export declare class RecipeMatchingService {
         carbs: number;
         fiber: number | null;
         sodium: number | null;
+        isPublic: boolean;
+        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         preparation: string | null;
-        portions: number;
         portionSize: number;
+        portions: number;
         imageUrl: string | null;
     }[]>;
 }

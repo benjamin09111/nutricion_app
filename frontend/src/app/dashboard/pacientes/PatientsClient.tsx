@@ -429,9 +429,12 @@ export default function PatientsClient() {
                               {patient.fullName.charAt(0)}
                             </div>
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-semibold text-slate-900 leading-none mb-1">{patient.fullName}</div>
-                            <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5"><Mail className="w-3 h-3 text-slate-400" />{patient.email || "Sin correo"}</div>
+                          <div className="ml-4 min-w-0">
+                            <div className="text-sm font-semibold text-slate-900 leading-none mb-1 truncate">{patient.fullName}</div>
+                            <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5 min-w-0">
+                              <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{patient.email || "Sin correo"}</span>
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -572,10 +575,11 @@ export default function PatientsClient() {
                     <div className="h-12 w-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold border border-emerald-100">
                       {patient.fullName.charAt(0)}
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="font-bold text-slate-900 line-clamp-1">{patient.fullName}</h3>
-                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                        <Mail className="w-3 h-3" /> {patient.email || "Sin correo"}
+                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 min-w-0">
+                        <Mail className="w-3 h-3 shrink-0" /> 
+                        <span className="break-all">{patient.email || "Sin correo"}</span>
                       </p>
                     </div>
                   </div>
@@ -716,9 +720,9 @@ export default function PatientsClient() {
               <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
                 <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Contacto</p>
                 <div className="mt-3 space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-slate-700">
-                    <Mail className="h-4 w-4 text-slate-400" />
-                    <span>{patientPreview.email || "Sin correo"}</span>
+                  <div className="flex items-center gap-2 text-sm text-slate-700 min-w-0">
+                    <Mail className="h-4 w-4 text-slate-400 shrink-0" />
+                    <span className="break-all">{patientPreview.email || "Sin correo"}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-slate-700">
                     <Phone className="h-4 w-4 text-slate-400" />

@@ -15,13 +15,13 @@ export declare class AuthController {
             planName: string;
             nutritionist: {
                 id: string;
+                fullName: string;
+                phone: string | null;
+                professionalId: string | null;
+                specialty: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 accountId: string;
-                fullName: string;
-                professionalId: string | null;
-                specialty: string | null;
-                phone: string | null;
                 avatarUrl: string | null;
                 settings: import("@prisma/client/runtime/library").JsonValue | null;
             } | null;

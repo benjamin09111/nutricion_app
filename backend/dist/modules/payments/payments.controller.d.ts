@@ -10,8 +10,8 @@ export declare class PaymentsController {
             email: string;
         };
     } & {
-        id: string;
         amount: import("@prisma/client/runtime/library").Decimal;
+        id: string;
         status: import(".prisma/client").$Enums.PaymentStatus;
         createdAt: Date;
         updatedAt: Date;
@@ -30,8 +30,8 @@ export declare class PaymentsController {
             } | null;
         };
     } & {
-        id: string;
         amount: import("@prisma/client/runtime/library").Decimal;
+        id: string;
         status: import(".prisma/client").$Enums.PaymentStatus;
         createdAt: Date;
         updatedAt: Date;
@@ -55,8 +55,8 @@ export declare class PaymentsController {
         method: string;
     }, req: any): Promise<{
         payment: {
-            id: string;
             amount: import("@prisma/client/runtime/library").Decimal;
+            id: string;
             status: import(".prisma/client").$Enums.PaymentStatus;
             createdAt: Date;
             updatedAt: Date;

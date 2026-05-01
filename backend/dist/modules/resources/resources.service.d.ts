@@ -7,16 +7,16 @@ export declare class ResourcesService {
     resolveVariables(content: string, inputs: Record<string, string>): string;
     findAll(nutritionistId: string, isAdmin: boolean): Promise<({
         isMine: boolean;
-        id: string;
         category: string;
         tags: string[];
         isPublic: boolean;
+        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
+        fileUrl: string | null;
         format: string;
         content: string;
-        fileUrl: string | null;
         title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
@@ -24,16 +24,16 @@ export declare class ResourcesService {
         variablePlaceholders: string[];
     })[]>;
     findOne(id: string): Promise<({
-        id: string;
         category: string;
         tags: string[];
         isPublic: boolean;
+        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
+        fileUrl: string | null;
         format: string;
         content: string;
-        fileUrl: string | null;
         title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
@@ -51,16 +51,16 @@ export declare class ResourcesService {
         format?: string;
         fileUrl?: string;
     }): Promise<{
-        id: string;
         category: string;
         tags: string[];
         isPublic: boolean;
+        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
+        fileUrl: string | null;
         format: string;
         content: string;
-        fileUrl: string | null;
         title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
@@ -78,16 +78,16 @@ export declare class ResourcesService {
         format?: string;
         fileUrl?: string;
     }): Promise<{
-        id: string;
         category: string;
         tags: string[];
         isPublic: boolean;
+        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
+        fileUrl: string | null;
         format: string;
         content: string;
-        fileUrl: string | null;
         title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
@@ -95,23 +95,23 @@ export declare class ResourcesService {
         variablePlaceholders: string[];
     }>;
     remove(id: string, nutritionistId: string, isAdmin: boolean): Promise<{
-        id: string;
         category: string;
         tags: string[];
         isPublic: boolean;
+        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
+        fileUrl: string | null;
         format: string;
         content: string;
-        fileUrl: string | null;
         title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     }>;
     getSections(nutritionistId: string): Promise<{
-        id: string;
         name: string;
+        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
@@ -126,8 +126,8 @@ export declare class ResourcesService {
         color?: string;
         bg?: string;
     }): Promise<{
-        id: string;
         name: string;
+        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;

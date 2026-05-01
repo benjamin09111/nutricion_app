@@ -42,6 +42,7 @@ import {
   MessageSquare,
   Filter,
   Reply,
+  Flame,
 } from "lucide-react";
 import { DEFAULT_METRICS } from "@/lib/constants";
 import {
@@ -85,6 +86,8 @@ import jsPDF from "jspdf";
 import { domToPng } from "modern-screenshot";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { validateRut, formatRut } from "@/lib/rut-utils";
+
+import CreationsClient from "@/app/dashboard/creaciones/CreationsClient";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -191,7 +194,7 @@ interface PatientDetailClientProps {
   id: string;
 }
 
-type TabType = "General" | "Consultas" | "Progreso" | "Acompañamiento";
+type TabType = "General" | "Consultas" | "Progreso" | "Acompañamiento" | "Creaciones";
 
 export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const router = useRouter();
@@ -1963,6 +1966,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         {([
           { label: "General", disabled: false },
           { label: "Consultas", disabled: false },
+          { label: "Creaciones", disabled: false },
           { label: "Progreso", disabled: false },
           { label: "Acompañamiento", disabled: true },
           { label: "Exámenes", disabled: true },
@@ -1992,481 +1996,284 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       {/* Main Content Area */}
       {activeTab === "General" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 animate-in fade-in duration-500 items-start">
-          {/* Left Column: Clinical & Dietary */}
-          <div className="w-full space-y-6 lg:space-y-10">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm shadow-slate-200/50 overflow-hidden">
-              <div className="p-5 lg:p-6 border-b border-slate-50 bg-slate-50/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <h3 className="text-xl lg:text-2xl font-semibold text-slate-900 flex items-center gap-3 lg:gap-4">
-                  <Activity className="w-6 h-6 lg:w-8 lg:h-8 text-emerald-500" />
-                  Inteligencia Clínica
-                </h3>
-                <div className="px-5 py-2 bg-emerald-50 text-emerald-600 rounded-2xl text-xs font-semibold border border-emerald-100 w-fit">
-                  Sincronizado
-                </div>
-              </div>
-
-              <div className="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-                <div className="space-y-8">
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3">
-                      Información de Contacto
-                    </h4>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4 group">
-                        <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-emerald-50 transition-colors">
-                          <Mail className="w-4 h-4 text-emerald-500" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-400">
-                            Email
-                          </p>
-                          {isEditing ? (
-                            <Input
-                              value={editForm.email || ""}
-                              onChange={(e) =>
-                                updateField("email", e.target.value)
-                              }
-                              className="h-8 border-none font-bold text-slate-800 p-0"
-                            />
-                          ) : (
-                            <p className="font-bold text-slate-700">
-                              {patient.email}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 group">
-                        <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-emerald-50 transition-colors">
-                          <Phone className="w-4 h-4 text-emerald-500" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-400">
-                            Teléfono
-                          </p>
-                          {isEditing ? (
-                            <Input
-                              value={editForm.phone || ""}
-                              onChange={handlePhoneChange}
-                              className="h-8 border-none font-bold text-slate-800 p-0"
-                              placeholder="+56 9 1234 5678"
-                            />
-                          ) : (
-                            <p className="font-bold text-slate-700">
-                              {patient.phone || "No registrado"}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+        <div className="space-y-8 animate-in fade-in duration-500">
+          {/* 3-Column Layout for Primary Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+            
+            {/* Column 1: Identity & Contact */}
+            <div className="flex flex-col">
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
+                  <div className="p-2 bg-emerald-50 rounded-xl">
+                    <User className="w-5 h-5 text-emerald-600" />
                   </div>
+                  <h2 className="text-lg font-bold text-slate-800">Identidad</h2>
                 </div>
-
-                <div className="space-y-8">
-                  <div className="space-y-5">
-                    <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3">
-                      Restricciones Alimentarias
-                    </h4>
-                    <div className="flex flex-wrap gap-3">
+                
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       {isEditing ? (
-                        <TagInput
-                          value={(editForm.dietRestrictions as string[]) || []}
-                          onChange={(tags) =>
-                            updateField("dietRestrictions", tags)
-                          }
-                          fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                          className="mt-2"
-                          placeholder="Agregar restricción..."
+                        <Input
+                          placeholder="valen@email.com"
+                          className="h-12 pl-11 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
+                          value={editForm.email || ""}
+                          onChange={(e) => updateField("email", e.target.value)}
                         />
                       ) : (
-                        <>
-                          {Array.isArray(patient.dietRestrictions) &&
-                            patient.dietRestrictions.length > 0 ? (
-                            patient.dietRestrictions.map((r, i) => (
-                              <span
-                                key={i}
-                                className="px-5 py-2 bg-rose-50 text-rose-700 text-xs font-semibold rounded-2xl border border-rose-100 shadow-sm"
-                              >
-                                {r}
-                              </span>
-                            ))
-                          ) : (
-                            <div className="flex items-center gap-3 text-slate-400 p-4 bg-slate-50 rounded-2xl w-full border border-dashed border-slate-200" >
-                              <AlertCircle className="w-4 h-4" />
-                              <span className="text-xs font-bold" >
-                                Sin restricciones detectadas
-                              </span>
-                            </div>
-                          )}
-                        </>
+                        <div className="h-12 pl-11 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 break-all px-4">
+                          {patient.email || "Sin email"}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Teléfono</label>
+                    <div className="relative">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      {isEditing ? (
+                        <Input
+                          placeholder="+56 9 1234 5678"
+                          className="h-12 pl-11 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
+                          value={editForm.phone || ""}
+                          onChange={handlePhoneChange}
+                        />
+                      ) : (
+                        <div className="h-12 pl-11 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                          {patient.phone || "No registrado"}
+                        </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="space-y-5">
-                    <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3 flex items-center gap-2">
-                      <Hash className="w-3.5 h-3.5 text-emerald-500" />
-                      Etiquetas de Clasificación
-                    </h4>
-                    <div className="flex flex-wrap gap-3">
-                      {isEditing ? (
-                        <TagInput
-                          value={(editForm.tags as string[]) || []}
-                          onChange={(tags) =>
-                            updateField("tags", tags)
-                          }
-                          fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                          className="mt-2"
-                          placeholder="Ej: #Deportista, #Vegano..."
-                        />
-                      ) : (
-                        <>
-                          {Array.isArray(patient.tags) &&
-                            patient.tags.length > 0 ? (
-                            patient.tags.map((t, i) => (
-                              <span
-                                key={i}
-                                className="px-5 py-2 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-2xl border border-emerald-100 shadow-sm"
-                              >
-                                {t}
-                              </span>
-                            ))
-                          ) : (
-                            <div className="flex items-center gap-3 text-slate-400 p-4 bg-slate-50 rounded-2xl w-full border border-dashed border-slate-200" >
-                              <span className="text-xs font-bold" >
-                                Sin etiquetas asignadas
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* New Clinical Summary Row */}
-              <div className="px-10 pb-10" >
-                <div className="space-y-4" >
-                  <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3 flex items-center justify-between" >
-                    Resumen / Observaciones Clínicas
-                    {!isEditing && (
-                      <span className="text-emerald-500 lowercase font-bold tracking-normal opacity-50" >
-                        Solo visible para el nutricionista
-                      </span>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">RUT / Identificador</label>
+                    {isEditing ? (
+                      <Input
+                        placeholder="12.345.678-9"
+                        className="h-12 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
+                        value={editForm.documentId || ""}
+                        onChange={(e) => updateField("documentId", formatRut(e.target.value))}
+                      />
+                    ) : (
+                      <div className="h-12 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                        {patient.documentId || "Sin identificador"}
+                      </div>
                     )}
-                  </h4>
-                  {isEditing ? (
-                    <textarea
-                      value={editForm.clinicalSummary || ""}
-                      onChange={(e) =>
-                        updateField("clinicalSummary", e.target.value)
-                      }
-                      className="w-full h-32 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
-                      placeholder="Ej: 'Es ansiosa', 'está muy motivada', 'le cuesta beber agua', etc."
-                    />
-                  ) : (
-                    <div className="p-8 bg-slate-50/50 rounded-2xl border border-slate-50 min-h-[100px]" >
-                      {patient.clinicalSummary ? (
-                        <p className="text-slate-600 font-medium whitespace-pre-wrap leading-relaxed" >
-                          {patient.clinicalSummary}
-                        </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Sexo</label>
+                      {isEditing ? (
+                        <select
+                          value={editForm.gender || ""}
+                          onChange={(e) => updateField("gender", e.target.value)}
+                          className="w-full h-12 rounded-2xl bg-slate-50 border-transparent px-4 text-sm font-semibold text-slate-700 focus:bg-white focus:border-emerald-500/20 transition-all cursor-pointer appearance-none"
+                        >
+                          <option value="">Seleccionar...</option>
+                          <option value="Masculino">Masculino</option>
+                          <option value="Femenino">Femenino</option>
+                          <option value="Otro">Otro</option>
+                        </select>
                       ) : (
-                        <div className="flex flex-col items-center justify-center gap-3 py-4 text-slate-300" >
-                          <ClipboardList className="w-8 h-8 opacity-20" />
-                          <p className="text-xs font-bold" >
-                             Sin observaciones clínicas registradas
-                          </p>
+                        <div className="h-12 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                          {patient.gender || "No def."}
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Health Status */}
-          <div className="w-full space-y-10" >
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative overflow-hidden group" >
-              <h4 className="flex items-center gap-3 font-semibold text-emerald-600 text-xs mb-8" >
-                <Target className="w-4 h-4" />
-                Foco Nutricional
-              </h4>
-
-              <div className="space-y-8 relative z-10" >
-                <div >
-                  <p className="text-xs font-semibold text-slate-400 mb-2" >
-                    Objetivo Principal
-                  </p>
-                  {isEditing ? (
-                    <Input
-                      value={editForm.nutritionalFocus || ""}
-                      onChange={(e) =>
-                        updateField("nutritionalFocus", e.target.value)
-                      }
-                      className="bg-slate-100 border-none text-slate-800 font-semibold text-2xl h-12 p-2 focus:ring-1 focus:ring-emerald-500"
-                      placeholder="Ej. Déficit Calórico"
-                    />
-                  ) : (
-                    <p className="text-2xl font-semibold tracking-tight leading-tight" >
-                      {patient.nutritionalFocus || "Sin foco definido"}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 backdrop-blur-sm group-hover:bg-slate-100 transition-all" >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center" >
-                    <Zap className="w-5 h-5 text-emerald-600" />
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Nacimiento</label>
+                      {isEditing ? (
+                        <Input
+                          type="date"
+                          className="h-12 rounded-2xl bg-slate-50 border-transparent text-xs font-semibold focus:bg-white transition-all px-3"
+                          value={toDateOnly(editForm.birthDate)}
+                          onChange={(e) => updateField("birthDate", e.target.value)}
+                        />
+                      ) : (
+                        <div className="h-12 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                          {patient.birthDate ? formatDateOnlyForLocale(patient.birthDate, { year: 'numeric', month: 'short', day: 'numeric' }) : "---"}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm font-bold text-emerald-700" >
-                    {patient.status === "Active"
-                      ? "Seguimiento optimizado."
-                      : "Paciente en pausa."}
-                  </p>
                 </div>
               </div>
             </div>
 
-            {/* Metas Nutricionales Panel */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative overflow-hidden group">
-              <h4 className="flex items-center gap-3 font-semibold text-emerald-600 text-xs mb-8" >
-                <Target className="w-4 h-4" />
-                Metas Nutricionales (Carrito)
-              </h4>
+            {/* Column 2: Antropometría & Métricas Meta */}
+            <div className="space-y-6 flex flex-col">
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
+                  <div className="p-2 bg-blue-50 rounded-xl">
+                    <Ruler className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-800">Antropometría</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Peso (kg)</label>
+                    {isEditing ? (
+                      <Input 
+                        type="number" 
+                        step="any" 
+                        className="h-12 rounded-2xl bg-slate-50 border-transparent text-center font-bold text-lg focus:bg-white transition-all" 
+                        value={editForm.weight || ""} 
+                        onChange={(e) => updateField("weight", e.target.value ? parseFloat(e.target.value) : undefined)} 
+                      />
+                    ) : (
+                      <div className="h-12 flex items-center justify-center bg-slate-50/50 rounded-2xl text-lg font-black text-blue-600 px-4 border border-blue-100">
+                        {patient.weight || "---"}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Altura (cm)</label>
+                    {isEditing ? (
+                      <Input 
+                        type="number" 
+                        step="any" 
+                        className="h-12 rounded-2xl bg-slate-50 border-transparent text-center font-bold text-lg focus:bg-white transition-all" 
+                        value={editForm.height || ""} 
+                        onChange={(e) => updateField("height", e.target.value ? parseFloat(e.target.value) : undefined)} 
+                      />
+                    ) : (
+                      <div className="h-12 flex items-center justify-center bg-slate-50/50 rounded-2xl text-lg font-black text-emerald-600 px-4 border border-emerald-100">
+                        {patient.height || "---"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between border-b border-slate-50 pb-4">
+                  <h2 className="text-lg font-bold text-slate-800">Métricas Meta</h2>
+                  <Target className="w-5 h-5 text-emerald-500" />
+                </div>
+                
+                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-5">
+                  {(() => {
+                    const dataSource = isEditing ? editForm.customVariables : patient.customVariables;
+                    const vars = Array.isArray(dataSource) ? dataSource as any[] : [];
+                    const getCV = (key: string) => vars.find(v => v.key === key)?.value || "";
+                    const updateCV = (key: string, label: string, value: string, unit: string) => {
+                      if (!isEditing) return;
+                      const prev = Array.isArray(editForm.customVariables) ? [...editForm.customVariables as any[]] : [];
+                      const idx = prev.findIndex(v => v.key === key);
+                      if (idx >= 0) prev[idx] = { key, label, value, unit };
+                      else prev.push({ key, label, value, unit });
+                      updateField("customVariables", prev);
+                    };
 
-              <div className="space-y-4">
-                {(() => {
-                  const dataSource = isEditing ? editForm.customVariables : patient.customVariables;
-                  const vars = Array.isArray(dataSource) ? dataSource as any[] : [];
-                  const getCV = (key: string) => vars.find(v => v.key === key)?.value || "";
-
-                  const updateCV = (key: string, label: string, value: string, unit: string) => {
-                    if (!isEditing) return;
-                    const prev = Array.isArray(editForm.customVariables) ? [...editForm.customVariables as any[]] : [];
-                    const idx = prev.findIndex(v => v.key === key);
-                    if (idx >= 0) { prev[idx] = { key, label, value, unit }; }
-                    else { prev.push({ key, label, value, unit }); }
-                    updateField("customVariables", prev);
-                  };
-
-                  return (
-                    <div className="space-y-4 relative z-10">
+                    return (
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Calorías (kcal)</label>
-                          {isEditing ? (
-                            <Input type="number" value={getCV("targetCalories")} onChange={e => updateCV("targetCalories", "Calorías Meta", e.target.value, "kcal")} className="font-bold border-slate-200" />
-                          ) : (
-                            <p className="font-bold text-amber-600">{getCV("targetCalories") || "No definido"}</p>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Proteína (g)</label>
-                          {isEditing ? (
-                            <Input type="number" value={getCV("targetProtein")} onChange={e => updateCV("targetProtein", "Proteína Meta", e.target.value, "g")} className="font-bold border-slate-200" />
-                          ) : (
-                            <p className="font-bold text-emerald-600">{getCV("targetProtein") || "No definido"}</p>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Carbohidratos (g)</label>
-                          {isEditing ? (
-                            <Input type="number" value={getCV("targetCarbs")} onChange={e => updateCV("targetCarbs", "Carbohidratos Meta", e.target.value, "g")} className="font-bold border-slate-200" />
-                          ) : (
-                            <p className="font-bold text-blue-600">{getCV("targetCarbs") || "No definido"}</p>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Grasas (g)</label>
-                          {isEditing ? (
-                            <Input type="number" value={getCV("targetFats")} onChange={e => updateCV("targetFats", "Grasas Meta", e.target.value, "g")} className="font-bold border-slate-200" />
-                          ) : (
-                            <p className="font-bold text-purple-600">{getCV("targetFats") || "No definido"}</p>
-                          )}
-                        </div>
+                        {[
+                          { id: "Calories", label: "Calorías", unit: "kcal", color: "text-amber-600", bg: "bg-amber-50" },
+                          { id: "Protein", label: "Proteína", unit: "g", color: "text-emerald-600", bg: "bg-emerald-50" },
+                          { id: "Carbs", label: "Carbs", unit: "g", color: "text-blue-600", bg: "bg-blue-50" },
+                          { id: "Fats", label: "Grasas", unit: "g", color: "text-purple-600", bg: "bg-purple-50" }
+                        ].map((f) => (
+                          <div key={f.id} className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">{f.label}</label>
+                            {isEditing ? (
+                              <Input 
+                                type="number" 
+                                value={getCV(`target${f.id}`)} 
+                                onChange={e => updateCV(`target${f.id}`, `${f.label} Meta`, e.target.value, f.unit)} 
+                                className={cn("h-10 font-bold bg-white rounded-xl text-sm border-transparent focus:ring-2 focus:ring-slate-200 transition-all", f.color)} 
+                                placeholder="0" 
+                              />
+                            ) : (
+                              <div className={cn("h-10 flex items-center justify-center rounded-xl font-bold text-sm border border-transparent", f.bg, f.color)}>
+                                {getCV(`target${f.id}`) || "---"}
+                                <span className="text-[8px] ml-1 opacity-60">{f.unit}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
-
-                      <div className="pt-2">
-                        <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Temporalidad</label>
-                        {isEditing ? (
-                          <select value={getCV("targetTimeframe") || "dia"} onChange={e => updateCV("targetTimeframe", "Temporalidad", e.target.value, "")} className="w-full h-10 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 px-3">
-                            <option value="dia">Diario</option>
-                            <option value="semana">Semanal</option>
-                            <option value="mes">Mensual</option>
-                          </select>
-                        ) : (
-                          <p className="font-bold text-slate-700 capitalize">{getCV("targetTimeframe") || "Diario"}</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
+                    );
+                  })()}
+                </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-8" >
-              <div className="flex items-center justify-between" >
-                <div className="flex items-center gap-4 text-rose-600" >
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center" >
-                    <Dumbbell className="w-6 h-6" />
-                  </div>
-                  <h4 className="text-lg font-semibold tracking-tight" >
-                    Metas Fitness
-                  </h4>
-                </div>
-              </div>
-
-              <div className="space-y-4" >
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-400">Nivel de actividad</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { key: "sedentario", label: "Sedentario" },
-                      { key: "deportista", label: "Deportista" },
-                    ].map((item) => (
-                      <button
-                        key={item.key}
-                        type="button"
-                        disabled={!isEditing}
-                        onClick={() => updateActivityLevel(item.key as "sedentario" | "deportista")}
-                        className={cn(
-                          "h-10 rounded-xl border text-xs font-black uppercase tracking-wider transition-all",
-                          getCurrentActivityLevel() === item.key
-                            ? "border-rose-600 bg-rose-600 text-white"
-                            : "border-slate-200 bg-slate-50 text-slate-600",
-                          !isEditing && "cursor-default opacity-90",
-                        )}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {isEditing ? (
-                  <textarea
-                    value={editForm.fitnessGoals || ""}
-                    onChange={(e) =>
-                      updateField("fitnessGoals", e.target.value)
-                    }
-                    className="w-full h-24 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-rose-500/20 transition-all resize-none"
-                    placeholder="Ej. Maratón en Septiembre, Hipertrofia tren inferior..."
-                  />
-                ) : (
-                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100" >
-                    {patient.fitnessGoals ? (
-                      <p className="text-sm font-semibold text-slate-600 leading-relaxed text-center" >
-                        {patient.fitnessGoals}
-                      </p>
-                    ) : (
-                      <p className="text-xs font-semibold text-slate-400 text-center" >
-                        No se han definido objetivos aún.
-                      </p>
-                    )}
-                  </div>
+            {/* Column 3: Estado del Paciente */}
+            <div className="flex flex-col">
+              <div
+                className={cn(
+                  "bg-white rounded-3xl p-6 border transition-all duration-500 hover:shadow-md",
+                  patient.status === "Inactive"
+                    ? "border-slate-200 bg-slate-50/50"
+                    : "border-slate-100",
                 )}
-              </div>
-            </div>
-
-            {/* Likes (Gustos) */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-8" >
-              <div className="flex items-center justify-between" >
-                <div className="flex items-center gap-4 text-emerald-600" >
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center" >
-                    <Heart className="w-6 h-6 text-emerald-500" />
-                  </div>
-                  <h4 className="text-lg font-semibold tracking-tight" >
-                    Gustos y Preferencias
-                  </h4>
-                </div>
-              </div>
-
-              <div className="space-y-4" >
-                {isEditing ? (
-                  <textarea
-                    value={editForm.likes || ""}
-                    onChange={(e) =>
-                      updateField("likes", e.target.value)
-                    }
-                    className="w-full h-24 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
-                    placeholder="Ej. Prefiere comida casera, no le gusta el sabor a stevia..."
-                  />
-                ) : (
-                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100" >
-                    {patient.likes ? (
-                      <p className="text-sm font-semibold text-slate-600 leading-relaxed text-center" >
-                        {patient.likes}
-                      </p>
-                    ) : (
-                      <p className="text-xs font-semibold text-slate-400 text-center" >
-                        No hay preferencias registradas.
-                      </p>
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div
+                    className={cn(
+                      "p-2 rounded-xl",
+                      patient.status === "Inactive"
+                        ? "bg-slate-200 text-slate-500"
+                        : "bg-emerald-100 text-emerald-600",
                     )}
+                  >
+                    <Target className="w-5 h-5" />
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Status Management Card */}
-            <div
-              className={cn(
-                "bg-white rounded-2xl p-6 border transition-all duration-500",
-                patient.status === "Inactive"
-                  ? "border-slate-200 bg-slate-50/50"
-                  : "border-slate-100",
-              )}
-            >
-              <div className="flex items-center gap-3 mb-6" >
-                <div
-                  className={cn(
-                    "p-2 rounded-xl",
-                    patient.status === "Inactive"
-                      ? "bg-slate-200 text-slate-500"
-                      : "bg-emerald-100 text-emerald-600",
-                  )}
-                >
-                  <Target className="w-5 h-5" />
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-900">
+                      Estado del Paciente
+                    </h4>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">
+                      {patient.status === "Active"
+                        ? "Actualmente en tratamiento"
+                        : "Tratamiento pausado"}
+                    </p>
+                  </div>
                 </div>
-                <div >
-                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-900" >
-                    Estado del Paciente
-                  </h4>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase" >
+
+                <div className="space-y-4">
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
                     {patient.status === "Active"
-                      ? "Actualmente en tratamiento"
-                      : "Tratamiento pausado"}
+                      ? "El paciente está activo y siguiendo sus planes. Puedes pausar su seguimiento si ha terminado su tratamiento o está fuera por un tiempo."
+                      : "El paciente está inactivo. Sus planes no aparecerán en las listas por defecto, pero su historial clínico se mantiene intacto."}
                   </p>
+                  <Button
+                    onClick={toggleStatus}
+                    variant="outline"
+                    className={cn(
+                      "w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
+                      patient.status === "Active"
+                        ? "border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100"
+                        : "border-emerald-200 text-emerald-600 hover:bg-emerald-600 hover:text-white",
+                    )}
+                  >
+                    {patient.status === "Active"
+                      ? "Marcar como Inactivo"
+                      : "Reactivar Paciente"}
+                  </Button>
                 </div>
               </div>
-
-              <div className="space-y-4" >
-                <p className="text-xs text-slate-500 leading-relaxed font-medium" >
-                  {patient.status === "Active"
-                    ? "El paciente está activo y siguiendo sus planes. Puedes pausar su seguimiento si ha terminado su tratamiento o está fuera por un tiempo."
-                    : "El paciente está inactivo. Sus planes no aparecerán en las listas por defecto, pero su historial clínico se mantiene intacto."}
-                </p>
-                <Button
-                  onClick={toggleStatus}
-                  variant="outline"
-                  className={cn(
-                    "w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
-                    patient.status === "Active"
-                      ? "border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100"
-                      : "border-emerald-200 text-emerald-600 hover:bg-emerald-600 hover:text-white",
-                  )}
-                >
-                  {patient.status === "Active"
-                    ? "Marcar como Inactivo"
-                    : "Reactivar Paciente"}
-                </Button>
-              </div>
             </div>
+
           </div>
         </div>
       )}
 
       {/* Consultas Tab */}
+      {activeTab === "Creaciones" && (
+        <div className="animate-in fade-in duration-500">
+          <CreationsClient 
+            isInsidePatientDetail={true} 
+            fixedPatientName={patient.fullName} 
+          />
+        </div>
+      )}
+
       {activeTab === "Consultas" && (
         <div className="space-y-6 lg:space-y-10 animate-in slide-in-from-right-4 duration-500 px-1 lg:px-6 py-2">
           <div className="bg-white p-6 lg:p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6">

@@ -23,6 +23,7 @@ import {
   Bell,
   PanelLeftClose,
   PanelLeftOpen,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ interface SidebarItem {
   tutorialPath?: string;
   disabled?: boolean;
   locked?: boolean;
+  hidden?: boolean;
 }
 
 interface SidebarGroup {
@@ -45,19 +47,11 @@ interface SidebarGroup {
 
 const groups: SidebarGroup[] = [
   {
-    title: "RÁPIDO",
-    items: [
-      { name: "Entregable", href: "/dashboard/rapido", icon: NotebookText },
-      { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
-    ],
-  },
-  {
     title: "PRINCIPAL",
     items: [
-      { name: "Dieta", href: "/dashboard/dieta", icon: Utensils, tutorialPath: "/dashboard/dieta" },
-      { name: "Recetas y Porciones", href: "/dashboard/recetas", icon: ChefHat, tutorialPath: "/dashboard/recetas" },
-      { name: "Carrito", href: "/dashboard/carrito", icon: ShoppingCart, tutorialPath: "/dashboard/carrito" },
-      { name: "Entregable", href: "/dashboard/entregable", icon: ClipboardCheck, tutorialPath: "/dashboard/entregable" },
+      { name: "Entregable Rápido", href: "/dashboard/rapido", icon: NotebookText },
+      { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
+      { name: "Entregable Personalizado", href: "/dashboard/dieta", icon: Utensils, tutorialPath: "/dashboard/dieta" },
     ],
   },
   {
@@ -71,19 +65,19 @@ const groups: SidebarGroup[] = [
     title: "Alimentos",
     items: [
       { name: "Ingredientes", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
-      { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos" },
-      { name: "Grupos", href: "/dashboard/alimentos?tab=Mis grupos", icon: FolderPlus },
+      { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos", hidden: true },
+      { name: "Grupos", href: "/dashboard/alimentos/grupos", icon: FolderPlus },
     ],
   },
-    {
-      title: "Herramientas",
-      items: [
-        { name: "Creaciones", href: "/dashboard/creaciones", icon: Folder, tutorialPath: "/dashboard/creaciones" },
-        { name: "Recursos & Material", href: "/dashboard/recursos", icon: FileText, tutorialPath: "/dashboard/recursos" },
-        { name: "Porciones de Intercambio", href: "/dashboard/herramientas/porciones-intercambio", icon: ClipboardCheck, tutorialPath: "/dashboard/herramientas/porciones-intercambio" },
-        { name: "Detalles", href: "/dashboard/detalles", icon: FileText, tutorialPath: "/dashboard/detalles" },
-      ],
-    },
+  {
+    title: "Herramientas",
+    items: [
+      { name: "Creaciones", href: "/dashboard/creaciones", icon: Folder, tutorialPath: "/dashboard/creaciones" },
+      { name: "Recursos", href: "/dashboard/recursos", icon: FileText, tutorialPath: "/dashboard/recursos" },
+      { name: "Porciones de Intercambio", href: "/dashboard/herramientas/porciones-intercambio", icon: ClipboardCheck, tutorialPath: "/dashboard/herramientas/porciones-intercambio" },
+      { name: "Configuración Clínica", href: "/dashboard/detalles", icon: Settings, tutorialPath: "/dashboard/detalles" },
+    ],
+  },
   {
     title: "Agentes & IA",
     items: [
@@ -131,6 +125,12 @@ export function Sidebar() {
   const orderedGroups = [...groups].sort(
     (a, b) => getGroupPriority(a) - getGroupPriority(b),
   );
+  const visibleGroups = orderedGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.hidden),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <div
@@ -146,7 +146,12 @@ export function Sidebar() {
           isSidebarCollapsed ? "flex-col gap-2 pt-4" : "pl-2",
         )}
       >
-        <div className="flex items-center space-x-2">
+        <Link
+          href="/dashboard"
+          className="flex items-center space-x-2 rounded-xl transition-colors hover:opacity-90"
+          aria-label="Ir al dashboard"
+          title="Ir al dashboard"
+        >
           <div className="h-8 w-8 rounded bg-emerald-500 flex items-center justify-center shrink-0">
             <span className="font-bold text-white text-lg">N</span>
           </div>
@@ -155,7 +160,7 @@ export function Sidebar() {
               NutriSaaS
             </span>
           )}
-        </div>
+        </Link>
 
         {/* Sidebar Toggle (Desktop Internal) */}
         <button
@@ -180,11 +185,11 @@ export function Sidebar() {
       </div>
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-2">
-          {orderedGroups.map((group) => (
+          {visibleGroups.map((group) => (
             <li
               key={group.title}
               className={cn(
-                (group.title === "PRINCIPAL" || group.title === "RÁPIDO") && "hidden lg:block"
+                group.title === "PRINCIPAL" && "hidden lg:block"
               )}
             >
               {!isSidebarCollapsed && (

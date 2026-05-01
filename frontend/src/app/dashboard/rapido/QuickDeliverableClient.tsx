@@ -260,7 +260,7 @@ function getResolvedResourceKey(resource: ResolvedResourcePage, index: number): 
 }
 
 export default function QuickDeliverableClient() {
-  const { setSidebarCollapsed } = useDashboardShell();
+  const { setSidebarCollapsed, isSidebarCollapsed } = useDashboardShell();
   const searchParams = useSearchParams();
   const creationId = searchParams.get("creationId");
   const projectId = searchParams.get("project");
@@ -1364,6 +1364,7 @@ export default function QuickDeliverableClient() {
     try {
       await downloadFastDeliverablePdf(buildPdfPayload());
       toast.success("PDF express descargado correctamente.");
+      setIsSaveCreationModalOpen(true);
     } catch (error) {
       console.error(error);
       toast.error("No se pudo generar el PDF.");
@@ -1475,7 +1476,7 @@ export default function QuickDeliverableClient() {
   return (
     <>
       <ModuleLayout
-        title="Rápido"
+        title="Entregable Rápido"
         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
         step={{ number: "Express", label: "Entregable rápido", icon: NotebookText, color: "text-slate-600" }}
         rightNavItems={actionDockItems}
@@ -1519,19 +1520,21 @@ export default function QuickDeliverableClient() {
           </div>
 
           <div className="relative">
-            <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
-              <div>
-                <SectionProgressNav
-                  items={quickGuideSections.map((section) => ({
-                    id: section.id,
-                    label: section.label,
-                    status: section.status,
-                    active: activeGuideSection === section.id,
-                    onClick: () => scrollToGuideSection(section.id),
-                  }))}
-                />
+            {isSidebarCollapsed && (
+              <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
+                <div>
+                  <SectionProgressNav
+                    items={quickGuideSections.map((section) => ({
+                      id: section.id,
+                      label: section.label,
+                      status: section.status,
+                      active: activeGuideSection === section.id,
+                      onClick: () => scrollToGuideSection(section.id),
+                    }))}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
           <div className="grid gap-7 xl:grid-cols-[1.35fr,0.8fr]">
             <div className="space-y-8">

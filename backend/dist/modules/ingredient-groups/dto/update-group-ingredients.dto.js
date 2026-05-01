@@ -13,11 +13,19 @@ exports.UpdateGroupIngredientsDto = void 0;
 const class_validator_1 = require("class-validator");
 class UpdateGroupIngredientsDto {
     ingredientIds;
+    recipeIds;
 }
 exports.UpdateGroupIngredientsDto = UpdateGroupIngredientsDto;
 __decorate([
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.IsUUID)('4', { each: true }),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
 ], UpdateGroupIngredientsDto.prototype, "ingredientIds", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsUUID)('4', { each: true }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], UpdateGroupIngredientsDto.prototype, "recipeIds", void 0);
 //# sourceMappingURL=update-group-ingredients.dto.js.map

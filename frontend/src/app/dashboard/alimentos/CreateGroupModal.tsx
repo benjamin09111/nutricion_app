@@ -4,9 +4,12 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { TagInput } from "@/components/ui/TagInput"; // Assuming TagInput is reusable and exported
+import { TagInput } from "@/components/ui/TagInput";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
+import { Modal } from "@/components/ui/Modal";
+
+type GroupType = "INGREDIENT" | "RECIPE";
 
 type CreateGroupForm = {
   name: string;
@@ -17,14 +20,15 @@ interface CreateGroupModalProps {
   isOpen: boolean;
   onClose: () => void;
   onGroupCreated: () => void;
+  /** Defaults to INGREDIENT if not provided */
+  type?: GroupType;
 }
-
-import { Modal } from "@/components/ui/Modal";
 
 export default function CreateGroupModal({
   isOpen,
   onClose,
   onGroupCreated,
+  type = "INGREDIENT",
 }: CreateGroupModalProps) {
   const [tags, setTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,6 +59,7 @@ export default function CreateGroupModal({
         body: JSON.stringify({
           ...data,
           tags,
+          type,
         }),
       });
 
@@ -63,7 +68,8 @@ export default function CreateGroupModal({
         throw new Error(errorData.message || "Error al crear el grupo");
       }
 
-      toast.success("Grupo creado exitosamente");
+      const label = type === "RECIPE" ? "grupo de platos" : "grupo de ingredientes";
+      toast.success(`Nuevo ${label} creado exitosamente`);
       reset();
       setTags([]);
       onGroupCreated();
@@ -76,13 +82,14 @@ export default function CreateGroupModal({
     }
   };
 
+  const title = type === "RECIPE" ? "Nuevo Grupo de Platos" : "Nuevo Grupo de Ingredientes";
+  const namePlaceholder =
+    type === "RECIPE"
+      ? "Ej: Platos para Dieta Alta en Proteínas"
+      : "Ej: Desayunos Bajos en Carbos";
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Nuevo Grupo"
-      className="max-w-md"
-    >
+    <Modal isOpen={isOpen} onClose={onClose} title={title} className="max-w-md">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
           <label className="text-sm font-medium text-slate-700 mb-1 block">
@@ -90,7 +97,7 @@ export default function CreateGroupModal({
           </label>
           <Input
             {...register("name", { required: "El nombre es obligatorio" })}
-            placeholder="Ej: Desayunos Bajos en Carbos"
+            placeholder={namePlaceholder}
             className={errors.name ? "border-red-500" : ""}
           />
           {errors.name && (
