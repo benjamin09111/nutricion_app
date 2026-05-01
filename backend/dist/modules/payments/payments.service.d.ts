@@ -11,8 +11,8 @@ export declare class PaymentsService {
             email: string;
         };
     } & {
-        amount: import("@prisma/client/runtime/library").Decimal;
         id: string;
+        amount: import("@prisma/client/runtime/library").Decimal;
         status: import(".prisma/client").$Enums.PaymentStatus;
         createdAt: Date;
         updatedAt: Date;
@@ -31,8 +31,8 @@ export declare class PaymentsService {
             } | null;
         };
     } & {
-        amount: import("@prisma/client/runtime/library").Decimal;
         id: string;
+        amount: import("@prisma/client/runtime/library").Decimal;
         status: import(".prisma/client").$Enums.PaymentStatus;
         createdAt: Date;
         updatedAt: Date;
@@ -52,8 +52,8 @@ export declare class PaymentsService {
         idempotencyKey?: string;
         metadata?: any;
     }): Promise<{
-        amount: import("@prisma/client/runtime/library").Decimal;
         id: string;
+        amount: import("@prisma/client/runtime/library").Decimal;
         status: import(".prisma/client").$Enums.PaymentStatus;
         createdAt: Date;
         updatedAt: Date;
@@ -77,8 +77,8 @@ export declare class PaymentsService {
         method: PaymentMethod;
     }): Promise<{
         payment: {
-            amount: import("@prisma/client/runtime/library").Decimal;
             id: string;
+            amount: import("@prisma/client/runtime/library").Decimal;
             status: import(".prisma/client").$Enums.PaymentStatus;
             createdAt: Date;
             updatedAt: Date;

@@ -819,12 +819,13 @@ export class PatientPortalsService {
       },
     );
 
+    let daysSinceLastEntry = 0;
     const alerts: string[] = [];
     if (!latestEntryAt) {
       alerts.push('Todavía no hay registros en el portal.');
     } else {
       const lastEntry = entries[0];
-      const daysSinceLastEntry = Math.floor(
+      daysSinceLastEntry = Math.floor(
         (Date.now() - new Date(lastEntry.createdAt).getTime()) /
           (1000 * 60 * 60 * 24),
       );

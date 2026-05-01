@@ -1696,7 +1696,44 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   if (!patient) return null;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10 pb-24 animate-in fade-in duration-700">
+    <div className="max-w-7xl mx-auto space-y-10 pb-24 animate-in fade-in duration-700 relative">
+      {/* Sticky Right Sidebar Actions */}
+      {!isEditing && (
+        <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4 animate-in slide-in-from-right-8 duration-500">
+          <div className="bg-white/80 backdrop-blur-xl p-3 rounded-[32px] border border-slate-200 shadow-2xl shadow-slate-200/50 flex flex-col gap-3">
+            <button
+              onClick={() => router.push("/dashboard/consultas/nueva?patientId=" + patient.id)}
+              className="p-4 bg-emerald-600 text-white rounded-[24px] hover:bg-emerald-700 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-emerald-200 cursor-pointer group"
+              title="Nueva Consulta"
+            >
+              <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+            </button>
+            <button
+              onClick={() => setIsPortalNotificationModalOpen(true)}
+              className="p-4 bg-sky-500 text-white rounded-[24px] hover:bg-sky-600 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-sky-200 cursor-pointer"
+              title="Enviar Notificación"
+            >
+              <Bell className="w-6 h-6" />
+            </button>
+            <button
+              disabled
+              className="p-4 bg-slate-50 text-slate-300 rounded-[24px] cursor-not-allowed border border-slate-100"
+              title="Subir Examen (Próximamente)"
+            >
+              <FileText className="w-6 h-6" />
+            </button>
+            <div className="h-px bg-slate-100 mx-2 my-1" />
+            <button
+              onClick={handleEdit}
+              className="p-4 bg-white text-slate-600 rounded-[24px] border border-slate-200 hover:bg-slate-50 transition-all hover:scale-110 active:scale-95 shadow-sm cursor-pointer"
+              title="Editar Perfil"
+            >
+              <Edit2 className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header & Back Button */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1 lg:px-0">
         <div className="flex items-center gap-4 lg:gap-6">
@@ -1744,15 +1781,6 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   patient.fullName
                 )}
               </h1>
-              {!isEditing && (
-                <button
-                  onClick={handleEdit}
-                  className="p-2 hover:bg-emerald-50 rounded-xl text-slate-700 hover:text-emerald-700 transition-all cursor-pointer group/edit bg-slate-50/50 border border-slate-100"
-                  title="Editar perfil"
-                >
-                  <Edit2 className="w-4 h-4 transition-transform group-hover/edit:scale-110" />
-                </button>
-              )}
             </div>
             <p className="text-slate-400 font-bold text-xs flex items-center gap-2">
               EXPEDIENTE INTEGRADO <ChevronRight className="w-3 h-3" />{" "}
@@ -1787,46 +1815,41 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               </Button>
             </>
           ) : (
-            <>
-              <Button
-                onClick={() =>
-                  router.push("/dashboard/consultas/nueva?patientId=" + patient.id)
-                }
-                className="flex-2 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-11 lg:h-10 px-6 rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                <Plus className="w-5 h-5" />
-                CONSULTA
-              </Button>
+            <div className="flex items-center gap-2 lg:gap-3">
               <Button
                 onClick={() => setIsPortalInviteModalOpen(true)}
                 variant="outline"
-                className="flex-2 sm:flex-none h-11 lg:h-10 px-6 rounded-2xl border-emerald-100 text-emerald-700 bg-emerald-50/70 hover:bg-emerald-50 font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
+                className="h-10 px-6 rounded-2xl border-emerald-100 text-emerald-700 bg-emerald-50/70 hover:bg-emerald-50 font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
               >
                 <Link2 className="w-4 h-4" />
                 Portal paciente
               </Button>
-              <Button
-                onClick={() => setIsPortalNotificationModalOpen(true)}
-                variant="outline"
-                className="flex-2 sm:flex-none h-11 lg:h-10 px-6 rounded-2xl border-sky-100 text-sky-700 bg-sky-50/70 hover:bg-sky-50 font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                <Bell className="w-4 h-4" />
-                Notificación
-              </Button>
-              <Button
-                disabled
-                className="bg-slate-50 border border-slate-100 text-slate-400 font-bold h-10 px-4 rounded-2xl cursor-not-allowed opacity-60 flex items-center gap-2"
-                title="Próximamente: Carga y análisis de exámenes clínicos con IA"
-              >
-                <FileText className="w-4 h-4" />
-                <span className="text-[10px] uppercase tracking-widest">
-                  Subir Examen
-                </span>
-                <span className="text-[8px] bg-slate-200 px-1.5 py-0.5 rounded text-slate-500 ml-1">
-                  FUTURO
-                </span>
-              </Button>
-            </>
+              
+              {/* Visible on Mobile/Tablet only, hidden on XL where sidebar exists */}
+              <div className="xl:hidden flex items-center gap-2">
+                <Button
+                  onClick={() => router.push("/dashboard/consultas/nueva?patientId=" + patient.id)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-10 px-4 rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  CONSULTA
+                </Button>
+                <Button
+                  onClick={() => setIsPortalNotificationModalOpen(true)}
+                  variant="outline"
+                  className="h-10 px-4 rounded-2xl border-sky-100 text-sky-700 bg-sky-50/70 hover:bg-sky-50 font-semibold transition-all active:scale-95"
+                >
+                  <Bell className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={handleEdit}
+                  variant="outline"
+                  className="h-10 px-4 rounded-2xl border-slate-200 text-slate-600 bg-white hover:bg-slate-50 font-semibold transition-all active:scale-95"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -1969,7 +1992,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       {/* Main Content Area */}
       {activeTab === "General" && (
-        <div className="flex flex-col gap-6 lg:gap-10 animate-in fade-in duration-500">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 animate-in fade-in duration-500 items-start">
           {/* Left Column: Clinical & Dietary */}
           <div className="w-full space-y-6 lg:space-y-10">
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm shadow-slate-200/50 overflow-hidden">
@@ -2461,17 +2484,17 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           </div>
 
           <div className="space-y-6" >
-            <div className="space-y-4" >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" >
               {isConsultationsLoading ? (
-                <div className="p-20 flex justify-center" >
+                <div className="p-20 flex justify-center lg:col-span-2" >
                   <div className="h-10 w-10 border-4 border-slate-100 border-t-emerald-500 rounded-full animate-spin" />
                 </div>
               ) : clinicalConsultations.length > 0 ? (
                 clinicalConsultations.map((consultation) => (
                   <div
                     key={consultation.id}
-                    className="bg-white p-5 lg:p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:scale-[1.01] transition-all cursor-pointer"
-                    onClick={() => setSelectedConsultation(consultation)}
+                    className="bg-white p-5 lg:p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:scale-[1.01] hover:border-emerald-200 hover:bg-emerald-50/20 transition-all cursor-pointer"
+                    onClick={() => router.push(`/dashboard/consultas/${consultation.id}/view`)}
                   >
                     <div className="flex items-center gap-4 lg:gap-6">
                       <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 group-hover:bg-emerald-50 group-hover:border-emerald-100 transition-colors">
@@ -2512,10 +2535,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedConsultation(consultation);
+                            router.push(`/dashboard/consultas/${consultation.id}/view`);
                           }}
                           className="p-3 rounded-xl text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer"
-                          title="Ver detalles"
+                          title="Ver consulta"
                         >
                           <Eye className="w-5 h-5" />
                         </button>

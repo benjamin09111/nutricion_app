@@ -71,6 +71,7 @@ const groups: SidebarGroup[] = [
     title: "Alimentos",
     items: [
       { name: "Ingredientes", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
+      { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos" },
       { name: "Grupos", href: "/dashboard/alimentos?tab=Mis grupos", icon: FolderPlus },
     ],
   },
@@ -81,7 +82,6 @@ const groups: SidebarGroup[] = [
         { name: "Recursos & Material", href: "/dashboard/recursos", icon: FileText, tutorialPath: "/dashboard/recursos" },
         { name: "Porciones de Intercambio", href: "/dashboard/herramientas/porciones-intercambio", icon: ClipboardCheck, tutorialPath: "/dashboard/herramientas/porciones-intercambio" },
         { name: "Detalles", href: "/dashboard/detalles", icon: FileText, tutorialPath: "/dashboard/detalles" },
-        { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos" },
       ],
     },
   {

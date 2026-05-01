@@ -586,13 +586,14 @@ let PatientPortalsService = class PatientPortalsService {
             suplementos: 0,
             actividadFisica: 0,
         });
+        let daysSinceLastEntry = 0;
         const alerts = [];
         if (!latestEntryAt) {
             alerts.push('Todavía no hay registros en el portal.');
         }
         else {
             const lastEntry = entries[0];
-            const daysSinceLastEntry = Math.floor((Date.now() - new Date(lastEntry.createdAt).getTime()) /
+            daysSinceLastEntry = Math.floor((Date.now() - new Date(lastEntry.createdAt).getTime()) /
                 (1000 * 60 * 60 * 24));
             if (daysSinceLastEntry > 3) {
                 alerts.push(`Hace ${daysSinceLastEntry} días que no se actualiza el seguimiento.`);

@@ -166,7 +166,7 @@ export declare class PatientPortalsService {
             pendingQuestions: number;
             notificationsCount: number;
             latestEntryAt: Date;
-            daysSinceLastEntry: any;
+            daysSinceLastEntry: number;
             sectionCounts: {
                 alimentacion: number;
                 suplementos: number;
@@ -235,7 +235,7 @@ export declare class PatientPortalsService {
             pendingQuestions: number;
             notificationsCount: number;
             latestEntryAt: Date;
-            daysSinceLastEntry: any;
+            daysSinceLastEntry: number;
             sectionCounts: {
                 alimentacion: number;
                 suplementos: number;
@@ -303,7 +303,7 @@ export declare class PatientPortalsService {
             pendingQuestions: number;
             notificationsCount: number;
             latestEntryAt: Date;
-            daysSinceLastEntry: any;
+            daysSinceLastEntry: number;
             sectionCounts: {
                 alimentacion: number;
                 suplementos: number;
@@ -379,7 +379,7 @@ export declare class PatientPortalsService {
                 pendingQuestions: number;
                 notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: any;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -476,7 +476,7 @@ export declare class PatientPortalsService {
                 pendingQuestions: number;
                 notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: any;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -573,7 +573,7 @@ export declare class PatientPortalsService {
                 pendingQuestions: number;
                 notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: any;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -670,7 +670,7 @@ export declare class PatientPortalsService {
                 pendingQuestions: number;
                 notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: any;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -767,7 +767,7 @@ export declare class PatientPortalsService {
                 pendingQuestions: number;
                 notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: any;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;

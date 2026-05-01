@@ -73,98 +73,60 @@ export declare class RecipesService {
     create(userId: string, createDto: CreateRecipeDto): Promise<{
         ingredients: ({
             ingredient: {
+                ingredients: string | null;
                 id: string;
+                isPublic: boolean;
                 name: string;
+                price: number;
+                unit: string;
+                amount: number;
                 calories: number;
                 proteins: number;
-                carbs: number;
                 lipids: number;
+                carbs: number;
+                sugars: number | null;
                 fiber: number | null;
                 sodium: number | null;
-                isPublic: boolean;
+                nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
-                ingredients: string | null;
-                nutritionistId: string | null;
-                amount: number;
-                unit: string;
-                price: number;
-                sugars: number | null;
                 verified: boolean;
                 brandId: string | null;
                 categoryId: string;
             };
         } & {
             id: string;
-            amount: number;
             unit: string;
-            isMain: boolean;
+            amount: number;
             brandSuggestion: string | null;
             ingredientId: string;
+            isMain: boolean;
             recipeId: string;
         })[];
     } & {
         id: string;
+        isPublic: boolean;
         name: string;
-        description: string | null;
-        preparation: string | null;
-        portionSize: number;
-        portions: number;
         calories: number;
         proteins: number;
-        carbs: number;
         lipids: number;
+        carbs: number;
         fiber: number | null;
         sodium: number | null;
-        isPublic: boolean;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        imageUrl: string | null;
+        description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        nutritionistId: string | null;
+        preparation: string | null;
+        portions: number;
+        portionSize: number;
+        imageUrl: string | null;
     }>;
     findAll(userId: string): Promise<any[]>;
     findOne(id: string, userId: string): Promise<{
         isMine: boolean;
         isAdopted: boolean;
-        ingredients: ({
-            ingredient: {
-                id: string;
-                name: string;
-                calories: number;
-                proteins: number;
-                carbs: number;
-                lipids: number;
-                fiber: number | null;
-                sodium: number | null;
-                isPublic: boolean;
-                createdAt: Date;
-                updatedAt: Date;
-                ingredients: string | null;
-                nutritionistId: string | null;
-                amount: number;
-                unit: string;
-                price: number;
-                sugars: number | null;
-                verified: boolean;
-                brandId: string | null;
-                categoryId: string;
-            };
-        } & {
-            id: string;
-            amount: number;
-            unit: string;
-            isMain: boolean;
-            brandSuggestion: string | null;
-            ingredientId: string;
-            recipeId: string;
-        })[];
-        savedBy: {
-            id: string;
-            createdAt: Date;
-            nutritionistId: string;
-            recipeId: string;
-        }[];
         nutritionist: {
             id: string;
             createdAt: Date;
@@ -177,24 +139,62 @@ export declare class RecipesService {
             avatarUrl: string | null;
             settings: import("@prisma/client/runtime/library").JsonValue | null;
         } | null;
+        ingredients: ({
+            ingredient: {
+                ingredients: string | null;
+                id: string;
+                isPublic: boolean;
+                name: string;
+                price: number;
+                unit: string;
+                amount: number;
+                calories: number;
+                proteins: number;
+                lipids: number;
+                carbs: number;
+                sugars: number | null;
+                fiber: number | null;
+                sodium: number | null;
+                nutritionistId: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                verified: boolean;
+                brandId: string | null;
+                categoryId: string;
+            };
+        } & {
+            id: string;
+            unit: string;
+            amount: number;
+            brandSuggestion: string | null;
+            ingredientId: string;
+            isMain: boolean;
+            recipeId: string;
+        })[];
+        savedBy: {
+            id: string;
+            nutritionistId: string;
+            createdAt: Date;
+            recipeId: string;
+        }[];
         id: string;
+        isPublic: boolean;
         name: string;
-        description: string | null;
-        preparation: string | null;
-        portionSize: number;
-        portions: number;
         calories: number;
         proteins: number;
-        carbs: number;
         lipids: number;
+        carbs: number;
         fiber: number | null;
         sodium: number | null;
-        isPublic: boolean;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        imageUrl: string | null;
+        description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        nutritionistId: string | null;
+        preparation: string | null;
+        portions: number;
+        portionSize: number;
+        imageUrl: string | null;
     }>;
     addToLibrary(id: string, userId: string): Promise<{
         recipeId: string;
@@ -208,32 +208,32 @@ export declare class RecipesService {
     update(id: string, userId: string, userRole: string, updateDto: CreateRecipeDto): Promise<{
         ingredients: {
             id: string;
-            amount: number;
             unit: string;
-            isMain: boolean;
+            amount: number;
             brandSuggestion: string | null;
             ingredientId: string;
+            isMain: boolean;
             recipeId: string;
         }[];
     } & {
         id: string;
+        isPublic: boolean;
         name: string;
-        description: string | null;
-        preparation: string | null;
-        portionSize: number;
-        portions: number;
         calories: number;
         proteins: number;
-        carbs: number;
         lipids: number;
+        carbs: number;
         fiber: number | null;
         sodium: number | null;
-        isPublic: boolean;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        imageUrl: string | null;
+        description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        nutritionistId: string | null;
+        preparation: string | null;
+        portions: number;
+        portionSize: number;
+        imageUrl: string | null;
     }>;
     estimateMacros(dto: EstimateMacrosDto): Promise<{
         calories: number;
@@ -243,23 +243,23 @@ export declare class RecipesService {
     }>;
     remove(id: string, userId: string, userRole: string): Promise<{
         id: string;
+        isPublic: boolean;
         name: string;
-        description: string | null;
-        preparation: string | null;
-        portionSize: number;
-        portions: number;
         calories: number;
         proteins: number;
-        carbs: number;
         lipids: number;
+        carbs: number;
         fiber: number | null;
         sodium: number | null;
-        isPublic: boolean;
+        nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        imageUrl: string | null;
+        description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        nutritionistId: string | null;
+        preparation: string | null;
+        portions: number;
+        portionSize: number;
+        imageUrl: string | null;
     }>;
 }
 export {};

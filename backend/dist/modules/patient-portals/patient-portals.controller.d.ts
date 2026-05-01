@@ -97,7 +97,7 @@ export declare class PatientPortalsController {
             pendingQuestions: number;
             notificationsCount: number;
             latestEntryAt: Date;
-            daysSinceLastEntry: any;
+            daysSinceLastEntry: number;
             sectionCounts: {
                 alimentacion: number;
                 suplementos: number;
@@ -501,7 +501,7 @@ export declare class PatientPortalsController {
             pendingQuestions: number;
             notificationsCount: number;
             latestEntryAt: Date;
-            daysSinceLastEntry: any;
+            daysSinceLastEntry: number;
             sectionCounts: {
                 alimentacion: number;
                 suplementos: number;
@@ -897,7 +897,7 @@ export declare class PatientPortalsController {
             pendingQuestions: number;
             notificationsCount: number;
             latestEntryAt: Date;
-            daysSinceLastEntry: any;
+            daysSinceLastEntry: number;
             sectionCounts: {
                 alimentacion: number;
                 suplementos: number;
@@ -1320,7 +1320,7 @@ export declare class PatientPortalsController {
                 pendingQuestions: number;
                 notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: any;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -1744,7 +1744,7 @@ export declare class PatientPortalsController {
                 pendingQuestions: number;
                 notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: any;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -2168,7 +2168,7 @@ export declare class PatientPortalsController {
                 pendingQuestions: number;
                 notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: any;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -2592,7 +2592,7 @@ export declare class PatientPortalsController {
                 pendingQuestions: number;
                 notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: any;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -3016,7 +3016,7 @@ export declare class PatientPortalsController {
                 pendingQuestions: number;
                 notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: any;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -3440,7 +3440,7 @@ export declare class PatientPortalsController {
                 pendingQuestions: number;
                 notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: any;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -3846,7 +3846,7 @@ export declare class PatientPortalsController {
                 pendingQuestions: number;
                 notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: any;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;

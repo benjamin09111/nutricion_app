@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import {
   AlertCircle,
   ChefHat,
@@ -47,6 +48,7 @@ type QuickDish = {
   mealSection: string;
   description: string;
   preparation: string;
+  imageUrl?: string;
   recommendedPortion: string;
   portions: string;
   protein: string;
@@ -85,6 +87,7 @@ type QuickAiDishResponse = {
   mealSection?: string;
   description?: string;
   preparation?: string;
+  imageUrl?: string;
   recommendedPortion?: string;
   portions?: number | string;
   protein?: number | string;
@@ -117,6 +120,24 @@ const DEFAULT_DIET_NAME = "Plan nutricional personalizado";
 const DRAFT_KEY = "nutri_quick_recipes_draft";
 const DISHES_PER_CATEGORY_PAGE = 3;
 const WEEKLY_CORE_SECTIONS = ["Desayuno", "Almuerzo", "Once", "Cena"];
+const DEFAULT_DISH_IMAGE =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#fef3c7"/>
+          <stop offset="100%" stop-color="#fde68a"/>
+        </linearGradient>
+      </defs>
+      <rect width="800" height="520" rx="48" fill="url(#bg)"/>
+      <circle cx="400" cy="260" r="128" fill="#ffffff" opacity="0.95"/>
+      <circle cx="400" cy="260" r="84" fill="#f8fafc"/>
+      <path d="M318 208c0-22 18-40 40-40 8 0 15 2 21 6 11-22 33-36 58-36 31 0 57 21 64 50 4-1 8-2 13-2 22 0 40 18 40 40v14H318v-32z" fill="#d97706"/>
+      <rect x="340" y="240" width="120" height="72" rx="24" fill="#f59e0b"/>
+      <text x="400" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#92400e">Plato NutriSaaS</text>
+    </svg>
+  `);
 
 const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -132,6 +153,7 @@ const createDish = (): QuickDish => ({
   mealSection: "Almuerzo",
   description: "",
   preparation: "",
+  imageUrl: "",
   recommendedPortion: "",
   portions: "1",
   protein: "",
@@ -149,6 +171,15 @@ const parseLines = (value: string): string[] =>
         .map((item) => item.trim())
         .filter(Boolean),
     ),
+  );
+
+const isDishMeaningful = (dish: QuickDish): boolean =>
+  Boolean(
+    dish.title.trim() ||
+      dish.description.trim() ||
+      dish.preparation.trim() ||
+      dish.recommendedPortion.trim() ||
+      dish.ingredients.some((ingredient) => ingredient.name.trim() || ingredient.quantity.trim()),
   );
 const normalizeMealSectionKey = (value: string): string =>
   value
@@ -193,7 +224,7 @@ const toTextAreaValueFromFoods = (value: unknown): string => {
 };
 
 const normalizeImportedDishes = (value: unknown): QuickDish[] => {
-  if (!Array.isArray(value) || value.length === 0) return [createDish()];
+  if (!Array.isArray(value) || value.length === 0) return [];
 
   const mapped = value
     .map((dish) => {
@@ -220,6 +251,7 @@ const normalizeImportedDishes = (value: unknown): QuickDish[] => {
             : "Almuerzo",
         description: typeof item.description === "string" ? item.description : "",
         preparation: typeof item.preparation === "string" ? item.preparation : "",
+        imageUrl: typeof item.imageUrl === "string" ? item.imageUrl : "",
         recommendedPortion:
           typeof item.recommendedPortion === "string" ? item.recommendedPortion : "",
         portions:
@@ -233,7 +265,7 @@ const normalizeImportedDishes = (value: unknown): QuickDish[] => {
     })
     .filter((dish): dish is QuickDish => !!dish);
 
-  return mapped.length > 0 ? mapped : [createDish()];
+  return mapped.length > 0 ? mapped : [];
 };
 
 export default function QuickRecipesClient() {
@@ -247,12 +279,14 @@ export default function QuickRecipesClient() {
   const [restrictedFoodsText, setRestrictedFoodsText] = useState("");
   const [specialConsiderations, setSpecialConsiderations] = useState("");
   const [finalPdfNotes, setFinalPdfNotes] = useState("");
-  const [dishes, setDishes] = useState<QuickDish[]>([createDish()]);
+  const [dishes, setDishes] = useState<QuickDish[]>([]);
   const [mealGenerationTargets, setMealGenerationTargets] = useState<MealGenerationTarget[]>(
     createDefaultGenerationTargets(),
   );
   const [activeMealSectionFilter, setActiveMealSectionFilter] = useState("Todos");
   const [categoryPageMap, setCategoryPageMap] = useState<Record<string, number>>({});
+  const [expandedDishId, setExpandedDishId] = useState<string | null>(null);
+  const [showDishesSection, setShowDishesSection] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<QuickPatient | null>(null);
 
   const isExportDisabled = useMemo(() => {
@@ -260,6 +294,11 @@ export default function QuickRecipesClient() {
     const hasAtLeastOneDish = dishes.some(d => d.title.trim().length > 0);
     return !hasPatient || !hasAtLeastOneDish;
   }, [selectedPatient, dishes]);
+
+  const meaningfulDishes = useMemo(
+    () => dishes.filter((dish) => isDishMeaningful(dish)),
+    [dishes],
+  );
 
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
@@ -349,6 +388,23 @@ export default function QuickRecipesClient() {
   ]);
 
   useEffect(() => {
+    if (meaningfulDishes.length > 0) {
+      setShowDishesSection(true);
+      setExpandedDishId((current) =>
+        current && dishes.some((dish) => dish.id === current)
+          ? current
+          : meaningfulDishes[0]?.id || null,
+      );
+      return;
+    }
+
+    if (dishes.length === 0) {
+      setShowDishesSection(false);
+      setExpandedDishId(null);
+    }
+  }, [dishes, meaningfulDishes]);
+
+  useEffect(() => {
     if (!creationId) return;
     const loadCreation = async () => {
       try {
@@ -433,14 +489,24 @@ export default function QuickRecipesClient() {
     );
   };
 
-  const addDish = () => setDishes((prev) => [...prev, createDish()]);
+  const addDish = () => {
+    const newDish = createDish();
+    setShowDishesSection(true);
+    setExpandedDishId(newDish.id);
+    setDishes((prev) => [...prev, newDish]);
+  };
 
   const removeDish = (dishId: string) => {
-    if (dishes.length === 1) {
-      toast.error("Debes tener al menos un plato.");
-      return;
-    }
-    setDishes((prev) => prev.filter((dish) => dish.id !== dishId));
+    setDishes((prev) => {
+      const next = prev.filter((dish) => dish.id !== dishId);
+      if (expandedDishId === dishId) {
+        setExpandedDishId(next[0]?.id || null);
+      }
+      if (next.length === 0) {
+        setShowDishesSection(false);
+      }
+      return next;
+    });
   };
 
   const updateDish = (dishId: string, field: keyof QuickDish, value: string) => {
@@ -702,6 +768,7 @@ export default function QuickRecipesClient() {
         mealSection: dish.mealSection || "Almuerzo",
         description: dish.description || "",
         preparation: dish.preparation || "",
+        imageUrl: dish.imageUrl || "",
         recommendedPortion: dish.recommendedPortion || "",
         portions: dish.portions != null ? String(dish.portions) : "1",
         protein: String(dish.protein ?? ""),
@@ -713,6 +780,8 @@ export default function QuickRecipesClient() {
       });
 
       setDishes(mapped);
+      setShowDishesSection(mapped.length > 0);
+      setExpandedDishId(mapped[0]?.id || null);
       if (mode === "weekly") {
         setMealGenerationTargets(effectiveTargets);
       }
@@ -843,7 +912,7 @@ export default function QuickRecipesClient() {
           ...(selectedPatient
             ? { patientId: selectedPatient.id, patientName: selectedPatient.fullName }
             : {}),
-          dishCount: dishes.length,
+          dishCount: meaningfulDishes.length,
           source: "rapido",
         },
         tags: ["rapido", "receta"],
@@ -873,10 +942,12 @@ export default function QuickRecipesClient() {
     setRestrictedFoodsText("");
     setSpecialConsiderations("");
     setFinalPdfNotes("");
-    setDishes([createDish()]);
+    setDishes([]);
     setMealGenerationTargets(createDefaultGenerationTargets());
     setActiveMealSectionFilter("Todos");
     setCategoryPageMap({});
+    setExpandedDishId(null);
+    setShowDishesSection(false);
     setSelectedPatient(null);
     localStorage.removeItem(DRAFT_KEY);
     toast.success("Borrador reiniciado.");
@@ -891,11 +962,12 @@ export default function QuickRecipesClient() {
     restrictedFoods: parseLines(restrictedFoodsText),
     specialConsiderations: specialConsiderations.trim() || undefined,
     finalNotes: finalPdfNotes.trim() || undefined,
-    dishes: dishes.map((dish) => ({
+    dishes: meaningfulDishes.map((dish) => ({
       title: dish.title,
       mealSection: dish.mealSection,
       description: dish.description,
       preparation: dish.preparation,
+      imageUrl: dish.imageUrl || DEFAULT_DISH_IMAGE,
       recommendedPortion: dish.recommendedPortion,
       portions: dish.portions,
       protein: dish.protein,
@@ -941,7 +1013,7 @@ export default function QuickRecipesClient() {
     {
       id: "export-pdf",
       icon: Download,
-      label: isExportingPdf ? "Exportando..." : "Exportar PDF",
+      label: isExportingPdf ? "Exportando..." : "Recetario PDF",
       variant: "slate",
       onClick: handleExportPdf,
       disabled: isExportingPdf || isExportDisabled,
@@ -977,11 +1049,13 @@ export default function QuickRecipesClient() {
 
   const mealSectionTabs = useMemo(() => {
     const ordered = MEAL_SECTIONS.filter((section) =>
-      dishes.some((dish) => normalizeMealSectionKey(dish.mealSection) === normalizeMealSectionKey(section)),
+      meaningfulDishes.some(
+        (dish) => normalizeMealSectionKey(dish.mealSection) === normalizeMealSectionKey(section),
+      ),
     );
     const custom = Array.from(
       new Set(
-        dishes
+        meaningfulDishes
           .map((dish) => dish.mealSection.trim())
           .filter(
             (section) =>
@@ -993,16 +1067,16 @@ export default function QuickRecipesClient() {
       ),
     );
     return ["Todos", ...ordered, ...custom];
-  }, [dishes]);
+  }, [meaningfulDishes]);
 
   const filteredDishesByCategory = useMemo(() => {
-    if (activeMealSectionFilter === "Todos") return dishes;
-    return dishes.filter(
+    if (activeMealSectionFilter === "Todos") return meaningfulDishes;
+    return meaningfulDishes.filter(
       (dish) =>
         normalizeMealSectionKey(dish.mealSection) ===
         normalizeMealSectionKey(activeMealSectionFilter),
     );
-  }, [activeMealSectionFilter, dishes]);
+  }, [activeMealSectionFilter, meaningfulDishes]);
 
   const currentCategoryPage = Math.max(
     1,
@@ -1067,8 +1141,8 @@ export default function QuickRecipesClient() {
                 onClick={handleExportPdf}
                 disabled={isExportingPdf}
               >
-                <Download className="mr-2 h-4 w-4" />
-                {isExportingPdf ? "Generando..." : "Descargar PDF"}
+                <ChefHat className="mr-2 h-4 w-4" />
+                {isExportingPdf ? "Generando..." : "Descargar recetario PDF"}
               </Button>
             </div>
           </ModuleFooter>
@@ -1254,110 +1328,185 @@ export default function QuickRecipesClient() {
                 <Button
                   variant="outline"
                   className="rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-100"
-                  onClick={() => generateWithAi("weekly")}
+                  onClick={addDish}
                   disabled={isGenerating || isGeneratingWeekly}
                 >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  {isGeneratingWeekly ? "Generando..." : "Generar plan semanal IA"}
+                  <Plus className="mr-2 h-4 w-4" />
+                  Agregar plato manualmente
                 </Button>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {mealSectionTabs.map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveMealSectionFilter(tab)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold ${
-                    activeMealSectionFilter === tab
-                      ? "bg-slate-900 text-white"
-                      : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
+            {showDishesSection && meaningfulDishes.length > 0 ? (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  {mealSectionTabs.map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveMealSectionFilter(tab)}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-bold ${
+                        activeMealSectionFilter === tab
+                          ? "bg-slate-900 text-white"
+                          : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
 
-            <div className="flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-500">
-                <ChefHat className="h-4 w-4 text-amber-500" />
-                Platos ({filteredDishesByCategory.length})
-              </h2>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCategoryPageMap((prev) => ({
-                      ...prev,
-                      [activeMealSectionFilter]: Math.max(1, currentCategoryPage - 1),
-                    }))
-                  }
-                  disabled={currentCategoryPage <= 1}
-                  className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
-                >
-                  Anterior
-                </Button>
-                <span className="text-xs font-semibold text-slate-500">
-                  Pagina {Math.min(currentCategoryPage, totalCategoryPages)} de {totalCategoryPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCategoryPageMap((prev) => ({
-                      ...prev,
-                      [activeMealSectionFilter]: Math.min(
-                        totalCategoryPages,
-                        currentCategoryPage + 1,
-                      ),
-                    }))
-                  }
-                  disabled={currentCategoryPage >= totalCategoryPages}
-                  className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
-                >
-                  Siguiente
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addDish}
-                  className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
-                >
-                  <Plus className="mr-1.5 h-4 w-4" />
-                  Agregar plato
-                </Button>
-              </div>
-            </div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-500">
+                    <ChefHat className="h-4 w-4 text-amber-500" />
+                    Platos ({filteredDishesByCategory.length})
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCategoryPageMap((prev) => ({
+                          ...prev,
+                          [activeMealSectionFilter]: Math.max(1, currentCategoryPage - 1),
+                        }))
+                      }
+                      disabled={currentCategoryPage <= 1}
+                      className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-xs font-semibold text-slate-500">
+                      Pagina {Math.min(currentCategoryPage, totalCategoryPages)} de {totalCategoryPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCategoryPageMap((prev) => ({
+                          ...prev,
+                          [activeMealSectionFilter]: Math.min(
+                            totalCategoryPages,
+                            currentCategoryPage + 1,
+                          ),
+                        }))
+                      }
+                      disabled={currentCategoryPage >= totalCategoryPages}
+                      className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
+                    >
+                      Siguiente
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={addDish}
+                      className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
+                    >
+                      <Plus className="mr-1.5 h-4 w-4" />
+                      Agregar plato
+                    </Button>
+                  </div>
+                </div>
 
-            {pagedDishes.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-                No hay platos en esta categoria.
-              </div>
-            ) : (
-              pagedDishes.map((dish, index) => (
+                {pagedDishes.map((dish, index) => {
+                  const isExpanded = expandedDishId === dish.id;
+
+                  return (
               <div
                 key={dish.id}
-                className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+                onClick={() => setExpandedDishId(isExpanded ? null : dish.id)}
+                className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition-all duration-300 group cursor-pointer ${
+                  isExpanded
+                    ? "border-amber-300 ring-4 ring-amber-100 shadow-lg"
+                    : "border-slate-200 hover:border-amber-200 hover:shadow-md"
+                }`}
               >
-                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Plato{" "}
-                    {(Math.min(currentCategoryPage, totalCategoryPages) - 1) *
-                      DISHES_PER_CATEGORY_PAGE +
-                      index +
-                      1}
-                  </span>
-                  <button
-                    onClick={() => removeDish(dish.id)}
-                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-5 py-4">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Plato{" "}
+                      {(Math.min(currentCategoryPage, totalCategoryPages) - 1) *
+                        DISHES_PER_CATEGORY_PAGE +
+                        index +
+                        1}
+                    </span>
+                    <h3 className="mt-1 text-lg font-black text-slate-900">
+                      {dish.title.trim() || "Plato sin nombre"}
+                    </h3>
+                    <p className="mt-1 text-xs font-medium text-slate-500 line-clamp-2">
+                      {dish.preparation
+                        ? dish.preparation.split("\n")[0]?.replace(/^\d+\.\s*/, "") || "Sin preparación"
+                        : dish.description || "Abre la card para completar preparación e ingredientes."}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700">
+                      {isExpanded ? "Ocultar" : "Abrir"}
+                    </div>
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        removeDish(dish.id);
+                      }}
+                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-4 p-5">
+                  <div className="relative h-44 overflow-hidden rounded-2xl border border-slate-100 bg-slate-100 shadow-inner">
+                          <Image
+                            src={dish.imageUrl || DEFAULT_DISH_IMAGE}
+                            alt={dish.title || "Plato"}
+                            fill
+                            sizes="(max-width: 768px) 100vw, 720px"
+                            className="object-cover transition-transform duration-500 group-hover:scale-105"
+                            onError={(event) => {
+                              (event.target as HTMLImageElement).src = DEFAULT_DISH_IMAGE;
+                            }}
+                          />
+                    {!dish.imageUrl ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[2px]">
+                        <ChefHat className="h-10 w-10 text-slate-400 opacity-20" />
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-800">
+                      {dish.mealSection || "Sin sección"}
+                    </span>
+                    {dish.recommendedPortion.trim() ? (
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                        Porción: {dish.recommendedPortion}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                      <p className="font-black text-slate-800">{dish.calories || "-"}</p>
+                      <p className="text-slate-500">Kcal</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                      <p className="font-black text-slate-800">{dish.protein || "-"}</p>
+                      <p className="text-slate-500">Proteínas</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                      <p className="font-black text-slate-800">{dish.carbs || "-"}</p>
+                      <p className="text-slate-500">HC</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                      <p className="font-black text-slate-800">{dish.fats || "-"}</p>
+                      <p className="text-slate-500">Grasas</p>
+                    </div>
+                  </div>
+
+                  <div
+                    className={isExpanded ? "space-y-4 border-t border-slate-100 pt-4" : "hidden"}
+                    onClick={(event) => event.stopPropagation()}
+                  >
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="sm:col-span-2">
                       <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -1547,8 +1696,11 @@ export default function QuickRecipesClient() {
                   </div>
                 </div>
               </div>
-              ))
-            )}
+              </div>
+                  );
+                })}
+              </>
+            ) : null}
           </div>
         </div>
       </ModuleLayout>
