@@ -53,4 +53,10 @@ SIEMPRE, antes de empezar a responder y ejecutar cualquier comando, DEBES record
 - **Tool Utilization**: Proactively leverage tools like Redis/BullMQ for heavy tasks to ensure the lowest execution time.
 - **Contextual Efficiency**: Adapt optimization strategies to the specific task and project context, favoring the most efficient solution.
 
+## 7. Text Integrity and Minimal JSX
+
+- **Minimal JSX edits**: Never rebuild an entire JSX tree if a small patch is enough. Change only the exact block that is necessary.
+- **Spanish text safety**: The repo uses UTF-8 and Spanish copy. Always preserve and verify tildes, `ñ`, and punctuation. Do not introduce mojibake like `Ã¡`, `Ã©`, `Ã±`, or `Ã³`.
+- **Final check**: Before finishing any UI task, quickly confirm that visible text still renders correctly in Spanish and that no encoding corruption was introduced.
+
 

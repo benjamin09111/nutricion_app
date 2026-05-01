@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useMemo } from "react";
 import {
@@ -42,6 +42,7 @@ import {
   MessageSquare,
   Filter,
   Reply,
+  Flame,
 } from "lucide-react";
 import { DEFAULT_METRICS } from "@/lib/constants";
 import {
@@ -86,6 +87,8 @@ import { domToPng } from "modern-screenshot";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { validateRut, formatRut } from "@/lib/rut-utils";
 
+import CreationsClient from "@/app/dashboard/creaciones/CreationsClient";
+
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -110,11 +113,11 @@ const METRIC_KEY_MAP: Record<string, string> = {
 };
 
 /**
- * Normaliza etiquetas de mÃ©tricas para usarlas como llaves consistentes en grÃ¡ficas.
+ * Normaliza etiquetas de métricas para usarlas como llaves consistentes en gráficas.
  * Evita duplicados como "Peso" vs "weight".
  */
 const normalizeMetricKey = (label: string = "", key?: string) => {
-  // 1. Si ya tiene una llave tÃ©cnica conocida
+  // 1. Si ya tiene una llave técnica conocida
   if (key && METRIC_KEY_MAP[key.toLowerCase()]) {
     return METRIC_KEY_MAP[key.toLowerCase()];
   }
@@ -174,7 +177,7 @@ const formatDateOnlyForLocale = (
   const [year, month, day] = dateOnly.split("-").map(Number);
   if (!year || !month || !day) return "";
 
-  // MediodÃ­a UTC para evitar desfases de huso horario al formatear.
+  // Mediodía UTC para evitar desfases de huso horario al formatear.
   const stableDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
   return stableDate.toLocaleDateString("es-ES", options);
 };
@@ -191,7 +194,7 @@ interface PatientDetailClientProps {
   id: string;
 }
 
-type TabType = "General" | "Consultas" | "Progreso" | "Acompañamiento";
+type TabType = "General" | "Consultas" | "Progreso" | "Acompañamiento" | "Creaciones";
 
 export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const router = useRouter();
@@ -277,7 +280,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         )
       : false;
 
-    // 1. AÃ±adir registro base del perfil del paciente si existe
+    // 1. Añadir registro base del perfil del paciente si existe
     if (patient) {
       const baseline: any = {
         date: new Date(patient.createdAt || Date.now()).toLocaleDateString(
@@ -300,7 +303,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       if (hasBaselineData) dataPoints.push(baseline);
     }
 
-    // 2. AÃ±adir registros de consultas / mÃ©tricas independientes
+    // 2. Añadir registros de consultas / métricas independientes
     if (Array.isArray(consultations)) {
       const consultationPoints = [...consultations]
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -563,10 +566,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   );
 
   const availableMetricSuggestions = useMemo(() => {
-    // Combinamos las mÃ©tricas estÃ¡ticas recomendadas con las globales creadas
+    // Combinamos las métricas estáticas recomendadas con las globales creadas
     const combined = [...smartMetrics];
 
-    // AÃ±adir globales que no estÃ©n ya en smartMetrics
+    // Añadir globales que no estén ya en smartMetrics
     globalMetrics.forEach((gm) => {
       const gmKey = normalizeMetricKey(gm.name, gm.key);
       if (
@@ -630,7 +633,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       const data: PortalInviteResponse = await response.json();
       if (!response.ok) {
-        throw new Error((data as any)?.message || "No se pudo generar la invitaciÃ³n");
+        throw new Error((data as any)?.message || "No se pudo generar la invitación");
       }
 
       setGeneratedPortalLink(data.shareUrl);
@@ -641,7 +644,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       await fetchPortalOverview();
       toast.success("Portal del paciente activado.");
     } catch (error: any) {
-      toast.error(error?.message || "No se pudo generar la invitaciÃ³n.");
+      toast.error(error?.message || "No se pudo generar la invitación.");
     } finally {
       setIsCreatingPortalInvite(false);
     }
@@ -656,7 +659,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       await navigator.clipboard.writeText(link);
       toast.success("Link copiado al portapapeles.");
     } catch (error) {
-      toast.error("No se pudo copiar automÃ¡ticamente.");
+      toast.error("No se pudo copiar automáticamente.");
     } finally {
       setIsCopyingPortalLink(false);
     }
@@ -816,7 +819,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     // Validate metrics: Must have values if they have a label
     const incompleteMetrics = metricForm.metrics.filter(m => m.label.trim() !== "" && (m.value === undefined || m.value === null || m.value.toString().trim() === ""));
     if (incompleteMetrics.length > 0) {
-      toast.error(`La mÃ©trica "${incompleteMetrics[0].label}" debe tener un valor.`);
+      toast.error(`La métrica "${incompleteMetrics[0].label}" debe tener un valor.`);
       return;
     }
 
@@ -826,7 +829,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     );
 
     if (validMetrics.length === 0) {
-      toast.error("Agrega al menos una mÃ©trica con valor");
+      toast.error("Agrega al menos una métrica con valor");
       return;
     }
 
@@ -907,12 +910,12 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         );
 
         if (response.ok) {
-          toast.success("MÃ©tricas actualizadas correctamente");
+          toast.success("Métricas actualizadas correctamente");
           closeMetricLogger();
           setConflictingConsultationId(null);
           await Promise.all([fetchConsultations(), fetchPatient()]);
         } else {
-          toast.error("Error al actualizar mÃ©tricas");
+          toast.error("Error al actualizar métricas");
         }
       } else {
         // POST nuevo
@@ -925,7 +928,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           body: JSON.stringify({
             patientId: id,
             date: metricForm.date,
-            title: "Registro de MÃ©tricas Independiente",
+            title: "Registro de Métricas Independiente",
             description: "Entrada manual de datos de seguimiento.",
             metrics: metricForm.metrics
               .filter((m) => m.label.trim() !== "" && m.value !== undefined && m.value !== null && m.value.toString().trim() !== "")
@@ -938,17 +941,17 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
         if (response.ok) {
           const newConsultation = await response.json();
-          toast.success("MÃ©tricas registradas correctamente");
+          toast.success("Métricas registradas correctamente");
           closeMetricLogger();
           setConflictingConsultationId(null);
           setConsultations((prev) => [newConsultation, ...prev]);
           await Promise.all([fetchConsultations(), fetchPatient()]);
         } else {
-          toast.error("Error al guardar mÃ©tricas");
+          toast.error("Error al guardar métricas");
         }
       }
     } catch (error) {
-      toast.error("Error de conexiÃ³n");
+      toast.error("Error de conexión");
     }
   };
 
@@ -963,7 +966,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       (s) => s.label.toLowerCase() === newMetric.name.toLowerCase()
     );
     if (exists) {
-      toast.info(`La mÃ©trica "${newMetric.name}" ya existe con la unidad "${exists.unit}". No es necesario crearla.`);
+      toast.info(`La métrica "${newMetric.name}" ya existe con la unidad "${exists.unit}". No es necesario crearla.`);
       return;
     }
 
@@ -978,7 +981,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       });
 
       if (response.ok) {
-        toast.success("MÃ©trica global creada");
+        toast.success("Métrica global creada");
         setIsAddMetricModalOpen(false);
         setNewMetric({
           name: "",
@@ -990,15 +993,15 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         fetchGlobalMetrics();
       } else {
         const err = await response.json().catch(() => ({}));
-        // Si el backend dice que ya existe, lo mostramos explÃ­citamente como aviso no como error fatal
+        // Si el backend dice que ya existe, lo mostramos explícitamente como aviso no como error fatal
         if (response.status === 400 || response.status === 409) {
-          toast.info(err.message || "Esta mÃ©trica ya existe en el sistema.");
+          toast.info(err.message || "Esta métrica ya existe en el sistema.");
         } else {
-          toast.error(err.message || "Error al crear la mÃ©trica");
+          toast.error(err.message || "Error al crear la métrica");
         }
       }
     } catch (error) {
-      toast.error("Error de conexiÃ³n");
+      toast.error("Error de conexión");
     }
   };
 
@@ -1073,7 +1076,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         toast.error("Error al eliminar el registro base");
         return;
       } catch {
-        toast.error("Error de conexiÃ³n");
+        toast.error("Error de conexión");
         return;
       }
     }
@@ -1119,7 +1122,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         toast.error("Error al eliminar el registro");
       }
     } catch (e) {
-      toast.error("Error de conexiÃ³n");
+      toast.error("Error de conexión");
     }
   };
 
@@ -1166,14 +1169,14 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             body: JSON.stringify({
               patientId: id,
               date: newDate,
-              title: "Registro de MÃ©tricas Independiente",
+              title: "Registro de Métricas Independiente",
               description: "Entrada manual de datos de seguimiento.",
               metrics: [{ key: "weight", label: "Peso", value: parsedWeight.toString(), unit: "kg" }],
             }),
           });
 
           if (!consultationRes.ok) {
-            toast.error("Error al guardar el nuevo registro histÃ³rico de peso");
+            toast.error("Error al guardar el nuevo registro histórico de peso");
             return;
           }
         }
@@ -1183,7 +1186,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         await fetchConsultations();
         toast.success(
           changedDate
-            ? "Peso actualizado y convertido a registro histÃ³rico editable"
+            ? "Peso actualizado y convertido a registro histórico editable"
             : "Valor del perfil actualizado",
         );
       } else {
@@ -1211,13 +1214,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           setConsultations((prev) =>
             prev.map((c) => (c.id === record.id ? updated : c)),
           );
-          toast.success("Registro histÃ³rico actualizado");
+          toast.success("Registro histórico actualizado");
         } else {
           toast.error("Error al actualizar la consulta");
         }
       }
     } catch (e) {
-      toast.error("Error al guardar cambios histÃ³ricos");
+      toast.error("Error al guardar cambios históricos");
     }
   };
 
@@ -1236,7 +1239,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     );
 
     if (isDuplicate) {
-      toast.error(`${metric.label} ya estÃ¡ en la lista`);
+      toast.error(`${metric.label} ya está en la lista`);
       return;
     }
 
@@ -1257,7 +1260,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     const newMetrics = [...metricForm.metrics];
     const updatedMetric = { ...newMetrics[index], [field]: value };
 
-    // Si cambiamos el label, verificamos si es una mÃ©trica conocida para bloquear la unidad
+    // Si cambiamos el label, verificamos si es una métrica conocida para bloquear la unidad
     if (field === "label") {
       const known = availableMetricSuggestions.find(
         (s) =>
@@ -1286,7 +1289,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(22);
       doc.setTextColor(16, 185, 129); // Emerald-500
-      doc.text("INFORME DE EVOLUCIÃ“N", margin, currentY);
+      doc.text("INFORME DE EVOLUCIÓN", margin, currentY);
       currentY += 10;
 
       doc.setFontSize(14);
@@ -1304,7 +1307,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         currentY += 15;
       }
 
-      // 2. Resumen de EvoluciÃ³n (Texto)
+      // 2. Resumen de Evolución (Texto)
       doc.setFontSize(12);
       doc.setTextColor(30, 41, 59);
       doc.text("RESUMEN DE CAMBIOS", margin, currentY);
@@ -1342,11 +1345,11 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       currentY += 15;
 
-      // 3. GrÃ¡ficas (ImÃ¡genes)
+      // 3. Gráficas (Imágenes)
       for (const key of metricKeys) {
         const container = document.getElementById(`export-chart-${key}`);
         if (container) {
-          // Si estamos cerca del final de la pÃ¡gina, saltar
+          // Si estamos cerca del final de la página, saltar
           if (currentY > 180) {
             doc.addPage();
             currentY = 20;
@@ -1367,7 +1370,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           doc.setFont("helvetica", "bold");
           doc.setFontSize(12);
           doc.setTextColor(30, 41, 59);
-          doc.text(`GrÃ¡fico: ${info.label} (${info.unit})`, margin, currentY);
+          doc.text(`Gráfico: ${info.label} (${info.unit})`, margin, currentY);
           currentY += 5;
 
           const imgWidth = pageWidth - (margin * 2);
@@ -1379,10 +1382,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         }
       }
 
-      // Pie de pÃ¡gina
+      // Pie de página
       doc.setFontSize(8);
       doc.setTextColor(148, 163, 184);
-      doc.text(`Generado automÃ¡ticamente por NutriSaaS - ${new Date().toLocaleDateString("es-ES")}`, margin, 285);
+      doc.text(`Generado automáticamente por NutriSaaS - ${new Date().toLocaleDateString("es-ES")}`, margin, 285);
 
       doc.save(`Evolucion_${(patient?.fullName || "Paciente").replace(/\s+/g, "_")}.pdf`);
       toast.success("PDF generado correctamente");
@@ -1414,7 +1417,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           (cv) => normalizeMetricKey(cv.label, cv.key) === key,
         );
 
-      // Identificar todas las consultas que contienen esta mÃ©trica
+      // Identificar todas las consultas que contienen esta métrica
       const consultationsToUpdate = consultations.filter((c) =>
         (c.metrics || []).some(
           (m) => normalizeMetricKey(m.label, m.key) === key,
@@ -1422,7 +1425,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       );
 
       if (consultationsToUpdate.length === 0 && !isWeight && !hasInCustomVars) {
-        toast.info("No hay registros histÃ³ricos para eliminar");
+        toast.info("No hay registros históricos para eliminar");
         setMetricKeyToDelete(null);
         return;
       }
@@ -1433,7 +1436,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           (m) => normalizeMetricKey(m.label, m.key) !== key,
         );
 
-        // Si la consulta es un "Registro de MÃ©tricas Independiente" y ahora quedÃ³ vacÃ­a, la eliminamos por completo
+        // Si la consulta es un "Registro de Métricas Independiente" y ahora quedó vacía, la eliminamos por completo
         if (
           newMetrics.length === 0 &&
           isIndependentMetricsConsultation(c)
@@ -1444,7 +1447,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           });
         }
 
-        // Si no estÃ¡ vacÃ­a o es una consulta clÃ­nica real, solo removemos la mÃ©trica especÃ­fica
+        // Si no está vacía o es una consulta clínica real, solo removemos la métrica específica
           return fetchApi(`/consultations/${c.id}`, {
             method: "PATCH",
           headers: {
@@ -1553,12 +1556,26 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         toast.error("Error al actualizar");
       }
     } catch (error) {
-      toast.error("Error de conexiÃ³n");
+      toast.error("Error de conexión");
     }
   };
 
   const updateField = (field: keyof Patient, value: any) => {
     setEditForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    
+    // Ensure it always starts with +
+    if (!val.startsWith("+")) {
+      val = "+" + val.replace(/\+/g, "");
+    }
+    
+    // Keep only + at start and digits elsewhere
+    const cleanVal = "+" + val.substring(1).replace(/\D/g, "");
+    
+    updateField("phone", cleanVal);
   };
 
   const getActivityLevelFromVariables = (vars: any[]) => {
@@ -1597,7 +1614,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         toast.error("Error al eliminar paciente");
       }
     } catch (error) {
-      toast.error("Error de conexiÃ³n");
+      toast.error("Error de conexión");
     } finally {
       setIsDeletePatientConfirmOpen(false);
     }
@@ -1682,7 +1699,44 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   if (!patient) return null;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10 pb-24 animate-in fade-in duration-700">
+    <div className="max-w-7xl mx-auto space-y-10 pb-24 animate-in fade-in duration-700 relative">
+      {/* Sticky Right Sidebar Actions */}
+      {!isEditing && (
+        <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4 animate-in slide-in-from-right-8 duration-500">
+          <div className="bg-white/80 backdrop-blur-xl p-3 rounded-[32px] border border-slate-200 shadow-2xl shadow-slate-200/50 flex flex-col gap-3">
+            <button
+              onClick={() => router.push("/dashboard/consultas/nueva?patientId=" + patient.id)}
+              className="p-4 bg-emerald-600 text-white rounded-[24px] hover:bg-emerald-700 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-emerald-200 cursor-pointer group"
+              title="Nueva Consulta"
+            >
+              <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+            </button>
+            <button
+              onClick={() => setIsPortalNotificationModalOpen(true)}
+              className="p-4 bg-sky-500 text-white rounded-[24px] hover:bg-sky-600 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-sky-200 cursor-pointer"
+              title="Enviar Notificación"
+            >
+              <Bell className="w-6 h-6" />
+            </button>
+            <button
+              disabled
+              className="p-4 bg-slate-50 text-slate-300 rounded-[24px] cursor-not-allowed border border-slate-100"
+              title="Subir Examen (Próximamente)"
+            >
+              <FileText className="w-6 h-6" />
+            </button>
+            <div className="h-px bg-slate-100 mx-2 my-1" />
+            <button
+              onClick={handleEdit}
+              className="p-4 bg-white text-slate-600 rounded-[24px] border border-slate-200 hover:bg-slate-50 transition-all hover:scale-110 active:scale-95 shadow-sm cursor-pointer"
+              title="Editar Perfil"
+            >
+              <Edit2 className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header & Back Button */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1 lg:px-0">
         <div className="flex items-center gap-4 lg:gap-6">
@@ -1730,15 +1784,6 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   patient.fullName
                 )}
               </h1>
-              {!isEditing && (
-                <button
-                  onClick={handleEdit}
-                  className="p-2 hover:bg-emerald-50 rounded-xl text-slate-700 hover:text-emerald-700 transition-all cursor-pointer group/edit bg-slate-50/50 border border-slate-100"
-                  title="Editar perfil"
-                >
-                  <Edit2 className="w-4 h-4 transition-transform group-hover/edit:scale-110" />
-                </button>
-              )}
             </div>
             <p className="text-slate-400 font-bold text-xs flex items-center gap-2">
               EXPEDIENTE INTEGRADO <ChevronRight className="w-3 h-3" />{" "}
@@ -1761,7 +1806,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <Button
                 onClick={() => {
                   if (editForm.documentId && !validateRut(editForm.documentId)) {
-                    toast.error("El RUT ingresado no es vÃ¡lido.");
+                    toast.error("El RUT ingresado no es válido.");
                     return;
                   }
                   handleSave();
@@ -1773,46 +1818,41 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               </Button>
             </>
           ) : (
-            <>
-              <Button
-                onClick={() =>
-                  router.push("/dashboard/consultas/nueva?patientId=" + patient.id)
-                }
-                className="flex-2 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-11 lg:h-10 px-6 rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                <Plus className="w-5 h-5" />
-                CONSULTA
-              </Button>
+            <div className="flex items-center gap-2 lg:gap-3">
               <Button
                 onClick={() => setIsPortalInviteModalOpen(true)}
                 variant="outline"
-                className="flex-2 sm:flex-none h-11 lg:h-10 px-6 rounded-2xl border-emerald-100 text-emerald-700 bg-emerald-50/70 hover:bg-emerald-50 font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
+                className="h-10 px-6 rounded-2xl border-emerald-100 text-emerald-700 bg-emerald-50/70 hover:bg-emerald-50 font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
               >
                 <Link2 className="w-4 h-4" />
                 Portal paciente
               </Button>
-              <Button
-                onClick={() => setIsPortalNotificationModalOpen(true)}
-                variant="outline"
-                className="flex-2 sm:flex-none h-11 lg:h-10 px-6 rounded-2xl border-sky-100 text-sky-700 bg-sky-50/70 hover:bg-sky-50 font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                <Bell className="w-4 h-4" />
-                Notificación
-              </Button>
-              <Button
-                disabled
-                className="bg-slate-50 border border-slate-100 text-slate-400 font-bold h-10 px-4 rounded-2xl cursor-not-allowed opacity-60 flex items-center gap-2"
-                title="PrÃ³ximamente: Carga y anÃ¡lisis de exÃ¡menes clÃ­nicos con IA"
-              >
-                <FileText className="w-4 h-4" />
-                <span className="text-[10px] uppercase tracking-widest">
-                  Subir Examen
-                </span>
-                <span className="text-[8px] bg-slate-200 px-1.5 py-0.5 rounded text-slate-500 ml-1">
-                  FUTURO
-                </span>
-              </Button>
-            </>
+              
+              {/* Visible on Mobile/Tablet only, hidden on XL where sidebar exists */}
+              <div className="xl:hidden flex items-center gap-2">
+                <Button
+                  onClick={() => router.push("/dashboard/consultas/nueva?patientId=" + patient.id)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-10 px-4 rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  CONSULTA
+                </Button>
+                <Button
+                  onClick={() => setIsPortalNotificationModalOpen(true)}
+                  variant="outline"
+                  className="h-10 px-4 rounded-2xl border-sky-100 text-sky-700 bg-sky-50/70 hover:bg-sky-50 font-semibold transition-all active:scale-95"
+                >
+                  <Bell className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={handleEdit}
+                  variant="outline"
+                  className="h-10 px-4 rounded-2xl border-slate-200 text-slate-600 bg-white hover:bg-slate-50 font-semibold transition-all active:scale-95"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -1839,7 +1879,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             field: "height",
           },
           {
-            label: "GÃ©nero",
+            label: "Género",
             value: patient.gender,
             icon: User,
             color: "text-amber-600",
@@ -1926,10 +1966,11 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         {([
           { label: "General", disabled: false },
           { label: "Consultas", disabled: false },
+          { label: "Creaciones", disabled: false },
           { label: "Progreso", disabled: false },
-          { label: "AcompaÃ±amiento", disabled: true },
-          { label: "ExÃ¡menes", disabled: true },
-        ] as Array<{ label: TabType | "ExÃ¡menes"; disabled: boolean }>).map((tab) => (
+          { label: "Acompañamiento", disabled: true },
+          { label: "Exámenes", disabled: true },
+        ] as Array<{ label: TabType | "Exámenes"; disabled: boolean }>).map((tab) => (
           <button
             key={tab.label}
             onClick={() => {
@@ -1955,487 +1996,289 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       {/* Main Content Area */}
       {activeTab === "General" && (
-        <div className="flex flex-col gap-6 lg:gap-10 animate-in fade-in duration-500">
-          {/* Left Column: Clinical & Dietary */}
-          <div className="w-full space-y-6 lg:space-y-10">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm shadow-slate-200/50 overflow-hidden">
-              <div className="p-5 lg:p-6 border-b border-slate-50 bg-slate-50/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <h3 className="text-xl lg:text-2xl font-semibold text-slate-900 flex items-center gap-3 lg:gap-4">
-                  <Activity className="w-6 h-6 lg:w-8 lg:h-8 text-emerald-500" />
-                  Inteligencia ClÃ­nica
-                </h3>
-                <div className="px-5 py-2 bg-emerald-50 text-emerald-600 rounded-2xl text-xs font-semibold border border-emerald-100 w-fit">
-                  Sincronizado
-                </div>
-              </div>
-
-              <div className="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-                <div className="space-y-8">
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3">
-                      InformaciÃ³n de Contacto
-                    </h4>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4 group">
-                        <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-emerald-50 transition-colors">
-                          <Mail className="w-4 h-4 text-emerald-500" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-400">
-                            Email
-                          </p>
-                          {isEditing ? (
-                            <Input
-                              value={editForm.email || ""}
-                              onChange={(e) =>
-                                updateField("email", e.target.value)
-                              }
-                              className="h-8 border-none font-bold text-slate-800 p-0"
-                            />
-                          ) : (
-                            <p className="font-bold text-slate-700">
-                              {patient.email}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 group">
-                        <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-emerald-50 transition-colors">
-                          <Phone className="w-4 h-4 text-emerald-500" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-400">
-                            TelÃ©fono
-                          </p>
-                          {isEditing ? (
-                            <Input
-                              value={editForm.phone || ""}
-                              onChange={(e) =>
-                                updateField("phone", e.target.value)
-                              }
-                              className="h-8 border-none font-bold text-slate-800 p-0"
-                            />
-                          ) : (
-                            <p className="font-bold text-slate-700">
-                              {patient.phone || "No registrado"}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+        <div className="space-y-8 animate-in fade-in duration-500">
+          {/* 3-Column Layout for Primary Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+            
+            {/* Column 1: Identity & Contact */}
+            <div className="flex flex-col">
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
+                  <div className="p-2 bg-emerald-50 rounded-xl">
+                    <User className="w-5 h-5 text-emerald-600" />
                   </div>
+                  <h2 className="text-lg font-bold text-slate-800">Identidad</h2>
                 </div>
-
-                <div className="space-y-8">
-                  <div className="space-y-5">
-                    <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3">
-                      Restricciones Alimentarias
-                    </h4>
-                    <div className="flex flex-wrap gap-3">
+                
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       {isEditing ? (
-                        <TagInput
-                          value={(editForm.dietRestrictions as string[]) || []}
-                          onChange={(tags) =>
-                            updateField("dietRestrictions", tags)
-                          }
-                          fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                          className="mt-2"
-                          placeholder="Agregar restricciÃ³n..."
+                        <Input
+                          placeholder="valen@email.com"
+                          className="h-12 pl-11 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
+                          value={editForm.email || ""}
+                          onChange={(e) => updateField("email", e.target.value)}
                         />
                       ) : (
-                        <>
-                          {Array.isArray(patient.dietRestrictions) &&
-                            patient.dietRestrictions.length > 0 ? (
-                            patient.dietRestrictions.map((r, i) => (
-                              <span
-                                key={i}
-                                className="px-5 py-2 bg-rose-50 text-rose-700 text-xs font-semibold rounded-2xl border border-rose-100 shadow-sm"
-                              >
-                                {r}
-                              </span>
-                            ))
-                          ) : (
-                            <div className="flex items-center gap-3 text-slate-400 p-4 bg-slate-50 rounded-2xl w-full border border-dashed border-slate-200" >
-                              <AlertCircle className="w-4 h-4" />
-                              <span className="text-xs font-bold" >
-                                Sin restricciones detectadas
-                              </span>
-                            </div>
-                          )}
-                        </>
+                        <div className="h-12 pl-11 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 break-all px-4">
+                          {patient.email || "Sin email"}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Teléfono</label>
+                    <div className="relative">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      {isEditing ? (
+                        <Input
+                          placeholder="+56 9 1234 5678"
+                          className="h-12 pl-11 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
+                          value={editForm.phone || ""}
+                          onChange={handlePhoneChange}
+                        />
+                      ) : (
+                        <div className="h-12 pl-11 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                          {patient.phone || "No registrado"}
+                        </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="space-y-5">
-                    <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3 flex items-center gap-2">
-                      <Hash className="w-3.5 h-3.5 text-emerald-500" />
-                      Etiquetas de ClasificaciÃ³n
-                    </h4>
-                    <div className="flex flex-wrap gap-3">
-                      {isEditing ? (
-                        <TagInput
-                          value={(editForm.tags as string[]) || []}
-                          onChange={(tags) =>
-                            updateField("tags", tags)
-                          }
-                          fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                          className="mt-2"
-                          placeholder="Ej: #Deportista, #Vegano..."
-                        />
-                      ) : (
-                        <>
-                          {Array.isArray(patient.tags) &&
-                            patient.tags.length > 0 ? (
-                            patient.tags.map((t, i) => (
-                              <span
-                                key={i}
-                                className="px-5 py-2 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-2xl border border-emerald-100 shadow-sm"
-                              >
-                                {t}
-                              </span>
-                            ))
-                          ) : (
-                            <div className="flex items-center gap-3 text-slate-400 p-4 bg-slate-50 rounded-2xl w-full border border-dashed border-slate-200" >
-                              <span className="text-xs font-bold" >
-                                Sin etiquetas asignadas
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* New Clinical Summary Row */}
-              <div className="px-10 pb-10" >
-                <div className="space-y-4" >
-                  <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3 flex items-center justify-between" >
-                    Resumen / Observaciones ClÃ­nicas
-                    {!isEditing && (
-                      <span className="text-emerald-500 lowercase font-bold tracking-normal opacity-50" >
-                        Solo visible para el nutricionista
-                      </span>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">RUT / Identificador</label>
+                    {isEditing ? (
+                      <Input
+                        placeholder="12.345.678-9"
+                        className="h-12 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
+                        value={editForm.documentId || ""}
+                        onChange={(e) => updateField("documentId", formatRut(e.target.value))}
+                      />
+                    ) : (
+                      <div className="h-12 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                        {patient.documentId || "Sin identificador"}
+                      </div>
                     )}
-                  </h4>
-                  {isEditing ? (
-                    <textarea
-                      value={editForm.clinicalSummary || ""}
-                      onChange={(e) =>
-                        updateField("clinicalSummary", e.target.value)
-                      }
-                      className="w-full h-32 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
-                      placeholder="Ingresa notas clÃ­nicas, antecedentes importantes o evoluciÃ³n general..."
-                    />
-                  ) : (
-                    <div className="p-8 bg-slate-50/50 rounded-2xl border border-slate-50 min-h-[100px]" >
-                      {patient.clinicalSummary ? (
-                        <p className="text-slate-600 font-medium whitespace-pre-wrap leading-relaxed" >
-                          {patient.clinicalSummary}
-                        </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Sexo</label>
+                      {isEditing ? (
+                        <select
+                          value={editForm.gender || ""}
+                          onChange={(e) => updateField("gender", e.target.value)}
+                          className="w-full h-12 rounded-2xl bg-slate-50 border-transparent px-4 text-sm font-semibold text-slate-700 focus:bg-white focus:border-emerald-500/20 transition-all cursor-pointer appearance-none"
+                        >
+                          <option value="">Seleccionar...</option>
+                          <option value="Masculino">Masculino</option>
+                          <option value="Femenino">Femenino</option>
+                          <option value="Otro">Otro</option>
+                        </select>
                       ) : (
-                        <div className="flex flex-col items-center justify-center gap-3 py-4 text-slate-300" >
-                          <ClipboardList className="w-8 h-8 opacity-20" />
-                          <p className="text-xs font-bold" >
-                            Sin observaciones clÃ­nicas registradas
-                          </p>
+                        <div className="h-12 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                          {patient.gender || "No def."}
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Health Status */}
-          <div className="w-full space-y-10" >
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative overflow-hidden group" >
-              <h4 className="flex items-center gap-3 font-semibold text-emerald-600 text-xs mb-8" >
-                <Target className="w-4 h-4" />
-                Foco Nutricional
-              </h4>
-
-              <div className="space-y-8 relative z-10" >
-                <div >
-                  <p className="text-xs font-semibold text-slate-400 mb-2" >
-                    Objetivo Principal
-                  </p>
-                  {isEditing ? (
-                    <Input
-                      value={editForm.nutritionalFocus || ""}
-                      onChange={(e) =>
-                        updateField("nutritionalFocus", e.target.value)
-                      }
-                      className="bg-slate-100 border-none text-slate-800 font-semibold text-2xl h-12 p-2 focus:ring-1 focus:ring-emerald-500"
-                      placeholder="Ej. DÃ©ficit CalÃ³rico"
-                    />
-                  ) : (
-                    <p className="text-2xl font-semibold tracking-tight leading-tight" >
-                      {patient.nutritionalFocus || "Sin foco definido"}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 backdrop-blur-sm group-hover:bg-slate-100 transition-all" >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center" >
-                    <Zap className="w-5 h-5 text-emerald-600" />
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Nacimiento</label>
+                      {isEditing ? (
+                        <Input
+                          type="date"
+                          className="h-12 rounded-2xl bg-slate-50 border-transparent text-xs font-semibold focus:bg-white transition-all px-3"
+                          value={toDateOnly(editForm.birthDate)}
+                          onChange={(e) => updateField("birthDate", e.target.value)}
+                        />
+                      ) : (
+                        <div className="h-12 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                          {patient.birthDate ? formatDateOnlyForLocale(patient.birthDate, { year: 'numeric', month: 'short', day: 'numeric' }) : "---"}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm font-bold text-emerald-700" >
-                    {patient.status === "Active"
-                      ? "Seguimiento optimizado."
-                      : "Paciente en pausa."}
-                  </p>
                 </div>
               </div>
             </div>
 
-            {/* Metas Nutricionales Panel */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative overflow-hidden group">
-              <h4 className="flex items-center gap-3 font-semibold text-emerald-600 text-xs mb-8" >
-                <Target className="w-4 h-4" />
-                Metas Nutricionales (Carrito)
-              </h4>
+            {/* Column 2: Antropometría & Métricas Meta */}
+            <div className="space-y-6 flex flex-col">
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
+                  <div className="p-2 bg-blue-50 rounded-xl">
+                    <Ruler className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-800">Antropometría</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Peso (kg)</label>
+                    {isEditing ? (
+                      <Input 
+                        type="number" 
+                        step="any" 
+                        className="h-12 rounded-2xl bg-slate-50 border-transparent text-center font-bold text-lg focus:bg-white transition-all" 
+                        value={editForm.weight || ""} 
+                        onChange={(e) => updateField("weight", e.target.value ? parseFloat(e.target.value) : undefined)} 
+                      />
+                    ) : (
+                      <div className="h-12 flex items-center justify-center bg-slate-50/50 rounded-2xl text-lg font-black text-blue-600 px-4 border border-blue-100">
+                        {patient.weight || "---"}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Altura (cm)</label>
+                    {isEditing ? (
+                      <Input 
+                        type="number" 
+                        step="any" 
+                        className="h-12 rounded-2xl bg-slate-50 border-transparent text-center font-bold text-lg focus:bg-white transition-all" 
+                        value={editForm.height || ""} 
+                        onChange={(e) => updateField("height", e.target.value ? parseFloat(e.target.value) : undefined)} 
+                      />
+                    ) : (
+                      <div className="h-12 flex items-center justify-center bg-slate-50/50 rounded-2xl text-lg font-black text-emerald-600 px-4 border border-emerald-100">
+                        {patient.height || "---"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between border-b border-slate-50 pb-4">
+                  <h2 className="text-lg font-bold text-slate-800">Métricas Meta</h2>
+                  <Target className="w-5 h-5 text-emerald-500" />
+                </div>
+                
+                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-5">
+                  {(() => {
+                    const dataSource = isEditing ? editForm.customVariables : patient.customVariables;
+                    const vars = Array.isArray(dataSource) ? dataSource as any[] : [];
+                    const getCV = (key: string) => vars.find(v => v.key === key)?.value || "";
+                    const updateCV = (key: string, label: string, value: string, unit: string) => {
+                      if (!isEditing) return;
+                      const prev = Array.isArray(editForm.customVariables) ? [...editForm.customVariables as any[]] : [];
+                      const idx = prev.findIndex(v => v.key === key);
+                      if (idx >= 0) prev[idx] = { key, label, value, unit };
+                      else prev.push({ key, label, value, unit });
+                      updateField("customVariables", prev);
+                    };
 
-              <div className="space-y-4">
-                {(() => {
-                  const dataSource = isEditing ? editForm.customVariables : patient.customVariables;
-                  const vars = Array.isArray(dataSource) ? dataSource as any[] : [];
-                  const getCV = (key: string) => vars.find(v => v.key === key)?.value || "";
-
-                  const updateCV = (key: string, label: string, value: string, unit: string) => {
-                    if (!isEditing) return;
-                    const prev = Array.isArray(editForm.customVariables) ? [...editForm.customVariables as any[]] : [];
-                    const idx = prev.findIndex(v => v.key === key);
-                    if (idx >= 0) { prev[idx] = { key, label, value, unit }; }
-                    else { prev.push({ key, label, value, unit }); }
-                    updateField("customVariables", prev);
-                  };
-
-                  return (
-                    <div className="space-y-4 relative z-10">
+                    return (
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">CalorÃ­as (kcal)</label>
-                          {isEditing ? (
-                            <Input type="number" value={getCV("targetCalories")} onChange={e => updateCV("targetCalories", "CalorÃ­as Meta", e.target.value, "kcal")} className="font-bold border-slate-200" />
-                          ) : (
-                            <p className="font-bold text-amber-600">{getCV("targetCalories") || "No definido"}</p>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">ProteÃ­na (g)</label>
-                          {isEditing ? (
-                            <Input type="number" value={getCV("targetProtein")} onChange={e => updateCV("targetProtein", "ProteÃ­na Meta", e.target.value, "g")} className="font-bold border-slate-200" />
-                          ) : (
-                            <p className="font-bold text-emerald-600">{getCV("targetProtein") || "No definido"}</p>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Carbohidratos (g)</label>
-                          {isEditing ? (
-                            <Input type="number" value={getCV("targetCarbs")} onChange={e => updateCV("targetCarbs", "Carbohidratos Meta", e.target.value, "g")} className="font-bold border-slate-200" />
-                          ) : (
-                            <p className="font-bold text-blue-600">{getCV("targetCarbs") || "No definido"}</p>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Grasas (g)</label>
-                          {isEditing ? (
-                            <Input type="number" value={getCV("targetFats")} onChange={e => updateCV("targetFats", "Grasas Meta", e.target.value, "g")} className="font-bold border-slate-200" />
-                          ) : (
-                            <p className="font-bold text-purple-600">{getCV("targetFats") || "No definido"}</p>
-                          )}
-                        </div>
+                        {[
+                          { id: "Calories", label: "Calorías", unit: "kcal", color: "text-amber-600", bg: "bg-amber-50" },
+                          { id: "Protein", label: "Proteína", unit: "g", color: "text-emerald-600", bg: "bg-emerald-50" },
+                          { id: "Carbs", label: "Carbs", unit: "g", color: "text-blue-600", bg: "bg-blue-50" },
+                          { id: "Fats", label: "Grasas", unit: "g", color: "text-purple-600", bg: "bg-purple-50" }
+                        ].map((f) => (
+                          <div key={f.id} className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">{f.label}</label>
+                            {isEditing ? (
+                              <Input 
+                                type="number" 
+                                value={getCV(`target${f.id}`)} 
+                                onChange={e => updateCV(`target${f.id}`, `${f.label} Meta`, e.target.value, f.unit)} 
+                                className={cn("h-10 font-bold bg-white rounded-xl text-sm border-transparent focus:ring-2 focus:ring-slate-200 transition-all", f.color)} 
+                                placeholder="0" 
+                              />
+                            ) : (
+                              <div className={cn("h-10 flex items-center justify-center rounded-xl font-bold text-sm border border-transparent", f.bg, f.color)}>
+                                {getCV(`target${f.id}`) || "---"}
+                                <span className="text-[8px] ml-1 opacity-60">{f.unit}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
-
-                      <div className="pt-2">
-                        <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Temporalidad</label>
-                        {isEditing ? (
-                          <select value={getCV("targetTimeframe") || "dia"} onChange={e => updateCV("targetTimeframe", "Temporalidad", e.target.value, "")} className="w-full h-10 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 px-3">
-                            <option value="dia">Diario</option>
-                            <option value="semana">Semanal</option>
-                            <option value="mes">Mensual</option>
-                          </select>
-                        ) : (
-                          <p className="font-bold text-slate-700 capitalize">{getCV("targetTimeframe") || "Diario"}</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
+                    );
+                  })()}
+                </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-8" >
-              <div className="flex items-center justify-between" >
-                <div className="flex items-center gap-4 text-rose-600" >
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center" >
-                    <Dumbbell className="w-6 h-6" />
-                  </div>
-                  <h4 className="text-lg font-semibold tracking-tight" >
-                    Metas Fitness
-                  </h4>
-                </div>
-              </div>
-
-              <div className="space-y-4" >
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-400">Nivel de actividad</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { key: "sedentario", label: "Sedentario" },
-                      { key: "deportista", label: "Deportista" },
-                    ].map((item) => (
-                      <button
-                        key={item.key}
-                        type="button"
-                        disabled={!isEditing}
-                        onClick={() => updateActivityLevel(item.key as "sedentario" | "deportista")}
-                        className={cn(
-                          "h-10 rounded-xl border text-xs font-black uppercase tracking-wider transition-all",
-                          getCurrentActivityLevel() === item.key
-                            ? "border-rose-600 bg-rose-600 text-white"
-                            : "border-slate-200 bg-slate-50 text-slate-600",
-                          !isEditing && "cursor-default opacity-90",
-                        )}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {isEditing ? (
-                  <textarea
-                    value={editForm.fitnessGoals || ""}
-                    onChange={(e) =>
-                      updateField("fitnessGoals", e.target.value)
-                    }
-                    className="w-full h-24 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-rose-500/20 transition-all resize-none"
-                    placeholder="Ej. MaratÃ³n en Septiembre, Hipertrofia tren inferior..."
-                  />
-                ) : (
-                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100" >
-                    {patient.fitnessGoals ? (
-                      <p className="text-sm font-semibold text-slate-600 leading-relaxed text-center" >
-                        {patient.fitnessGoals}
-                      </p>
-                    ) : (
-                      <p className="text-xs font-semibold text-slate-400 text-center" >
-                        No se han definido objetivos aÃºn.
-                      </p>
-                    )}
-                  </div>
+            {/* Column 3: Estado del Paciente */}
+            <div className="flex flex-col">
+              <div
+                className={cn(
+                  "bg-white rounded-3xl p-6 border transition-all duration-500 hover:shadow-md",
+                  patient.status === "Inactive"
+                    ? "border-slate-200 bg-slate-50/50"
+                    : "border-slate-100",
                 )}
-              </div>
-            </div>
-
-            {/* Likes (Gustos) */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-8" >
-              <div className="flex items-center justify-between" >
-                <div className="flex items-center gap-4 text-emerald-600" >
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center" >
-                    <Heart className="w-6 h-6 text-emerald-500" />
-                  </div>
-                  <h4 className="text-lg font-semibold tracking-tight" >
-                    Gustos y Preferencias
-                  </h4>
-                </div>
-              </div>
-
-              <div className="space-y-4" >
-                {isEditing ? (
-                  <textarea
-                    value={editForm.likes || ""}
-                    onChange={(e) =>
-                      updateField("likes", e.target.value)
-                    }
-                    className="w-full h-24 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
-                    placeholder="Ej. Prefiere comida casera, no le gusta el sabor a stevia..."
-                  />
-                ) : (
-                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100" >
-                    {patient.likes ? (
-                      <p className="text-sm font-semibold text-slate-600 leading-relaxed text-center" >
-                        {patient.likes}
-                      </p>
-                    ) : (
-                      <p className="text-xs font-semibold text-slate-400 text-center" >
-                        No hay preferencias registradas.
-                      </p>
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div
+                    className={cn(
+                      "p-2 rounded-xl",
+                      patient.status === "Inactive"
+                        ? "bg-slate-200 text-slate-500"
+                        : "bg-emerald-100 text-emerald-600",
                     )}
+                  >
+                    <Target className="w-5 h-5" />
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Status Management Card */}
-            <div
-              className={cn(
-                "bg-white rounded-2xl p-6 border transition-all duration-500",
-                patient.status === "Inactive"
-                  ? "border-slate-200 bg-slate-50/50"
-                  : "border-slate-100",
-              )}
-            >
-              <div className="flex items-center gap-3 mb-6" >
-                <div
-                  className={cn(
-                    "p-2 rounded-xl",
-                    patient.status === "Inactive"
-                      ? "bg-slate-200 text-slate-500"
-                      : "bg-emerald-100 text-emerald-600",
-                  )}
-                >
-                  <Target className="w-5 h-5" />
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-900">
+                      Estado del Paciente
+                    </h4>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">
+                      {patient.status === "Active"
+                        ? "Actualmente en tratamiento"
+                        : "Tratamiento pausado"}
+                    </p>
+                  </div>
                 </div>
-                <div >
-                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-900" >
-                    Estado del Paciente
-                  </h4>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase" >
+
+                <div className="space-y-4">
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
                     {patient.status === "Active"
-                      ? "Actualmente en tratamiento"
-                      : "Tratamiento pausado"}
+                      ? "El paciente está activo y siguiendo sus planes. Puedes pausar su seguimiento si ha terminado su tratamiento o está fuera por un tiempo."
+                      : "El paciente está inactivo. Sus planes no aparecerán en las listas por defecto, pero su historial clínico se mantiene intacto."}
                   </p>
+                  <Button
+                    onClick={toggleStatus}
+                    variant="outline"
+                    className={cn(
+                      "w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
+                      patient.status === "Active"
+                        ? "border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100"
+                        : "border-emerald-200 text-emerald-600 hover:bg-emerald-600 hover:text-white",
+                    )}
+                  >
+                    {patient.status === "Active"
+                      ? "Marcar como Inactivo"
+                      : "Reactivar Paciente"}
+                  </Button>
                 </div>
               </div>
-
-              <div className="space-y-4" >
-                <p className="text-xs text-slate-500 leading-relaxed font-medium" >
-                  {patient.status === "Active"
-                    ? "El paciente estÃ¡ activo y siguiendo sus planes. Puedes pausar su seguimiento si ha terminado su tratamiento o estÃ¡ fuera por un tiempo."
-                    : "El paciente estÃ¡ inactivo. Sus planes no aparecerÃ¡n en las listas por defecto, pero su historial clÃ­nico se mantiene intacto."}
-                </p>
-                <Button
-                  onClick={toggleStatus}
-                  variant="outline"
-                  className={cn(
-                    "w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
-                    patient.status === "Active"
-                      ? "border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100"
-                      : "border-emerald-200 text-emerald-600 hover:bg-emerald-600 hover:text-white",
-                  )}
-                >
-                  {patient.status === "Active"
-                    ? "Marcar como Inactivo"
-                    : "Reactivar Paciente"}
-                </Button>
-              </div>
             </div>
+
           </div>
         </div>
       )}
 
       {/* Consultas Tab */}
+      {activeTab === "Creaciones" && (
+        <div className="animate-in fade-in duration-500">
+          <CreationsClient 
+            isInsidePatientDetail={true} 
+            fixedPatientName={patient.fullName} 
+          />
+        </div>
+      )}
+
       {activeTab === "Consultas" && (
         <div className="space-y-6 lg:space-y-10 animate-in slide-in-from-right-4 duration-500 px-1 lg:px-6 py-2">
           <div className="bg-white p-6 lg:p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div>
-              <h2 className="text-xl lg:text-2xl font-bold text-slate-900">Historial ClÃ­nico</h2>
+              <h2 className="text-xl lg:text-2xl font-bold text-slate-900">Historial Clínico</h2>
               <p className="text-xs lg:text-sm font-medium text-slate-400">Visualiza y gestiona las consultas del paciente</p>
             </div>
             <Button
@@ -2448,17 +2291,17 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           </div>
 
           <div className="space-y-6" >
-            <div className="space-y-4" >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" >
               {isConsultationsLoading ? (
-                <div className="p-20 flex justify-center" >
+                <div className="p-20 flex justify-center lg:col-span-2" >
                   <div className="h-10 w-10 border-4 border-slate-100 border-t-emerald-500 rounded-full animate-spin" />
                 </div>
               ) : clinicalConsultations.length > 0 ? (
                 clinicalConsultations.map((consultation) => (
                   <div
                     key={consultation.id}
-                    className="bg-white p-5 lg:p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:scale-[1.01] transition-all cursor-pointer"
-                    onClick={() => setSelectedConsultation(consultation)}
+                    className="bg-white p-5 lg:p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:scale-[1.01] hover:border-emerald-200 hover:bg-emerald-50/20 transition-all cursor-pointer"
+                    onClick={() => router.push(`/dashboard/consultas/${consultation.id}/view`)}
                   >
                     <div className="flex items-center gap-4 lg:gap-6">
                       <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 group-hover:bg-emerald-50 group-hover:border-emerald-100 transition-colors">
@@ -2499,10 +2342,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedConsultation(consultation);
+                            router.push(`/dashboard/consultas/${consultation.id}/view`);
                           }}
                           className="p-3 rounded-xl text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer"
-                          title="Ver detalles"
+                          title="Ver consulta"
                         >
                           <Eye className="w-5 h-5" />
                         </button>
@@ -2552,7 +2395,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-10 px-4 rounded-2xl transition-all shadow-xl shadow-emerald-200/50 active:scale-95"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Iniciar EvaluaciÃ³n
+                    Iniciar Evaluación
                   </Button>
                 </div>
               )}
@@ -2569,10 +2412,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
               <div>
                 <h3 className="text-xl font-semibold text-slate-900">
-                  Seguimiento BiomÃ©trico
+                  Seguimiento Biométrico
                 </h3>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-tight">
-                  Gestiona la evoluciÃ³n fÃ­sica del paciente
+                  Gestiona la evolución física del paciente
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -2590,7 +2433,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
                 >
                   <Plus className="w-5 h-5 text-emerald-400" />
-                  Registrar MÃ©trica
+                  Registrar Métrica
                 </button>
               </div>
             </div>
@@ -2686,7 +2529,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           {info.label}
                         </h3>
                         <p className="text-xs font-semibold text-slate-400 opacity-80">
-                          Tendencia histÃ³rica ({info.unit})
+                          Tendencia histórica ({info.unit})
                         </p>
                         <div className="grid grid-cols-3 gap-2 mt-3">
                           <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
@@ -2704,7 +2547,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           </div>
                           <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight min-h-[18px]">
-                              Ãšltimo valor
+                              Último valor
                             </p>
                             <div className="flex items-baseline gap-1 flex-wrap mt-2">
                               <span className="text-sm font-black text-slate-700 leading-none">
@@ -2754,7 +2597,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           onClick={() => openMetricLogger(key)}
                           data-no-export="true"
                           className="p-3 bg-emerald-50 text-emerald-600 hover:text-white hover:bg-emerald-600 rounded-xl transition-all active:scale-95 cursor-pointer border border-emerald-100"
-                          title={`Registrar ${info.label} rÃ¡pidamente`}
+                          title={`Registrar ${info.label} rápidamente`}
                         >
                           <Plus className="w-4 h-4" />
                         </button>
@@ -2776,7 +2619,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           }}
                           data-no-export="true"
                           className="p-3 bg-slate-50 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all active:scale-95 cursor-pointer border border-transparent hover:border-rose-100"
-                          title={`Eliminar toda la mÃ©trica ${info.label}`}
+                          title={`Eliminar toda la métrica ${info.label}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -2876,7 +2719,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           );
                         }
 
-                        // Si solo hay un punto o ninguno, mostramos una visualizaciÃ³n informativa
+                        // Si solo hay un punto o ninguno, mostramos una visualización informativa
                         return (
                           <div className="h-full flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100 gap-4 group-hover:bg-slate-50 transition-colors">
                             <div className="w-20 h-20 bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center animate-in zoom-in-50 duration-500">
@@ -2902,7 +2745,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                               <p className="text-[10px] font-semibold text-slate-400 leading-tight">
                                 {latestPoint
                                   ? "Se necesitan al menos 2 registros en fechas distintas para generar la curva de tendencia."
-                                  : `No hay datos histÃ³ricos para ${info.label.toLowerCase()}.`}
+                                  : `No hay datos históricos para ${info.label.toLowerCase()}.`}
                               </p>
                             </div>
                           </div>
@@ -2952,7 +2795,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
                 <div className="space-y-4">
                   <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-tight ml-1">
-                    Observaciones ClÃ­nicas
+                    Observaciones Clínicas
                   </h4>
                   <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-slate-600 font-medium leading-relaxed">
                     {selectedConsultation.description || "Sin notas registradas."}
@@ -2963,7 +2806,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   selectedConsultation.metrics.length > 0 && (
                     <div className="space-y-4">
                       <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-tight ml-1">
-                        MÃ©tricas Clave
+                        Métricas Clave
                       </h4>
                       <div className="grid grid-cols-2 gap-4">
                         {selectedConsultation.metrics.map((m, i) => (
@@ -3009,10 +2852,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <div>
                   <h3 className="text-2xl font-semibold text-slate-900 tracking-tight">
-                    Registrar EvoluciÃ³n
+                    Registrar Evolución
                   </h3>
                   <p className="text-slate-500 font-medium text-xs mt-1">
-                    AÃ±ade datos biomÃ©tricos fuera de consulta
+                    Añade datos biométricos fuera de consulta
                   </p>
                 </div>
                 <button
@@ -3044,7 +2887,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 <div className="space-y-6">
                   <div className="flex justify-between items-center">
                     <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-tight">
-                      Seleccionar MÃ©tricas
+                      Seleccionar Métricas
                     </h4>
                     <div className="flex items-center gap-2">
                       <button
@@ -3062,7 +2905,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         onClick={addMetricToForm}
                         className="text-xs font-semibold bg-slate-50 text-slate-500 px-4 py-2 rounded-xl border border-slate-100 hover:bg-slate-100 transition-all flex items-center gap-2 cursor-pointer"
                       >
-                        <Plus className="w-4 h-4" /> FILA VACÃA
+                        <Plus className="w-4 h-4" /> FILA VACÍA
                       </button>
                     </div>
                   </div>
@@ -3145,8 +2988,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                 </option>
                                 <option value="kg">kg (Kilogramos)</option>
                                 <option value="g">g (Gramos)</option>
-                                <option value="cm">cm (CentÃ­metros)</option>
-                                <option value="mm">mm (MilÃ­metros)</option>
+                                <option value="cm">cm (Centímetros)</option>
+                                <option value="mm">mm (Milímetros)</option>
                                 <option value="%">% (Porcentaje)</option>
                                 <option value="mg/dL">mg/dL</option>
                                 <option value="mmol/L">mmol/L</option>
@@ -3198,7 +3041,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         )
       }
 
-      {/* Modal de ediciÃ³n de historial detallado */}
+      {/* Modal de edición de historial detallado */}
       {
         isEditMetricHistoryModalOpen && editingMetricKey && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
@@ -3239,7 +3082,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   <div className="py-20 text-center flex flex-col items-center gap-4">
                     <ClipboardList className="w-12 h-12 text-slate-200" />
                     <p className="text-slate-400 font-bold uppercase text-xs tracking-widest">
-                      No hay registros para esta mÃ©trica
+                      No hay registros para esta métrica
                     </p>
                   </div>
                 )}
@@ -3772,7 +3615,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-              Vigencia del enlace (dÃ­as)
+              Vigencia del enlace (días)
             </label>
             <Input
               type="number"
@@ -3786,7 +3629,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
           {generatedPortalLink && (
             <div className="space-y-3 rounded-3xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Ãšltimo enlace generado</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Último enlace generado</p>
               <p className="break-all text-sm font-medium text-slate-800">{generatedPortalLink}</p>
               {portalAccessCode && (
                 <div className="rounded-2xl border border-emerald-100 bg-white px-4 py-3">
@@ -3905,21 +3748,21 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         </div>
       </Modal>
 
-      {/* Modal para Nueva MÃ©trica (Global) */}
+      {/* Modal para Nueva Métrica (Global) */}
       <Modal
         isOpen={isAddMetricModalOpen}
         onClose={() => setIsAddMetricModalOpen(false)}
-        title="Crear Nueva MÃ©trica"
+        title="Crear Nueva Métrica"
       >
         <div className="space-y-6 py-4 px-2">
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Nombre de la MÃ©trica
+                Nombre de la Métrica
               </label>
               <div className="relative">
                 <Input
-                  placeholder="Ej: Circunferencia de Brazo, Pliegue CutÃ¡neo..."
+                  placeholder="Ej: Circunferencia de Brazo, Pliegue Cutáneo..."
                   value={newMetric.name}
                   onChange={(e) => {
                     const val = e.target.value;
@@ -3936,7 +3779,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   const known = availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase());
                   return known ? (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="h-5 w-5 rounded-full bg-amber-100 flex items-center justify-center border border-amber-200" title="Esta mÃ©trica ya existe">
+                      <div className="h-5 w-5 rounded-full bg-amber-100 flex items-center justify-center border border-amber-200" title="Esta métrica ya existe">
                         <AlertCircle className="w-3 h-3 text-amber-600" />
                       </div>
                     </div>
@@ -3947,7 +3790,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 const known = availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase());
                 return known ? (
                   <p className="text-[10px] font-bold text-amber-600 animate-in fade-in slide-in-from-top-1">
-                    Esta mÃ©trica ya estÃ¡ registrada en el sistema.
+                    Esta métrica ya está registrada en el sistema.
                   </p>
                 ) : null;
               })()}
@@ -3978,8 +3821,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   </option>
                   <option value="kg">kg (Kilogramos)</option>
                   <option value="g">g (Gramos)</option>
-                  <option value="cm">cm (CentÃ­metros)</option>
-                  <option value="mm">mm (MilÃ­metros)</option>
+                  <option value="cm">cm (Centímetros)</option>
+                  <option value="mm">mm (Milímetros)</option>
                   <option value="%">% (Porcentaje)</option>
                   <option value="mg/dL">mg/dL</option>
                   <option value="mmol/L">mmol/L</option>
@@ -3999,9 +3842,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             </div>
             <p className="text-xs text-slate-400 mt-2 font-medium">
               <Globe className="w-3 h-3 inline mr-1 text-emerald-500" />
-              Esta mÃ©trica serÃ¡{" "}
+              Esta métrica será{" "}
               <span className="text-emerald-600 font-bold">Global</span>. Otros
-              nutricionistas podrÃ¡n verla y reutilizarla. Solo tÃº podrÃ¡s
+              nutricionistas podrán verla y reutilizarla. Solo tú podrás
               eliminarla.
             </p>
           </div>
@@ -4023,7 +3866,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         </div>
       </Modal>
 
-      {/* Modal ConfirmaciÃ³n Sobreescribir MÃ©trica */}
+      {/* Modal Confirmación Sobreescribir Métrica */}
       <ConfirmationModal
         isOpen={isOverwriteConfirmOpen}
         onClose={() => {
@@ -4031,12 +3874,12 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           setConflictingConsultationId(null);
         }}
         onConfirm={confirmSaveMetrics}
-        title="Â¿Sobreescribir Valores?"
-        description="Ya existe un registro con esta fecha. Los valores nuevos reemplazarÃ¡n a los existentes para las mÃ©tricas que coincidan. Las demÃ¡s mÃ©tricas de esa fecha se mantendrÃ¡n intactas."
-        confirmText="SÃ­, sobreescribir"
+        title="¿Sobreescribir Valores?"
+        description="Ya existe un registro con esta fecha. Los valores nuevos reemplazarán a los existentes para las métricas que coincidan. Las demás métricas de esa fecha se mantendrán intactas."
+        confirmText="Sí, sobreescribir"
         cancelText="Cancelar"
       />
-      {/* Modal de ExportaciÃ³n PDF con aviso de IA */}
+      {/* Modal de Exportación PDF con aviso de IA */}
       <Modal
         isOpen={isExportModalOpen}
         onClose={() => !isExporting && setIsExportModalOpen(false)}
@@ -4048,8 +3891,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <Zap className="w-6 h-6 animate-pulse" />
             </div>
             <div className="space-y-2">
-              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">PrÃ³ximamente: AnÃ¡lisis por IA</h4>
-                En futuras actualizaciones, nuestro motor de IA realizarÃ¡ un anÃ¡lisis automÃ¡tico de estas tendencias para identificar patrones de Ã©xito y Ã¡reas de mejora en el tratamiento de <strong>{patient?.fullName || "Paciente"}</strong>.
+              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Próximamente: Análisis por IA</h4>
+                En futuras actualizaciones, nuestro motor de IA realizará un análisis automático de estas tendencias para identificar patrones de éxito y áreas de mejora en el tratamiento de <strong>{patient?.fullName || "Paciente"}</strong>.
             </div>
           </div>
 
@@ -4065,7 +3908,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 <CalendarDays className="w-5 h-5 text-slate-400" />
                 <div className="flex-1">
                    <p className="text-[10px] font-black uppercase text-slate-400">Contenido</p>
-                   <p className="text-xs font-bold text-slate-700">Resumen textual + GrÃ¡ficos de tendencia</p>
+                   <p className="text-xs font-bold text-slate-700">Resumen textual + Gráficos de tendencia</p>
                 </div>
              </div>
           </div>
@@ -4100,7 +3943,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         </div>
       </Modal>
 
-      {/* Modal ConfirmaciÃ³n Borrar MÃ©trica Completa */}
+      {/* Modal Confirmación Borrar Métrica Completa */}
       <ConfirmationModal
         isOpen={isDeleteEntireMetricConfirmOpen}
         onClose={() => {
@@ -4108,9 +3951,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           setMetricKeyToDelete(null);
         }}
         onConfirm={handleDeleteEntireMetric}
-        title={`Â¿Eliminar Historial de ${metricKeyToDelete ? getMetricInfo(metricKeyToDelete).label : ""}?`}
-        description="Esta acciÃ³n eliminarÃ¡ TODOS los registros histÃ³ricos de esta mÃ©trica para este paciente (incluyendo el valor inicial si aplica). Esta acciÃ³n no se puede deshacer."
-        confirmText="SÃ­, eliminar todo"
+        title={`¿Eliminar Historial de ${metricKeyToDelete ? getMetricInfo(metricKeyToDelete).label : ""}?`}
+        description="Esta acción eliminará TODOS los registros históricos de esta métrica para este paciente (incluyendo el valor inicial si aplica). Esta acción no se puede deshacer."
+        confirmText="Sí, eliminar todo"
         cancelText="Cancelar"
         variant="destructive"
       />
@@ -4119,9 +3962,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         isOpen={isDeletePatientConfirmOpen}
         onClose={() => setIsDeletePatientConfirmOpen(false)}
         onConfirm={handleDelete}
-        title="Â¿Eliminar paciente?"
-        description="Â¿EstÃ¡s seguro de que deseas eliminar este paciente? Esta acciÃ³n es irreversible."
-        confirmText="SÃ­, eliminar"
+        title="¿Eliminar paciente?"
+        description="¿Estás seguro de que deseas eliminar este paciente? Esta acción es irreversible."
+        confirmText="Sí, eliminar"
         variant="destructive"
       />
 
@@ -4152,9 +3995,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             setConsultationToDelete(null);
           }
         }}
-        title="Â¿Eliminar consulta?"
-        description="Â¿EstÃ¡s seguro de que deseas eliminar esta consulta? Se eliminarÃ¡n tambiÃ©n las mÃ©tricas asociadas a ella."
-        confirmText="SÃ­, eliminar"
+        title="¿Eliminar consulta?"
+        description="¿Estás seguro de que deseas eliminar esta consulta? Se eliminarán también las métricas asociadas a ella."
+        confirmText="Sí, eliminar"
         variant="destructive"
       />
 
@@ -4178,7 +4021,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 }
 
 /**
- * Sub-componente para gestionar una fila de historial de mÃ©trica
+ * Sub-componente para gestionar una fila de historial de métrica
  */
 function MetricRecordRow({
   record,
@@ -4300,13 +4143,15 @@ function MetricRecordRow({
         isOpen={isDeleteConfirmOpen}
         onClose={() => setIsDeleteConfirmOpen(false)}
         onConfirm={handleDelete}
-        title="Â¿Eliminar registro?"
-        description="Esta acciÃ³n eliminarÃ¡ permanentemente este valor de mÃ©trica del historial del paciente. Â¿Deseas continuar?"
-        confirmText="SÃ­, eliminar"
+        title="¿Eliminar registro?"
+        description="Esta acción eliminará permanentemente este valor de métrica del historial del paciente. ¿Deseas continuar?"
+        confirmText="Sí, eliminar"
         cancelText="No, cancelar"
         variant="destructive"
       />
     </div>
   );
 }
+
+
 

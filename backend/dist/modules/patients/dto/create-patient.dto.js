@@ -26,6 +26,7 @@ class CreatePatientDto {
     nutritionalFocus;
     fitnessGoals;
     likes;
+    activityLevel;
     tags;
     customVariables;
 }
@@ -101,6 +102,11 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreatePatientDto.prototype, "likes", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreatePatientDto.prototype, "activityLevel", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),

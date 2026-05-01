@@ -14,6 +14,8 @@ const class_validator_1 = require("class-validator");
 class CreatePatientPortalInvitationDto {
     email;
     expiresInDays;
+    resourceIds;
+    deliverableCreationIds;
 }
 exports.CreatePatientPortalInvitationDto = CreatePatientPortalInvitationDto;
 __decorate([
@@ -27,4 +29,18 @@ __decorate([
     (0, class_validator_1.Min)(1, { message: 'La invitación debe durar al menos 1 día' }),
     __metadata("design:type", Number)
 ], CreatePatientPortalInvitationDto.prototype, "expiresInDays", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)({ message: 'Los recursos compartidos deben ser una lista' }),
+    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.ArrayUnique)(),
+    __metadata("design:type", Array)
+], CreatePatientPortalInvitationDto.prototype, "resourceIds", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)({ message: 'Los entregables compartidos deben ser una lista' }),
+    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.ArrayUnique)(),
+    __metadata("design:type", Array)
+], CreatePatientPortalInvitationDto.prototype, "deliverableCreationIds", void 0);
 //# sourceMappingURL=create-patient-portal-invitation.dto.js.map

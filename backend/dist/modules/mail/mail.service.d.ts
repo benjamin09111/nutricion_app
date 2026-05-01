@@ -22,4 +22,11 @@ export declare class MailService {
         expiresAt: Date;
         accessCode: string;
     }): Promise<void>;
+    sendPatientPortalNotificationEmail(data: {
+        email: string;
+        patientName: string;
+        nutritionistName: string;
+        title: string;
+        message: string;
+    }): Promise<void>;
 }

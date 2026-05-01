@@ -53,11 +53,13 @@ import { Modal } from "@/components/ui/Modal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
+import { SectionProgressNav } from "@/components/shared/SectionProgressNav";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { useAdmin } from "@/context/AdminContext";
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import mealSectionsData from "@/content/meal-sections.json";
+import { downloadQuickRecipesPdf } from "@/features/pdf/quickRecipesPdfExport";
 import {
   buildProjectAwarePath,
   fetchCreation,
@@ -698,6 +700,7 @@ export default function RecipesClient() {
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [creationDescription, setCreationDescription] = useState("");
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(
     projectIdFromUrl,
   );
@@ -2678,6 +2681,75 @@ export default function RecipesClient() {
     return savedCreation;
   };
 
+  const buildRecipesPdfData = () => {
+    const pdfDishes = days.flatMap((day) =>
+      (weekSlots[day] || [])
+        .filter((slot) => slot.recipe)
+        .map((slot) => ({
+          title: slot.recipe!.title,
+          mealSection: slot.recipe!.mealSection || slot.mealSection || slot.type,
+          description: slot.recipe!.description || "",
+          preparation: slot.recipe!.preparation || "",
+          recommendedPortion: slot.recipe!.recommendedPortion || "",
+          portions: slot.recipe!.portions,
+          protein: slot.recipe!.protein,
+          calories: slot.recipe!.calories,
+          carbs: slot.recipe!.carbs,
+          fats: slot.recipe!.fats,
+          ingredients: Array.isArray(slot.recipe!.ingredients)
+            ? slot.recipe!.ingredients.map((ingredient) => ({
+                name: ingredient,
+              }))
+            : [],
+        })),
+    );
+
+    return {
+      title: "Recetas y porciones",
+      dietName: currentProjectName?.trim() || "Recetas y porciones",
+      patientName: selectedPatient?.fullName || null,
+      specialConsiderations:
+        selectedPatient
+          ? [
+              selectedPatient.nutritionalFocus ? `Foco: ${selectedPatient.nutritionalFocus}` : "",
+              selectedPatient.fitnessGoals ? `Fitness: ${selectedPatient.fitnessGoals}` : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : undefined,
+      restrictedFoods: selectedPatient?.restrictions?.length
+        ? selectedPatient.restrictions
+        : undefined,
+      dishes: pdfDishes,
+      generatedAt: new Date().toISOString(),
+    };
+  };
+
+  const handleExportPdf = async () => {
+    if (isExportingPdf) return;
+
+    const pdfDishes = days.flatMap((day) =>
+      (weekSlots[day] || []).filter((slot) => slot.recipe),
+    );
+
+    if (pdfDishes.length === 0) {
+      toast.error("Agrega al menos un plato antes de exportar.");
+      return;
+    }
+
+    setIsExportingPdf(true);
+    try {
+      await downloadQuickRecipesPdf(buildRecipesPdfData());
+      toast.success("PDF de recetas descargado correctamente.");
+      setIsSaveCreationModalOpen(true);
+    } catch (error) {
+      console.error("Error exporting recipes PDF", error);
+      toast.error("No se pudo generar el PDF de recetas.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const actionDockItems: ActionDockItem[] = useMemo(
     () => [
       {
@@ -2742,8 +2814,8 @@ export default function RecipesClient() {
         icon: Download,
         label: "Exportar PDF",
         variant: "slate",
-        onClick: () => toast.info("PDF de recetas disponible en la etapa Entregable."),
-        disabled: isRecipesLocked,
+        onClick: handleExportPdf,
+        disabled: isRecipesLocked || isExportingPdf,
       },
       {
         id: "reset",
@@ -2754,7 +2826,7 @@ export default function RecipesClient() {
         disabled: isRecipesLocked,
       },
     ].filter(Boolean) as ActionDockItem[],
-    [isRecipesLocked, printJson, resetRecipes, selectedPatient, showOnlyMyRecipes, sleepTime, targetCalories, targetCarbs, targetFats, targetProtein, wakeUpTime, weekSlots],
+    [isExportingPdf, isRecipesLocked, printJson, resetRecipes, selectedPatient, showOnlyMyRecipes, sleepTime, targetCalories, targetCarbs, targetFats, targetProtein, wakeUpTime, weekSlots],
   );
 
   const assignedSourceSummary = useMemo(() => {
@@ -2876,12 +2948,24 @@ export default function RecipesClient() {
         </div>
       ) : null}
       <ModuleLayout
-        title="Recetas y Porciones"
-        description="En este apartado modificarás, en base a los alimentos anteriores, las cantidades de cada uno de forma diaria, semanal o mensual, y sus porciones en base a la documentación oficial."
+        title="Cuantificación: Recetas y Porciones"
+        description={
+          <div className="space-y-4">
+            <p>
+              Transforma tu estrategia en platos concretos. Define horarios, porciones y genera recetas alineadas con los alimentos seleccionados.
+            </p>
+            <div className="flex flex-wrap gap-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              <span className="text-emerald-600">1. Estrategia (✓)</span>
+              <span className="text-emerald-600 underline underline-offset-4 decoration-2">2. Cuantificación</span>
+              <span>3. Logística</span>
+              <span>4. Producto Final</span>
+            </div>
+          </div>
+        }
         step={{
-          number: 3,
-          label: "Planes & Recetas (AI)",
-          icon: GraduationCap,
+          number: 2,
+          label: "Recetas & Porciones",
+          icon: ChefHat,
           color: "text-emerald-600",
         }}
         className="max-w-none"
@@ -2953,13 +3037,26 @@ export default function RecipesClient() {
                 }}
                 className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-2xl shadow-emerald-200 transition-all hover:scale-[1.02] flex items-center gap-3 uppercase tracking-widest text-xs"
               >
-                CONTINUAR
+                SIGUIENTE
                 <ArrowRight className="h-5 w-5" />
               </Button>
             </div>
           </ModuleFooter>
         }
       >
+        {isSidebarCollapsed && (
+          <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
+            <SectionProgressNav
+              title="Etapas del Plan"
+              items={[
+                { id: "dieta", label: "1. Estrategia", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/dieta", currentProjectId)) },
+                { id: "recetas", label: "2. Cuantificación", status: "complete", active: true, onClick: () => {} },
+                { id: "carrito", label: "3. Logística", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/carrito", currentProjectId)) },
+                { id: "entregable", label: "4. Entregable", status: "pending", active: false, onClick: () => {} },
+              ]}
+            />
+          </div>
+        )}
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}

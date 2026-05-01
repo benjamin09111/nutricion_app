@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, UseInterceptors, Query } from '@nestjs/common';
 import { IngredientGroupsService } from './ingredient-groups.service';
 import { CreateIngredientGroupDto } from './dto/create-ingredient-group.dto';
 import { UpdateGroupIngredientsDto } from './dto/update-group-ingredients.dto';
@@ -19,8 +19,8 @@ export class IngredientGroupsController {
     }
 
     @Get()
-    findAll(@Request() req: any) {
-        return this.ingredientGroupsService.findAll(req.user.nutritionistId);
+    findAll(@Request() req: any, @Query('type') type?: string) {
+        return this.ingredientGroupsService.findAll(req.user.nutritionistId, type);
     }
 
     @Get(':id')

@@ -37,19 +37,25 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-interface CreationsClientProps {
-  initialData: Creation[];
+export interface CreationsClientProps {
+  initialData?: Creation[];
+  fixedPatientName?: string;
+  isInsidePatientDetail?: boolean;
 }
 
-export default function CreationsClient({ initialData }: CreationsClientProps) {
+export default function CreationsClient({ 
+  initialData = [], 
+  fixedPatientName = "", 
+  isInsidePatientDetail = false 
+}: CreationsClientProps) {
   const router = useRouter();
   const [selectedType, setSelectedType] = useState<CreationType | "Todos">("Todos");
   const [selectedTag, setSelectedTag] = useState<string>("Todos");
   const [searchTerm, setSearchTerm] = useState("");
-  const [patientFilter, setPatientFilter] = useState("");
+  const [patientFilter, setPatientFilter] = useState(fixedPatientName);
   const [currentPage, setCurrentPage] = useState(1);
-  const [localCreations, setLocalCreations] = useState<Creation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [localCreations, setLocalCreations] = useState<Creation[]>(initialData);
+  const [isLoading, setIsLoading] = useState(initialData.length === 0);
   const itemsPerPage = 7;
 
   const mapBackendTypeToFrontend = (type: string): CreationType => {
@@ -182,7 +188,6 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
         await downloadFastDeliverablePdf(buildFastDeliverableData(raw));
         toast.success("PDF descargado correctamente.");
       } else if (item.type === CreationType.RECIPE && (item.tags || []).includes("rapido")) {
-        // Quick recipe PDF export
         const { downloadQuickRecipesPdf } = await import("@/features/pdf/quickRecipesPdfExport");
         await downloadQuickRecipesPdf(buildQuickRecipesData(raw));
         toast.success("PDF de recetas descargado correctamente.");
@@ -346,7 +351,6 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
         router.push("/dashboard/lista-compras");
         break;
       case CreationType.RECIPE: {
-        // Quick recipes (tagged 'rapido') open in the rapido/recetas module
         const isQuick = (item.tags || []).includes("rapido");
         if (isQuick) {
           router.push(`/dashboard/rapido/recetas?creationId=${item.id}`);
@@ -394,19 +398,19 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
 
   return (
     <div className="space-y-6">
-      {/* Tip banner */}
-      <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-100 text-amber-800 text-xs font-medium">
-        <svg className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
-        </svg>
-        <span>
-          <strong>Recomendación de uso:</strong> crear plantillas generales para simplemente re utilizarlas.
-        </span>
-      </div>
-      {/* Filters Bar */}
+      {!isInsidePatientDetail && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-100 text-amber-800 text-xs font-medium">
+          <svg className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
+          </svg>
+          <span>
+            <strong>Recomendación de uso:</strong> crear plantillas generales para simplemente re utilizarlas.
+          </span>
+        </div>
+      )}
+
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col xl:flex-row gap-4 items-center justify-between">
         <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto flex-1">
-          {/* Search Name */}
           <div className="relative flex-1">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
               <Search className="h-5 w-5 text-slate-400" aria-hidden="true" />
@@ -420,31 +424,31 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
             />
           </div>
 
-          {/* Filter by Patient */}
-          <div className="relative w-full md:w-52">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
+          {!isInsidePatientDetail && (
+            <div className="relative w-full md:w-52">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <Input
+                type="search"
+                placeholder="Filtrar por paciente..."
+                className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all w-full"
+                value={patientFilter}
+                onChange={(e) => setPatientFilter(e.target.value)}
+              />
+              {patientFilter && (
+                <button
+                  onClick={() => setPatientFilter("")}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
-            <Input
-              type="search"
-              placeholder="Filtrar por paciente..."
-              className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all w-full"
-              value={patientFilter}
-              onChange={(e) => setPatientFilter(e.target.value)}
-            />
-            {patientFilter && (
-              <button
-                onClick={() => setPatientFilter("")}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          )}
 
-          {/* Filter Type */}
           <div className="w-full md:w-48 relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
               <Filter className="h-4 w-4 text-slate-400" />
@@ -466,7 +470,6 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
             </select>
           </div>
 
-          {/* Filter Tags */}
           <div className="w-full md:w-64 relative">
             <SearchableSelect
               options={[
@@ -483,10 +486,8 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
             </div>
           </div>
         </div>
-
       </div>
 
-      {/* Creations Table */}
       <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 sm:rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-100">
@@ -545,7 +546,6 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                         </span>
                       </div>
                     </td>
-                    {/* Paciente column */}
                     <td className="px-6 py-4">
                       {(item as any).patientName ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
@@ -657,7 +657,6 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
             </tbody>
           </table>
         </div>
-        {/* Pagination Controls */}
         <div className="bg-slate-50/50 p-4 border-t border-slate-100 flex items-center justify-between">
           <p className="text-xs font-bold text-slate-500">
             Mostrando{" "}
@@ -741,7 +740,7 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
           ) : null}
         </div>
       </Modal>
-      {/* View Modal */}
+
       <Modal
         isOpen={viewModalOpen}
         onClose={() => {
@@ -760,7 +759,6 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
             </div>
           ) : fullCreationData ? (
             <div className="space-y-6">
-              {/* Cabecera del Resumen */}
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-start gap-4">
                 <div
                   className={cn(
@@ -795,7 +793,6 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                 </div>
               </div>
 
-              {/* Contenido (Alimentos) */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -808,14 +805,10 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                 </div>
 
                 <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200">
-                  {/* Aquí mostramos un resumen simplificado de los alimentos */}
-                  {/* Nota: En DIET, el content tiene foodStatus y manualAdditions */}
                   {fullCreationData.type === "DIET" && (
                     <div className="space-y-4">
                       {(() => {
                         const foodMap: Record<string, string[]> = {};
-
-                        // Prioridad 1: Usar foodSummary de metadata (versión nueva)
                         if (fullCreationData.metadata?.foodSummary) {
                           fullCreationData.metadata.foodSummary.forEach(
                             (f: any) => {
@@ -823,9 +816,7 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
                               foodMap[f.group].push(f.name);
                             },
                           );
-                        }
-                        // Prioridad 2: Usar manualAdditions (versión antigua)
-                        else if (fullCreationData.content?.manualAdditions) {
+                        } else if (fullCreationData.content?.manualAdditions) {
                           fullCreationData.content.manualAdditions.forEach(
                             (ma: any) => {
                               if (!foodMap[ma.grupo]) foodMap[ma.grupo] = [];
@@ -906,7 +897,7 @@ export default function CreationsClient({ initialData }: CreationsClientProps) {
           )}
         </div>
       </Modal>
-      {/* Confirmation Modal */}
+
       <ConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}

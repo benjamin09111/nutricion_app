@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
-  AlertCircle,
   ChefHat,
   Download,
   Library,
@@ -14,7 +13,6 @@ import {
   Sparkles,
   Trash2,
   User,
-  UserPlus,
   X,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -26,12 +24,14 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
+import { TagInput } from "@/components/ui/TagInput";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { type ActionDockItem } from "@/components/ui/ActionDock";
-import { fetchApi } from "@/lib/api-base";
+import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { fetchCreation, saveCreation } from "@/lib/workflow";
 import { getAuthToken } from "@/lib/auth-token";
+import { formatRut } from "@/lib/rut-utils";
 
 type QuickIngredient = {
   id: string;
@@ -47,6 +47,7 @@ type QuickDish = {
   mealSection: string;
   description: string;
   preparation: string;
+  imageUrl?: string;
   recommendedPortion: string;
   portions: string;
   protein: string;
@@ -60,6 +61,8 @@ type QuickPatient = {
   id?: string;
   fullName: string;
   email?: string | null;
+  phone?: string | null;
+  documentId?: string | null;
   dietRestrictions?: string[];
   likes?: string;
   tags?: string[];
@@ -70,6 +73,22 @@ type QuickPatient = {
   birthDate?: string;
   nutritionalFocus?: string;
   fitnessGoals?: string;
+};
+
+type QuickPatientDraft = {
+  fullName: string;
+  email: string;
+  phone: string;
+  documentId: string;
+  gender: string;
+  height: string;
+  weight: string;
+  clinicalSummary: string;
+  nutritionalFocus: string;
+  fitnessGoals: string;
+  likes: string;
+  dietRestrictions: string[];
+  tags: string[];
 };
 
 type ImportedCreation = {
@@ -85,6 +104,7 @@ type QuickAiDishResponse = {
   mealSection?: string;
   description?: string;
   preparation?: string;
+  imageUrl?: string;
   recommendedPortion?: string;
   portions?: number | string;
   protein?: number | string;
@@ -117,6 +137,24 @@ const DEFAULT_DIET_NAME = "Plan nutricional personalizado";
 const DRAFT_KEY = "nutri_quick_recipes_draft";
 const DISHES_PER_CATEGORY_PAGE = 3;
 const WEEKLY_CORE_SECTIONS = ["Desayuno", "Almuerzo", "Once", "Cena"];
+const DEFAULT_DISH_IMAGE =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#fef3c7"/>
+          <stop offset="100%" stop-color="#fde68a"/>
+        </linearGradient>
+      </defs>
+      <rect width="800" height="520" rx="48" fill="url(#bg)"/>
+      <circle cx="400" cy="260" r="128" fill="#ffffff" opacity="0.95"/>
+      <circle cx="400" cy="260" r="84" fill="#f8fafc"/>
+      <path d="M318 208c0-22 18-40 40-40 8 0 15 2 21 6 11-22 33-36 58-36 31 0 57 21 64 50 4-1 8-2 13-2 22 0 40 18 40 40v14H318v-32z" fill="#d97706"/>
+      <rect x="340" y="240" width="120" height="72" rx="24" fill="#f59e0b"/>
+      <text x="400" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#92400e">Plato NutriSaaS</text>
+    </svg>
+  `);
 
 const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -132,6 +170,7 @@ const createDish = (): QuickDish => ({
   mealSection: "Almuerzo",
   description: "",
   preparation: "",
+  imageUrl: "",
   recommendedPortion: "",
   portions: "1",
   protein: "",
@@ -139,6 +178,22 @@ const createDish = (): QuickDish => ({
   carbs: "",
   fats: "",
   ingredients: [createIngredient()],
+});
+
+const createQuickPatientDraft = (): QuickPatientDraft => ({
+  fullName: "",
+  email: "",
+  phone: "",
+  documentId: "",
+  gender: "",
+  height: "",
+  weight: "",
+  clinicalSummary: "",
+  nutritionalFocus: "",
+  fitnessGoals: "",
+  likes: "",
+  dietRestrictions: [],
+  tags: [],
 });
 
 const parseLines = (value: string): string[] =>
@@ -149,6 +204,15 @@ const parseLines = (value: string): string[] =>
         .map((item) => item.trim())
         .filter(Boolean),
     ),
+  );
+
+const isDishMeaningful = (dish: QuickDish): boolean =>
+  Boolean(
+    dish.title.trim() ||
+      dish.description.trim() ||
+      dish.preparation.trim() ||
+      dish.recommendedPortion.trim() ||
+      dish.ingredients.some((ingredient) => ingredient.name.trim() || ingredient.quantity.trim()),
   );
 const normalizeMealSectionKey = (value: string): string =>
   value
@@ -193,7 +257,7 @@ const toTextAreaValueFromFoods = (value: unknown): string => {
 };
 
 const normalizeImportedDishes = (value: unknown): QuickDish[] => {
-  if (!Array.isArray(value) || value.length === 0) return [createDish()];
+  if (!Array.isArray(value) || value.length === 0) return [];
 
   const mapped = value
     .map((dish) => {
@@ -208,7 +272,7 @@ const normalizeImportedDishes = (value: unknown): QuickDish[] => {
               const quantity = typeof raw.quantity === "string" ? raw.quantity : "";
               return { id: createId(), name, quantity };
             })
-            .filter((ing): ing is QuickIngredient => !!ing)
+            .filter(Boolean) as QuickIngredient[]
         : [];
 
       return {
@@ -220,6 +284,7 @@ const normalizeImportedDishes = (value: unknown): QuickDish[] => {
             : "Almuerzo",
         description: typeof item.description === "string" ? item.description : "",
         preparation: typeof item.preparation === "string" ? item.preparation : "",
+        imageUrl: typeof item.imageUrl === "string" ? item.imageUrl : "",
         recommendedPortion:
           typeof item.recommendedPortion === "string" ? item.recommendedPortion : "",
         portions:
@@ -231,9 +296,9 @@ const normalizeImportedDishes = (value: unknown): QuickDish[] => {
         ingredients: ingredients.length > 0 ? ingredients : [createIngredient()],
       };
     })
-    .filter((dish): dish is QuickDish => !!dish);
+    .filter(Boolean) as QuickDish[];
 
-  return mapped.length > 0 ? mapped : [createDish()];
+  return mapped.length > 0 ? mapped : [];
 };
 
 export default function QuickRecipesClient() {
@@ -246,26 +311,40 @@ export default function QuickRecipesClient() {
   const [allowedFoodsMainText, setAllowedFoodsMainText] = useState("");
   const [restrictedFoodsText, setRestrictedFoodsText] = useState("");
   const [specialConsiderations, setSpecialConsiderations] = useState("");
-  const [finalPdfNotes, setFinalPdfNotes] = useState("");
-  const [dishes, setDishes] = useState<QuickDish[]>([createDish()]);
+  const [dishes, setDishes] = useState<QuickDish[]>([]);
   const [mealGenerationTargets, setMealGenerationTargets] = useState<MealGenerationTarget[]>(
     createDefaultGenerationTargets(),
   );
   const [activeMealSectionFilter, setActiveMealSectionFilter] = useState("Todos");
   const [categoryPageMap, setCategoryPageMap] = useState<Record<string, number>>({});
+  const [expandedDishId, setExpandedDishId] = useState<string | null>(null);
+  const [showDishesSection, setShowDishesSection] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<QuickPatient | null>(null);
 
+  const missingGenerationFields = {
+    allowedFoodsMain: parseLines(allowedFoodsMainText).length === 0,
+    restrictedFoods: parseLines(restrictedFoodsText).length === 0,
+    specialConsiderations: specialConsiderations.trim().length === 0,
+  };
+
   const isExportDisabled = useMemo(() => {
-    const hasPatient = !!selectedPatient;
     const hasAtLeastOneDish = dishes.some(d => d.title.trim().length > 0);
-    return !hasPatient || !hasAtLeastOneDish;
-  }, [selectedPatient, dishes]);
+    return !hasAtLeastOneDish || !selectedPatient;
+  }, [dishes, selectedPatient]);
+
+  const meaningfulDishes = useMemo(
+    () => dishes.filter((dish) => isDishMeaningful(dish)),
+    [dishes],
+  );
 
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
+  const [isQuickPatientCreateOpen, setIsQuickPatientCreateOpen] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [creationDescription, setCreationDescription] = useState("");
+  const [isCreatingPatient, setIsCreatingPatient] = useState(false);
+  const [quickPatientDraft, setQuickPatientDraft] = useState<QuickPatientDraft>(createQuickPatientDraft());
 
   const [patients, setPatients] = useState<QuickPatient[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
@@ -274,6 +353,8 @@ export default function QuickRecipesClient() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  const resetQuickPatientDraft = () => setQuickPatientDraft(createQuickPatientDraft());
 
   useEffect(() => {
     const draft = localStorage.getItem(DRAFT_KEY);
@@ -295,9 +376,6 @@ export default function QuickRecipesClient() {
         typeof parsed.specialConsiderations === "string"
           ? parsed.specialConsiderations
           : "",
-      );
-      setFinalPdfNotes(
-        typeof parsed.finalPdfNotes === "string" ? parsed.finalPdfNotes : "",
       );
       setDishes(normalizeImportedDishes(parsed.dishes));
       setMealGenerationTargets(
@@ -325,7 +403,6 @@ export default function QuickRecipesClient() {
         allowedFoodsMain: parseLines(allowedFoodsMainText),
         restrictedFoods: parseLines(restrictedFoodsText),
         specialConsiderations,
-        finalPdfNotes,
         dishes,
         mealGenerationTargets,
         activeMealSectionFilter,
@@ -340,13 +417,29 @@ export default function QuickRecipesClient() {
     allowedFoodsMainText,
     restrictedFoodsText,
     specialConsiderations,
-    finalPdfNotes,
     dishes,
     mealGenerationTargets,
     activeMealSectionFilter,
     categoryPageMap,
     selectedPatient,
   ]);
+
+  useEffect(() => {
+    if (meaningfulDishes.length > 0) {
+      setShowDishesSection(true);
+      setExpandedDishId((current) =>
+        current && dishes.some((dish) => dish.id === current)
+          ? current
+          : meaningfulDishes[0]?.id || null,
+      );
+      return;
+    }
+
+    if (dishes.length === 0) {
+      setShowDishesSection(false);
+      setExpandedDishId(null);
+    }
+  }, [dishes, meaningfulDishes]);
 
   useEffect(() => {
     if (!creationId) return;
@@ -373,9 +466,6 @@ export default function QuickRecipesClient() {
           typeof content.specialConsiderations === "string"
             ? content.specialConsiderations
             : "",
-        );
-        setFinalPdfNotes(
-          typeof content.finalPdfNotes === "string" ? content.finalPdfNotes : "",
         );
         setDishes(normalizeImportedDishes(content.dishes));
         setMealGenerationTargets(
@@ -433,14 +523,97 @@ export default function QuickRecipesClient() {
     );
   };
 
-  const addDish = () => setDishes((prev) => [...prev, createDish()]);
-
-  const removeDish = (dishId: string) => {
-    if (dishes.length === 1) {
-      toast.error("Debes tener al menos un plato.");
+  const handleCreateQuickPatient = async () => {
+    if (!quickPatientDraft.fullName.trim()) {
+      toast.error("El nombre del paciente es obligatorio.");
       return;
     }
-    setDishes((prev) => prev.filter((dish) => dish.id !== dishId));
+
+    setIsCreatingPatient(true);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        toast.error("Sesión no válida");
+        return;
+      }
+
+      const response = await fetchApi("/patients", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fullName: quickPatientDraft.fullName.trim(),
+          email: quickPatientDraft.email.trim() || undefined,
+          phone: quickPatientDraft.phone.trim() || undefined,
+          documentId: quickPatientDraft.documentId.trim() || undefined,
+          gender: quickPatientDraft.gender.trim() || undefined,
+          height: quickPatientDraft.height.trim() ? Number(quickPatientDraft.height) : undefined,
+          weight: quickPatientDraft.weight.trim() ? Number(quickPatientDraft.weight) : undefined,
+          clinicalSummary: quickPatientDraft.clinicalSummary.trim() || undefined,
+          nutritionalFocus: quickPatientDraft.nutritionalFocus.trim() || undefined,
+          fitnessGoals: quickPatientDraft.fitnessGoals.trim() || undefined,
+          likes: quickPatientDraft.likes.trim() || undefined,
+          dietRestrictions: quickPatientDraft.dietRestrictions,
+          tags: quickPatientDraft.tags,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || "No se pudo crear el paciente");
+      }
+
+      const savedPatient = await response.json();
+      const quickPatient: QuickPatient = {
+        id: savedPatient.id,
+        fullName: savedPatient.fullName,
+        email: savedPatient.email ?? null,
+        phone: savedPatient.phone ?? null,
+        documentId: savedPatient.documentId ?? null,
+        gender: savedPatient.gender ?? undefined,
+        height: savedPatient.height ?? undefined,
+        weight: savedPatient.weight ?? undefined,
+        clinicalSummary: savedPatient.clinicalSummary ?? undefined,
+        nutritionalFocus: savedPatient.nutritionalFocus ?? undefined,
+        fitnessGoals: savedPatient.fitnessGoals ?? undefined,
+        likes: savedPatient.likes ?? undefined,
+        dietRestrictions: Array.isArray(savedPatient.dietRestrictions) ? savedPatient.dietRestrictions : [],
+        tags: Array.isArray(savedPatient.tags) ? savedPatient.tags : [],
+      };
+
+      setSelectedPatient(quickPatient);
+      setIsQuickPatientCreateOpen(false);
+      setIsPatientModalOpen(false);
+      resetQuickPatientDraft();
+      toast.success(`Paciente "${quickPatient.fullName}" creado y vinculado.`);
+    } catch (error) {
+      console.error("Error creating quick patient", error);
+      toast.error(error instanceof Error ? error.message : "No se pudo crear el paciente");
+    } finally {
+      setIsCreatingPatient(false);
+    }
+  };
+
+  const addDish = () => {
+    const newDish = createDish();
+    setShowDishesSection(true);
+    setExpandedDishId(newDish.id);
+    setDishes((prev) => [...prev, newDish]);
+  };
+
+  const removeDish = (dishId: string) => {
+    setDishes((prev) => {
+      const next = prev.filter((dish) => dish.id !== dishId);
+      if (expandedDishId === dishId) {
+        setExpandedDishId(next[0]?.id || null);
+      }
+      if (next.length === 0) {
+        setShowDishesSection(false);
+      }
+      return next;
+    });
   };
 
   const updateDish = (dishId: string, field: keyof QuickDish, value: string) => {
@@ -498,7 +671,7 @@ export default function QuickRecipesClient() {
   };
   const applyImportedCreation = (creation: ImportedCreation) => {
     if (creation.type !== "RECIPE" && creation.type !== "DIET") {
-      toast.error("Solo puedes importar recetas o dietas en este modulo.");
+      toast.error("Solo puedes importar recetas o dietas en este módulo.");
       return;
     }
     const content = (creation.content || {}) as Record<string, unknown>;
@@ -529,9 +702,6 @@ export default function QuickRecipesClient() {
     );
     setSpecialConsiderations(
       typeof content.specialConsiderations === "string" ? content.specialConsiderations : "",
-    );
-    setFinalPdfNotes(
-      typeof content.finalPdfNotes === "string" ? content.finalPdfNotes : "",
     );
     setDishes(normalizeImportedDishes(content.dishes));
     setMealGenerationTargets(
@@ -609,8 +779,13 @@ export default function QuickRecipesClient() {
           count: Math.max(1, Math.min(14, target.count || 1)),
         }));
 
+      if (!selectedPatient) {
+        toast.error("Primero selecciona un paciente para generar esta receta.");
+        return;
+      }
+
       if (selectedTargets.length === 0) {
-        toast.error("Selecciona al menos una categoria para generar platos.");
+        toast.error("Selecciona al menos una categoría para generar platos.");
         return;
       }
 
@@ -629,7 +804,7 @@ export default function QuickRecipesClient() {
         body: JSON.stringify({
           payload: {
             dietName: dietName.trim() || DEFAULT_DIET_NAME,
-            notes: [nutritionistNotes.trim(), aiInstruction].filter(Boolean).join(" | "),
+            notes: aiInstruction,
             allowedFoodsMain: parseLines(allowedFoodsMainText),
             restrictedFoods: Array.from(
               new Set([...userRestricted, ...patientRestrictions, ...patientHealthTags]),
@@ -667,7 +842,7 @@ export default function QuickRecipesClient() {
       const data = await response.json();
       const aiDishes = Array.isArray(data?.dishes) ? (data.dishes as QuickAiDishResponse[]) : [];
       if (aiDishes.length === 0) {
-        throw new Error("La IA no devolvio platos.");
+        throw new Error("La IA no devolvió platos.");
       }
 
       const mapped: QuickDish[] = aiDishes.map((dish) => {
@@ -702,6 +877,7 @@ export default function QuickRecipesClient() {
         mealSection: dish.mealSection || "Almuerzo",
         description: dish.description || "",
         preparation: dish.preparation || "",
+        imageUrl: dish.imageUrl || "",
         recommendedPortion: dish.recommendedPortion || "",
         portions: dish.portions != null ? String(dish.portions) : "1",
         protein: String(dish.protein ?? ""),
@@ -713,6 +889,8 @@ export default function QuickRecipesClient() {
       });
 
       setDishes(mapped);
+      setShowDishesSection(mapped.length > 0);
+      setExpandedDishId(mapped[0]?.id || null);
       if (mode === "weekly") {
         setMealGenerationTargets(effectiveTargets);
       }
@@ -720,12 +898,13 @@ export default function QuickRecipesClient() {
       setActiveMealSectionFilter("Todos");
       toast.success(
         mode === "weekly"
-          ? "Plan semanal generado con IA segun categorias."
+          ? "Plan semanal generado con IA según categorías."
           : "Platos generados correctamente con IA.",
       );
     } catch (error) {
       console.error("Quick AI generation error", error);
-      toast.error("No se pudo generar con IA. Revisa conexion o configuracion de Gemini.");
+      toast.error("No se pudo generar con IA. Revisa la conexión o la configuración de la IA.");
+      
     } finally {
       if (mode === "single") {
         setIsGenerating(false);
@@ -741,7 +920,6 @@ export default function QuickRecipesClient() {
     allowedFoodsMain: parseLines(allowedFoodsMainText),
     restrictedFoods: parseLines(restrictedFoodsText),
     specialConsiderations,
-    finalPdfNotes,
     dishes,
     mealGenerationTargets,
     updatedAt: new Date().toISOString(),
@@ -842,17 +1020,22 @@ export default function QuickRecipesClient() {
           ...(selectedPatient
             ? { patientId: selectedPatient.id, patientName: selectedPatient.fullName }
             : {}),
-          dishCount: dishes.length,
+          dishCount: meaningfulDishes.length,
           source: "rapido",
         },
         tags: ["rapido", "receta"],
       });
 
-      const savedDishCount = await persistGeneratedDishesToProfile(savedCreation.id);
+      const savedDishCount =
+        savedCreation?.wasCreated === false
+          ? 0
+          : await persistGeneratedDishesToProfile(savedCreation.id);
       toast.success(
-        savedDishCount > 0
-          ? `Receta rápida guardada y ${savedDishCount} platos quedaron en tu perfil.`
-          : "Receta rápida guardada en creaciones.",
+        savedCreation?.wasCreated === false
+          ? "La receta rápida ya existía; reutilizamos la creación guardada."
+          : savedDishCount > 0
+            ? `Receta rápida guardada y ${savedDishCount} platos quedaron en tu perfil.`
+            : "Receta rápida guardada en creaciones.",
       );
       setIsSaveCreationModalOpen(false);
       setCreationDescription("");
@@ -871,11 +1054,12 @@ export default function QuickRecipesClient() {
     setAllowedFoodsMainText("");
     setRestrictedFoodsText("");
     setSpecialConsiderations("");
-    setFinalPdfNotes("");
-    setDishes([createDish()]);
+    setDishes([]);
     setMealGenerationTargets(createDefaultGenerationTargets());
     setActiveMealSectionFilter("Todos");
     setCategoryPageMap({});
+    setExpandedDishId(null);
+    setShowDishesSection(false);
     setSelectedPatient(null);
     localStorage.removeItem(DRAFT_KEY);
     toast.success("Borrador reiniciado.");
@@ -889,12 +1073,12 @@ export default function QuickRecipesClient() {
     allowedFoodsMain: parseLines(allowedFoodsMainText),
     restrictedFoods: parseLines(restrictedFoodsText),
     specialConsiderations: specialConsiderations.trim() || undefined,
-    finalNotes: finalPdfNotes.trim() || undefined,
-    dishes: dishes.map((dish) => ({
+    dishes: meaningfulDishes.map((dish) => ({
       title: dish.title,
       mealSection: dish.mealSection,
       description: dish.description,
       preparation: dish.preparation,
+      imageUrl: dish.imageUrl || DEFAULT_DISH_IMAGE,
       recommendedPortion: dish.recommendedPortion,
       portions: dish.portions,
       protein: dish.protein,
@@ -914,6 +1098,10 @@ export default function QuickRecipesClient() {
   });
 
   const handleExportPdf = async () => {
+    if (!selectedPatient) {
+      toast.error("Primero selecciona o crea un paciente para exportar el PDF.");
+      return;
+    }
     setIsExportingPdf(true);
     try {
       const { downloadQuickRecipesPdf } = await import(
@@ -921,6 +1109,7 @@ export default function QuickRecipesClient() {
       );
       await downloadQuickRecipesPdf(buildPdfData());
       toast.success("PDF de recetas descargado correctamente.");
+      setIsSaveCreationModalOpen(true);
     } catch (error) {
       console.error("PDF export error", error);
       toast.error("No se pudo generar el PDF.");
@@ -931,16 +1120,9 @@ export default function QuickRecipesClient() {
 
   const actionDockItems: ActionDockItem[] = [
     {
-      id: "patient",
-      icon: selectedPatient ? User : UserPlus,
-      label: selectedPatient ? `Paciente: ${selectedPatient.fullName}` : "Importar paciente",
-      variant: "emerald",
-      onClick: openPatientModal,
-    },
-    {
       id: "export-pdf",
       icon: Download,
-      label: isExportingPdf ? "Exportando..." : "Exportar PDF",
+      label: isExportingPdf ? "Exportando..." : "Recetario PDF",
       variant: "slate",
       onClick: handleExportPdf,
       disabled: isExportingPdf || isExportDisabled,
@@ -976,11 +1158,13 @@ export default function QuickRecipesClient() {
 
   const mealSectionTabs = useMemo(() => {
     const ordered = MEAL_SECTIONS.filter((section) =>
-      dishes.some((dish) => normalizeMealSectionKey(dish.mealSection) === normalizeMealSectionKey(section)),
+      meaningfulDishes.some(
+        (dish) => normalizeMealSectionKey(dish.mealSection) === normalizeMealSectionKey(section),
+      ),
     );
     const custom = Array.from(
       new Set(
-        dishes
+        meaningfulDishes
           .map((dish) => dish.mealSection.trim())
           .filter(
             (section) =>
@@ -992,16 +1176,16 @@ export default function QuickRecipesClient() {
       ),
     );
     return ["Todos", ...ordered, ...custom];
-  }, [dishes]);
+  }, [meaningfulDishes]);
 
   const filteredDishesByCategory = useMemo(() => {
-    if (activeMealSectionFilter === "Todos") return dishes;
-    return dishes.filter(
+    if (activeMealSectionFilter === "Todos") return meaningfulDishes;
+    return meaningfulDishes.filter(
       (dish) =>
         normalizeMealSectionKey(dish.mealSection) ===
         normalizeMealSectionKey(activeMealSectionFilter),
     );
-  }, [activeMealSectionFilter, dishes]);
+  }, [activeMealSectionFilter, meaningfulDishes]);
 
   const currentCategoryPage = Math.max(
     1,
@@ -1036,7 +1220,7 @@ export default function QuickRecipesClient() {
   return (
     <>
       <ModuleLayout
-        title="Rápido"
+        title="Recetas"
         description="Genera recetas rápidas reutilizando contexto clínico, restricciones y preferencias."
         step={{ number: "Express", label: "Receta rápida", icon: ChefHat, color: "text-amber-600" }}
         rightNavItems={actionDockItems}
@@ -1047,12 +1231,22 @@ export default function QuickRecipesClient() {
               Modo Express · Recetas reutilizables
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-4">
-              {isExportDisabled && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-[10px] font-bold animate-pulse">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  <span>Faltan datos fundamentales (Paciente + Platos)</span>
-                </div>
-              )}
+              <Button
+                variant="outline"
+                className="h-11 rounded-2xl border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                onClick={openPatientModal}
+              >
+                <User className="mr-2 h-4 w-4" />
+                Vincular / crear paciente
+              </Button>
+              <Button
+                variant="outline"
+                className="h-11 rounded-2xl border-slate-200"
+                onClick={() => setIsImportCreationModalOpen(true)}
+              >
+                <Library className="mr-2 h-4 w-4" />
+                Importar
+              </Button>
               <Button
                 variant="outline"
                 className="h-11 rounded-2xl border-slate-200"
@@ -1064,17 +1258,17 @@ export default function QuickRecipesClient() {
               <Button
                 className="h-11 rounded-2xl bg-slate-900 px-6 text-white hover:bg-slate-800"
                 onClick={handleExportPdf}
-                disabled={isExportingPdf}
+                disabled={isExportingPdf || !selectedPatient}
               >
-                <Download className="mr-2 h-4 w-4" />
-                {isExportingPdf ? "Generando..." : "Descargar PDF"}
+                <ChefHat className="mr-2 h-4 w-4" />
+                {isExportingPdf ? "Generando..." : "Descargar recetario PDF"}
               </Button>
             </div>
           </ModuleFooter>
         }
       >
         <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -1101,16 +1295,7 @@ export default function QuickRecipesClient() {
                 />
               </div>
             </div>
-            {!selectedPatient ? (
-              <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-700">
-                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>
-                  Puedes vincular paciente para incluir restricciones y características del
-                  paciente (edad, sexo, peso/talla, objetivos y contexto clínico) en la
-                  generación IA.
-                </span>
-              </div>
-            ) : (
+            {selectedPatient ? (
               <div className="mt-4 flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700">
                 <User className="h-4 w-4" />
                 {selectedPatient.fullName}
@@ -1121,43 +1306,92 @@ export default function QuickRecipesClient() {
                   <X className="h-3.5 w-3.5" />
                 </button>
               </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-dashed border-amber-200 bg-amber-50/60 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-amber-900">Selecciona un paciente para usar la IA y exportar el PDF.</p>
+                    <p className="mt-1 text-xs leading-5 text-amber-800/80">
+                      Si aún no tienes uno, puedes crear un paciente general aquí mismo para trabajar más rápido y usarlo como contexto del prompt.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl border-amber-200 bg-white text-amber-700 hover:bg-amber-100"
+                    onClick={openPatientModal}
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    Seleccionar o crear
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <label
+                  className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${
+                    missingGenerationFields.allowedFoodsMain
+                      ? "text-rose-600"
+                      : "text-slate-400"
+                  }`}
+                >
                   Alimentos permitidos principales
                 </label>
                 <Textarea
                   value={allowedFoodsMainText}
                   onChange={(event) => setAllowedFoodsMainText(event.target.value)}
                   placeholder="Ej: pollo, huevo, yogurt griego, avena (uno por línea o separados por coma)"
-                  className="min-h-[96px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+                  className={`min-h-[96px] rounded-xl bg-slate-50 text-sm ${
+                    missingGenerationFields.allowedFoodsMain
+                      ? "border-rose-300 ring-1 ring-rose-100 focus-visible:ring-rose-300"
+                      : "border-slate-200"
+                  }`}
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <label
+                  className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${
+                    missingGenerationFields.restrictedFoods
+                      ? "text-rose-600"
+                      : "text-slate-400"
+                  }`}
+                >
                   Restricciones de alimentos
                 </label>
                 <Textarea
                   value={restrictedFoodsText}
                   onChange={(event) => setRestrictedFoodsText(event.target.value)}
-                  placeholder="Ej: mariscos, frituras, lactosa (si hay paciente, se suman sus restricciones)"
-                  className="min-h-[96px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+                  placeholder="Ej: mariscos, frituras, lactosa"
+                  className={`min-h-[96px] rounded-xl bg-slate-50 text-sm ${
+                    missingGenerationFields.restrictedFoods
+                      ? "border-rose-300 ring-1 ring-rose-100 focus-visible:ring-rose-300"
+                      : "border-slate-200"
+                  }`}
                 />
               </div>
             </div>
             <div>
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+              <label
+                className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${
+                  missingGenerationFields.specialConsiderations
+                    ? "text-rose-600"
+                    : "text-slate-400"
+                }`}
+              >
                 Consideraciones especiales
               </label>
               <Textarea
                 value={specialConsiderations}
                 onChange={(event) => setSpecialConsiderations(event.target.value)}
                 placeholder="Ej: máximo 20 min por preparación, usar ingredientes de bajo costo..."
-                className="min-h-[80px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+                className={`min-h-[80px] rounded-xl bg-slate-50 text-sm ${
+                  missingGenerationFields.specialConsiderations
+                    ? "border-rose-300 ring-1 ring-rose-100 focus-visible:ring-rose-300"
+                    : "border-slate-200"
+                }`}
                 maxLength={700}
               />
             </div>
@@ -1166,37 +1400,11 @@ export default function QuickRecipesClient() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Notas del nutricionista (contexto IA)
-            </label>
-            <Textarea
-              value={nutritionistNotes}
-              onChange={(event) => setNutritionistNotes(event.target.value)}
-              placeholder="Ej: enfocar en saciedad, preparaciones simples y adherencia alta."
-              className="min-h-[84px] rounded-xl border-slate-200 bg-slate-50 text-sm"
-              maxLength={700}
-            />
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Notas finales para el PDF
-            </label>
-            <Textarea
-              value={finalPdfNotes}
-              onChange={(event) => setFinalPdfNotes(event.target.value)}
-              placeholder="Ej: Recuerda hidratarte, prioriza consistencia y avisa cualquier molestia digestiva."
-              className="min-h-[84px] rounded-xl border-slate-200 bg-slate-50 text-sm"
-              maxLength={900}
-            />
-          </div>
-
           <div className="space-y-4">
             <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className="text-sm font-black uppercase tracking-widest text-indigo-700">
-                  Generar con IA segun instrucciones
+                  Generar con IA según instrucciones
                 </h3>
                 <div className="text-xs font-semibold text-indigo-700">
                   Total a generar: {selectedGenerationTotal}
@@ -1208,10 +1416,10 @@ export default function QuickRecipesClient() {
                     key={target.mealSection}
                     className="flex items-center justify-between rounded-xl border border-indigo-100 bg-white px-3 py-2"
                   >
-                    <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={target.enabled}
+                  <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={target.enabled}
                         onChange={(event) =>
                           updateGenerationTarget(
                             target.mealSection,
@@ -1221,7 +1429,7 @@ export default function QuickRecipesClient() {
                         }
                         className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                       />
-                      {target.mealSection}
+                      <span>{target.mealSection}</span>
                     </span>
                     <Input
                       type="number"
@@ -1250,344 +1458,698 @@ export default function QuickRecipesClient() {
                   <Sparkles className="mr-2 h-4 w-4" />
                   {isGenerating ? "Generando..." : "Generar platos IA"}
                 </Button>
-                <Button
-                  variant="outline"
-                  className="rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-100"
-                  onClick={() => generateWithAi("weekly")}
-                  disabled={isGenerating || isGeneratingWeekly}
-                >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  {isGeneratingWeekly ? "Generando..." : "Generar plan semanal IA"}
-                </Button>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {mealSectionTabs.map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveMealSectionFilter(tab)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold ${
-                    activeMealSectionFilter === tab
-                      ? "bg-slate-900 text-white"
-                      : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
+            {showDishesSection && meaningfulDishes.length > 0 ? (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  {mealSectionTabs.map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveMealSectionFilter(tab)}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-bold ${
+                        activeMealSectionFilter === tab
+                          ? "bg-slate-900 text-white"
+                          : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
 
-            <div className="flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-500">
-                <ChefHat className="h-4 w-4 text-amber-500" />
-                Platos ({filteredDishesByCategory.length})
-              </h2>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCategoryPageMap((prev) => ({
-                      ...prev,
-                      [activeMealSectionFilter]: Math.max(1, currentCategoryPage - 1),
-                    }))
-                  }
-                  disabled={currentCategoryPage <= 1}
-                  className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
-                >
-                  Anterior
-                </Button>
-                <span className="text-xs font-semibold text-slate-500">
-                  Pagina {Math.min(currentCategoryPage, totalCategoryPages)} de {totalCategoryPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCategoryPageMap((prev) => ({
-                      ...prev,
-                      [activeMealSectionFilter]: Math.min(
-                        totalCategoryPages,
-                        currentCategoryPage + 1,
-                      ),
-                    }))
-                  }
-                  disabled={currentCategoryPage >= totalCategoryPages}
-                  className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
-                >
-                  Siguiente
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addDish}
-                  className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
-                >
-                  <Plus className="mr-1.5 h-4 w-4" />
-                  Agregar plato
-                </Button>
-              </div>
-            </div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-500">
+                    <ChefHat className="h-4 w-4 text-amber-500" />
+                    Platos ({filteredDishesByCategory.length})
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCategoryPageMap((prev) => ({
+                          ...prev,
+                          [activeMealSectionFilter]: Math.max(1, currentCategoryPage - 1),
+                        }))
+                      }
+                      disabled={currentCategoryPage <= 1}
+                      className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-xs font-semibold text-slate-500">
+                      Página {Math.min(currentCategoryPage, totalCategoryPages)} de {totalCategoryPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCategoryPageMap((prev) => ({
+                          ...prev,
+                          [activeMealSectionFilter]: Math.min(
+                            totalCategoryPages,
+                            currentCategoryPage + 1,
+                          ),
+                        }))
+                      }
+                      disabled={currentCategoryPage >= totalCategoryPages}
+                      className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                </div>
 
-            {pagedDishes.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-                No hay platos en esta categoria.
-              </div>
+                <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border-separate border-spacing-0">
+                      <thead className="bg-slate-50/80">
+                        <tr className="text-left text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          <th className="px-4 py-3">Plato</th>
+                          <th className="px-4 py-3">Sección</th>
+                          <th className="px-4 py-3">Resumen</th>
+                          <th className="px-4 py-3">Macros</th>
+                          <th className="px-4 py-3 text-right">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pagedDishes.map((dish, index) => {
+                          const isExpanded = expandedDishId === dish.id;
+                          const rowNumber =
+                            (Math.min(currentCategoryPage, totalCategoryPages) - 1) *
+                              DISHES_PER_CATEGORY_PAGE +
+                            index +
+                            1;
+                          const summaryText = dish.preparation
+                            ? dish.preparation.split("\n")[0]?.replace(/^\d+\.\s*/, "") ||
+                              "Sin preparación"
+                            : dish.description || "Sin descripción";
+
+                          return (
+                            <Fragment key={dish.id}>
+                              <tr
+                                onClick={() => setExpandedDishId(isExpanded ? null : dish.id)}
+                                className={`cursor-pointer border-t border-slate-100 transition-colors ${
+                                  isExpanded ? "bg-amber-50/60" : "hover:bg-slate-50"
+                                }`}
+                              >
+                                <td className="px-4 py-4 align-top">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                                      <ChefHat className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+                                        Plato {rowNumber}
+                                      </p>
+                                      <p className="truncate text-sm font-black text-slate-900">
+                                        {dish.title.trim() || "Plato sin nombre"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-4 align-top">
+                                  <div className="flex flex-wrap gap-2">
+                                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-800">
+                                      {dish.mealSection || "Sin sección"}
+                                    </span>
+                                    {dish.recommendedPortion.trim() ? (
+                                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                                        Porción: {dish.recommendedPortion}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-4 align-top">
+                                  <p className="line-clamp-2 text-sm text-slate-600">{summaryText}</p>
+                                </td>
+                                <td className="px-4 py-4 align-top">
+                                  <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+                                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-2 py-2">
+                                      <p className="font-black text-slate-800">{dish.calories || "-"}</p>
+                                      <p className="text-slate-500">Kcal</p>
+                                    </div>
+                                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-2 py-2">
+                                      <p className="font-black text-slate-800">{dish.protein || "-"}</p>
+                                      <p className="text-slate-500">Prot.</p>
+                                    </div>
+                                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-2 py-2">
+                                      <p className="font-black text-slate-800">{dish.carbs || "-"}</p>
+                                      <p className="text-slate-500">HC</p>
+                                    </div>
+                                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-2 py-2">
+                                      <p className="font-black text-slate-800">{dish.fats || "-"}</p>
+                                      <p className="text-slate-500">Grasas</p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-4 align-top">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setExpandedDishId(isExpanded ? null : dish.id);
+                                      }}
+                                      className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700"
+                                    >
+                                      {isExpanded ? "Ocultar" : "Abrir"}
+                                    </button>
+                                    <button
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        removeDish(dish.id);
+                                      }}
+                                      className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                              {isExpanded ? (
+                                <tr className="bg-slate-50">
+                                  <td colSpan={5} className="px-4 py-4">
+                                    <div className="space-y-4" onClick={(event) => event.stopPropagation()}>
+                                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                        <div className="sm:col-span-2">
+                                          <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                            Nombre del plato
+                                          </label>
+                                          <Input
+                                            value={dish.title}
+                                            onChange={(event) =>
+                                              updateDish(dish.id, "title", event.target.value)
+                                            }
+                                            placeholder="Ej: Bowl de quinoa con pollo"
+                                            className="h-10 rounded-xl border-slate-200 bg-white text-sm font-semibold"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                            Tiempo de comida
+                                          </label>
+                                          <select
+                                            value={dish.mealSection}
+                                            onChange={(event) =>
+                                              updateDish(dish.id, "mealSection", event.target.value)
+                                            }
+                                            className="h-10 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                                          >
+                                            {MEAL_SECTIONS.map((section) => (
+                                              <option key={section} value={section}>
+                                                {section}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                      </div>
+
+                                      <div>
+                                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                          Descripción
+                                        </label>
+                                        <Textarea
+                                          value={dish.description}
+                                          onChange={(event) =>
+                                            updateDish(dish.id, "description", event.target.value)
+                                          }
+                                          className="min-h-[56px] rounded-xl border-slate-200 bg-white text-sm"
+                                          maxLength={400}
+                                        />
+                                      </div>
+
+                                      <div>
+                                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                          Preparación
+                                        </label>
+                                        <Textarea
+                                          value={dish.preparation}
+                                          onChange={(event) =>
+                                            updateDish(dish.id, "preparation", event.target.value)
+                                          }
+                                          className="min-h-[72px] rounded-xl border-slate-200 bg-white text-sm"
+                                          maxLength={800}
+                                        />
+                                      </div>
+
+                                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                                        <div className="col-span-2 sm:col-span-1">
+                                          <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                            Porción
+                                          </label>
+                                          <Input
+                                            value={dish.recommendedPortion}
+                                            onChange={(event) =>
+                                              updateDish(dish.id, "recommendedPortion", event.target.value)
+                                            }
+                                            className="h-10 rounded-xl border-slate-200 bg-white text-sm"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                            Rinde
+                                          </label>
+                                          <Input
+                                            type="number"
+                                            min="1"
+                                            value={dish.portions}
+                                            onChange={(event) =>
+                                              updateDish(dish.id, "portions", event.target.value)
+                                            }
+                                            className="h-10 rounded-xl border-slate-200 bg-white text-sm"
+                                          />
+                                        </div>
+                                        {(["calories", "protein", "carbs", "fats"] as const).map((macro) => (
+                                          <div key={macro}>
+                                            <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                              {macro === "calories"
+                                                ? "Kcal"
+                                                : macro === "protein"
+                                                  ? "Prot. (g)"
+                                                  : macro === "carbs"
+                                                    ? "HC (g)"
+                                                    : "Grasas (g)"}
+                                            </label>
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              value={dish[macro]}
+                                              onChange={(event) =>
+                                                updateDish(dish.id, macro, event.target.value)
+                                              }
+                                              className="h-10 rounded-xl border-slate-200 bg-white text-sm"
+                                            />
+                                          </div>
+                                        ))}
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                          <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                            Ingredientes
+                                          </label>
+                                          <button
+                                            onClick={() => addIngredient(dish.id)}
+                                            className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700"
+                                          >
+                                            <Plus className="h-3 w-3" />
+                                            Agregar
+                                          </button>
+                                        </div>
+                                        <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
+                                          {dish.ingredients.map((ingredient) => (
+                                            <div key={ingredient.id} className="flex items-center gap-2">
+                                              <Input
+                                                value={ingredient.name}
+                                                onChange={(event) =>
+                                                  updateIngredient(
+                                                    dish.id,
+                                                    ingredient.id,
+                                                    "name",
+                                                    event.target.value,
+                                                  )
+                                                }
+                                                placeholder="Ingrediente"
+                                                className="h-9 flex-1 rounded-xl border-slate-200 bg-white text-sm"
+                                              />
+                                              <Input
+                                                value={ingredient.quantity}
+                                                onChange={(event) =>
+                                                  updateIngredient(
+                                                    dish.id,
+                                                    ingredient.id,
+                                                    "quantity",
+                                                    event.target.value,
+                                                  )
+                                                }
+                                                placeholder="Cantidad"
+                                                className="h-9 w-28 rounded-xl border-slate-200 bg-white text-sm"
+                                              />
+                                              <Input
+                                                value={ingredient.amount || ""}
+                                                onChange={(event) =>
+                                                  updateIngredient(
+                                                    dish.id,
+                                                    ingredient.id,
+                                                    "amount",
+                                                    event.target.value,
+                                                  )
+                                                }
+                                                placeholder="Monto"
+                                                className="h-9 w-24 rounded-xl border-slate-200 bg-white text-sm"
+                                              />
+                                              <Input
+                                                value={ingredient.unit || ""}
+                                                onChange={(event) =>
+                                                  updateIngredient(
+                                                    dish.id,
+                                                    ingredient.id,
+                                                    "unit",
+                                                    event.target.value,
+                                                  )
+                                                }
+                                                placeholder="Unidad"
+                                                className="h-9 w-20 rounded-xl border-slate-200 bg-white text-sm"
+                                              />
+                                              <button
+                                                onClick={() => removeIngredient(dish.id, ingredient.id)}
+                                                className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                                              >
+                                                <X className="h-3.5 w-3.5" />
+                                              </button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ) : null}
+                            </Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
             ) : (
-              pagedDishes.map((dish, index) => (
-              <div
-                key={dish.id}
-                className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
-              >
-                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Plato{" "}
-                    {(Math.min(currentCategoryPage, totalCategoryPages) - 1) *
-                      DISHES_PER_CATEGORY_PAGE +
-                      index +
-                      1}
-                  </span>
-                  <button
-                    onClick={() => removeDish(dish.id)}
-                    className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                <div className="space-y-4 p-5">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="sm:col-span-2">
-                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        Nombre del plato
-                      </label>
-                      <Input
-                        value={dish.title}
-                        onChange={(event) => updateDish(dish.id, "title", event.target.value)}
-                        placeholder="Ej: Bowl de quinoa con pollo"
-                        className="h-10 rounded-xl border-slate-200 bg-slate-50 text-sm font-semibold"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        Tiempo de comida
-                      </label>
-                      <select
-                        value={dish.mealSection}
-                        onChange={(event) =>
-                          updateDish(dish.id, "mealSection", event.target.value)
-                        }
-                        className="h-10 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-700 outline-none focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
-                      >
-                        {MEAL_SECTIONS.map((section) => (
-                          <option key={section} value={section}>
-                            {section}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      Descripción
-                    </label>
-                    <Textarea
-                      value={dish.description}
-                      onChange={(event) =>
-                        updateDish(dish.id, "description", event.target.value)
-                      }
-                      className="min-h-[64px] rounded-xl border-slate-200 bg-slate-50 text-sm"
-                      maxLength={400}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      Preparación
-                    </label>
-                    <Textarea
-                      value={dish.preparation}
-                      onChange={(event) =>
-                        updateDish(dish.id, "preparation", event.target.value)
-                      }
-                      className="min-h-[80px] rounded-xl border-slate-200 bg-slate-50 text-sm"
-                      maxLength={800}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                    <div className="col-span-2 sm:col-span-1">
-                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        Porción
-                      </label>
-                      <Input
-                        value={dish.recommendedPortion}
-                        onChange={(event) =>
-                          updateDish(dish.id, "recommendedPortion", event.target.value)
-                        }
-                        className="h-10 rounded-xl border-slate-200 bg-slate-50 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        Rinde
-                      </label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={dish.portions}
-                        onChange={(event) =>
-                          updateDish(dish.id, "portions", event.target.value)
-                        }
-                        className="h-10 rounded-xl border-slate-200 bg-slate-50 text-sm"
-                      />
-                    </div>
-                    {(["calories", "protein", "carbs", "fats"] as const).map((macro) => (
-                      <div key={macro}>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                          {macro === "calories"
-                            ? "Kcal"
-                            : macro === "protein"
-                              ? "Prot. (g)"
-                              : macro === "carbs"
-                                ? "HC (g)"
-                                : "Grasas (g)"}
-                        </label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={dish[macro]}
-                          onChange={(event) => updateDish(dish.id, macro, event.target.value)}
-                          className="h-10 rounded-xl border-slate-200 bg-slate-50 text-sm"
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        Ingredientes
-                      </label>
-                      <button
-                        onClick={() => addIngredient(dish.id)}
-                        className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Agregar
-                      </button>
-                    </div>
-                    <div className="max-h-48 space-y-2 overflow-y-auto pr-1">
-                      {dish.ingredients.map((ingredient) => (
-                        <div key={ingredient.id} className="flex items-center gap-2">
-                          <Input
-                            value={ingredient.name}
-                            onChange={(event) =>
-                              updateIngredient(
-                                dish.id,
-                                ingredient.id,
-                                "name",
-                                event.target.value,
-                              )
-                            }
-                            placeholder="Ingrediente"
-                            className="h-9 flex-1 rounded-xl border-slate-200 bg-slate-50 text-sm"
-                          />
-                          <Input
-                            value={ingredient.quantity}
-                            onChange={(event) =>
-                              updateIngredient(
-                                dish.id,
-                                ingredient.id,
-                                "quantity",
-                                event.target.value,
-                              )
-                            }
-                            placeholder="Cantidad"
-                            className="h-9 w-28 rounded-xl border-slate-200 bg-slate-50 text-sm"
-                          />
-                          <Input
-                            value={ingredient.amount || ""}
-                            onChange={(event) =>
-                              updateIngredient(
-                                dish.id,
-                                ingredient.id,
-                                "amount",
-                                event.target.value,
-                              )
-                            }
-                            placeholder="Monto"
-                            className="h-9 w-24 rounded-xl border-slate-200 bg-slate-50 text-sm"
-                          />
-                          <Input
-                            value={ingredient.unit || ""}
-                            onChange={(event) =>
-                              updateIngredient(
-                                dish.id,
-                                ingredient.id,
-                                "unit",
-                                event.target.value,
-                              )
-                            }
-                            placeholder="Unidad"
-                            className="h-9 w-20 rounded-xl border-slate-200 bg-slate-50 text-sm"
-                          />
-                          <button
-                            onClick={() => removeIngredient(dish.id, ingredient.id)}
-                            className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+              <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50/50 py-16 text-center">
+                <ChefHat className="mb-4 h-12 w-12 text-slate-300" />
+                <h3 className="text-lg font-bold text-slate-400">Aún no hay platos generados</h3>
+                <p className="mt-1 text-sm text-slate-400">Configura los parámetros arriba y usa el botón Generar con IA.</p>
+                <Button
+                  variant="outline"
+                  className="mt-6 rounded-2xl border-slate-200"
+                  onClick={addDish}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Agregar plato manual
+                </Button>
               </div>
-              ))
             )}
           </div>
         </div>
       </ModuleLayout>
 
-      <Modal isOpen={isPatientModalOpen} onClose={() => setIsPatientModalOpen(false)} title="Importar paciente">
+      <Modal
+        isOpen={isPatientModalOpen}
+        onClose={() => setIsPatientModalOpen(false)}
+        title="Selecciona o crea paciente"
+      >
         <div className="space-y-4">
           <p className="text-sm text-slate-500">
             Al importar un paciente, la IA considera restricciones y características personales
             como edad, sexo, peso/talla, objetivos y resumen clínico.
           </p>
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               value={patientSearch}
-              onChange={(event) => setPatientSearch(event.target.value)}
-              placeholder="Buscar paciente..."
-              className="h-10 rounded-xl border-slate-200 bg-slate-50 pl-10"
+              onChange={(e) => setPatientSearch(e.target.value)}
+              placeholder="Buscar paciente por nombre..."
+              className="pl-9"
             />
           </div>
-          <div className="max-h-64 space-y-1.5 overflow-y-auto pr-1">
+          <div className="max-h-64 space-y-2 overflow-y-auto">
             {isLoadingPatients ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
               </div>
-            ) : filteredPatients.length === 0 ? (
-              <p className="py-6 text-center text-sm text-slate-400">No se encontraron pacientes.</p>
-            ) : (
+            ) : filteredPatients.length > 0 ? (
               filteredPatients.map((patient) => (
                 <button
-                  key={patient.id || patient.fullName}
+                  key={patient.id}
                   onClick={() => handleSelectPatient(patient)}
-                  className="w-full rounded-xl border border-transparent px-3 py-2.5 text-left transition-all hover:border-emerald-200 hover:bg-emerald-50"
+                  className="flex w-full items-center justify-between rounded-xl border border-slate-100 bg-white p-3 text-left transition-colors hover:border-emerald-200 hover:bg-emerald-50"
                 >
-                  <p className="truncate text-sm font-bold text-slate-800">{patient.fullName}</p>
-                  {patient.email ? (
-                    <p className="truncate text-xs text-slate-400">{patient.email}</p>
-                  ) : null}
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                      <User className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">{patient.fullName}</p>
+                      <p className="text-xs text-slate-500">{patient.email || "Sin email"}</p>
+                    </div>
+                  </div>
+                  <Plus className="h-4 w-4 text-slate-300" />
                 </button>
               ))
+            ) : (
+              <p className="py-4 text-center text-sm text-slate-400">No se encontraron pacientes.</p>
             )}
+          </div>
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-bold text-emerald-900">¿No tienes paciente aún?</p>
+                <p className="text-xs leading-5 text-emerald-900/70">
+                  Crea un paciente general aquí mismo para usarlo como contexto práctico del prompt y seguir sin salirte del flujo.
+                </p>
+              </div>
+              <Button
+                type="button"
+                className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
+                onClick={() => {
+                  setIsQuickPatientCreateOpen(true);
+                  setIsPatientModalOpen(false);
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Crear paciente general
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isQuickPatientCreateOpen}
+        onClose={() => {
+          setIsQuickPatientCreateOpen(false);
+          resetQuickPatientDraft();
+        }}
+        title="Crear paciente general"
+        className="max-w-3xl"
+      >
+        <div className="space-y-5">
+          <p className="text-sm text-slate-500">
+            Este paciente sirve como contexto práctico para la IA y para el PDF. Puedes dejar muchos campos vacíos y completarlo después.
+          </p>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Nombre completo *
+              </label>
+              <Input
+                value={quickPatientDraft.fullName}
+                onChange={(event) =>
+                  setQuickPatientDraft((prev) => ({ ...prev, fullName: event.target.value }))
+                }
+                placeholder="Ej: Paciente general"
+                className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm font-semibold"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Email
+              </label>
+              <Input
+                type="email"
+                value={quickPatientDraft.email}
+                onChange={(event) =>
+                  setQuickPatientDraft((prev) => ({ ...prev, email: event.target.value }))
+                }
+                placeholder="correo@ejemplo.com"
+                className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Teléfono
+              </label>
+              <Input
+                value={quickPatientDraft.phone}
+                onChange={(event) =>
+                  setQuickPatientDraft((prev) => ({ ...prev, phone: event.target.value }))
+                }
+                placeholder="+56..."
+                className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                RUT
+              </label>
+              <Input
+                value={quickPatientDraft.documentId}
+                onChange={(event) =>
+                  setQuickPatientDraft((prev) => ({
+                    ...prev,
+                    documentId: formatRut(event.target.value),
+                  }))
+                }
+                placeholder="12.345.678-9"
+                className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Sexo biológico
+              </label>
+              <Input
+                value={quickPatientDraft.gender}
+                onChange={(event) =>
+                  setQuickPatientDraft((prev) => ({ ...prev, gender: event.target.value }))
+                }
+                placeholder="Masculino / Femenino / Otro"
+                className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Estatura
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={quickPatientDraft.height}
+                  onChange={(event) =>
+                    setQuickPatientDraft((prev) => ({ ...prev, height: event.target.value }))
+                  }
+                  placeholder="cm"
+                  className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Peso
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={quickPatientDraft.weight}
+                  onChange={(event) =>
+                    setQuickPatientDraft((prev) => ({ ...prev, weight: event.target.value }))
+                  }
+                  placeholder="kg"
+                  className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Resumen clínico
+              </label>
+              <Textarea
+                value={quickPatientDraft.clinicalSummary}
+                onChange={(event) =>
+                  setQuickPatientDraft((prev) => ({ ...prev, clinicalSummary: event.target.value }))
+                }
+                placeholder="Contexto breve, diagnóstico, adherencia o cualquier nota útil."
+                className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Restricciones alimentarias
+              </label>
+              <TagInput
+                value={quickPatientDraft.dietRestrictions}
+                onChange={(tags) =>
+                  setQuickPatientDraft((prev) => ({ ...prev, dietRestrictions: tags }))
+                }
+                placeholder="Escribe y presiona Enter..."
+                fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Foco nutricional
+              </label>
+              <Textarea
+                value={quickPatientDraft.nutritionalFocus}
+                onChange={(event) =>
+                  setQuickPatientDraft((prev) => ({ ...prev, nutritionalFocus: event.target.value }))
+                }
+                placeholder="Ej: bajar grasa, mejorar adherencia, subir proteínas."
+                className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Metas fitness
+              </label>
+              <Textarea
+                value={quickPatientDraft.fitnessGoals}
+                onChange={(event) =>
+                  setQuickPatientDraft((prev) => ({ ...prev, fitnessGoals: event.target.value }))
+                }
+                placeholder="Ej: fuerza, recomposición, resistencia."
+                className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Gustos
+              </label>
+              <Textarea
+                value={quickPatientDraft.likes}
+                onChange={(event) =>
+                  setQuickPatientDraft((prev) => ({ ...prev, likes: event.target.value }))
+                }
+                placeholder="Ej: prefiere comidas simples, pollo, avena."
+                className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Etiquetas
+              </label>
+              <TagInput
+                value={quickPatientDraft.tags}
+                onChange={(tags) =>
+                  setQuickPatientDraft((prev) => ({ ...prev, tags }))
+                }
+                placeholder="Escribe y presiona Enter..."
+                fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setIsQuickPatientCreateOpen(false);
+                resetQuickPatientDraft();
+              }}
+              disabled={isCreatingPatient}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
+              onClick={handleCreateQuickPatient}
+              disabled={isCreatingPatient}
+            >
+              {isCreatingPatient ? "Creando..." : "Crear y usar paciente"}
+            </Button>
           </div>
         </div>
       </Modal>

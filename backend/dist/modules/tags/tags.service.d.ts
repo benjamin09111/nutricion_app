@@ -5,23 +5,23 @@ export declare class TagsService {
     private readonly cacheService;
     constructor(prisma: PrismaService, cacheService: CacheService);
     findAll(limit?: number): Promise<{
-        id: string;
         name: string;
+        id: string;
         nutritionistId: string | null;
     }[]>;
     findOrCreate(name: string, nutritionistId?: string): Promise<{
-        id: string;
         name: string;
+        id: string;
         nutritionistId: string | null;
     } | null>;
     search(query: string): Promise<{
-        id: string;
         name: string;
+        id: string;
         nutritionistId: string | null;
     }[]>;
     remove(id: string, nutritionistId: string, role?: string): Promise<{
-        id: string;
         name: string;
+        id: string;
         nutritionistId: string | null;
     }>;
 }

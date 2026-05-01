@@ -139,6 +139,7 @@ model Patient {
   fitnessGoals     String?        @map("fitness_goals")
   nutritionalFocus String?        @map("nutritional_focus")
   status           String?        @default("Active")
+  activityLevel    String?        @map("activity_level")
   tags             String[]       @default([])
   likes            String?
   consultations    Consultation[]
@@ -361,6 +362,7 @@ model IngredientPreference {
 model IngredientGroup {
   id             String                 @id @default(uuid())
   name           String
+  type           IngredientGroupType    @default(INGREDIENT)
   nutritionistId String                 @map("nutritionist_id")
   description    String?
   createdAt      DateTime               @default(now())
@@ -372,18 +374,26 @@ model IngredientGroup {
   @@map("ingredient_groups")
 }
 
+enum IngredientGroupType {
+  INGREDIENT
+  RECIPE
+}
+
 model IngredientGroupEntry {
   id              String          @id @default(uuid())
   groupId         String          @map("group_id")
-  ingredientId    String          @map("ingredient_id")
+  ingredientId    String?         @map("ingredient_id")
+  recipeId        String?         @map("recipe_id")
   brandSuggestion String?         @map("brand_suggestion")
   amount          Float?          @default(1)
   unit            String?
   group           IngredientGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  ingredient      Ingredient      @relation(fields: [ingredientId], references: [id])
+  ingredient      Ingredient?     @relation(fields: [ingredientId], references: [id])
+  recipe          Recipe?         @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
   @@index([groupId])
   @@index([ingredientId])
+  @@index([recipeId])
   @@map("ingredient_group_entries")
 }
 
@@ -552,6 +562,7 @@ model Recipe {
   imageUrl       String?            @map("image_url")
   metadata       Json?
   ingredients    RecipeIngredient[]
+  groupEntries   IngredientGroupEntry[]
   savedBy        RecipeLibrary[]
   nutritionist   Nutritionist?      @relation(fields: [nutritionistId], references: [id])
 

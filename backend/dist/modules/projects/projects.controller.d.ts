@@ -14,32 +14,32 @@ export declare class ProjectsController {
             dietRestrictions: import("@prisma/client/runtime/library").JsonValue;
         } | null;
         activeCartCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
         activeDeliverableCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
         activeDietCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
         activeRecipeCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
     } & {
-        id: string;
         name: string;
+        id: string;
         nutritionistId: string;
         mode: string;
         status: string;
@@ -63,32 +63,32 @@ export declare class ProjectsController {
             dietRestrictions: import("@prisma/client/runtime/library").JsonValue;
         } | null;
         activeCartCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
         activeDeliverableCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
         activeDietCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
         activeRecipeCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
     } & {
-        id: string;
         name: string;
+        id: string;
         nutritionistId: string;
         mode: string;
         status: string;
@@ -112,32 +112,32 @@ export declare class ProjectsController {
             dietRestrictions: import("@prisma/client/runtime/library").JsonValue;
         } | null;
         activeCartCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
         activeDeliverableCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
         activeDietCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
         activeRecipeCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
     } & {
-        id: string;
         name: string;
+        id: string;
         nutritionistId: string;
         mode: string;
         status: string;
@@ -161,32 +161,32 @@ export declare class ProjectsController {
             dietRestrictions: import("@prisma/client/runtime/library").JsonValue;
         } | null;
         activeCartCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
         activeDeliverableCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
         activeDietCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
         activeRecipeCreation: {
-            id: string;
             name: string;
+            id: string;
             updatedAt: Date;
             type: string;
         } | null;
     } & {
-        id: string;
         name: string;
+        id: string;
         nutritionistId: string;
         mode: string;
         status: string;

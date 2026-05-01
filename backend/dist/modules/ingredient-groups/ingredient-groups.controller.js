@@ -28,8 +28,8 @@ let IngredientGroupsController = class IngredientGroupsController {
     create(req, createDto) {
         return this.ingredientGroupsService.create(req.user.nutritionistId, createDto);
     }
-    findAll(req) {
-        return this.ingredientGroupsService.findAll(req.user.nutritionistId);
+    findAll(req, type) {
+        return this.ingredientGroupsService.findAll(req.user.nutritionistId, type);
     }
     findOne(req, id) {
         return this.ingredientGroupsService.findOne(id, req.user.nutritionistId);
@@ -59,8 +59,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('type')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], IngredientGroupsController.prototype, "findAll", null);
 __decorate([

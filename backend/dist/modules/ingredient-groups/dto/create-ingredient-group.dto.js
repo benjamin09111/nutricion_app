@@ -13,6 +13,7 @@ exports.CreateIngredientGroupDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateIngredientGroupDto {
     name;
+    type;
     description;
     tags;
     ingredients;
@@ -23,6 +24,12 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateIngredientGroupDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['INGREDIENT', 'RECIPE']),
+    __metadata("design:type", String)
+], CreateIngredientGroupDto.prototype, "type", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),

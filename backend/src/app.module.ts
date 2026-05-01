@@ -1,5 +1,6 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { FoodsModule } from './modules/foods/foods.module';
@@ -35,6 +36,7 @@ import { PatientPortalsModule } from './modules/patient-portals/patient-portals.
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: join(__dirname, '..', '.env'),
     }),
     FoodsModule,
     PrismaModule,

@@ -1,7 +1,71 @@
+import { createHash } from 'crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 import { CacheService } from '../../common/services/cache.service';
+
+const FINGERPRINT_IGNORED_KEYS = new Set([
+    'description',
+    'createdAt',
+    'updatedAt',
+    'savedAt',
+    'savedOn',
+    'timestamp',
+    'fingerprint',
+    'creationFingerprint',
+    'exportedAt',
+    'sourceModule',
+]);
+
+const normalizeForFingerprint = (value: unknown): unknown => {
+    if (value === null || value === undefined) {
+        return null;
+    }
+
+    if (typeof value === 'string') {
+        return value.trim().replace(/\s+/g, ' ');
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return value;
+    }
+
+    if (Array.isArray(value)) {
+        return value.map((item) => normalizeForFingerprint(item));
+    }
+
+    if (typeof value === 'object') {
+        const normalizedEntries = Object.entries(value as Record<string, unknown>)
+            .filter(([key, entryValue]) => {
+                if (entryValue === undefined) return false;
+                return !FINGERPRINT_IGNORED_KEYS.has(key);
+            })
+            .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey, 'es'));
+
+        return Object.fromEntries(
+            normalizedEntries.map(([key, entryValue]) => [
+                key,
+                normalizeForFingerprint(entryValue),
+            ]),
+        );
+    }
+
+    return value;
+};
+
+const buildCreationFingerprint = (payload: {
+    type: string;
+    content: unknown;
+    metadata?: unknown;
+}) => {
+    const normalized = normalizeForFingerprint({
+        type: payload.type,
+        content: payload.content,
+        metadata: payload.metadata || {},
+    });
+
+    return createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
+};
 
 @Injectable()
 export class CreationsService {
@@ -14,7 +78,7 @@ export class CreationsService {
         const { name, type, content, metadata, tags } = data;
 
         if (!nutritionistId) {
-            throw new Error('No se pudo identificar tu perfil de nutricionista. Asegúrate de tener una cuenta de nutricionista activa.');
+            throw new Error('No se pudo identificar tu perfil de nutricionista. AsegÃºrate de tener una cuenta de nutricionista activa.');
         }
 
         // Verificar si el nutricionista existe
@@ -23,27 +87,76 @@ export class CreationsService {
         });
 
         if (!nutritionist) {
-            throw new Error('Perfil de nutricionista no encontrado. Intenta cerrar sesión y volver a entrar.');
+            throw new Error('Perfil de nutricionista no encontrado. Intenta cerrar sesiÃ³n y volver a entrar.');
         }
 
-        // Validar que el nombre no esté vacío
+        // Validar que el nombre no estÃ© vacÃ­o
         if (!name || name.trim() === '') {
-            throw new Error('El nombre de la creación es obligatorio');
+            throw new Error('El nombre de la creaciÃ³n es obligatorio');
+        }
+
+        const trimmedName = name.trim();
+        const creationFingerprint = buildCreationFingerprint({
+            type,
+            content,
+            metadata,
+        });
+        const nextMetadata = {
+            ...(metadata || {}),
+            creationFingerprint,
+        };
+
+        const existingCreations = await this.prisma.creation.findMany({
+            where: {
+                nutritionistId,
+                type
+            },
+            select: {
+                id: true,
+                name: true,
+                type: true,
+                content: true,
+                metadata: true,
+                tags: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+        });
+
+        const duplicateCreation = existingCreations.find((creation) =>
+            buildCreationFingerprint({
+                type: creation.type,
+                content: creation.content,
+                metadata: creation.metadata || {},
+            }) === creationFingerprint,
+        );
+
+        if (duplicateCreation) {
+            return {
+                ...duplicateCreation,
+                wasCreated: false,
+            };
         }
 
         const creation = await this.prisma.creation.create({
             data: {
-                name,
+                name: trimmedName,
                 type,
                 content,
-                metadata: metadata || {},
+                metadata: nextMetadata,
                 tags: tags || [],
                 nutritionist: { connect: { id: nutritionistId } }
             }
         });
 
         await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'creations');
-        return creation;
+        return {
+            ...creation,
+            wasCreated: true,
+        };
     }
 
     async findAll(nutritionistId: string, type?: string) {
@@ -62,7 +175,7 @@ export class CreationsService {
         });
 
         if (!creation) {
-            throw new NotFoundException('La creación solicitada no existe o no tienes permiso para verla.');
+            throw new NotFoundException('La creaciÃ³n solicitada no existe o no tienes permiso para verla.');
         }
 
         return creation;
@@ -78,7 +191,7 @@ export class CreationsService {
     }
 
     async getAvailableTags(nutritionistId: string) {
-        // Obtenemos todos los tags únicos usando unnest de PostgreSQL
+        // Obtenemos todos los tags Ãºnicos usando unnest de PostgreSQL
         const result: any[] = await this.prisma.$queryRaw`
             SELECT DISTINCT unnest(tags) as tag 
             FROM creations 

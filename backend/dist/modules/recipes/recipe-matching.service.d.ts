@@ -7,58 +7,62 @@ export declare class RecipeMatchingService {
     findCompatibleRecipes(nutritionistId: string, ingredientNames: string[], restrictions?: string[]): Promise<{
         matchPercentage: number;
         isMine: boolean;
+        isAdopted: boolean;
         ingredients: ({
             ingredient: {
-                id: string;
                 name: string;
+                price: number;
+                unit: string;
+                amount: number;
                 calories: number;
                 proteins: number;
-                carbs: number;
                 lipids: number;
+                carbs: number;
+                sugars: number | null;
                 fiber: number | null;
                 sodium: number | null;
+                ingredients: string | null;
                 isPublic: boolean;
+                id: string;
                 nutritionistId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
-                ingredients: string | null;
-                amount: number;
-                unit: string;
-                price: number;
-                sugars: number | null;
                 verified: boolean;
                 brandId: string | null;
                 categoryId: string;
             };
         } & {
-            id: string;
-            recipeId: string;
-            ingredientId: string;
-            amount: number;
             unit: string;
-            isMain: boolean;
+            amount: number;
+            id: string;
             brandSuggestion: string | null;
+            ingredientId: string;
+            recipeId: string;
+            isMain: boolean;
         })[];
         nutritionist: {
             fullName: string;
         } | null;
-        id: string;
+        savedBy: {
+            id: string;
+        }[];
         name: string;
-        description: string | null;
-        preparation: string | null;
-        portionSize: number;
-        portions: number;
         calories: number;
         proteins: number;
-        carbs: number;
         lipids: number;
+        carbs: number;
         fiber: number | null;
         sodium: number | null;
         isPublic: boolean;
+        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        imageUrl: string | null;
+        description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        preparation: string | null;
+        portionSize: number;
+        portions: number;
+        imageUrl: string | null;
     }[]>;
 }

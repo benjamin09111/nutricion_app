@@ -6,6 +6,7 @@ import { AiFillPayload, AiFillRecipesDto } from './dto/ai-fill-recipes.dto';
 import { QuickAiFillPayload, QuickAiFillRecipesDto } from './dto/quick-ai-fill-recipes.dto';
 
 import { CacheService } from '../../common/services/cache.service';
+import { AiService } from '../../common/services/ai.service';
 import { RECIPES_AI_PROMPTS } from './recipes-ai-prompts';
 
 type AiRecipeOutput = {
@@ -75,7 +76,8 @@ export class RecipesService {
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly cacheService: CacheService
+        private readonly cacheService: CacheService,
+        private readonly aiService: AiService
     ) { }
 
     private async getNutritionistId(accountId: string): Promise<string> {
@@ -114,25 +116,6 @@ export class RecipesService {
         return [scopePrompt, JSON.stringify(payload)].join('\n');
     }
 
-    private getGeminiConfig() {
-        const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-        const model = process.env.GEMINI_MODEL || process.env.GOOGLE_GEMINI_MODEL || 'gemini-2.5-flash';
-
-        if (!apiKey) {
-            throw new BadRequestException('Configura GEMINI_API_KEY para usar esta funcion.');
-        }
-
-        return { apiKey, model };
-    }
-
-    private extractGeminiText(payload: any): string | null {
-        const candidates = Array.isArray(payload?.candidates) ? payload.candidates : [];
-        const first = candidates[0];
-        const parts = Array.isArray(first?.content?.parts) ? first.content.parts : [];
-        const textPart = parts.find((part: any) => typeof part?.text === 'string');
-        return textPart?.text || null;
-    }
-
     private mapAiErrorMessage(upstreamMessage: string): string {
         const normalizedMessage = String(upstreamMessage || '').toLowerCase();
 
@@ -143,7 +126,7 @@ export class RecipesService {
             normalizedMessage.includes('max_tokens') ||
             normalizedMessage.includes('token')
         ) {
-            return 'La solicitud supera el limite de tokens/contexto del modelo. Reduce bloques, filtros o detalle y vuelve a intentar.';
+            return 'La solicitud supera el límite de tokens/contexto del modelo. Reduce bloques, filtros o detalle y vuelve a intentar.';
         }
 
         if (
@@ -152,54 +135,23 @@ export class RecipesService {
             normalizedMessage.includes('rate limit') ||
             normalizedMessage.includes('429')
         ) {
-            return 'Se alcanzo el limite de uso de la IA (cuota/rate limit). Intenta mas tarde o revisa tu plan.';
+            return 'Se alcanzó el límite de uso de la IA (cuota/rate limit). Intenta más tarde o revisa tu plan.';
         }
 
         return upstreamMessage || 'No se pudo completar recetas con IA.';
     }
 
-    private async callGeminiJson(systemInstruction: string, userPrompt: string): Promise<string> {
-        const { apiKey, model } = this.getGeminiConfig();
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        this.logger.log(`[Gemini] Request model=${model} promptChars=${userPrompt.length}`);
-
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                systemInstruction: {
-                    parts: [{ text: systemInstruction }],
-                },
-                contents: [
-                    {
-                        role: 'user',
-                        parts: [{ text: userPrompt }],
-                    },
-                ],
-                generationConfig: {
-                    temperature: 0.2,
-                    responseMimeType: 'application/json',
-                },
-            }),
-        });
-
-        const raw = await response.json().catch(() => ({} as any));
-        if (!response.ok) {
-            const upstreamMessage = raw?.error?.message || raw?.message || '';
-            this.logger.error(`[Gemini] Error status=${response.status} message=${upstreamMessage || 'unknown'}`);
-            throw new BadRequestException(this.mapAiErrorMessage(upstreamMessage));
+    private async callAiJson(systemInstruction: string, userPrompt: string): Promise<string> {
+        try {
+            const text = await this.aiService.callJson(systemInstruction, userPrompt);
+            this.logger.log(`[AI] Response ok chars=${text.length}`);
+            this.logger.log(`[AI] Raw response:\n${text}`);
+            return text;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`[AI] Request failed: ${message}`);
+            throw new BadRequestException(this.mapAiErrorMessage(message));
         }
-
-        const text = this.extractGeminiText(raw);
-        if (!text) {
-            this.logger.error('[Gemini] Empty content in response payload');
-            throw new BadRequestException('La IA no devolvio contenido.');
-        }
-        this.logger.log(`[Gemini] Response ok chars=${text.length}`);
-        this.logger.log(`[Gemini] Raw response:\n${text}`);
-        return text;
     }
 
     private extractJsonFromResponse(rawContent: string): string {
@@ -276,7 +228,7 @@ export class RecipesService {
                 return JSON.parse(recovered) as AiFillDayResponse | AiFillWeekResponse;
             }
             this.logger.error(`[Gemini] JSON parse failed. snippet=${jsonContent.slice(0, 300)}`);
-            throw new BadRequestException('La IA devolvio un formato invalido. Intenta nuevamente.');
+            throw new BadRequestException('La IA devolvió un formato inválido. Intenta nuevamente.');
         }
     }
 
@@ -373,7 +325,7 @@ export class RecipesService {
             payload.allowedFoodsByDiet.map((food) => this.normalizeFoodName(food)),
         );
 
-        const content = await this.callGeminiJson(
+        const content = await this.callAiJson(
             RECIPES_AI_PROMPTS.base,
             this.buildAiPrompt(payload),
         );
@@ -574,7 +526,7 @@ export class RecipesService {
         await this.getNutritionistId(userId);
 
         const payload = dto.payload || ({} as QuickAiFillPayload);
-        const content = await this.callGeminiJson(
+        const content = await this.callAiJson(
             'Eres un nutricionista clínico experto. Responde solo JSON válido.',
             this.buildQuickAiPrompt(payload),
         );
@@ -922,7 +874,7 @@ export class RecipesService {
         ].join('\n');
 
         try {
-            const content = await this.callGeminiJson(
+            const content = await this.callAiJson(
                 'Eres un asistente nutricional. Responde solo JSON.',
                 prompt,
             );
@@ -936,7 +888,7 @@ export class RecipesService {
             };
         } catch (err) {
             if (err instanceof BadRequestException) throw err;
-            throw new BadRequestException('No se pudo estimar macros con IA. Verifica GEMINI_API_KEY.');
+            throw new BadRequestException('No se pudo estimar macros con IA. Verifica DEEPSEEK_API_KEY.');
         }
     }
 
@@ -958,3 +910,5 @@ export class RecipesService {
         return deleted;
     }
 }
+
+

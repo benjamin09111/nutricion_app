@@ -5,10 +5,10 @@ export declare class AnnouncementsController {
     constructor(announcementsService: AnnouncementsService);
     create(req: any, createAnnouncementDto: CreateAnnouncementDto): Promise<{
         id: string;
+        message: string;
         createdAt: Date;
         updatedAt: Date;
         isActive: boolean;
-        message: string;
         type: string;
         title: string;
         link: string | null;
@@ -16,10 +16,10 @@ export declare class AnnouncementsController {
     }>;
     findAll(): Promise<{
         id: string;
+        message: string;
         createdAt: Date;
         updatedAt: Date;
         isActive: boolean;
-        message: string;
         type: string;
         title: string;
         link: string | null;

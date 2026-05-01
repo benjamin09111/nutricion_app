@@ -3,6 +3,7 @@ import { CreatePatientPortalInvitationDto } from './dto/create-patient-portal-in
 import { CreatePatientPortalEntryDto } from './dto/create-patient-portal-entry.dto';
 import { CreatePatientPortalQuestionDto } from './dto/create-patient-portal-question.dto';
 import { CreatePatientPortalReplyDto } from './dto/create-patient-portal-reply.dto';
+import { CreatePatientPortalNotificationDto } from './dto/create-patient-portal-notification.dto';
 export declare class PatientPortalsController {
     private readonly patientPortalsService;
     constructor(patientPortalsService: PatientPortalsService);
@@ -10,8 +11,8 @@ export declare class PatientPortalsController {
         invitation: {
             id: string;
             email: string | null;
-            status: string;
             expiresAt: Date;
+            status: string;
             createdAt: Date;
         };
         shareUrl: string;
@@ -27,20 +28,17 @@ export declare class PatientPortalsController {
             };
             id: string;
             email: string | null;
-            status: string | null;
-            createdAt: Date;
             fullName: string;
             phone: string | null;
-            documentId: string | null;
-            height: number | null;
-            weight: number | null;
+            status: string | null;
+            createdAt: Date;
             projects: {
                 name: string;
                 id: string;
+                mode: string;
                 status: string;
                 updatedAt: Date;
                 description: string | null;
-                mode: string;
                 activeDeliverableCreation: {
                     name: string;
                     id: string;
@@ -57,6 +55,9 @@ export declare class PatientPortalsController {
                     type: string;
                 } | null;
             }[];
+            documentId: string | null;
+            height: number | null;
+            weight: number | null;
         };
         portal: {
             activeInvitation: {
@@ -68,6 +69,8 @@ export declare class PatientPortalsController {
                 verifiedAt: Date | null;
                 revokedAt: Date | null;
                 blockedAt: Date | null;
+                resourceIds: string[];
+                deliverableCreationIds: string[];
                 createdAt: Date;
                 accessCode: string;
             } | null;
@@ -80,6 +83,8 @@ export declare class PatientPortalsController {
                 verifiedAt: Date | null;
                 revokedAt: Date | null;
                 blockedAt: Date | null;
+                resourceIds: string[];
+                deliverableCreationIds: string[];
                 createdAt: Date;
                 accessCode: string;
             } | null;
@@ -90,8 +95,9 @@ export declare class PatientPortalsController {
             trackingCount: number;
             repliesCount: number;
             pendingQuestions: number;
+            notificationsCount: number;
             latestEntryAt: Date;
-            daysSinceLastEntry: number | null;
+            daysSinceLastEntry: number;
             sectionCounts: {
                 alimentacion: number;
                 suplementos: number;
@@ -101,30 +107,36 @@ export declare class PatientPortalsController {
         };
         entries: {
             id: string;
-            kind: "QUESTION" | "TRACKING" | "REPLY";
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
             body?: string | null;
             payload: {
+                entryDate?: string;
                 sections?: {
                     alimentacion?: string;
                     suplementos?: string;
                     actividadFisica?: string;
                 };
                 source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
             };
             replyToId?: string | null;
             createdAt: Date;
             updatedAt: Date;
             replyTo: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -132,15 +144,18 @@ export declare class PatientPortalsController {
             } | null;
             replies: Array<{
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -149,30 +164,36 @@ export declare class PatientPortalsController {
         }[];
         questions: {
             id: string;
-            kind: "QUESTION" | "TRACKING" | "REPLY";
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
             body?: string | null;
             payload: {
+                entryDate?: string;
                 sections?: {
                     alimentacion?: string;
                     suplementos?: string;
                     actividadFisica?: string;
                 };
                 source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
             };
             replyToId?: string | null;
             createdAt: Date;
             updatedAt: Date;
             replyTo: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -180,15 +201,18 @@ export declare class PatientPortalsController {
             } | null;
             replies: Array<{
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -197,30 +221,36 @@ export declare class PatientPortalsController {
         }[];
         tracking: {
             id: string;
-            kind: "QUESTION" | "TRACKING" | "REPLY";
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
             body?: string | null;
             payload: {
+                entryDate?: string;
                 sections?: {
                     alimentacion?: string;
                     suplementos?: string;
                     actividadFisica?: string;
                 };
                 source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
             };
             replyToId?: string | null;
             createdAt: Date;
             updatedAt: Date;
             replyTo: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -228,15 +258,18 @@ export declare class PatientPortalsController {
             } | null;
             replies: Array<{
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -245,30 +278,36 @@ export declare class PatientPortalsController {
         }[];
         replies: {
             id: string;
-            kind: "QUESTION" | "TRACKING" | "REPLY";
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
             body?: string | null;
             payload: {
+                entryDate?: string;
                 sections?: {
                     alimentacion?: string;
                     suplementos?: string;
                     actividadFisica?: string;
                 };
                 source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
             };
             replyToId?: string | null;
             createdAt: Date;
             updatedAt: Date;
             replyTo: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -276,20 +315,103 @@ export declare class PatientPortalsController {
             } | null;
             replies: Array<{
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
             }>;
+        }[];
+        notifications: {
+            id: string;
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+            body?: string | null;
+            payload: {
+                entryDate?: string;
+                sections?: {
+                    alimentacion?: string;
+                    suplementos?: string;
+                    actividadFisica?: string;
+                };
+                source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
+            };
+            replyToId?: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            replyTo: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+            } | null;
+            replies: Array<{
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+            }>;
+        }[];
+        sharedResources: {
+            id: string;
+            title: string;
+            content: string;
+            category: string;
+            tags: string[];
+            isPublic: boolean;
+            format: string;
+            fileUrl: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+        }[];
+        sharedDeliverables: {
+            id: string;
+            name: string;
+            type: string;
+            format: string;
+            content: unknown;
+            metadata: unknown;
+            tags: string[];
+            createdAt: Date;
+            updatedAt: Date;
         }[];
     }>;
     previewInvitation(token: string): Promise<{
@@ -310,20 +432,17 @@ export declare class PatientPortalsController {
             };
             id: string;
             email: string | null;
-            status: string | null;
-            createdAt: Date;
             fullName: string;
             phone: string | null;
-            documentId: string | null;
-            height: number | null;
-            weight: number | null;
+            status: string | null;
+            createdAt: Date;
             projects: {
                 name: string;
                 id: string;
+                mode: string;
                 status: string;
                 updatedAt: Date;
                 description: string | null;
-                mode: string;
                 activeDeliverableCreation: {
                     name: string;
                     id: string;
@@ -340,6 +459,9 @@ export declare class PatientPortalsController {
                     type: string;
                 } | null;
             }[];
+            documentId: string | null;
+            height: number | null;
+            weight: number | null;
         };
         portal: {
             activeInvitation: {
@@ -351,6 +473,8 @@ export declare class PatientPortalsController {
                 verifiedAt: Date | null;
                 revokedAt: Date | null;
                 blockedAt: Date | null;
+                resourceIds: string[];
+                deliverableCreationIds: string[];
                 createdAt: Date;
                 accessCode: string;
             } | null;
@@ -363,6 +487,8 @@ export declare class PatientPortalsController {
                 verifiedAt: Date | null;
                 revokedAt: Date | null;
                 blockedAt: Date | null;
+                resourceIds: string[];
+                deliverableCreationIds: string[];
                 createdAt: Date;
                 accessCode: string;
             } | null;
@@ -373,8 +499,9 @@ export declare class PatientPortalsController {
             trackingCount: number;
             repliesCount: number;
             pendingQuestions: number;
+            notificationsCount: number;
             latestEntryAt: Date;
-            daysSinceLastEntry: number | null;
+            daysSinceLastEntry: number;
             sectionCounts: {
                 alimentacion: number;
                 suplementos: number;
@@ -384,30 +511,36 @@ export declare class PatientPortalsController {
         };
         entries: {
             id: string;
-            kind: "QUESTION" | "TRACKING" | "REPLY";
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
             body?: string | null;
             payload: {
+                entryDate?: string;
                 sections?: {
                     alimentacion?: string;
                     suplementos?: string;
                     actividadFisica?: string;
                 };
                 source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
             };
             replyToId?: string | null;
             createdAt: Date;
             updatedAt: Date;
             replyTo: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -415,15 +548,18 @@ export declare class PatientPortalsController {
             } | null;
             replies: Array<{
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -432,30 +568,36 @@ export declare class PatientPortalsController {
         }[];
         questions: {
             id: string;
-            kind: "QUESTION" | "TRACKING" | "REPLY";
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
             body?: string | null;
             payload: {
+                entryDate?: string;
                 sections?: {
                     alimentacion?: string;
                     suplementos?: string;
                     actividadFisica?: string;
                 };
                 source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
             };
             replyToId?: string | null;
             createdAt: Date;
             updatedAt: Date;
             replyTo: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -463,15 +605,18 @@ export declare class PatientPortalsController {
             } | null;
             replies: Array<{
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -480,30 +625,36 @@ export declare class PatientPortalsController {
         }[];
         tracking: {
             id: string;
-            kind: "QUESTION" | "TRACKING" | "REPLY";
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
             body?: string | null;
             payload: {
+                entryDate?: string;
                 sections?: {
                     alimentacion?: string;
                     suplementos?: string;
                     actividadFisica?: string;
                 };
                 source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
             };
             replyToId?: string | null;
             createdAt: Date;
             updatedAt: Date;
             replyTo: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -511,15 +662,18 @@ export declare class PatientPortalsController {
             } | null;
             replies: Array<{
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -528,30 +682,36 @@ export declare class PatientPortalsController {
         }[];
         replies: {
             id: string;
-            kind: "QUESTION" | "TRACKING" | "REPLY";
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
             body?: string | null;
             payload: {
+                entryDate?: string;
                 sections?: {
                     alimentacion?: string;
                     suplementos?: string;
                     actividadFisica?: string;
                 };
                 source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
             };
             replyToId?: string | null;
             createdAt: Date;
             updatedAt: Date;
             replyTo: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -559,20 +719,103 @@ export declare class PatientPortalsController {
             } | null;
             replies: Array<{
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
             }>;
+        }[];
+        notifications: {
+            id: string;
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+            body?: string | null;
+            payload: {
+                entryDate?: string;
+                sections?: {
+                    alimentacion?: string;
+                    suplementos?: string;
+                    actividadFisica?: string;
+                };
+                source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
+            };
+            replyToId?: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            replyTo: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+            } | null;
+            replies: Array<{
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+            }>;
+        }[];
+        sharedResources: {
+            id: string;
+            title: string;
+            content: string;
+            category: string;
+            tags: string[];
+            isPublic: boolean;
+            format: string;
+            fileUrl: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+        }[];
+        sharedDeliverables: {
+            id: string;
+            name: string;
+            type: string;
+            format: string;
+            content: unknown;
+            metadata: unknown;
+            tags: string[];
+            createdAt: Date;
+            updatedAt: Date;
         }[];
         accessToken: string;
     }>;
@@ -585,20 +828,17 @@ export declare class PatientPortalsController {
             };
             id: string;
             email: string | null;
-            status: string | null;
-            createdAt: Date;
             fullName: string;
             phone: string | null;
-            documentId: string | null;
-            height: number | null;
-            weight: number | null;
+            status: string | null;
+            createdAt: Date;
             projects: {
                 name: string;
                 id: string;
+                mode: string;
                 status: string;
                 updatedAt: Date;
                 description: string | null;
-                mode: string;
                 activeDeliverableCreation: {
                     name: string;
                     id: string;
@@ -615,6 +855,9 @@ export declare class PatientPortalsController {
                     type: string;
                 } | null;
             }[];
+            documentId: string | null;
+            height: number | null;
+            weight: number | null;
         };
         portal: {
             activeInvitation: {
@@ -626,6 +869,8 @@ export declare class PatientPortalsController {
                 verifiedAt: Date | null;
                 revokedAt: Date | null;
                 blockedAt: Date | null;
+                resourceIds: string[];
+                deliverableCreationIds: string[];
                 createdAt: Date;
                 accessCode: string;
             } | null;
@@ -638,6 +883,8 @@ export declare class PatientPortalsController {
                 verifiedAt: Date | null;
                 revokedAt: Date | null;
                 blockedAt: Date | null;
+                resourceIds: string[];
+                deliverableCreationIds: string[];
                 createdAt: Date;
                 accessCode: string;
             } | null;
@@ -648,8 +895,9 @@ export declare class PatientPortalsController {
             trackingCount: number;
             repliesCount: number;
             pendingQuestions: number;
+            notificationsCount: number;
             latestEntryAt: Date;
-            daysSinceLastEntry: number | null;
+            daysSinceLastEntry: number;
             sectionCounts: {
                 alimentacion: number;
                 suplementos: number;
@@ -659,30 +907,36 @@ export declare class PatientPortalsController {
         };
         entries: {
             id: string;
-            kind: "QUESTION" | "TRACKING" | "REPLY";
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
             body?: string | null;
             payload: {
+                entryDate?: string;
                 sections?: {
                     alimentacion?: string;
                     suplementos?: string;
                     actividadFisica?: string;
                 };
                 source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
             };
             replyToId?: string | null;
             createdAt: Date;
             updatedAt: Date;
             replyTo: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -690,15 +944,18 @@ export declare class PatientPortalsController {
             } | null;
             replies: Array<{
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -707,30 +964,36 @@ export declare class PatientPortalsController {
         }[];
         questions: {
             id: string;
-            kind: "QUESTION" | "TRACKING" | "REPLY";
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
             body?: string | null;
             payload: {
+                entryDate?: string;
                 sections?: {
                     alimentacion?: string;
                     suplementos?: string;
                     actividadFisica?: string;
                 };
                 source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
             };
             replyToId?: string | null;
             createdAt: Date;
             updatedAt: Date;
             replyTo: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -738,15 +1001,18 @@ export declare class PatientPortalsController {
             } | null;
             replies: Array<{
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -755,30 +1021,36 @@ export declare class PatientPortalsController {
         }[];
         tracking: {
             id: string;
-            kind: "QUESTION" | "TRACKING" | "REPLY";
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
             body?: string | null;
             payload: {
+                entryDate?: string;
                 sections?: {
                     alimentacion?: string;
                     suplementos?: string;
                     actividadFisica?: string;
                 };
                 source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
             };
             replyToId?: string | null;
             createdAt: Date;
             updatedAt: Date;
             replyTo: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -786,15 +1058,18 @@ export declare class PatientPortalsController {
             } | null;
             replies: Array<{
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -803,30 +1078,36 @@ export declare class PatientPortalsController {
         }[];
         replies: {
             id: string;
-            kind: "QUESTION" | "TRACKING" | "REPLY";
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
             body?: string | null;
             payload: {
+                entryDate?: string;
                 sections?: {
                     alimentacion?: string;
                     suplementos?: string;
                     actividadFisica?: string;
                 };
                 source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
             };
             replyToId?: string | null;
             createdAt: Date;
             updatedAt: Date;
             replyTo: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
@@ -834,20 +1115,103 @@ export declare class PatientPortalsController {
             } | null;
             replies: Array<{
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
             }>;
+        }[];
+        notifications: {
+            id: string;
+            kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+            body?: string | null;
+            payload: {
+                entryDate?: string;
+                sections?: {
+                    alimentacion?: string;
+                    suplementos?: string;
+                    actividadFisica?: string;
+                };
+                source?: "patient" | "nutritionist";
+                notificationTitle?: string;
+                notificationType?: "INFO" | "REMINDER" | "ALERT";
+            };
+            replyToId?: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            replyTo: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+            } | null;
+            replies: Array<{
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+            }>;
+        }[];
+        sharedResources: {
+            id: string;
+            title: string;
+            content: string;
+            category: string;
+            tags: string[];
+            isPublic: boolean;
+            format: string;
+            fileUrl: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+        }[];
+        sharedDeliverables: {
+            id: string;
+            name: string;
+            type: string;
+            format: string;
+            content: unknown;
+            metadata: unknown;
+            tags: string[];
+            createdAt: Date;
+            updatedAt: Date;
         }[];
     }>;
     createQuestion(req: any, dto: CreatePatientPortalQuestionDto): Promise<{
@@ -855,27 +1219,27 @@ export declare class PatientPortalsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            payload: import("@prisma/client/runtime/library").JsonValue;
             kind: string;
             replyToId: string | null;
             body: string | null;
-            payload: import("@prisma/client/runtime/library").JsonValue;
             replyTo: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
-                payload: import("@prisma/client/runtime/library").JsonValue;
             } | null;
             replies: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
-                payload: import("@prisma/client/runtime/library").JsonValue;
             }[];
         };
         overview: {
@@ -887,20 +1251,17 @@ export declare class PatientPortalsController {
                 };
                 id: string;
                 email: string | null;
-                status: string | null;
-                createdAt: Date;
                 fullName: string;
                 phone: string | null;
-                documentId: string | null;
-                height: number | null;
-                weight: number | null;
+                status: string | null;
+                createdAt: Date;
                 projects: {
                     name: string;
                     id: string;
+                    mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
-                    mode: string;
                     activeDeliverableCreation: {
                         name: string;
                         id: string;
@@ -917,6 +1278,9 @@ export declare class PatientPortalsController {
                         type: string;
                     } | null;
                 }[];
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
             };
             portal: {
                 activeInvitation: {
@@ -928,6 +1292,8 @@ export declare class PatientPortalsController {
                     verifiedAt: Date | null;
                     revokedAt: Date | null;
                     blockedAt: Date | null;
+                    resourceIds: string[];
+                    deliverableCreationIds: string[];
                     createdAt: Date;
                     accessCode: string;
                 } | null;
@@ -940,6 +1306,8 @@ export declare class PatientPortalsController {
                     verifiedAt: Date | null;
                     revokedAt: Date | null;
                     blockedAt: Date | null;
+                    resourceIds: string[];
+                    deliverableCreationIds: string[];
                     createdAt: Date;
                     accessCode: string;
                 } | null;
@@ -950,8 +1318,9 @@ export declare class PatientPortalsController {
                 trackingCount: number;
                 repliesCount: number;
                 pendingQuestions: number;
+                notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: number | null;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -961,30 +1330,36 @@ export declare class PatientPortalsController {
             };
             entries: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -992,15 +1367,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1009,30 +1387,36 @@ export declare class PatientPortalsController {
             }[];
             questions: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1040,15 +1424,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1057,30 +1444,36 @@ export declare class PatientPortalsController {
             }[];
             tracking: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1088,15 +1481,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1105,30 +1501,36 @@ export declare class PatientPortalsController {
             }[];
             replies: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1136,20 +1538,103 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
                     updatedAt: Date;
                 }>;
+            }[];
+            notifications: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            sharedResources: {
+                id: string;
+                title: string;
+                content: string;
+                category: string;
+                tags: string[];
+                isPublic: boolean;
+                format: string;
+                fileUrl: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+            }[];
+            sharedDeliverables: {
+                id: string;
+                name: string;
+                type: string;
+                format: string;
+                content: unknown;
+                metadata: unknown;
+                tags: string[];
+                createdAt: Date;
+                updatedAt: Date;
             }[];
         };
     }>;
@@ -1158,27 +1643,27 @@ export declare class PatientPortalsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            payload: import("@prisma/client/runtime/library").JsonValue;
             kind: string;
             replyToId: string | null;
             body: string | null;
-            payload: import("@prisma/client/runtime/library").JsonValue;
             replyTo: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
-                payload: import("@prisma/client/runtime/library").JsonValue;
             } | null;
             replies: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
-                payload: import("@prisma/client/runtime/library").JsonValue;
             }[];
         };
         overview: {
@@ -1190,20 +1675,17 @@ export declare class PatientPortalsController {
                 };
                 id: string;
                 email: string | null;
-                status: string | null;
-                createdAt: Date;
                 fullName: string;
                 phone: string | null;
-                documentId: string | null;
-                height: number | null;
-                weight: number | null;
+                status: string | null;
+                createdAt: Date;
                 projects: {
                     name: string;
                     id: string;
+                    mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
-                    mode: string;
                     activeDeliverableCreation: {
                         name: string;
                         id: string;
@@ -1220,6 +1702,9 @@ export declare class PatientPortalsController {
                         type: string;
                     } | null;
                 }[];
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
             };
             portal: {
                 activeInvitation: {
@@ -1231,6 +1716,8 @@ export declare class PatientPortalsController {
                     verifiedAt: Date | null;
                     revokedAt: Date | null;
                     blockedAt: Date | null;
+                    resourceIds: string[];
+                    deliverableCreationIds: string[];
                     createdAt: Date;
                     accessCode: string;
                 } | null;
@@ -1243,6 +1730,8 @@ export declare class PatientPortalsController {
                     verifiedAt: Date | null;
                     revokedAt: Date | null;
                     blockedAt: Date | null;
+                    resourceIds: string[];
+                    deliverableCreationIds: string[];
                     createdAt: Date;
                     accessCode: string;
                 } | null;
@@ -1253,8 +1742,9 @@ export declare class PatientPortalsController {
                 trackingCount: number;
                 repliesCount: number;
                 pendingQuestions: number;
+                notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: number | null;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -1264,30 +1754,36 @@ export declare class PatientPortalsController {
             };
             entries: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1295,15 +1791,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1312,30 +1811,36 @@ export declare class PatientPortalsController {
             }[];
             questions: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1343,15 +1848,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1360,30 +1868,36 @@ export declare class PatientPortalsController {
             }[];
             tracking: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1391,15 +1905,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1408,30 +1925,36 @@ export declare class PatientPortalsController {
             }[];
             replies: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1439,20 +1962,527 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
                     updatedAt: Date;
                 }>;
+            }[];
+            notifications: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            sharedResources: {
+                id: string;
+                title: string;
+                content: string;
+                category: string;
+                tags: string[];
+                isPublic: boolean;
+                format: string;
+                fileUrl: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+            }[];
+            sharedDeliverables: {
+                id: string;
+                name: string;
+                type: string;
+                format: string;
+                content: unknown;
+                metadata: unknown;
+                tags: string[];
+                createdAt: Date;
+                updatedAt: Date;
+            }[];
+        };
+    }>;
+    createJournal(req: any, dto: CreatePatientPortalEntryDto): Promise<{
+        entry: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            payload: import("@prisma/client/runtime/library").JsonValue;
+            kind: string;
+            replyToId: string | null;
+            body: string | null;
+            replyTo: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
+                kind: string;
+                replyToId: string | null;
+                body: string | null;
+            } | null;
+            replies: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
+                kind: string;
+                replyToId: string | null;
+                body: string | null;
+            }[];
+        };
+        overview: {
+            patient: {
+                nutritionist: {
+                    id: string;
+                    fullName: string;
+                    avatarUrl: string | null;
+                };
+                id: string;
+                email: string | null;
+                fullName: string;
+                phone: string | null;
+                status: string | null;
+                createdAt: Date;
+                projects: {
+                    name: string;
+                    id: string;
+                    mode: string;
+                    status: string;
+                    updatedAt: Date;
+                    description: string | null;
+                    activeDeliverableCreation: {
+                        name: string;
+                        id: string;
+                        type: string;
+                    } | null;
+                    activeDietCreation: {
+                        name: string;
+                        id: string;
+                        type: string;
+                    } | null;
+                    activeRecipeCreation: {
+                        name: string;
+                        id: string;
+                        type: string;
+                    } | null;
+                }[];
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
+            };
+            portal: {
+                activeInvitation: {
+                    id: string;
+                    email: string | null;
+                    expiresAt: Date;
+                    status: string;
+                    lastSentAt: Date | null;
+                    verifiedAt: Date | null;
+                    revokedAt: Date | null;
+                    blockedAt: Date | null;
+                    resourceIds: string[];
+                    deliverableCreationIds: string[];
+                    createdAt: Date;
+                    accessCode: string;
+                } | null;
+                latestInvitation: {
+                    id: string;
+                    email: string | null;
+                    expiresAt: Date;
+                    status: string;
+                    lastSentAt: Date | null;
+                    verifiedAt: Date | null;
+                    revokedAt: Date | null;
+                    blockedAt: Date | null;
+                    resourceIds: string[];
+                    deliverableCreationIds: string[];
+                    createdAt: Date;
+                    accessCode: string;
+                } | null;
+            };
+            summary: {
+                totalEntries: number;
+                questionsCount: number;
+                trackingCount: number;
+                repliesCount: number;
+                pendingQuestions: number;
+                notificationsCount: number;
+                latestEntryAt: Date;
+                daysSinceLastEntry: number;
+                sectionCounts: {
+                    alimentacion: number;
+                    suplementos: number;
+                    actividadFisica: number;
+                };
+                alerts: string[];
+            };
+            entries: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            questions: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            tracking: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            replies: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            notifications: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            sharedResources: {
+                id: string;
+                title: string;
+                content: string;
+                category: string;
+                tags: string[];
+                isPublic: boolean;
+                format: string;
+                fileUrl: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+            }[];
+            sharedDeliverables: {
+                id: string;
+                name: string;
+                type: string;
+                format: string;
+                content: unknown;
+                metadata: unknown;
+                tags: string[];
+                createdAt: Date;
+                updatedAt: Date;
             }[];
         };
     }>;
@@ -1461,27 +2491,27 @@ export declare class PatientPortalsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            payload: import("@prisma/client/runtime/library").JsonValue;
             kind: string;
             replyToId: string | null;
             body: string | null;
-            payload: import("@prisma/client/runtime/library").JsonValue;
             replyTo: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
-                payload: import("@prisma/client/runtime/library").JsonValue;
             } | null;
             replies: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
-                payload: import("@prisma/client/runtime/library").JsonValue;
             }[];
         };
         overview: {
@@ -1493,20 +2523,17 @@ export declare class PatientPortalsController {
                 };
                 id: string;
                 email: string | null;
-                status: string | null;
-                createdAt: Date;
                 fullName: string;
                 phone: string | null;
-                documentId: string | null;
-                height: number | null;
-                weight: number | null;
+                status: string | null;
+                createdAt: Date;
                 projects: {
                     name: string;
                     id: string;
+                    mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
-                    mode: string;
                     activeDeliverableCreation: {
                         name: string;
                         id: string;
@@ -1523,6 +2550,9 @@ export declare class PatientPortalsController {
                         type: string;
                     } | null;
                 }[];
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
             };
             portal: {
                 activeInvitation: {
@@ -1534,6 +2564,8 @@ export declare class PatientPortalsController {
                     verifiedAt: Date | null;
                     revokedAt: Date | null;
                     blockedAt: Date | null;
+                    resourceIds: string[];
+                    deliverableCreationIds: string[];
                     createdAt: Date;
                     accessCode: string;
                 } | null;
@@ -1546,6 +2578,8 @@ export declare class PatientPortalsController {
                     verifiedAt: Date | null;
                     revokedAt: Date | null;
                     blockedAt: Date | null;
+                    resourceIds: string[];
+                    deliverableCreationIds: string[];
                     createdAt: Date;
                     accessCode: string;
                 } | null;
@@ -1556,8 +2590,9 @@ export declare class PatientPortalsController {
                 trackingCount: number;
                 repliesCount: number;
                 pendingQuestions: number;
+                notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: number | null;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -1567,30 +2602,36 @@ export declare class PatientPortalsController {
             };
             entries: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1598,15 +2639,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1615,30 +2659,36 @@ export declare class PatientPortalsController {
             }[];
             questions: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1646,15 +2696,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1663,30 +2716,36 @@ export declare class PatientPortalsController {
             }[];
             tracking: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1694,15 +2753,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1711,30 +2773,36 @@ export declare class PatientPortalsController {
             }[];
             replies: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1742,20 +2810,103 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
                     updatedAt: Date;
                 }>;
+            }[];
+            notifications: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            sharedResources: {
+                id: string;
+                title: string;
+                content: string;
+                category: string;
+                tags: string[];
+                isPublic: boolean;
+                format: string;
+                fileUrl: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+            }[];
+            sharedDeliverables: {
+                id: string;
+                name: string;
+                type: string;
+                format: string;
+                content: unknown;
+                metadata: unknown;
+                tags: string[];
+                createdAt: Date;
+                updatedAt: Date;
             }[];
         };
     }>;
@@ -1764,27 +2915,27 @@ export declare class PatientPortalsController {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            payload: import("@prisma/client/runtime/library").JsonValue;
             kind: string;
             replyToId: string | null;
             body: string | null;
-            payload: import("@prisma/client/runtime/library").JsonValue;
             replyTo: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
-                payload: import("@prisma/client/runtime/library").JsonValue;
             } | null;
             replies: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
-                payload: import("@prisma/client/runtime/library").JsonValue;
             }[];
         };
         overview: {
@@ -1796,20 +2947,17 @@ export declare class PatientPortalsController {
                 };
                 id: string;
                 email: string | null;
-                status: string | null;
-                createdAt: Date;
                 fullName: string;
                 phone: string | null;
-                documentId: string | null;
-                height: number | null;
-                weight: number | null;
+                status: string | null;
+                createdAt: Date;
                 projects: {
                     name: string;
                     id: string;
+                    mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
-                    mode: string;
                     activeDeliverableCreation: {
                         name: string;
                         id: string;
@@ -1826,6 +2974,9 @@ export declare class PatientPortalsController {
                         type: string;
                     } | null;
                 }[];
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
             };
             portal: {
                 activeInvitation: {
@@ -1837,6 +2988,8 @@ export declare class PatientPortalsController {
                     verifiedAt: Date | null;
                     revokedAt: Date | null;
                     blockedAt: Date | null;
+                    resourceIds: string[];
+                    deliverableCreationIds: string[];
                     createdAt: Date;
                     accessCode: string;
                 } | null;
@@ -1849,6 +3002,8 @@ export declare class PatientPortalsController {
                     verifiedAt: Date | null;
                     revokedAt: Date | null;
                     blockedAt: Date | null;
+                    resourceIds: string[];
+                    deliverableCreationIds: string[];
                     createdAt: Date;
                     accessCode: string;
                 } | null;
@@ -1859,8 +3014,9 @@ export declare class PatientPortalsController {
                 trackingCount: number;
                 repliesCount: number;
                 pendingQuestions: number;
+                notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: number | null;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -1870,30 +3026,36 @@ export declare class PatientPortalsController {
             };
             entries: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1901,15 +3063,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1918,30 +3083,36 @@ export declare class PatientPortalsController {
             }[];
             questions: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1949,15 +3120,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1966,30 +3140,36 @@ export declare class PatientPortalsController {
             }[];
             tracking: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -1997,15 +3177,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -2014,30 +3197,36 @@ export declare class PatientPortalsController {
             }[];
             replies: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -2045,20 +3234,527 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
                     updatedAt: Date;
                 }>;
+            }[];
+            notifications: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            sharedResources: {
+                id: string;
+                title: string;
+                content: string;
+                category: string;
+                tags: string[];
+                isPublic: boolean;
+                format: string;
+                fileUrl: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+            }[];
+            sharedDeliverables: {
+                id: string;
+                name: string;
+                type: string;
+                format: string;
+                content: unknown;
+                metadata: unknown;
+                tags: string[];
+                createdAt: Date;
+                updatedAt: Date;
+            }[];
+        };
+    }>;
+    createNotification(req: any, patientId: string, dto: CreatePatientPortalNotificationDto): Promise<{
+        entry: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            payload: import("@prisma/client/runtime/library").JsonValue;
+            kind: string;
+            replyToId: string | null;
+            body: string | null;
+            replyTo: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
+                kind: string;
+                replyToId: string | null;
+                body: string | null;
+            } | null;
+            replies: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
+                kind: string;
+                replyToId: string | null;
+                body: string | null;
+            }[];
+        };
+        overview: {
+            patient: {
+                nutritionist: {
+                    id: string;
+                    fullName: string;
+                    avatarUrl: string | null;
+                };
+                id: string;
+                email: string | null;
+                fullName: string;
+                phone: string | null;
+                status: string | null;
+                createdAt: Date;
+                projects: {
+                    name: string;
+                    id: string;
+                    mode: string;
+                    status: string;
+                    updatedAt: Date;
+                    description: string | null;
+                    activeDeliverableCreation: {
+                        name: string;
+                        id: string;
+                        type: string;
+                    } | null;
+                    activeDietCreation: {
+                        name: string;
+                        id: string;
+                        type: string;
+                    } | null;
+                    activeRecipeCreation: {
+                        name: string;
+                        id: string;
+                        type: string;
+                    } | null;
+                }[];
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
+            };
+            portal: {
+                activeInvitation: {
+                    id: string;
+                    email: string | null;
+                    expiresAt: Date;
+                    status: string;
+                    lastSentAt: Date | null;
+                    verifiedAt: Date | null;
+                    revokedAt: Date | null;
+                    blockedAt: Date | null;
+                    resourceIds: string[];
+                    deliverableCreationIds: string[];
+                    createdAt: Date;
+                    accessCode: string;
+                } | null;
+                latestInvitation: {
+                    id: string;
+                    email: string | null;
+                    expiresAt: Date;
+                    status: string;
+                    lastSentAt: Date | null;
+                    verifiedAt: Date | null;
+                    revokedAt: Date | null;
+                    blockedAt: Date | null;
+                    resourceIds: string[];
+                    deliverableCreationIds: string[];
+                    createdAt: Date;
+                    accessCode: string;
+                } | null;
+            };
+            summary: {
+                totalEntries: number;
+                questionsCount: number;
+                trackingCount: number;
+                repliesCount: number;
+                pendingQuestions: number;
+                notificationsCount: number;
+                latestEntryAt: Date;
+                daysSinceLastEntry: number;
+                sectionCounts: {
+                    alimentacion: number;
+                    suplementos: number;
+                    actividadFisica: number;
+                };
+                alerts: string[];
+            };
+            entries: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            questions: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            tracking: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            replies: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            notifications: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            sharedResources: {
+                id: string;
+                title: string;
+                content: string;
+                category: string;
+                tags: string[];
+                isPublic: boolean;
+                format: string;
+                fileUrl: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+            }[];
+            sharedDeliverables: {
+                id: string;
+                name: string;
+                type: string;
+                format: string;
+                content: unknown;
+                metadata: unknown;
+                tags: string[];
+                createdAt: Date;
+                updatedAt: Date;
             }[];
         };
     }>;
@@ -2068,9 +3764,9 @@ export declare class PatientPortalsController {
         invitation: {
             id: string;
             status: string;
+            updatedAt: Date;
             revokedAt: Date | null;
             blockedAt: Date | null;
-            updatedAt: Date;
         };
         overview: {
             patient: {
@@ -2081,20 +3777,17 @@ export declare class PatientPortalsController {
                 };
                 id: string;
                 email: string | null;
-                status: string | null;
-                createdAt: Date;
                 fullName: string;
                 phone: string | null;
-                documentId: string | null;
-                height: number | null;
-                weight: number | null;
+                status: string | null;
+                createdAt: Date;
                 projects: {
                     name: string;
                     id: string;
+                    mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
-                    mode: string;
                     activeDeliverableCreation: {
                         name: string;
                         id: string;
@@ -2111,6 +3804,9 @@ export declare class PatientPortalsController {
                         type: string;
                     } | null;
                 }[];
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
             };
             portal: {
                 activeInvitation: {
@@ -2122,6 +3818,8 @@ export declare class PatientPortalsController {
                     verifiedAt: Date | null;
                     revokedAt: Date | null;
                     blockedAt: Date | null;
+                    resourceIds: string[];
+                    deliverableCreationIds: string[];
                     createdAt: Date;
                     accessCode: string;
                 } | null;
@@ -2134,6 +3832,8 @@ export declare class PatientPortalsController {
                     verifiedAt: Date | null;
                     revokedAt: Date | null;
                     blockedAt: Date | null;
+                    resourceIds: string[];
+                    deliverableCreationIds: string[];
                     createdAt: Date;
                     accessCode: string;
                 } | null;
@@ -2144,8 +3844,9 @@ export declare class PatientPortalsController {
                 trackingCount: number;
                 repliesCount: number;
                 pendingQuestions: number;
+                notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: number | null;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -2155,30 +3856,36 @@ export declare class PatientPortalsController {
             };
             entries: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -2186,15 +3893,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -2203,30 +3913,36 @@ export declare class PatientPortalsController {
             }[];
             questions: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -2234,15 +3950,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -2251,30 +3970,36 @@ export declare class PatientPortalsController {
             }[];
             tracking: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -2282,15 +4007,18 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -2299,30 +4027,36 @@ export declare class PatientPortalsController {
             }[];
             replies: {
                 id: string;
-                kind: "QUESTION" | "TRACKING" | "REPLY";
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                 body?: string | null;
                 payload: {
+                    entryDate?: string;
                     sections?: {
                         alimentacion?: string;
                         suplementos?: string;
                         actividadFisica?: string;
                     };
                     source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
                 };
                 replyToId?: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 replyTo: {
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
@@ -2330,20 +4064,103 @@ export declare class PatientPortalsController {
                 } | null;
                 replies: Array<{
                     id: string;
-                    kind: "QUESTION" | "TRACKING" | "REPLY";
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
                     body?: string | null;
                     payload: {
+                        entryDate?: string;
                         sections?: {
                             alimentacion?: string;
                             suplementos?: string;
                             actividadFisica?: string;
                         };
                         source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
                     };
                     replyToId?: string | null;
                     createdAt: Date;
                     updatedAt: Date;
                 }>;
+            }[];
+            notifications: {
+                id: string;
+                kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                body?: string | null;
+                payload: {
+                    entryDate?: string;
+                    sections?: {
+                        alimentacion?: string;
+                        suplementos?: string;
+                        actividadFisica?: string;
+                    };
+                    source?: "patient" | "nutritionist";
+                    notificationTitle?: string;
+                    notificationType?: "INFO" | "REMINDER" | "ALERT";
+                };
+                replyToId?: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                replyTo: {
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                } | null;
+                replies: Array<{
+                    id: string;
+                    kind: "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+                    body?: string | null;
+                    payload: {
+                        entryDate?: string;
+                        sections?: {
+                            alimentacion?: string;
+                            suplementos?: string;
+                            actividadFisica?: string;
+                        };
+                        source?: "patient" | "nutritionist";
+                        notificationTitle?: string;
+                        notificationType?: "INFO" | "REMINDER" | "ALERT";
+                    };
+                    replyToId?: string | null;
+                    createdAt: Date;
+                    updatedAt: Date;
+                }>;
+            }[];
+            sharedResources: {
+                id: string;
+                title: string;
+                content: string;
+                category: string;
+                tags: string[];
+                isPublic: boolean;
+                format: string;
+                fileUrl: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+            }[];
+            sharedDeliverables: {
+                id: string;
+                name: string;
+                type: string;
+                format: string;
+                content: unknown;
+                metadata: unknown;
+                tags: string[];
+                createdAt: Date;
+                updatedAt: Date;
             }[];
         };
     }>;

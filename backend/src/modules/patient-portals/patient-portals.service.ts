@@ -435,7 +435,9 @@ export class PatientPortalsService {
   ) {
     const sections = this.buildTrackingSections(dto);
     if (!sections) {
-      throw new BadRequestException('Agrega al menos una sección para guardar tu seguimiento');
+      throw new BadRequestException(
+        'Agrega al menos una sección para guardar tu seguimiento',
+      );
     }
 
     const summary = this.buildTrackingSummary(sections, dto.entryDate);
@@ -795,12 +797,6 @@ export class PatientPortalsService {
     const replyEntries = entries.filter((entry) => entry.kind === 'REPLY');
     const latestEntry = entries[0] || null;
     const latestEntryAt = latestEntry?.createdAt || null;
-    const daysSinceLastEntry = latestEntryAt
-      ? Math.floor(
-          (Date.now() - new Date(latestEntryAt).getTime()) /
-            (1000 * 60 * 60 * 24),
-        )
-      : null;
     const pendingQuestions = questionEntries.filter(
       (entry) => (entry.replies?.length || 0) === 0,
     ).length;
@@ -823,11 +819,21 @@ export class PatientPortalsService {
       },
     );
 
+    let daysSinceLastEntry = 0;
     const alerts: string[] = [];
     if (!latestEntryAt) {
       alerts.push('Todavía no hay registros en el portal.');
-    } else if (daysSinceLastEntry != null && daysSinceLastEntry >= 4) {
-      alerts.push(`Hace ${daysSinceLastEntry} días que no se actualiza el seguimiento.`);
+    } else {
+      const lastEntry = entries[0];
+      daysSinceLastEntry = Math.floor(
+        (Date.now() - new Date(lastEntry.createdAt).getTime()) /
+          (1000 * 60 * 60 * 24),
+      );
+      if (daysSinceLastEntry > 3) {
+        alerts.push(
+          `Hace ${daysSinceLastEntry} días que no se actualiza el seguimiento.`,
+        );
+      }
     }
 
     if (pendingQuestions > 0) {
@@ -838,7 +844,7 @@ export class PatientPortalsService {
 
     if (notificationsCount > 0) {
       alerts.push(
-        `${notificationsCount} notificación${notificationsCount === 1 ? '' : 'es'} del nutri.`,
+        `${notificationsCount} notificación${notificationsCount === 1 ? '' : 'es'} del nutri.`
       );
     }
 
@@ -889,7 +895,7 @@ export class PatientPortalsService {
         : null,
     ].filter(Boolean) as string[];
 
-    return pieces.join(' · ');
+    return pieces.join(' Â· ');
   }
 
   private normalizeDiaryDate(value?: string) {
@@ -1027,3 +1033,4 @@ export class PatientPortalsService {
     return code.replace(/\D/g, '').slice(0, 6);
   }
 }
+

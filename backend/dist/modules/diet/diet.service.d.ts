@@ -1,5 +1,6 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { VerifyFoodsDto } from './dto/verify-foods.dto';
+import { AiService } from '../../common/services/ai.service';
 type RestrictionConflict = {
     foodId: string;
     foodName: string;
@@ -18,10 +19,11 @@ type VerifyResponse = {
 };
 export declare class DietService {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly aiService;
+    constructor(prisma: PrismaService, aiService: AiService);
     private normalizeText;
     private heuristicVerify;
-    private verifyWithOpenAI;
+    private verifyWithAi;
     verifyFoodsAgainstRestrictions(body: VerifyFoodsDto): Promise<VerifyResponse>;
 }
 export {};

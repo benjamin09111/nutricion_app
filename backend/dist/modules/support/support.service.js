@@ -29,6 +29,8 @@ let SupportService = class SupportService {
             dbType = client_1.SupportRequestType.CONTACT;
         if (data.type === 'FEEDBACK')
             dbType = client_1.SupportRequestType.FEEDBACK;
+        if (data.type === 'TESTIMONIO')
+            dbType = client_1.SupportRequestType.TESTIMONIO;
         if (data.type === 'COMPLAINT')
             dbType = client_1.SupportRequestType.COMPLAINT;
         if (data.type === 'IDEA')
@@ -45,7 +47,9 @@ let SupportService = class SupportService {
         await this.mailService.sendFeedback({
             type: data.type,
             subject: data.subject || (data.message ? data.message.substring(0, 30) + '...' : 'Sin asunto'),
-            message: data.message || 'Sin mensaje',
+            message: data.type === 'TESTIMONIO'
+                ? `Testimonio público potencial: ${data.message || 'Sin mensaje'}`
+                : data.message || 'Sin mensaje',
             fromEmail: data.email
         });
         await this.mailService.sendFeedbackConfirmation(data.email);

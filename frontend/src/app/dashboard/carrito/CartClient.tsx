@@ -43,9 +43,10 @@ import { formatCLP } from "@/lib/utils/currency";
 import { useAdmin } from "@/context/AdminContext";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
-import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
+import { SectionProgressNav } from "@/components/shared/SectionProgressNav";
+import { useDashboardShell } from "@/context/DashboardShellContext";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import {
   buildProjectAwarePath,
@@ -208,6 +209,7 @@ export default function CartClient() {
   const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(
     null,
   );
+  const { isSidebarCollapsed } = useDashboardShell();
 
   useEffect(() => {
     setCurrentProjectId(projectIdFromUrl);
@@ -1689,11 +1691,23 @@ export default function CartClient() {
       />
 
       <ModuleLayout
-        title="Carrito Inteligente"
-        description="Genera automaticamente la lista de compra desde Dieta y Recetas."
+        title="Logística: Carrito de Compras"
+        description={
+          <div className="space-y-4">
+            <p>
+              Consolidación de cantidades totales. Aquí podrás ajustar las compras mensuales estimadas y verificar que cuadren con tus metas nutricionales.
+            </p>
+            <div className="flex flex-wrap gap-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              <span className="text-emerald-600">1. Estrategia (✓)</span>
+              <span className="text-emerald-600">2. Cuantificación (✓)</span>
+              <span className="text-indigo-600 underline underline-offset-4 decoration-2">3. Logística</span>
+              <span>4. Producto Final</span>
+            </div>
+          </div>
+        }
         className="max-w-[1800px] w-full overflow-x-hidden"
         step={{
-          number: 2,
+          number: 3,
           label: "Cantidades & Compras",
           icon: ShoppingCart,
           color: "text-indigo-600",
@@ -1777,13 +1791,26 @@ export default function CartClient() {
                 disabled={!hasRecipeSource}
                 onClick={handleFinalize}
               >
-                Continuar
+                SIGUIENTE
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </div>
           </ModuleFooter>
         }
       >
+        {isSidebarCollapsed && (
+          <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
+            <SectionProgressNav
+              title="Etapas del Plan"
+              items={[
+                { id: "dieta", label: "1. Estrategia", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/dieta", currentProjectId)) },
+                { id: "recetas", label: "2. Cuantificación", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/recetas", currentProjectId)) },
+                { id: "carrito", label: "3. Logística", status: "complete", active: true, onClick: () => {} },
+                { id: "entregable", label: "4. Entregable", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/entregable", currentProjectId)) },
+              ]}
+            />
+          </div>
+        )}
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}

@@ -156,7 +156,7 @@ export default function ConsultationsClient() {
   return (
     <ModuleLayout
       title="Mis Consultas"
-      description="Sistema centralizado de seguimiento y evolución clínica de pacientes."
+      description="Historial de sesiones"
       className="pb-8"
     >
       <ConfirmationModal
@@ -227,7 +227,8 @@ export default function ConsultationsClient() {
                 {consultations.map((item) => (
                   <tr
                     key={item.id}
-                    className="hover:bg-slate-50/50 transition-colors group"
+                    onClick={() => router.push(`/dashboard/consultas/${item.id}/view`)}
+                    className="hover:bg-emerald-50/40 hover:shadow-sm transition-all group cursor-pointer border-l-4 border-l-transparent hover:border-l-emerald-500"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -262,16 +263,30 @@ export default function ConsultationsClient() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() => setSelectedConsultation(item)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/dashboard/pacientes/${item.patientId}`);
+                          }}
+                          className="p-2 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors cursor-pointer"
+                          title="Ver Paciente"
+                        >
+                          <User className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/dashboard/consultas/${item.id}/view`);
+                          }}
                           className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                          title="Ver Detalles"
+                          title="Ver Consulta"
                         >
                           <Eye className="w-5 h-5" />
                         </button>
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setConsultationToDelete(item.id);
                             setIsDeleteModalOpen(true);
                           }}

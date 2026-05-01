@@ -63,7 +63,7 @@ export function Modal({
       <div
         ref={modalRef}
         className={cn(
-          "dashboard-surface-strong w-full max-w-md overflow-hidden rounded-2xl border shadow-2xl relative animate-in zoom-in-95 duration-200",
+          "w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl relative animate-in zoom-in-95 duration-200",
           className,
         )}
       >
@@ -86,7 +86,7 @@ export function Modal({
             </button>
           </div>
         )}
-        <div className="p-8">{children}</div>
+        <div className="bg-white p-8 text-slate-900">{children}</div>
       </div>
     </div>
   );

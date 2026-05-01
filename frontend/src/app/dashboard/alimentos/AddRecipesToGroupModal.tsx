@@ -1,0 +1,234 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { Search, Plus, Check, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { toast } from "sonner";
+import { Modal } from "@/components/ui/Modal";
+import { fetchApi } from "@/lib/api-base";
+import { getAuthToken } from "@/lib/auth-token";
+
+interface RecipeSummary {
+  id: string;
+  name: string;
+  description?: string;
+  calories: number;
+  proteins: number;
+  carbs: number;
+  lipids: number;
+  isMine?: boolean;
+  isAdopted?: boolean;
+  metadata?: { mealSection?: string; tags?: string[] } | null;
+  ingredients?: { ingredient: { name: string } }[];
+}
+
+interface AddRecipesToGroupModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  groupId: string;
+  groupName?: string;
+  allRecipes: RecipeSummary[];
+  currentRecipeIds: string[];
+  onRecipesAdded: (recipeIds: string[]) => void;
+}
+
+export default function AddRecipesToGroupModal({
+  isOpen,
+  onClose,
+  groupId,
+  groupName,
+  allRecipes,
+  currentRecipeIds,
+  onRecipesAdded,
+}: AddRecipesToGroupModalProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSection, setSelectedSection] = useState<string>("ALL");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const currentIdsSet = useMemo(() => new Set(currentRecipeIds), [currentRecipeIds]);
+
+  const sections = useMemo(() => {
+    const values = new Set<string>();
+    allRecipes.forEach((recipe) => {
+      if (recipe.metadata?.mealSection) values.add(recipe.metadata.mealSection);
+    });
+    return Array.from(values).sort();
+  }, [allRecipes]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (groupName && sections.includes(groupName)) {
+      setSelectedSection(groupName);
+    } else {
+      setSelectedSection("ALL");
+    }
+  }, [isOpen, groupName, sections]);
+
+  const filteredRecipes = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    return allRecipes
+      .filter((recipe) => !currentIdsSet.has(recipe.id))
+      .filter((recipe) => {
+        if (selectedSection !== "ALL" && recipe.metadata?.mealSection !== selectedSection) {
+          return false;
+        }
+
+        if (!term) return true;
+
+        const nameMatch = recipe.name.toLowerCase().includes(term);
+        const ingredientMatch = recipe.ingredients?.some((item) =>
+          item.ingredient.name.toLowerCase().includes(term),
+        );
+        return nameMatch || ingredientMatch;
+      })
+      .slice(0, 50);
+  }, [allRecipes, currentIdsSet, searchTerm, selectedSection]);
+
+  const handleToggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
+
+  const handleAdd = async () => {
+    if (selectedIds.size === 0) return;
+    setIsSubmitting(true);
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Sesión no válida");
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      const res = await fetchApi(`/ingredient-groups/${groupId}/ingredients`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ recipeIds: Array.from(selectedIds) }),
+      });
+
+      if (res.ok) {
+        toast.success(`${selectedIds.size} platos añadidos`);
+        onRecipesAdded(Array.from(selectedIds));
+        handleClose();
+      } else {
+        toast.error("Error al añadir platos");
+      }
+    } catch (error) {
+      console.error("Error adding recipes:", error);
+      toast.error("Error al añadir platos");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    setSearchTerm("");
+    setSelectedIds(new Set());
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="Añadir Platos" className="max-w-lg">
+      <div className="flex flex-col h-[70vh]">
+        <div className="pb-4 border-b border-slate-100 flex gap-2">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-slate-400" />
+            </div>
+            <Input
+              type="text"
+              placeholder="Buscar plato..."
+              className="pl-9 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <select
+            className="w-auto min-w-[160px] h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 shrink-0"
+            value={selectedSection}
+            onChange={(e) => setSelectedSection(e.target.value)}
+            title="Filtrar por sección"
+          >
+            <option value="ALL">Todas las secciones</option>
+            {sections.map((section) => (
+              <option key={section} value={section}>
+                {section}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex-1 overflow-y-auto py-4 scrollbar-thumb-slate-200 scrollbar-track-transparent scrollbar-thin">
+          {filteredRecipes.length === 0 ? (
+            <div className="py-12 text-center">
+              <p className="text-slate-400 text-sm mb-4">
+                {searchTerm ? "No se encontraron platos." : "Escribe para buscar..."}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {filteredRecipes.map((recipe) => {
+                const isSelected = selectedIds.has(recipe.id);
+                return (
+                  <div
+                    key={recipe.id}
+                    onClick={() => handleToggleSelect(recipe.id)}
+                    className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border ${isSelected ? "bg-violet-50 border-violet-200 shadow-sm" : "bg-white border-transparent hover:bg-slate-50 hover:border-slate-100"}`}
+                  >
+                    <div>
+                      <div className="font-medium text-slate-900 text-sm">
+                        {recipe.name}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {recipe.metadata?.mealSection || "Sin sección"} · {Math.round(recipe.calories)} kcal
+                      </div>
+                    </div>
+                    <div
+                      className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? "bg-violet-600 border-violet-600" : "border-slate-300 bg-white"}`}
+                    >
+                      {isSelected && <Check size={12} className="text-white" />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+          <span className="text-sm text-slate-500 font-medium">
+            {selectedIds.size} seleccionados
+          </span>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={handleClose}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleAdd}
+              disabled={selectedIds.size === 0 || isSubmitting}
+              className="bg-violet-600 hover:bg-violet-700 text-white"
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Plus size={16} className="mr-2" />
+              )}
+              Añadir
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}

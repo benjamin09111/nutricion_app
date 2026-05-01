@@ -6,13 +6,14 @@ import { CreatePatientPortalInvitationDto } from './dto/create-patient-portal-in
 import { CreatePatientPortalEntryDto } from './dto/create-patient-portal-entry.dto';
 import { CreatePatientPortalQuestionDto } from './dto/create-patient-portal-question.dto';
 import { CreatePatientPortalReplyDto } from './dto/create-patient-portal-reply.dto';
+import { CreatePatientPortalNotificationDto } from './dto/create-patient-portal-notification.dto';
 type PortalSessionPayload = {
     kind: 'patient-portal';
     patientId: string;
     nutritionistId: string;
     invitationId: string;
 };
-type PortalEntryKind = 'QUESTION' | 'TRACKING' | 'REPLY';
+type PortalEntryKind = 'QUESTION' | 'TRACKING' | 'REPLY' | 'NOTIFICATION';
 type NormalizedPortalEntry = {
     id: string;
     kind: PortalEntryKind;
@@ -41,8 +42,11 @@ type NormalizedPortalEntry = {
     }>;
 };
 type PortalEntryPayload = {
+    entryDate?: string;
     sections?: TrackingSections;
     source?: 'patient' | 'nutritionist';
+    notificationTitle?: string;
+    notificationType?: 'INFO' | 'REMINDER' | 'ALERT';
 };
 type InvitationSummary = {
     id: string;
@@ -53,8 +57,33 @@ type InvitationSummary = {
     verifiedAt: Date | null;
     revokedAt: Date | null;
     blockedAt: Date | null;
+    resourceIds: string[];
+    deliverableCreationIds: string[];
     createdAt: Date;
     accessCode: string;
+};
+type PortalResource = {
+    id: string;
+    title: string;
+    content: string;
+    category: string;
+    tags: string[];
+    isPublic: boolean;
+    format: string;
+    fileUrl: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+type PortalDeliverable = {
+    id: string;
+    name: string;
+    type: string;
+    format: string;
+    content: unknown;
+    metadata: unknown;
+    tags: string[];
+    createdAt: Date;
+    updatedAt: Date;
 };
 type TrackingSections = {
     alimentacion?: string;
@@ -71,8 +100,8 @@ export declare class PatientPortalsService {
         invitation: {
             id: string;
             email: string | null;
-            status: string;
             expiresAt: Date;
+            status: string;
             createdAt: Date;
         };
         shareUrl: string;
@@ -94,20 +123,17 @@ export declare class PatientPortalsService {
             };
             id: string;
             email: string | null;
-            status: string | null;
-            createdAt: Date;
             fullName: string;
             phone: string | null;
-            documentId: string | null;
-            height: number | null;
-            weight: number | null;
+            status: string | null;
+            createdAt: Date;
             projects: {
                 name: string;
                 id: string;
+                mode: string;
                 status: string;
                 updatedAt: Date;
                 description: string | null;
-                mode: string;
                 activeDeliverableCreation: {
                     name: string;
                     id: string;
@@ -124,6 +150,9 @@ export declare class PatientPortalsService {
                     type: string;
                 } | null;
             }[];
+            documentId: string | null;
+            height: number | null;
+            weight: number | null;
         };
         portal: {
             activeInvitation: InvitationSummary | null;
@@ -135,8 +164,9 @@ export declare class PatientPortalsService {
             trackingCount: number;
             repliesCount: number;
             pendingQuestions: number;
+            notificationsCount: number;
             latestEntryAt: Date;
-            daysSinceLastEntry: number | null;
+            daysSinceLastEntry: number;
             sectionCounts: {
                 alimentacion: number;
                 suplementos: number;
@@ -148,6 +178,9 @@ export declare class PatientPortalsService {
         questions: NormalizedPortalEntry[];
         tracking: NormalizedPortalEntry[];
         replies: NormalizedPortalEntry[];
+        notifications: NormalizedPortalEntry[];
+        sharedResources: PortalResource[];
+        sharedDeliverables: PortalDeliverable[];
         accessToken: string;
     }>;
     getPortalSessionOverview(session: PortalSessionPayload): Promise<{
@@ -159,20 +192,17 @@ export declare class PatientPortalsService {
             };
             id: string;
             email: string | null;
-            status: string | null;
-            createdAt: Date;
             fullName: string;
             phone: string | null;
-            documentId: string | null;
-            height: number | null;
-            weight: number | null;
+            status: string | null;
+            createdAt: Date;
             projects: {
                 name: string;
                 id: string;
+                mode: string;
                 status: string;
                 updatedAt: Date;
                 description: string | null;
-                mode: string;
                 activeDeliverableCreation: {
                     name: string;
                     id: string;
@@ -189,6 +219,9 @@ export declare class PatientPortalsService {
                     type: string;
                 } | null;
             }[];
+            documentId: string | null;
+            height: number | null;
+            weight: number | null;
         };
         portal: {
             activeInvitation: InvitationSummary | null;
@@ -200,8 +233,9 @@ export declare class PatientPortalsService {
             trackingCount: number;
             repliesCount: number;
             pendingQuestions: number;
+            notificationsCount: number;
             latestEntryAt: Date;
-            daysSinceLastEntry: number | null;
+            daysSinceLastEntry: number;
             sectionCounts: {
                 alimentacion: number;
                 suplementos: number;
@@ -213,6 +247,9 @@ export declare class PatientPortalsService {
         questions: NormalizedPortalEntry[];
         tracking: NormalizedPortalEntry[];
         replies: NormalizedPortalEntry[];
+        notifications: NormalizedPortalEntry[];
+        sharedResources: PortalResource[];
+        sharedDeliverables: PortalDeliverable[];
     }>;
     getPortalOverview(nutritionistId: string, patientId: string): Promise<{
         patient: {
@@ -223,20 +260,17 @@ export declare class PatientPortalsService {
             };
             id: string;
             email: string | null;
-            status: string | null;
-            createdAt: Date;
             fullName: string;
             phone: string | null;
-            documentId: string | null;
-            height: number | null;
-            weight: number | null;
+            status: string | null;
+            createdAt: Date;
             projects: {
                 name: string;
                 id: string;
+                mode: string;
                 status: string;
                 updatedAt: Date;
                 description: string | null;
-                mode: string;
                 activeDeliverableCreation: {
                     name: string;
                     id: string;
@@ -253,6 +287,9 @@ export declare class PatientPortalsService {
                     type: string;
                 } | null;
             }[];
+            documentId: string | null;
+            height: number | null;
+            weight: number | null;
         };
         portal: {
             activeInvitation: InvitationSummary | null;
@@ -264,8 +301,9 @@ export declare class PatientPortalsService {
             trackingCount: number;
             repliesCount: number;
             pendingQuestions: number;
+            notificationsCount: number;
             latestEntryAt: Date;
-            daysSinceLastEntry: number | null;
+            daysSinceLastEntry: number;
             sectionCounts: {
                 alimentacion: number;
                 suplementos: number;
@@ -277,14 +315,17 @@ export declare class PatientPortalsService {
         questions: NormalizedPortalEntry[];
         tracking: NormalizedPortalEntry[];
         replies: NormalizedPortalEntry[];
+        notifications: NormalizedPortalEntry[];
+        sharedResources: PortalResource[];
+        sharedDeliverables: PortalDeliverable[];
     }>;
     setAccessStatus(nutritionistId: string, patientId: string, status: 'ACTIVE' | 'BLOCKED'): Promise<{
         invitation: {
             id: string;
             status: string;
+            updatedAt: Date;
             revokedAt: Date | null;
             blockedAt: Date | null;
-            updatedAt: Date;
         };
         overview: {
             patient: {
@@ -295,20 +336,17 @@ export declare class PatientPortalsService {
                 };
                 id: string;
                 email: string | null;
-                status: string | null;
-                createdAt: Date;
                 fullName: string;
                 phone: string | null;
-                documentId: string | null;
-                height: number | null;
-                weight: number | null;
+                status: string | null;
+                createdAt: Date;
                 projects: {
                     name: string;
                     id: string;
+                    mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
-                    mode: string;
                     activeDeliverableCreation: {
                         name: string;
                         id: string;
@@ -325,6 +363,9 @@ export declare class PatientPortalsService {
                         type: string;
                     } | null;
                 }[];
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
             };
             portal: {
                 activeInvitation: InvitationSummary | null;
@@ -336,8 +377,9 @@ export declare class PatientPortalsService {
                 trackingCount: number;
                 repliesCount: number;
                 pendingQuestions: number;
+                notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: number | null;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -349,6 +391,9 @@ export declare class PatientPortalsService {
             questions: NormalizedPortalEntry[];
             tracking: NormalizedPortalEntry[];
             replies: NormalizedPortalEntry[];
+            notifications: NormalizedPortalEntry[];
+            sharedResources: PortalResource[];
+            sharedDeliverables: PortalDeliverable[];
         };
     }>;
     createQuestion(session: PortalSessionPayload, dto: CreatePatientPortalQuestionDto): Promise<{
@@ -356,27 +401,27 @@ export declare class PatientPortalsService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            payload: import("@prisma/client/runtime/library").JsonValue;
             kind: string;
             replyToId: string | null;
             body: string | null;
-            payload: import("@prisma/client/runtime/library").JsonValue;
             replyTo: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
-                payload: import("@prisma/client/runtime/library").JsonValue;
             } | null;
             replies: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
-                payload: import("@prisma/client/runtime/library").JsonValue;
             }[];
         };
         overview: {
@@ -388,20 +433,17 @@ export declare class PatientPortalsService {
                 };
                 id: string;
                 email: string | null;
-                status: string | null;
-                createdAt: Date;
                 fullName: string;
                 phone: string | null;
-                documentId: string | null;
-                height: number | null;
-                weight: number | null;
+                status: string | null;
+                createdAt: Date;
                 projects: {
                     name: string;
                     id: string;
+                    mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
-                    mode: string;
                     activeDeliverableCreation: {
                         name: string;
                         id: string;
@@ -418,6 +460,9 @@ export declare class PatientPortalsService {
                         type: string;
                     } | null;
                 }[];
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
             };
             portal: {
                 activeInvitation: InvitationSummary | null;
@@ -429,8 +474,9 @@ export declare class PatientPortalsService {
                 trackingCount: number;
                 repliesCount: number;
                 pendingQuestions: number;
+                notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: number | null;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -442,6 +488,9 @@ export declare class PatientPortalsService {
             questions: NormalizedPortalEntry[];
             tracking: NormalizedPortalEntry[];
             replies: NormalizedPortalEntry[];
+            notifications: NormalizedPortalEntry[];
+            sharedResources: PortalResource[];
+            sharedDeliverables: PortalDeliverable[];
         };
     }>;
     createTrackingEntry(session: PortalSessionPayload, dto: CreatePatientPortalEntryDto): Promise<{
@@ -449,27 +498,27 @@ export declare class PatientPortalsService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            payload: import("@prisma/client/runtime/library").JsonValue;
             kind: string;
             replyToId: string | null;
             body: string | null;
-            payload: import("@prisma/client/runtime/library").JsonValue;
             replyTo: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
-                payload: import("@prisma/client/runtime/library").JsonValue;
             } | null;
             replies: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
-                payload: import("@prisma/client/runtime/library").JsonValue;
             }[];
         };
         overview: {
@@ -481,20 +530,17 @@ export declare class PatientPortalsService {
                 };
                 id: string;
                 email: string | null;
-                status: string | null;
-                createdAt: Date;
                 fullName: string;
                 phone: string | null;
-                documentId: string | null;
-                height: number | null;
-                weight: number | null;
+                status: string | null;
+                createdAt: Date;
                 projects: {
                     name: string;
                     id: string;
+                    mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
-                    mode: string;
                     activeDeliverableCreation: {
                         name: string;
                         id: string;
@@ -511,6 +557,9 @@ export declare class PatientPortalsService {
                         type: string;
                     } | null;
                 }[];
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
             };
             portal: {
                 activeInvitation: InvitationSummary | null;
@@ -522,8 +571,9 @@ export declare class PatientPortalsService {
                 trackingCount: number;
                 repliesCount: number;
                 pendingQuestions: number;
+                notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: number | null;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -535,6 +585,9 @@ export declare class PatientPortalsService {
             questions: NormalizedPortalEntry[];
             tracking: NormalizedPortalEntry[];
             replies: NormalizedPortalEntry[];
+            notifications: NormalizedPortalEntry[];
+            sharedResources: PortalResource[];
+            sharedDeliverables: PortalDeliverable[];
         };
     }>;
     createReply(nutritionistId: string, patientId: string, dto: CreatePatientPortalReplyDto): Promise<{
@@ -542,27 +595,27 @@ export declare class PatientPortalsService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            payload: import("@prisma/client/runtime/library").JsonValue;
             kind: string;
             replyToId: string | null;
             body: string | null;
-            payload: import("@prisma/client/runtime/library").JsonValue;
             replyTo: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
-                payload: import("@prisma/client/runtime/library").JsonValue;
             } | null;
             replies: {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
                 kind: string;
                 replyToId: string | null;
                 body: string | null;
-                payload: import("@prisma/client/runtime/library").JsonValue;
             }[];
         };
         overview: {
@@ -574,20 +627,17 @@ export declare class PatientPortalsService {
                 };
                 id: string;
                 email: string | null;
-                status: string | null;
-                createdAt: Date;
                 fullName: string;
                 phone: string | null;
-                documentId: string | null;
-                height: number | null;
-                weight: number | null;
+                status: string | null;
+                createdAt: Date;
                 projects: {
                     name: string;
                     id: string;
+                    mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
-                    mode: string;
                     activeDeliverableCreation: {
                         name: string;
                         id: string;
@@ -604,6 +654,9 @@ export declare class PatientPortalsService {
                         type: string;
                     } | null;
                 }[];
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
             };
             portal: {
                 activeInvitation: InvitationSummary | null;
@@ -615,8 +668,9 @@ export declare class PatientPortalsService {
                 trackingCount: number;
                 repliesCount: number;
                 pendingQuestions: number;
+                notificationsCount: number;
                 latestEntryAt: Date;
-                daysSinceLastEntry: number | null;
+                daysSinceLastEntry: number;
                 sectionCounts: {
                     alimentacion: number;
                     suplementos: number;
@@ -628,12 +682,113 @@ export declare class PatientPortalsService {
             questions: NormalizedPortalEntry[];
             tracking: NormalizedPortalEntry[];
             replies: NormalizedPortalEntry[];
+            notifications: NormalizedPortalEntry[];
+            sharedResources: PortalResource[];
+            sharedDeliverables: PortalDeliverable[];
+        };
+    }>;
+    createNotification(nutritionistId: string, patientId: string, dto: CreatePatientPortalNotificationDto): Promise<{
+        entry: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            payload: import("@prisma/client/runtime/library").JsonValue;
+            kind: string;
+            replyToId: string | null;
+            body: string | null;
+            replyTo: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
+                kind: string;
+                replyToId: string | null;
+                body: string | null;
+            } | null;
+            replies: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                payload: import("@prisma/client/runtime/library").JsonValue;
+                kind: string;
+                replyToId: string | null;
+                body: string | null;
+            }[];
+        };
+        overview: {
+            patient: {
+                nutritionist: {
+                    id: string;
+                    fullName: string;
+                    avatarUrl: string | null;
+                };
+                id: string;
+                email: string | null;
+                fullName: string;
+                phone: string | null;
+                status: string | null;
+                createdAt: Date;
+                projects: {
+                    name: string;
+                    id: string;
+                    mode: string;
+                    status: string;
+                    updatedAt: Date;
+                    description: string | null;
+                    activeDeliverableCreation: {
+                        name: string;
+                        id: string;
+                        type: string;
+                    } | null;
+                    activeDietCreation: {
+                        name: string;
+                        id: string;
+                        type: string;
+                    } | null;
+                    activeRecipeCreation: {
+                        name: string;
+                        id: string;
+                        type: string;
+                    } | null;
+                }[];
+                documentId: string | null;
+                height: number | null;
+                weight: number | null;
+            };
+            portal: {
+                activeInvitation: InvitationSummary | null;
+                latestInvitation: InvitationSummary | null;
+            };
+            summary: {
+                totalEntries: number;
+                questionsCount: number;
+                trackingCount: number;
+                repliesCount: number;
+                pendingQuestions: number;
+                notificationsCount: number;
+                latestEntryAt: Date;
+                daysSinceLastEntry: number;
+                sectionCounts: {
+                    alimentacion: number;
+                    suplementos: number;
+                    actividadFisica: number;
+                };
+                alerts: string[];
+            };
+            entries: NormalizedPortalEntry[];
+            questions: NormalizedPortalEntry[];
+            tracking: NormalizedPortalEntry[];
+            replies: NormalizedPortalEntry[];
+            notifications: NormalizedPortalEntry[];
+            sharedResources: PortalResource[];
+            sharedDeliverables: PortalDeliverable[];
         };
     }>;
     private buildOverview;
     private buildSummary;
     private buildTrackingSections;
     private buildTrackingSummary;
+    private normalizeDiaryDate;
     private normalizeEntry;
     private formatInvitationSummary;
     private findInvitationByToken;

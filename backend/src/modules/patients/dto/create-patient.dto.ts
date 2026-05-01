@@ -60,6 +60,10 @@ export class CreatePatientDto {
     likes?: string;
 
     @IsOptional()
+    @IsString()
+    activityLevel?: string;
+
+    @IsOptional()
     @IsArray()
     @IsString({ each: true })
     tags?: string[];
