@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import LoginForm from "@/components/auth/LoginForm";
 import RegisterForm from "@/components/auth/RegisterForm";
 
@@ -9,18 +10,22 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen w-full bg-slate-50">
-      <section className="hidden lg:flex w-1/2 bg-slate-900 justify-center items-center relative overflow-hidden">
+      <section className="hidden lg:flex w-1/2 bg-linear-to-br from-indigo-900 via-slate-950 to-emerald-900 justify-center items-center relative overflow-hidden">
         {/* Abstract shapes for professional feel */}
         <div className="absolute top-0 -left-10 w-96 h-96 bg-emerald-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute top-0 -right-10 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-0 -right-10 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
         <div className="absolute -bottom-32 left-20 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
 
         <div className="relative z-10 text-white p-12 max-w-lg">
           <div className="mb-6 inline-flex items-center space-x-2">
-            <div className="h-8 w-8 rounded bg-emerald-500 flex items-center justify-center">
-              <span className="font-bold text-white text-lg">N</span>
-            </div>
-            <span className="text-xl font-bold tracking-wide">NutriSaaS</span>
+            <Image
+              src="/logo.png"
+              alt="NutriSaaS"
+              width={240}
+              height={76}
+              className="h-auto w-[180px] sm:w-[220px] object-contain"
+              priority
+            />
           </div>
           <h1 className="text-4xl font-bold mb-6">
             Gestión Profesional para Nutricionistas

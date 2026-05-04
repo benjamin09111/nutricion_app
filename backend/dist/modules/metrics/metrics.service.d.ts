@@ -5,9 +5,9 @@ export declare class MetricsService {
     private readonly cacheService;
     constructor(prisma: PrismaService, cacheService: CacheService);
     findAll(): Promise<{
+        id: string;
         name: string;
         unit: string;
-        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
@@ -22,9 +22,9 @@ export declare class MetricsService {
         icon?: string;
         color?: string;
     }, nutritionistId?: string): Promise<{
+        id: string;
         name: string;
         unit: string;
-        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
@@ -33,9 +33,9 @@ export declare class MetricsService {
         color: string | null;
     }>;
     search(query: string): Promise<{
+        id: string;
         name: string;
         unit: string;
-        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;
@@ -44,9 +44,9 @@ export declare class MetricsService {
         color: string | null;
     }[]>;
     remove(id: string, nutritionistId: string, role?: string): Promise<{
+        id: string;
         name: string;
         unit: string;
-        id: string;
         nutritionistId: string | null;
         createdAt: Date;
         updatedAt: Date;

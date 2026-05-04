@@ -41,10 +41,10 @@ export function ModuleLayout({
         <div className="space-y-2">
           {step && (
             <div
-              className={`flex items-center gap-2 text-[10px] bg-white w-fit px-2 py-1 rounded-full border border-slate-100 shadow-sm uppercase tracking-widest font-black ${step.color ? step.color : "text-emerald-600"}`}
+              className={`flex items-center gap-2 text-[10px] bg-white w-fit px-2 py-1 rounded-full border border-slate-100 shadow-sm uppercase tracking-widest font-black ${step.color ? step.color : "text-indigo-600"}`}
             >
               <span
-                className={`px-1.5 py-0.5 rounded text-[9px] ${step.color ? step.color.replace("text-", "bg-").replace("600", "100") : "bg-emerald-100"} mr-2`}
+                className={`px-1.5 py-0.5 rounded text-[9px] ${step.color ? step.color.replace("text-", "bg-").replace("600", "100") : "bg-indigo-100"} mr-2`}
               >
                 ETAPA {step.number}
               </span>

@@ -4,9 +4,9 @@ export declare class CreationsController {
     constructor(creationsService: CreationsService);
     create(req: any, data: any): Promise<{
         wasCreated: boolean;
-        name: string;
-        tags: string[];
         id: string;
+        tags: string[];
+        name: string;
         createdAt: Date;
         updatedAt: Date;
         type: string;
@@ -14,9 +14,9 @@ export declare class CreationsController {
         content: import("@prisma/client/runtime/library").JsonValue;
     } | {
         wasCreated: boolean;
-        name: string;
-        tags: string[];
         id: string;
+        tags: string[];
+        name: string;
         nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
@@ -26,9 +26,9 @@ export declare class CreationsController {
         content: import("@prisma/client/runtime/library").JsonValue;
     }>;
     findAll(req: any, type?: string): Promise<{
-        name: string;
-        tags: string[];
         id: string;
+        tags: string[];
+        name: string;
         nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;
@@ -39,9 +39,9 @@ export declare class CreationsController {
     }[]>;
     getTags(req: any): Promise<any[]>;
     findOne(req: any, id: string): Promise<{
-        name: string;
-        tags: string[];
         id: string;
+        tags: string[];
+        name: string;
         nutritionistId: string;
         createdAt: Date;
         updatedAt: Date;

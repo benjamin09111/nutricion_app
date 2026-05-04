@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -150,18 +151,18 @@ export function Sidebar() {
       >
         <Link
           href="/dashboard"
-          className="flex items-center space-x-2 rounded-xl transition-colors hover:opacity-90"
+          className="flex items-center rounded-xl transition-colors hover:opacity-90"
           aria-label="Ir al dashboard"
           title="Ir al dashboard"
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-emerald-500">
-            <span className="text-lg font-bold text-white">N</span>
-          </div>
-          {!isSidebarCollapsed && (
-            <span className={cn("text-xl font-bold tracking-wide", isDarkMode ? "text-emerald-50" : "text-slate-900")}>
-              NutriSaaS
-            </span>
-          )}
+          <Image
+            src="/logo.png"
+            alt="NutriSaaS"
+            width={isSidebarCollapsed ? 72 : 180}
+            height={isSidebarCollapsed ? 23 : 57}
+            className={cn("h-auto w-auto object-contain", isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
+            priority
+          />
         </Link>
 
         <button
@@ -170,9 +171,9 @@ export function Sidebar() {
           className={cn(
             "hidden lg:inline-flex items-center justify-center rounded-xl p-2 transition-all transition-colors",
             isDarkMode
-              ? "text-emerald-100/40 hover:text-emerald-50 hover:bg-emerald-500/10"
-              : "text-slate-400 hover:text-emerald-600 hover:bg-slate-50",
-            isSidebarToggleHighlighted && "animate-pulse ring-2 ring-emerald-500/20",
+              ? "text-indigo-100/50 hover:text-indigo-50 hover:bg-indigo-500/10"
+              : "text-slate-400 hover:text-indigo-600 hover:bg-slate-50",
+            isSidebarToggleHighlighted && "animate-pulse ring-2 ring-indigo-500/20",
             isSidebarCollapsed && "mt-2",
           )}
           title={isSidebarCollapsed ? "Mostrar menú" : "Contraer menú"}
@@ -189,7 +190,7 @@ export function Sidebar() {
                 <div
                   className={cn(
                     "mb-1 pl-2 text-[0.7rem] font-bold uppercase tracking-wider",
-                    isDarkMode ? "text-emerald-100/45" : "text-slate-400",
+                    isDarkMode ? "text-indigo-100/55" : "text-slate-400",
                   )}
                 >
                   {group.title}
@@ -215,11 +216,11 @@ export function Sidebar() {
                         className={cn(
                           isActive
                             ? isDarkMode
-                              ? "bg-emerald-500/12 text-emerald-50 font-bold"
-                              : "bg-slate-50 text-emerald-600 font-bold"
+                              ? "bg-indigo-500/12 text-indigo-50 font-bold"
+                              : "bg-slate-50 text-indigo-600 font-bold"
                             : isDarkMode
-                              ? "text-emerald-100/72 hover:bg-emerald-500/8 hover:text-emerald-50 font-medium"
-                              : "text-slate-600 hover:text-emerald-600 hover:bg-slate-50 font-medium",
+                              ? "text-indigo-100/72 hover:bg-indigo-500/8 hover:text-indigo-50 font-medium"
+                              : "text-slate-600 hover:text-indigo-600 hover:bg-slate-50 font-medium",
                           isLocked && "cursor-not-allowed grayscale opacity-50",
                           "group flex cursor-pointer items-center gap-x-2 rounded-md p-2 leading-5 transition-colors",
                           isSidebarCollapsed && "justify-center",
@@ -231,18 +232,18 @@ export function Sidebar() {
                             className={cn(
                               isActive
                                 ? isDarkMode
-                                  ? "text-emerald-300"
-                                  : "text-emerald-600"
+                                  ? "text-indigo-300"
+                                  : "text-indigo-600"
                                 : isDarkMode
-                                  ? "text-emerald-100/35 group-hover:text-emerald-300"
-                                  : "text-slate-400 group-hover:text-emerald-600",
+                                  ? "text-indigo-100/35 group-hover:text-indigo-300"
+                                  : "text-slate-400 group-hover:text-indigo-600",
                               "h-4 w-4 shrink-0",
                             )}
                             aria-hidden="true"
                           />
                         </span>
                         {!isSidebarCollapsed && <span className="flex-1">{item.name}</span>}
-                        {isLocked && <Lock className={cn("h-3 w-3", isDarkMode ? "text-emerald-100/35" : "text-slate-400")} />}
+                        {isLocked && <Lock className={cn("h-3 w-3", isDarkMode ? "text-indigo-100/35" : "text-slate-400")} />}
                       </Link>
                     </li>
                   );

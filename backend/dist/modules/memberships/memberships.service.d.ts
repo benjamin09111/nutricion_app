@@ -4,8 +4,8 @@ export declare class MembershipsService {
     constructor(prisma: PrismaService);
     findAll(): Promise<{
         price: number;
-        name: string;
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
@@ -21,8 +21,8 @@ export declare class MembershipsService {
     }[]>;
     findActive(): Promise<{
         price: number;
-        name: string;
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
@@ -38,8 +38,8 @@ export declare class MembershipsService {
     }[]>;
     findOne(id: string): Promise<{
         price: number;
-        name: string;
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
@@ -67,9 +67,9 @@ export declare class MembershipsService {
         isActive?: boolean;
         displayOrder?: number;
     }): Promise<{
+        id: string;
         name: string;
         price: import("@prisma/client/runtime/library").Decimal;
-        id: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
@@ -97,9 +97,9 @@ export declare class MembershipsService {
         isActive?: boolean;
         displayOrder?: number;
     }): Promise<{
+        id: string;
         name: string;
         price: import("@prisma/client/runtime/library").Decimal;
-        id: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
@@ -114,9 +114,9 @@ export declare class MembershipsService {
         displayOrder: number;
     }>;
     remove(id: string): Promise<{
+        id: string;
         name: string;
         price: import("@prisma/client/runtime/library").Decimal;
-        id: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
@@ -131,9 +131,9 @@ export declare class MembershipsService {
         displayOrder: number;
     }>;
     toggleActive(id: string): Promise<{
+        id: string;
         name: string;
         price: import("@prisma/client/runtime/library").Decimal;
-        id: string;
         createdAt: Date;
         updatedAt: Date;
         slug: string;
