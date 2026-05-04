@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Tag } from '@prisma/client';
 import { CreateIngredientGroupDto } from './dto/create-ingredient-group.dto';
@@ -231,13 +232,15 @@ export class IngredientGroupsService {
         const itemIds = isRecipeGroup ? (dto.recipeIds || []) : (dto.ingredientIds || []);
         if (itemIds.length === 0) return group;
 
+        const deleteMany: Prisma.IngredientGroupEntryScalarWhereInput = isRecipeGroup
+            ? { recipeId: { in: itemIds } }
+            : { ingredientId: { in: itemIds } };
+
         const updated = await this.prisma.ingredientGroup.update({
             where: { id },
             data: {
                 entries: {
-                    deleteMany: {
-                        ...(isRecipeGroup ? { recipeId: { in: itemIds } } : { ingredientId: { in: itemIds } })
-                    }
+                    deleteMany
                 }
             },
             include: { _count: { select: { entries: true } } }

@@ -100,9 +100,9 @@ export declare class PatientPortalsService {
         invitation: {
             id: string;
             email: string | null;
-            expiresAt: Date;
             status: string;
             createdAt: Date;
+            expiresAt: Date;
         };
         shareUrl: string;
         expiresAt: Date;
@@ -123,30 +123,30 @@ export declare class PatientPortalsService {
             };
             id: string;
             email: string | null;
-            fullName: string;
-            phone: string | null;
             status: string | null;
             createdAt: Date;
+            fullName: string;
+            phone: string | null;
             projects: {
-                name: string;
                 id: string;
+                name: string;
                 mode: string;
                 status: string;
                 updatedAt: Date;
                 description: string | null;
                 activeDeliverableCreation: {
-                    name: string;
                     id: string;
+                    name: string;
                     type: string;
                 } | null;
                 activeDietCreation: {
-                    name: string;
                     id: string;
+                    name: string;
                     type: string;
                 } | null;
                 activeRecipeCreation: {
-                    name: string;
                     id: string;
+                    name: string;
                     type: string;
                 } | null;
             }[];
@@ -192,30 +192,30 @@ export declare class PatientPortalsService {
             };
             id: string;
             email: string | null;
-            fullName: string;
-            phone: string | null;
             status: string | null;
             createdAt: Date;
+            fullName: string;
+            phone: string | null;
             projects: {
-                name: string;
                 id: string;
+                name: string;
                 mode: string;
                 status: string;
                 updatedAt: Date;
                 description: string | null;
                 activeDeliverableCreation: {
-                    name: string;
                     id: string;
+                    name: string;
                     type: string;
                 } | null;
                 activeDietCreation: {
-                    name: string;
                     id: string;
+                    name: string;
                     type: string;
                 } | null;
                 activeRecipeCreation: {
-                    name: string;
                     id: string;
+                    name: string;
                     type: string;
                 } | null;
             }[];
@@ -260,30 +260,30 @@ export declare class PatientPortalsService {
             };
             id: string;
             email: string | null;
-            fullName: string;
-            phone: string | null;
             status: string | null;
             createdAt: Date;
+            fullName: string;
+            phone: string | null;
             projects: {
-                name: string;
                 id: string;
+                name: string;
                 mode: string;
                 status: string;
                 updatedAt: Date;
                 description: string | null;
                 activeDeliverableCreation: {
-                    name: string;
                     id: string;
+                    name: string;
                     type: string;
                 } | null;
                 activeDietCreation: {
-                    name: string;
                     id: string;
+                    name: string;
                     type: string;
                 } | null;
                 activeRecipeCreation: {
-                    name: string;
                     id: string;
+                    name: string;
                     type: string;
                 } | null;
             }[];
@@ -336,30 +336,30 @@ export declare class PatientPortalsService {
                 };
                 id: string;
                 email: string | null;
-                fullName: string;
-                phone: string | null;
                 status: string | null;
                 createdAt: Date;
+                fullName: string;
+                phone: string | null;
                 projects: {
-                    name: string;
                     id: string;
+                    name: string;
                     mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
                     activeDeliverableCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                     activeDietCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                     activeRecipeCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                 }[];
@@ -433,30 +433,30 @@ export declare class PatientPortalsService {
                 };
                 id: string;
                 email: string | null;
-                fullName: string;
-                phone: string | null;
                 status: string | null;
                 createdAt: Date;
+                fullName: string;
+                phone: string | null;
                 projects: {
-                    name: string;
                     id: string;
+                    name: string;
                     mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
                     activeDeliverableCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                     activeDietCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                     activeRecipeCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                 }[];
@@ -530,30 +530,30 @@ export declare class PatientPortalsService {
                 };
                 id: string;
                 email: string | null;
-                fullName: string;
-                phone: string | null;
                 status: string | null;
                 createdAt: Date;
+                fullName: string;
+                phone: string | null;
                 projects: {
-                    name: string;
                     id: string;
+                    name: string;
                     mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
                     activeDeliverableCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                     activeDietCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                     activeRecipeCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                 }[];
@@ -627,30 +627,30 @@ export declare class PatientPortalsService {
                 };
                 id: string;
                 email: string | null;
-                fullName: string;
-                phone: string | null;
                 status: string | null;
                 createdAt: Date;
+                fullName: string;
+                phone: string | null;
                 projects: {
-                    name: string;
                     id: string;
+                    name: string;
                     mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
                     activeDeliverableCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                     activeDietCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                     activeRecipeCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                 }[];
@@ -724,30 +724,30 @@ export declare class PatientPortalsService {
                 };
                 id: string;
                 email: string | null;
-                fullName: string;
-                phone: string | null;
                 status: string | null;
                 createdAt: Date;
+                fullName: string;
+                phone: string | null;
                 projects: {
-                    name: string;
                     id: string;
+                    name: string;
                     mode: string;
                     status: string;
                     updatedAt: Date;
                     description: string | null;
                     activeDeliverableCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                     activeDietCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                     activeRecipeCreation: {
-                        name: string;
                         id: string;
+                        name: string;
                         type: string;
                     } | null;
                 }[];

@@ -3,20 +3,16 @@
 import content from "@/content/landing.json";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   CheckCircle2,
   ArrowRight,
-  Leaf,
   Zap,
   ShieldCheck,
   Monitor,
-  ChevronRight,
-  Star,
   Sparkles,
   Send,
-  AlertCircle,
-  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -43,7 +39,7 @@ export default function LandingPage() {
           const data = await res.json();
           setNutriCount(data.count);
         }
-      } catch (error) {
+      } catch {
         // En desarrollo, el backend puede tardar unos segundos en arrancar
         if (retries > 0) {
           setTimeout(() => fetchCount(retries - 1), 2000);
@@ -69,9 +65,10 @@ export default function LandingPage() {
       });
 
       const data = await response.json();
+      const responseData = data as { message?: string };
 
       if (!response.ok) {
-        throw new Error(data.message || "Error al enviar solicitud");
+        throw new Error(responseData.message || "Error al enviar solicitud");
       }
 
       toast.success(
@@ -82,8 +79,8 @@ export default function LandingPage() {
         email: "",
         message: "",
       });
-    } catch (error: any) {
-      toast.error(error.message || "Hubo un error al enviar tu solicitud.");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Hubo un error al enviar tu solicitud.");
     } finally {
       setIsSubmitting(false);
     }
@@ -95,12 +92,14 @@ export default function LandingPage() {
       <header className={cn("fixed top-0 z-50 w-full border-b backdrop-blur-md", isDarkMode ? "bg-slate-950/80 border-emerald-400/10" : "bg-white/80 border-indigo-50")}>
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-10 w-10 rounded-xl bg-linear-to-br from-indigo-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-200">
-              <Leaf className="h-6 w-6 text-white" />
-            </div>
-            <span className={cn("text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r", isDarkMode ? "from-emerald-50 to-emerald-300" : "from-indigo-900 to-indigo-600")}>
-              NutriSaaS
-            </span>
+            <Image
+              src="/logo.png"
+              alt="NutriSaaS"
+              width={220}
+              height={70}
+              className="h-auto w-[160px] sm:w-[190px] lg:w-[220px] object-contain"
+              priority
+            />
           </div>
           <div className="flex items-center gap-6">
             <a
@@ -349,10 +348,13 @@ export default function LandingPage() {
       <footer className="py-12 border-t border-slate-100 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 text-center space-y-4">
           <div className="flex items-center justify-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-              <Leaf className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-indigo-900">NutriSaaS</span>
+            <Image
+              src="/logo.png"
+              alt="NutriSaaS"
+              width={180}
+              height={57}
+              className="h-auto w-[140px] object-contain"
+            />
           </div>
           <p className="text-slate-500 text-sm italic">
             {content.footer.quote}
@@ -367,7 +369,17 @@ export default function LandingPage() {
 }
 
 function PricingSection() {
-  const [plans, setPlans] = useState<any[]>([]);
+  type Plan = {
+    id: string | number;
+    name: string;
+    description: string;
+    isPopular?: boolean;
+    price: string | number;
+    billingPeriod: string;
+    features: string[];
+  };
+
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -375,13 +387,13 @@ function PricingSection() {
       try {
         const res = await fetchApi(`/memberships/active`);
         if (res.ok) {
-          const data = await res.json();
+          const data = (await res.json()) as Plan[];
           setPlans(data);
           setIsLoading(false);
           return;
         }
         throw new Error("Response not ok");
-      } catch (error) {
+      } catch {
         if (retries > 0) {
           // Reintentar cada 2 segundos si el backend no responde (startup)
           setTimeout(() => fetchPlans(retries - 1), 2000);

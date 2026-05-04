@@ -157,13 +157,13 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                   : "border-slate-100 bg-linear-to-r from-slate-50 to-white",
               )}
             >
-              <div className="flex items-center gap-1.5 line-clamp-1">
-                <span
-                  className={cn(
+            <div className="flex items-center gap-1.5 line-clamp-1">
+              <span
+                className={cn(
                     "whitespace-nowrap text-[10px] font-black uppercase tracking-widest",
                     isDarkMode ? "text-emerald-100/70" : "text-slate-400",
-                  )}
-                >
+                )}
+              >
                   Plan Activo:
                 </span>
                 <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-widest text-emerald-600">
@@ -390,10 +390,10 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
               >
                 {isAdminView ? "A" : <User className="h-4.5 w-4.5" />}
               </div>
-              <span className="hidden lg:flex lg:items-center whitespace-nowrap">
-                <span
-                  className={cn(
-                    "ml-1 text-sm font-bold leading-6",
+                <span className="hidden lg:flex lg:items-center whitespace-nowrap">
+                  <span
+                    className={cn(
+                    "ml-1 text-sm font-brand font-bold leading-6",
                     isDarkMode ? "text-emerald-50" : "text-slate-900",
                   )}
                   aria-hidden="true"

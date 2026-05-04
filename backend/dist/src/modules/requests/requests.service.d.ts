@@ -1,0 +1,88 @@
+import { PrismaService } from '../../prisma/prisma.service';
+import { CreateRegistrationRequestDto } from './dto/create-registration-request.dto';
+import { MailService } from '../mail/mail.service';
+import { AuthService } from '../auth/auth.service';
+export declare class RequestsService {
+    private prisma;
+    private mailService;
+    private authService;
+    constructor(prisma: PrismaService, mailService: MailService, authService: AuthService);
+    create(createDto: CreateRegistrationRequestDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    findAll(params?: {
+        page?: number;
+        limit?: number;
+        status?: 'PENDING' | 'ACCEPTED' | 'APPROVED' | 'REJECTED' | 'ALL_ACCEPTED';
+        search?: string;
+    }): Promise<{
+        data: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            fullName: string;
+            professionalId: string | null;
+            specialty: string | null;
+            phone: string | null;
+            email: string;
+            status: import(".prisma/client").$Enums.RequestStatus;
+            message: string | null;
+            adminNotes: string | null;
+        }[];
+        meta: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+            counts: {
+                pending: number;
+                accepted: number;
+                rejected: number;
+            };
+        };
+    }>;
+    delete(id: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        fullName: string;
+        professionalId: string | null;
+        specialty: string | null;
+        phone: string | null;
+        email: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
+        message: string | null;
+        adminNotes: string | null;
+    }>;
+    findOne(id: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        fullName: string;
+        professionalId: string | null;
+        specialty: string | null;
+        phone: string | null;
+        email: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
+        message: string | null;
+        adminNotes: string | null;
+    } | null>;
+    getPendingCount(): Promise<number>;
+    updateStatus(id: string, status: 'PENDING' | 'ACCEPTED' | 'APPROVED' | 'REJECTED', adminNotes?: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        fullName: string;
+        professionalId: string | null;
+        specialty: string | null;
+        phone: string | null;
+        email: string;
+        status: import(".prisma/client").$Enums.RequestStatus;
+        message: string | null;
+        adminNotes: string | null;
+    } | {
+        success: boolean;
+        message: string;
+    }>;
+}

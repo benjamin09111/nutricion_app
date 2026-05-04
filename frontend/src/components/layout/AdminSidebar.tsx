@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -13,8 +14,6 @@ import {
   Shield,
   Building2,
   Inbox,
-  Lock,
-  Bell,
   MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -137,14 +136,14 @@ export function AdminSidebar() {
         )}
       >
         <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded bg-indigo-600 flex items-center justify-center">
-            <span className="font-bold text-white text-lg">A</span>
-          </div>
-          {!isSidebarCollapsed && (
-            <span className={cn("text-xl font-bold tracking-wide", isDarkMode ? "text-indigo-100" : "text-indigo-900")}>
-              Admin Panel
-            </span>
-          )}
+          <Image
+            src="/logo.png"
+            alt="NutriSaaS"
+            width={isSidebarCollapsed ? 72 : 180}
+            height={isSidebarCollapsed ? 23 : 57}
+            className={cn("h-auto w-auto object-contain", isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
+            priority
+          />
         </div>
       </div>
       <nav className="flex flex-1 flex-col mt-2">
