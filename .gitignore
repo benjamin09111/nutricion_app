@@ -3,5 +3,6 @@ backend/.env.localdev
 backend/.env.testing
 backend/.env.previous
 backend/backups/
+backend/dist/
 backend/prisma/generated/
 frontend/.env.local
