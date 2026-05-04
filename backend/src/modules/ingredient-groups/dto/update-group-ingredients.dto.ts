@@ -1,7 +1,13 @@
-import { IsArray, IsUUID } from 'class-validator';
+import { IsArray, IsOptional, IsUUID } from 'class-validator';
 
 export class UpdateGroupIngredientsDto {
     @IsArray()
     @IsUUID('4', { each: true })
-    ingredientIds: string[];
+    @IsOptional()
+    ingredientIds?: string[];
+
+    @IsArray()
+    @IsUUID('4', { each: true })
+    @IsOptional()
+    recipeIds?: string[];
 }

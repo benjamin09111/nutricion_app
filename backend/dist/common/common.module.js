@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CommonModule = void 0;
 const common_1 = require("@nestjs/common");
 const cache_service_1 = require("./services/cache.service");
+const ai_service_1 = require("./services/ai.service");
 const http_cache_interceptor_1 = require("./interceptors/http-cache.interceptor");
 let CommonModule = class CommonModule {
 };
@@ -16,8 +17,8 @@ exports.CommonModule = CommonModule;
 exports.CommonModule = CommonModule = __decorate([
     (0, common_1.Global)(),
     (0, common_1.Module)({
-        providers: [cache_service_1.CacheService, http_cache_interceptor_1.HttpCacheInterceptor],
-        exports: [cache_service_1.CacheService, http_cache_interceptor_1.HttpCacheInterceptor],
+        providers: [cache_service_1.CacheService, ai_service_1.AiService, http_cache_interceptor_1.HttpCacheInterceptor],
+        exports: [cache_service_1.CacheService, ai_service_1.AiService, http_cache_interceptor_1.HttpCacheInterceptor],
     })
 ], CommonModule);
 //# sourceMappingURL=common.module.js.map

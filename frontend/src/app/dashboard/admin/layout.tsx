@@ -9,7 +9,7 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAdmin, role } = useAdmin();
+  const { isAdmin } = useAdmin();
   const router = useRouter();
 
   useEffect(() => {

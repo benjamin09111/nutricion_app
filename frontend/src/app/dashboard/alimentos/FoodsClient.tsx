@@ -13,30 +13,22 @@ import {
   Plus,
   Check,
   X,
-  FolderPlus,
   Users,
-  ChevronLeft,
-  ChevronRight,
-  Trash2,
-  Lock,
   Share2,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Ingredient } from "@/features/foods";
-import { formatCLP } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/ui/Pagination";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import CreateIngredientModal from "./CreateIngredientModal";
 import IngredientDetailsModal from "./IngredientDetailsModal";
 import { useScrollLock } from "@/hooks/useScrollLock";
-import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import ManageTagsModal from "./ManageTagsModal";
-import CreateGroupModal from "./CreateGroupModal";
-import AddIngredientsToGroupModal from "./AddIngredientsToGroupModal";
 import { fetchApi } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
 
@@ -55,6 +47,7 @@ interface FoodsClientProps {
 
 export default function FoodsClient({ initialData }: FoodsClientProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const tabParam = searchParams.get("tab") as IngredientTab | null;
 
   const [data, setData] = useState<Ingredient[]>(initialData);
@@ -76,18 +69,11 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   const [selectedTag, setSelectedTag] = useState<string>("Todos");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Group State
-  const [groups, setGroups] = useState<any[]>([]);
-  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
 
   // Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
-  const [isAddIngredientModalOpen, setIsAddIngredientModalOpen] =
-    useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
   const [selectedIngredient, setSelectedIngredient] =
@@ -102,8 +88,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
   const isAnyModalOpen =
     isCreateModalOpen ||
-    isCreateGroupModalOpen ||
-    isAddIngredientModalOpen ||
     isDetailsModalOpen ||
     isTagsModalOpen ||
     isDeleteConfirmOpen;
@@ -139,8 +123,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   }, [activeTab, baseTab]);
 
   const fetchIngredients = useCallback(async () => {
-    if (activeTab === "Mis grupos") return;
-
     const token = getToken();
     if (!token) return;
 
@@ -216,32 +198,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     }
   }, []);
 
-  const fetchGroups = async () => {
-    const token = getToken();
-    if (!token) return;
-    setIsLoadingGroups(true);
-    try {
-      const res = await fetchApi("/ingredient-groups", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setGroups(data);
-      }
-    } catch (error) {
-      console.error("Error fetching groups:", error);
-    } finally {
-      setIsLoadingGroups(false);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === "Mis grupos") {
-      fetchGroups();
-    } else {
-      setSelectedGroup(null);
-    }
-  }, [activeTab]);
 
   useEffect(() => {
     fetchCatalogPool();
@@ -314,16 +270,11 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const [groupCurrentPage, setGroupCurrentPage] = useState(1);
-  const groupItemsPerPage = 10;
 
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, selectedCategory, selectedTag, activeTab]);
 
-  useEffect(() => {
-    setGroupCurrentPage(1);
-  }, [selectedGroup?.id]);
 
   const filteredIngredients = useMemo(() => data, [data]);
 
@@ -333,46 +284,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     return filteredIngredients.slice(start, start + itemsPerPage);
   }, [filteredIngredients, currentPage, itemsPerPage]);
 
-  const groupTotalPages = Math.ceil(
-    (selectedGroup?.ingredients?.length || 0) / groupItemsPerPage
-  );
-  const paginatedGroupIngredients = useMemo(() => {
-    if (!selectedGroup || !selectedGroup.ingredients) return [];
-    const start = (groupCurrentPage - 1) * groupItemsPerPage;
-    return selectedGroup.ingredients.slice(start, start + groupItemsPerPage);
-  }, [selectedGroup, groupCurrentPage, groupItemsPerPage]);
-
-  const groupTotals = useMemo(() => {
-    if (!selectedGroup || !selectedGroup.ingredients) return null;
-
-    return selectedGroup.ingredients.reduce(
-      (acc: any, rel: any) => {
-        const ing = rel.ingredient;
-        if (!ing) return acc;
-
-        const ratio = rel.amount / (ing.amount || 100);
-
-        return {
-          calories: acc.calories + (ing.calories || 0) * ratio,
-          proteins: acc.proteins + (ing.proteins || 0) * ratio,
-          carbs: acc.carbs + (ing.carbs || 0) * ratio,
-          lipids: acc.lipids + (ing.lipids || 0) * ratio,
-          sugars: acc.sugars + (ing.sugars || 0) * ratio,
-          fiber: acc.fiber + (ing.fiber || 0) * ratio,
-          sodium: acc.sodium + (ing.sodium || 0) * ratio,
-        };
-      },
-      {
-        calories: 0,
-        proteins: 0,
-        carbs: 0,
-        lipids: 0,
-        sugars: 0,
-        fiber: 0,
-        sodium: 0,
-      },
-    );
-  }, [selectedGroup]);
 
   const tabs: IngredientTab[] = [
     "Dieta base",
@@ -381,178 +292,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     "Con tags",
     "Borradores",
     "Mis creaciones",
-    "Mis grupos",
   ];
-
-  const handleGroupClick = async (groupId: string) => {
-    const token = getToken();
-    if (!token) return;
-
-    try {
-      const res = await fetchApi(`/ingredient-groups/${groupId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const groupDetails = await res.json();
-        setSelectedGroup(groupDetails);
-      } else {
-        toast.error("Error al cargar detalles del grupo");
-      }
-    } catch (error) {
-      console.error("Error fetching group details:", error);
-      toast.error("Error al cargar detalles del grupo");
-    }
-  };
-
-  const mergeIngredientsIntoSelectedGroup = (
-    groupId: string,
-    ingredientIds: string[],
-  ) => {
-    if (!selectedGroup || selectedGroup.id !== groupId || ingredientIds.length === 0) {
-      return;
-    }
-
-    const existingIds = new Set(
-      (selectedGroup.ingredients || []).map((rel: any) => rel.ingredient.id),
-    );
-
-    const ingredientRelations = ingredientIds
-      .map((ingredientId) => data.find((ingredient) => ingredient.id === ingredientId))
-      .filter((ingredient): ingredient is Ingredient => !!ingredient)
-      .filter((ingredient) => !existingIds.has(ingredient.id))
-      .map((ingredient) => ({
-        ingredient,
-        amount: ingredient.amount || 100,
-        unit: ingredient.unit || "g",
-        brandSuggestion: ingredient.brand?.name || null,
-        entryId: `local-${ingredient.id}`,
-      }));
-
-    if (ingredientRelations.length === 0) return;
-
-    setSelectedGroup((prev: any) => {
-      if (!prev || prev.id !== groupId) return prev;
-      return {
-        ...prev,
-        ingredients: [...(prev.ingredients || []), ...ingredientRelations],
-      };
-    });
-
-    setGroups((prev) =>
-      prev.map((group) => {
-        if (group.id !== groupId) return group;
-
-        const currentCount =
-          group._count?.ingredients ??
-          group._count?.entries ??
-          group.ingredients?.length ??
-          0;
-
-        return {
-          ...group,
-          _count: {
-            ...group._count,
-            ingredients: currentCount + ingredientRelations.length,
-            entries: currentCount + ingredientRelations.length,
-          },
-        };
-      }),
-    );
-  };
-
-  const handleDeleteGroup = (groupId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setGroupToDelete(groupId);
-    setIsDeleteConfirmOpen(true);
-  };
-
-  const confirmDeleteGroup = async () => {
-    if (!groupToDelete) return;
-    const token = getToken();
-    if (!token) return;
-
-    try {
-      const res = await fetchApi(`/ingredient-groups/${groupToDelete}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.ok) {
-        toast.success("Grupo eliminado correctamente");
-        setGroups((prev) => prev.filter((g) => g.id !== groupToDelete));
-        if (selectedGroup?.id === groupToDelete) setSelectedGroup(null);
-        setIsDeleteConfirmOpen(false);
-        setGroupToDelete(null);
-      } else {
-        toast.error("Error al eliminar el grupo");
-      }
-    } catch (error) {
-      console.error("Error deleting group:", error);
-      toast.error("Error al eliminar el grupo");
-    }
-  };
-
-  const handleRemoveIngredientFromGroup = async (
-    groupId: string,
-    ingredientId: string,
-  ) => {
-    const token = getToken();
-    if (!token) return;
-
-    try {
-      const res = await fetchApi(
-        `/ingredient-groups/${groupId}/ingredients`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ ingredientIds: [ingredientId] }),
-        },
-      );
-
-      if (res.ok) {
-        toast.success("Ingrediente eliminado del grupo");
-        // Update local state
-        if (selectedGroup && selectedGroup.id === groupId) {
-          const updatedIngredients =
-            selectedGroup.ingredients?.filter(
-              (rel: any) => rel.ingredient.id !== ingredientId,
-            ) || [];
-          setSelectedGroup({
-            ...selectedGroup,
-            ingredients: updatedIngredients,
-          });
-
-          // Also update groups list count
-          setGroups((prev) =>
-            prev.map((g) => {
-              if (g.id === groupId) {
-                const currentCount =
-                  g._count?.ingredients ?? g._count?.entries ?? 0;
-                const newCount = Math.max(0, currentCount - 1);
-                return {
-                  ...g,
-                  _count: {
-                    ...g._count,
-                    ingredients: newCount,
-                    entries: newCount,
-                  },
-                };
-              }
-              return g;
-            }),
-          );
-        }
-      } else {
-        toast.error("Error al eliminar ingrediente");
-      }
-    } catch (error) {
-      console.error("Error removing ingredient:", error);
-      toast.error("Error al eliminar ingrediente");
-    }
-  };
 
   const handleCreateIngredientSuccess = async (newIngredient?: any) => {
     if (newIngredient) {
@@ -567,36 +307,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     }
     await Promise.all([fetchIngredients(), fetchCatalogPool()]);
 
-    if (targetGroupIdForNewIngredient && newIngredient) {
-      const token = getToken();
-      if (!token) return;
-
-      try {
-        const res = await fetchApi(
-          `/ingredient-groups/${targetGroupIdForNewIngredient}/ingredients`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ ingredientIds: [newIngredient.id] }),
-          },
-        );
-
-        if (res.ok) {
-          toast.success("Ingrediente creado y añadido al grupo 🚀");
-          mergeIngredientsIntoSelectedGroup(targetGroupIdForNewIngredient, [
-            newIngredient.id,
-          ]);
-          fetchGroups();
-        }
-      } catch (error) {
-        console.error("Error adding new ingredient to group:", error);
-      } finally {
-        setTargetGroupIdForNewIngredient(null);
-      }
-    }
   };
 
   const handleDetailsClick = (ingredient: Ingredient) => {
@@ -829,7 +539,13 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
               return (
                 <button
                   key={tab}
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => {
+                    if (tab === "Mis grupos") {
+                      router.push("/dashboard/alimentos/grupos");
+                      return;
+                    }
+                    setActiveTab(tab);
+                  }}
                   className={cn(
                     "px-6 py-2.5 text-sm font-bold rounded-xl transition-all duration-200 whitespace-nowrap flex items-center gap-2 cursor-pointer",
                     activeTab === tab
@@ -900,351 +616,27 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         </div>
 
         <div className="w-full lg:w-auto">
-          {activeTab === "Mis grupos" ? (
-            <div className="flex w-full flex-wrap gap-2 lg:justify-end">
-              {selectedGroup && (
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedGroup(null)}
-                  className="w-full justify-center gap-2 border-slate-200 text-slate-600 hover:bg-slate-50 sm:w-auto"
-                >
-                  <ChevronLeft size={16} />
-                  Volver
-                </Button>
-              )}
-              <Button
-                onClick={() => setIsCreateGroupModalOpen(true)}
-                className="w-full justify-center bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-sm shadow-indigo-100 sm:w-auto"
-              >
-                <FolderPlus size={18} />
-                Nueva Agrupación
-              </Button>
-            </div>
-          ) : (
-            <div className="flex w-full flex-wrap gap-2 lg:justify-end">
-              <Button
-                onClick={() => {
-                  setActiveTab("Mis grupos");
-                  setIsCreateGroupModalOpen(true);
-                }}
-                variant="outline"
-                className="w-full justify-center border-indigo-200 text-indigo-600 hover:bg-indigo-50 gap-2 sm:w-auto"
-              >
-                <FolderPlus size={18} />
-                Nueva Agrupación
-              </Button>
-              <Button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="w-full justify-center bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-sm shadow-emerald-100 sm:w-auto"
-              >
-                <Plus size={18} />
-                Nuevo Ingrediente
-              </Button>
-            </div>
-          )}
+          <div className="flex w-full flex-wrap gap-2 lg:justify-end">
+            <Button
+              onClick={() => router.push("/dashboard/alimentos/grupos")}
+              variant="outline"
+              className="w-full justify-center border-indigo-200 text-indigo-600 hover:bg-indigo-50 gap-2 sm:w-auto cursor-pointer"
+            >
+              <Layers size={18} />
+              Mis Grupos
+            </Button>
+            <Button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="w-full justify-center bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-sm shadow-emerald-100 sm:w-auto cursor-pointer"
+            >
+              <Plus size={18} />
+              Nuevo Ingrediente
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Content Switcher */}
-      {activeTab === "Mis grupos" ? (
-        selectedGroup ? (
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* Group Detail Header */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                      <FolderPlus size={24} />
-                    </div>
-                    <h2 className="text-2xl font-bold text-slate-800">
-                      {selectedGroup.name}
-                    </h2>
-                  </div>
-                  {selectedGroup.description && (
-                    <p className="text-slate-500 max-w-2xl">
-                      {selectedGroup.description}
-                    </p>
-                  )}
-                  <div className="flex gap-2 mt-4">
-                    {selectedGroup.tags?.map((tag: any) => (
-                      <span
-                        key={tag.id}
-                        className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium"
-                      >
-                        #{tag.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  className="text-indigo-600 border-indigo-100 hover:bg-indigo-50 hover:border-indigo-200 mr-2"
-                  onClick={() => setIsAddIngredientModalOpen(true)}
-                >
-                  <Plus size={16} className="mr-2" />
-                  Añadir Ingredientes
-                </Button>
-                <Button
-                  variant="outline"
-                  className="text-red-600 border-red-100 hover:bg-red-50 hover:border-red-200"
-                  onClick={(e) => handleDeleteGroup(selectedGroup.id, e)}
-                >
-                  <Trash2 size={16} className="mr-2" />
-                  Eliminar Grupo
-                </Button>
-              </div>
-
-              {/* Group Macros Summary */}
-              {groupTotals && selectedGroup.ingredients?.length > 0 && (
-                <div className="mt-8 pt-6 border-t border-slate-100">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Scale size={18} className="text-indigo-500" />
-                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">
-                      Totales de la Agrupación
-                    </h3>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-                    <div className="bg-orange-50/50 p-3 rounded-xl border border-orange-100 flex flex-col items-center justify-center">
-                      <span className="text-[10px] font-bold text-orange-600 uppercase mb-1">
-                        Calorías
-                      </span>
-                      <span className="text-lg font-black text-orange-700">
-                        {Math.round(groupTotals.calories)}
-                      </span>
-                    </div>
-                    <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex flex-col items-center justify-center">
-                      <span className="text-[10px] font-bold text-blue-600 uppercase mb-1">
-                        Proteínas
-                      </span>
-                      <span className="text-lg font-black text-blue-700">
-                        {groupTotals.proteins.toFixed(1)}g
-                      </span>
-                    </div>
-                    <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 flex flex-col items-center justify-center">
-                      <span className="text-[10px] font-bold text-emerald-600 uppercase mb-1">
-                        Carbos
-                      </span>
-                      <span className="text-lg font-black text-emerald-700">
-                        {groupTotals.carbs.toFixed(1)}g
-                      </span>
-                    </div>
-                    <div className="bg-yellow-50/50 p-3 rounded-xl border border-yellow-100 flex flex-col items-center justify-center">
-                      <span className="text-[10px] font-bold text-yellow-600 uppercase mb-1">
-                        Grasas
-                      </span>
-                      <span className="text-lg font-black text-yellow-700">
-                        {groupTotals.lipids.toFixed(1)}g
-                      </span>
-                    </div>
-                    {groupTotals.sugars > 0 && (
-                      <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col items-center justify-center">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase mb-1">
-                          Azúcares
-                        </span>
-                        <span className="text-md font-bold text-slate-700">
-                          {groupTotals.sugars.toFixed(1)}g
-                        </span>
-                      </div>
-                    )}
-                    {groupTotals.fiber > 0 && (
-                      <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col items-center justify-center">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase mb-1">
-                          Fibra
-                        </span>
-                        <span className="text-md font-bold text-slate-700">
-                          {groupTotals.fiber.toFixed(1)}g
-                        </span>
-                      </div>
-                    )}
-                    {groupTotals.sodium > 0 && (
-                      <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex flex-col items-center justify-center">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase mb-1">
-                          Sodio
-                        </span>
-                        <span className="text-md font-bold text-slate-700">
-                          {Math.round(groupTotals.sodium)}mg
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Ingredients Table */}
-            <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 sm:rounded-2xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-100">
-                  <thead className="bg-slate-50/50">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider">
-                        Ingrediente
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-black text-slate-500 uppercase tracking-wider">
-                        Categoría
-                      </th>
-                      <th className="px-6 py-4 text-right text-xs font-black text-slate-500 uppercase tracking-wider">
-                        Cantidad
-                      </th>
-                      <th className="px-6 py-4 text-right text-xs font-black text-slate-500 uppercase tracking-wider">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-slate-100">
-                    {paginatedGroupIngredients &&
-                      paginatedGroupIngredients.length > 0 ? (
-                      paginatedGroupIngredients.map((relation: any) => (
-                        <tr
-                          key={relation.ingredient?.id || Math.random()}
-                          className="hover:bg-slate-50/50 transition-colors"
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="font-medium text-slate-900">
-                              {relation.ingredient?.name ||
-                                "Ingrediente desconocido"}
-                            </span>
-                            <span className="text-slate-400 text-xs ml-2">
-                              {relation.ingredient?.brand?.name ||
-                                relation.brandSuggestion}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-slate-500 text-sm">
-                            {relation.ingredient?.category?.name || "-"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-slate-600">
-                            {relation.amount}{" "}
-                            {relation.ingredient?.unit || relation.unit}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-slate-400 hover:text-red-600 hover:bg-red-50"
-                              onClick={() =>
-                                handleRemoveIngredientFromGroup(
-                                  selectedGroup.id,
-                                  relation.ingredient?.id,
-                                )
-                              }
-                            >
-                              <X size={16} />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="px-6 py-12 text-center text-slate-400"
-                        >
-                          Este grupo no tiene ingredientes aún.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Group Pagination */}
-            {groupTotalPages > 1 && (
-              <div className="flex items-center justify-between px-2 pt-4">
-                <Pagination
-                  currentPage={groupCurrentPage}
-                  totalPages={groupTotalPages}
-                  onPageChange={setGroupCurrentPage}
-                />
-              </div>
-            )}
-          </div>
-        ) : /* Groups Grid View */
-          isLoadingGroups ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in duration-300">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="bg-slate-50 p-4 rounded-xl border border-slate-200 h-32 animate-pulse flex flex-col justify-between"
-                >
-                  <div className="flex gap-3">
-                    <div className="w-10 h-10 bg-slate-200 rounded-lg"></div>
-                    <div className="space-y-2 flex-1">
-                      <div className="h-4 bg-slate-200 rounded w-3/4"></div>
-                      <div className="h-3 bg-slate-200 rounded w-1/2"></div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in duration-300">
-              {groups.length === 0 ? (
-                <div className="col-span-full py-12 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                  <div className="w-12 h-12 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <FolderPlus size={24} />
-                  </div>
-                  <h3 className="text-slate-900 font-medium mb-1">
-                    No tienes agrupaciones
-                  </h3>
-                  <p className="text-slate-500 text-sm mb-4">
-                    Organiza tus ingredientes en grupos personalizados.
-                  </p>
-                  {/* 
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setIsCreateGroupModalOpen(true)}
-                                        className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-                                    >
-                                        Crear mi primera agrupación
-                                    </Button>
-                                    */}
-                </div>
-              ) : (
-                groups.map((group) => (
-                  <div
-                    key={group.id}
-                    onClick={() => handleGroupClick(group.id)}
-                    className="bg-white p-4 rounded-xl border border-slate-200 hover:shadow-md transition-all cursor-pointer relative group"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                          <FolderPlus size={20} />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-slate-900">
-                            {group.name}
-                          </h3>
-                          <p className="text-xs text-slate-500">
-                            {(group._count?.ingredients ?? group._count?.entries ?? 0)} ingredientes
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    {group.description && (
-                      <p className="text-xs text-slate-600 mb-3 line-clamp-2">
-                        {group.description}
-                      </p>
-                    )}
-                    <div className="flex flex-wrap gap-1 mt-auto">
-                      {group.tags?.map((tag: any) => (
-                        <span
-                          key={tag.id}
-                          className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full"
-                        >
-                          #{tag.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )
-      ) : (
-        <>
+      <>
           {/* Filters Section */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <div className="flex flex-wrap items-end gap-6">
@@ -1723,46 +1115,17 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
             </div>
           </div>
         </>
-      )}
-
       {/* Modals */}
-      <CreateGroupModal
-        isOpen={isCreateGroupModalOpen}
-        onClose={() => setIsCreateGroupModalOpen(false)}
-        onGroupCreated={fetchGroups}
-      />
 
       <CreateIngredientModal
         isOpen={isCreateModalOpen}
         onClose={() => {
           setIsCreateModalOpen(false);
-          setTargetGroupIdForNewIngredient(null);
         }}
         onSuccess={handleCreateIngredientSuccess}
         availableTags={allTags.filter((t) => t !== "Todos")}
       />
 
-      {selectedGroup && (
-        <AddIngredientsToGroupModal
-          isOpen={isAddIngredientModalOpen}
-          onClose={() => setIsAddIngredientModalOpen(false)}
-          groupId={selectedGroup.id}
-          groupName={selectedGroup.name}
-          allIngredients={catalogPool}
-          currentIngredientIds={
-            selectedGroup.ingredients?.map((r: any) => r.ingredient.id) || []
-          }
-          onIngredientsAdded={(ingredientIds) => {
-            mergeIngredientsIntoSelectedGroup(selectedGroup.id, ingredientIds);
-            fetchGroups();
-          }}
-          onCreateNew={() => {
-            setTargetGroupIdForNewIngredient(selectedGroup.id);
-            setIsAddIngredientModalOpen(false);
-            setIsCreateModalOpen(true);
-          }}
-        />
-      )}
 
       {/* Details Modal */}
       {selectedIngredient && (

@@ -54,6 +54,9 @@ let RecipesController = class RecipesController {
     fillQuickWithAi(req, dto) {
         return this.recipesService.quickFillWithAi(req.user.id, dto);
     }
+    addToLibrary(req, id) {
+        return this.recipesService.addToLibrary(id, req.user.id);
+    }
     findAll(req) {
         return this.recipesService.findAll(req.user.id);
     }
@@ -107,6 +110,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, quick_ai_fill_recipes_dto_1.QuickAiFillRecipesDto]),
     __metadata("design:returntype", void 0)
 ], RecipesController.prototype, "fillQuickWithAi", null);
+__decorate([
+    (0, common_1.Post)(':id/library'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], RecipesController.prototype, "addToLibrary", null);
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Request)()),

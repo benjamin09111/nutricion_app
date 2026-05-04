@@ -4,6 +4,7 @@ import { EstimateMacrosDto } from './dto/estimate-macros.dto';
 import { AiFillRecipesDto } from './dto/ai-fill-recipes.dto';
 import { QuickAiFillRecipesDto } from './dto/quick-ai-fill-recipes.dto';
 import { CacheService } from '../../common/services/cache.service';
+import { AiService } from '../../common/services/ai.service';
 type AiRecipeOutput = {
     slotId: string;
     mealSection: string;
@@ -42,17 +43,16 @@ type AiFillWeekResponse = {
 export declare class RecipesService {
     private readonly prisma;
     private readonly cacheService;
+    private readonly aiService;
     private readonly logger;
-    constructor(prisma: PrismaService, cacheService: CacheService);
+    constructor(prisma: PrismaService, cacheService: CacheService, aiService: AiService);
     private getNutritionistId;
     private normalizeFoodName;
     private normalizeMealSection;
     private isStrictMealSection;
     private buildAiPrompt;
-    private getGeminiConfig;
-    private extractGeminiText;
     private mapAiErrorMessage;
-    private callGeminiJson;
+    private callAiJson;
     private extractJsonFromResponse;
     private extractFirstJsonValue;
     private parseAiResponse;
@@ -100,8 +100,8 @@ export declare class RecipesService {
             id: string;
             brandSuggestion: string | null;
             ingredientId: string;
-            isMain: boolean;
             recipeId: string;
+            isMain: boolean;
         })[];
     } & {
         name: string;
@@ -119,12 +119,14 @@ export declare class RecipesService {
         description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         preparation: string | null;
-        portions: number;
         portionSize: number;
+        portions: number;
         imageUrl: string | null;
     }>;
     findAll(userId: string): Promise<any[]>;
     findOne(id: string, userId: string): Promise<{
+        isMine: boolean;
+        isAdopted: boolean;
         ingredients: ({
             ingredient: {
                 name: string;
@@ -154,8 +156,8 @@ export declare class RecipesService {
             id: string;
             brandSuggestion: string | null;
             ingredientId: string;
-            isMain: boolean;
             recipeId: string;
+            isMain: boolean;
         })[];
         nutritionist: {
             id: string;
@@ -169,7 +171,12 @@ export declare class RecipesService {
             avatarUrl: string | null;
             settings: import("@prisma/client/runtime/library").JsonValue | null;
         } | null;
-    } & {
+        savedBy: {
+            id: string;
+            nutritionistId: string;
+            createdAt: Date;
+            recipeId: string;
+        }[];
         name: string;
         calories: number;
         proteins: number;
@@ -185,9 +192,18 @@ export declare class RecipesService {
         description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         preparation: string | null;
-        portions: number;
         portionSize: number;
+        portions: number;
         imageUrl: string | null;
+    }>;
+    addToLibrary(id: string, userId: string): Promise<{
+        recipeId: string;
+        added: boolean;
+        alreadyOwned: boolean;
+    } | {
+        recipeId: string;
+        added: boolean;
+        alreadyOwned?: undefined;
     }>;
     update(id: string, userId: string, userRole: string, updateDto: CreateRecipeDto): Promise<{
         ingredients: {
@@ -196,8 +212,8 @@ export declare class RecipesService {
             id: string;
             brandSuggestion: string | null;
             ingredientId: string;
-            isMain: boolean;
             recipeId: string;
+            isMain: boolean;
         }[];
     } & {
         name: string;
@@ -215,8 +231,8 @@ export declare class RecipesService {
         description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         preparation: string | null;
-        portions: number;
         portionSize: number;
+        portions: number;
         imageUrl: string | null;
     }>;
     estimateMacros(dto: EstimateMacrosDto): Promise<{
@@ -241,8 +257,8 @@ export declare class RecipesService {
         description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         preparation: string | null;
-        portions: number;
         portionSize: number;
+        portions: number;
         imageUrl: string | null;
     }>;
 }

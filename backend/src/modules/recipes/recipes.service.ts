@@ -6,6 +6,7 @@ import { AiFillPayload, AiFillRecipesDto } from './dto/ai-fill-recipes.dto';
 import { QuickAiFillPayload, QuickAiFillRecipesDto } from './dto/quick-ai-fill-recipes.dto';
 
 import { CacheService } from '../../common/services/cache.service';
+import { AiService } from '../../common/services/ai.service';
 import { RECIPES_AI_PROMPTS } from './recipes-ai-prompts';
 
 type AiRecipeOutput = {
@@ -51,6 +52,8 @@ type AiFillWeekResponse = {
 type QuickAiIngredientOutput = {
     name: string;
     quantity?: string;
+    amount?: number;
+    unit?: string;
 };
 
 type QuickAiDishOutput = {
@@ -59,6 +62,7 @@ type QuickAiDishOutput = {
     description: string;
     preparation: string;
     recommendedPortion: string;
+    portions: number;
     protein: number;
     calories: number;
     carbs: number;
@@ -72,7 +76,8 @@ export class RecipesService {
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly cacheService: CacheService
+        private readonly cacheService: CacheService,
+        private readonly aiService: AiService
     ) { }
 
     private async getNutritionistId(accountId: string): Promise<string> {
@@ -111,25 +116,6 @@ export class RecipesService {
         return [scopePrompt, JSON.stringify(payload)].join('\n');
     }
 
-    private getGeminiConfig() {
-        const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-        const model = process.env.GEMINI_MODEL || process.env.GOOGLE_GEMINI_MODEL || 'gemini-2.5-flash';
-
-        if (!apiKey) {
-            throw new BadRequestException('Configura GEMINI_API_KEY para usar esta funcion.');
-        }
-
-        return { apiKey, model };
-    }
-
-    private extractGeminiText(payload: any): string | null {
-        const candidates = Array.isArray(payload?.candidates) ? payload.candidates : [];
-        const first = candidates[0];
-        const parts = Array.isArray(first?.content?.parts) ? first.content.parts : [];
-        const textPart = parts.find((part: any) => typeof part?.text === 'string');
-        return textPart?.text || null;
-    }
-
     private mapAiErrorMessage(upstreamMessage: string): string {
         const normalizedMessage = String(upstreamMessage || '').toLowerCase();
 
@@ -140,7 +126,7 @@ export class RecipesService {
             normalizedMessage.includes('max_tokens') ||
             normalizedMessage.includes('token')
         ) {
-            return 'La solicitud supera el limite de tokens/contexto del modelo. Reduce bloques, filtros o detalle y vuelve a intentar.';
+            return 'La solicitud supera el límite de tokens/contexto del modelo. Reduce bloques, filtros o detalle y vuelve a intentar.';
         }
 
         if (
@@ -149,54 +135,23 @@ export class RecipesService {
             normalizedMessage.includes('rate limit') ||
             normalizedMessage.includes('429')
         ) {
-            return 'Se alcanzo el limite de uso de la IA (cuota/rate limit). Intenta mas tarde o revisa tu plan.';
+            return 'Se alcanzó el límite de uso de la IA (cuota/rate limit). Intenta más tarde o revisa tu plan.';
         }
 
         return upstreamMessage || 'No se pudo completar recetas con IA.';
     }
 
-    private async callGeminiJson(systemInstruction: string, userPrompt: string): Promise<string> {
-        const { apiKey, model } = this.getGeminiConfig();
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        this.logger.log(`[Gemini] Request model=${model} promptChars=${userPrompt.length}`);
-
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                systemInstruction: {
-                    parts: [{ text: systemInstruction }],
-                },
-                contents: [
-                    {
-                        role: 'user',
-                        parts: [{ text: userPrompt }],
-                    },
-                ],
-                generationConfig: {
-                    temperature: 0.2,
-                    responseMimeType: 'application/json',
-                },
-            }),
-        });
-
-        const raw = await response.json().catch(() => ({} as any));
-        if (!response.ok) {
-            const upstreamMessage = raw?.error?.message || raw?.message || '';
-            this.logger.error(`[Gemini] Error status=${response.status} message=${upstreamMessage || 'unknown'}`);
-            throw new BadRequestException(this.mapAiErrorMessage(upstreamMessage));
+    private async callAiJson(systemInstruction: string, userPrompt: string): Promise<string> {
+        try {
+            const text = await this.aiService.callJson(systemInstruction, userPrompt);
+            this.logger.log(`[AI] Response ok chars=${text.length}`);
+            this.logger.log(`[AI] Raw response:\n${text}`);
+            return text;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`[AI] Request failed: ${message}`);
+            throw new BadRequestException(this.mapAiErrorMessage(message));
         }
-
-        const text = this.extractGeminiText(raw);
-        if (!text) {
-            this.logger.error('[Gemini] Empty content in response payload');
-            throw new BadRequestException('La IA no devolvio contenido.');
-        }
-        this.logger.log(`[Gemini] Response ok chars=${text.length}`);
-        this.logger.log(`[Gemini] Raw response:\n${text}`);
-        return text;
     }
 
     private extractJsonFromResponse(rawContent: string): string {
@@ -273,7 +228,7 @@ export class RecipesService {
                 return JSON.parse(recovered) as AiFillDayResponse | AiFillWeekResponse;
             }
             this.logger.error(`[Gemini] JSON parse failed. snippet=${jsonContent.slice(0, 300)}`);
-            throw new BadRequestException('La IA devolvio un formato invalido. Intenta nuevamente.');
+            throw new BadRequestException('La IA devolvió un formato inválido. Intenta nuevamente.');
         }
     }
 
@@ -370,7 +325,7 @@ export class RecipesService {
             payload.allowedFoodsByDiet.map((food) => this.normalizeFoodName(food)),
         );
 
-        const content = await this.callGeminiJson(
+        const content = await this.callAiJson(
             RECIPES_AI_PROMPTS.base,
             this.buildAiPrompt(payload),
         );
@@ -474,33 +429,39 @@ export class RecipesService {
                     return { name, quantity: '' };
                 }
 
-                if (item && typeof item === 'object') {
-                    const name = typeof item.name === 'string' ? item.name.trim() : '';
-                    if (!name) return null;
-                    const quantity = typeof item.quantity === 'string' ? item.quantity.trim() : '';
-                    return { name, quantity };
-                }
+                  if (item && typeof item === 'object') {
+                      const name = typeof item.name === 'string' ? item.name.trim() : '';
+                      if (!name) return null;
+                      const quantity = typeof item.quantity === 'string' ? item.quantity.trim() : '';
+                      const amount = Number.isFinite(Number(item.amount)) ? Number(item.amount) : undefined;
+                      const unit = typeof item.unit === 'string' ? item.unit.trim() : undefined;
+                      return { name, quantity, amount, unit };
+                  }
 
                 return null;
             })
             .filter((item: QuickAiIngredientOutput | null): item is QuickAiIngredientOutput => !!item);
 
-        const title = typeof dish?.title === 'string' ? dish.title.trim() : '';
-        const mealSection = typeof dish?.mealSection === 'string' ? dish.mealSection.trim() : '';
-        const recommendedPortion =
-            typeof dish?.recommendedPortion === 'string' ? dish.recommendedPortion.trim() : '';
+          const title = typeof dish?.title === 'string' ? dish.title.trim() : '';
+          const mealSection = typeof dish?.mealSection === 'string' ? dish.mealSection.trim() : '';
+          const recommendedPortion =
+              typeof dish?.recommendedPortion === 'string' ? dish.recommendedPortion.trim() : '';
+          const portions = Number.isFinite(Number(dish?.portions))
+              ? Math.max(1, Math.round(Number(dish.portions)))
+              : 1;
 
         if (!title || !mealSection || !recommendedPortion) {
             throw new BadRequestException('La IA devolvió un plato incompleto en recetas rápidas.');
         }
 
         return {
-            title,
-            mealSection,
-            description: typeof dish?.description === 'string' ? dish.description.trim() : '',
-            preparation: typeof dish?.preparation === 'string' ? dish.preparation.trim() : '',
-            recommendedPortion,
-            protein: Number.isFinite(Number(dish?.protein)) ? Number(dish.protein) : 0,
+              title,
+              mealSection,
+              description: typeof dish?.description === 'string' ? dish.description.trim() : '',
+              preparation: typeof dish?.preparation === 'string' ? dish.preparation.trim() : '',
+              recommendedPortion,
+              portions,
+              protein: Number.isFinite(Number(dish?.protein)) ? Number(dish.protein) : 0,
             calories: Number.isFinite(Number(dish?.calories)) ? Number(dish.calories) : 0,
             carbs: Number.isFinite(Number(dish?.carbs)) ? Number(dish.carbs) : 0,
             fats: Number.isFinite(Number(dish?.fats)) ? Number(dish.fats) : 0,
@@ -551,8 +512,10 @@ export class RecipesService {
             'Devuelve la cantidad exacta pedida en desiredDishCount (minimo 2, maximo 60).',
             'Si mealSectionTargets viene informado, respeta exactamente la cantidad solicitada por cada mealSection.',
             'Si generationMode es weekly, prioriza variedad semanal evitando repetir platos muy similares.',
+            'Cada plato debe incluir portions como numero entero de porciones que rinde la receta.',
+            'Los campos amount y unit de cada ingrediente deben representar la cantidad TOTAL del ingrediente para la receta completa, no por porcion.',
             'Estructura exacta de salida JSON:',
-            '{"dishes":[{"title":"string","mealSection":"string","description":"string","preparation":"string","recommendedPortion":"string","protein":0,"calories":0,"carbs":0,"fats":0,"ingredients":[{"name":"string","quantity":"string"}]}],"meta":{"note":"string"}}',
+            '{"dishes":[{"title":"string","mealSection":"string","description":"string","preparation":"string","recommendedPortion":"string","portions":1,"protein":0,"calories":0,"carbs":0,"fats":0,"ingredients":[{"name":"string","quantity":"string","amount":0,"unit":"g"}]}],"meta":{"note":"string"}}',
             'Secciones sugeridas para mealSection: Desayuno, Colacion AM, Almuerzo, Colacion PM, Once, Cena, Post entreno.',
             'Si falta informacion, asume criterios nutricionales generales y recetas realistas de cocina chilena/latam.',
             'No incluyas texto fuera del JSON.',
@@ -563,7 +526,7 @@ export class RecipesService {
         await this.getNutritionistId(userId);
 
         const payload = dto.payload || ({} as QuickAiFillPayload);
-        const content = await this.callGeminiJson(
+        const content = await this.callAiJson(
             'Eres un nutricionista clínico experto. Responde solo JSON válido.',
             this.buildQuickAiPrompt(payload),
         );
@@ -695,30 +658,51 @@ export class RecipesService {
     async findAll(userId: string) {
         try {
             const nutritionistId = await this.getNutritionistId(userId).catch(() => null);
-            
-            const where: any = nutritionistId 
-                ? { OR: [{ isPublic: true }, { nutritionistId }] }
+            const where: any = nutritionistId
+                ? {
+                      OR: [
+                          { isPublic: true },
+                          { nutritionistId },
+                          { savedBy: { some: { nutritionistId } } },
+                      ],
+                  }
                 : { isPublic: true };
 
-            const recipes = await this.prisma.recipe.findMany({
-                where,
-                include: {
-                    _count: { select: { ingredients: true } },
-                    nutritionist: { select: { fullName: true } },
-                    ingredients: {
-                        include: {
-                            ingredient: {
-                                select: { name: true }
-                            }
+            const include = {
+                _count: { select: { ingredients: true } },
+                nutritionist: { select: { fullName: true } },
+                ingredients: {
+                    include: {
+                        ingredient: {
+                            select: { name: true }
                         }
                     }
                 },
+                ...(nutritionistId
+                    ? {
+                          savedBy: {
+                              where: { nutritionistId },
+                              select: { id: true },
+                          },
+                      }
+                    : {}),
+            };
+
+            const recipes = await this.prisma.recipe.findMany({
+                where,
+                include,
                 orderBy: { updatedAt: 'desc' }
             });
-            return recipes.map((r: any) => ({ 
-                ...r, 
-                isMine: nutritionistId ? r.nutritionistId === nutritionistId : false 
-            }));
+            return recipes.map((r: any) => {
+                const isMine = nutritionistId ? r.nutritionistId === nutritionistId : false;
+                const isAdopted = nutritionistId ? !isMine && Array.isArray(r.savedBy) && r.savedBy.length > 0 : false;
+
+                return {
+                    ...r,
+                    isMine,
+                    isAdopted,
+                };
+            });
         } catch (error) {
             console.error('[RecipesService.findAll] Fallback to public recipes:', error);
             const recipes = await this.prisma.recipe.findMany({
@@ -729,7 +713,7 @@ export class RecipesService {
                 },
                 orderBy: { updatedAt: 'desc' }
             });
-            return recipes.map((r: any) => ({ ...r, isMine: false }));
+            return recipes.map((r: any) => ({ ...r, isMine: false, isAdopted: false }));
         }
     }
 
@@ -743,18 +727,83 @@ export class RecipesService {
                         ingredient: true
                     }
                 },
-                nutritionist: true
+                nutritionist: true,
+                ...(nutritionistId
+                    ? {
+                          savedBy: {
+                              where: { nutritionistId },
+                              select: { id: true },
+                          },
+                      }
+                    : {}),
             }
         });
 
         if (!recipe) throw new NotFoundException('Recipe not found');
 
-        // Allow if public OR owned
-        if (!recipe.isPublic && (!nutritionistId || recipe.nutritionistId !== nutritionistId)) {
+        const isMine = nutritionistId ? recipe.nutritionistId === nutritionistId : false;
+        const isAdopted = nutritionistId ? Array.isArray((recipe as any).savedBy) && (recipe as any).savedBy.length > 0 : false;
+
+        // Allow if public, owned, or saved in the nutritionist library
+        if (!recipe.isPublic && !isMine && !isAdopted) {
             throw new ForbiddenException('Access denied');
         }
 
-        return recipe;
+        return {
+            ...recipe,
+            isMine,
+            isAdopted,
+        };
+    }
+
+    async addToLibrary(id: string, userId: string) {
+        const nutritionistId = await this.getNutritionistId(userId);
+        const recipe = await this.prisma.recipe.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                isPublic: true,
+                nutritionistId: true,
+            },
+        });
+
+        if (!recipe) throw new NotFoundException('Recipe not found');
+
+        if (recipe.nutritionistId === nutritionistId) {
+            return {
+                recipeId: recipe.id,
+                added: false,
+                alreadyOwned: true,
+            };
+        }
+
+        if (!recipe.isPublic) {
+            throw new ForbiddenException('Solo puedes agregar platos públicos de la comunidad.');
+        }
+
+        await this.prisma.recipeLibrary.upsert({
+            where: {
+                nutritionistId_recipeId: {
+                    nutritionistId,
+                    recipeId: recipe.id,
+                },
+            },
+            update: {},
+            create: {
+                nutritionistId,
+                recipeId: recipe.id,
+            },
+        });
+
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'recipes');
+        await this.cacheService.invalidateNutritionistPrefix(nutritionistId, 'dashboard');
+        await this.cacheService.invalidateNutritionistPrefix(userId, 'recipes');
+        await this.cacheService.invalidateNutritionistPrefix(userId, 'dashboard');
+
+        return {
+            recipeId: recipe.id,
+            added: true,
+        };
     }
 
     async update(id: string, userId: string, userRole: string, updateDto: CreateRecipeDto) {
@@ -825,7 +874,7 @@ export class RecipesService {
         ].join('\n');
 
         try {
-            const content = await this.callGeminiJson(
+            const content = await this.callAiJson(
                 'Eres un asistente nutricional. Responde solo JSON.',
                 prompt,
             );
@@ -839,7 +888,7 @@ export class RecipesService {
             };
         } catch (err) {
             if (err instanceof BadRequestException) throw err;
-            throw new BadRequestException('No se pudo estimar macros con IA. Verifica GEMINI_API_KEY.');
+            throw new BadRequestException('No se pudo estimar macros con IA. Verifica DEEPSEEK_API_KEY.');
         }
     }
 
@@ -861,3 +910,5 @@ export class RecipesService {
         return deleted;
     }
 }
+
+

@@ -24,7 +24,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const feedbackSchema = z.object({
-  type: z.enum(["feedback", "complaint", "idea"]),
+  type: z.enum(["feedback", "complaint", "idea", "testimonio"]),
   subject: z.string().min(5, "El asunto debe tener al menos 5 caracteres"),
   message: z
     .string()
@@ -103,6 +103,12 @@ export function FeedbackForm() {
       label: "text-emerald-900", // High contrast
       dot: "bg-emerald-500",
     },
+    testimonio: {
+      wrapper: "border-sky-500 bg-sky-50",
+      icon: "text-sky-600",
+      label: "text-sky-950",
+      dot: "bg-sky-500",
+    },
     idea: {
       wrapper: "border-amber-500 bg-amber-50",
       icon: "text-amber-600",
@@ -126,11 +132,12 @@ export function FeedbackForm() {
         <div className="p-8 md:p-10">
           <div className="mb-8">
             <h3 className="text-2xl font-black text-slate-800 tracking-tight mb-2">
-              Tu opinión nos importa
+              Tu mensaje nos importa
             </h3>
             <p className="text-slate-500 text-sm font-medium">
-              Ayúdanos a mejorar NutriSaaS. Ya sea una idea brillante, un
-              reporte de error o simplemente contarnos qué te gusta.
+              Ayúdanos a mejorar NutriSaaS. Puedes enviarnos una idea, un
+              reporte, un comentario o un testimonio. El testimonio puede
+              servir como referencia pública para la página, y se agradece mucho.
             </p>
           </div>
 
@@ -140,9 +147,10 @@ export function FeedbackForm() {
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
                 Tipo de Mensaje
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   { id: "feedback", label: "Feedback", icon: MessageSquare },
+                  { id: "testimonio", label: "Testimonio", icon: CheckCircle2 },
                   { id: "idea", label: "Nueva Idea", icon: Lightbulb },
                   { id: "complaint", label: "Problema", icon: AlertTriangle },
                 ].map((item) => {
@@ -192,6 +200,17 @@ export function FeedbackForm() {
                   );
                 })}
               </div>
+              {selectedType === "testimonio" && (
+                <div className="rounded-2xl border border-sky-100 bg-sky-50/80 p-4 text-sm text-sky-950">
+                  <p className="font-bold">Testimonio público</p>
+                  <p className="mt-1">
+                    Puedes usar este espacio para compartir una descripción de
+                    tu experiencia. Si nos autorizas, podemos usarla como
+                    testimonio público en la página. Se agradece mucho tu
+                    aporte.
+                  </p>
+                </div>
+              )}
               {errors.type && (
                 <p className="flex items-center text-rose-500 text-xs font-bold mt-1 ml-1 animate-in slide-in-from-left-1">
                   <AlertCircle className="w-3 h-3 mr-1" />

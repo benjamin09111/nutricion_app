@@ -31,6 +31,18 @@ import {
   Globe,
   Hash,
   Heart,
+  Clock3,
+  Link2,
+  Copy,
+  Send,
+  ExternalLink,
+  Sparkles,
+  ShieldCheck,
+  Bell,
+  MessageSquare,
+  Filter,
+  Reply,
+  Flame,
 } from "lucide-react";
 import { DEFAULT_METRICS } from "@/lib/constants";
 import {
@@ -54,8 +66,14 @@ import {
   ConsultationsResponse,
   Metric,
 } from "@/features/consultations";
+import {
+  PatientPortalOverview,
+  PortalInviteResponse,
+  PatientPortalEntry,
+} from "@/features/patient-portal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Textarea";
 import { MetricTagInput } from "@/components/ui/metric-tag-input";
 import { Modal } from "@/components/ui/Modal";
 import { TagInput } from "@/components/ui/TagInput";
@@ -68,6 +86,8 @@ import jsPDF from "jspdf";
 import { domToPng } from "modern-screenshot";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { validateRut, formatRut } from "@/lib/rut-utils";
+
+import CreationsClient from "@/app/dashboard/creaciones/CreationsClient";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -122,6 +142,14 @@ const isIndependentMetricsConsultation = (
   consultation: Pick<Consultation, "title">,
 ) => normalizeText(consultation.title).includes(INDEPENDENT_METRICS_REGISTRY_TITLE);
 
+const formatDateTime = (value?: string | Date | null) => {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("es-CL", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+};
+
 const toDateOnly = (value?: string | Date | null) => {
   if (!value) return "";
 
@@ -166,7 +194,7 @@ interface PatientDetailClientProps {
   id: string;
 }
 
-type TabType = "General" | "Consultas" | "Progreso";
+type TabType = "General" | "Consultas" | "Progreso" | "Acompañamiento" | "Creaciones";
 
 export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const router = useRouter();
@@ -208,6 +236,29 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const [metricKeyToDelete, setMetricKeyToDelete] = useState<string | null>(
     null,
   );
+  const [portalOverview, setPortalOverview] = useState<PatientPortalOverview | null>(null);
+  const [isPortalInviteModalOpen, setIsPortalInviteModalOpen] = useState(false);
+  const [portalInviteEmail, setPortalInviteEmail] = useState("");
+  const [portalInviteDays, setPortalInviteDays] = useState("30");
+  const [generatedPortalLink, setGeneratedPortalLink] = useState("");
+  const [generatedPortalCode, setGeneratedPortalCode] = useState("");
+  const [isCreatingPortalInvite, setIsCreatingPortalInvite] = useState(false);
+  const [isCopyingPortalLink, setIsCopyingPortalLink] = useState(false);
+  const [isPortalNotificationModalOpen, setIsPortalNotificationModalOpen] = useState(false);
+  const [portalNotificationTitle, setPortalNotificationTitle] = useState("");
+  const [portalNotificationMessage, setPortalNotificationMessage] = useState("");
+  const [portalNotificationSendEmail, setPortalNotificationSendEmail] = useState(true);
+  const [isCreatingPortalNotification, setIsCreatingPortalNotification] = useState(false);
+  const [portalFilter, setPortalFilter] = useState({
+    from: "",
+    to: "",
+    kind: "ALL" as "ALL" | "QUESTION" | "TRACKING" | "NOTIFICATION" | "REPLY",
+    section: "ALL" as "ALL" | "alimentacion" | "suplementos" | "actividadFisica",
+    search: "",
+  });
+  const [replyTarget, setReplyTarget] = useState<PatientPortalEntry | null>(null);
+  const [replyMessage, setReplyMessage] = useState("");
+  const [isSubmittingPortalReply, setIsSubmittingPortalReply] = useState(false);
 
   const [isDeletePatientConfirmOpen, setIsDeletePatientConfirmOpen] = useState(false);
   const [isDeleteConsultationConfirmOpen, setIsDeleteConsultationConfirmOpen] = useState(false);
@@ -458,6 +509,21 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     }
   };
 
+  const fetchPortalOverview = async () => {
+    try {
+      const response = await fetchApi(`/patient-portals/patients/${id}/overview`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data: PatientPortalOverview = await response.json();
+        setPortalOverview(data);
+      }
+    } catch (error) {
+      console.error("Error fetching portal overview", error);
+    }
+  };
+
   const smartMetrics = useMemo(
     () => [
       {
@@ -537,6 +603,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       fetchPatient();
       fetchConsultations();
       fetchGlobalMetrics();
+      fetchPortalOverview();
     }
   }, [id]);
 
@@ -544,6 +611,175 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     if (!patient) return;
     setEditForm(patient);
     setIsEditing(true);
+  };
+
+  const handleCreatePortalInvite = async () => {
+    if (!patient) return;
+
+    const expiresInDays = Number(portalInviteDays);
+    setIsCreatingPortalInvite(true);
+    try {
+      const response = await fetchApi(`/patient-portals/patients/${patient.id}/invitations`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          email: portalInviteEmail.trim() || undefined,
+          expiresInDays: Number.isFinite(expiresInDays) && expiresInDays > 0 ? expiresInDays : 14,
+        }),
+      });
+
+      const data: PortalInviteResponse = await response.json();
+      if (!response.ok) {
+        throw new Error((data as any)?.message || "No se pudo generar la invitación");
+      }
+
+      setGeneratedPortalLink(data.shareUrl);
+      setGeneratedPortalCode(data.accessCode);
+      setIsPortalInviteModalOpen(false);
+      setPortalInviteEmail("");
+      setPortalInviteDays("30");
+      await fetchPortalOverview();
+      toast.success("Portal del paciente activado.");
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo generar la invitación.");
+    } finally {
+      setIsCreatingPortalInvite(false);
+    }
+  };
+
+  const handleCopyPortalLink = async (value?: string) => {
+    const link = value || generatedPortalLink;
+    if (!link) return;
+
+    setIsCopyingPortalLink(true);
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("Link copiado al portapapeles.");
+    } catch (error) {
+      toast.error("No se pudo copiar automáticamente.");
+    } finally {
+      setIsCopyingPortalLink(false);
+    }
+  };
+
+  const handleCreatePortalNotification = async () => {
+    if (!patient) return;
+
+    const message = portalNotificationMessage.trim();
+    if (!message) {
+      toast.error("Escribe un mensaje para la notificación.");
+      return;
+    }
+
+    setIsCreatingPortalNotification(true);
+    try {
+      const response = await fetchApi(`/patient-portals/patients/${patient.id}/notifications`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: portalNotificationTitle.trim() || undefined,
+          message,
+          sendEmail: portalNotificationSendEmail,
+        }),
+      });
+
+      const data: { overview?: PatientPortalOverview; message?: string } = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message || "No se pudo enviar la notificación.");
+      }
+
+      if (data.overview) {
+        setPortalOverview(data.overview);
+      } else {
+        await fetchPortalOverview();
+      }
+
+      setPortalNotificationTitle("");
+      setPortalNotificationMessage("");
+      setPortalNotificationSendEmail(true);
+      setIsPortalNotificationModalOpen(false);
+      toast.success("Notificación enviada al portal del paciente.");
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo enviar la notificación.");
+    } finally {
+      setIsCreatingPortalNotification(false);
+    }
+  };
+
+  const handleTogglePortalAccess = async (status: "ACTIVE" | "BLOCKED") => {
+    if (!patient) return;
+
+    try {
+      const response = await fetchApi(`/patient-portals/patients/${patient.id}/access-status`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      const data: { overview?: PatientPortalOverview; message?: string } = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message || "No se pudo actualizar el acceso.");
+      }
+
+      if (data.overview) {
+        setPortalOverview(data.overview);
+      } else {
+        await fetchPortalOverview();
+      }
+
+      toast.success(status === "BLOCKED" ? "Acceso bloqueado." : "Acceso reactivado.");
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo cambiar el estado del portal.");
+    }
+  };
+
+  const handleReplyPortalQuestion = async () => {
+    if (!patient || !replyTarget || !replyMessage.trim()) {
+      return;
+    }
+
+    setIsSubmittingPortalReply(true);
+    try {
+      const response = await fetchApi(`/patient-portals/patients/${patient.id}/replies`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          questionId: replyTarget.id,
+          message: replyMessage.trim(),
+        }),
+      });
+
+      const data: { overview?: PatientPortalOverview; message?: string } = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message || "No se pudo guardar la respuesta.");
+      }
+
+      if (data.overview) {
+        setPortalOverview(data.overview);
+      } else {
+        await fetchPortalOverview();
+      }
+
+      setReplyTarget(null);
+      setReplyMessage("");
+      toast.success("Respuesta enviada al portal del paciente.");
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo enviar la respuesta.");
+    } finally {
+      setIsSubmittingPortalReply(false);
+    }
   };
 
   const resetMetricForm = (metrics: Metric[] = []) => {
@@ -1328,6 +1564,20 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     setEditForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    
+    // Ensure it always starts with +
+    if (!val.startsWith("+")) {
+      val = "+" + val.replace(/\+/g, "");
+    }
+    
+    // Keep only + at start and digits elsewhere
+    const cleanVal = "+" + val.substring(1).replace(/\D/g, "");
+    
+    updateField("phone", cleanVal);
+  };
+
   const getActivityLevelFromVariables = (vars: any[]) => {
     const raw = String(vars.find((item) => item?.key === "activityLevel")?.value || "").toLowerCase();
     return raw === "deportista" ? "deportista" : "sedentario";
@@ -1396,6 +1646,45 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     }
   };
 
+  const portalEntries = portalOverview?.entries || [];
+  const filteredPortalEntries = useMemo(() => {
+    const fromDate = portalFilter.from ? new Date(`${portalFilter.from}T00:00:00`) : null;
+    const toDate = portalFilter.to ? new Date(`${portalFilter.to}T23:59:59.999`) : null;
+    const search = portalFilter.search.trim().toLowerCase();
+
+    return portalEntries.filter((entry) => {
+      const createdAt = new Date(entry.createdAt);
+      if (fromDate && createdAt < fromDate) return false;
+      if (toDate && createdAt > toDate) return false;
+      if (portalFilter.kind !== "ALL" && entry.kind !== portalFilter.kind) return false;
+
+      const sections = entry.payload?.sections || {};
+      if (portalFilter.section !== "ALL") {
+        if (entry.kind !== "TRACKING") return false;
+        if (!sections[portalFilter.section]) return false;
+      }
+
+      if (!search) return true;
+
+      const haystack = [
+        entry.body || "",
+        entry.replyTo?.body || "",
+        sections.alimentacion || "",
+        sections.suplementos || "",
+        sections.actividadFisica || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(search);
+    });
+  }, [portalEntries, portalFilter]);
+
+  const filteredPortalQuestions = filteredPortalEntries.filter((entry) => entry.kind === "QUESTION");
+  const filteredPortalTracking = filteredPortalEntries.filter((entry) => entry.kind === "TRACKING");
+  const filteredPortalReplies = filteredPortalEntries.filter((entry) => entry.kind === "REPLY");
+  const portalAccessCode = portalOverview?.portal.latestInvitation?.accessCode || generatedPortalCode;
+
   if (isLoading && !patient) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -1410,7 +1699,44 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   if (!patient) return null;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10 pb-24 animate-in fade-in duration-700">
+    <div className="max-w-7xl mx-auto space-y-10 pb-24 animate-in fade-in duration-700 relative">
+      {/* Sticky Right Sidebar Actions */}
+      {!isEditing && (
+        <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4 animate-in slide-in-from-right-8 duration-500">
+          <div className="bg-white/80 backdrop-blur-xl p-3 rounded-[32px] border border-slate-200 shadow-2xl shadow-slate-200/50 flex flex-col gap-3">
+            <button
+              onClick={() => router.push("/dashboard/consultas/nueva?patientId=" + patient.id)}
+              className="p-4 bg-emerald-600 text-white rounded-[24px] hover:bg-emerald-700 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-emerald-200 cursor-pointer group"
+              title="Nueva Consulta"
+            >
+              <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+            </button>
+            <button
+              onClick={() => setIsPortalNotificationModalOpen(true)}
+              className="p-4 bg-sky-500 text-white rounded-[24px] hover:bg-sky-600 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-sky-200 cursor-pointer"
+              title="Enviar Notificación"
+            >
+              <Bell className="w-6 h-6" />
+            </button>
+            <button
+              disabled
+              className="p-4 bg-slate-50 text-slate-300 rounded-[24px] cursor-not-allowed border border-slate-100"
+              title="Subir Examen (Próximamente)"
+            >
+              <FileText className="w-6 h-6" />
+            </button>
+            <div className="h-px bg-slate-100 mx-2 my-1" />
+            <button
+              onClick={handleEdit}
+              className="p-4 bg-white text-slate-600 rounded-[24px] border border-slate-200 hover:bg-slate-50 transition-all hover:scale-110 active:scale-95 shadow-sm cursor-pointer"
+              title="Editar Perfil"
+            >
+              <Edit2 className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header & Back Button */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1 lg:px-0">
         <div className="flex items-center gap-4 lg:gap-6">
@@ -1458,15 +1784,6 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   patient.fullName
                 )}
               </h1>
-              {!isEditing && (
-                <button
-                  onClick={handleEdit}
-                  className="p-2 hover:bg-emerald-50 rounded-xl text-slate-700 hover:text-emerald-700 transition-all cursor-pointer group/edit bg-slate-50/50 border border-slate-100"
-                  title="Editar perfil"
-                >
-                  <Edit2 className="w-4 h-4 transition-transform group-hover/edit:scale-110" />
-                </button>
-              )}
             </div>
             <p className="text-slate-400 font-bold text-xs flex items-center gap-2">
               EXPEDIENTE INTEGRADO <ChevronRight className="w-3 h-3" />{" "}
@@ -1501,30 +1818,41 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               </Button>
             </>
           ) : (
-            <>
+            <div className="flex items-center gap-2 lg:gap-3">
               <Button
-                onClick={() =>
-                  router.push("/dashboard/consultas/nueva?patientId=" + patient.id)
-                }
-                className="flex-2 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-11 lg:h-10 px-6 rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                onClick={() => setIsPortalInviteModalOpen(true)}
+                variant="outline"
+                className="h-10 px-6 rounded-2xl border-emerald-100 text-emerald-700 bg-emerald-50/70 hover:bg-emerald-50 font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
               >
-                <Plus className="w-5 h-5" />
-                CONSULTA
+                <Link2 className="w-4 h-4" />
+                Portal paciente
               </Button>
-              <Button
-                disabled
-                className="bg-slate-50 border border-slate-100 text-slate-400 font-bold h-10 px-4 rounded-2xl cursor-not-allowed opacity-60 flex items-center gap-2"
-                title="Próximamente: Carga y análisis de exámenes clínicos con IA"
-              >
-                <FileText className="w-4 h-4" />
-                <span className="text-[10px] uppercase tracking-widest">
-                  Subir Examen
-                </span>
-                <span className="text-[8px] bg-slate-200 px-1.5 py-0.5 rounded text-slate-500 ml-1">
-                  FUTURO
-                </span>
-              </Button>
-            </>
+              
+              {/* Visible on Mobile/Tablet only, hidden on XL where sidebar exists */}
+              <div className="xl:hidden flex items-center gap-2">
+                <Button
+                  onClick={() => router.push("/dashboard/consultas/nueva?patientId=" + patient.id)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-10 px-4 rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  CONSULTA
+                </Button>
+                <Button
+                  onClick={() => setIsPortalNotificationModalOpen(true)}
+                  variant="outline"
+                  className="h-10 px-4 rounded-2xl border-sky-100 text-sky-700 bg-sky-50/70 hover:bg-sky-50 font-semibold transition-all active:scale-95"
+                >
+                  <Bell className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={handleEdit}
+                  variant="outline"
+                  className="h-10 px-4 rounded-2xl border-slate-200 text-slate-600 bg-white hover:bg-slate-50 font-semibold transition-all active:scale-95"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -1638,7 +1966,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         {([
           { label: "General", disabled: false },
           { label: "Consultas", disabled: false },
+          { label: "Creaciones", disabled: false },
           { label: "Progreso", disabled: false },
+          { label: "Acompañamiento", disabled: true },
           { label: "Exámenes", disabled: true },
         ] as Array<{ label: TabType | "Exámenes"; disabled: boolean }>).map((tab) => (
           <button
@@ -1666,482 +1996,284 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       {/* Main Content Area */}
       {activeTab === "General" && (
-        <div className="flex flex-col gap-6 lg:gap-10 animate-in fade-in duration-500">
-          {/* Left Column: Clinical & Dietary */}
-          <div className="w-full space-y-6 lg:space-y-10">
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm shadow-slate-200/50 overflow-hidden">
-              <div className="p-5 lg:p-6 border-b border-slate-50 bg-slate-50/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <h3 className="text-xl lg:text-2xl font-semibold text-slate-900 flex items-center gap-3 lg:gap-4">
-                  <Activity className="w-6 h-6 lg:w-8 lg:h-8 text-emerald-500" />
-                  Inteligencia Clínica
-                </h3>
-                <div className="px-5 py-2 bg-emerald-50 text-emerald-600 rounded-2xl text-xs font-semibold border border-emerald-100 w-fit">
-                  Sincronizado
-                </div>
-              </div>
-
-              <div className="p-5 lg:p-6 grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-                <div className="space-y-8">
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3">
-                      Información de Contacto
-                    </h4>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4 group">
-                        <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-emerald-50 transition-colors">
-                          <Mail className="w-4 h-4 text-emerald-500" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-400">
-                            Email
-                          </p>
-                          {isEditing ? (
-                            <Input
-                              value={editForm.email || ""}
-                              onChange={(e) =>
-                                updateField("email", e.target.value)
-                              }
-                              className="h-8 border-none font-bold text-slate-800 p-0"
-                            />
-                          ) : (
-                            <p className="font-bold text-slate-700">
-                              {patient.email}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 group">
-                        <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-emerald-50 transition-colors">
-                          <Phone className="w-4 h-4 text-emerald-500" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-400">
-                            Teléfono
-                          </p>
-                          {isEditing ? (
-                            <Input
-                              value={editForm.phone || ""}
-                              onChange={(e) =>
-                                updateField("phone", e.target.value)
-                              }
-                              className="h-8 border-none font-bold text-slate-800 p-0"
-                            />
-                          ) : (
-                            <p className="font-bold text-slate-700">
-                              {patient.phone || "No registrado"}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+        <div className="space-y-8 animate-in fade-in duration-500">
+          {/* 3-Column Layout for Primary Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+            
+            {/* Column 1: Identity & Contact */}
+            <div className="flex flex-col">
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
+                  <div className="p-2 bg-emerald-50 rounded-xl">
+                    <User className="w-5 h-5 text-emerald-600" />
                   </div>
+                  <h2 className="text-lg font-bold text-slate-800">Identidad</h2>
                 </div>
-
-                <div className="space-y-8">
-                  <div className="space-y-5">
-                    <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3">
-                      Restricciones Alimentarias
-                    </h4>
-                    <div className="flex flex-wrap gap-3">
+                
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       {isEditing ? (
-                        <TagInput
-                          value={(editForm.dietRestrictions as string[]) || []}
-                          onChange={(tags) =>
-                            updateField("dietRestrictions", tags)
-                          }
-                          fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                          className="mt-2"
-                          placeholder="Agregar restricción..."
+                        <Input
+                          placeholder="valen@email.com"
+                          className="h-12 pl-11 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
+                          value={editForm.email || ""}
+                          onChange={(e) => updateField("email", e.target.value)}
                         />
                       ) : (
-                        <>
-                          {Array.isArray(patient.dietRestrictions) &&
-                            patient.dietRestrictions.length > 0 ? (
-                            patient.dietRestrictions.map((r, i) => (
-                              <span
-                                key={i}
-                                className="px-5 py-2 bg-rose-50 text-rose-700 text-xs font-semibold rounded-2xl border border-rose-100 shadow-sm"
-                              >
-                                {r}
-                              </span>
-                            ))
-                          ) : (
-                            <div className="flex items-center gap-3 text-slate-400 p-4 bg-slate-50 rounded-2xl w-full border border-dashed border-slate-200" >
-                              <AlertCircle className="w-4 h-4" />
-                              <span className="text-xs font-bold" >
-                                Sin restricciones detectadas
-                              </span>
-                            </div>
-                          )}
-                        </>
+                        <div className="h-12 pl-11 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 break-all px-4">
+                          {patient.email || "Sin email"}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Teléfono</label>
+                    <div className="relative">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      {isEditing ? (
+                        <Input
+                          placeholder="+56 9 1234 5678"
+                          className="h-12 pl-11 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
+                          value={editForm.phone || ""}
+                          onChange={handlePhoneChange}
+                        />
+                      ) : (
+                        <div className="h-12 pl-11 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                          {patient.phone || "No registrado"}
+                        </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="space-y-5">
-                    <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3 flex items-center gap-2">
-                      <Hash className="w-3.5 h-3.5 text-emerald-500" />
-                      Etiquetas de Clasificación
-                    </h4>
-                    <div className="flex flex-wrap gap-3">
-                      {isEditing ? (
-                        <TagInput
-                          value={(editForm.tags as string[]) || []}
-                          onChange={(tags) =>
-                            updateField("tags", tags)
-                          }
-                          fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                          className="mt-2"
-                          placeholder="Ej: #Deportista, #Vegano..."
-                        />
-                      ) : (
-                        <>
-                          {Array.isArray(patient.tags) &&
-                            patient.tags.length > 0 ? (
-                            patient.tags.map((t, i) => (
-                              <span
-                                key={i}
-                                className="px-5 py-2 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-2xl border border-emerald-100 shadow-sm"
-                              >
-                                {t}
-                              </span>
-                            ))
-                          ) : (
-                            <div className="flex items-center gap-3 text-slate-400 p-4 bg-slate-50 rounded-2xl w-full border border-dashed border-slate-200" >
-                              <span className="text-xs font-bold" >
-                                Sin etiquetas asignadas
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* New Clinical Summary Row */}
-              <div className="px-10 pb-10" >
-                <div className="space-y-4" >
-                  <h4 className="text-xs font-semibold text-slate-400 border-b border-slate-50 pb-3 flex items-center justify-between" >
-                    Resumen / Observaciones Clínicas
-                    {!isEditing && (
-                      <span className="text-emerald-500 lowercase font-bold tracking-normal opacity-50" >
-                        Solo visible para el nutricionista
-                      </span>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">RUT / Identificador</label>
+                    {isEditing ? (
+                      <Input
+                        placeholder="12.345.678-9"
+                        className="h-12 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
+                        value={editForm.documentId || ""}
+                        onChange={(e) => updateField("documentId", formatRut(e.target.value))}
+                      />
+                    ) : (
+                      <div className="h-12 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                        {patient.documentId || "Sin identificador"}
+                      </div>
                     )}
-                  </h4>
-                  {isEditing ? (
-                    <textarea
-                      value={editForm.clinicalSummary || ""}
-                      onChange={(e) =>
-                        updateField("clinicalSummary", e.target.value)
-                      }
-                      className="w-full h-32 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
-                      placeholder="Ingresa notas clínicas, antecedentes importantes o evolución general..."
-                    />
-                  ) : (
-                    <div className="p-8 bg-slate-50/50 rounded-2xl border border-slate-50 min-h-[100px]" >
-                      {patient.clinicalSummary ? (
-                        <p className="text-slate-600 font-medium whitespace-pre-wrap leading-relaxed" >
-                          {patient.clinicalSummary}
-                        </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Sexo</label>
+                      {isEditing ? (
+                        <select
+                          value={editForm.gender || ""}
+                          onChange={(e) => updateField("gender", e.target.value)}
+                          className="w-full h-12 rounded-2xl bg-slate-50 border-transparent px-4 text-sm font-semibold text-slate-700 focus:bg-white focus:border-emerald-500/20 transition-all cursor-pointer appearance-none"
+                        >
+                          <option value="">Seleccionar...</option>
+                          <option value="Masculino">Masculino</option>
+                          <option value="Femenino">Femenino</option>
+                          <option value="Otro">Otro</option>
+                        </select>
                       ) : (
-                        <div className="flex flex-col items-center justify-center gap-3 py-4 text-slate-300" >
-                          <ClipboardList className="w-8 h-8 opacity-20" />
-                          <p className="text-xs font-bold" >
-                            Sin observaciones clínicas registradas
-                          </p>
+                        <div className="h-12 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                          {patient.gender || "No def."}
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Health Status */}
-          <div className="w-full space-y-10" >
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative overflow-hidden group" >
-              <h4 className="flex items-center gap-3 font-semibold text-emerald-600 text-xs mb-8" >
-                <Target className="w-4 h-4" />
-                Foco Nutricional
-              </h4>
-
-              <div className="space-y-8 relative z-10" >
-                <div >
-                  <p className="text-xs font-semibold text-slate-400 mb-2" >
-                    Objetivo Principal
-                  </p>
-                  {isEditing ? (
-                    <Input
-                      value={editForm.nutritionalFocus || ""}
-                      onChange={(e) =>
-                        updateField("nutritionalFocus", e.target.value)
-                      }
-                      className="bg-slate-100 border-none text-slate-800 font-semibold text-2xl h-12 p-2 focus:ring-1 focus:ring-emerald-500"
-                      placeholder="Ej. Déficit Calórico"
-                    />
-                  ) : (
-                    <p className="text-2xl font-semibold tracking-tight leading-tight" >
-                      {patient.nutritionalFocus || "Sin foco definido"}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 backdrop-blur-sm group-hover:bg-slate-100 transition-all" >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center" >
-                    <Zap className="w-5 h-5 text-emerald-600" />
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Nacimiento</label>
+                      {isEditing ? (
+                        <Input
+                          type="date"
+                          className="h-12 rounded-2xl bg-slate-50 border-transparent text-xs font-semibold focus:bg-white transition-all px-3"
+                          value={toDateOnly(editForm.birthDate)}
+                          onChange={(e) => updateField("birthDate", e.target.value)}
+                        />
+                      ) : (
+                        <div className="h-12 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                          {patient.birthDate ? formatDateOnlyForLocale(patient.birthDate, { year: 'numeric', month: 'short', day: 'numeric' }) : "---"}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm font-bold text-emerald-700" >
-                    {patient.status === "Active"
-                      ? "Seguimiento optimizado."
-                      : "Paciente en pausa."}
-                  </p>
                 </div>
               </div>
             </div>
 
-            {/* Metas Nutricionales Panel */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative overflow-hidden group">
-              <h4 className="flex items-center gap-3 font-semibold text-emerald-600 text-xs mb-8" >
-                <Target className="w-4 h-4" />
-                Metas Nutricionales (Carrito)
-              </h4>
+            {/* Column 2: Antropometría & Métricas Meta */}
+            <div className="space-y-6 flex flex-col">
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
+                  <div className="p-2 bg-blue-50 rounded-xl">
+                    <Ruler className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-800">Antropometría</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Peso (kg)</label>
+                    {isEditing ? (
+                      <Input 
+                        type="number" 
+                        step="any" 
+                        className="h-12 rounded-2xl bg-slate-50 border-transparent text-center font-bold text-lg focus:bg-white transition-all" 
+                        value={editForm.weight || ""} 
+                        onChange={(e) => updateField("weight", e.target.value ? parseFloat(e.target.value) : undefined)} 
+                      />
+                    ) : (
+                      <div className="h-12 flex items-center justify-center bg-slate-50/50 rounded-2xl text-lg font-black text-blue-600 px-4 border border-blue-100">
+                        {patient.weight || "---"}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Altura (cm)</label>
+                    {isEditing ? (
+                      <Input 
+                        type="number" 
+                        step="any" 
+                        className="h-12 rounded-2xl bg-slate-50 border-transparent text-center font-bold text-lg focus:bg-white transition-all" 
+                        value={editForm.height || ""} 
+                        onChange={(e) => updateField("height", e.target.value ? parseFloat(e.target.value) : undefined)} 
+                      />
+                    ) : (
+                      <div className="h-12 flex items-center justify-center bg-slate-50/50 rounded-2xl text-lg font-black text-emerald-600 px-4 border border-emerald-100">
+                        {patient.height || "---"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between border-b border-slate-50 pb-4">
+                  <h2 className="text-lg font-bold text-slate-800">Métricas Meta</h2>
+                  <Target className="w-5 h-5 text-emerald-500" />
+                </div>
+                
+                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-5">
+                  {(() => {
+                    const dataSource = isEditing ? editForm.customVariables : patient.customVariables;
+                    const vars = Array.isArray(dataSource) ? dataSource as any[] : [];
+                    const getCV = (key: string) => vars.find(v => v.key === key)?.value || "";
+                    const updateCV = (key: string, label: string, value: string, unit: string) => {
+                      if (!isEditing) return;
+                      const prev = Array.isArray(editForm.customVariables) ? [...editForm.customVariables as any[]] : [];
+                      const idx = prev.findIndex(v => v.key === key);
+                      if (idx >= 0) prev[idx] = { key, label, value, unit };
+                      else prev.push({ key, label, value, unit });
+                      updateField("customVariables", prev);
+                    };
 
-              <div className="space-y-4">
-                {(() => {
-                  const dataSource = isEditing ? editForm.customVariables : patient.customVariables;
-                  const vars = Array.isArray(dataSource) ? dataSource as any[] : [];
-                  const getCV = (key: string) => vars.find(v => v.key === key)?.value || "";
-
-                  const updateCV = (key: string, label: string, value: string, unit: string) => {
-                    if (!isEditing) return;
-                    const prev = Array.isArray(editForm.customVariables) ? [...editForm.customVariables as any[]] : [];
-                    const idx = prev.findIndex(v => v.key === key);
-                    if (idx >= 0) { prev[idx] = { key, label, value, unit }; }
-                    else { prev.push({ key, label, value, unit }); }
-                    updateField("customVariables", prev);
-                  };
-
-                  return (
-                    <div className="space-y-4 relative z-10">
+                    return (
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Calorías (kcal)</label>
-                          {isEditing ? (
-                            <Input type="number" value={getCV("targetCalories")} onChange={e => updateCV("targetCalories", "Calorías Meta", e.target.value, "kcal")} className="font-bold border-slate-200" />
-                          ) : (
-                            <p className="font-bold text-amber-600">{getCV("targetCalories") || "No definido"}</p>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Proteína (g)</label>
-                          {isEditing ? (
-                            <Input type="number" value={getCV("targetProtein")} onChange={e => updateCV("targetProtein", "Proteína Meta", e.target.value, "g")} className="font-bold border-slate-200" />
-                          ) : (
-                            <p className="font-bold text-emerald-600">{getCV("targetProtein") || "No definido"}</p>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Carbohidratos (g)</label>
-                          {isEditing ? (
-                            <Input type="number" value={getCV("targetCarbs")} onChange={e => updateCV("targetCarbs", "Carbohidratos Meta", e.target.value, "g")} className="font-bold border-slate-200" />
-                          ) : (
-                            <p className="font-bold text-blue-600">{getCV("targetCarbs") || "No definido"}</p>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase text-slate-400">Grasas (g)</label>
-                          {isEditing ? (
-                            <Input type="number" value={getCV("targetFats")} onChange={e => updateCV("targetFats", "Grasas Meta", e.target.value, "g")} className="font-bold border-slate-200" />
-                          ) : (
-                            <p className="font-bold text-purple-600">{getCV("targetFats") || "No definido"}</p>
-                          )}
-                        </div>
+                        {[
+                          { id: "Calories", label: "Calorías", unit: "kcal", color: "text-amber-600", bg: "bg-amber-50" },
+                          { id: "Protein", label: "Proteína", unit: "g", color: "text-emerald-600", bg: "bg-emerald-50" },
+                          { id: "Carbs", label: "Carbs", unit: "g", color: "text-blue-600", bg: "bg-blue-50" },
+                          { id: "Fats", label: "Grasas", unit: "g", color: "text-purple-600", bg: "bg-purple-50" }
+                        ].map((f) => (
+                          <div key={f.id} className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">{f.label}</label>
+                            {isEditing ? (
+                              <Input 
+                                type="number" 
+                                value={getCV(`target${f.id}`)} 
+                                onChange={e => updateCV(`target${f.id}`, `${f.label} Meta`, e.target.value, f.unit)} 
+                                className={cn("h-10 font-bold bg-white rounded-xl text-sm border-transparent focus:ring-2 focus:ring-slate-200 transition-all", f.color)} 
+                                placeholder="0" 
+                              />
+                            ) : (
+                              <div className={cn("h-10 flex items-center justify-center rounded-xl font-bold text-sm border border-transparent", f.bg, f.color)}>
+                                {getCV(`target${f.id}`) || "---"}
+                                <span className="text-[8px] ml-1 opacity-60">{f.unit}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
-
-                      <div className="pt-2">
-                        <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Temporalidad</label>
-                        {isEditing ? (
-                          <select value={getCV("targetTimeframe") || "dia"} onChange={e => updateCV("targetTimeframe", "Temporalidad", e.target.value, "")} className="w-full h-10 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 px-3">
-                            <option value="dia">Diario</option>
-                            <option value="semana">Semanal</option>
-                            <option value="mes">Mensual</option>
-                          </select>
-                        ) : (
-                          <p className="font-bold text-slate-700 capitalize">{getCV("targetTimeframe") || "Diario"}</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
+                    );
+                  })()}
+                </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-8" >
-              <div className="flex items-center justify-between" >
-                <div className="flex items-center gap-4 text-rose-600" >
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center" >
-                    <Dumbbell className="w-6 h-6" />
-                  </div>
-                  <h4 className="text-lg font-semibold tracking-tight" >
-                    Metas Fitness
-                  </h4>
-                </div>
-              </div>
-
-              <div className="space-y-4" >
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-400">Nivel de actividad</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { key: "sedentario", label: "Sedentario" },
-                      { key: "deportista", label: "Deportista" },
-                    ].map((item) => (
-                      <button
-                        key={item.key}
-                        type="button"
-                        disabled={!isEditing}
-                        onClick={() => updateActivityLevel(item.key as "sedentario" | "deportista")}
-                        className={cn(
-                          "h-10 rounded-xl border text-xs font-black uppercase tracking-wider transition-all",
-                          getCurrentActivityLevel() === item.key
-                            ? "border-rose-600 bg-rose-600 text-white"
-                            : "border-slate-200 bg-slate-50 text-slate-600",
-                          !isEditing && "cursor-default opacity-90",
-                        )}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {isEditing ? (
-                  <textarea
-                    value={editForm.fitnessGoals || ""}
-                    onChange={(e) =>
-                      updateField("fitnessGoals", e.target.value)
-                    }
-                    className="w-full h-24 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-rose-500/20 transition-all resize-none"
-                    placeholder="Ej. Maratón en Septiembre, Hipertrofia tren inferior..."
-                  />
-                ) : (
-                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100" >
-                    {patient.fitnessGoals ? (
-                      <p className="text-sm font-semibold text-slate-600 leading-relaxed text-center" >
-                        {patient.fitnessGoals}
-                      </p>
-                    ) : (
-                      <p className="text-xs font-semibold text-slate-400 text-center" >
-                        No se han definido objetivos aún.
-                      </p>
-                    )}
-                  </div>
+            {/* Column 3: Estado del Paciente */}
+            <div className="flex flex-col">
+              <div
+                className={cn(
+                  "bg-white rounded-3xl p-6 border transition-all duration-500 hover:shadow-md",
+                  patient.status === "Inactive"
+                    ? "border-slate-200 bg-slate-50/50"
+                    : "border-slate-100",
                 )}
-              </div>
-            </div>
-
-            {/* Likes (Gustos) */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm space-y-8" >
-              <div className="flex items-center justify-between" >
-                <div className="flex items-center gap-4 text-emerald-600" >
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center" >
-                    <Heart className="w-6 h-6 text-emerald-500" />
-                  </div>
-                  <h4 className="text-lg font-semibold tracking-tight" >
-                    Gustos y Preferencias
-                  </h4>
-                </div>
-              </div>
-
-              <div className="space-y-4" >
-                {isEditing ? (
-                  <textarea
-                    value={editForm.likes || ""}
-                    onChange={(e) =>
-                      updateField("likes", e.target.value)
-                    }
-                    className="w-full h-24 rounded-2xl bg-slate-50 border-none p-6 font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none"
-                    placeholder="Ej. Prefiere comida casera, no le gusta el sabor a stevia..."
-                  />
-                ) : (
-                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100" >
-                    {patient.likes ? (
-                      <p className="text-sm font-semibold text-slate-600 leading-relaxed text-center" >
-                        {patient.likes}
-                      </p>
-                    ) : (
-                      <p className="text-xs font-semibold text-slate-400 text-center" >
-                        No hay preferencias registradas.
-                      </p>
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div
+                    className={cn(
+                      "p-2 rounded-xl",
+                      patient.status === "Inactive"
+                        ? "bg-slate-200 text-slate-500"
+                        : "bg-emerald-100 text-emerald-600",
                     )}
+                  >
+                    <Target className="w-5 h-5" />
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Status Management Card */}
-            <div
-              className={cn(
-                "bg-white rounded-2xl p-6 border transition-all duration-500",
-                patient.status === "Inactive"
-                  ? "border-slate-200 bg-slate-50/50"
-                  : "border-slate-100",
-              )}
-            >
-              <div className="flex items-center gap-3 mb-6" >
-                <div
-                  className={cn(
-                    "p-2 rounded-xl",
-                    patient.status === "Inactive"
-                      ? "bg-slate-200 text-slate-500"
-                      : "bg-emerald-100 text-emerald-600",
-                  )}
-                >
-                  <Target className="w-5 h-5" />
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-900">
+                      Estado del Paciente
+                    </h4>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">
+                      {patient.status === "Active"
+                        ? "Actualmente en tratamiento"
+                        : "Tratamiento pausado"}
+                    </p>
+                  </div>
                 </div>
-                <div >
-                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-900" >
-                    Estado del Paciente
-                  </h4>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase" >
+
+                <div className="space-y-4">
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium">
                     {patient.status === "Active"
-                      ? "Actualmente en tratamiento"
-                      : "Tratamiento pausado"}
+                      ? "El paciente está activo y siguiendo sus planes. Puedes pausar su seguimiento si ha terminado su tratamiento o está fuera por un tiempo."
+                      : "El paciente está inactivo. Sus planes no aparecerán en las listas por defecto, pero su historial clínico se mantiene intacto."}
                   </p>
+                  <Button
+                    onClick={toggleStatus}
+                    variant="outline"
+                    className={cn(
+                      "w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
+                      patient.status === "Active"
+                        ? "border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100"
+                        : "border-emerald-200 text-emerald-600 hover:bg-emerald-600 hover:text-white",
+                    )}
+                  >
+                    {patient.status === "Active"
+                      ? "Marcar como Inactivo"
+                      : "Reactivar Paciente"}
+                  </Button>
                 </div>
               </div>
-
-              <div className="space-y-4" >
-                <p className="text-xs text-slate-500 leading-relaxed font-medium" >
-                  {patient.status === "Active"
-                    ? "El paciente está activo y siguiendo sus planes. Puedes pausar su seguimiento si ha terminado su tratamiento o está fuera por un tiempo."
-                    : "El paciente está inactivo. Sus planes no aparecerán en las listas por defecto, pero su historial clínico se mantiene intacto."}
-                </p>
-                <Button
-                  onClick={toggleStatus}
-                  variant="outline"
-                  className={cn(
-                    "w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
-                    patient.status === "Active"
-                      ? "border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100"
-                      : "border-emerald-200 text-emerald-600 hover:bg-emerald-600 hover:text-white",
-                  )}
-                >
-                  {patient.status === "Active"
-                    ? "Marcar como Inactivo"
-                    : "Reactivar Paciente"}
-                </Button>
-              </div>
             </div>
+
           </div>
         </div>
       )}
 
       {/* Consultas Tab */}
+      {activeTab === "Creaciones" && (
+        <div className="animate-in fade-in duration-500">
+          <CreationsClient 
+            isInsidePatientDetail={true} 
+            fixedPatientName={patient.fullName} 
+          />
+        </div>
+      )}
+
       {activeTab === "Consultas" && (
         <div className="space-y-6 lg:space-y-10 animate-in slide-in-from-right-4 duration-500 px-1 lg:px-6 py-2">
           <div className="bg-white p-6 lg:p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6">
@@ -2159,17 +2291,17 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           </div>
 
           <div className="space-y-6" >
-            <div className="space-y-4" >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" >
               {isConsultationsLoading ? (
-                <div className="p-20 flex justify-center" >
+                <div className="p-20 flex justify-center lg:col-span-2" >
                   <div className="h-10 w-10 border-4 border-slate-100 border-t-emerald-500 rounded-full animate-spin" />
                 </div>
               ) : clinicalConsultations.length > 0 ? (
                 clinicalConsultations.map((consultation) => (
                   <div
                     key={consultation.id}
-                    className="bg-white p-5 lg:p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:scale-[1.01] transition-all cursor-pointer"
-                    onClick={() => setSelectedConsultation(consultation)}
+                    className="bg-white p-5 lg:p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:scale-[1.01] hover:border-emerald-200 hover:bg-emerald-50/20 transition-all cursor-pointer"
+                    onClick={() => router.push(`/dashboard/consultas/${consultation.id}/view`)}
                   >
                     <div className="flex items-center gap-4 lg:gap-6">
                       <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 group-hover:bg-emerald-50 group-hover:border-emerald-100 transition-colors">
@@ -2210,10 +2342,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedConsultation(consultation);
+                            router.push(`/dashboard/consultas/${consultation.id}/view`);
                           }}
                           className="p-3 rounded-xl text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer"
-                          title="Ver detalles"
+                          title="Ver consulta"
                         >
                           <Eye className="w-5 h-5" />
                         </button>
@@ -2969,6 +3101,653 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         )
       }
 
+      {activeTab === "Acompañamiento" && (
+        <div className="space-y-8 animate-in fade-in duration-500">
+          <div className="flex flex-col gap-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h3 className="text-xl font-semibold text-slate-900">Seguimiento compartido</h3>
+              <p className="text-xs font-semibold uppercase tracking-tight text-slate-400">
+                El paciente deja consultas, seguimiento y respuestas asincrónicas; tú puedes filtrar por fecha y secciones.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={() => setIsPortalInviteModalOpen(true)}
+                className="rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white shadow-sm hover:bg-emerald-700"
+              >
+                <Link2 className="mr-2 h-4 w-4" />
+                Invitar / regenerar link
+              </Button>
+              {generatedPortalLink && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleCopyPortalLink()}
+                  isLoading={isCopyingPortalLink}
+                  className="rounded-2xl px-5 py-3 font-semibold"
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copiar link
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              {
+                label: "Entradas filtradas",
+                value: filteredPortalEntries.length,
+                icon: CalendarDays,
+                color: "text-emerald-600",
+                bg: "bg-emerald-50",
+              },
+              {
+                label: "Consultas",
+                value: filteredPortalQuestions.length,
+                icon: MessageSquare,
+                color: "text-amber-600",
+                bg: "bg-amber-50",
+              },
+              {
+                label: "Seguimiento",
+                value: filteredPortalTracking.length,
+                icon: Sparkles,
+                color: "text-slate-600",
+                bg: "bg-slate-50",
+              },
+              {
+                label: "Respuestas",
+                value: filteredPortalReplies.length,
+                icon: Reply,
+                color: "text-blue-600",
+                bg: "bg-blue-50",
+              },
+            ].map((card) => (
+              <div key={card.label} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${card.bg}`}>
+                    <card.icon className={`h-5 w-5 ${card.color}`} />
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.22em] text-slate-300">{card.label}</span>
+                </div>
+                <p className="mt-4 text-3xl font-black text-slate-900">{card.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {portalOverview?.summary.alerts?.length ? (
+            <div className="space-y-3 rounded-3xl border border-amber-100 bg-amber-50/60 p-6">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-600">Alertas del acompañamiento</p>
+              <div className="grid gap-3 md:grid-cols-2">
+                {portalOverview.summary.alerts.map((alert) => (
+                  <div
+                    key={alert}
+                    className="rounded-2xl border border-amber-100 bg-white px-4 py-3 text-sm font-medium text-amber-950 shadow-sm"
+                  >
+                    {alert}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm">
+              Todavía no hay alertas. Cuando el paciente deje de registrar o aparezcan preguntas sin respuesta, aparecerán aquí.
+            </div>
+          )}
+
+          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="space-y-6">
+              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Filtros</p>
+                    <h4 className="mt-2 text-2xl font-semibold text-slate-900">Filtra por fecha, tipo y sección</h4>
+                  </div>
+                  <Filter className="h-5 w-5 text-emerald-500" />
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Desde</label>
+                    <Input
+                      type="date"
+                      value={portalFilter.from}
+                      onChange={(e) => setPortalFilter((prev) => ({ ...prev, from: e.target.value }))}
+                      className="h-12 rounded-2xl border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Hasta</label>
+                    <Input
+                      type="date"
+                      value={portalFilter.to}
+                      onChange={(e) => setPortalFilter((prev) => ({ ...prev, to: e.target.value }))}
+                      className="h-12 rounded-2xl border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Tipo</label>
+                    <select
+                      value={portalFilter.kind}
+                      onChange={(e) =>
+                        setPortalFilter((prev) => ({
+                          ...prev,
+                          kind: e.target.value as typeof portalFilter.kind,
+                        }))
+                      }
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none"
+                    >
+                      <option value="ALL">Todos</option>
+                      <option value="QUESTION">Consultas</option>
+                      <option value="TRACKING">Seguimiento</option>
+                      <option value="NOTIFICATION">Notificaciones</option>
+                      <option value="REPLY">Respuestas</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Sección</label>
+                    <select
+                      value={portalFilter.section}
+                      onChange={(e) =>
+                        setPortalFilter((prev) => ({
+                          ...prev,
+                          section: e.target.value as typeof portalFilter.section,
+                        }))
+                      }
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none"
+                    >
+                      <option value="ALL">Todas</option>
+                      <option value="alimentacion">Alimentación</option>
+                      <option value="suplementos">Suplementos</option>
+                      <option value="actividadFisica">Actividad física</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2 xl:col-span-1">
+                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Buscar</label>
+                    <Input
+                      value={portalFilter.search}
+                      onChange={(e) => setPortalFilter((prev) => ({ ...prev, search: e.target.value }))}
+                      className="h-12 rounded-2xl border-slate-200"
+                      placeholder="texto libre"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {replyTarget && (
+                <div className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-5 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Responder</p>
+                      <h4 className="mt-2 text-xl font-semibold text-slate-900">Mensaje para el paciente</h4>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setReplyTarget(null);
+                        setReplyMessage("");
+                      }}
+                      className="text-xs font-black uppercase tracking-[0.22em] text-slate-400"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                  <p className="mt-3 text-sm text-slate-600">{replyTarget.body}</p>
+                  <Textarea
+                    value={replyMessage}
+                    onChange={(e) => setReplyMessage(e.target.value)}
+                    className="mt-4 min-h-[120px] rounded-3xl border-slate-200"
+                    placeholder="Escribe la respuesta que verá el paciente en la tab de Respuestas del nutri."
+                  />
+                  <div className="mt-4 flex gap-3">
+                    <Button
+                      onClick={handleReplyPortalQuestion}
+                      isLoading={isSubmittingPortalReply}
+                      className="rounded-2xl bg-slate-950 px-5 font-semibold text-white hover:bg-slate-800"
+                    >
+                      Enviar respuesta
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setReplyTarget(null);
+                        setReplyMessage("");
+                      }}
+                      className="rounded-2xl px-5 font-semibold"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Historial</p>
+                    <h4 className="mt-2 text-2xl font-semibold text-slate-900">Últimos registros filtrados</h4>
+                  </div>
+                  <MessageSquare className="h-5 w-5 text-emerald-500" />
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  {filteredPortalEntries.length > 0 ? (
+                    filteredPortalEntries.map((entry) => {
+                      if (entry.kind === "QUESTION") {
+                        return (
+                          <article key={entry.id} className="rounded-3xl border border-slate-100 bg-slate-50/70 p-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                  Consulta del paciente
+                                </p>
+                              </div>
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  setReplyTarget(entry);
+                                  setReplyMessage("");
+                                }}
+                                className="rounded-2xl px-4 py-2 text-xs font-semibold"
+                              >
+                                Responder
+                              </Button>
+                            </div>
+                            <p className="mt-4 text-sm leading-7 text-slate-700">{entry.body}</p>
+                            <div className="mt-4 space-y-3">
+                              {(entry.replies || []).length > 0 ? (
+                                entry.replies!.map((reply) => (
+                                  <div key={reply.id} className="rounded-2xl border border-emerald-100 bg-white p-4">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">
+                                      Respuesta guardada
+                                    </p>
+                                    <p className="mt-2 text-sm leading-7 text-slate-700">{reply.body}</p>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">
+                                  Todavía no hay respuesta.
+                                </div>
+                              )}
+                            </div>
+                          </article>
+                        );
+                      }
+
+                      if (entry.kind === "TRACKING") {
+                        const sections = entry.payload?.sections || {};
+                        return (
+                          <article key={entry.id} className="rounded-3xl border border-slate-100 bg-slate-50/70 p-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                  Seguimiento del paciente
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-100">
+                                JSON simple
+                              </span>
+                            </div>
+                            <div className="mt-4 grid gap-3">
+                              {sections.alimentacion && (
+                                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Alimentación</p>
+                                  <p className="mt-2 text-sm leading-7 text-slate-700">{sections.alimentacion}</p>
+                                </div>
+                              )}
+                              {sections.suplementos && (
+                                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Suplementos</p>
+                                  <p className="mt-2 text-sm leading-7 text-slate-700">{sections.suplementos}</p>
+                                </div>
+                              )}
+                              {sections.actividadFisica && (
+                                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Actividad física</p>
+                                  <p className="mt-2 text-sm leading-7 text-slate-700">{sections.actividadFisica}</p>
+                                </div>
+                              )}
+                            </div>
+                          </article>
+                        );
+                      }
+
+                      if (entry.kind === "NOTIFICATION") {
+                        return (
+                          <article key={entry.id} className="rounded-3xl border border-sky-100 bg-sky-50/70 p-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                  Notificación del nutri
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-sky-600 ring-1 ring-sky-100">
+                                {entry.payload?.notificationType || "INFO"}
+                              </span>
+                            </div>
+                            <p className="mt-4 text-sm leading-7 text-slate-700">{entry.body}</p>
+                            {entry.payload?.notificationTitle && (
+                              <div className="mt-4 rounded-2xl border border-sky-100 bg-white p-4">
+                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-600">
+                                  Título
+                                </p>
+                                <p className="mt-2 text-sm leading-7 text-slate-600">
+                                  {entry.payload.notificationTitle}
+                                </p>
+                              </div>
+                            )}
+                          </article>
+                        );
+                      }
+
+                      return (
+                        <article key={entry.id} className="rounded-3xl border border-slate-100 bg-slate-50/70 p-5">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                Respuesta enviada
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-600 ring-1 ring-blue-100">
+                              Respuesta
+                            </span>
+                          </div>
+                          <p className="mt-4 text-sm leading-7 text-slate-700">{entry.body}</p>
+                          {entry.replyTo?.body && (
+                            <div className="mt-4 rounded-2xl border border-blue-100 bg-white p-4">
+                              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-600">Respondió a</p>
+                              <p className="mt-2 text-sm leading-7 text-slate-600">{entry.replyTo.body}</p>
+                            </div>
+                          )}
+                        </article>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                      No hay registros con esos filtros todavía.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Link activo</p>
+                    <h4 className="mt-2 text-2xl font-semibold text-slate-900">Estado de invitación</h4>
+                  </div>
+                  <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                </div>
+                <div className="mt-5 space-y-3 rounded-3xl border border-slate-100 bg-slate-50/70 p-5">
+                  <p className="text-sm font-semibold text-slate-700">
+                    {portalOverview?.portal.activeInvitation
+                      ? `Activo hasta ${new Date(portalOverview.portal.activeInvitation.expiresAt).toLocaleDateString("es-CL")}`
+                      : "Aún no hay una invitación activa"}
+                  </p>
+                  <p className="text-xs leading-6 text-slate-500">
+                    Si generas uno nuevo, el anterior se revoca. Si bloqueas el acceso, el paciente no podrá entrar aunque recuerde el código.
+                  </p>
+                  {generatedPortalLink ? (
+                    <div className="rounded-2xl bg-white p-4 ring-1 ring-emerald-100">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Link generado</p>
+                      <p className="mt-2 break-all text-sm font-medium text-slate-800">{generatedPortalLink}</p>
+                      {portalAccessCode && (
+                        <div className="mt-3 rounded-2xl border border-dashed border-emerald-100 bg-emerald-50 px-4 py-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">Código fijo</p>
+                          <p className="mt-1 text-lg font-black tracking-[0.28em] text-slate-900">{portalAccessCode}</p>
+                        </div>
+                      )}
+                      <div className="mt-4 flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => handleCopyPortalLink()}
+                          isLoading={isCopyingPortalLink}
+                          className="flex-1 rounded-2xl"
+                        >
+                          <Copy className="mr-2 h-4 w-4" />
+                          Copiar
+                        </Button>
+                        <Button
+                          variant="default"
+                          onClick={() => window.open(generatedPortalLink, "_blank", "noopener,noreferrer")}
+                          className="flex-1 rounded-2xl"
+                        >
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Abrir
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">
+                      Aquí aparecerá el enlace recién generado para compartir por WhatsApp o correo.
+                    </div>
+                  )}
+                  {portalOverview?.portal.latestInvitation && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          handleTogglePortalAccess(
+                            portalOverview.portal.latestInvitation?.status === "BLOCKED" ? "ACTIVE" : "BLOCKED",
+                          )
+                        }
+                        className="flex-1 rounded-2xl"
+                      >
+                        {portalOverview.portal.latestInvitation?.status === "BLOCKED" ? "Reactivar acceso" : "Bloquear acceso"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Material asignado</p>
+                <h4 className="mt-2 text-2xl font-semibold text-slate-900">Lo que el paciente está trabajando</h4>
+                <div className="mt-5 space-y-3">
+                  {(portalOverview?.patient.projects || patient.projects || []).length > 0 ? (
+                    (portalOverview?.patient.projects || patient.projects || []).map((project) => (
+                      <div key={project.id} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-4">
+                        <p className="text-sm font-black text-slate-900">{project.name}</p>
+                        <p className="mt-1 text-xs text-slate-500">{project.description || "Sin descripción"}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {project.activeDietCreation && (
+                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-emerald-100">
+                              {project.activeDietCreation.name}
+                            </span>
+                          )}
+                          {project.activeRecipeCreation && (
+                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-blue-700 ring-1 ring-blue-100">
+                              {project.activeRecipeCreation.name}
+                            </span>
+                          )}
+                          {project.activeDeliverableCreation && (
+                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-700 ring-1 ring-amber-100">
+                              {project.activeDeliverableCreation.name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
+                      Todavía no hay material asignado.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Modal
+        isOpen={isPortalInviteModalOpen}
+        onClose={() => setIsPortalInviteModalOpen(false)}
+        title="Invitar al portal del paciente"
+      >
+        <div className="space-y-5 py-2">
+          <div className="rounded-3xl border border-emerald-100 bg-emerald-50/70 p-4">
+            <p className="text-sm font-semibold text-emerald-900">
+              Genera un acceso privado para que el paciente registre su seguimiento fuera de consulta.
+            </p>
+            <p className="mt-2 text-xs leading-6 text-emerald-900/75">
+              El enlace se puede compartir por WhatsApp o email y el código fijo de 6 dígitos funciona como su llave personal.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+              Correo del paciente
+            </label>
+            <Input
+              type="email"
+              value={portalInviteEmail}
+              onChange={(e) => setPortalInviteEmail(e.target.value)}
+              placeholder="paciente@correo.com"
+              className="h-12 rounded-2xl border-slate-200"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+              Vigencia del enlace (días)
+            </label>
+            <Input
+              type="number"
+              min="1"
+              max="90"
+              value={portalInviteDays}
+              onChange={(e) => setPortalInviteDays(e.target.value)}
+              className="h-12 rounded-2xl border-slate-200"
+            />
+          </div>
+
+          {generatedPortalLink && (
+            <div className="space-y-3 rounded-3xl border border-slate-100 bg-slate-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Último enlace generado</p>
+              <p className="break-all text-sm font-medium text-slate-800">{generatedPortalLink}</p>
+              {portalAccessCode && (
+                <div className="rounded-2xl border border-emerald-100 bg-white px-4 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Código fijo</p>
+                  <p className="mt-1 text-lg font-black tracking-[0.28em] text-slate-900">{portalAccessCode}</p>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 rounded-2xl"
+                  onClick={() => handleCopyPortalLink()}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copiar
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 rounded-2xl"
+                  onClick={() => window.open(generatedPortalLink, "_blank", "noopener,noreferrer")}
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Abrir
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              variant="ghost"
+              onClick={() => setIsPortalInviteModalOpen(false)}
+              className="rounded-2xl px-5"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreatePortalInvite}
+              isLoading={isCreatingPortalInvite}
+              className="rounded-2xl bg-emerald-600 px-5 text-white hover:bg-emerald-700"
+            >
+              <Send className="mr-2 h-4 w-4" />
+              Generar link
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isPortalNotificationModalOpen}
+        onClose={() => setIsPortalNotificationModalOpen(false)}
+        title="Enviar notificación al paciente"
+      >
+        <div className="space-y-5 py-2">
+          <div className="rounded-3xl border border-sky-100 bg-sky-50/70 p-4">
+            <p className="text-sm font-semibold text-sky-900">
+              Envía un aviso puntual a este paciente desde su contacto especializado.
+            </p>
+            <p className="mt-2 text-xs leading-6 text-sky-900/75">
+              La notificación queda guardada en el portal y, si tiene email activo, también se le envía por correo.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+              Título
+            </label>
+            <Input
+              value={portalNotificationTitle}
+              onChange={(e) => setPortalNotificationTitle(e.target.value)}
+              placeholder="Ej: Recuerda tu comida post entrenamiento"
+              className="h-12 rounded-2xl border-slate-200"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+              Mensaje
+            </label>
+            <Textarea
+              value={portalNotificationMessage}
+              onChange={(e) => setPortalNotificationMessage(e.target.value)}
+              placeholder="Escribe el aviso o indicación que debe ver el paciente."
+              className="min-h-[160px] rounded-2xl border-slate-200"
+            />
+          </div>
+
+          <label className="inline-flex items-center gap-3 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              checked={portalNotificationSendEmail}
+              onChange={(e) => setPortalNotificationSendEmail(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+            />
+            Enviar también por correo si el paciente tiene email activo
+          </label>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              variant="ghost"
+              onClick={() => setIsPortalNotificationModalOpen(false)}
+              className="rounded-2xl px-5"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreatePortalNotification}
+              isLoading={isCreatingPortalNotification}
+              className="rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
+            >
+              <Bell className="mr-2 h-4 w-4" />
+              Enviar notificación
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Modal para Nueva Métrica (Global) */}
       <Modal
         isOpen={isAddMetricModalOpen}
@@ -3373,4 +4152,6 @@ function MetricRecordRow({
     </div>
   );
 }
+
+
 

@@ -1,9 +1,11 @@
 import React from "react";
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 
 export interface QuickRecipeIngredientPdf {
   name: string;
   quantity?: string;
+  amount?: number | string;
+  unit?: string;
 }
 
 export interface QuickDishPdf {
@@ -11,13 +13,34 @@ export interface QuickDishPdf {
   mealSection?: string;
   description?: string;
   preparation?: string;
+  imageUrl?: string;
   recommendedPortion?: string;
+  portions?: number | string;
   protein?: number | string;
   calories?: number | string;
   carbs?: number | string;
   fats?: number | string;
   ingredients?: QuickRecipeIngredientPdf[];
 }
+
+const DEFAULT_DISH_IMAGE =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#fef3c7"/>
+          <stop offset="100%" stop-color="#fde68a"/>
+        </linearGradient>
+      </defs>
+      <rect width="800" height="520" rx="48" fill="url(#bg)"/>
+      <circle cx="400" cy="260" r="128" fill="#ffffff" opacity="0.95"/>
+      <circle cx="400" cy="260" r="84" fill="#f8fafc"/>
+      <path d="M318 208c0-22 18-40 40-40 8 0 15 2 21 6 11-22 33-36 58-36 31 0 57 21 64 50 4-1 8-2 13-2 22 0 40 18 40 40v14H318v-32z" fill="#d97706"/>
+      <rect x="340" y="240" width="120" height="72" rx="24" fill="#f59e0b"/>
+      <text x="400" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#92400e">Plato NutriSaaS</text>
+    </svg>
+  `);
 
 export interface QuickRecipesPdfData {
   title: string;
@@ -143,6 +166,13 @@ const styles = StyleSheet.create({
   dishBody: {
     paddingVertical: 8,
     paddingHorizontal: 10,
+  },
+  dishImage: {
+    width: "100%",
+    height: 130,
+    objectFit: "cover",
+    borderRadius: 6,
+    marginBottom: 8,
   },
   description: {
     fontSize: 8.5,
@@ -342,6 +372,8 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
               </View>
 
               <View style={styles.dishBody}>
+                <Image alt="" src={dish.imageUrl || DEFAULT_DISH_IMAGE} style={styles.dishImage} />
+
                 {dish.description?.trim() ? (
                   <Text style={styles.description}>{dish.description}</Text>
                 ) : null}

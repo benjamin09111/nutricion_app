@@ -1,3 +1,4 @@
 export declare class UpdateGroupIngredientsDto {
-    ingredientIds: string[];
+    ingredientIds?: string[];
+    recipeIds?: string[];
 }

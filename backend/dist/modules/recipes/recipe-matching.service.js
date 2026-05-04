@@ -18,6 +18,31 @@ let RecipeMatchingService = class RecipeMatchingService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    normalizeList(value) {
+        if (!Array.isArray(value))
+            return [];
+        return Array.from(new Set(value
+            .map((item) => (typeof item === 'string' ? (0, string_util_1.normalizeFoodName)(item) : ''))
+            .filter(Boolean)));
+    }
+    getRecipeIngredientNames(recipe) {
+        const relationNames = Array.isArray(recipe?.ingredients)
+            ? recipe.ingredients
+                .map((item) => item?.ingredient?.name || '')
+                .filter(Boolean)
+            : [];
+        const metadata = recipe?.metadata || {};
+        const customNames = this.normalizeList(metadata.customIngredientNames);
+        const customIngredients = Array.isArray(metadata.customIngredients)
+            ? metadata.customIngredients
+                .map((item) => (typeof item?.name === 'string' ? item.name : ''))
+                .filter(Boolean)
+            : [];
+        const rawIngredients = this.normalizeList(metadata.ingredients);
+        return Array.from(new Set([...relationNames, ...customNames, ...customIngredients, ...rawIngredients]
+            .map((item) => (0, string_util_1.normalizeFoodName)(item))
+            .filter(Boolean)));
+    }
     async findCompatibleRecipes(nutritionistId, ingredientNames, restrictions = []) {
         const normalizedInput = Array.from(new Set(ingredientNames.map(n => (0, string_util_1.normalizeFoodName)(n)).filter(Boolean)));
         if (normalizedInput.length === 0)
@@ -26,14 +51,19 @@ let RecipeMatchingService = class RecipeMatchingService {
             where: {
                 OR: [
                     { isPublic: true },
-                    { nutritionistId }
+                    { nutritionistId },
+                    { savedBy: { some: { nutritionistId } } }
                 ]
             },
             include: {
                 ingredients: {
                     include: { ingredient: true }
                 },
-                nutritionist: { select: { fullName: true } }
+                nutritionist: { select: { fullName: true } },
+                savedBy: {
+                    where: { nutritionistId },
+                    select: { id: true }
+                }
             }
         });
         const scoredRecipes = [];
@@ -52,12 +82,18 @@ let RecipeMatchingService = class RecipeMatchingService {
             }
             if (!meetsRestrictions)
                 continue;
-            const mainIngredients = recipe.ingredients.filter(ri => ri.isMain);
-            if (mainIngredients.length === 0)
+            const relationMainIngredients = Array.isArray(recipe.ingredients)
+                ? recipe.ingredients.filter((ri) => ri.isMain)
+                : [];
+            const fallbackIngredientNames = this.getRecipeIngredientNames(recipe);
+            const candidateMainIngredients = relationMainIngredients.length > 0
+                ? relationMainIngredients.map((ri) => (0, string_util_1.normalizeFoodName)(ri.ingredient?.name || ''))
+                : fallbackIngredientNames;
+            if (candidateMainIngredients.length === 0)
                 continue;
             let matchCount = 0;
-            for (const ri of mainIngredients) {
-                const normalizedRecipeReq = (0, string_util_1.normalizeFoodName)(ri.ingredient.name);
+            for (const recipeIngredient of candidateMainIngredients) {
+                const normalizedRecipeReq = (0, string_util_1.normalizeFoodName)(recipeIngredient);
                 let hasMatch = false;
                 for (const input of normalizedInput) {
                     if (input === normalizedRecipeReq || input.includes(normalizedRecipeReq) || normalizedRecipeReq.includes(input)) {
@@ -69,13 +105,13 @@ let RecipeMatchingService = class RecipeMatchingService {
                     matchCount++;
                 }
             }
-            const matchPercentage = (matchCount / mainIngredients.length) * 100;
+            const matchPercentage = (matchCount / candidateMainIngredients.length) * 100;
             if (matchPercentage >= 80) {
                 scoredRecipes.push({
                     recipe,
                     matchPercentage,
                     matchCount,
-                    totalMain: mainIngredients.length
+                    totalMain: candidateMainIngredients.length
                 });
             }
         }
@@ -88,7 +124,8 @@ let RecipeMatchingService = class RecipeMatchingService {
             .map(sr => ({
             ...sr.recipe,
             matchPercentage: Math.round(sr.matchPercentage),
-            isMine: sr.recipe.nutritionistId === nutritionistId
+            isMine: sr.recipe.nutritionistId === nutritionistId,
+            isAdopted: sr.recipe.nutritionistId !== nutritionistId && Array.isArray(sr.recipe.savedBy) && sr.recipe.savedBy.length > 0
         }));
     }
 };

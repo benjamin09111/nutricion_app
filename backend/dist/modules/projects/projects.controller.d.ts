@@ -47,11 +47,11 @@ export declare class ProjectsController {
         updatedAt: Date;
         description: string | null;
         patientId: string | null;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;
         activeCartCreationId: string | null;
         activeDeliverableCreationId: string | null;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     findAll(req: any, search?: string, status?: string): Promise<({
         patient: {
@@ -96,11 +96,11 @@ export declare class ProjectsController {
         updatedAt: Date;
         description: string | null;
         patientId: string | null;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;
         activeCartCreationId: string | null;
         activeDeliverableCreationId: string | null;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
     })[]>;
     findOne(req: any, id: string): Promise<{
         patient: {
@@ -145,11 +145,11 @@ export declare class ProjectsController {
         updatedAt: Date;
         description: string | null;
         patientId: string | null;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;
         activeCartCreationId: string | null;
         activeDeliverableCreationId: string | null;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
     update(req: any, id: string, dto: UpdateProjectDto): Promise<{
         patient: {
@@ -194,10 +194,10 @@ export declare class ProjectsController {
         updatedAt: Date;
         description: string | null;
         patientId: string | null;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         activeDietCreationId: string | null;
         activeRecipeCreationId: string | null;
         activeCartCreationId: string | null;
         activeDeliverableCreationId: string | null;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
     }>;
 }

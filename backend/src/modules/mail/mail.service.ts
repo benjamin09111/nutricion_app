@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+﻿import { Injectable } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
@@ -48,7 +48,7 @@ export class MailService {
         try {
             await this.mailerService.sendMail({
                 to: adminEmail,
-                subject: '🔔 Nueva Solicitud de Registro',
+                subject: 'ðŸ”” Nueva Solicitud de Registro',
                 template: 'admin-notification',
                 context: {
                     fullName: requestData.fullName,
@@ -71,7 +71,7 @@ export class MailService {
         try {
             await this.mailerService.sendMail({
                 to: adminEmail,
-                subject: `💬 [${data.type}] ${data.subject}`,
+                subject: `ðŸ’¬ [${data.type}] ${data.subject}`,
                 template: 'admin-notification',
                 context: {
                     fullName: data.fromEmail.split('@')[0],
@@ -93,7 +93,7 @@ export class MailService {
         try {
             await this.mailerService.sendMail({
                 to: email,
-                subject: '💬 Recibimos tu feedback - NutriSaaS',
+                subject: 'ðŸ’¬ Recibimos tu feedback - NutriSaaS',
                 template: 'request-confirmation',
                 context: {
                     name: 'Usuario',
@@ -144,4 +144,62 @@ export class MailService {
             throw error;
         }
     }
+
+    async sendPatientPortalInvitationEmail(data: {
+      email: string;
+      patientName: string;
+      nutritionistName: string;
+      shareUrl: string;
+      expiresAt: Date;
+      accessCode: string;
+      }) {
+        try {
+            await this.mailerService.sendMail({
+                to: data.email,
+                subject: `Tu portal de seguimiento - ${data.nutritionistName}`,
+                template: 'patient-portal-invitation',
+                  context: {
+                      patientName: data.patientName,
+                      nutritionistName: data.nutritionistName,
+                      shareUrl: data.shareUrl,
+                      accessCode: data.accessCode,
+                      expiresAt: data.expiresAt.toLocaleDateString('es-CL'),
+                      year: new Date().getFullYear(),
+                  },
+            });
+            console.log(`✅ Invitación de portal enviada a: ${data.email}`);
+        } catch (error) {
+            console.error('❌ Error enviando invitación de portal:', error);
+        }
+    }
+    async sendPatientPortalNotificationEmail(data: {
+      email: string;
+      patientName: string;
+      nutritionistName: string;
+      title: string;
+      message: string;
+    }) {
+        try {
+            await this.mailerService.sendMail({
+                to: data.email,
+                subject: `${data.nutritionistName} te envió una notificación`,
+                html: `
+                  <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a;">
+                    <h2 style="margin: 0 0 12px;">Hola ${data.patientName},</h2>
+                    <p style="margin: 0 0 12px;">Tu nutricionista <strong>${data.nutritionistName}</strong> te envió una notificación desde tu portal de contacto especializado.</p>
+                    <div style="padding: 16px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; margin: 20px 0;">
+                      <p style="margin: 0 0 8px; font-weight: 700;">${data.title}</p>
+                      <p style="margin: 0;">${data.message.replace(/\n/g, '<br />')}</p>
+                    </div>
+                    <p style="margin: 0;">Ingresa a tu portal para revisarla junto con tus consultas y seguimiento.</p>
+                  </div>
+                `,
+            });
+            console.log(`✅ Notificación de portal enviada a: ${data.email}`);
+        } catch (error) {
+            console.error('❌ Error enviando notificación de portal:', error);
+        }
+    }
 }
+
+

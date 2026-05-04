@@ -53,11 +53,13 @@ import { Modal } from "@/components/ui/Modal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
+import { SectionProgressNav } from "@/components/shared/SectionProgressNav";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { useAdmin } from "@/context/AdminContext";
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import mealSectionsData from "@/content/meal-sections.json";
+import { downloadQuickRecipesPdf } from "@/features/pdf/quickRecipesPdfExport";
 import {
   buildProjectAwarePath,
   fetchCreation,
@@ -77,7 +79,17 @@ type RecipeMetadata = {
   tags?: string[];
   mealSection?: string;
   customIngredientNames?: string[];
-  customIngredients?: string[];
+  customIngredients?: Array<string | { name?: string }>;
+  ingredients?: string[];
+  source?: string;
+};
+
+type RecipeIngredientDetail = {
+  name: string;
+  quantity?: string;
+  amount?: number;
+  unit?: string;
+  isMain?: boolean;
 };
 
 type RecipeApiSummary = {
@@ -92,9 +104,10 @@ type RecipeApiSummary = {
   calories: number;
   isPublic: boolean;
   isMine?: boolean;
+  isAdopted?: boolean;
   nutritionist?: { fullName?: string | null } | null;
   metadata?: RecipeMetadata | null;
-  ingredients?: { isMain: boolean; ingredient: { name: string } }[];
+  ingredients?: { isMain: boolean; amount?: number; unit?: string; ingredient: { name: string } }[];
   matchPercentage?: number;
   matchCount?: number;
   totalMain?: number;
@@ -106,12 +119,14 @@ interface Recipe {
   description: string;
   preparation?: string;
   recommendedPortion?: string;
+  portions?: number;
   complexity: "simple" | "elaborada";
   protein: number;
   calories: number;
   carbs: number;
   fats: number;
   ingredients: string[];
+  ingredientDetails?: RecipeIngredientDetail[];
   extraIngredients?: string[];
   image?: string;
   source: RecipeCatalogTab;
@@ -137,6 +152,8 @@ interface MealSlot {
 interface QuickIngredient {
   name: string;
   quantity?: string;
+  amount?: string;
+  unit?: string;
 }
 
 interface QuickGeneratedDish {
@@ -146,11 +163,13 @@ interface QuickGeneratedDish {
   description: string;
   preparation: string;
   recommendedPortion: string;
+  portions?: number;
   protein: number;
   calories: number;
   carbs: number;
   fats: number;
   ingredients: QuickIngredient[];
+  ingredientDetails?: RecipeIngredientDetail[];
 }
 
 type MealSectionTarget = {
@@ -681,6 +700,7 @@ export default function RecipesClient() {
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [creationDescription, setCreationDescription] = useState("");
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(
     projectIdFromUrl,
   );
@@ -730,8 +750,13 @@ export default function RecipesClient() {
     const counter = new Map<string, number>();
     Object.values(slotsByDay).forEach((slots) => {
       slots.forEach((slot) => {
-        slot.recipe?.ingredients?.forEach((ingredientName) => {
-          const key = ingredientName.toLowerCase().trim();
+        const recipe = slot.recipe;
+        const ingredientNames =
+          recipe && Array.isArray(recipe.ingredientDetails) && recipe.ingredientDetails.length > 0
+            ? recipe.ingredientDetails.map((ingredient) => ingredient.name)
+            : recipe?.ingredients || [];
+        ingredientNames.forEach((ingredientName) => {
+          const key = String(ingredientName).toLowerCase().trim();
           counter.set(key, (counter.get(key) || 0) + 1);
         });
       });
@@ -793,7 +818,7 @@ export default function RecipesClient() {
     }));
 
   const classifyRecipeSource = (recipe: RecipeApiSummary): RecipeCatalogTab => {
-    if (recipe.isMine) {
+    if (recipe.isMine || recipe.isAdopted) {
       return "mine";
     }
 
@@ -801,12 +826,25 @@ export default function RecipesClient() {
   };
 
   const mapRecipeSummaryToRecipe = (recipe: RecipeApiSummary): Recipe => {
-    const ingredientNames = (recipe.ingredients || []).map(
-      (item) => item.ingredient.name,
-    );
-    const mainIngredients = (recipe.ingredients || [])
+    const ingredientNames = (recipe.ingredients || []).map((item) => item.ingredient.name);
+    const metadataIngredientNames = Array.from(
+      new Set([
+        ...(recipe.metadata?.customIngredientNames || []),
+        ...(recipe.metadata?.customIngredients || []).map((item) =>
+          typeof item === "string" ? item : item?.name || "",
+        ),
+        ...(recipe.metadata?.ingredients || []),
+      ]),
+    ).filter(Boolean);
+    const resolvedIngredientNames =
+      ingredientNames.length > 0 ? ingredientNames : metadataIngredientNames;
+    const resolvedMainIngredients = (recipe.ingredients || [])
       .filter((item) => item.isMain)
       .map((item) => item.ingredient.name);
+    const mainIngredients =
+      resolvedMainIngredients.length > 0
+        ? resolvedMainIngredients
+        : resolvedIngredientNames.slice(0, Math.max(1, Math.min(3, resolvedIngredientNames.length)));
 
     return {
       id: recipe.id,
@@ -816,8 +854,9 @@ export default function RecipesClient() {
         recipe.preparation ||
         "Plato disponible para asignar a este bloque.",
       preparation: recipe.preparation || undefined,
+      portions: recipe.portions,
       complexity:
-        ingredientNames.length > 6 || (recipe.preparation || "").length > 180
+        resolvedIngredientNames.length > 6 || (recipe.preparation || "").length > 180
           ? "elaborada"
           : "simple",
       protein: recipe.proteins || 0,
@@ -825,6 +864,12 @@ export default function RecipesClient() {
       carbs: recipe.carbs || 0,
       fats: recipe.lipids || 0,
       ingredients: ingredientNames,
+      ingredientDetails: (recipe.ingredients || []).map((item) => ({
+        name: item.ingredient.name,
+        amount: Number.isFinite(Number(item.amount)) ? Number(item.amount) : undefined,
+        unit: item.unit,
+        isMain: item.isMain,
+      })),
       source: classifyRecipeSource(recipe),
       authorLabel: recipe.nutritionist?.fullName || undefined,
       mainIngredients,
@@ -1577,11 +1622,43 @@ export default function RecipesClient() {
           description: d.description || "",
           preparation: d.preparation || "",
           recommendedPortion: d.recommendedPortion || "",
+          portions: d.portions != null ? Number(d.portions) : 1,
           protein: Number(d.protein) || 0,
           calories: Number(d.calories) || 0,
           carbs: Number(d.carbs) || 0,
           fats: Number(d.fats) || 0,
-          ingredients: Array.isArray(d.ingredients) ? d.ingredients : [],
+          ingredients: Array.isArray(d.ingredients)
+            ? d.ingredients.map((ing: any) =>
+                typeof ing === "string"
+                  ? { name: ing, quantity: "" }
+                  : {
+                      name: String(ing?.name || ""),
+                      quantity: String(ing?.quantity || ""),
+                      amount: ing?.amount != null ? String(ing.amount) : undefined,
+                      unit: ing?.unit ? String(ing.unit) : undefined,
+                    },
+              )
+            : [],
+          ingredientDetails: Array.isArray(d.ingredients)
+            ? d.ingredients
+                .map((ing: any) => {
+                  if (typeof ing === "string") {
+                    const name = ing.trim();
+                    if (!name) return null;
+                    return { name, quantity: "", amount: undefined, unit: undefined };
+                  }
+                  if (!ing || typeof ing !== "object") return null;
+                  const name = String(ing.name || "").trim();
+                  if (!name) return null;
+                  return {
+                    name,
+                    quantity: String(ing.quantity || ""),
+                    amount: ing.amount != null ? Number(ing.amount) : undefined,
+                    unit: ing.unit ? String(ing.unit) : undefined,
+                  };
+                })
+                .filter((item: RecipeIngredientDetail | null): item is RecipeIngredientDetail => !!item)
+            : [],
         }),
       );
 
@@ -1605,11 +1682,13 @@ export default function RecipesClient() {
                 description: dish.description,
                 preparation: dish.preparation,
                 recommendedPortion: dish.recommendedPortion,
+                portions: dish.portions,
                 calories: dish.calories,
                 protein: dish.protein,
                 carbs: dish.carbs,
                 fats: dish.fats,
                 ingredients: dish.ingredients.map(ing => ing.name),
+                ingredientDetails: dish.ingredientDetails,
                 mainIngredients: dish.ingredients.map(ing => ing.name),
                 complexity: "simple",
                 source: "app",
@@ -1820,12 +1899,14 @@ export default function RecipesClient() {
       description: quickMealDraft.description.trim() || "Comida rápida creada manualmente.",
       preparation: quickMealDraft.preparation.trim() || undefined,
       recommendedPortion: quickMealDraft.recommendedPortion.trim() || undefined,
+      portions: 1,
       complexity: "simple",
       protein: toNumber(quickMealDraft.protein),
       calories: toNumber(quickMealDraft.calories),
       carbs: toNumber(quickMealDraft.carbs),
       fats: toNumber(quickMealDraft.fats),
       ingredients: [],
+      ingredientDetails: [],
       mainIngredients: [],
       source: "mine",
       mealSection: targetSlot.mealSection || targetSlot.type,
@@ -1884,6 +1965,51 @@ export default function RecipesClient() {
     assignRecipeToSlot(activeSlotDay, activeSwapSlot, recipe);
     setShowSwapModal(false);
     toast.success(`Bloque actualizado con ${recipe.title}`);
+  };
+
+  const fillCurrentDayWithMyRecipes = () => {
+    const myRecipes = recipeLibrary.filter((recipe) => recipe.source === "mine");
+
+    if (myRecipes.length === 0) {
+      toast.error("Todavía no tienes platos creados para rellenar.");
+      return;
+    }
+
+    let filledCount = 0;
+
+    setWeekSlots((prev) => {
+      const next = { ...prev };
+      const daySlots = [...(next[currentDay] || [])];
+      const usedIds = new Set<string>();
+
+      const updatedSlots = daySlots.map((slot) => {
+        if (slot.recipe) return slot;
+
+        const selectedRecipe = myRecipes.find(
+          (recipe) => !usedIds.has(recipe.id) && isRecipeMealSectionCompatible(recipe, slot),
+        );
+
+        if (!selectedRecipe) return slot;
+
+        usedIds.add(selectedRecipe.id);
+        filledCount += 1;
+        return {
+          ...slot,
+          recipe: selectedRecipe,
+        };
+      });
+
+      next[currentDay] = updatedSlots;
+      return next;
+    });
+
+    if (filledCount === 0) {
+      toast.info("No encontramos platos creados que coincidan con los bloques de hoy.");
+      return;
+    }
+
+    setShowAiFillModal(false);
+    toast.success(`Se rellenaron ${filledCount} bloques con tus platos creados.`);
   };
 
   const availableMealSectionsToAdd = useMemo(() => {
@@ -2555,8 +2681,107 @@ export default function RecipesClient() {
     return savedCreation;
   };
 
+  const buildRecipesPdfData = () => {
+    const pdfDishes = days.flatMap((day) =>
+      (weekSlots[day] || [])
+        .filter((slot) => slot.recipe)
+        .map((slot) => ({
+          title: slot.recipe!.title,
+          mealSection: slot.recipe!.mealSection || slot.mealSection || slot.type,
+          description: slot.recipe!.description || "",
+          preparation: slot.recipe!.preparation || "",
+          recommendedPortion: slot.recipe!.recommendedPortion || "",
+          portions: slot.recipe!.portions,
+          protein: slot.recipe!.protein,
+          calories: slot.recipe!.calories,
+          carbs: slot.recipe!.carbs,
+          fats: slot.recipe!.fats,
+          ingredients: Array.isArray(slot.recipe!.ingredients)
+            ? slot.recipe!.ingredients.map((ingredient) => ({
+                name: ingredient,
+              }))
+            : [],
+        })),
+    );
+
+    return {
+      title: "Recetas y porciones",
+      dietName: currentProjectName?.trim() || "Recetas y porciones",
+      patientName: selectedPatient?.fullName || null,
+      specialConsiderations:
+        selectedPatient
+          ? [
+              selectedPatient.nutritionalFocus ? `Foco: ${selectedPatient.nutritionalFocus}` : "",
+              selectedPatient.fitnessGoals ? `Fitness: ${selectedPatient.fitnessGoals}` : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : undefined,
+      restrictedFoods: selectedPatient?.restrictions?.length
+        ? selectedPatient.restrictions
+        : undefined,
+      dishes: pdfDishes,
+      generatedAt: new Date().toISOString(),
+    };
+  };
+
+  const handleExportPdf = async () => {
+    if (isExportingPdf) return;
+
+    const pdfDishes = days.flatMap((day) =>
+      (weekSlots[day] || []).filter((slot) => slot.recipe),
+    );
+
+    if (pdfDishes.length === 0) {
+      toast.error("Agrega al menos un plato antes de exportar.");
+      return;
+    }
+
+    setIsExportingPdf(true);
+    try {
+      await downloadQuickRecipesPdf(buildRecipesPdfData());
+      toast.success("PDF de recetas descargado correctamente.");
+      setIsSaveCreationModalOpen(true);
+    } catch (error) {
+      console.error("Error exporting recipes PDF", error);
+      toast.error("No se pudo generar el PDF de recetas.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const actionDockItems: ActionDockItem[] = useMemo(
     () => [
+      {
+        id: "created-recipes",
+        icon: ChefHat,
+        label: showOnlyMyRecipes ? "Mis platos creados" : "Mostrar mis platos",
+        variant: "emerald",
+        onClick: () => {
+          setShowOnlyMyRecipes(true);
+          setShowMatchingOnly(true);
+          setRecipeModalTab("mine");
+          setRecipeSearch("");
+          setRecipeMealSectionFilter("");
+          setRecipeLibraryPage(1);
+          toast.success("Mostrando tus platos creados.");
+        },
+      },
+      {
+        id: "created-recipes-anyway",
+        icon: Library,
+        label: "Importar aunque no coincidan",
+        variant: "slate",
+        onClick: () => {
+          setShowOnlyMyRecipes(true);
+          setShowMatchingOnly(false);
+          setRecipeModalTab("mine");
+          setRecipeSearch("");
+          setRecipeMealSectionFilter("");
+          setRecipeLibraryPage(1);
+          toast.info("Ahora puedes elegir platos creados aunque no coincidan al 100%.");
+        },
+      },
       {
         id: "import-creation",
         icon: Library,
@@ -2589,8 +2814,8 @@ export default function RecipesClient() {
         icon: Download,
         label: "Exportar PDF",
         variant: "slate",
-        onClick: () => toast.info("PDF de recetas disponible en la etapa Entregable."),
-        disabled: isRecipesLocked,
+        onClick: handleExportPdf,
+        disabled: isRecipesLocked || isExportingPdf,
       },
       {
         id: "reset",
@@ -2601,7 +2826,7 @@ export default function RecipesClient() {
         disabled: isRecipesLocked,
       },
     ].filter(Boolean) as ActionDockItem[],
-    [isRecipesLocked, printJson, resetRecipes, selectedPatient, sleepTime, targetCalories, targetCarbs, targetFats, targetProtein, wakeUpTime, weekSlots],
+    [isExportingPdf, isRecipesLocked, printJson, resetRecipes, selectedPatient, showOnlyMyRecipes, sleepTime, targetCalories, targetCarbs, targetFats, targetProtein, wakeUpTime, weekSlots],
   );
 
   const assignedSourceSummary = useMemo(() => {
@@ -2723,12 +2948,24 @@ export default function RecipesClient() {
         </div>
       ) : null}
       <ModuleLayout
-        title="Recetas y Porciones"
-        description="En este apartado modificarás, en base a los alimentos anteriores, las cantidades de cada uno de forma diaria, semanal o mensual, y sus porciones en base a la documentación oficial."
+        title="Cuantificación: Recetas y Porciones"
+        description={
+          <div className="space-y-4">
+            <p>
+              Transforma tu estrategia en platos concretos. Define horarios, porciones y genera recetas alineadas con los alimentos seleccionados.
+            </p>
+            <div className="flex flex-wrap gap-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              <span className="text-emerald-600">1. Estrategia (✓)</span>
+              <span className="text-emerald-600 underline underline-offset-4 decoration-2">2. Cuantificación</span>
+              <span>3. Logística</span>
+              <span>4. Producto Final</span>
+            </div>
+          </div>
+        }
         step={{
-          number: 3,
-          label: "Planes & Recetas (AI)",
-          icon: GraduationCap,
+          number: 2,
+          label: "Recetas & Porciones",
+          icon: ChefHat,
           color: "text-emerald-600",
         }}
         className="max-w-none"
@@ -2800,13 +3037,26 @@ export default function RecipesClient() {
                 }}
                 className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-2xl shadow-emerald-200 transition-all hover:scale-[1.02] flex items-center gap-3 uppercase tracking-widest text-xs"
               >
-                CONTINUAR
+                SIGUIENTE
                 <ArrowRight className="h-5 w-5" />
               </Button>
             </div>
           </ModuleFooter>
         }
       >
+        {isSidebarCollapsed && (
+          <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
+            <SectionProgressNav
+              title="Etapas del Plan"
+              items={[
+                { id: "dieta", label: "1. Estrategia", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/dieta", currentProjectId)) },
+                { id: "recetas", label: "2. Cuantificación", status: "complete", active: true, onClick: () => {} },
+                { id: "carrito", label: "3. Logística", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/carrito", currentProjectId)) },
+                { id: "entregable", label: "4. Entregable", status: "pending", active: false, onClick: () => {} },
+              ]}
+            />
+          </div>
+        )}
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}
@@ -3210,6 +3460,16 @@ export default function RecipesClient() {
                     {isGenerating
                       ? "Generando..."
                       : "Generar con IA"}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={fillCurrentDayWithMyRecipes}
+                    disabled={isGenerating || recipeTabCounts.mine === 0}
+                    className="rounded-2xl font-bold flex items-center gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <ChefHat className="h-4 w-4" />
+                    Rellenar con mis platos
                   </Button>
                 </div>
               </div>

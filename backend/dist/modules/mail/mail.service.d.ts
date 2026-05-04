@@ -14,4 +14,19 @@ export declare class MailService {
     sendFeedbackConfirmation(email: string): Promise<void>;
     sendRejectionEmail(email: string, fullName: string, adminMessage?: string): Promise<void>;
     sendPasswordResetEmail(email: string, fullName: string, password: string): Promise<void>;
+    sendPatientPortalInvitationEmail(data: {
+        email: string;
+        patientName: string;
+        nutritionistName: string;
+        shareUrl: string;
+        expiresAt: Date;
+        accessCode: string;
+    }): Promise<void>;
+    sendPatientPortalNotificationEmail(data: {
+        email: string;
+        patientName: string;
+        nutritionistName: string;
+        title: string;
+        message: string;
+    }): Promise<void>;
 }

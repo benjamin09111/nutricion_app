@@ -39,8 +39,8 @@ export declare class RecipesController {
             id: string;
             brandSuggestion: string | null;
             ingredientId: string;
-            isMain: boolean;
             recipeId: string;
+            isMain: boolean;
         })[];
     } & {
         name: string;
@@ -58,8 +58,8 @@ export declare class RecipesController {
         description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         preparation: string | null;
-        portions: number;
         portionSize: number;
+        portions: number;
         imageUrl: string | null;
     }>;
     estimateMacros(dto: EstimateMacrosDto): Promise<{
@@ -71,6 +71,7 @@ export declare class RecipesController {
     findCompatible(req: any, dto: CompatibleRecipesDto): Promise<{
         matchPercentage: number;
         isMine: boolean;
+        isAdopted: boolean;
         ingredients: ({
             ingredient: {
                 name: string;
@@ -100,12 +101,15 @@ export declare class RecipesController {
             id: string;
             brandSuggestion: string | null;
             ingredientId: string;
-            isMain: boolean;
             recipeId: string;
+            isMain: boolean;
         })[];
         nutritionist: {
             fullName: string;
         } | null;
+        savedBy: {
+            id: string;
+        }[];
         name: string;
         calories: number;
         proteins: number;
@@ -121,8 +125,8 @@ export declare class RecipesController {
         description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         preparation: string | null;
-        portions: number;
         portionSize: number;
+        portions: number;
         imageUrl: string | null;
     }[]>;
     fillWithAi(req: any, dto: AiFillRecipesDto): Promise<{
@@ -183,8 +187,19 @@ export declare class RecipesController {
             note: any;
         };
     }>;
+    addToLibrary(req: any, id: string): Promise<{
+        recipeId: string;
+        added: boolean;
+        alreadyOwned: boolean;
+    } | {
+        recipeId: string;
+        added: boolean;
+        alreadyOwned?: undefined;
+    }>;
     findAll(req: any): Promise<any[]>;
     findOne(req: any, id: string): Promise<{
+        isMine: boolean;
+        isAdopted: boolean;
         ingredients: ({
             ingredient: {
                 name: string;
@@ -214,8 +229,8 @@ export declare class RecipesController {
             id: string;
             brandSuggestion: string | null;
             ingredientId: string;
-            isMain: boolean;
             recipeId: string;
+            isMain: boolean;
         })[];
         nutritionist: {
             id: string;
@@ -229,7 +244,12 @@ export declare class RecipesController {
             avatarUrl: string | null;
             settings: import("@prisma/client/runtime/library").JsonValue | null;
         } | null;
-    } & {
+        savedBy: {
+            id: string;
+            nutritionistId: string;
+            createdAt: Date;
+            recipeId: string;
+        }[];
         name: string;
         calories: number;
         proteins: number;
@@ -245,8 +265,8 @@ export declare class RecipesController {
         description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         preparation: string | null;
-        portions: number;
         portionSize: number;
+        portions: number;
         imageUrl: string | null;
     }>;
     update(req: any, id: string, updateRecipeDto: CreateRecipeDto): Promise<{
@@ -256,8 +276,8 @@ export declare class RecipesController {
             id: string;
             brandSuggestion: string | null;
             ingredientId: string;
-            isMain: boolean;
             recipeId: string;
+            isMain: boolean;
         }[];
     } & {
         name: string;
@@ -275,8 +295,8 @@ export declare class RecipesController {
         description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         preparation: string | null;
-        portions: number;
         portionSize: number;
+        portions: number;
         imageUrl: string | null;
     }>;
     remove(req: any, id: string): Promise<{
@@ -295,8 +315,8 @@ export declare class RecipesController {
         description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         preparation: string | null;
-        portions: number;
         portionSize: number;
+        portions: number;
         imageUrl: string | null;
     }>;
 }

@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
+const path_1 = require("path");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
 const foods_module_1 = require("./modules/foods/foods.module");
@@ -37,6 +38,7 @@ const common_module_1 = require("./common/common.module");
 const diet_module_1 = require("./modules/diet/diet.module");
 const projects_module_1 = require("./modules/projects/projects.module");
 const permissions_module_1 = require("./modules/permissions/permissions.module");
+const patient_portals_module_1 = require("./modules/patient-portals/patient-portals.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer
@@ -50,6 +52,7 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
+                envFilePath: (0, path_1.join)(__dirname, '..', '.env'),
             }),
             foods_module_1.FoodsModule,
             prisma_module_1.PrismaModule,
@@ -79,6 +82,7 @@ exports.AppModule = AppModule = __decorate([
             diet_module_1.DietModule,
             projects_module_1.ProjectsModule,
             permissions_module_1.PermissionsModule,
+            patient_portals_module_1.PatientPortalsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

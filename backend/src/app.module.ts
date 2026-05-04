@@ -1,5 +1,6 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { FoodsModule } from './modules/foods/foods.module';
@@ -29,11 +30,13 @@ import { CommonModule } from './common/common.module';
 import { DietModule } from './modules/diet/diet.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
+import { PatientPortalsModule } from './modules/patient-portals/patient-portals.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: join(__dirname, '..', '.env'),
     }),
     FoodsModule,
     PrismaModule,
@@ -63,6 +66,7 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
     DietModule,
     ProjectsModule,
     PermissionsModule,
+    PatientPortalsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

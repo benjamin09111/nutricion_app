@@ -23,7 +23,7 @@ __decorate([
     __metadata("design:type", String)
 ], CreateFeedbackDto.prototype, "message", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(['FEEDBACK', 'COMPLAINT', 'IDEA']),
+    (0, class_validator_1.IsEnum)(['FEEDBACK', 'TESTIMONIO', 'COMPLAINT', 'IDEA']),
     __metadata("design:type", String)
 ], CreateFeedbackDto.prototype, "type", void 0);
 __decorate([

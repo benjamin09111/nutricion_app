@@ -293,7 +293,7 @@ export default function DetailsClient() {
 
   return (
     <ModuleLayout
-      title="Detalles Generales"
+      title="Configuración Clínica"
       description="Administra preferencias, restricciones y configuraciones globales para tus pacientes y dietas."
       className="pb-8"
     >

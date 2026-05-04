@@ -4,14 +4,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Download,
-  FileCode,
-  Library,
   NotebookText,
   Plus,
+  ChefHat,
+  Sparkles,
+  Search,
+  Filter,
   RotateCcw,
   Save,
   Trash2,
   User,
+  CheckCircle2,
+  X,
+  Loader2,
 } from "lucide-react";
 import Cookies from "js-cookie";
 import { useSearchParams } from "next/navigation";
@@ -20,15 +25,19 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
+import { Textarea } from "@/components/ui/Textarea";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
+import { SectionProgressNav, type SectionProgressStatus } from "@/components/shared/SectionProgressNav";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { type ActionDockItem } from "@/components/ui/ActionDock";
 import { fetchApi } from "@/lib/api-base";
+import exchangePortionGuide from "@/content/exchange-portions.json";
 import { cn } from "@/lib/utils";
 import { fetchCreation, fetchProject, saveCreation } from "@/lib/workflow";
 import { downloadFastDeliverablePdf } from "@/features/pdf/fastDeliverablePdfExport";
+import { useDashboardShell } from "@/context/DashboardShellContext";
 
 type QuickSection =
   | "Desayuno"
@@ -41,11 +50,33 @@ type QuickSection =
 
 type QuickMeal = {
   id: string;
-  section: QuickSection;
+  section: QuickSection | "";
   time: string;
   mealText: string;
   portion: string;
+  weeklyMealTexts?: Partial<Record<QuickWeekDay, string>>;
 };
+
+type QuickWeekDay =
+  | "Lunes"
+  | "Martes"
+  | "Miercoles"
+  | "Jueves"
+  | "Viernes"
+  | "Sabado"
+  | "Domingo";
+
+type QuickPlanMode = "single" | "weekly";
+
+type QuickAiMode = "ai" | "library";
+
+type QuickGuideSectionId =
+  | "general"
+  | "meals"
+  | "avoidFoods"
+  | "resources"
+  | "portions"
+  | "summary";
 
 type QuickAvoidFoodRow = {
   id: string;
@@ -94,6 +125,40 @@ type ImportedCreation = {
   metadata?: Record<string, unknown>;
 };
 
+type CreatedRecipeSummary = {
+  id: string;
+  name: string;
+  description?: string | null;
+  preparation?: string | null;
+  mealSection?: string | null;
+  calories?: number;
+  proteins?: number;
+  carbs?: number;
+  lipids?: number;
+  isMine?: boolean;
+  metadata?: {
+    mealSection?: string | null;
+    source?: string | null;
+    ingredients?: string[];
+    customIngredientNames?: string[];
+    customIngredients?: Array<{ name?: string }>;
+  } | null;
+};
+
+type RecipeApiResponseItem = {
+  id: string;
+  name: string;
+  description?: string | null;
+  preparation?: string | null;
+  mealSection?: string | null;
+  calories?: number;
+  proteins?: number;
+  carbs?: number;
+  lipids?: number;
+  isMine?: boolean;
+  metadata?: CreatedRecipeSummary["metadata"];
+};
+
 const QUICK_SECTIONS: QuickSection[] = [
   "Desayuno",
   "Colación AM",
@@ -104,24 +169,29 @@ const QUICK_SECTIONS: QuickSection[] = [
   "Post entreno",
 ];
 
+const QUICK_WEEK_DAYS: QuickWeekDay[] = [
+  "Lunes",
+  "Martes",
+  "Miercoles",
+  "Jueves",
+  "Viernes",
+  "Sabado",
+  "Domingo",
+];
+
 const QUICK_PORTION_GUIDE = [
-  { category: "Verduras y ensaladas", portion: "2 tazas crudas o 1 taza cocida por comida principal." },
-  { category: "Frutas", portion: "1 unidad mediana o 1 taza picada." },
-  { category: "Cereales y tubérculos", portion: "1/2 a 1 taza cocida, según hambre y objetivo." },
-  { category: "Legumbres", portion: "3/4 taza cocida como porción base." },
-  { category: "Proteínas", portion: "90 a 120 g cocidos, equivalente a la palma de la mano." },
-  { category: "Lácteos o equivalentes", portion: "1 taza de leche o yogur, o 1 lámina de queso fresco." },
-  { category: "Grasas saludables", portion: "1 cda de aceite o 1/4 de palta." },
+  ...((Array.isArray(exchangePortionGuide) ? exchangePortionGuide : []) as Array<{ category: string; portion: string }>),
 ];
 
 const DEFAULT_TITLE = "Entregable rápido";
 
-const createMeal = (section: QuickSection = "Desayuno"): QuickMeal => ({
+const createMeal = (section: QuickSection | "" = ""): QuickMeal => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   section,
   time: "",
   mealText: "",
   portion: "",
+  weeklyMealTexts: {},
 });
 
 const createAvoidFoodRow = (value = ""): QuickAvoidFoodRow => ({
@@ -149,6 +219,13 @@ const createEmptyQuickPatient = (): QuickPatient => ({
   likes: "",
   source: "manual",
 });
+
+const normalizeQuickText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 
 function extractVariablesFromContent(content: string): string[] {
   const regex = /\^([a-zA-Z0-9_\- ]+)\^/g;
@@ -183,20 +260,22 @@ function getResolvedResourceKey(resource: ResolvedResourcePage, index: number): 
 }
 
 export default function QuickDeliverableClient() {
+  const { setSidebarCollapsed, isSidebarCollapsed } = useDashboardShell();
   const searchParams = useSearchParams();
   const creationId = searchParams.get("creationId");
   const projectId = searchParams.get("project");
 
   const [title, setTitle] = useState(DEFAULT_TITLE);
+  const [planMode, setPlanMode] = useState<QuickPlanMode>("single");
   const [meals, setMeals] = useState<QuickMeal[]>([
     createMeal("Desayuno"),
     createMeal("Almuerzo"),
     createMeal("Cena"),
   ]);
-  const [sectionToAdd, setSectionToAdd] = useState<QuickSection>("Colación AM");
   const [avoidFoods, setAvoidFoods] = useState<QuickAvoidFoodRow[]>([
     createAvoidFoodRow(),
   ]);
+  const [isManualPatientExpanded, setIsManualPatientExpanded] = useState(false);
   const [includeMeals, setIncludeMeals] = useState(true);
   const [includeAvoidFoods, setIncludeAvoidFoods] = useState(true);
   const [includeResources, setIncludeResources] = useState(true);
@@ -218,13 +297,33 @@ export default function QuickDeliverableClient() {
   const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(null);
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
+  const [isCreatedRecipesModalOpen, setIsCreatedRecipesModalOpen] = useState(false);
+  const [isLoadingCreatedRecipes, setIsLoadingCreatedRecipes] = useState(false);
+  const [createdRecipes, setCreatedRecipes] = useState<CreatedRecipeSummary[]>([]);
+  const [createdRecipesSearch, setCreatedRecipesSearch] = useState("");
+  const [createdRecipesOnlyMine, setCreatedRecipesOnlyMine] = useState(true);
+  const [createdRecipesAllowMismatch, setCreatedRecipesAllowMismatch] = useState(false);
+  const [quickAiMode, setQuickAiMode] = useState<QuickAiMode>("ai");
+  const [isGeneratingQuickAi, setIsGeneratingQuickAi] = useState(false);
+  const [aiAllowedFoods, setAiAllowedFoods] = useState("");
+  const [aiRestrictedFoods, setAiRestrictedFoods] = useState("");
+  const [aiNotes, setAiNotes] = useState("");
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [showValidationHighlights, setShowValidationHighlights] = useState(false);
+  const [activeGuideSection, setActiveGuideSection] = useState<QuickGuideSectionId>("general");
   const identitySectionRef = useRef<HTMLElement | null>(null);
   const mealsSectionRef = useRef<HTMLElement | null>(null);
   const avoidFoodsSectionRef = useRef<HTMLElement | null>(null);
+  const resourcesSectionRef = useRef<HTMLElement | null>(null);
+  const portionsSectionRef = useRef<HTMLElement | null>(null);
+  const summarySectionRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setSidebarCollapsed(true);
+  }, [setSidebarCollapsed]);
 
   useEffect(() => {
     const draft = localStorage.getItem("nutri_quick_deliverable_draft");
@@ -232,6 +331,7 @@ export default function QuickDeliverableClient() {
     try {
       const parsed = JSON.parse(draft);
       setTitle(parsed.title || DEFAULT_TITLE);
+      setPlanMode(parsed.planMode === "weekly" ? "weekly" : "single");
       setMeals(Array.isArray(parsed.meals) && parsed.meals.length > 0 ? parsed.meals : [createMeal("Desayuno")]);
       setAvoidFoods(
         Array.isArray(parsed.avoidFoods) && parsed.avoidFoods.length > 0
@@ -261,6 +361,7 @@ export default function QuickDeliverableClient() {
           : QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)),
       );
       setSelectedPatient(parsed.selectedPatient || createEmptyQuickPatient());
+      setIsManualPatientExpanded(parsed.isManualPatientExpanded === true);
     } catch (error) {
       console.error("Error loading quick draft", error);
     }
@@ -271,6 +372,7 @@ export default function QuickDeliverableClient() {
       "nutri_quick_deliverable_draft",
       JSON.stringify({
         title,
+        planMode,
         meals,
         avoidFoods,
         resources: resolvedResourcePages,
@@ -281,10 +383,12 @@ export default function QuickDeliverableClient() {
         includePortionGuide,
         portionGuideRows,
         selectedPatient,
+        isManualPatientExpanded,
       }),
     );
   }, [
     title,
+    planMode,
     meals,
     avoidFoods,
     resolvedResourcePages,
@@ -295,6 +399,7 @@ export default function QuickDeliverableClient() {
     includePortionGuide,
     portionGuideRows,
     selectedPatient,
+    isManualPatientExpanded,
   ]);
 
   useEffect(() => {
@@ -305,6 +410,7 @@ export default function QuickDeliverableClient() {
         const creation = await fetchCreation(creationId);
         const content = creation.content || {};
         setTitle(content.title || creation.name || DEFAULT_TITLE);
+        setPlanMode(content.planMode === "weekly" ? "weekly" : "single");
         setMeals(Array.isArray(content.meals) && content.meals.length > 0 ? content.meals : [createMeal("Desayuno")]);
         setAvoidFoods(
           Array.isArray(content.avoidFoods) && content.avoidFoods.length > 0
@@ -340,6 +446,7 @@ export default function QuickDeliverableClient() {
             source: creation.metadata?.patientId ? "imported" : "manual",
           });
         }
+        setIsManualPatientExpanded(false);
       } catch (error) {
         console.error(error);
         toast.error("No se pudo cargar el entregable rápido.");
@@ -423,13 +530,6 @@ export default function QuickDeliverableClient() {
     [resolvedResourcePages, selectedResourceKeys],
   );
 
-  const isExportDisabled = useMemo(() => {
-    const hasAtLeastOneMeal = includeMeals && meals.some((m) => m.mealText.trim().length > 0);
-    const hasAtLeastOneAvoidFood = includeAvoidFoods && validAvoidFoods.length > 0;
-
-    return !hasAtLeastOneMeal && !hasAtLeastOneAvoidFood;
-  }, [includeMeals, meals, includeAvoidFoods, validAvoidFoods]);
-
   const missingRequirements = useMemo(() => {
     const missing: Array<{ id: string; label: string; ref: React.RefObject<HTMLElement | null> }> = [];
     if (!includeMeals && !includeAvoidFoods) {
@@ -440,14 +540,23 @@ export default function QuickDeliverableClient() {
       });
       return missing;
     }
-    if (includeMeals && !meals.some((m) => m.mealText.trim().length > 0)) {
+    if (
+      includeMeals &&
+      !(
+        planMode === "single"
+          ? meals.some((m) => m.mealText.trim().length > 0)
+          : meals.some((meal) =>
+              QUICK_WEEK_DAYS.some((day) => (meal.weeklyMealTexts?.[day] || "").trim().length > 0),
+            )
+      )
+    ) {
       missing.push({ id: "meals", label: "Tabla de comidas *", ref: mealsSectionRef });
     }
     if (includeAvoidFoods && validAvoidFoods.length === 0) {
       missing.push({ id: "avoidFoods", label: "Alimentos a evitar *", ref: avoidFoodsSectionRef });
     }
     return missing;
-  }, [includeMeals, meals, includeAvoidFoods, validAvoidFoods.length]);
+  }, [includeMeals, meals, planMode, includeAvoidFoods, validAvoidFoods.length]);
 
   const scrollToRequirement = (requirementId?: string) => {
     const target =
@@ -459,6 +568,28 @@ export default function QuickDeliverableClient() {
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  const missingRequirementIds = useMemo(
+    () => new Set(missingRequirements.map((item) => item.id)),
+    [missingRequirements],
+  );
+
+  const shouldHighlightMealsSection =
+    showValidationHighlights && missingRequirementIds.has("meals");
+
+  const shouldHighlightAvoidFoodsSection =
+    showValidationHighlights && missingRequirementIds.has("avoidFoods");
+
+  const validateRequiredSections = () => {
+    if (missingRequirements.length === 0) {
+      setShowValidationHighlights(false);
+      return true;
+    }
+
+    setShowValidationHighlights(true);
+    scrollToRequirement(missingRequirements[0]?.id);
+    return false;
+  };
+
   const portionGuideCount = useMemo(
     () =>
       portionGuideRows.filter(
@@ -466,6 +597,181 @@ export default function QuickDeliverableClient() {
       ).length,
     [portionGuideRows],
   );
+
+  const hasMealsContent = useMemo(
+    () =>
+      planMode === "single"
+        ? meals.some((meal) => meal.mealText.trim().length > 0)
+        : meals.some((meal) =>
+            QUICK_WEEK_DAYS.some(
+              (day) => (meal.weeklyMealTexts?.[day] || "").trim().length > 0,
+            ),
+          ),
+    [meals, planMode],
+  );
+
+  const getSectionStatus = (
+    isVisible: boolean,
+    isComplete: boolean,
+  ): SectionProgressStatus => {
+    if (!isVisible) return "hidden";
+    return isComplete ? "complete" : "pending";
+  };
+
+  const quickGuideSections = useMemo(
+    () => [
+      {
+        id: "general" as QuickGuideSectionId,
+        label: "Informacion general",
+        status: getSectionStatus(true, title.trim().length > 0),
+        ref: identitySectionRef,
+      },
+      {
+        id: "meals" as QuickGuideSectionId,
+        label: "Tabla de comidas",
+        status: getSectionStatus(includeMeals, hasMealsContent),
+        ref: mealsSectionRef,
+      },
+      {
+        id: "avoidFoods" as QuickGuideSectionId,
+        label: "Alimentos a evitar",
+        status: getSectionStatus(includeAvoidFoods, validAvoidFoods.length > 0),
+        ref: avoidFoodsSectionRef,
+      },
+      {
+        id: "resources" as QuickGuideSectionId,
+        label: "Recursos",
+        status: getSectionStatus(includeResources, selectedResolvedResources.length > 0),
+        ref: resourcesSectionRef,
+      },
+      {
+        id: "portions" as QuickGuideSectionId,
+        label: "Porciones",
+        status: getSectionStatus(includePortionGuide, portionGuideCount > 0),
+        ref: portionsSectionRef,
+      },
+      {
+        id: "summary" as QuickGuideSectionId,
+        label: "Resumen",
+        status: getSectionStatus(
+          true,
+          hasMealsContent ||
+            validAvoidFoods.length > 0 ||
+            selectedResolvedResources.length > 0 ||
+            (includePortionGuide && portionGuideCount > 0),
+        ),
+        ref: summarySectionRef,
+      },
+    ],
+    [
+      title,
+      includeMeals,
+      hasMealsContent,
+      includeAvoidFoods,
+      validAvoidFoods.length,
+      includeResources,
+      selectedResolvedResources.length,
+      includePortionGuide,
+      portionGuideCount,
+    ],
+  );
+
+  const scrollToGuideSection = (sectionId: QuickGuideSectionId) => {
+    const targetSection = quickGuideSections.find((section) => section.id === sectionId);
+    targetSection?.ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  useEffect(() => {
+    const updateActiveSection = () => {
+      const viewportOffset = 180;
+      let nextSection = quickGuideSections[0]?.id ?? "general";
+
+      quickGuideSections.forEach((section) => {
+        const top = section.ref.current?.getBoundingClientRect().top;
+        if (typeof top === "number" && top - viewportOffset <= 0) {
+          nextSection = section.id;
+        }
+      });
+
+      setActiveGuideSection(nextSection);
+    };
+
+    updateActiveSection();
+    window.addEventListener("scroll", updateActiveSection, { passive: true });
+    window.addEventListener("resize", updateActiveSection);
+
+    return () => {
+      window.removeEventListener("scroll", updateActiveSection);
+      window.removeEventListener("resize", updateActiveSection);
+    };
+  }, [quickGuideSections]);
+
+  const quickAiMealTargets = useMemo(() => {
+    const counts = new Map<string, number>();
+    if (planMode === "single") {
+      meals.forEach((meal) => {
+        const key = meal.section.trim();
+        if (!key || meal.mealText.trim()) return;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      });
+    } else {
+      meals.forEach((meal) => {
+        const key = meal.section.trim();
+        if (!key) return;
+        QUICK_WEEK_DAYS.forEach((day) => {
+          const value = meal.weeklyMealTexts?.[day] || "";
+          if (!value.trim()) {
+            counts.set(key, (counts.get(key) || 0) + 1);
+          }
+        });
+      });
+    }
+
+    return Array.from(counts.entries()).map(([mealSection, count]) => ({
+      mealSection,
+      count,
+    }));
+  }, [meals, planMode]);
+
+  const filteredCreatedRecipes = useMemo(() => {
+    const search = createdRecipesSearch.trim().toLowerCase();
+    return createdRecipes.filter((recipe) => {
+      if (createdRecipesOnlyMine && recipe.isMine === false) {
+        return false;
+      }
+      if (!search) return true;
+      const haystack = [
+        recipe.name,
+        recipe.description || "",
+        recipe.preparation || "",
+        recipe.mealSection || "",
+        ...(recipe.metadata?.ingredients || []),
+        ...(recipe.metadata?.customIngredientNames || []),
+        ...(recipe.metadata?.customIngredients || []).map((item) => item?.name || ""),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(search);
+    });
+  }, [createdRecipes, createdRecipesOnlyMine, createdRecipesSearch]);
+
+  function getCreatedRecipeMatchScore(recipe: CreatedRecipeSummary, section: QuickSection) {
+    const normalizedSection = normalizeQuickText(section);
+    const recipeSection = normalizeQuickText(recipe.mealSection || "");
+    if (recipeSection && recipeSection === normalizedSection) return 100;
+    if (recipeSection && recipeSection.includes(normalizedSection)) return 80;
+    if (normalizedSection.includes(recipeSection)) return 60;
+    return 0;
+  }
+
+  const createdRecipeMatches = useMemo(() => {
+    return meals.reduce((total, meal) => {
+      const hasMatch = filteredCreatedRecipes.some(
+        (recipe) => getCreatedRecipeMatchScore(recipe, meal.section) >= 80,
+      );
+      return total + (hasMatch ? 1 : 0);
+    }, 0);
+  }, [filteredCreatedRecipes, meals]);
 
   const applyImportedQuickCreation = (creation: ImportedCreation) => {
     if (creation.type !== "FAST_DELIVERABLE") {
@@ -499,6 +805,7 @@ export default function QuickDeliverableClient() {
         ? content.title
         : creation.name || DEFAULT_TITLE,
     );
+    setPlanMode(content.planMode === "weekly" ? "weekly" : "single");
     setMeals(importedMeals.length > 0 ? importedMeals : [createMeal("Desayuno")]);
     setAvoidFoods(
       importedAvoidFoods.length > 0
@@ -550,9 +857,269 @@ export default function QuickDeliverableClient() {
           }
         : createEmptyQuickPatient(),
     );
+    setIsManualPatientExpanded(false);
 
     setIsImportCreationModalOpen(false);
     toast.success("Entregable rápido importado al borrador actual.");
+  };
+
+  const loadCreatedRecipes = async () => {
+    setIsLoadingCreatedRecipes(true);
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi("/recipes", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        throw new Error("No se pudieron cargar los platos creados.");
+      }
+
+      const data = await response.json();
+      const normalized: CreatedRecipeSummary[] = Array.isArray(data)
+        ? (data as RecipeApiResponseItem[]).map((recipe) => ({
+            id: recipe.id,
+            name: recipe.name,
+            description: recipe.description || null,
+            preparation: recipe.preparation || null,
+            mealSection: recipe.metadata?.mealSection || recipe.mealSection || null,
+            calories: recipe.calories || 0,
+            proteins: recipe.proteins || 0,
+            carbs: recipe.carbs || 0,
+            lipids: recipe.lipids || 0,
+            isMine: Boolean(recipe.isMine),
+            metadata: recipe.metadata || null,
+          }))
+        : [];
+
+      setCreatedRecipes(normalized);
+    } catch (error) {
+      console.error("Error loading created recipes", error);
+      toast.error("No se pudieron cargar los platos creados.");
+    } finally {
+      setIsLoadingCreatedRecipes(false);
+    }
+  };
+
+  const fillMealsWithCreatedRecipes = () => {
+    const pool = createdRecipes
+      .filter((recipe) => (createdRecipesOnlyMine ? recipe.isMine !== false : true))
+      .filter((recipe) => {
+        const search = createdRecipesSearch.trim().toLowerCase();
+        if (!search) return true;
+        const haystack = [
+          recipe.name,
+          recipe.description || "",
+          recipe.preparation || "",
+          recipe.mealSection || "",
+          ...(recipe.metadata?.ingredients || []),
+          ...(recipe.metadata?.customIngredientNames || []),
+          ...(recipe.metadata?.customIngredients || []).map((item) => item?.name || ""),
+        ]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(search);
+      });
+
+    if (pool.length === 0) {
+      toast.error("No encontramos platos creados para rellenar.");
+      return;
+    }
+
+    const sortedPool = [...pool];
+
+    setMeals((current) => {
+      const usedIds = new Set<string>();
+      const nextMeals = current.map((meal) => {
+        if (!meal.section.trim()) return meal;
+
+        if (planMode === "single") {
+          const exactMatch = sortedPool.find(
+            (recipe) =>
+              !usedIds.has(recipe.id) &&
+              getCreatedRecipeMatchScore(recipe, meal.section as QuickSection) >= 80,
+          );
+
+          const fallbackMatch = createdRecipesAllowMismatch
+            ? sortedPool.find((recipe) => !usedIds.has(recipe.id))
+            : undefined;
+
+          const selectedRecipe = exactMatch || fallbackMatch;
+          if (!selectedRecipe || meal.mealText.trim()) {
+            return meal;
+          }
+
+          usedIds.add(selectedRecipe.id);
+          return {
+            ...meal,
+            mealText: selectedRecipe.name,
+          };
+        }
+
+        const nextWeeklyTexts = { ...(meal.weeklyMealTexts || {}) };
+        QUICK_WEEK_DAYS.forEach((day) => {
+          if ((nextWeeklyTexts[day] || "").trim()) return;
+          const exactMatch = sortedPool.find(
+            (recipe) =>
+              !usedIds.has(recipe.id) &&
+              getCreatedRecipeMatchScore(recipe, meal.section as QuickSection) >= 80,
+          );
+          const fallbackMatch = createdRecipesAllowMismatch
+            ? sortedPool.find((recipe) => !usedIds.has(recipe.id))
+            : undefined;
+          const selectedRecipe = exactMatch || fallbackMatch;
+          if (!selectedRecipe) return;
+          usedIds.add(selectedRecipe.id);
+          nextWeeklyTexts[day] = selectedRecipe.name;
+        });
+
+        return {
+          ...meal,
+          weeklyMealTexts: nextWeeklyTexts,
+        };
+      });
+
+      return nextMeals;
+    });
+
+    setIsCreatedRecipesModalOpen(false);
+    toast.success("Tus platos creados se usaron para rellenar la tabla.");
+  };
+
+  const generateMealsWithAi = async () => {
+    if (quickAiMealTargets.length === 0) {
+      toast.error("No hay espacios vacios con categoria para rellenar.");
+      return;
+    }
+
+    const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+    if (!token) {
+      toast.error("No se encontro una sesion activa.");
+      return;
+    }
+
+    const pendingRows = meals.map((meal) => ({
+      id: meal.id,
+      section: meal.section,
+      mealText: meal.mealText,
+      weeklyMealTexts: { ...(meal.weeklyMealTexts || {}) },
+    }));
+
+    setIsCreatedRecipesModalOpen(false);
+    setIsGeneratingQuickAi(true);
+    toast.info("La IA esta generando opciones. Puedes seguir editando mientras tanto.");
+
+    try {
+      const response = await fetchApi("/recipes/quick-ai-fill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          payload: {
+            notes: aiNotes,
+            allowedFoodsMain: aiAllowedFoods
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean),
+            restrictedFoods: aiRestrictedFoods
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean),
+            mealSectionTargets: quickAiMealTargets,
+            generationMode: planMode,
+            patient: {
+              fullName: selectedPatient.fullName || "",
+              gender: selectedPatient.gender || "",
+              ageYears: selectedPatient.ageYears ?? undefined,
+              restrictions: selectedPatient.restrictions || [],
+              likes: selectedPatient.likes || "",
+              fitnessGoals: selectedPatient.fitnessGoals || "",
+              clinicalSummary: selectedPatient.nutritionalFocus || "",
+            },
+            existingDishes: meals
+              .flatMap((meal) => {
+                if (!meal.section.trim()) return [];
+                if (planMode === "single") {
+                  return meal.mealText.trim()
+                    ? [{ title: meal.mealText.trim(), mealSection: meal.section }]
+                    : [];
+                }
+                return QUICK_WEEK_DAYS
+                  .map((day) => (meal.weeklyMealTexts?.[day] || "").trim())
+                  .filter(Boolean)
+                  .map((title) => ({ title, mealSection: meal.section }));
+              }),
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.message || "No se pudo generar con IA.");
+      }
+
+      const result = await response.json();
+      const dishes = Array.isArray(result?.dishes)
+        ? result.dishes
+            .map((dish: { title?: string; mealSection?: string }) => ({
+              title: String(dish?.title || "").trim(),
+              mealSection: String(dish?.mealSection || "").trim(),
+            }))
+            .filter((dish: { title: string; mealSection: string }) => dish.title && dish.mealSection)
+        : [];
+
+      setMeals((current) => {
+        const remaining = [...dishes];
+        return current.map((meal) => {
+          const original = pendingRows.find((row) => row.id === meal.id);
+          if (!meal.section.trim()) return meal;
+
+          if (planMode === "single") {
+            const targetDishIndex = remaining.findIndex(
+              (dish) => getCreatedRecipeMatchScore({ id: "", name: dish.title, mealSection: dish.mealSection }, meal.section as QuickSection) >= 80,
+            );
+            if (
+              targetDishIndex === -1 ||
+              meal.mealText.trim() ||
+              (original?.mealText || "").trim()
+            ) {
+              return meal;
+            }
+            const [selectedDish] = remaining.splice(targetDishIndex, 1);
+            return {
+              ...meal,
+              mealText: selectedDish.title,
+            };
+          }
+
+          const nextWeeklyTexts = { ...(meal.weeklyMealTexts || {}) };
+          QUICK_WEEK_DAYS.forEach((day) => {
+            const originalText = original?.weeklyMealTexts?.[day] || "";
+            const currentText = nextWeeklyTexts[day] || "";
+            if (originalText.trim() || currentText.trim()) return;
+            const targetDishIndex = remaining.findIndex(
+              (dish) => getCreatedRecipeMatchScore({ id: "", name: dish.title, mealSection: dish.mealSection }, meal.section as QuickSection) >= 80,
+            );
+            if (targetDishIndex === -1) return;
+            const [selectedDish] = remaining.splice(targetDishIndex, 1);
+            nextWeeklyTexts[day] = selectedDish.title;
+          });
+
+          return {
+            ...meal,
+            weeklyMealTexts: nextWeeklyTexts,
+          };
+        });
+      });
+
+      toast.success("La IA relleno los espacios vacios de alimentos.");
+    } catch (error) {
+      console.error("Error generating meals with AI", error);
+      toast.error(error instanceof Error ? error.message : "No se pudo generar con IA.");
+    } finally {
+      setIsGeneratingQuickAi(false);
+    }
   };
 
   const openPatientModal = async () => {
@@ -571,6 +1138,23 @@ export default function QuickDeliverableClient() {
     setPatientSearch("");
     setIsPatientModalOpen(true);
   };
+
+  const startManualPatientEntry = () => {
+    setIsManualPatientExpanded(true);
+    identitySectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const clearSelectedPatient = () => {
+    setSelectedPatient(createEmptyQuickPatient());
+    setIsManualPatientExpanded(false);
+    toast.info("Paciente quitado del entregable.");
+  };
+
+  useEffect(() => {
+    if (isCreatedRecipesModalOpen) {
+      void loadCreatedRecipes();
+    }
+  }, [isCreatedRecipesModalOpen]);
 
   const fetchResources = async () => {
     try {
@@ -632,14 +1216,34 @@ export default function QuickDeliverableClient() {
     }
   };
 
-  const updateMeal = (mealId: string, field: keyof QuickMeal, value: string) => {
+  const updateMeal = (
+    mealId: string,
+    field: "section" | "time" | "mealText" | "portion",
+    value: string,
+  ) => {
     setMeals((current) =>
       current.map((meal) => (meal.id === mealId ? { ...meal, [field]: value } : meal)),
     );
   };
 
+  const updateWeeklyMealText = (mealId: string, day: QuickWeekDay, value: string) => {
+    setMeals((current) =>
+      current.map((meal) =>
+        meal.id === mealId
+          ? {
+              ...meal,
+              weeklyMealTexts: {
+                ...(meal.weeklyMealTexts || {}),
+                [day]: value,
+              },
+            }
+          : meal,
+      ),
+    );
+  };
+
   const addMeal = () => {
-    setMeals((current) => [...current, createMeal(sectionToAdd)]);
+    setMeals((current) => [...current, createMeal()]);
   };
 
   const removeMeal = (mealId: string) => {
@@ -700,7 +1304,18 @@ export default function QuickDeliverableClient() {
   const buildPdfPayload = () => ({
     name: title.trim() || DEFAULT_TITLE,
     patientName: selectedPatient?.fullName || null,
-    meals: includeMeals ? meals : [],
+    planMode,
+    meals: includeMeals
+      ? planMode === "single"
+        ? meals
+        : meals.flatMap((meal) =>
+            QUICK_WEEK_DAYS.map((day) => ({
+              ...meal,
+              section: `${day} - ${meal.section || "Sin categoria"}`,
+              mealText: meal.weeklyMealTexts?.[day] || "",
+            })),
+          )
+      : [],
     avoidFoods: includeAvoidFoods ? validAvoidFoods : [],
     resources: includeResources
       ? selectedResolvedResources.map((resource) => ({
@@ -741,20 +1356,15 @@ export default function QuickDeliverableClient() {
   });
 
   const handleExportPdf = async () => {
-    if (isExportDisabled) {
-      toast.error("Faltan datos obligatorios para generar el PDF.", {
-        description:
-          missingRequirements.length > 0
-            ? `Haz clic para ir a ${missingRequirements[0].label.toLowerCase()}.`
-            : "Revisa el contenido mínimo del entregable.",
-      });
-      scrollToRequirement(missingRequirements[0]?.id);
+    if (!validateRequiredSections()) {
+      toast.error("Completa las secciones marcadas para generar el PDF.");
       return;
     }
     setIsExportingPdf(true);
     try {
       await downloadFastDeliverablePdf(buildPdfPayload());
       toast.success("PDF express descargado correctamente.");
+      setIsSaveCreationModalOpen(true);
     } catch (error) {
       console.error(error);
       toast.error("No se pudo generar el PDF.");
@@ -764,6 +1374,11 @@ export default function QuickDeliverableClient() {
   };
 
   const handleSaveToCreations = async () => {
+    if (!validateRequiredSections()) {
+      toast.error("Completa las secciones marcadas antes de guardar la creación.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       await saveCreation({
@@ -771,6 +1386,7 @@ export default function QuickDeliverableClient() {
         type: "FAST_DELIVERABLE",
         content: {
           title,
+          planMode,
           meals,
           avoidFoods: validAvoidFoods,
           resources: resolvedResourcePages,
@@ -817,9 +1433,11 @@ export default function QuickDeliverableClient() {
 
   const resetQuickDeliverable = () => {
     setTitle(DEFAULT_TITLE);
+    setPlanMode("single");
     setMeals([createMeal("Desayuno"), createMeal("Almuerzo"), createMeal("Cena")]);
     setAvoidFoods([createAvoidFoodRow()]);
     setSelectedPatient(createEmptyQuickPatient());
+    setIsManualPatientExpanded(false);
     setResolvedResourcePages([]);
     setSelectedResourceKeys([]);
     setIncludeMeals(true);
@@ -831,27 +1449,13 @@ export default function QuickDeliverableClient() {
     toast.success("Entregable rápido reiniciado.");
   };
 
-  const printJson = () => {
-    console.group("quick-deliverable");
-    console.log(buildPdfPayload());
-    console.groupEnd();
-    toast.info("JSON impreso en consola.");
-  };
-
   const actionDockItems: ActionDockItem[] = [
     {
-      id: "patient",
-      icon: User,
-      label: selectedPatient.fullName?.trim() ? "Cambiar paciente" : "Sin paciente asignado",
+      id: "created-recipes",
+      icon: ChefHat,
+      label: "Platos creados",
       variant: "emerald",
-      onClick: openPatientModal,
-    },
-    {
-      id: "resource",
-      icon: Library,
-      label: "Agregar recurso",
-      variant: "indigo",
-      onClick: openResourceModal,
+      onClick: () => setIsCreatedRecipesModalOpen(true),
     },
     {
       id: "save",
@@ -859,20 +1463,6 @@ export default function QuickDeliverableClient() {
       label: "Guardar creación",
       variant: "slate",
       onClick: () => setIsSaveCreationModalOpen(true),
-    },
-    {
-      id: "import",
-      icon: Library,
-      label: "Importar creación",
-      variant: "slate",
-      onClick: () => setIsImportCreationModalOpen(true),
-    },
-    {
-      id: "json",
-      icon: FileCode,
-      label: "Imprimir JSON",
-      variant: "slate",
-      onClick: printJson,
     },
     {
       id: "reset",
@@ -886,35 +1476,22 @@ export default function QuickDeliverableClient() {
   return (
     <>
       <ModuleLayout
-        title="Rápido"
+        title="Entregable Rápido"
         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
         step={{ number: "Express", label: "Entregable rápido", icon: NotebookText, color: "text-slate-600" }}
         rightNavItems={actionDockItems}
-        className="max-w-6xl"
+        className="max-w-[68rem]"
         footer={
           <ModuleFooter>
             <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
               Formato resumido para consulta única
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-4">
-              {isExportDisabled && (
-                <button
-                  type="button"
-                  onClick={() => scrollToRequirement(missingRequirements[0]?.id)}
-                  className="flex items-center gap-2 px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-[10px] font-bold animate-pulse text-left hover:bg-rose-100"
-                >
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  <span>
-                    Faltan datos obligatorios. Haz clic para ir a:
-                    {missingRequirements.map((item) => ` ${item.label}`).join(", ")}
-                  </span>
-                </button>
-              )}
               <Button variant="outline" className="h-11 rounded-2xl border-slate-200" onClick={() => setIsSaveCreationModalOpen(true)}>
                 <Save className="mr-2 h-4 w-4" />
                 Guardar
               </Button>
-              <Button className="h-11 rounded-2xl bg-slate-900 px-6 text-white hover:bg-slate-800" onClick={handleExportPdf} disabled={isExportingPdf || isExportDisabled}>
+              <Button className="h-11 rounded-2xl bg-slate-900 px-6 text-white hover:bg-slate-800" onClick={handleExportPdf} disabled={isExportingPdf}>
                 <Download className="mr-2 h-4 w-4" />
                 {isExportingPdf ? "Generando..." : "Descargar PDF"}
               </Button>
@@ -929,8 +1506,8 @@ export default function QuickDeliverableClient() {
           moduleLabel="Rápido"
         />
 
-        <div className="mt-6 space-y-8">
-          <div className="rounded-3xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-900">
+        <div className="mt-10 space-y-8 xl:px-4">
+          <div className="rounded-3xl border border-amber-200 bg-amber-50/70 px-5 py-4 text-sm text-amber-900">
             <div className="flex items-start gap-3">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
@@ -938,19 +1515,35 @@ export default function QuickDeliverableClient() {
               </p>
             </div>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-medium text-slate-600 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-xs font-medium text-slate-600 shadow-sm">
             Los campos con <strong>*</strong> son obligatorios para generar el PDF. El paciente es opcional en este modo.
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-[1.5fr,0.9fr]">
-            <div className="space-y-6">
+          <div className="relative">
+            {isSidebarCollapsed && (
+              <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
+                <div>
+                  <SectionProgressNav
+                    items={quickGuideSections.map((section) => ({
+                      id: section.id,
+                      label: section.label,
+                      status: section.status,
+                      active: activeGuideSection === section.id,
+                      onClick: () => scrollToGuideSection(section.id),
+                    }))}
+                  />
+                </div>
+              </div>
+            )}
+
+          <div className="grid gap-7 xl:grid-cols-[1.35fr,0.8fr]">
+            <div className="space-y-8">
               <section
                 ref={identitySectionRef}
-                className={cn(
-                "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm",
-                !includeResources && "opacity-55",
-              )}>
-                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm"
+              >
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                   <div className="flex-1 space-y-2">
                     <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
                       Identidad del entregable
@@ -979,17 +1572,30 @@ export default function QuickDeliverableClient() {
                         ? `Paciente: ${selectedPatient.fullName}`
                         : "Sin paciente asignado"}
                     </Button>
+                    {selectedPatient.fullName?.trim() && (
+                      <button
+                        type="button"
+                        onClick={clearSelectedPatient}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 transition-colors hover:bg-rose-100"
+                        title="Quitar paciente"
+                        aria-label="Quitar paciente"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => setSelectedPatient(createEmptyQuickPatient())}
-                      className="text-xs font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800"
+                      onClick={startManualPatientEntry}
+                      className="text-left text-xs font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800"
                     >
                       O completa manualmente sin reutilizar uno existente.
                     </button>
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                {isManualPatientExpanded && (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
+                  <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                       Nombre
@@ -1050,7 +1656,7 @@ export default function QuickDeliverableClient() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                       Objetivo / enfoque
@@ -1085,7 +1691,7 @@ export default function QuickDeliverableClient() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                       Restricciones
@@ -1120,70 +1726,127 @@ export default function QuickDeliverableClient() {
                       }
                       placeholder="Ej: preparaciones saladas, frutas, yogurt..."
                     />
+                    </div>
                   </div>
+                </div>
+                )}
                 </div>
               </section>
 
               <section
                 ref={mealsSectionRef}
                 className={cn(
-                "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm",
-                !includeMeals && "opacity-55",
-              )}>
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  "rounded-3xl border border-slate-200 bg-white p-10 shadow-sm",
+                  shouldHighlightMealsSection && "border-rose-400 ring-4 ring-rose-100",
+                  !includeMeals && "opacity-55",
+                )}
+              >
+                <div className="flex flex-col gap-5">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h2 className="text-xl font-black text-slate-900">
-                      Tabla de comidas <span className="text-rose-600">*</span>
-                    </h2>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <h2 className="text-xl font-black text-slate-900">
+                        Tabla de comidas <span className="text-rose-600">*</span>
+                      </h2>
+                      <button
+                        type="button"
+                        onClick={() => setIncludeMeals((current) => !current)}
+                        className={cn(
+                          "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors",
+                          includeMeals
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 bg-white text-slate-500",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "h-2.5 w-2.5 rounded-full",
+                            includeMeals ? "bg-emerald-500" : "bg-slate-300",
+                          )}
+                        />
+                        {includeMeals ? "Ocultar seccion" : "Incluir seccion"}
+                      </button>
+                    </div>
                     <p className="mt-1 text-sm text-slate-500">
                       Arrastra los bloques para ordenar el día y completa hora,
                       indicación y porción.
                     </p>
                   </div>
-                  <div className="flex gap-2 items-center">
-                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={includeMeals}
-                        onChange={(e) => setIncludeMeals(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 text-emerald-600"
-                      />
-                      Incluir
-                    </label>
-                    <select
-                      value={sectionToAdd}
-                      onChange={(e) =>
-                        setSectionToAdd(e.target.value as QuickSection)
-                      }
-                      className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900"
-                      disabled={!includeMeals}
-                    >
-                      {QUICK_SECTIONS.map((section) => (
-                        <option key={section} value={section}>
-                          {section}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      className="h-11 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
-                      onClick={addMeal}
-                      disabled={!includeMeals}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Agregar
-                    </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 rounded-2xl border-slate-200 px-4 text-slate-700 md:self-start"
+                    onClick={() => setIsCreatedRecipesModalOpen(true)}
+                    title="Rellenar con platos creados"
+                  >
+                    <Sparkles className="mr-2 h-4 w-4 text-emerald-600" />
+                    Rellenar con IA / platos creados
+                  </Button>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="hidden flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIncludeMeals((current) => !current)}
+                        className={cn(
+                          "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest transition-colors",
+                          includeMeals
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 bg-white text-slate-500",
+                        )}
+                      >
+                        <span className={cn(
+                          "h-2.5 w-2.5 rounded-full",
+                          includeMeals ? "bg-emerald-500" : "bg-slate-300",
+                        )} />
+                        {includeMeals ? "Seccion visible" : "Seccion oculta"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPlanMode((current) => (current === "single" ? "weekly" : "single"))}
+                        className={cn(
+                          "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest transition-colors",
+                          planMode === "weekly"
+                            ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                            : "border-slate-200 bg-white text-slate-600",
+                        )}
+                      >
+                        {planMode === "weekly" ? "Vista semanal activa" : "Cambiar a semanal"}
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      {planMode === "weekly"
+                        ? "Categoria, hora y porcion se editan una vez; alimentos cambian por dia."
+                        : "Agrega filas vacias y completa categoria, alimentos, hora y porciones."}
+                    </p>
                   </div>
                 </div>
 
-                <div className="mt-6 overflow-x-auto rounded-3xl border border-slate-200">
+                <div className={cn(
+                  "overflow-x-auto rounded-3xl border border-slate-200",
+                  planMode === "weekly" && "hidden",
+                )}>
                   <table className="w-full min-w-[860px] bg-white">
                     <thead className="bg-slate-50">
                       <tr className="border-b border-slate-200">
                         <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                          Sección
+                          Categoría
                         </th>
                         <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                          Alimentos
+                          <div className="flex items-center gap-2">
+                            <span>Alimentos</span>
+                            <button
+                              type="button"
+                              onClick={() => setIsCreatedRecipesModalOpen(true)}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:bg-emerald-100"
+                              title="Rellenar con IA / platos creados"
+                              aria-label="Rellenar con IA / platos creados"
+                            >
+                              <Sparkles className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </th>
                         <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-36">
                           Hora
@@ -1208,6 +1871,7 @@ export default function QuickDeliverableClient() {
                               className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900"
                               disabled={!includeMeals}
                             >
+                              <option value="">Seleccionar</option>
                               {QUICK_SECTIONS.map((section) => (
                                 <option key={section} value={section}>
                                   {section}
@@ -1222,7 +1886,7 @@ export default function QuickDeliverableClient() {
                                 updateMeal(meal.id, "mealText", e.target.value)
                               }
                               className="h-11 rounded-2xl border-slate-200 bg-white"
-                              placeholder={`Ej: ${meal.section.toLowerCase()} con fruta`}
+                                placeholder="Nombre del plato o preparacion"
                               disabled={!includeMeals}
                             />
                           </td>
@@ -1260,36 +1924,161 @@ export default function QuickDeliverableClient() {
                           </td>
                         </tr>
                       ))}
+                      <tr>
+                        <td colSpan={5} className="px-4 py-4">
+                          <button
+                            type="button"
+                            onClick={addMeal}
+                            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                            disabled={!includeMeals}
+                          >
+                            <Plus className="h-4 w-4" />
+                            Agregar fila
+                          </button>
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
+                </div>
+                {planMode === "weekly" && (
+                  <div className="overflow-x-auto rounded-3xl border border-slate-200">
+                    <table className="w-full min-w-[1500px] bg-white">
+                      <thead className="bg-slate-50">
+                        <tr className="border-b border-slate-200">
+                          <th className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Categoria</th>
+                          {QUICK_WEEK_DAYS.map((day) => (
+                            <th key={day} className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                              {day}
+                            </th>
+                          ))}
+                          <th className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-28">Hora</th>
+                          <th className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-36">Porciones</th>
+                          <th className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">Accion</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {meals.map((meal) => (
+                          <tr key={`weekly-${meal.id}`} className="border-b border-slate-100 last:border-b-0">
+                            <td className="px-3 py-3 align-top">
+                              <select
+                                value={meal.section}
+                                onChange={(e) => updateMeal(meal.id, "section", e.target.value)}
+                                className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-900"
+                                disabled={!includeMeals}
+                              >
+                                <option value="">Seleccionar</option>
+                                {QUICK_SECTIONS.map((section) => (
+                                  <option key={`weekly-${meal.id}-${section}`} value={section}>
+                                    {section}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            {QUICK_WEEK_DAYS.map((day) => (
+                              <td key={`${meal.id}-${day}`} className="px-3 py-3 align-top">
+                                <Input
+                                  value={meal.weeklyMealTexts?.[day] || ""}
+                                  onChange={(e) => updateWeeklyMealText(meal.id, day, e.target.value)}
+                                  className="h-10 rounded-2xl border-slate-200 bg-white text-xs"
+                                  placeholder="Alimento"
+                                  disabled={!includeMeals}
+                                />
+                              </td>
+                            ))}
+                            <td className="px-3 py-3 align-top">
+                              <Input
+                                value={meal.time}
+                                onChange={(e) => updateMeal(meal.id, "time", e.target.value)}
+                                className="h-10 rounded-2xl border-slate-200 bg-white text-xs"
+                                placeholder="07:30"
+                                disabled={!includeMeals}
+                              />
+                            </td>
+                            <td className="px-3 py-3 align-top">
+                              <Input
+                                value={meal.portion}
+                                onChange={(e) => updateMeal(meal.id, "portion", e.target.value)}
+                                className="h-10 rounded-2xl border-slate-200 bg-white text-xs"
+                                placeholder="2 porciones"
+                                disabled={!includeMeals}
+                              />
+                            </td>
+                            <td className="px-3 py-3 align-top">
+                              <button
+                                type="button"
+                                onClick={() => removeMeal(meal.id)}
+                                className="flex h-10 w-10 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                                disabled={!includeMeals}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        <tr>
+                          <td colSpan={10} className="px-4 py-4">
+                            <button
+                              type="button"
+                              onClick={addMeal}
+                              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                              disabled={!includeMeals}
+                            >
+                              <Plus className="h-4 w-4" />
+                              Agregar fila semanal
+                            </button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
                 </div>
               </section>
 
               <section
                 ref={avoidFoodsSectionRef}
                 className={cn(
-                "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm",
-                !includeAvoidFoods && "opacity-55",
-              )}>
+                  "rounded-3xl border border-slate-200 bg-white p-10 shadow-sm",
+                  shouldHighlightAvoidFoodsSection && "border-rose-400 ring-4 ring-rose-100",
+                  !includeAvoidFoods && "opacity-55",
+                )}>
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-black text-slate-900">
                       Alimentos a evitar <span className="text-rose-600">*</span>
                     </h2>
+                    <button
+                      type="button"
+                      onClick={() => setIncludeAvoidFoods((current) => !current)}
+                      className={cn(
+                        "mt-3 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors",
+                        includeAvoidFoods
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-slate-200 bg-white text-slate-500",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "h-2.5 w-2.5 rounded-full",
+                          includeAvoidFoods ? "bg-emerald-500" : "bg-slate-300",
+                        )}
+                      />
+                      {includeAvoidFoods ? "Ocultar seccion" : "Incluir seccion"}
+                    </button>
                     <p className="mt-1 text-sm text-slate-500">
                       Agrega filas simples para dejar restricciones o
                       recordatorios rápidos.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                    <label className="hidden items-center gap-2 text-sm font-medium text-slate-600">
                       <input
                         type="checkbox"
                         checked={includeAvoidFoods}
                         onChange={(e) => setIncludeAvoidFoods(e.target.checked)}
                         className="h-4 w-4 rounded border-slate-300 text-emerald-600"
                       />
-                      Incluir
+                      Incluir seccion
                     </label>
                     <Button
                       variant="outline"
@@ -1348,28 +2137,49 @@ export default function QuickDeliverableClient() {
             </div>
 
             <div className="space-y-6">
-              <section className={cn(
-                "rounded-3xl border border-slate-200 bg-white p-6 shadow-sm",
-                !includePortionGuide && "opacity-55",
-              )}>
+              <section
+                ref={resourcesSectionRef}
+                className={cn(
+                  "rounded-3xl border border-slate-200 bg-white p-10 shadow-sm",
+                  !includeResources && "opacity-55",
+                )}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-black text-slate-900">
                       Recursos específicos
                     </h2>
+                    <button
+                      type="button"
+                      onClick={() => setIncludeResources((current) => !current)}
+                      className={cn(
+                        "mt-3 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors",
+                        includeResources
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-slate-200 bg-white text-slate-500",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "h-2.5 w-2.5 rounded-full",
+                          includeResources ? "bg-emerald-500" : "bg-slate-300",
+                        )}
+                      />
+                      {includeResources ? "Ocultar seccion" : "Incluir seccion"}
+                    </button>
                     <p className="mt-1 text-sm text-slate-500">
                       Puedes sumar material breve adaptado al paciente.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                    <label className="hidden items-center gap-2 text-sm font-medium text-slate-600">
                       <input
                         type="checkbox"
                         checked={includeResources}
                         onChange={(e) => setIncludeResources(e.target.checked)}
                         className="h-4 w-4 rounded border-slate-300 text-emerald-600"
                       />
-                      Incluir
+                      Incluir seccion
                     </label>
                     <Button
                       variant="outline"
@@ -1512,18 +2322,36 @@ export default function QuickDeliverableClient() {
                 </div>
               </section>
 
-              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <section ref={portionsSectionRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-black text-slate-900">
                       Guía resumida de porciones
                     </h2>
+                    <button
+                      type="button"
+                      onClick={() => setIncludePortionGuide((current) => !current)}
+                      className={cn(
+                        "mt-3 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors",
+                        includePortionGuide
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-slate-200 bg-white text-slate-500",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "h-2.5 w-2.5 rounded-full",
+                          includePortionGuide ? "bg-emerald-500" : "bg-slate-300",
+                        )}
+                      />
+                      {includePortionGuide ? "Ocultar seccion" : "Incluir seccion"}
+                    </button>
                     <p className="mt-1 text-sm text-slate-500">
                       Resumen profesional simple para que el paciente entienda
                       referencias base.
                     </p>
                   </div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                  <label className="hidden items-center gap-2 text-sm font-medium text-slate-600">
                     <input
                       type="checkbox"
                       checked={includePortionGuide}
@@ -1532,7 +2360,7 @@ export default function QuickDeliverableClient() {
                       }
                       className="h-4 w-4 rounded border-slate-300 text-emerald-600"
                     />
-                    Incluir
+                    Incluir seccion
                   </label>
                 </div>
 
@@ -1610,7 +2438,7 @@ export default function QuickDeliverableClient() {
                 </div>
               </section>
 
-              <section className="rounded-3xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm">
+              <section ref={summarySectionRef} className="rounded-3xl border border-slate-200 bg-slate-900 p-10 text-white shadow-sm">
                 <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">
                   Resumen express
                 </p>
@@ -1649,6 +2477,7 @@ export default function QuickDeliverableClient() {
               </section>
             </div>
           </div>
+          </div>
         </div>
       </ModuleLayout>
 
@@ -1673,6 +2502,7 @@ export default function QuickDeliverableClient() {
                   type="button"
                   onClick={() => {
                     setSelectedPatient(patient);
+                    setIsManualPatientExpanded(false);
                     setIsPatientModalOpen(false);
                     toast.success(`Paciente ${patient.fullName} asignado.`);
                   }}
@@ -1797,6 +2627,221 @@ export default function QuickDeliverableClient() {
           >
             Agregar seleccionados
           </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isCreatedRecipesModalOpen}
+        onClose={() => setIsCreatedRecipesModalOpen(false)}
+        title="Platos creados"
+        className="max-w-3xl"
+      >
+        <div className="space-y-4">
+          <div className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setQuickAiMode("ai")}
+              className={cn(
+                "rounded-2xl px-4 py-3 text-left text-sm font-black transition-colors",
+                quickAiMode === "ai" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500",
+              )}
+            >
+              Utilizar IA para generar
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuickAiMode("library")}
+              className={cn(
+                "rounded-2xl px-4 py-3 text-left text-sm font-black transition-colors",
+                quickAiMode === "library" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500",
+              )}
+            >
+              Usar mis platos para rellenar
+            </button>
+          </div>
+          {quickAiMode === "ai" && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-slate-700">
+                <p className="font-black text-slate-900">Generacion asistida</p>
+                <p className="mt-1 text-xs text-slate-600">
+                  La IA recibe categorias, espacios vacios y tus notas para completar solo la columna de alimentos.
+                  Puedes seguir editando mientras trabaja.
+                </p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                    Alimentos a considerar
+                  </label>
+                  <Textarea
+                    value={aiAllowedFoods}
+                    onChange={(e) => setAiAllowedFoods(e.target.value)}
+                    placeholder="Ej: avena, pollo, frutas, legumbres..."
+                    className="min-h-[96px] rounded-2xl border-slate-200 bg-white"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                    Restricciones para la IA
+                  </label>
+                  <Textarea
+                    value={aiRestrictedFoods}
+                    onChange={(e) => setAiRestrictedFoods(e.target.value)}
+                    placeholder="Ej: sin lactosa, evitar frituras..."
+                    className="min-h-[96px] rounded-2xl border-slate-200 bg-white"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                  Notas adicionales
+                </label>
+                <Textarea
+                  value={aiNotes}
+                  onChange={(e) => setAiNotes(e.target.value)}
+                  placeholder="Ej: opciones rapidas, mas salado, snacks simples..."
+                  className="min-h-[96px] rounded-2xl border-slate-200 bg-white"
+                />
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                Se detectaron <strong>{quickAiMealTargets.reduce((total, item) => total + item.count, 0)}</strong> espacios vacios
+                para rellenar {planMode === "weekly" ? "en la vista semanal" : "en la tabla actual"}.
+              </div>
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <Button
+                  variant="outline"
+                  className="rounded-2xl border-slate-200"
+                  onClick={() => setIsCreatedRecipesModalOpen(false)}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Cerrar
+                </Button>
+                <Button
+                  className="rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
+                  onClick={() => void generateMealsWithAi()}
+                  disabled={isGeneratingQuickAi || quickAiMealTargets.length === 0}
+                >
+                  {isGeneratingQuickAi ? "Generando..." : "Generar con IA"}
+                </Button>
+              </div>
+            </div>
+          )}
+          {quickAiMode === "library" && (
+          <>
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 text-sm text-slate-700">
+            <p className="font-black text-slate-900">Rellenado rápido</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Usamos tus platos creados o guardados para completar solo la columna
+              de alimentos con el nombre del plato.{" "}
+              {createdRecipeMatches > 0
+                ? `Hay ${createdRecipeMatches} coincidencias directas con las categorías actuales.`
+                : "Si no hay coincidencias exactas, puedes permitir rellenar igual."}
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                value={createdRecipesSearch}
+                onChange={(e) => setCreatedRecipesSearch(e.target.value)}
+                placeholder="Buscar por nombre, sección o ingrediente..."
+                className="h-11 rounded-2xl border-slate-200 bg-slate-50 pl-11"
+              />
+            </div>
+            <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-600">
+              <input
+                type="checkbox"
+                checked={createdRecipesOnlyMine}
+                onChange={(e) => setCreatedRecipesOnlyMine(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+              />
+              Solo mis platos
+            </label>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-600">
+              <input
+                type="checkbox"
+                checked={createdRecipesAllowMismatch}
+                onChange={(e) => setCreatedRecipesAllowMismatch(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+              />
+              Elegir platos aunque no coincidan todos sus ingredientes
+            </label>
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-black uppercase tracking-widest text-emerald-700">
+              <Filter className="h-3.5 w-3.5" />
+              {filteredCreatedRecipes.length} platos disponibles
+            </div>
+          </div>
+
+          <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
+            {isLoadingCreatedRecipes ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+              </div>
+            ) : filteredCreatedRecipes.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                Todavía no tienes platos creados visibles para este filtro.
+              </div>
+            ) : (
+              filteredCreatedRecipes.map((recipe) => {
+                const matchScore = getCreatedRecipeMatchScore(recipe, meals[0]?.section || "Desayuno");
+                return (
+                  <div
+                    key={recipe.id}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-black text-slate-900">{recipe.name}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {recipe.mealSection || "Sin categoría"} · {Math.round(recipe.calories || 0)} kcal
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest",
+                            matchScore >= 80
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-slate-100 text-slate-500",
+                          )}
+                        >
+                          <CheckCircle2 className="h-3 w-3" />
+                          {matchScore >= 80 ? "Coincide" : "Manual"}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
+                      {recipe.description || recipe.preparation || "Plato creado en tu perfil."}
+                    </p>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              className="rounded-2xl border-slate-200"
+              onClick={() => setIsCreatedRecipesModalOpen(false)}
+            >
+              <X className="mr-2 h-4 w-4" />
+              Cerrar
+            </Button>
+            <Button
+              className="rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
+              onClick={fillMealsWithCreatedRecipes}
+              disabled={isLoadingCreatedRecipes || filteredCreatedRecipes.length === 0}
+            >
+              Rellenar tabla
+            </Button>
+          </div>
+          </>
+          )}
         </div>
       </Modal>
 

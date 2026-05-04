@@ -76,6 +76,24 @@ export async function fetchApi(
     try {
       const response = await fetch(`${origin}${path}`, init);
 
+      if (response.status === 401 && typeof window !== "undefined" && window.location.pathname !== "/login") {
+        // Prevent multiple toasts/redirects if there are concurrent requests
+        if (!(window as any)._isRedirectingToLogin) {
+          (window as any)._isRedirectingToLogin = true;
+          import("js-cookie").then((m) => m.default.remove("auth_token"));
+          localStorage.removeItem("auth_token");
+          import("sonner").then(({ toast }) => {
+            toast.error("Tu sesión expiró. Por favor inicia sesión nuevamente.", { id: "session-expired", duration: 3000 });
+          });
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 2000);
+        }
+        // Return a promise that never resolves so the component just waits while we redirect
+        // This prevents component-level "error loading X" toasts from showing up.
+        return new Promise(() => {});
+      }
+
       if (response.ok || ![404].includes(response.status)) {
         preferredApiOrigin = origin;
         return response;

@@ -12,10 +12,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DietService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const ai_service_1 = require("../../common/services/ai.service");
 let DietService = class DietService {
     prisma;
-    constructor(prisma) {
+    aiService;
+    constructor(prisma, aiService) {
         this.prisma = prisma;
+        this.aiService = aiService;
     }
     normalizeText(value) {
         return value
@@ -86,10 +89,7 @@ let DietService = class DietService {
         });
         return Array.from(uniqueMap.values());
     }
-    async verifyWithOpenAI(foods, restrictions) {
-        const apiKey = process.env.OPENAI_API_KEY;
-        if (!apiKey)
-            return null;
+    async verifyWithAi(foods, restrictions) {
         const prompt = [
             'Eres un validador nutricional estricto.',
             'Revisa si los alimentos entran en conflicto con las restricciones.',
@@ -99,30 +99,7 @@ let DietService = class DietService {
             `Alimentos: ${JSON.stringify(foods.map((food) => food.name))}`,
         ].join('\n');
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-                    temperature: 0.1,
-                    messages: [
-                        {
-                            role: 'system',
-                            content: 'Eres un asistente clinico de apoyo para nutricionistas. Evalua incompatibilidades de alimentos.',
-                        },
-                        { role: 'user', content: prompt },
-                    ],
-                }),
-            });
-            if (!response.ok)
-                return null;
-            const json = (await response.json());
-            const content = json.choices?.[0]?.message?.content;
-            if (!content)
-                return null;
+            const content = await this.aiService.callJson('Eres un asistente clinico de apoyo para nutricionistas. Evalua incompatibilidades de alimentos.', prompt);
             const parsed = JSON.parse(content);
             const conflicts = (parsed.conflicts || [])
                 .map((entry) => {
@@ -150,15 +127,15 @@ let DietService = class DietService {
             where: { id: { in: body.foodIds } },
             select: { id: true, name: true },
         });
-        const openAiConflicts = await this.verifyWithOpenAI(foods, body.restrictions);
-        const conflicts = openAiConflicts ?? this.heuristicVerify(foods, body.restrictions);
+        const aiConflicts = await this.verifyWithAi(foods, body.restrictions);
+        const conflicts = aiConflicts ?? this.heuristicVerify(foods, body.restrictions);
         const conflictedFoodIds = new Set(conflicts.map((conflict) => conflict.foodId));
         const safeFoods = foods
             .filter((food) => !conflictedFoodIds.has(food.id))
             .map((food) => food.name);
         return {
             ok: conflicts.length === 0,
-            source: openAiConflicts ? 'openai' : 'heuristic',
+            source: aiConflicts ? 'openai' : 'heuristic',
             checkedFoods: foods.length,
             checkedRestrictions: body.restrictions.length,
             conflicts,
@@ -172,6 +149,7 @@ let DietService = class DietService {
 exports.DietService = DietService;
 exports.DietService = DietService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        ai_service_1.AiService])
 ], DietService);
 //# sourceMappingURL=diet.service.js.map

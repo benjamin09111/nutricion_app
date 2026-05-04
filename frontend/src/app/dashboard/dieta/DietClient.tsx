@@ -39,6 +39,8 @@ import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { TagInput } from "@/components/ui/TagInput";
+import { useDashboardShell } from "@/context/DashboardShellContext";
+import { SectionProgressNav } from "@/components/shared/SectionProgressNav";
 import { MarketPrice, FoodGroup } from "@/features/foods";
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
@@ -341,6 +343,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(
     null,
   );
+
+  const { isSidebarCollapsed } = useDashboardShell();
 
   const favoritesEnabled = true; // Always enabled by request
   const selectedDefaultConstraintIds = new Set(
@@ -1240,7 +1244,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
     // 1. UI Local & Feedback Inmediato
     if (!isCurrentlyFavorite) {
-      toast.success(`${productName} guardado en favoritos ?`);
+      toast.success(`${productName} guardado en favoritos 🎉`);
     } else {
       toast.info(`${productName} eliminado de favoritos`);
     }
@@ -1411,6 +1415,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         })),
       });
       toast.success("PDF exportado correctamente.", { id: toastId });
+      setIsSaveCreationModalOpen(true);
     } catch (e) {
       console.error("Error generando PDF:", e);
       toast.error("Error al generar el PDF. Intenta de nuevo.", { id: toastId });
@@ -2121,7 +2126,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           description: "No hubo cambios visibles en los ingredientes actuales.",
         });
       } else {
-        toast.success("Preferencias aplicadas ?", {
+        toast.success("Preferencias aplicadas 🎉", {
           description: `Agregados: ${uniqueAddedFoods.length} · Favoritos: ${uniqueFavoritedFoods.length} · Eliminados: ${uniqueRemovedFoods.length}`,
         });
         showPreferenceChangeToasts(
@@ -2274,7 +2279,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             description: "No hubo cambios visibles en los ingredientes actuales.",
           });
         } else {
-          toast.success("Preferencias aplicadas ?", {
+          toast.success("Preferencias aplicadas 🎉", {
             description: `Agregados: ${addedFoods.length} · Eliminados: ${uniqueRemovedFoods.length}`,
           });
           showPreferenceChangeToasts(
@@ -2514,6 +2519,26 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         variant: "rose",
         onClick: () => setIsResetConfirmOpen(true),
       },
+      {
+        id: "sep-2",
+        icon: Library,
+        label: "",
+        onClick: () => { },
+        isSeparator: true,
+      },
+      {
+        id: "continue",
+        icon: ArrowRight,
+        label: "CONTINUAR",
+        variant: "emerald",
+        onClick: () => {
+          if (draftFoodsPendingCompletion.length > 0) {
+            setIsContinueDraftWarningOpen(true);
+          } else {
+            void continueToRecipes();
+          }
+        },
+      },
     ],
     [
       printJson,
@@ -2597,25 +2622,17 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         cancelText="No, solo usar aquí"
       />
       <ModuleLayout
-        title="Diseñador de Dieta General"
+        title="Estrategia: Dieta Base"
         description={
-          <div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 px-5 py-4 shadow-sm">
-            <p className="text-sm font-semibold text-slate-700">
-              Aquí defines, de forma simple y general, los alimentos que consumirá tu paciente.
+          <div className="space-y-4">
+            <p>
+              Define la estrategia nutricional de tu paciente. Selecciona restricciones, alimentos permitidos y establece la base para las porciones y el carrito.
             </p>
-            <div className="mt-3 grid gap-2 text-sm text-slate-600">
-              <div className="flex items-start gap-2">
-                <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
-                <span>Tu objetivo es elegir los alimentos que consumirá tu paciente.</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
-                <span>Hazlo de manera muy general, sin especificar aún cantidades exactas ni detalles finos.</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="mt-1 h-2 w-2 rounded-full bg-emerald-500" />
-                <span>Piensa primero en los alimentos que realmente consumirá en su día a día.</span>
-              </div>
+            <div className="flex flex-wrap gap-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              <span className="text-emerald-600 underline underline-offset-4 decoration-2">1. Estrategia</span>
+              <span>2. Cuantificación</span>
+              <span>3. Logística</span>
+              <span>4. Producto Final</span>
             </div>
           </div>
         }
@@ -2656,12 +2673,25 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 className="h-12 px-8 bg-emerald-600"
                 onClick={handleContinue}
               >
-                Continuar <ArrowRight className="ml-2 h-5 w-5" />
+                SIGUIENTE <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </div>
           </ModuleFooter>
         }
       >
+        {isSidebarCollapsed && (
+          <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
+            <SectionProgressNav
+              title="Etapas del Plan"
+              items={[
+                { id: "dieta", label: "1. Estrategia", status: "complete", active: true, onClick: () => {} },
+                { id: "recetas", label: "2. Cuantificación", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/recetas", currentProjectId)) },
+                { id: "carrito", label: "3. Logística", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/carrito", currentProjectId)) },
+                { id: "entregable", label: "4. Entregable", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/entregable", currentProjectId)) },
+              ]}
+            />
+          </div>
+        )}
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}
@@ -2846,75 +2876,70 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 {foods.map((food, idx) => (
                   <div
                     key={`${food.producto}-${idx}`}
-                    className="p-5 flex flex-col gap-5 group hover:bg-emerald-50/10 transition-all border-b border-slate-50 last:border-0"
+                    className="p-4 flex flex-row items-center justify-between gap-4 group hover:bg-emerald-50/10 transition-all border-b border-slate-50 last:border-0"
                   >
-                    <div className="flex flex-col gap-4">
-                      <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center text-xl shrink-0 border border-slate-200/50">
-                        ???
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-bold text-slate-900 text-sm truncate">
+                          {food.producto}
+                        </p>
+                        {food.isDraft && (
+                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200 shrink-0">
+                            Borrador
+                          </span>
+                        )}
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-slate-900 text-sm">
-                            {food.producto}
-                          </p>
-                          {food.isDraft && (
-                            <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200">
-                              Borrador
+                      <div className="flex gap-2 text-[11px] text-slate-500 font-medium items-center flex-wrap">
+                        <span className="text-orange-600 font-bold">
+                          {food.calorias || 0} kcal
+                        </span>
+                        <span>·</span>
+                        <span className="text-blue-600">
+                          P: {food.proteinas || 0}g
+                        </span>
+                        <span>·</span>
+                        <span className="text-emerald-600">
+                          C: {food.carbohidratos || 0}g
+                        </span>
+                        <span>·</span>
+                        <span className="text-yellow-600">
+                          L: {food.lipidos || 0}g
+                        </span>
+                        {food.azucares !== undefined && food.azucares > 0 && (
+                          <>
+                            <span>·</span>
+                            <span className="text-slate-500">
+                              Az: {food.azucares}g
                             </span>
-                          )}
-                        </div>
-                        <div className="flex gap-2 text-xs text-slate-500 font-medium items-center flex-wrap">
-                          <span className="text-orange-600 font-bold">
-                            {food.calorias || 0} kcal
-                          </span>
-                          <span>·</span>
-                          <span className="text-blue-600">
-                            P: {food.proteinas || 0}g
-                          </span>
-                          <span>·</span>
-                          <span className="text-emerald-600">
-                            C: {food.carbohidratos || 0}g
-                          </span>
-                          <span>·</span>
-                          <span className="text-yellow-600">
-                            L: {food.lipidos || 0}g
-                          </span>
-                          {food.azucares !== undefined && food.azucares > 0 && (
-                            <>
-                              <span>·</span>
-                              <span className="text-slate-500">
-                                Az: {food.azucares}g
-                              </span>
-                            </>
-                          )}
-                          {food.fibra !== undefined && food.fibra > 0 && (
-                            <>
-                              <span>·</span>
-                              <span className="text-slate-500">
-                                Fib: {food.fibra}g
-                              </span>
-                            </>
-                          )}
-                          {food.sodio !== undefined && food.sodio > 0 && (
-                            <>
-                              <span>·</span>
-                              <span className="text-slate-500">
-                                Na: {food.sodio}mg
-                              </span>
-                            </>
-                          )}
-                        </div>
+                          </>
+                        )}
+                        {food.fibra !== undefined && food.fibra > 0 && (
+                          <>
+                            <span>·</span>
+                            <span className="text-slate-500">
+                              Fib: {food.fibra}g
+                            </span>
+                          </>
+                        )}
+                        {food.sodio !== undefined && food.sodio > 0 && (
+                          <>
+                            <span>·</span>
+                            <span className="text-slate-500">
+                              Na: {food.sodio}mg
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
-                    <div className="flex justify-end gap-2 pt-2 border-t border-dashed border-slate-100">
+                    
+                    <div className="flex items-center gap-2 shrink-0">
                       {food.isDraft && (
                         <button
                           onClick={() => openDraftFoodEditor(food)}
-                          className="flex items-center gap-2 px-3 py-2 text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-xl cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none"
+                          className="flex items-center justify-center h-8 w-8 text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg cursor-pointer transition-all"
                           title="Completar información nutricional"
                         >
-                          <Pencil className="h-3.5 w-3.5" />
-                          Completar
+                          <Pencil className="h-4 w-4" />
                         </button>
                       )}
                       <button
@@ -2922,17 +2947,19 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                           setSelectedFoodForInfo(food);
                           setIsFoodInfoModalOpen(true);
                         }}
-                        className="flex items-center gap-2 px-3 py-2 text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-xl cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none border border-slate-200/50"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-slate-500 bg-slate-50 hover:bg-slate-100 hover:text-indigo-600 rounded-lg cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none border border-slate-200/50"
+                        title="Ver Detalles"
                       >
                         <Info className="h-3.5 w-3.5" />
-                        Detalles
+                        <span className="hidden sm:inline">Detalles</span>
                       </button>
                       <button
                         onClick={() => removeFood(food.producto)}
-                        className="flex items-center gap-2 px-3 py-2 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-xl cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none border border-rose-200/30"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-rose-500 bg-rose-50 hover:bg-rose-100 hover:text-rose-600 rounded-lg cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none border border-rose-200/30"
+                        title="Quitar"
                       >
-                        <X className="h-3.5 w-3.5" />
-                        Quitar
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Quitar</span>
                       </button>
                     </div>
                   </div>
@@ -2993,9 +3020,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   className="w-full flex flex-col p-4 hover:bg-slate-50 rounded-2xl border border-slate-100/50 hover:border-emerald-200 transition-all group gap-4"
                 >
                   <div className="flex flex-col gap-3">
-                    <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-lg shrink-0 border border-slate-200/50">
-                      ???
-                    </div>
+
                     <div>
                       <p className="font-bold text-sm text-slate-900 leading-tight">
                         {f.producto}
@@ -3032,7 +3057,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             ) : foodSearchQuery.trim() ? (
               <div className="py-6 text-center">
                 <p className="text-sm text-slate-400 mb-3">
-                  No se encontróóóaron resultados.
+                  No se encontraron resultados.
                 </p>
                 <Button
                   variant="outline"
@@ -3132,7 +3157,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       <Modal
         isOpen={isSmartModalOpen}
         onClose={() => setIsSmartModalOpen(false)}
-        title="Selección Inteligente"
+        title="Selección Inteligente 🧠"
         className="sm:max-w-2xl"
       >
         <div className="space-y-6">
@@ -3234,9 +3259,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         </div>
                       )}
                       <div className="flex flex-col gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl shrink-0 border border-slate-100 group-hover:scale-110 transition-transform">
-                          ???
-                        </div>
+
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-slate-800 text-sm mb-1 truncate">
                             {f.name}
@@ -3330,9 +3353,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                                 </div>
                               )}
                               <div className="flex flex-col gap-3">
-                                <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl shrink-0 border border-slate-100 group-hover:scale-110 transition-transform">
-                                  ???
-                                </div>
+
                                 <div className="flex-1 min-w-0">
                                   <p className="font-black text-slate-800 text-sm mb-1 truncate">
                                     {rel.ingredient?.name}
@@ -3395,9 +3416,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         </div>
                       )}
                       <div className="flex flex-col gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl shrink-0 border border-slate-100 group-hover:scale-110 transition-transform">
-                          ???
-                        </div>
+
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-slate-800 text-sm mb-1 truncate">
                             {f.name}
@@ -3458,9 +3477,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         </div>
                       )}
                       <div className="flex flex-col gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-xl shrink-0 border border-slate-100 group-hover:scale-110 transition-transform">
-                          ???
-                        </div>
+
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-slate-800 text-sm mb-1 truncate">
                             {f.name}
@@ -3490,7 +3507,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 <div className="py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
                   <Search className="h-10 w-10 text-slate-200 mx-auto mb-3" />
                   <p className="text-slate-400 font-bold text-sm px-10">
-                    No se encontróóóaron productos para "{smartSearchQuery}"
+                    No se encontraron productos para "{smartSearchQuery}"
                   </p>
                 </div>
               ) : (
@@ -3860,8 +3877,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 <UserPlus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
                 <p className="text-sm text-slate-400 font-bold">
                   {patientSearchQuery.trim()
-                    ? "No encontróóóamos pacientes con ese criterio."
-                    : "No se encontróóóaron pacientes registrados."}
+                    ? "No encontrábamos pacientes con ese criterio."
+                    : "No se encontraron pacientes registrados."}
                 </p>
               </div>
             )}
@@ -4129,4 +4146,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   </>
 );
 }
+
+
+
+
 

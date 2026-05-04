@@ -15,9 +15,9 @@ export declare class ResourcesService {
         createdAt: Date;
         updatedAt: Date;
         fileUrl: string | null;
-        title: string;
-        content: string;
         format: string;
+        content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -32,9 +32,9 @@ export declare class ResourcesService {
         createdAt: Date;
         updatedAt: Date;
         fileUrl: string | null;
-        title: string;
-        content: string;
         format: string;
+        content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -59,9 +59,9 @@ export declare class ResourcesService {
         createdAt: Date;
         updatedAt: Date;
         fileUrl: string | null;
-        title: string;
-        content: string;
         format: string;
+        content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -86,9 +86,9 @@ export declare class ResourcesService {
         createdAt: Date;
         updatedAt: Date;
         fileUrl: string | null;
-        title: string;
-        content: string;
         format: string;
+        content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     } & {
@@ -103,9 +103,9 @@ export declare class ResourcesService {
         createdAt: Date;
         updatedAt: Date;
         fileUrl: string | null;
-        title: string;
-        content: string;
         format: string;
+        content: string;
+        title: string;
         images: import("@prisma/client/runtime/library").JsonValue | null;
         sources: string | null;
     }>;

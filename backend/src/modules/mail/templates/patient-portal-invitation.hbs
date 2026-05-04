@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; margin: 0; padding: 0; color: #0f172a; }
+        .container { max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 18px; overflow: hidden; box-shadow: 0 20px 45px rgba(15, 23, 42, 0.12); }
+        .header { background: linear-gradient(135deg, #0f766e, #10b981); padding: 36px 28px; color: #fff; }
+        .brand { font-size: 28px; font-weight: 800; letter-spacing: 0.02em; }
+        .content { padding: 36px 28px; line-height: 1.7; }
+        .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; margin: 24px 0; }
+        .button { display: inline-block; background: #0f766e; color: white; text-decoration: none; padding: 14px 24px; border-radius: 14px; font-weight: 800; }
+        .muted { color: #64748b; font-size: 13px; }
+        .footer { padding: 22px 28px 30px; color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="brand">NutriSaaS</div>
+            <p style="margin: 10px 0 0; opacity: 0.92;">Portal de seguimiento fuera de consulta</p>
+        </div>
+        <div class="content">
+            <p style="font-size: 22px; font-weight: 800; margin: 0 0 12px;">Hola, {{patientName}}</p>
+            <p>Tu nutricionista <strong>{{nutritionistName}}</strong> te compartió un enlace especial para registrar tu progreso, comidas, agua, actividad y sensaciones entre consultas.</p>
+            <div class="card">
+                <p style="margin: 0 0 10px; font-weight: 700;">Tu acceso al portal</p>
+                <p style="margin: 0 0 16px;" class="muted">Puedes entrar con este enlace, tu correo y tu código de acceso de 6 dígitos.</p>
+                <a href="{{shareUrl}}" class="button">Abrir portal de seguimiento</a>
+                <p style="margin: 16px 0 0; word-break: break-all; font-size: 13px; color: #334155;">{{shareUrl}}</p>
+                <div style="margin-top: 18px; padding: 16px; background: #ecfeff; border-radius: 14px; border: 1px solid #a5f3fc;">
+                    <p style="margin: 0 0 6px; font-weight: 800;">Código de acceso</p>
+                    <p style="margin: 0; font-size: 24px; font-weight: 900; letter-spacing: 0.22em;">{{accessCode}}</p>
+                </div>
+            </div>
+            <p class="muted">Esta invitación expira el {{expiresAt}}. Si el enlace deja de funcionar o te bloquean el acceso, tu nutricionista puede reactivar la plataforma.</p>
+        </div>
+        <div class="footer">
+            &copy; {{year}} NutriSaaS. Este portal fue creado para mejorar el seguimiento entre consultas.
+        </div>
+    </div>
+</body>
+</html>

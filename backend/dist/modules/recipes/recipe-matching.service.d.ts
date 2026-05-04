@@ -2,9 +2,12 @@ import { PrismaService } from '../../prisma/prisma.service';
 export declare class RecipeMatchingService {
     private prisma;
     constructor(prisma: PrismaService);
+    private normalizeList;
+    private getRecipeIngredientNames;
     findCompatibleRecipes(nutritionistId: string, ingredientNames: string[], restrictions?: string[]): Promise<{
         matchPercentage: number;
         isMine: boolean;
+        isAdopted: boolean;
         ingredients: ({
             ingredient: {
                 name: string;
@@ -34,12 +37,15 @@ export declare class RecipeMatchingService {
             id: string;
             brandSuggestion: string | null;
             ingredientId: string;
-            isMain: boolean;
             recipeId: string;
+            isMain: boolean;
         })[];
         nutritionist: {
             fullName: string;
         } | null;
+        savedBy: {
+            id: string;
+        }[];
         name: string;
         calories: number;
         proteins: number;
@@ -55,8 +61,8 @@ export declare class RecipeMatchingService {
         description: string | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         preparation: string | null;
-        portions: number;
         portionSize: number;
+        portions: number;
         imageUrl: string | null;
     }[]>;
 }

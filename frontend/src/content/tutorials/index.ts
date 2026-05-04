@@ -5,6 +5,7 @@ import consultations from "./consultations.json";
 import foods from "./foods.json";
 import quickDeliverable from "./quickDeliverable.json";
 import quickRecipes from "./quickRecipes.json";
+import exchangePortions from "./exchangePortions.json";
 import diet from "./diet.json";
 import recipes from "./recipes.json";
 import cart from "./cart.json";
@@ -20,6 +21,7 @@ export const tutorialContentById: Record<string, TutorialContentDefinition> = {
   foods,
   quickDeliverable,
   quickRecipes,
+  exchangePortions,
   diet,
   recipes,
   cart,

@@ -12,6 +12,14 @@ import { authService } from "@/features/auth/services/auth.service";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+
+  return fallback;
+}
+
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,13 +55,15 @@ export default function LoginForm() {
       ) {
         router.push("/dashboard/admin");
       } else {
-        router.push("/dashboard/pacientes");
+        router.push("/dashboard");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login error:", error);
       toast.error(
-        error.message ||
+        getErrorMessage(
+          error,
           "Error al iniciar sesión. Por favor verifica tus credenciales.",
+        ),
       );
     } finally {
       setIsSubmitting(false);
@@ -82,9 +92,11 @@ export default function LoginForm() {
         toast.success(data.message || "Nueva contraseña enviada por correo.");
         setActiveModal(null);
         setModalEmail("");
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Reset password error:", error);
-        toast.error(error.message || "No se pudo procesar la recuperación.");
+        toast.error(
+          getErrorMessage(error, "No se pudo procesar la recuperación."),
+        );
       } finally {
         setIsModalSubmitting(false);
       }
@@ -111,7 +123,8 @@ export default function LoginForm() {
       setActiveModal(null);
       setModalEmail("");
       setModalMessage("");
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error("Support request error:", error);
       toast.error("Hubo un error al enviar tu solicitud.");
     } finally {
       setIsModalSubmitting(false);

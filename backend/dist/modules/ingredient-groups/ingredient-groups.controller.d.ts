@@ -18,13 +18,24 @@ export declare class IngredientGroupsController {
                     id: string;
                 } | null;
                 id: string;
-            };
+            } | null;
+            recipe: {
+                name: string;
+                calories: number;
+                proteins: number;
+                lipids: number;
+                carbs: number;
+                id: string;
+                portions: number;
+                imageUrl: string | null;
+            } | null;
         } & {
             unit: string | null;
             amount: number | null;
             id: string;
             brandSuggestion: string | null;
-            ingredientId: string;
+            ingredientId: string | null;
+            recipeId: string | null;
             groupId: string;
         })[];
         _count: {
@@ -37,10 +48,11 @@ export declare class IngredientGroupsController {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
+        type: import(".prisma/client").$Enums.IngredientGroupType;
     }>;
-    findAll(req: any): Promise<{
+    findAll(req: any, type?: string): Promise<{
         ingredients: {
-            ingredient: {
+            ingredient: ({
                 brand: {
                     name: string;
                     id: string;
@@ -78,7 +90,27 @@ export declare class IngredientGroupsController {
                 verified: boolean;
                 brandId: string | null;
                 categoryId: string;
-            };
+            }) | undefined;
+            recipe: {
+                name: string;
+                calories: number;
+                proteins: number;
+                lipids: number;
+                carbs: number;
+                fiber: number | null;
+                sodium: number | null;
+                isPublic: boolean;
+                id: string;
+                nutritionistId: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                description: string | null;
+                metadata: import("@prisma/client/runtime/library").JsonValue | null;
+                preparation: string | null;
+                portionSize: number;
+                portions: number;
+                imageUrl: string | null;
+            } | undefined;
             brandSuggestion: string | null;
             amount: number | null;
             unit: string | null;
@@ -90,7 +122,7 @@ export declare class IngredientGroupsController {
             nutritionistId: string | null;
         }[];
         entries: ({
-            ingredient: {
+            ingredient: ({
                 brand: {
                     name: string;
                     id: string;
@@ -128,13 +160,34 @@ export declare class IngredientGroupsController {
                 verified: boolean;
                 brandId: string | null;
                 categoryId: string;
-            };
+            }) | null;
+            recipe: {
+                name: string;
+                calories: number;
+                proteins: number;
+                lipids: number;
+                carbs: number;
+                fiber: number | null;
+                sodium: number | null;
+                isPublic: boolean;
+                id: string;
+                nutritionistId: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                description: string | null;
+                metadata: import("@prisma/client/runtime/library").JsonValue | null;
+                preparation: string | null;
+                portionSize: number;
+                portions: number;
+                imageUrl: string | null;
+            } | null;
         } & {
             unit: string | null;
             amount: number | null;
             id: string;
             brandSuggestion: string | null;
-            ingredientId: string;
+            ingredientId: string | null;
+            recipeId: string | null;
             groupId: string;
         })[];
         _count: {
@@ -146,10 +199,11 @@ export declare class IngredientGroupsController {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
+        type: import(".prisma/client").$Enums.IngredientGroupType;
     }[]>;
     findOne(req: any, id: string): Promise<{
         ingredients: {
-            ingredient: {
+            ingredient: ({
                 brand: {
                     name: string;
                     id: string;
@@ -192,7 +246,27 @@ export declare class IngredientGroupsController {
                 verified: boolean;
                 brandId: string | null;
                 categoryId: string;
-            };
+            }) | undefined;
+            recipe: {
+                name: string;
+                calories: number;
+                proteins: number;
+                lipids: number;
+                carbs: number;
+                fiber: number | null;
+                sodium: number | null;
+                isPublic: boolean;
+                id: string;
+                nutritionistId: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                description: string | null;
+                metadata: import("@prisma/client/runtime/library").JsonValue | null;
+                preparation: string | null;
+                portionSize: number;
+                portions: number;
+                imageUrl: string | null;
+            } | undefined;
             brandSuggestion: string | null;
             amount: number | null;
             unit: string | null;
@@ -207,7 +281,7 @@ export declare class IngredientGroupsController {
             id: string;
         };
         entries: ({
-            ingredient: {
+            ingredient: ({
                 brand: {
                     name: string;
                     id: string;
@@ -250,13 +324,34 @@ export declare class IngredientGroupsController {
                 verified: boolean;
                 brandId: string | null;
                 categoryId: string;
-            };
+            }) | null;
+            recipe: {
+                name: string;
+                calories: number;
+                proteins: number;
+                lipids: number;
+                carbs: number;
+                fiber: number | null;
+                sodium: number | null;
+                isPublic: boolean;
+                id: string;
+                nutritionistId: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                description: string | null;
+                metadata: import("@prisma/client/runtime/library").JsonValue | null;
+                preparation: string | null;
+                portionSize: number;
+                portions: number;
+                imageUrl: string | null;
+            } | null;
         } & {
             unit: string | null;
             amount: number | null;
             id: string;
             brandSuggestion: string | null;
-            ingredientId: string;
+            ingredientId: string | null;
+            recipeId: string | null;
             groupId: string;
         })[];
         name: string;
@@ -265,6 +360,7 @@ export declare class IngredientGroupsController {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
+        type: import(".prisma/client").$Enums.IngredientGroupType;
     }>;
     update(req: any, id: string, updateDto: CreateIngredientGroupDto): Promise<{
         tags: {
@@ -279,6 +375,7 @@ export declare class IngredientGroupsController {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
+        type: import(".prisma/client").$Enums.IngredientGroupType;
     }>;
     remove(req: any, id: string): Promise<{
         name: string;
@@ -287,8 +384,27 @@ export declare class IngredientGroupsController {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
+        type: import(".prisma/client").$Enums.IngredientGroupType;
     }>;
-    addIngredients(req: any, id: string, dto: UpdateGroupIngredientsDto): Promise<{
+    addIngredients(req: any, id: string, dto: UpdateGroupIngredientsDto): Promise<({
+        entries: {
+            unit: string | null;
+            amount: number | null;
+            id: string;
+            brandSuggestion: string | null;
+            ingredientId: string | null;
+            recipeId: string | null;
+            groupId: string;
+        }[];
+    } & {
+        name: string;
+        id: string;
+        nutritionistId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        description: string | null;
+        type: import(".prisma/client").$Enums.IngredientGroupType;
+    }) | ({
         _count: {
             entries: number;
         };
@@ -299,8 +415,27 @@ export declare class IngredientGroupsController {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-    }>;
-    removeIngredients(req: any, id: string, dto: UpdateGroupIngredientsDto): Promise<{
+        type: import(".prisma/client").$Enums.IngredientGroupType;
+    })>;
+    removeIngredients(req: any, id: string, dto: UpdateGroupIngredientsDto): Promise<({
+        entries: {
+            unit: string | null;
+            amount: number | null;
+            id: string;
+            brandSuggestion: string | null;
+            ingredientId: string | null;
+            recipeId: string | null;
+            groupId: string;
+        }[];
+    } & {
+        name: string;
+        id: string;
+        nutritionistId: string;
+        createdAt: Date;
+        updatedAt: Date;
+        description: string | null;
+        type: import(".prisma/client").$Enums.IngredientGroupType;
+    }) | ({
         _count: {
             entries: number;
         };
@@ -311,5 +446,6 @@ export declare class IngredientGroupsController {
         createdAt: Date;
         updatedAt: Date;
         description: string | null;
-    }>;
+        type: import(".prisma/client").$Enums.IngredientGroupType;
+    })>;
 }
