@@ -2,17 +2,16 @@
 
 import content from "@/content/landing.json";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  CheckCircle2,
-  ArrowRight,
+  Check,
   Zap,
   ShieldCheck,
   Monitor,
-  Sparkles,
   Send,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -29,29 +28,6 @@ export default function LandingPage() {
     email: "",
     message: "",
   });
-  const [nutriCount, setNutriCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    const fetchCount = async (retries = 3) => {
-      try {
-        const res = await fetchApi(`/users/count/nutritionists`);
-        if (res.ok) {
-          const data = await res.json();
-          setNutriCount(data.count);
-        }
-      } catch {
-        // En desarrollo, el backend puede tardar unos segundos en arrancar
-        if (retries > 0) {
-          setTimeout(() => fetchCount(retries - 1), 2000);
-        } else {
-          console.warn(
-            "Backend no disponible para el contador de nutricionistas aún.",
-          );
-        }
-      }
-    };
-    fetchCount();
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,122 +63,117 @@ export default function LandingPage() {
   };
 
   return (
-    <div className={cn("min-h-screen selection:bg-indigo-100 selection:text-indigo-900", isDarkMode ? "bg-slate-950 text-emerald-50 selection:bg-emerald-500/20 selection:text-emerald-50" : "bg-white")}>
+    <div className={cn("min-h-screen", isDarkMode ? "bg-slate-950 text-emerald-50" : "bg-white text-slate-900")}>
       {/* Header / Nav */}
-      <header className={cn("fixed top-0 z-50 w-full border-b backdrop-blur-md", isDarkMode ? "bg-slate-950/80 border-emerald-400/10" : "bg-white/80 border-indigo-50")}>
-        <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+      <header className={cn("fixed top-0 z-50 w-full border-b backdrop-blur-md", isDarkMode ? "bg-slate-950/80 border-emerald-400/10" : "bg-white/80 border-indigo-100")}>
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Image
               src="/logo.png"
-              alt="NutriSaaS"
-              width={220}
-              height={70}
-              className="h-auto w-[160px] sm:w-[190px] lg:w-[220px] object-contain"
+              alt="nutrinet"
+              width={160}
+              height={50}
+              className="h-auto w-[130px] sm:w-[150px] object-contain"
               priority
             />
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-5">
             <a
               href="#planes"
-              className={cn("text-sm font-semibold transition-colors", isDarkMode ? "text-emerald-100/70 hover:text-emerald-50" : "text-slate-600 hover:text-indigo-600")}
+              className={cn("text-sm font-semibold transition-colors", isDarkMode ? "text-emerald-100/70 hover:text-emerald-50" : "text-indigo-600 hover:text-indigo-700")}
             >
               Planes
             </a>
             <Link
               href="/login"
-              className={cn("text-sm font-semibold transition-colors", isDarkMode ? "text-emerald-100/70 hover:text-emerald-50" : "text-slate-600 hover:text-indigo-600")}
+              className={cn("text-sm font-semibold transition-colors", isDarkMode ? "text-emerald-100/70 hover:text-emerald-50" : "text-indigo-600 hover:text-indigo-700")}
             >
-              Iniciar Sesión
+              Inicia Sesión
             </Link>
-            <button type="button" onClick={toggleTheme} className={cn("inline-flex h-11 items-center gap-2 rounded-full border px-4 text-[11px] font-black uppercase tracking-[0.2em] transition-all", isDarkMode ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50 hover:bg-emerald-500/18" : "border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700")} aria-label={isDarkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}>
+            <button type="button" onClick={toggleTheme} className={cn("inline-flex h-10 items-center gap-2 rounded-full border-2 px-4 text-xs font-bold uppercase tracking-wider transition-all", isDarkMode ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-50 hover:bg-emerald-500/18" : "border-indigo-300 bg-white text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50")} aria-label={isDarkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}>
               {isDarkMode ? "Light" : "Dark"}
             </button>
-            <Button className={cn("rounded-full h-11 px-8", isDarkMode ? "bg-emerald-500 hover:bg-emerald-400" : "bg-indigo-600 hover:bg-indigo-700")}>
-              Empieza Gratis
-            </Button>
+            <a href="#registro">
+              <Button className={cn("rounded-full h-10 px-6 text-xs font-bold uppercase tracking-wider", isDarkMode ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950" : "bg-indigo-500 hover:bg-indigo-600 text-white")}>
+                Empieza Gratis
+              </Button>
+            </a>
           </div>
         </div>
       </header>
 
       <main>
         {/* Hero Section */}
-        <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-linear-to-b from-indigo-50/50 to-transparent -z-10" />
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="text-center max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 text-indigo-700 text-sm font-bold border border-indigo-100 mb-4">
+        <section className="relative pt-32 pb-20 lg:pt-44 lg:pb-28 overflow-hidden">
+          <div className="max-w-5xl mx-auto px-6">
+            <div className="text-center space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+              <div className={cn("inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-medium border-2", isDarkMode ? "bg-emerald-500/10 border-emerald-400/20 text-emerald-50" : "bg-indigo-100/60 text-indigo-500 border-indigo-200")}>
                 <Sparkles className="h-4 w-4" />
                 {content.hero.badge}
               </div>
-              <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight text-indigo-950 leading-[1.1]">
-                {content.hero.titleLine1} <br />
-                <span className="bg-clip-text text-transparent bg-linear-to-r from-indigo-600 to-emerald-500">
-                  {content.hero.titleLine2}
-                </span>
-              </h1>
-              <p className="text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+              
+              <div className="space-y-2">
+                <h1 className="text-6xl lg:text-8xl font-black tracking-tight leading-none" style={{ WebkitTextStroke: "4px #a6c261", color: "transparent", fontWeight: 900 }}>
+                  {content.hero.titleLine1}
+                </h1>
+                <div className="flex items-center justify-center gap-3">
+                  <span className="text-4xl lg:text-5xl font-bold tracking-tight text-[#a88aed]">
+                    {content.hero.titleLine2}
+                  </span>
+                  <div className="flex gap-1">
+                    <Check className="h-8 w-8 text-[#a6c261]" />
+                    <Check className="h-8 w-8 text-[#a6c261]" />
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-lg lg:text-xl italic max-w-2xl mx-auto leading-relaxed text-[#a88aed]">
                 {content.hero.description}
               </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+
+              <div className="pt-4">
                 <a href="#registro">
-                  <Button className="h-14 px-10 rounded-full text-lg bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-200 group">
-                    {content.hero.ctaButton}
-                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </a>
-                <div className="flex items-center gap-2 text-slate-500 text-sm">
-                  <div className="flex -space-x-2">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div
-                        key={i}
-                        className="h-8 w-8 rounded-full border-2 border-white bg-slate-200"
-                      />
-                    ))}
-                  </div>
-                  <span>
-                    {nutriCount !== null
-                      ? nutriCount > 999
-                        ? "+999"
-                        : nutriCount
-                      : "+100"}{" "}
-                    {content.hero.trustText}
+                  <span className="inline-flex items-center gap-2 px-10 py-4 rounded-full text-lg font-bold italic cursor-pointer transition-all bg-[#a6c261] text-white hover:bg-[#8da84f] shadow-xl">
+                    {content.hero.ctaButton} 🚀
                   </span>
-                </div>
+                </a>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Features Section */}
-        <section className="py-24 bg-slate-50 border-y border-slate-100">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="grid md:grid-cols-3 gap-8">
-              {content.features.map((feature, idx) => {
+        {/* Features Section - Simple Cards (3ra imagen) */}
+        <section className={cn("py-20 lg:py-28", isDarkMode ? "bg-slate-900/30" : "bg-slate-50")}>
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+              {content.features.cards.map((feature, idx) => {
                 const iconMap = { Zap, Monitor, ShieldCheck };
                 const Icon = iconMap[feature.icon as keyof typeof iconMap];
-                const colorClasses = {
-                  amber: { bg: "bg-amber-50", text: "text-amber-600" },
-                  indigo: { bg: "bg-indigo-50", text: "text-indigo-600" },
-                  emerald: { bg: "bg-emerald-50", text: "text-emerald-600" },
-                }[feature.color] || {
-                  bg: "bg-slate-50",
-                  text: "text-slate-600",
+                const iconBgColors = {
+                  amber: isDarkMode ? "bg-amber-500/20 text-amber-400" : "bg-amber-50 text-amber-600",
+                  indigo: isDarkMode ? "bg-indigo-500/20 text-indigo-400" : "bg-indigo-50 text-indigo-600",
+                  emerald: isDarkMode ? "bg-emerald-500/20 text-emerald-400" : "bg-emerald-50 text-emerald-600",
                 };
 
                 return (
                   <div
                     key={idx}
-                    className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1"
+                    className={cn(
+                      "p-8 rounded-2xl border transition-all hover:-translate-y-1",
+                      isDarkMode
+                        ? "bg-slate-900 border-emerald-400/10 shadow-lg"
+                        : "bg-white border-slate-200 shadow-md"
+                    )}
                   >
-                    <div
-                      className={`h-14 w-14 rounded-2xl ${colorClasses.bg} flex items-center justify-center ${colorClasses.text} mb-6`}
-                    >
-                      {Icon && <Icon className="h-8 w-8" />}
+                    <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center mb-5", iconBgColors[feature.iconColor as keyof typeof iconBgColors])}>
+                      {Icon && <Icon className="h-6 w-6" />}
                     </div>
-                    <h3 className="text-xl font-bold text-indigo-900 mb-3">
+                    <h3 className={cn("text-lg font-bold mb-3", isDarkMode ? "text-indigo-400" : "text-indigo-900")}>
                       {feature.title}
                     </h3>
-                    <p className="text-slate-600">{feature.description}</p>
+                    <p className={cn("text-sm leading-relaxed", isDarkMode ? "text-emerald-100/60" : "text-slate-600")}>
+                      {feature.description}
+                    </p>
                   </div>
                 );
               })}
@@ -211,279 +182,157 @@ export default function LandingPage() {
         </section>
 
         {/* Pricing Section */}
-        <section id="planes" className="py-24 bg-white">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-              <h2 className="text-4xl font-bold text-indigo-950">
-                {content.pricing.title}
-              </h2>
-              <p className="text-lg text-slate-600">
-                {content.pricing.subtitle}
+        <section id="planes" className="py-16 lg:py-24">
+          <div className="max-w-5xl mx-auto px-6">
+            <div className={cn("rounded-[2rem] border-2 p-12 lg:p-16 text-center", isDarkMode ? "bg-slate-900/50 border-indigo-500/30" : "bg-white border-indigo-200")}>
+              <div className="space-y-2 mb-8">
+                <span className="block text-5xl lg:text-7xl font-black tracking-tight" style={{ WebkitTextStroke: "3px #a6c261", color: "transparent", fontWeight: 900 }}>
+                  {content.pricing.titleLine1}
+                </span>
+                <span className="block text-3xl lg:text-4xl font-bold text-[#a88aed]">
+                  {content.pricing.titleLine2} 🌱
+                </span>
+              </div>
+              <p className={cn("text-lg lg:text-xl italic mb-6 max-w-2xl mx-auto", isDarkMode ? "text-indigo-300/70" : "text-indigo-500")}>
+                {content.pricing.paragraph1}
+              </p>
+              <p className={cn("text-lg lg:text-xl italic max-w-2xl mx-auto", isDarkMode ? "text-indigo-300/70" : "text-indigo-500")}>
+                {content.pricing.paragraph2}
               </p>
             </div>
-
-            <PricingSection />
           </div>
         </section>
 
         {/* Registration Form Section */}
-        <section id="registro" className="py-24">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="bg-indigo-900 rounded-[3rem] overflow-hidden shadow-2xl relative">
-              <div className="absolute top-0 right-0 w-1/2 h-full bg-linear-to-l from-indigo-800 to-transparent opacity-50" />
-              <div className="relative z-10 grid lg:grid-cols-2">
-                <div className="p-12 lg:p-20 text-white space-y-8">
-                  <h2 className="text-4xl lg:text-5xl font-bold leading-tight">
-                    {content.registration.titleLine1} <br />
-                    <span className="text-indigo-400">
-                      {content.registration.titleLine2}
-                    </span>
-                  </h2>
-                  <p className="text-lg text-indigo-100/80 leading-relaxed">
-                    {content.registration.description}
+        <section id="registro" className="py-16 lg:py-24">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
+              {/* Left side - Text content */}
+              <div className="space-y-6 pt-4">
+                <h2 className="text-4xl lg:text-5xl font-black text-[#a88aed]">
+                  {content.registration.titleLine1}
+                </h2>
+                <div className="flex items-center gap-3">
+                  <Check className="h-8 w-8 text-[#a6c261]" />
+                  <p className="text-2xl lg:text-3xl font-semibold text-[#a88aed]">
+                    {content.registration.titleLine2}
                   </p>
-                  <ul className="space-y-4">
-                    {content.registration.benefits.map((text, i) => (
-                      <li
-                        key={i}
-                        className="flex items-center gap-3 text-indigo-100"
-                      >
-                        <div className="h-6 w-6 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-                          <CheckCircle2 className="h-4 w-4" />
-                        </div>
-                        {text}
-                      </li>
-                    ))}
-                  </ul>
                 </div>
-                <div className="p-8 lg:p-12">
-                  <div className="bg-white rounded-4xl p-8 shadow-2xl">
-                    <form
-                      onSubmit={handleSubmit}
-                      className="grid grid-cols-1 gap-4"
-                    >
-                      <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-700">
-                          Nombre Completo{" "}
-                          <span className="text-red-500">*</span>
-                        </label>
-                        <Input
-                          required
-                          placeholder="Ej: Juan Andrés Silva Pérez"
-                          className="rounded-xl border-slate-200"
-                          value={formData.fullName}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              fullName: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2 text-slate-700">
-                        <label className="text-sm font-bold">
-                          Correo Profesional{" "}
-                          <span className="text-red-500">*</span>
-                        </label>
-                        <Input
-                          type="email"
-                          required
-                          placeholder="nutri@ejemplo.cl"
-                          className="rounded-xl border-slate-200"
-                          value={formData.email}
-                          onChange={(e) =>
-                            setFormData({ ...formData, email: e.target.value })
-                          }
-                        />
-                        <p className="text-[10px] text-slate-400 font-medium ml-1">
-                          Lo usarás para iniciar sesión.
-                        </p>
-                      </div>
-                      <div className="space-y-2 text-slate-700">
-                        <label className="text-sm font-bold">
-                          ¿Tienes alguna duda o comentario?{" "}
-                          <span className="text-slate-400 font-normal">
-                            (Opcional)
-                          </span>
-                        </label>
-                        <textarea
-                          className="w-full h-24 rounded-xl border-slate-200 p-4 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                          placeholder="Cuéntanos un poco sobre tu consulta..."
-                          value={formData.message}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              message: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="pt-2">
-                        <Button
-                          type="submit"
-                          isLoading={isSubmitting}
-                          className="w-full h-14 rounded-xl bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-200 text-lg font-bold"
-                        >
-                          Enviar Solicitud de Acceso
-                          <Send className="ml-2 h-5 w-5" />
-                        </Button>
-                        <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-slate-400 font-medium">
-                          <ShieldCheck className="h-3 w-3 text-emerald-500" />
-                          <span>
-                            Tu información profesional está protegida por
-                            encriptación de grado bancario.
-                          </span>
-                        </div>
-                      </div>
-                    </form>
+                <p className="text-xl font-semibold italic text-[#a88aed]">
+                  {content.registration.subtitle}
+                </p>
+                <p className="text-base leading-relaxed text-[#a88aed]">
+                  {content.registration.paragraph1}
+                </p>
+                <p className="text-base leading-relaxed text-[#a88aed]">
+                  {content.registration.paragraph2}
+                </p>
+                <p className="text-base leading-relaxed text-[#a88aed]">
+                  {content.registration.paragraph3}
+                </p>
+              </div>
+
+              {/* Right side - Form on purple card */}
+              <div className={cn("rounded-3xl p-8 lg:p-10", isDarkMode ? "bg-indigo-900/40" : "bg-indigo-100")}>
+                <form
+                  onSubmit={handleSubmit}
+                  className="space-y-6"
+                >
+                  <div className="space-y-2">
+                    <label className={cn("text-sm font-bold uppercase tracking-wide", isDarkMode ? "text-indigo-300" : "text-indigo-600")}>
+                      {content.registration.formTitle}
+                    </label>
+                    <Input
+                      required
+                      placeholder="Juan Andrés Silva Pérez"
+                      className={cn("rounded-full h-12 px-5", isDarkMode ? "border-indigo-400/20 bg-slate-900/60" : "border-indigo-300 bg-white/80")}
+                      value={formData.fullName}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          fullName: e.target.value,
+                        })
+                      }
+                    />
                   </div>
-                </div>
+                  <div className="space-y-2">
+                    <label className={cn("text-sm font-bold uppercase tracking-wide", isDarkMode ? "text-indigo-300" : "text-indigo-600")}>
+                      {content.registration.formEmail}
+                    </label>
+                    <Input
+                      type="email"
+                      required
+                      placeholder="juan.nutri@ejemplo.com"
+                      className={cn("rounded-full h-12 px-5", isDarkMode ? "border-indigo-400/20 bg-slate-900/60" : "border-indigo-300 bg-white/80")}
+                      value={formData.email}
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className={cn("text-sm font-bold uppercase tracking-wide", isDarkMode ? "text-indigo-300" : "text-indigo-600")}>
+                      {content.registration.formMessage}
+                    </label>
+                    <textarea
+                      className={cn("w-full h-28 rounded-2xl p-4 text-sm resize-none", isDarkMode ? "bg-slate-900/60 border-indigo-400/20 text-emerald-50 placeholder:text-emerald-100/30 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20" : "bg-white/80 border-indigo-300 text-slate-700 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100")}
+                      placeholder="Cuéntanos un poco sobre tu consulta..."
+                      value={formData.message}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          message: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="pt-2">
+                    <Button
+                      type="submit"
+                      isLoading={isSubmitting}
+                      className={cn("w-full h-14 rounded-full text-lg font-bold", isDarkMode ? "bg-indigo-500 hover:bg-indigo-400 text-white" : "bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-200")}
+                    >
+                      {content.registration.formSubmit} 🚀
+                      <Send className="ml-2 h-5 w-5" />
+                    </Button>
+                  </div>
+                </form>
               </div>
             </div>
+
+            {/* Encryption text */}
+            <p className="text-center text-base italic mt-10 text-[#a6c261]">
+              {content.registration.encryptionText}
+            </p>
           </div>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="py-12 border-t border-slate-100 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 text-center space-y-4">
+      <footer className={cn("py-16 lg:py-20", isDarkMode ? "bg-slate-900/50" : "bg-indigo-50")}>
+        <div className="max-w-7xl mx-auto px-6 text-center space-y-6">
           <div className="flex items-center justify-center gap-2">
             <Image
               src="/logo.png"
-              alt="NutriSaaS"
-              width={180}
-              height={57}
-              className="h-auto w-[140px] object-contain"
+              alt="nutrinet"
+              width={200}
+              height={63}
+              className="h-auto w-[160px] lg:w-[190px] object-contain"
             />
           </div>
-          <p className="text-slate-500 text-sm italic">
-            {content.footer.quote}
-          </p>
-          <div className="text-slate-400 text-xs pt-8">
+          <div className="space-y-1">
+            <p className={cn("text-base", isDarkMode ? "text-indigo-300/70" : "text-indigo-500")}>
+              {content.footer.line1}
+            </p>
+            <p className={cn("text-base", isDarkMode ? "text-indigo-300/70" : "text-indigo-500")}>
+              {content.footer.line2}
+            </p>
+          </div>
+          <div className={cn("text-sm pt-4", isDarkMode ? "text-indigo-300/50" : "text-indigo-400")}>
             {content.footer.copyright}
           </div>
         </div>
       </footer>
-    </div>
-  );
-}
-
-function PricingSection() {
-  type Plan = {
-    id: string | number;
-    name: string;
-    description: string;
-    isPopular?: boolean;
-    price: string | number;
-    billingPeriod: string;
-    features: string[];
-  };
-
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchPlans = async (retries = 3) => {
-      try {
-        const res = await fetchApi(`/memberships/active`);
-        if (res.ok) {
-          const data = (await res.json()) as Plan[];
-          setPlans(data);
-          setIsLoading(false);
-          return;
-        }
-        throw new Error("Response not ok");
-      } catch {
-        if (retries > 0) {
-          // Reintentar cada 2 segundos si el backend no responde (startup)
-          setTimeout(() => fetchPlans(retries - 1), 2000);
-        } else {
-          console.warn(
-            "No se pudieron cargar los planes. El backend podría estar caído.",
-          );
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchPlans();
-  }, []);
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-20">
-        <div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-      {plans.map((plan) => (
-        <div
-          key={plan.id}
-          className={`relative p-8 rounded-[2.5rem] border ${
-            plan.isPopular
-              ? "border-indigo-600 shadow-2xl shadow-indigo-100 ring-4 ring-indigo-50"
-              : "border-slate-200 shadow-sm"
-          } bg-white transition-all hover:-translate-y-1 duration-300`}
-        >
-          {plan.isPopular && (
-            <div className="absolute -top-5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-indigo-600 text-white text-xs font-bold uppercase tracking-widest shadow-lg">
-              Más Popular
-            </div>
-          )}
-
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-2xl font-bold text-indigo-950">
-                {plan.name}
-              </h3>
-              <p className="text-slate-500 text-sm mt-1">{plan.description}</p>
-            </div>
-
-            <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-extrabold text-indigo-950">
-                ${Number(plan.price).toLocaleString("es-CL")}
-              </span>
-              <span className="text-slate-500 font-medium">
-                / {plan.billingPeriod === "monthly" ? "mes" : "año"}
-              </span>
-            </div>
-
-            <ul className="space-y-4 py-6">
-              {plan.features.map((feature: string, idx: number) => (
-                <li
-                  key={idx}
-                  className="flex items-start gap-3 text-sm text-slate-600"
-                >
-                  <div
-                    className={`mt-0.5 h-5 w-5 rounded-full flex items-center justify-center shrink-0 ${plan.isPopular ? "bg-indigo-100 text-indigo-600" : "bg-slate-100 text-slate-500"}`}
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                  </div>
-                  {feature}
-                </li>
-              ))}
-            </ul>
-
-            <a href="#registro" className="block text-center">
-              <Button
-                variant={plan.isPopular ? "default" : "outline"}
-                className={`w-full h-12 rounded-2xl text-sm font-bold transition-all ${
-                  plan.isPopular
-                    ? "bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 text-white"
-                    : "border-indigo-200 text-indigo-600 hover:bg-indigo-50"
-                }`}
-              >
-                {plan.price === "0" || Number(plan.price) === 0
-                  ? "Empezar Gratis"
-                  : "Elegir Plan " + plan.name}
-              </Button>
-            </a>
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
