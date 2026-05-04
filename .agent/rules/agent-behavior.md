@@ -16,6 +16,7 @@ SIEMPRE, antes de empezar a responder y ejecutar cualquier comando, DEBES record
 - **PROTECCIÓN DE LA BASE DE DATOS**: No estropees ni elimines los datos que ya tenemos en Supabase. No quiero que se borre todo ni empezar de nuevo. Si hacemos cambios, solo serán datos nuevos, y lo que ya tenemos en la DB se tiene que mantener intacto.
 - **Datos Reales - NO ELIMINAR**: Nuestra prioridad MÁXIMA es cuidar y mantener los datos en la base de datos porque es usada por gente real. En nuestro desarrollo NO tenemos que modificar ni eliminar NADA YA CREADO en la DB. Ten mucho cuidado y prohíbe el uso de migraciones o comandos que recreen o eliminen datos. Es un error gravísimo.
 - **Resolución rápida de Errores (Logs)**: Si te paso un log de error por pantalla (o solo el error como prompt), es para que lo ataques y soluciones directamente. No hagas nada extra ni investigues más allá de lo necesario; asume que ahí tienes toda la información requerida. Resuelve el problema rápido para que yo pueda volver a testear de inmediato.
+- **PROTECCIÓN DEL .GITIGNORE**: NUNCA trackees archivos de build/compilación (dist/, .next/, out/, node_modules/, *.tsbuildinfo, .cache/, .turbo/). Si ves que git está trackeando algún archivo compilado, corrígelo inmediatamente agregándolo al .gitignore y removiéndolo del tracking con `git rm -r --cached`. La regla es simple: solo código fuente va a git (`.ts`, `.tsx`, `.prisma`, `.json`, `.css`, `.md`, etc.). Los archivos generados (`.js`, `.d.ts`, `.js.map`, `.hbs` en dist/) NO se commitean.
 
 ## 1. Scope Control
 
