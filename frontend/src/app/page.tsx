@@ -2,7 +2,7 @@
 
 import content from "@/content/landing.json";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -33,6 +33,34 @@ export default function LandingPage() {
   const featuresInView = useInView({ threshold: 0.15 });
   const pricingInView = useInView({ threshold: 0.15 });
   const registrationInView = useInView({ threshold: 0.1 });
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest("a[href^='#']");
+      if (!anchor) return;
+
+      const href = anchor.getAttribute("href");
+      if (!href) return;
+
+      const targetId = href.slice(1);
+      const targetElement = document.getElementById(targetId);
+      if (!targetElement) return;
+
+      e.preventDefault();
+      const headerOffset = 80;
+      const elementPosition = targetElement.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.scrollY - headerOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth",
+      });
+    };
+
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
