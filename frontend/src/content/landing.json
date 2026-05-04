@@ -1,49 +1,56 @@
 {
   "hero": {
-    "badge": "El futuro de la consulta nutricional",
-    "titleLine1": "Multiplica tu tiempo,",
-    "titleLine2": "potencia tus resultados.",
-    "description": "El software inteligente que automatiza lo tedioso para que te enfoques en el paciente. Diseñado para nutricionistas chilenos que buscan excelencia y eficiencia.",
-    "ctaButton": "Solicitar Registro Profesional",
-    "trustText": "nutris ya confían"
+    "badge": "Diseñada para nutricionistas",
+    "titleLine1": "AHORRA TIEMPO",
+    "titleLine2": "Atiende más pacientes.",
+    "description": "Sistema para nutricionistas que buscan la eficiencia y la excelencia: gestiona pacientes, automatiza procesos y optimiza tu consulta desde un solo lugar.",
+    "ctaButton": "Únete a la beta"
   },
-  "features": [
-    {
-      "icon": "Zap",
-      "color": "amber",
-      "title": "Automatización con IA",
-      "description": "Genera dietas personalizadas y listas de compras automáticas en segundos basándote en la evidencia clínica."
-    },
-    {
-      "icon": "Monitor",
-      "color": "indigo",
-      "title": "Dashboard Profesional",
-      "description": "Gestiona pacientes, antropometría e historia clínica en un solo lugar seguro y privado."
-    },
-    {
-      "icon": "ShieldCheck",
-      "color": "emerald",
-      "title": "Máxima Seguridad",
-      "description": "Protocolos de encriptado bancario para proteger la información sensible de tus pacientes."
-    }
-  ],
-  "pricing": {
-    "title": "Planes diseñados para tu crecimiento",
-    "subtitle": "Elige el plan que mejor se adapte a tu volumen de pacientes. Cambia de plan en cualquier momento."
-  },
-  "registration": {
-    "titleLine1": "¿Eres Nutricionista?",
-    "titleLine2": "Únete a la elite.",
-    "description": "Validamos a cada profesional manualmente para garantizar la calidad clínica de nuestra red. Completa el formulario y nos contactaremos contigo para activar tu acceso.",
-    "benefits": [
-      "Acceso total al generador de dietas",
-      "Soporte prioritario via WhatsApp",
-      "Precios especiales por lanzamiento"
+  "features": {
+    "cards": [
+      {
+        "icon": "Zap",
+        "iconColor": "amber",
+        "title": "Automatización con IA",
+        "description": "Genera dietas personalizadas y listas de compras automáticas en segundos basándote en la evidencia clínica."
+      },
+      {
+        "icon": "Monitor",
+        "iconColor": "indigo",
+        "title": "Dashboard Profesional",
+        "description": "Gestiona pacientes, antropometría e historia clínica en un solo lugar seguro y privado."
+      },
+      {
+        "icon": "ShieldCheck",
+        "iconColor": "emerald",
+        "title": "Máxima Seguridad",
+        "description": "Protocolos de encriptado bancario para proteger la información sensible de tus pacientes."
+      }
     ]
   },
+  "pricing": {
+    "titleLine1": "PLANES",
+    "titleLine2": "Pensados para tu CRECIMIENTO",
+    "paragraph1": "Pronto podrás elegir el plan que mejor se adapte a tu forma de trabajar y volumen de pacientes.",
+    "paragraph2": "Actualmente, estamos en fase beta, por lo que puedes acceder a la plataforma de forma gratuita mientras la seguimos construyendo junto a nutricionistas."
+  },
+  "registration": {
+    "titleLine1": "¿ERES NUTRICIONISTA?",
+    "titleLine2": "Esto es para ti.",
+    "subtitle": "Empieza a trabajar de forma más eficiente",
+    "paragraph1": "Sabemos que gran parte de tu trabajo no está en la consulta, sino en tareas repetitivas, cálculos y gestión de pacientes.",
+    "paragraph2": "Estamos desarrollando una plataforma que automatiza esos procesos, te permite organizar toda tu información y optimizar tu tiempo profesional.",
+    "paragraph3": "Hoy puedes acceder a la versión beta de forma gratuita y ser parte de quienes están construyendo una nueva forma de trabajar en nutrición.",
+    "formTitle": "NOMBRE COMPLETO:",
+    "formEmail": "CORREO PROFESIONAL:",
+    "formMessage": "¿TIENES ALGUNA CONSULTA? OPCIONAL",
+    "formSubmit": "Solicitar acceso",
+    "encryptionText": "Tu información profesional está protegida por encriptación de grado bancario."
+  },
   "footer": {
-    "brand": "NutriSaaS",
-    "quote": "Diseñado profesionalmente en Chile para el mundo.",
-    "copyright": "2024 NutriSaaS. Todos los derechos reservados."
+    "brand": "nutrinet",
+    "line1": "Diseñado en Chile para nutricionistas.",
+    "line2": "Construyendo el futuro de la consulta nutricional.",
+    "copyright": "2026 NUTRINET. Todos los derechos reservados."
   }
 }

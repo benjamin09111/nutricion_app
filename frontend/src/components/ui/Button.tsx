@@ -26,7 +26,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(
           "inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
           {
-            "bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm":
+            "bg-indigo-600 text-white hover:bg-indigo-500 shadow-sm":
               variant === "default",
             "bg-slate-100 text-slate-900 hover:bg-slate-200/80":
               variant === "secondary",
@@ -34,7 +34,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
               variant === "outline",
             "text-slate-600 hover:bg-slate-100 hover:text-slate-900":
               variant === "ghost",
-            "text-emerald-600 underline-offset-4 hover:underline":
+            "text-indigo-600 underline-offset-4 hover:underline":
               variant === "link",
             "h-10 px-4 py-2": size === "default",
             "h-9 rounded-md px-3": size === "sm",

@@ -1,14 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
   Users,
-  Utensils,
   Apple,
   ChefHat,
-  ShoppingCart,
   CalendarDays,
   FileText,
   NotebookText,
@@ -18,7 +16,6 @@ import {
   Lock,
   Folder,
   FolderPlus,
-  Dumbbell,
   Bot,
   Bell,
   PanelLeftClose,
@@ -51,7 +48,7 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Entregable Rápido", href: "/dashboard/rapido", icon: NotebookText },
       { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
-      { name: "Entregable Personalizado", href: "/dashboard/dieta", icon: Utensils, tutorialPath: "/dashboard/dieta" },
+      { name: "Entregable Personalizado", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
     ],
   },
   {
@@ -59,6 +56,7 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Pacientes", href: "/dashboard/pacientes", icon: Users, tutorialPath: "/dashboard/pacientes" },
       { name: "Consultas", href: "/dashboard/consultas", icon: CalendarDays, tutorialPath: "/dashboard/consultas" },
+      { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, tutorialPath: "/dashboard/citas" },
     ],
   },
   {
@@ -98,17 +96,22 @@ export function Sidebar() {
   const pathname = usePathname();
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
+
   const getGroupPriority = (group: SidebarGroup) => {
     const hrefs = group.items.map((item) => item.href);
-    if (hrefs.some((href) => href.startsWith("/dashboard/pacientes") || href.startsWith("/dashboard/consultas"))) {
+
+    if (hrefs.some((href) => href.startsWith("/dashboard/pacientes") || href.startsWith("/dashboard/consultas") || href.startsWith("/dashboard/citas"))) {
       return 0;
     }
+
     if (hrefs.some((href) => href.startsWith("/dashboard/alimentos"))) {
       return 1;
     }
+
     if (hrefs.some((href) => href.startsWith("/dashboard/rapido"))) {
       return 2;
     }
+
     if (
       hrefs.some(
         (href) =>
@@ -120,11 +123,11 @@ export function Sidebar() {
     ) {
       return 3;
     }
+
     return 10;
   };
-  const orderedGroups = [...groups].sort(
-    (a, b) => getGroupPriority(a) - getGroupPriority(b),
-  );
+
+  const orderedGroups = [...groups].sort((a, b) => getGroupPriority(a) - getGroupPriority(b));
   const visibleGroups = orderedGroups
     .map((group) => ({
       ...group,
@@ -148,55 +151,46 @@ export function Sidebar() {
       >
         <Link
           href="/dashboard"
-          className="flex items-center space-x-2 rounded-xl transition-colors hover:opacity-90"
+          className="flex items-center rounded-xl transition-colors hover:opacity-90"
           aria-label="Ir al dashboard"
           title="Ir al dashboard"
         >
-          <div className="h-8 w-8 rounded bg-emerald-500 flex items-center justify-center shrink-0">
-            <span className="font-bold text-white text-lg">N</span>
-          </div>
-          {!isSidebarCollapsed && (
-            <span className={cn("text-xl font-bold tracking-wide", isDarkMode ? "text-emerald-50" : "text-slate-900")}>
-              NutriSaaS
-            </span>
-          )}
+          <Image
+            src="/logo.png"
+            alt="NutriSaaS"
+            width={isSidebarCollapsed ? 72 : 180}
+            height={isSidebarCollapsed ? 23 : 57}
+            className={cn("h-auto w-auto object-contain", isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
+            priority
+          />
         </Link>
 
-        {/* Sidebar Toggle (Desktop Internal) */}
         <button
           type="button"
           onClick={toggleSidebarCollapsed}
           className={cn(
             "hidden lg:inline-flex items-center justify-center rounded-xl p-2 transition-all transition-colors",
             isDarkMode
-              ? "text-emerald-100/40 hover:text-emerald-50 hover:bg-emerald-500/10"
-              : "text-slate-400 hover:text-emerald-600 hover:bg-slate-50",
-            isSidebarToggleHighlighted && "animate-pulse ring-2 ring-emerald-500/20",
+              ? "text-indigo-100/50 hover:text-indigo-50 hover:bg-indigo-500/10"
+              : "text-slate-400 hover:text-indigo-600 hover:bg-slate-50",
+            isSidebarToggleHighlighted && "animate-pulse ring-2 ring-indigo-500/20",
             isSidebarCollapsed && "mt-2",
           )}
           title={isSidebarCollapsed ? "Mostrar menú" : "Contraer menú"}
         >
-          {isSidebarCollapsed ? (
-            <PanelLeftOpen className="h-5 w-5" />
-          ) : (
-            <PanelLeftClose className="h-5 w-5" />
-          )}
+          {isSidebarCollapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
         </button>
       </div>
+
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-2">
           {visibleGroups.map((group) => (
-            <li
-              key={group.title}
-              className={cn(
-                group.title === "PRINCIPAL" && "hidden lg:block"
-              )}
-            >
+            <li key={group.title} className={cn(group.title === "PRINCIPAL" && "hidden lg:block")}>
               {!isSidebarCollapsed && (
                 <div
                   className={cn(
                     "mb-1 pl-2 text-[0.7rem] font-bold uppercase tracking-wider",
-                    isDarkMode ? "text-emerald-100/45" : "text-slate-400",
+                    isDarkMode ? "text-indigo-100/55" : "text-slate-400",
                   )}
                 >
                   {group.title}
@@ -211,24 +205,24 @@ export function Sidebar() {
                     <li key={item.name}>
                       <Link
                         href={isLocked ? "#" : item.href}
-                        onClick={(e) => {
+                        onClick={(event) => {
                           if (isLocked) {
-                            e.preventDefault();
+                            event.preventDefault();
                             toast.info("Próximamente", {
-                              description: `El módulo "${item.name}" estará disponible en futuras actualizaciones.`
+                              description: `El módulo "${item.name}" estará disponible en futuras actualizaciones.`,
                             });
                           }
                         }}
                         className={cn(
                           isActive
                             ? isDarkMode
-                              ? "bg-emerald-500/12 text-emerald-50 font-bold"
-                              : "bg-slate-50 text-emerald-600 font-bold"
+                              ? "bg-indigo-500/12 text-indigo-50 font-bold"
+                              : "bg-slate-50 text-indigo-600 font-bold"
                             : isDarkMode
-                              ? "text-emerald-100/72 hover:bg-emerald-500/8 hover:text-emerald-50 font-medium"
-                              : "text-slate-600 hover:text-emerald-600 hover:bg-slate-50 font-medium",
-                          isLocked && "opacity-50 cursor-not-allowed grayscale",
-                          "group flex gap-x-2 rounded-md p-2 leading-5 transition-colors items-center cursor-pointer",
+                              ? "text-indigo-100/72 hover:bg-indigo-500/8 hover:text-indigo-50 font-medium"
+                              : "text-slate-600 hover:text-indigo-600 hover:bg-slate-50 font-medium",
+                          isLocked && "cursor-not-allowed grayscale opacity-50",
+                          "group flex cursor-pointer items-center gap-x-2 rounded-md p-2 leading-5 transition-colors",
                           isSidebarCollapsed && "justify-center",
                         )}
                         title={item.name}
@@ -238,27 +232,18 @@ export function Sidebar() {
                             className={cn(
                               isActive
                                 ? isDarkMode
-                                  ? "text-emerald-300"
-                                  : "text-emerald-600"
+                                  ? "text-indigo-300"
+                                  : "text-indigo-600"
                                 : isDarkMode
-                                  ? "text-emerald-100/35 group-hover:text-emerald-300"
-                                  : "text-slate-400 group-hover:text-emerald-600",
+                                  ? "text-indigo-100/35 group-hover:text-indigo-300"
+                                  : "text-slate-400 group-hover:text-indigo-600",
                               "h-4 w-4 shrink-0",
                             )}
                             aria-hidden="true"
                           />
                         </span>
-                        {!isSidebarCollapsed && (
-                          <span className="flex-1">{item.name}</span>
-                        )}
-                        {isLocked && (
-                          <Lock
-                            className={cn(
-                              "h-3 w-3",
-                              isDarkMode ? "text-emerald-100/35" : "text-slate-400",
-                            )}
-                          />
-                        )}
+                        {!isSidebarCollapsed && <span className="flex-1">{item.name}</span>}
+                        {isLocked && <Lock className={cn("h-3 w-3", isDarkMode ? "text-indigo-100/35" : "text-slate-400")} />}
                       </Link>
                     </li>
                   );
@@ -268,6 +253,7 @@ export function Sidebar() {
           ))}
         </ul>
       </nav>
+
       <style jsx>{`
         .sidebar-scroll::-webkit-scrollbar {
           width: 6px;

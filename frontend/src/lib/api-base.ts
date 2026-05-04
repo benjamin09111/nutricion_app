@@ -10,6 +10,11 @@ let preferredApiOrigin: string | null = null;
 const normalizeOrigin = (origin: string) => origin.replace(/\/$/, "");
 const isProductionBuild = process.env.NODE_ENV === "production";
 
+const getTenantId = () =>
+  process.env.NEXT_PUBLIC_TENANT_ID ||
+  process.env.TENANT_ID ||
+  "";
+
 const isLoopbackHost = (host: string) =>
   host === "localhost" || host === "127.0.0.1" || host === "::1";
 
@@ -74,9 +79,19 @@ export async function fetchApi(
 
   for (const origin of getApiOriginCandidates()) {
     try {
-      const response = await fetch(`${origin}${path}`, init);
+      const headers = new Headers(init?.headers || {});
+      const tenantId = getTenantId();
+      if (tenantId && !headers.has("X-Tenant-ID")) {
+        headers.set("X-Tenant-ID", tenantId);
+      }
 
-      if (response.status === 401 && typeof window !== "undefined" && window.location.pathname !== "/login") {
+      const requestInit = {
+        ...init,
+        headers,
+      };
+      const responseWithTenant = await fetch(`${origin}${path}`, requestInit);
+
+      if (responseWithTenant.status === 401 && typeof window !== "undefined" && window.location.pathname !== "/login") {
         // Prevent multiple toasts/redirects if there are concurrent requests
         if (!(window as any)._isRedirectingToLogin) {
           (window as any)._isRedirectingToLogin = true;
@@ -94,12 +109,12 @@ export async function fetchApi(
         return new Promise(() => {});
       }
 
-      if (response.ok || ![404].includes(response.status)) {
+      if (responseWithTenant.ok || ![404].includes(responseWithTenant.status)) {
         preferredApiOrigin = origin;
-        return response;
+        return responseWithTenant;
       }
 
-      lastResponse = response;
+      lastResponse = responseWithTenant;
     } catch (error) {
       lastError = error;
     }
