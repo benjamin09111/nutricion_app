@@ -643,6 +643,19 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-emerald-500 rounded-full ring-4 ring-white animate-pulse" />
               )}
             </button>
+
+            {portalData.patient?.nutritionist?.settings?.isScheduleActive && (
+              <button
+                onClick={() => {
+                  const url = portalData.patient.nutritionist.settings.bookingUrl;
+                  if (url) window.open(url, "_blank");
+                }}
+                className="w-full flex items-center gap-3 px-6 py-4 rounded-3xl transition-all font-bold text-sm bg-emerald-600 text-white shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-[0.98] mt-4"
+              >
+                <Calendar className="h-5 w-5" />
+                Agendar Cita
+              </button>
+            )}
           </nav>
 
           <div className="bg-slate-50/80 rounded-[2.5rem] p-6 border border-slate-100">

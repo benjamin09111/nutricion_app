@@ -15,6 +15,10 @@ import {
   Link2,
   AlarmClock,
   BadgeInfo,
+  Search,
+  ChevronRight,
+  Send,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -26,6 +30,7 @@ import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
+import { QRCodeSVG } from "qrcode.react";
 import { type Patient, type PatientsResponse } from "@/features/patients";
 import {
   AppointmentCalendar,
@@ -37,6 +42,7 @@ import {
   fetchAppointmentsJson,
   getAppointmentDisplayName,
 } from "@/lib/appointments";
+import { getAuthToken } from "@/lib/auth-token";
 
 type TabKey = "calendar" | "upcoming" | "past" | "requests";
 type WeekRule = {
@@ -77,6 +83,16 @@ const DEFAULT_WEEK_RULES = (): WeekRule[] =>
   }));
 
 const DAY_INDEX_BY_KEY: Record<string, number> = {
+  monday: 0,
+  tuesday: 1,
+  wednesday: 2,
+  thursday: 3,
+  friday: 4,
+  saturday: 5,
+  sunday: 6,
+};
+
+const DAY_OF_WEEK_BY_KEY: Record<string, number> = {
   sunday: 0,
   monday: 1,
   tuesday: 2,
@@ -86,30 +102,25 @@ const DAY_INDEX_BY_KEY: Record<string, number> = {
   saturday: 6,
 };
 
-const DAY_OF_WEEK_BY_KEY: Record<string, number> = {
-  monday: 1,
-  tuesday: 2,
-  wednesday: 3,
-  thursday: 4,
-  friday: 5,
-  saturday: 6,
-  sunday: 7,
-};
-
 const HOUR_START = 8;
-const HOUR_END = 20;
+const HOUR_END = 23;
 const ROW_HEIGHT = 64;
 
 const HOUR_BLOCKS = Array.from({ length: HOUR_END - HOUR_START }, (_, index) => HOUR_START + index);
 
 const createEmptyWorkHoursGrid = (): WorkHoursGridDraft =>
   Object.fromEntries(
-    WEEK_DAYS.map((day) => [day.key, Array.from({ length: HOUR_END - HOUR_START }, () => false)]),
+    WEEK_DAYS.map((day) => [day.key, Array.from({ length: HOUR_END - HOUR_START + 1 }, () => false)]),
   ) as WorkHoursGridDraft;
 
 const formatHourBlockLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
 
-const formatDateKey = (date: Date) => date.toISOString().slice(0, 10);
+const formatDateKey = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
 
 const parseDateSafe = (value?: string | null) => {
   if (!value) return null;
@@ -159,20 +170,23 @@ const normalizeWeekDayKey = (value: unknown) => {
 };
 
 const normalizeWeekDayFromIndex = (value: unknown) => {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    const normalized = Math.trunc(value);
-    const index =
-      normalized === 7 ? 0 : normalized >= 0 && normalized <= 6 ? normalized : normalized - 1 >= 0 && normalized - 1 <= 6 ? normalized - 1 : null;
-    if (index === null) return "";
-    return WEEK_DAYS[index]?.key || "";
+  const normalized = typeof value === "number" ? Math.trunc(value) : Number(normalizeText(value));
+  if (Number.isNaN(normalized)) {
+    return normalizeWeekDayKey(value);
   }
 
-  const parsed = Number(normalizeText(value));
-  if (!Number.isNaN(parsed)) {
-    return normalizeWeekDayFromIndex(parsed);
-  }
+  const index = normalized === 7 ? 0 : normalized;
+  const dayMap: Record<number, string> = {
+    0: "sunday",
+    1: "monday",
+    2: "tuesday",
+    3: "wednesday",
+    4: "thursday",
+    5: "friday",
+    6: "saturday",
+  };
 
-  return normalizeWeekDayKey(value);
+  return dayMap[index] || "";
 };
 
 const normalizeTimeValue = (value: unknown, fallback: string) => {
@@ -214,7 +228,9 @@ const parseAvailabilityRuleItem = (item: unknown): WeekRule | null => {
           ? record.isWorking
           : typeof record.active === "boolean"
             ? record.active
-            : true;
+            : typeof record.isActive === "boolean"
+              ? record.isActive
+              : true;
 
   return {
     day,
@@ -297,14 +313,17 @@ const parseWeekRulesPayload = (payload: unknown): WeekRule[] => {
 
 const getWeekDayIndex = (date: Date) => (date.getDay() + 6) % 7;
 
-const isHourWithinRule = (day: Date, hour: number, rule: WeekRule | undefined) => {
-  if (!rule?.enabled) return false;
-  const startHour = Number(rule.start.slice(0, 2));
-  const endHour = Number(rule.end.slice(0, 2));
-  const currentIndex = getWeekDayIndex(day);
-  const ruleIndex = DAY_INDEX_BY_KEY[rule.day] ?? currentIndex;
-  if (currentIndex !== ruleIndex) return false;
-  return hour >= startHour && hour < endHour;
+const isHourWithinRule = (day: Date, hour: number, allRules: WeekRule[]) => {
+  const dayIndex = getWeekDayIndex(day);
+  const dayKey = WEEK_DAYS[dayIndex].key;
+  
+  return allRules
+    .filter((r) => r.day === dayKey && r.enabled)
+    .some((rule) => {
+      const startHour = Number(rule.start.slice(0, 2));
+      const endHour = Number(rule.end.slice(0, 2));
+      return hour >= startHour && hour < endHour;
+    });
 };
 
 const isDefined = <T,>(value: T | null): value is T => value !== null;
@@ -331,8 +350,10 @@ const extractList = (payload: unknown) => {
 const normalizeCalendar = (payload: unknown): AppointmentCalendar | null => {
   const cal = extractCalendarCandidate(payload);
   if (!cal) return null;
+
   const id = normalizeText(cal.id) || normalizeText(cal.calendarId) || normalizeText(cal.calendar_id);
   if (!id) return null;
+
   return {
     id,
     name: normalizeText(cal.name),
@@ -516,8 +537,8 @@ const createRulesFromWorkHoursGrid = (grid: WorkHoursGridDraft): WeekRule[] => {
           rules.push({
             day: day.key,
             enabled: true,
-            start: formatHourBlockLabel(segmentStart),
-            end: formatHourBlockLabel(segmentEnd),
+            start: formatHourLabel(segmentStart),
+            end: formatHourLabel(segmentEnd),
           });
         }
         segmentStart = isSelected ? HOUR_START + index : null;
@@ -605,6 +626,8 @@ export default function AppointmentsClient() {
   const [isPatientPickerOpen, setIsPatientPickerOpen] = useState(false);
   const [isEditingWorkHours, setIsEditingWorkHours] = useState(false);
   const [isShareLinkOpen, setIsShareLinkOpen] = useState(false);
+  const [shareMode, setShareMode] = useState<"manual" | "patient">("manual");
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
   const [isSavingHours, setIsSavingHours] = useState(false);
   const [isCreatingShareLink, setIsCreatingShareLink] = useState(false);
@@ -618,6 +641,10 @@ export default function AppointmentsClient() {
   const [patientCandidates, setPatientCandidates] = useState<Patient[]>([]);
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+  const [isScheduleActive, setIsScheduleActive] = useState(false);
+  const [isUpdatingActivation, setIsUpdatingActivation] = useState(false);
+  const [shareEmail, setShareEmail] = useState("");
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const calendarSectionRef = useRef<HTMLDivElement | null>(null);
 
   const calendarId = calendar?.id || null;
@@ -930,15 +957,14 @@ export default function AppointmentsClient() {
     try {
       const response = await createBookingLink({
         calendarId,
-        nutritionistId: profile.nutritionistId,
-        nutritionistName: profile.nutritionistName,
-        title: `Horario de ${profile.nutritionistName}`,
-        description:
-          "Comparte este enlace para que tus pacientes reserven una cita sobre tu calendario actual.",
-        timeZone: calendarTimeZone,
+        mode: "FLEXIBLE",
+        allowedUses: 1000,
+        expiresAt: "2026-12-31T23:59:59.000Z",
         metadata: {
-          source: "NutriNet",
+          source: "dashboard",
           module: "appointments",
+          nutritionistId: profile.nutritionistId,
+          nutritionistName: profile.nutritionistName,
         },
       });
 
@@ -994,6 +1020,127 @@ export default function AppointmentsClient() {
     } catch (error) {
       console.error("Error copying share link", error);
       toast.error("No pudimos copiar el enlace.");
+    }
+  };
+
+  // Load settings for public schedule
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const token = getAuthToken();
+        const response = await fetchApi("/nutritionists/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const settings = data.settings || {};
+          setIsScheduleActive(!!settings.isScheduleActive);
+          if (settings.bookingUrl && !shareLinkUrl) {
+            setShareLinkUrl(settings.bookingUrl);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading settings:", error);
+      }
+    };
+    void loadSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Search patients for sharing
+  useEffect(() => {
+    if (shareMode !== "patient" || !patientSearchQuery.trim()) {
+      setPatientCandidates([]);
+      return;
+    }
+
+    const searchPatients = async () => {
+      setIsLoadingPatients(true);
+      try {
+        const token = getAuthToken();
+        const response = await fetchApi(`/patients?search=${encodeURIComponent(patientSearchQuery)}&limit=5`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setPatientCandidates(data.data || []);
+        }
+      } catch (error) {
+        console.error("Error searching patients:", error);
+      } finally {
+        setIsLoadingPatients(false);
+      }
+    };
+
+    const timer = setTimeout(searchPatients, 400);
+    return () => clearTimeout(timer);
+  }, [patientSearchQuery, shareMode]);
+
+  const handleTogglePublicSchedule = async () => {
+    setIsUpdatingActivation(true);
+    const nextState = !isScheduleActive;
+    try {
+      const token = getAuthToken();
+      const response = await fetchApi("/users/me/settings", {
+        method: "PATCH",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          isScheduleActive: nextState,
+          bookingUrl: shareLinkUrl,
+        }),
+      });
+
+      if (response.ok) {
+        setIsScheduleActive(nextState);
+        toast.success(nextState ? "Horario público activado" : "Horario público desactivado");
+      } else {
+        toast.error("No se pudo actualizar el estado del horario.");
+      }
+    } catch (error) {
+      toast.error("Error de conexión al activar horario.");
+    } finally {
+      setIsUpdatingActivation(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!shareEmail.trim() || !shareEmail.includes("@")) {
+      toast.error("Por favor ingresa un correo electrónico válido");
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      const token = getAuthToken();
+      const response = await fetchApi("/nutritionists/share-schedule", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          email: shareEmail,
+          bookingUrl: shareLinkUrl,
+          nutritionistName: shareLinkNutritionistName,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success(`Enlace enviado con éxito a ${shareEmail}`);
+        setShareEmail("");
+      } else {
+        toast.error("No se pudo enviar el correo. Intenta nuevamente.");
+      }
+    } catch (error) {
+      console.error("Error sending email:", error);
+      toast.error("Error de conexión al enviar el correo.");
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -1221,8 +1368,30 @@ export default function AppointmentsClient() {
     <ModuleLayout
       title="Citas"
       description="Calendario clínico, próximas citas, citas pasadas y peticiones en una sola vista."
-      className="max-w-7xl"
+      className="max-w-7xl relative"
     >
+      {/* Candado de bloqueo temporal solicitado por el usuario */}
+      <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm rounded-[2rem]">
+        <div className="flex flex-col items-center gap-6 p-10 bg-white border border-slate-200 shadow-2xl rounded-[3rem] max-w-md text-center animate-in zoom-in-95 duration-300">
+          <div className="h-20 w-20 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+            <Lock className="h-10 w-10" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Módulo en Mantenimiento</h2>
+            <p className="text-slate-500 font-medium">
+              Estamos estabilizando este módulo para asegurar la mejor experiencia. Estará disponible próximamente.
+            </p>
+          </div>
+          <Button 
+            variant="outline" 
+            className="rounded-xl border-slate-200 px-8 font-semibold text-slate-600"
+            onClick={() => window.location.href = '/dashboard'}
+          >
+            Volver al Inicio
+          </Button>
+        </div>
+      </div>
+
       <div className="space-y-6">
         <section className="grid gap-4 xl:grid-cols-[1.4fr_0.6fr]">
           <div ref={calendarSectionRef}>
@@ -1266,6 +1435,22 @@ export default function AppointmentsClient() {
                     >
                       <Share2 className="mr-2 h-4 w-4 text-indigo-500" />
                       Compartir horario
+                    </Button>
+                    <Button
+                      variant={isScheduleActive ? "secondary" : "outline"}
+                      className={cn(
+                        "h-10 rounded-xl border-slate-200 px-4 font-semibold shadow-sm transition-all",
+                        isScheduleActive ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-100" : "bg-white text-slate-700 hover:bg-slate-50"
+                      )}
+                      onClick={handleTogglePublicSchedule}
+                      disabled={isUpdatingActivation || !shareLinkUrl}
+                    >
+                      {isUpdatingActivation ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className={cn("mr-2 h-4 w-4", isScheduleActive ? "text-emerald-500" : "text-slate-300")} />
+                      )}
+                      {isScheduleActive ? "Agendamiento Activo" : "Activar Agendamiento"}
                     </Button>
                     <Button
                       variant="outline"
@@ -1403,68 +1588,79 @@ export default function AppointmentsClient() {
                           {weekDays.map((day) => {
                             const dayEvents = eventBlocks.get(formatDateKey(day)) || [];
                             const dayKey = WEEK_DAYS[getWeekDayIndex(day)].key;
-                            const dayRule = workHoursDraft.find((rule) => rule.day === dayKey);
-                            const dayHasWorkingWindow = Boolean(dayRule?.enabled);
+                            const dayHasWorkingWindow = workHoursDraft.some((rule) => rule.day === dayKey && rule.enabled);
                             const dayGrid = workHoursGridDraft[dayKey] || [];
                             return (
                               <div key={day.toISOString()} className="relative min-h-[832px] border-l border-slate-100 bg-white">
-                                {Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, index) => {
-                                  const hour = HOUR_START + index;
-                                  const gridIndex = hour - HOUR_START;
-                                  const isSelectedHour = Boolean(dayGrid[gridIndex]);
-                                  const isWorkingHour = isEditingWorkHours ? isSelectedHour : isHourWithinRule(day, hour, dayRule);
-                                  const isEditableHour = hour < HOUR_END;
-                                  return (
-                                    <button
-                                      key={hour}
-                                      type="button"
-                                      onClick={() => {
-                                        if (!isEditableHour) return;
-                                        if (isEditingWorkHours) {
-                                          setWorkHoursGridDraft((current) => {
-                                            if (gridIndex < 0 || gridIndex >= (current[dayKey]?.length || 0)) {
-                                              return current;
-                                            }
-                                            const next = { ...current };
-                                            const nextDay = [...(next[dayKey] || [])];
-                                            nextDay[gridIndex] = !nextDay[gridIndex];
-                                            next[dayKey] = nextDay;
-                                            return next;
-                                          });
-                                          return;
-                                        }
+                                  {Array.from({ length: HOUR_END - HOUR_START }, (_, index) => {
+                                    const hour = HOUR_START + index;
+                                    const gridIndex = hour - HOUR_START;
+                                    const isSelectedHour = Boolean(dayGrid[gridIndex]);
+                                    const isWorkingHour = isEditingWorkHours ? isSelectedHour : isHourWithinRule(day, hour, workHoursDraft);
+                                    const isEditableHour = hour < HOUR_END;
 
-                                        if (!isWorkingHour) return;
-                                        openCreateFromGrid(day, hour);
-                                      }}
-                                      title={
-                                        !isEditableHour
-                                          ? isEditingWorkHours
-                                            ? "Corte horario"
-                                            : "Bloque horario"
-                                          : isEditingWorkHours
-                                            ? `${isSelectedHour ? "Desactivar" : "Activar"} ${formatHourLabel(hour)}`
-                                            : isWorkingHour
-                                              ? `Crear cita ${formatHourLabel(hour)} en ${day.toLocaleDateString("es-CL", { weekday: "short", day: "2-digit", month: "short" })}`
-                                              : "Fuera de horario"
-                                      }
-                                      className={cn(
-                                        "h-16 w-full border-b border-slate-100 transition-colors",
-                                        !isEditableHour
-                                          ? isEditingWorkHours
-                                            ? "cursor-pointer bg-slate-100/70 hover:bg-slate-200"
-                                            : "cursor-default bg-white"
-                                          : isEditingWorkHours
-                                            ? isSelectedHour
-                                              ? "cursor-pointer bg-emerald-500/85 hover:bg-emerald-600"
-                                              : "cursor-pointer bg-slate-100/80 hover:bg-slate-200"
-                                            : isWorkingHour
-                                              ? "cursor-pointer hover:bg-emerald-50/70"
-                                              : "cursor-default bg-slate-100/70",
-                                      )}
-                                    />
-                                  );
-                                })}
+                                    return (
+                                      <button
+                                        key={hour}
+                                        type="button"
+                                        onClick={() => {
+                                          if (!isEditableHour) return;
+                                          if (isEditingWorkHours) {
+                                            setWorkHoursGridDraft((current) => {
+                                              if (gridIndex < 0 || gridIndex >= (current[dayKey]?.length || 0)) {
+                                                return current;
+                                              }
+                                              const next = { ...current };
+                                              const nextDay = [...(next[dayKey] || [])];
+                                              nextDay[gridIndex] = !nextDay[gridIndex];
+                                              next[dayKey] = nextDay;
+                                              return next;
+                                            });
+                                            return;
+                                          }
+
+                                          if (!isWorkingHour) return;
+                                          openCreateFromGrid(day, hour);
+                                        }}
+                                        title={
+                                          !isEditableHour
+                                            ? isEditingWorkHours
+                                              ? "Corte horario"
+                                              : "Bloque horario"
+                                            : isEditingWorkHours
+                                              ? `${isSelectedHour ? "Desactivar" : "Activar"} ${formatHourLabel(hour)}`
+                                              : isWorkingHour
+                                                ? `Crear cita ${formatHourLabel(hour)} en ${day.toLocaleDateString("es-CL", { weekday: "short", day: "2-digit", month: "short" })}`
+                                                : `No disponible (${formatHourLabel(hour)})`
+                                        }
+                                        className={cn(
+                                          "h-16 w-full border-b border-slate-100 transition-colors flex items-center justify-center",
+                                          !isEditableHour
+                                            ? isEditingWorkHours
+                                              ? "cursor-pointer bg-slate-100/70 hover:bg-slate-200"
+                                              : "cursor-default bg-white"
+                                            : isEditingWorkHours
+                                              ? isSelectedHour
+                                                ? "cursor-pointer bg-emerald-500/85 hover:bg-emerald-600"
+                                                : "cursor-pointer bg-slate-100/80 hover:bg-slate-200"
+                                              : isWorkingHour
+                                                ? "cursor-pointer bg-emerald-50/40 hover:bg-emerald-100/60"
+                                                : "cursor-default bg-slate-100/70",
+                                        )}
+                                      >
+                                        {!isEditingWorkHours && isWorkingHour && isEditableHour && (
+                                          <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600/60">
+                                            Disponible
+                                          </span>
+                                        )}
+                                        {!isEditingWorkHours && !isWorkingHour && isEditableHour && (
+                                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400/50">
+                                            No laboral
+                                          </span>
+                                        )}
+                                      </button>
+                                    );
+                                  })}
                                 {!isEditingWorkHours && !dayHasWorkingWindow && (
                                   <div className="pointer-events-none absolute inset-0 bg-slate-100/35" />
                                 )}
@@ -1876,35 +2072,211 @@ export default function AppointmentsClient() {
         </div>
       </Modal>
 
-      <Modal isOpen={isShareLinkOpen} onClose={() => setIsShareLinkOpen(false)} title="Compartir mi horario">
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
-            <p className="text-sm font-black text-sky-900">Comparte este enlace con tus pacientes</p>
-            <p className="mt-1 text-sm font-medium text-sky-800/80">
-              Podrán ver tu calendario público, elegir un bloque libre y registrar la cita con correo y motivo.
-            </p>
+      <Modal 
+        isOpen={isShareLinkOpen} 
+        onClose={() => setIsShareLinkOpen(false)} 
+        title="Compartir mi horario"
+        className="max-w-4xl"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Columna Izquierda: QR e Instrucciones */}
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-sky-200 bg-sky-50 p-6">
+              <h4 className="text-sm font-black text-sky-900 flex items-center gap-2">
+                <BadgeInfo className="h-4 w-4" />
+                Instrucciones para pacientes
+              </h4>
+              <p className="mt-2 text-sm font-medium text-sky-800/80 leading-relaxed">
+                Comparte este código o enlace. Tus pacientes podrán ver tu disponibilidad en tiempo real y agendar una cita directamente.
+              </p>
+            </div>
+
+            <div className="flex flex-col items-center justify-center space-y-4 rounded-[2.5rem] border-2 border-dashed border-slate-100 bg-slate-50/30 p-6">
+              {shareLinkUrl ? (
+                <>
+                  <div className="p-4 bg-white rounded-3xl shadow-xl shadow-slate-200/50">
+                    <QRCodeSVG value={shareLinkUrl} size={180} includeMargin={true} />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Acceso Directo QR</p>
+                    <p className="text-[9px] font-medium text-slate-300 mt-1">Escanea para reservar al instante</p>
+                  </div>
+                </>
+              ) : (
+                <div className="flex h-[180px] w-[180px] items-center justify-center rounded-3xl bg-white shadow-inner">
+                  <Loader2 className="h-8 w-8 animate-spin text-slate-200" />
+                </div>
+              )}
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-slate-500">Nutricionista</label>
-            <Input value={shareLinkNutritionistName} readOnly className="h-12 rounded-xl bg-slate-50" />
+
+          {/* Columna Derecha: Enlaces y Email */}
+          <div className="space-y-8 py-2">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Nutricionista</label>
+                <Input value={shareLinkNutritionistName} readOnly className="h-12 rounded-2xl bg-slate-50 border-transparent font-bold text-slate-600" />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Enlace de reserva</label>
+                <div className="flex gap-2">
+                  <Input value={shareLinkUrl} readOnly className="h-12 rounded-2xl bg-white border-slate-100 font-mono text-[10px] focus:ring-indigo-500/10" />
+                  <Button 
+                    variant="outline" 
+                    className="h-12 w-12 shrink-0 rounded-2xl border-slate-100 hover:bg-indigo-50 hover:text-indigo-600 transition-all"
+                    onClick={() => {
+                      navigator.clipboard.writeText(shareLinkUrl);
+                      toast.success("Enlace copiado al portapapeles");
+                    }}
+                  >
+                    <ClipboardCopy className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-slate-100 w-full" />
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Enviar por correo</h4>
+                  <p className="text-[11px] font-medium text-slate-400 px-1">
+                    {shareMode === "manual" 
+                      ? "Ingresa el correo del destinatario." 
+                      : "Busca y selecciona un paciente."}
+                  </p>
+                </div>
+                
+                {/* Switch para modo de envío */}
+                <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200/50">
+                  <button 
+                    onClick={() => {
+                      setShareMode("manual");
+                      setSelectedPatient(null);
+                    }}
+                    className={cn(
+                      "px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all",
+                      shareMode === "manual" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    Manual
+                  </button>
+                  <button 
+                    onClick={() => setShareMode("patient")}
+                    className={cn(
+                      "px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all",
+                      shareMode === "patient" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    Paciente
+                  </button>
+                </div>
+              </div>
+
+              {shareMode === "manual" ? (
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="paciente@correo.com" 
+                    value={shareEmail}
+                    onChange={(e) => setShareEmail(e.target.value)}
+                    className="h-12 rounded-2xl border-slate-100 bg-white font-medium focus:ring-emerald-500/10" 
+                  />
+                  <Button 
+                    className="h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black px-6 shadow-lg shadow-emerald-100 transition-all active:scale-[0.98]"
+                    onClick={handleSendEmail}
+                    disabled={isSendingEmail}
+                  >
+                    {isSendingEmail ? <Loader2 className="h-5 w-5 animate-spin" /> : "Enviar"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="relative group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                    <Input 
+                      placeholder="Buscar por nombre o correo..." 
+                      value={patientSearchQuery}
+                      onChange={(e) => setPatientSearchQuery(e.target.value)}
+                      className="h-12 pl-11 rounded-2xl border-slate-100 bg-white font-medium focus:ring-indigo-500/10" 
+                    />
+                    {isLoadingPatients && (
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        <Loader2 className="h-4 w-4 animate-spin text-indigo-400" />
+                      </div>
+                    )}
+                  </div>
+
+                  {patientCandidates.length > 0 && !selectedPatient && (
+                    <div className="rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-200/50 overflow-hidden divide-y divide-slate-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                      {patientCandidates.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => {
+                            setSelectedPatient(p);
+                            setShareEmail(p.email || "");
+                            setPatientSearchQuery("");
+                          }}
+                          className="w-full px-4 py-3 text-left hover:bg-slate-50 flex items-center justify-between group transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-[10px] uppercase border border-indigo-100">
+                              {p.fullName.charAt(0)}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-700 truncate">{p.fullName}</p>
+                              <p className="text-[10px] text-slate-400 truncate">{p.email || "Sin correo"}</p>
+                            </div>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedPatient && (
+                    <div className="flex items-center justify-between p-3 bg-indigo-50/50 border border-indigo-100 rounded-2xl animate-in zoom-in-95 duration-200">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-sm uppercase shadow-md shadow-indigo-200">
+                          {selectedPatient.fullName.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-800 truncate">{selectedPatient.fullName}</p>
+                          <p className="text-[10px] text-indigo-600 font-bold truncate">{selectedPatient.email || "Sin correo"}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => {
+                            setSelectedPatient(null);
+                            setShareEmail("");
+                          }}
+                          className="p-2 text-slate-400 hover:text-rose-500 hover:bg-white rounded-xl transition-all"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                        <Button 
+                          size="sm"
+                          className="h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black px-6 transition-all active:scale-[0.95] shadow-lg shadow-indigo-100"
+                          onClick={handleSendEmail}
+                          disabled={isSendingEmail || !selectedPatient.email}
+                        >
+                          {isSendingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enviar"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-slate-500">Enlace público</label>
-            <Input value={shareLinkUrl} readOnly className="h-12 rounded-xl bg-slate-50 font-mono text-xs" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-slate-500">Token del enlace</label>
-            <Input value={shareLinkToken} readOnly className="h-12 rounded-xl bg-slate-50 font-mono text-xs" />
-          </div>
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" className="h-11 rounded-xl px-5 font-black" onClick={() => setIsShareLinkOpen(false)}>
-              Cerrar
-            </Button>
-            <Button className="h-11 rounded-xl bg-sky-600 px-5 font-black text-white" onClick={() => void handleCopyShareLink()}>
-              <ClipboardCopy className="mr-2 h-4 w-4" />
-              Copiar enlace
-            </Button>
-          </div>
+        </div>
+
+        <div className="mt-8 flex justify-end">
+          <Button variant="ghost" className="h-12 rounded-2xl px-8 font-black uppercase tracking-widest text-xs text-slate-400 hover:bg-slate-50" onClick={() => setIsShareLinkOpen(false)}>
+            Cerrar Ventana
+          </Button>
         </div>
       </Modal>
 

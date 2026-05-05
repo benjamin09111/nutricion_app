@@ -1,10 +1,10 @@
 # Sesiones Activas
 
-Sesión activa: `patient-creation-share-indicator`
+Sesión activa: `refactor-citas-frontend`
 
 - Modo: `TURBO`
-- Estado: `Phase 5: Verify`
-- Objetivo: corregir el `ReferenceError` del portal del paciente y mostrar el estado compartido de creaciones con indicador verde/parpadeante y toggle de compartir.
+- Estado: `Phase 2: Plan`
+- Objetivo: Refactorizar `AppointmentsClient.tsx` para usar SWR, extraer lógica a adaptadores y modularizar pestañas y modales.
 
 ---
-Última sesión completada: [refactor-nutritional-goals](.collab/sessions/refactor-nutritional-goals/)
+Última sesión completada: [patient-creation-share-indicator](.collab/sessions/patient-creation-share-indicator/)

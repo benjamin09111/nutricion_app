@@ -722,6 +722,7 @@ export class PatientPortalsService {
               id: true,
               fullName: true,
               avatarUrl: true,
+              settings: true,
             },
           },
           projects: {
