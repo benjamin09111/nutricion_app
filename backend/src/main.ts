@@ -26,7 +26,10 @@ async function bootstrap() {
     rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
       max: 500, // increased for production proxy environments
-      message: { statusCode: 429, message: 'Demasiadas solicitudes. Intenta de nuevo en 15 minutos.' },
+      message: {
+        statusCode: 429,
+        message: 'Demasiadas solicitudes. Intenta de nuevo en 15 minutos.',
+      },
       standardHeaders: true,
       legacyHeaders: false,
     }),
@@ -52,7 +55,9 @@ async function bootstrap() {
   } catch (error: any) {
     if (error.code === 'EADDRINUSE') {
       const secondaryPort = process.env.SECONDARY_PORT || 3002;
-      console.warn(`Port ${port} is in use, trying secondary port ${secondaryPort}...`);
+      console.warn(
+        `Port ${port} is in use, trying secondary port ${secondaryPort}...`,
+      );
       await app.listen(secondaryPort);
       console.log(`Application is running on: ${await app.getUrl()}`);
     } else {

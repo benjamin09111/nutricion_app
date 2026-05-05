@@ -17,8 +17,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | NutriSaaS",
-    default: "NutriSaaS - Software para Nutricionistas",
+    template: "%s | NutriNet",
+    default: "NutriNet - Software para Nutricionistas",
   },
   description:
     "Plataforma integral para gestión de pacientes, creación de dietas automatizadas y seguimiento clínico. Diseñado para nutricionistas en Chile.",

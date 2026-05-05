@@ -4,7 +4,7 @@
 **Mode:** ADAPTIVE
 
 ## Goal
-Document the Redis strategy for NutriSaaS: what it would be used for, where it's NOT needed, and current decision to keep in-memory cache.
+Document the Redis strategy for NutriNet: what it would be used for, where it's NOT needed, and current decision to keep in-memory cache.
 
 ## Scope
 

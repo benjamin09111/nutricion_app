@@ -12,10 +12,12 @@ type AiConfig = {
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private readonly requestTimeoutMs = Number(process.env.AI_REQUEST_TIMEOUT_MS || 90000);
+  private readonly requestTimeoutMs = Number(
+    process.env.AI_REQUEST_TIMEOUT_MS || 90000,
+  );
 
-    private getProviderConfig(provider: AiProvider): AiConfig | null {
-        if (provider === 'deepseek') {
+  private getProviderConfig(provider: AiProvider): AiConfig | null {
+    if (provider === 'deepseek') {
       const apiKey = process.env.DEEPSEEK_API_KEY;
       if (!apiKey) return null;
       return {
@@ -23,22 +25,22 @@ export class AiService {
         apiKey,
         model: process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash',
         baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
-            };
-        }
+      };
+    }
 
-        if (provider === 'abacus') {
-            const apiKey = process.env.ABACUS_API_KEY;
-            if (!apiKey) return null;
-        return {
-                provider,
-                apiKey,
-                model: process.env.ABACUS_MODEL || 'route-llm',
-                baseUrl: process.env.ABACUS_BASE_URL || 'https://routellm.abacus.ai/v1',
-            };
-        }
+    if (provider === 'abacus') {
+      const apiKey = process.env.ABACUS_API_KEY;
+      if (!apiKey) return null;
+      return {
+        provider,
+        apiKey,
+        model: process.env.ABACUS_MODEL || 'route-llm',
+        baseUrl: process.env.ABACUS_BASE_URL || 'https://routellm.abacus.ai/v1',
+      };
+    }
 
-        const apiKey = process.env.OPENAI_API_KEY;
-        if (!apiKey) return null;
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return null;
     return {
       provider,
       apiKey,
@@ -67,7 +69,9 @@ export class AiService {
     userPrompt: string,
   ): Promise<string> {
     const endpoint = `${config.baseUrl.replace(/\/$/, '')}/chat/completions`;
-    this.logger.log(`[AI:${config.provider}] Request model=${config.model} promptChars=${userPrompt.length}`);
+    this.logger.log(
+      `[AI:${config.provider}] Request model=${config.model} promptChars=${userPrompt.length}`,
+    );
 
     const payload: Record<string, unknown> = {
       model: config.model,
@@ -94,11 +98,12 @@ export class AiService {
       body: JSON.stringify(payload),
     });
 
-    const raw = await response.json().catch(() => ({} as any));
+    const raw = await response.json().catch(() => ({}) as any);
     if (!response.ok) {
       const upstreamMessage = raw?.error?.message || raw?.message || '';
       throw new BadRequestException(
-        upstreamMessage || `No se pudo completar la solicitud con ${config.provider}.`,
+        upstreamMessage ||
+          `No se pudo completar la solicitud con ${config.provider}.`,
       );
     }
 
@@ -110,7 +115,10 @@ export class AiService {
     return text;
   }
 
-  async callJson(systemInstruction: string, userPrompt: string): Promise<string> {
+  async callJson(
+    systemInstruction: string,
+    userPrompt: string,
+  ): Promise<string> {
     const providers: AiProvider[] = ['deepseek', 'abacus', 'openai'];
     const errors: string[] = [];
 
@@ -122,7 +130,11 @@ export class AiService {
       }
 
       try {
-        return await this.callProviderJson(config, systemInstruction, userPrompt);
+        return await this.callProviderJson(
+          config,
+          systemInstruction,
+          userPrompt,
+        );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         errors.push(`${provider}: ${message}`);

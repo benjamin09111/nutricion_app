@@ -1,30 +1,37 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray, IsUUID, IsIn } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsArray,
+  IsUUID,
+  IsIn,
+} from 'class-validator';
 
 export class CreateIngredientGroupDto {
-    @IsString()
-    @IsNotEmpty()
-    name: string;
+  @IsString()
+  @IsNotEmpty()
+  name: string;
 
-    @IsString()
-    @IsOptional()
-    @IsIn(['INGREDIENT', 'RECIPE'])
-    type?: 'INGREDIENT' | 'RECIPE';
+  @IsString()
+  @IsOptional()
+  @IsIn(['INGREDIENT', 'RECIPE'])
+  type?: 'INGREDIENT' | 'RECIPE';
 
-    @IsString()
-    @IsOptional()
-    description?: string;
+  @IsString()
+  @IsOptional()
+  description?: string;
 
-    @IsArray()
-    @IsString({ each: true })
-    @IsOptional()
-    tags?: string[]; // Array of tag names to create/connect
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[]; // Array of tag names to create/connect
 
-    @IsArray()
-    @IsOptional()
-    ingredients?: {
-        id: string;
-        brandSuggestion?: string;
-        amount?: number;
-        unit?: string;
-    }[];
+  @IsArray()
+  @IsOptional()
+  ingredients?: {
+    id: string;
+    brandSuggestion?: string;
+    amount?: number;
+    unit?: string;
+  }[];
 }

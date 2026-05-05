@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { User, Lock, Save, Eye, EyeOff, Sun, Moon, Type } from "lucide-react";
@@ -9,6 +9,12 @@ import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
 import { useTheme } from "@/context/ThemeContext";
 import { useFont } from "@/context/FontContext";
+
+interface UserSettings {
+  professionalInstagram?: string;
+  professionalPhone?: string;
+  professionalEmail?: string;
+}
 
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -469,4 +475,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-

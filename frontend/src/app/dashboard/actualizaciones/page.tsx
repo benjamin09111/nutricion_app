@@ -98,7 +98,7 @@ export default function UpdatesPage() {
                 <div className="max-w-5xl mx-auto px-4 text-center">
                     <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-semibold uppercase tracking-widest mb-6">
                         <Rocket className="h-4 w-4" />
-                        Hoja de Ruta NutriSaaS
+                        Hoja de Ruta NutriNet
                     </div>
                     <h1 className="text-4xl md:text-5xl font-semibold text-slate-900 mb-6 tracking-tight">
                         El futuro de la Nutrición <br />

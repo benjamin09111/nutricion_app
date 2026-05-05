@@ -1,7 +1,7 @@
 import DashboardHomeClient from "./DashboardHomeClient";
 
 export const metadata = {
-  title: "Principal | NutriSaaS",
+  title: "Principal | NutriNet",
   description:
     "Centro de trabajo para crear, retomar y avanzar proyectos clínicos.",
 };

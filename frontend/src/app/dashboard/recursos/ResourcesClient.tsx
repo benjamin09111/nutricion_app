@@ -346,7 +346,7 @@ export function ResourcesClient() {
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-[1.5fr_1fr_1fr] items-start">
+              <div className="grid gap-4 md:grid-cols-[1.5fr_1fr_1fr] items-end">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">
                     <Search className="h-3.5 w-3.5" />

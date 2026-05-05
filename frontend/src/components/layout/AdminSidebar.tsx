@@ -138,7 +138,7 @@ export function AdminSidebar() {
         <div className="flex items-center space-x-2">
           <Image
             src="/logo_2.webp"
-            alt="NutriSaaS"
+            alt="NutriNet"
             width={isSidebarCollapsed ? 72 : 180}
             height={isSidebarCollapsed ? 23 : 57}
             className={cn("h-auto w-auto object-contain", isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
@@ -201,9 +201,9 @@ export function AdminSidebar() {
                         {!isSidebarCollapsed &&
                           item.name === "Peticiones" &&
                           pendingCount > 0 && (
-                          <span className="ml-auto inline-flex items-center justify-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
-                            {pendingCount}
-                          </span>
+                            <span className="ml-auto inline-flex items-center justify-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
+                              {pendingCount}
+                            </span>
                           )}
                       </Link>
                     </li>

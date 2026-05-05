@@ -1,69 +1,76 @@
-import { IsString, IsNotEmpty, IsNumber, IsOptional, IsArray, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsArray,
+  IsBoolean,
+} from 'class-validator';
 
 export class CreateFoodDto {
-    @IsString()
-    @IsNotEmpty()
-    name: string;
+  @IsString()
+  @IsNotEmpty()
+  name: string;
 
-    @IsString()
-    @IsNotEmpty()
-    brand: string;
+  @IsString()
+  @IsNotEmpty()
+  brand: string;
 
-    @IsString()
-    @IsNotEmpty()
-    category: string;
+  @IsString()
+  @IsNotEmpty()
+  category: string;
 
-    @IsNumber()
-    @IsOptional()
-    price?: number;
+  @IsNumber()
+  @IsOptional()
+  price?: number;
 
-    @IsString()
-    @IsNotEmpty()
-    unit: string;
+  @IsString()
+  @IsNotEmpty()
+  unit: string;
 
-    @IsNumber()
-    @IsOptional()
-    amount?: number;
+  @IsNumber()
+  @IsOptional()
+  amount?: number;
 
-    @IsNumber()
-    calories: number;
+  @IsNumber()
+  calories: number;
 
-    @IsNumber()
-    proteins: number;
+  @IsNumber()
+  proteins: number;
 
-    @IsNumber()
-    @IsOptional()
-    lipids?: number;
+  @IsNumber()
+  @IsOptional()
+  lipids?: number;
 
-    @IsNumber()
-    carbs: number;
+  @IsNumber()
+  carbs: number;
 
-    @IsNumber()
-    @IsOptional()
-    sugars?: number;
+  @IsNumber()
+  @IsOptional()
+  sugars?: number;
 
-    @IsNumber()
-    @IsOptional()
-    fiber?: number;
+  @IsNumber()
+  @IsOptional()
+  fiber?: number;
 
-    @IsNumber()
-    @IsOptional()
-    sodium?: number;
+  @IsNumber()
+  @IsOptional()
+  sodium?: number;
 
-    @IsArray()
-    @IsString({ each: true })
-    @IsOptional()
-    tags?: string[];
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
 
-    @IsString()
-    @IsOptional()
-    ingredients?: string;
+  @IsString()
+  @IsOptional()
+  ingredients?: string;
 
-    @IsBoolean()
-    @IsOptional()
-    isPublic?: boolean;
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
 
-    @IsBoolean()
-    @IsOptional()
-    isDraft?: boolean;
+  @IsBoolean()
+  @IsOptional()
+  isDraft?: boolean;
 }

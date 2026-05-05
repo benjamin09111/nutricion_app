@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Patient } from "../types";
 
-const STORAGE_KEY = "nutrisaas_patient_creation_draft";
+const STORAGE_KEY = "NutriNet_patient_creation_draft";
 
 const INITIAL_STATE: Partial<Patient> = {
   fullName: "",

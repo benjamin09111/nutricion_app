@@ -62,6 +62,10 @@ export class PatientPortalsController {
       body.accessCode,
     );
   }
+  @Post('login')
+  login(@Body() body: { email: string; accessCode: string }) {
+    return this.patientPortalsService.login(body.email, body.accessCode);
+  }
 
   @UseGuards(PatientPortalAuthGuard)
   @Get('me')
@@ -138,6 +142,20 @@ export class PatientPortalsController {
       req.user.nutritionistId,
       patientId,
       dto,
+    );
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('patients/:patientId/messages')
+  createMessage(
+    @Request() req: any,
+    @Param('patientId') patientId: string,
+    @Body() body: { message: string },
+  ) {
+    return this.patientPortalsService.createPortalMessage(
+      req.user.nutritionistId,
+      patientId,
+      body.message,
     );
   }
 

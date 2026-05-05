@@ -1,6 +1,6 @@
-# NutriSaaS - Application Flow & Architecture
+# NutriNet - Application Flow & Architecture
 
-This document outlines the complete data flow of the NutriSaaS application, focusing on the linear generation process (Core) and the supporting modules.
+This document outlines the complete data flow of the NutriNet application, focusing on the linear generation process (Core) and the supporting modules.
 
 ## 1. Core Philosophy
 The application operates on two main modes:

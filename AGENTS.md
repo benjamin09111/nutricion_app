@@ -1,8 +1,8 @@
-# NutriSaaS — Project Rules for OpenCode
+# NutriNet — Project Rules for OpenCode
 
 ## What This Project Is
 
-NutriSaaS is a SaaS platform for **nutritionists in Chile**. It automates the full clinical workflow: patient management → diet creation → recipe planning → shopping cart → professional PDF export.
+NutriNet is a SaaS platform for **nutritionists in Chile**. It automates the full clinical workflow: patient management → diet creation → recipe planning → shopping cart → professional PDF export.
 
 **Stack:** Next.js 16 (frontend/) + NestJS 11 (backend/) + PostgreSQL/Prisma (backend/prisma/)
 

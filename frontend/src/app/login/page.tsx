@@ -20,7 +20,7 @@ export default function LoginPage() {
           <div className="mb-12">
             <Image
               src="/logo_2.webp"
-              alt="NutriSaaS"
+              alt="NutriNet"
               width={300}
               height={64}
               className="h-auto w-[240px] sm:w-[300px] object-contain"

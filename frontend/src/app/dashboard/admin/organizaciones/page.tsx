@@ -166,11 +166,10 @@ export default function OrganizationsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                        org.status === "Active"
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${org.status === "Active"
                           ? "bg-indigo-100 text-indigo-700"
                           : "bg-amber-100 text-amber-700"
-                      }`}
+                        }`}
                     >
                       {org.status === "Active" ? "Activo" : "Pendiente"}
                     </span>
@@ -205,7 +204,7 @@ export default function OrganizationsPage() {
                 El flujo para corporativos permitirá que una organización compre
                 un paquete de licencias. Un administrador de la clínica tendrá
                 su propio panel para asignar estos correos a sus nutricionistas
-                sin intervención manual de NutriSaaS.
+                sin intervención manual de NutriNet.
               </p>
             </div>
           </div>

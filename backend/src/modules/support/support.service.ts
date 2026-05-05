@@ -5,66 +5,77 @@ import { SupportRequestType, SupportRequestStatus } from '@prisma/client';
 
 @Injectable()
 export class SupportService {
-    constructor(
-        private prisma: PrismaService,
-        private mailService: MailService
-    ) { }
+  constructor(
+    private prisma: PrismaService,
+    private mailService: MailService,
+  ) {}
 
-    async create(data: { email: string; message?: string; type: string; subject?: string }) {
-        // Map frontend types to DB enum
-        let dbType: SupportRequestType = SupportRequestType.OTHER;
-        if (data.type === 'PASSWORD_RESET') dbType = SupportRequestType.PASSWORD_RESET;
-        if (data.type === 'CONTACT') dbType = SupportRequestType.CONTACT;
-        if (data.type === 'FEEDBACK') dbType = SupportRequestType.FEEDBACK;
-        if (data.type === 'TESTIMONIO') dbType = SupportRequestType.TESTIMONIO;
-        if (data.type === 'COMPLAINT') dbType = SupportRequestType.COMPLAINT;
-        if (data.type === 'IDEA') dbType = SupportRequestType.IDEA;
+  async create(data: {
+    email: string;
+    message?: string;
+    type: string;
+    subject?: string;
+  }) {
+    // Map frontend types to DB enum
+    let dbType: SupportRequestType = SupportRequestType.OTHER;
+    if (data.type === 'PASSWORD_RESET')
+      dbType = SupportRequestType.PASSWORD_RESET;
+    if (data.type === 'CONTACT') dbType = SupportRequestType.CONTACT;
+    if (data.type === 'FEEDBACK') dbType = SupportRequestType.FEEDBACK;
+    if (data.type === 'TESTIMONIO') dbType = SupportRequestType.TESTIMONIO;
+    if (data.type === 'COMPLAINT') dbType = SupportRequestType.COMPLAINT;
+    if (data.type === 'IDEA') dbType = SupportRequestType.IDEA;
 
-        // 1. Save request to DB
-        // We prepend the subject to the message for storage context
-        const fullMessage = data.subject ? `[${data.subject}] ${data.message}` : data.message;
+    // 1. Save request to DB
+    // We prepend the subject to the message for storage context
+    const fullMessage = data.subject
+      ? `[${data.subject}] ${data.message}`
+      : data.message;
 
-        const request = await this.prisma.supportRequest.create({
-            data: {
-                email: data.email,
-                message: fullMessage,
-                type: dbType,
-                status: SupportRequestStatus.PENDING
-            }
-        });
+    const request = await this.prisma.supportRequest.create({
+      data: {
+        email: data.email,
+        message: fullMessage,
+        type: dbType,
+        status: SupportRequestStatus.PENDING,
+      },
+    });
 
-        // 2. Notify Admins via Email
-        await this.mailService.sendFeedback({
-            type: data.type, // Send the specific type (FEEDBACK, IDEA, etc)
-            subject: data.subject || (data.message ? data.message.substring(0, 30) + '...' : 'Sin asunto'),
-            message: data.type === 'TESTIMONIO'
-                ? `Testimonio público potencial: ${data.message || 'Sin mensaje'}`
-                : data.message || 'Sin mensaje',
-            fromEmail: data.email
-        });
+    // 2. Notify Admins via Email
+    await this.mailService.sendFeedback({
+      type: data.type, // Send the specific type (FEEDBACK, IDEA, etc)
+      subject:
+        data.subject ||
+        (data.message ? data.message.substring(0, 30) + '...' : 'Sin asunto'),
+      message:
+        data.type === 'TESTIMONIO'
+          ? `Testimonio público potencial: ${data.message || 'Sin mensaje'}`
+          : data.message || 'Sin mensaje',
+      fromEmail: data.email,
+    });
 
-        // 3. Send confirmation to user
-        await this.mailService.sendFeedbackConfirmation(data.email);
+    // 3. Send confirmation to user
+    await this.mailService.sendFeedbackConfirmation(data.email);
 
-        return request;
-    }
+    return request;
+  }
 
-    async findAll() {
-        return this.prisma.supportRequest.findMany({
-            orderBy: { createdAt: 'desc' }
-        });
-    }
+  async findAll() {
+    return this.prisma.supportRequest.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 
-    async resolve(id: string) {
-        return this.prisma.supportRequest.update({
-            where: { id },
-            data: { status: SupportRequestStatus.RESOLVED }
-        });
-    }
+  async resolve(id: string) {
+    return this.prisma.supportRequest.update({
+      where: { id },
+      data: { status: SupportRequestStatus.RESOLVED },
+    });
+  }
 
-    async remove(id: string) {
-        return this.prisma.supportRequest.delete({
-            where: { id }
-        });
-    }
+  async remove(id: string) {
+    return this.prisma.supportRequest.delete({
+      where: { id },
+    });
+  }
 }

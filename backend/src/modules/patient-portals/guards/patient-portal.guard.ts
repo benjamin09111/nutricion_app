@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -22,10 +27,17 @@ export class PatientPortalAuthGuard implements CanActivate {
 
     try {
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: this.configService.get<string>('PORTAL_JWT_SECRET') || this.configService.get<string>('JWT_SECRET') || 'secret',
+        secret:
+          this.configService.get<string>('PORTAL_JWT_SECRET') ||
+          this.configService.get<string>('JWT_SECRET') ||
+          'secret',
       });
 
-      if (payload?.kind !== 'patient-portal' || !payload?.patientId || !payload?.nutritionistId) {
+      if (
+        payload?.kind !== 'patient-portal' ||
+        !payload?.patientId ||
+        !payload?.nutritionistId
+      ) {
         throw new UnauthorizedException('Token de portal inválido');
       }
 
@@ -51,13 +63,17 @@ export class PatientPortalAuthGuard implements CanActivate {
         invitation.blockedAt ||
         invitation.expiresAt.getTime() < Date.now()
       ) {
-        throw new UnauthorizedException('El acceso del portal está bloqueado o expiró');
+        throw new UnauthorizedException(
+          'El acceso del portal está bloqueado o expiró',
+        );
       }
 
       request.portalSession = payload;
       return true;
     } catch (error) {
-      throw new UnauthorizedException('La sesión del portal expiró o es inválida');
+      throw new UnauthorizedException(
+        'La sesión del portal expiró o es inválida',
+      );
     }
   }
 }

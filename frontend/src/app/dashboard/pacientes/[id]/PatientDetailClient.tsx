@@ -248,8 +248,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   );
   const [portalOverview, setPortalOverview] = useState<PatientPortalOverview | null>(null);
   const [isPortalInviteModalOpen, setIsPortalInviteModalOpen] = useState(false);
-  const [portalInviteEmail, setPortalInviteEmail] = useState("");
-  const [portalInviteDays, setPortalInviteDays] = useState("30");
+  const [portalInviteDays, setPortalInviteDays] = useState("7");
   const [generatedPortalLink, setGeneratedPortalLink] = useState("");
   const [generatedPortalCode, setGeneratedPortalCode] = useState("");
   const [isCreatingPortalInvite, setIsCreatingPortalInvite] = useState(false);
@@ -273,6 +272,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const [isDeletePatientConfirmOpen, setIsDeletePatientConfirmOpen] = useState(false);
   const [isDeleteConsultationConfirmOpen, setIsDeleteConsultationConfirmOpen] = useState(false);
   const [consultationToDelete, setConsultationToDelete] = useState<string | null>(null);
+  const [activeAcompTab, setActiveAcompTab] = useState<"diario" | "preguntas" | "planes" | "notificaciones" | "mensajes">("diario");
+
+  const [portalMessageText, setPortalMessageText] = useState("");
+  const [isCreatingPortalMessage, setIsCreatingPortalMessage] = useState(false);
 
   const isAnyModalOpen =
     isMetricModalOpen || !!selectedConsultation || isEditMetricHistoryModalOpen;
@@ -457,7 +460,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     return { label: key, unit: "", color: "#64748b", icon: Activity };
   };
 
-  const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+  const token = Cookies.get("auth_token") || (typeof window !== "undefined" ? localStorage.getItem("auth_token") : null);
 
   const fetchPatient = async (retries = 3) => {
     setIsLoading(true);
@@ -633,6 +636,11 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const handleCreatePortalInvite = async () => {
     if (!patient) return;
 
+    if (!patient.email?.trim()) {
+      toast.error("Este paciente no tiene un correo registrado.");
+      return;
+    }
+
     const expiresInDays = Number(portalInviteDays);
     setIsCreatingPortalInvite(true);
     try {
@@ -643,8 +651,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          email: portalInviteEmail.trim() || undefined,
-          expiresInDays: Number.isFinite(expiresInDays) && expiresInDays > 0 ? expiresInDays : 14,
+          expiresInDays:
+            Number.isFinite(expiresInDays) && expiresInDays > 0
+              ? Math.min(expiresInDays, 7)
+              : 7,
         }),
       });
 
@@ -656,10 +666,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       setGeneratedPortalLink(data.shareUrl);
       setGeneratedPortalCode(data.accessCode);
       setIsPortalInviteModalOpen(false);
-      setPortalInviteEmail("");
-      setPortalInviteDays("30");
+      setPortalInviteDays("7");
       await fetchPortalOverview();
-      toast.success("Portal del paciente activado.");
+      toast.success(`Se envió la invitación a ${patient.email}.`);
     } catch (error: any) {
       toast.error(error?.message || "No se pudo generar la invitación.");
     } finally {
@@ -721,11 +730,50 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       setPortalNotificationMessage("");
       setPortalNotificationSendEmail(true);
       setIsPortalNotificationModalOpen(false);
-      toast.success("Notificación enviada al portal del paciente.");
+      toast.success("Notificación enviada por correo al paciente.");
     } catch (error: any) {
-      toast.error(error?.message || "No se pudo enviar la notificación.");
+      toast.error(error.message);
     } finally {
       setIsCreatingPortalNotification(false);
+    }
+  };
+
+  const handleCreatePortalMessage = async () => {
+    if (!patient) return;
+    const message = portalMessageText.trim();
+    if (!message) {
+      toast.error("Escribe un mensaje para tu paciente.");
+      return;
+    }
+
+    setIsCreatingPortalMessage(true);
+    try {
+      const response = await fetchApi(`/patient-portals/patients/${patient.id}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ message }),
+      });
+
+      const data: { overview?: PatientPortalOverview; message?: string } = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message || "No se pudo enviar el mensaje.");
+      }
+
+      if (data.overview) {
+        setPortalOverview(data.overview);
+      } else {
+        await fetchPortalOverview();
+      }
+
+      setPortalMessageText("");
+      toast.success("Mensaje publicado en el portal del paciente.");
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsCreatingPortalMessage(false);
     }
   };
 
@@ -1424,7 +1472,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       // Pie de página
       doc.setFontSize(8);
       doc.setTextColor(148, 163, 184);
-      doc.text(`Generado automáticamente por NutriSaaS - ${new Date().toLocaleDateString("es-ES")}`, margin, 285);
+      doc.text(`Generado automáticamente por NutriNet - ${new Date().toLocaleDateString("es-ES")}`, margin, 285);
 
       doc.save(`Evolucion_${(patient?.fullName || "Paciente").replace(/\s+/g, "_")}.pdf`);
       toast.success("PDF generado correctamente");
@@ -2022,7 +2070,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           { label: "Consultas", disabled: false },
           { label: "Creaciones", disabled: false },
           { label: "Progreso", disabled: false },
-          { label: "Acompañamiento", disabled: true },
+          { label: "Acompañamiento", disabled: !["ACTIVE", "PENDING"].includes(portalOverview?.status || "") },
           { label: "Exámenes", disabled: true },
         ] as Array<{ label: TabType | "Exámenes"; disabled: boolean }>).map((tab) => (
           <button
@@ -2040,13 +2088,409 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   : "text-slate-500 hover:text-slate-700 hover:bg-white/50",
             )}
           >
-            <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5 relative">
               {tab.label}
+              {tab.label === "Acompañamiento" && (portalOverview?.summary?.pendingQuestions ?? 0) > 0 && (
+                <span className="absolute -top-1 -right-3 w-2 h-2 bg-emerald-500 rounded-full border border-white animate-pulse" />
+              )}
               {tab.disabled && <Lock className="h-3.5 w-3.5" />}
             </span>
           </button>
         ))}
       </div>
+
+      {/* Main Content Area */}
+      {activeTab === "Acompañamiento" && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          {/* Sub-tabs Navigation */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
+            <div className="flex p-1.5 bg-slate-100/80 rounded-2xl w-full lg:w-fit border border-slate-200/50 backdrop-blur-sm overflow-x-auto no-scrollbar scroll-smooth">
+              {[
+                { id: "diario", label: "Diario de Paciente", icon: ClipboardList, color: "text-indigo-600", bg: "bg-indigo-50" },
+                { id: "mensajes", label: "Mensajes al Paciente", icon: Send, color: "text-blue-600", bg: "bg-blue-50" },
+                { id: "preguntas", label: "Consultas", icon: MessageSquare, color: "text-emerald-600", bg: "bg-emerald-50" },
+                { id: "planes", label: "Planes", icon: Sparkles, color: "text-amber-600", bg: "bg-amber-50" },
+                { id: "notificaciones", label: "Notificaciones Correo", icon: Bell, color: "text-rose-600", bg: "bg-rose-50" },
+              ].map((sub) => (
+                <button
+                  key={sub.id}
+                  onClick={() => setActiveAcompTab(sub.id as any)}
+                  className={cn(
+                    "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 cursor-pointer flex items-center gap-2 group whitespace-nowrap",
+                    activeAcompTab === sub.id
+                      ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/50"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                  )}
+                >
+                  <sub.icon className={cn("w-3.5 h-3.5 transition-transform group-hover:scale-110", activeAcompTab === sub.id ? sub.color : "text-slate-400")} />
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-3 bg-emerald-50/50 px-4 py-2 rounded-2xl border border-emerald-100/50">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <div className="text-[10px] font-bold text-emerald-700 uppercase tracking-tight">
+                Portal del Paciente Activo
+              </div>
+            </div>
+          </div>
+
+          {/* Sub-tab Content */}
+          <div className="min-h-[400px]">
+            {activeAcompTab === "diario" && (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
+                {/* Journal View - Nutritionist Perspective */}
+                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                  <div className="flex items-center gap-4 mb-8">
+                    <div className="p-3 bg-indigo-50 rounded-2xl">
+                      <ClipboardList className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900">Diario de {patient?.fullName}</h3>
+                      <p className="text-sm font-medium text-slate-400">Revisa la bitácora de alimentación y hábitos del paciente</p>
+                    </div>
+                  </div>
+
+                  {/* Filters and Search for Entries */}
+                  <div className="flex flex-col md:flex-row items-center gap-4 mb-8">
+                    <div className="relative flex-1 w-full">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Input
+                        placeholder="Buscar en el diario..."
+                        className="h-12 pl-12 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-indigo-500/20"
+                        value={portalFilter.search}
+                        onChange={(e) => setPortalFilter({ ...portalFilter, search: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Entries List */}
+                  <div className="space-y-4">
+                    {portalOverview?.tracking && portalOverview.tracking.length > 0 ? (
+                      portalOverview.tracking
+                        .filter(h => !portalFilter.search || (h.body || "").toLowerCase().includes(portalFilter.search.toLowerCase()))
+                        .map((entry) => (
+                          <div key={entry.id} className="p-6 bg-slate-50/50 rounded-3xl border border-slate-100 hover:border-indigo-100 hover:bg-indigo-50/10 transition-all">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="px-3 py-1 bg-white text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-indigo-100">
+                                  Registro Diario
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-300">•</span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                                  {new Date(entry.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <div className="flex gap-1">
+                                {/* Categorías eliminadas para priorizar texto libre */}
+                              </div>
+                            </div>
+                            <p className="text-slate-700 font-semibold leading-relaxed">
+                              {entry.body || "Sin mensaje adjunto"}
+                            </p>
+                          </div>
+                        ))
+                    ) : (
+                      <div className="p-20 text-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                        <HistoryIcon className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                        <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Sin registros diarios</h4>
+                        <p className="text-xs font-medium text-slate-400 mt-2">El paciente aún no ha registrado su actividad diaria.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeAcompTab === "preguntas" && (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
+                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                  <div className="flex items-center gap-4 mb-8">
+                    <div className="p-3 bg-emerald-50 rounded-2xl">
+                      <MessageSquare className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900">Preguntas de {patient?.fullName}</h3>
+                      <p className="text-sm font-medium text-slate-400">Responde las dudas y consultas de tu paciente</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    {portalOverview?.questions && portalOverview.questions.length > 0 ? (
+                      portalOverview.questions.map((q) => {
+                        const replies = q.replies || [];
+                        return (
+                          <div key={q.id} className="space-y-4">
+                            <div className="flex gap-4 max-w-[90%]">
+                              <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
+                                <User className="w-5 h-5 text-indigo-600" />
+                              </div>
+                              <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 relative group">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{patient?.fullName}</span>
+                                  <span className="text-[10px] font-bold text-slate-300">•</span>
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{new Date(q.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                                <p className="text-slate-700 font-semibold leading-relaxed">{q.body}</p>
+                              </div>
+                            </div>
+
+                            {replies.map(r => (
+                              <div key={r.id} className="flex justify-end gap-4 ml-12">
+                                <div className="p-6 bg-emerald-50 rounded-[2rem] border border-emerald-100 relative group">
+                                  <div className="flex items-center gap-2 mb-2 justify-end">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{new Date(r.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span className="text-[10px] font-bold text-emerald-300">•</span>
+                                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">TÚ (NUTRI)</span>
+                                  </div>
+                                  <p className="text-emerald-900 font-semibold text-right leading-relaxed">{r.body}</p>
+                                </div>
+                                <div className="w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center shrink-0 overflow-hidden border-2 border-white shadow-md">
+                                  {portalOverview.patient?.nutritionist?.avatarUrl ? (
+                                    <img src={portalOverview.patient.nutritionist.avatarUrl} alt="Me" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <User className="w-5 h-5 text-white" />
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+
+                            <div className="flex justify-end pl-12 pr-14">
+                              {replyTarget?.id === q.id ? (
+                                <div className="w-full space-y-3 bg-white p-6 rounded-[2.5rem] border border-emerald-100 shadow-xl shadow-emerald-500/5 animate-in zoom-in-95 duration-300">
+                                  <Textarea
+                                    placeholder="Escribe tu respuesta aquí..."
+                                    className="min-h-[100px] rounded-2xl border-transparent bg-slate-50 focus:bg-white focus:border-emerald-500/20 font-medium py-4 px-6 text-sm"
+                                    value={replyMessage}
+                                    onChange={(e) => setReplyMessage(e.target.value)}
+                                  />
+                                  <div className="flex justify-end gap-3">
+                                    <Button
+                                      variant="ghost"
+                                      className="h-11 rounded-2xl font-bold text-slate-400 px-6 hover:bg-slate-50"
+                                      onClick={() => {
+                                        setReplyTarget(null);
+                                        setReplyMessage("");
+                                      }}
+                                    >
+                                      CANCELAR
+                                    </Button>
+                                    <Button
+                                      className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-black px-8 rounded-2xl shadow-lg shadow-emerald-100 active:scale-95 transition-all text-xs tracking-widest"
+                                      onClick={handleReplyPortalQuestion}
+                                      disabled={isSubmittingPortalReply}
+                                    >
+                                      {isSubmittingPortalReply ? 'ENVIANDO...' : 'ENVIAR RESPUESTA'}
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => setReplyTarget(q)}
+                                  className="flex items-center gap-2 px-6 py-3 rounded-2xl border border-emerald-100 text-emerald-600 font-bold text-[11px] uppercase tracking-widest hover:bg-emerald-50 transition-all active:scale-95 group"
+                                >
+                                  <Reply className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                                  Continuar hilo o responder
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="p-20 text-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                        <MessageSquare className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                        <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Sin consultas</h4>
+                        <p className="text-xs font-medium text-slate-400 mt-2">Tu paciente no ha enviado ninguna consulta todavía.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeAcompTab === "planes" && (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
+                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                  <div className="flex items-center justify-between gap-4 mb-8">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-amber-50 rounded-2xl">
+                        <Sparkles className="w-6 h-6 text-amber-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-900">Planes Compartidos</h3>
+                        <p className="text-sm font-medium text-slate-400">Gestiona los entregables visibles para {patient?.fullName}</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => setActiveTab("Creaciones")}
+                      className="bg-slate-900 hover:bg-slate-800 text-white font-black px-6 rounded-2xl shadow-lg h-12 text-[10px] tracking-widest uppercase"
+                    >
+                      <Plus className="w-4 h-4 mr-2 text-amber-400" />
+                      Compartir Nueva Creación
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {portalOverview?.sharedDeliverables && portalOverview.sharedDeliverables.length > 0 ? (
+                      portalOverview.sharedDeliverables.map((plan) => (
+                        <div key={plan.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 hover:border-amber-100 transition-all group">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100">
+                              <ClipboardList className="w-5 h-5 text-amber-500" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">{plan.type}</p>
+                              <h4 className="text-sm font-bold text-slate-800 leading-none truncate max-w-[150px]">{plan.name}</h4>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between mt-auto">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">
+                              {new Date(plan.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50"
+                              onClick={() => {
+                                window.open(`/dashboard/creaciones/${plan.id}`, '_blank');
+                              }}
+                            >
+                              Ver Detalle
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="col-span-full py-20 text-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                        <Sparkles className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No hay planes compartidos</p>
+                        <p className="text-xs font-medium text-slate-400 mt-2">Haz clic en compartir para que tu paciente pueda ver sus guías.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeAcompTab === "mensajes" && (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
+                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-blue-50 rounded-2xl">
+                      <Send className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900">Mensajes Directos</h3>
+                      <p className="text-sm font-medium text-slate-400">Escribe mensajes que tu paciente leerá al entrar a su portal</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <Textarea
+                      value={portalMessageText}
+                      onChange={(e) => setPortalMessageText(e.target.value)}
+                      placeholder="Escribe un mensaje, recomendación o saludo para tu paciente..."
+                      className="min-h-[120px] rounded-[2rem] border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-blue-500/10 focus:border-blue-500 resize-none py-6 px-8 text-sm font-medium leading-relaxed"
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={handleCreatePortalMessage}
+                        disabled={!portalMessageText.trim() || isCreatingPortalMessage}
+                        isLoading={isCreatingPortalMessage}
+                        className="rounded-2xl bg-blue-600 text-white px-8 h-12 font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all uppercase text-[10px] tracking-widest"
+                      >
+                        Publicar en el Portal
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t border-slate-50">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Historial de Mensajes</h4>
+                    {portalOverview?.messages && portalOverview.messages.length > 0 ? (
+                      <div className="space-y-4">
+                        {portalOverview.messages.map((m) => (
+                          <div key={m.id} className="p-6 bg-slate-50/50 rounded-3xl border border-slate-100">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                                {new Date(m.createdAt).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <p className="text-slate-700 font-medium leading-relaxed">{m.body}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-12 text-center bg-slate-50/30 rounded-3xl border border-dashed border-slate-200">
+                        <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">No hay mensajes enviados</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeAcompTab === "notificaciones" && (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
+                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                  <div className="flex items-center justify-between gap-4 mb-8">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-rose-50 rounded-2xl">
+                        <Bell className="w-6 h-6 text-rose-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-900">Notificaciones por Correo</h3>
+                        <p className="text-sm font-medium text-slate-400">Envía avisos que disparan un email a tu paciente</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => setIsPortalNotificationModalOpen(true)}
+                      className="bg-slate-900 hover:bg-slate-800 text-white font-black px-6 rounded-2xl shadow-lg h-12 text-[10px] tracking-widest uppercase"
+                    >
+                      <Plus className="w-4 h-4 mr-2 text-rose-400" />
+                      Nueva Notificación
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {portalOverview?.notifications && portalOverview.notifications.length > 0 ? (
+                      portalOverview.notifications.map((notif) => (
+                        <div key={notif.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 hover:border-rose-100 transition-all">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <div className={cn(
+                                "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
+                                notif.payload?.notificationType === "ALERT" ? "bg-red-50 text-red-600 border-red-100" :
+                                  notif.payload?.notificationType === "REMINDER" ? "bg-amber-50 text-amber-600 border-amber-100" :
+                                    "bg-indigo-50 text-indigo-600 border-indigo-100"
+                              )}>
+                                {notif.payload?.notificationType || "INFO"}
+                              </div>
+                              <span className="text-[10px] font-bold text-slate-300">•</span>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                                {new Date(notif.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-800 mb-1">{notif.payload?.notificationTitle || "Sin título"}</h4>
+                          <p className="text-slate-600 text-sm leading-relaxed">{notif.body}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-20 text-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                        <Bell className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                        <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Sin notificaciones</h4>
+                        <p className="text-xs font-medium text-slate-400 mt-2">No has enviado ninguna notificación por correo todavía.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       {activeTab === "General" && (
@@ -2305,6 +2749,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           <CreationsClient
             isInsidePatientDetail={true}
             fixedPatientName={patient.fullName}
+            patientId={patient.id}
+            sharedCreationIds={portalOverview?.sharedDeliverables?.map((plan) => plan.id) ?? []}
+            onUpdate={fetchPortalOverview}
           />
         </div>
       )}
@@ -3136,489 +3583,6 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         )
       }
 
-      {activeTab === "Acompañamiento" && (
-        <div className="space-y-8 animate-in fade-in duration-500">
-          <div className="flex flex-col gap-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h3 className="text-xl font-semibold text-slate-900">Seguimiento compartido</h3>
-              <p className="text-xs font-semibold uppercase tracking-tight text-slate-400">
-                El paciente deja consultas, seguimiento y respuestas asincrónicas; tú puedes filtrar por fecha y secciones.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Button
-                onClick={() => setIsPortalInviteModalOpen(true)}
-                className="rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white shadow-sm hover:bg-emerald-700"
-              >
-                <Link2 className="mr-2 h-4 w-4" />
-                Invitar / regenerar link
-              </Button>
-              {generatedPortalLink && (
-                <Button
-                  variant="outline"
-                  onClick={() => handleCopyPortalLink()}
-                  isLoading={isCopyingPortalLink}
-                  className="rounded-2xl px-5 py-3 font-semibold"
-                >
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copiar link
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              {
-                label: "Entradas filtradas",
-                value: filteredPortalEntries.length,
-                icon: CalendarDays,
-                color: "text-emerald-600",
-                bg: "bg-emerald-50",
-              },
-              {
-                label: "Consultas",
-                value: filteredPortalQuestions.length,
-                icon: MessageSquare,
-                color: "text-indigo-600",
-                bg: "bg-indigo-50",
-              },
-              {
-                label: "Seguimiento",
-                value: filteredPortalTracking.length,
-                icon: Sparkles,
-                color: "text-slate-600",
-                bg: "bg-slate-50",
-              },
-              {
-                label: "Respuestas",
-                value: filteredPortalReplies.length,
-                icon: Reply,
-                color: "text-emerald-600",
-                bg: "bg-emerald-50",
-              },
-            ].map((card) => (
-              <div key={card.label} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${card.bg}`}>
-                    <card.icon className={`h-5 w-5 ${card.color}`} />
-                  </div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.22em] text-slate-300">{card.label}</span>
-                </div>
-                <p className="mt-4 text-3xl font-black text-slate-900">{card.value}</p>
-              </div>
-            ))}
-          </div>
-
-          {portalOverview?.summary.alerts?.length ? (
-            <div className="space-y-3 rounded-3xl border border-[#cbd83b]/20 bg-[#fffeec]/80 p-6">
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-indigo-700">Alertas del acompañamiento</p>
-              <div className="grid gap-3 md:grid-cols-2">
-                {portalOverview.summary.alerts.map((alert) => (
-                  <div
-                    key={alert}
-                    className="rounded-2xl border border-indigo-100 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm"
-                  >
-                    {alert}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm">
-              Todavía no hay alertas. Cuando el paciente deje de registrar o aparezcan preguntas sin respuesta, aparecerán aquí.
-            </div>
-          )}
-
-          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="space-y-6">
-              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Filtros</p>
-                    <h4 className="mt-2 text-2xl font-semibold text-slate-900">Filtra por fecha, tipo y sección</h4>
-                  </div>
-                  <Filter className="h-5 w-5 text-emerald-500" />
-                </div>
-
-                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Desde</label>
-                    <Input
-                      type="date"
-                      value={portalFilter.from}
-                      onChange={(e) => setPortalFilter((prev) => ({ ...prev, from: e.target.value }))}
-                      className="h-12 rounded-2xl border-slate-200"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Hasta</label>
-                    <Input
-                      type="date"
-                      value={portalFilter.to}
-                      onChange={(e) => setPortalFilter((prev) => ({ ...prev, to: e.target.value }))}
-                      className="h-12 rounded-2xl border-slate-200"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Tipo</label>
-                    <select
-                      value={portalFilter.kind}
-                      onChange={(e) =>
-                        setPortalFilter((prev) => ({
-                          ...prev,
-                          kind: e.target.value as typeof portalFilter.kind,
-                        }))
-                      }
-                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none"
-                    >
-                      <option value="ALL">Todos</option>
-                      <option value="QUESTION">Consultas</option>
-                      <option value="TRACKING">Seguimiento</option>
-                      <option value="NOTIFICATION">Notificaciones</option>
-                      <option value="REPLY">Respuestas</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Sección</label>
-                    <select
-                      value={portalFilter.section}
-                      onChange={(e) =>
-                        setPortalFilter((prev) => ({
-                          ...prev,
-                          section: e.target.value as typeof portalFilter.section,
-                        }))
-                      }
-                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none"
-                    >
-                      <option value="ALL">Todas</option>
-                      <option value="alimentacion">Alimentación</option>
-                      <option value="suplementos">Suplementos</option>
-                      <option value="actividadFisica">Actividad física</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2 xl:col-span-1">
-                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Buscar</label>
-                    <Input
-                      value={portalFilter.search}
-                      onChange={(e) => setPortalFilter((prev) => ({ ...prev, search: e.target.value }))}
-                      className="h-12 rounded-2xl border-slate-200"
-                      placeholder="texto libre"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {replyTarget && (
-                <div className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-5 shadow-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Responder</p>
-                      <h4 className="mt-2 text-xl font-semibold text-slate-900">Mensaje para el paciente</h4>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setReplyTarget(null);
-                        setReplyMessage("");
-                      }}
-                      className="text-xs font-black uppercase tracking-[0.22em] text-slate-400"
-                    >
-                      Limpiar
-                    </button>
-                  </div>
-                  <p className="mt-3 text-sm text-slate-600">{replyTarget.body}</p>
-                  <Textarea
-                    value={replyMessage}
-                    onChange={(e) => setReplyMessage(e.target.value)}
-                    className="mt-4 min-h-[120px] rounded-3xl border-slate-200"
-                    placeholder="Escribe la respuesta que verá el paciente en la tab de Respuestas del nutri."
-                  />
-                  <div className="mt-4 flex gap-3">
-                    <Button
-                      onClick={handleReplyPortalQuestion}
-                      isLoading={isSubmittingPortalReply}
-                      className="rounded-2xl bg-slate-950 px-5 font-semibold text-white hover:bg-slate-800"
-                    >
-                      Enviar respuesta
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setReplyTarget(null);
-                        setReplyMessage("");
-                      }}
-                      className="rounded-2xl px-5 font-semibold"
-                    >
-                      Cancelar
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Historial</p>
-                    <h4 className="mt-2 text-2xl font-semibold text-slate-900">Últimos registros filtrados</h4>
-                  </div>
-                  <MessageSquare className="h-5 w-5 text-emerald-500" />
-                </div>
-
-                <div className="mt-6 space-y-4">
-                  {filteredPortalEntries.length > 0 ? (
-                    filteredPortalEntries.map((entry) => {
-                      if (entry.kind === "QUESTION") {
-                        return (
-                          <article key={entry.id} className="rounded-3xl border border-slate-100 bg-slate-50/70 p-5">
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                              <div>
-                                <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                  Consulta del paciente
-                                </p>
-                              </div>
-                              <Button
-                                variant="outline"
-                                onClick={() => {
-                                  setReplyTarget(entry);
-                                  setReplyMessage("");
-                                }}
-                                className="rounded-2xl px-4 py-2 text-xs font-semibold"
-                              >
-                                Responder
-                              </Button>
-                            </div>
-                            <p className="mt-4 text-sm leading-7 text-slate-700">{entry.body}</p>
-                            <div className="mt-4 space-y-3">
-                              {(entry.replies || []).length > 0 ? (
-                                entry.replies!.map((reply) => (
-                                  <div key={reply.id} className="rounded-2xl border border-emerald-100 bg-white p-4">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">
-                                      Respuesta guardada
-                                    </p>
-                                    <p className="mt-2 text-sm leading-7 text-slate-700">{reply.body}</p>
-                                  </div>
-                                ))
-                              ) : (
-                                <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">
-                                  Todavía no hay respuesta.
-                                </div>
-                              )}
-                            </div>
-                          </article>
-                        );
-                      }
-
-                      if (entry.kind === "TRACKING") {
-                        const sections = entry.payload?.sections || {};
-                        return (
-                          <article key={entry.id} className="rounded-3xl border border-slate-100 bg-slate-50/70 p-5">
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                              <div>
-                                <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                  Seguimiento del paciente
-                                </p>
-                              </div>
-                              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-100">
-                                JSON simple
-                              </span>
-                            </div>
-                            <div className="mt-4 grid gap-3">
-                              {sections.alimentacion && (
-                                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
-                                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Alimentación</p>
-                                  <p className="mt-2 text-sm leading-7 text-slate-700">{sections.alimentacion}</p>
-                                </div>
-                              )}
-                              {sections.suplementos && (
-                                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
-                                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Suplementos</p>
-                                  <p className="mt-2 text-sm leading-7 text-slate-700">{sections.suplementos}</p>
-                                </div>
-                              )}
-                              {sections.actividadFisica && (
-                                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
-                                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Actividad física</p>
-                                  <p className="mt-2 text-sm leading-7 text-slate-700">{sections.actividadFisica}</p>
-                                </div>
-                              )}
-                            </div>
-                          </article>
-                        );
-                      }
-
-                      if (entry.kind === "NOTIFICATION") {
-                        return (
-                          <article key={entry.id} className="rounded-3xl border border-indigo-100 bg-[#fffeec]/70 p-5">
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                              <div>
-                                <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                  Notificación del nutri
-                                </p>
-                              </div>
-                              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-600 ring-1 ring-indigo-100">
-                                {entry.payload?.notificationType || "INFO"}
-                              </span>
-                            </div>
-                            <p className="mt-4 text-sm leading-7 text-slate-700">{entry.body}</p>
-                            {entry.payload?.notificationTitle && (
-                              <div className="mt-4 rounded-2xl border border-indigo-100 bg-white p-4">
-                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-indigo-600">
-                                  Título
-                                </p>
-                                <p className="mt-2 text-sm leading-7 text-slate-600">
-                                  {entry.payload.notificationTitle}
-                                </p>
-                              </div>
-                            )}
-                          </article>
-                        );
-                      }
-
-                      return (
-                        <article key={entry.id} className="rounded-3xl border border-slate-100 bg-slate-50/70 p-5">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                Respuesta enviada
-                              </p>
-                            </div>
-                            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-600 ring-1 ring-indigo-100">
-                              Respuesta
-                            </span>
-                          </div>
-                          <p className="mt-4 text-sm leading-7 text-slate-700">{entry.body}</p>
-                          {entry.replyTo?.body && (
-                            <div className="mt-4 rounded-2xl border border-indigo-100 bg-white p-4">
-                              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-indigo-600">Respondió a</p>
-                              <p className="mt-2 text-sm leading-7 text-slate-600">{entry.replyTo.body}</p>
-                            </div>
-                          )}
-                        </article>
-                      );
-                    })
-                  ) : (
-                    <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-                      No hay registros con esos filtros todavía.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Link activo</p>
-                    <h4 className="mt-2 text-2xl font-semibold text-slate-900">Estado de invitación</h4>
-                  </div>
-                  <ShieldCheck className="h-5 w-5 text-emerald-500" />
-                </div>
-                <div className="mt-5 space-y-3 rounded-3xl border border-slate-100 bg-slate-50/70 p-5">
-                  <p className="text-sm font-semibold text-slate-700">
-                    {portalOverview?.portal.activeInvitation
-                      ? `Activo hasta ${new Date(portalOverview.portal.activeInvitation.expiresAt).toLocaleDateString("es-CL")}`
-                      : "Aún no hay una invitación activa"}
-                  </p>
-                  <p className="text-xs leading-6 text-slate-500">
-                    Si generas uno nuevo, el anterior se revoca. Si bloqueas el acceso, el paciente no podrá entrar aunque recuerde el código.
-                  </p>
-                  {generatedPortalLink ? (
-                    <div className="rounded-2xl bg-white p-4 ring-1 ring-emerald-100">
-                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Link generado</p>
-                      <p className="mt-2 break-all text-sm font-medium text-slate-800">{generatedPortalLink}</p>
-                      {portalAccessCode && (
-                        <div className="mt-3 rounded-2xl border border-dashed border-emerald-100 bg-emerald-50 px-4 py-3">
-                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">Código fijo</p>
-                          <p className="mt-1 text-lg font-black tracking-[0.28em] text-slate-900">{portalAccessCode}</p>
-                        </div>
-                      )}
-                      <div className="mt-4 flex gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => handleCopyPortalLink()}
-                          isLoading={isCopyingPortalLink}
-                          className="flex-1 rounded-2xl"
-                        >
-                          <Copy className="mr-2 h-4 w-4" />
-                          Copiar
-                        </Button>
-                        <Button
-                          variant="default"
-                          onClick={() => window.open(generatedPortalLink, "_blank", "noopener,noreferrer")}
-                          className="flex-1 rounded-2xl"
-                        >
-                          <ExternalLink className="mr-2 h-4 w-4" />
-                          Abrir
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">
-                      Aquí aparecerá el enlace recién generado para compartir por WhatsApp o correo.
-                    </div>
-                  )}
-                  {portalOverview?.portal.latestInvitation && (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() =>
-                          handleTogglePortalAccess(
-                            portalOverview.portal.latestInvitation?.status === "BLOCKED" ? "ACTIVE" : "BLOCKED",
-                          )
-                        }
-                        className="flex-1 rounded-2xl"
-                      >
-                        {portalOverview.portal.latestInvitation?.status === "BLOCKED" ? "Reactivar acceso" : "Bloquear acceso"}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Material asignado</p>
-                <h4 className="mt-2 text-2xl font-semibold text-slate-900">Lo que el paciente está trabajando</h4>
-                <div className="mt-5 space-y-3">
-                  {(portalOverview?.patient.projects || patient.projects || []).length > 0 ? (
-                    (portalOverview?.patient.projects || patient.projects || []).map((project) => (
-                      <div key={project.id} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-4">
-                        <p className="text-sm font-black text-slate-900">{project.name}</p>
-                        <p className="mt-1 text-xs text-slate-500">{project.description || "Sin descripción"}</p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {project.activeDietCreation && (
-                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-emerald-100">
-                              {project.activeDietCreation.name}
-                            </span>
-                          )}
-                          {project.activeRecipeCreation && (
-                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-emerald-100">
-                              {project.activeRecipeCreation.name}
-                            </span>
-                          )}
-                          {project.activeDeliverableCreation && (
-                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-700 ring-1 ring-indigo-100">
-                              {project.activeDeliverableCreation.name}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
-                      Todavía no hay material asignado.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <Modal
         isOpen={isPortalInviteModalOpen}
@@ -3628,38 +3592,29 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         <div className="space-y-5 py-2">
           <div className="rounded-3xl border border-emerald-100 bg-emerald-50/70 p-4">
             <p className="text-sm font-semibold text-emerald-900">
-              Genera un acceso privado para que el paciente registre su seguimiento fuera de consulta.
+              Invita a {patient.fullName} a su portal privado.
             </p>
-            <p className="mt-2 text-xs leading-6 text-emerald-900/75">
-              El enlace se puede compartir por WhatsApp o email y el código fijo de 6 dígitos funciona como su llave personal.
-            </p>
+            <div className="mt-2 text-xs leading-6 text-emerald-900/75 space-y-2">
+              <p>
+                Se enviará un correo con el link de acceso y un <b>código personal</b> al paciente para ingresar al portal privado, un canal entre ustedes para la comunicación y registro diario, acompañamiento y soporte para tu paciente.
+              </p>
+              <p className="font-bold italic">
+                El link de invitación expira en 7 días.
+              </p>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-              Correo del paciente
-            </label>
-            <Input
-              type="email"
-              value={portalInviteEmail}
-              onChange={(e) => setPortalInviteEmail(e.target.value)}
-              placeholder="paciente@correo.com"
-              className="h-12 rounded-2xl border-slate-200"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-              Vigencia del enlace (días)
-            </label>
-            <Input
-              type="number"
-              min="1"
-              max="90"
-              value={portalInviteDays}
-              onChange={(e) => setPortalInviteDays(e.target.value)}
-              className="h-12 rounded-2xl border-slate-200"
-            />
+          <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400 mb-3">Destino de invitación</p>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm">
+                <Mail className="w-4 h-4 text-emerald-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-black text-slate-700 leading-none mb-1">{patient.email}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Email registrado en el expediente</p>
+              </div>
+            </div>
           </div>
 
           {generatedPortalLink && (
@@ -4039,7 +3994,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       {/* Footer / Danger Zone */}
       <div className="pt-24 border-t border-slate-200 mt-24 flex flex-col items-center gap-6">
         <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.3em]">
-          Ecosistema NutriSaaS v1.1
+          Ecosistema NutriNet v1.1
         </p>
         <button
           onClick={() => setIsDeletePatientConfirmOpen(true)}
@@ -4187,6 +4142,5 @@ function MetricRecordRow({
     </div>
   );
 }
-
 
 

@@ -1,75 +1,42 @@
-
 import fs from 'fs';
 
-const content = fs.readFileSync('c:/Users/benja/OneDrive/Desktop/nutricion_app/frontend/src/app/dashboard/recetas/RecipesClient.tsx', 'utf8');
-
-function checkBalance(text) {
-    let parens = 0;
-    let braces = 0;
-    let brackets = 0;
-    let inString = false;
-    let stringChar = '';
-    let inComment = false;
-    let inRegex = false;
-
-    for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        const next = text[i+1];
-
-        if (inComment) {
-            if (char === '*' && next === '/') {
-                inComment = false;
-                i++;
-            } else if (char === '\n') {
-                // single line comments end at newline, but we only handle multi-line here for simplicity
-                // Actually, let's handle single line too
+function checkTagBalance(filePath) {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const tags = [];
+    const tagRegex = /<(\/?[a-zA-Z][a-zA-Z0-9]*)/g;
+    let match;
+    
+    while ((match = tagRegex.exec(content)) !== null) {
+        const tag = match[1];
+        if (tag.startsWith('/')) {
+            const closingTag = tag.substring(1);
+            if (tags.length === 0) {
+                console.log(`Unexpected closing tag </${closingTag}> at index ${match.index} in ${filePath}`);
+            } else {
+                const lastTag = tags.pop();
+                if (lastTag !== closingTag) {
+                    console.log(`Mismatched tag: expected </${lastTag}> but found </${closingTag}> at index ${match.index} in ${filePath}`);
+                }
             }
-            continue;
-        }
-
-        if (text[i] === '/' && text[i+1] === '/') {
-            // Skip until end of line
-            while (i < text.length && text[i] !== '\n') i++;
-            continue;
-        }
-
-        if (text[i] === '/' && text[i+1] === '*') {
-            inComment = true;
-            i++;
-            continue;
-        }
-
-        if (inString) {
-            if (char === stringChar && text[i-1] !== '\\') {
-                inString = false;
-            }
-            continue;
-        }
-
-        if (char === '"' || char === "'" || char === '`') {
-            inString = true;
-            stringChar = char;
-            continue;
-        }
-
-        if (char === '(') parens++;
-        if (char === ')') parens--;
-        if (char === '{') braces++;
-        if (char === '}') {
-            braces--;
-            if (braces === 0) {
-                console.log('Braces hit 0 at line', text.substring(0, i).split('\n').length);
+        } else {
+            // Check if it's a self-closing tag
+            const rest = content.substring(match.index + tag.length + 1);
+            const closeIndex = rest.indexOf('>');
+            if (closeIndex !== -1) {
+                const tagFull = rest.substring(0, closeIndex);
+                if (!tagFull.trim().endsWith('/') && !['img', 'br', 'hr', 'input', 'link', 'meta'].includes(tag.toLowerCase())) {
+                    tags.push(tag);
+                }
             }
         }
-        if (char === '[') brackets++;
-        if (char === ']') brackets--;
-
-        if (parens < 0) console.log('Parens negative at line', text.substring(0, i).split('\n').length);
-        if (braces < 0) console.log('Braces negative at line', text.substring(0, i).split('\n').length);
-        if (brackets < 0) console.log('Brackets negative at line', text.substring(0, i).split('\n').length);
     }
-
-    console.log('Final counts:', { parens, braces, brackets });
+    
+    if (tags.length > 0) {
+        console.log(`${filePath}: Unclosed tags: ${tags.join(', ')}`);
+    } else {
+        console.log(`${filePath}: Tags balanced`);
+    }
 }
 
-checkBalance(content);
+checkTagBalance('c:/Users/Benjamin/Desktop/nutricion_app/frontend/src/app/dashboard/pacientes/[id]/PatientDetailClient.tsx');
+checkTagBalance('c:/Users/Benjamin/Desktop/nutricion_app/frontend/src/app/portal/[token]/PortalClient.tsx');

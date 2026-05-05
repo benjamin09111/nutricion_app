@@ -1,132 +1,127 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  BookOpen,
-  CalendarDays,
-  CheckCircle2,
-  ChevronRight,
-  Clock3,
-  Bell,
-  Download,
-  Dumbbell,
-  FileText,
-  Globe,
-  Leaf,
-  Library,
-  MessageSquare,
-  Package,
-  Reply,
-  Send,
   ShieldCheck,
-  UtensilsCrossed,
-  Waves,
+  ChevronRight,
+  Loader2,
+  Calendar,
+  User,
+  ClipboardList,
+  Download,
+  MessageSquare,
+  Bell,
+  Clock,
+  Lock,
+  Utensils,
+  BookOpen,
+  FileText,
+  Send,
+  Sparkles,
 } from "lucide-react";
-import jsPDF from "jspdf";
-import { toast } from "sonner";
+import { useParams, useRouter } from "next/navigation";
 import { fetchApi } from "@/lib/api-base";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
-import {
-  PatientPortalOverview,
-  PortalVerificationResponse,
-} from "@/features/patient-portal";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface PortalPreview {
   patientName: string;
-  patientEmail?: string | null;
+  patientEmail: string | null;
   nutritionistName: string;
   expiresAt: string;
 }
 
-type PortalTab = "diario" | "recursos" | "notificaciones" | "consultas" | "entregables";
+interface PortalVerificationResponse {
+  accessToken: string;
+  patient: any;
+  summary: any;
+  entries: any[];
+  questions: any[];
+  tracking: any[];
+  sharedResources: any[];
+  sharedDeliverables: any[];
+}
 
-const getPortalStorageKey = (token: string) => `patient-portal-session-${token}`;
+const getPortalStorageKey = (token: string) =>
+  token === "me" ? "portal_session_me" : `portal_session_${token}`;
 
-const isFilled = (value?: string | null) => Boolean(value && value.trim().length > 0);
-
-const formatDateTime = (value: string) =>
-  new Date(value).toLocaleString("es-CL", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-
-const formatDate = (value: string) =>
-  new Date(value).toLocaleDateString("es-CL", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-
-const getTodayDateInputValue = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
-const safeJsonText = (value: unknown) => {
-  if (value == null) return "";
-  if (typeof value === "string") return value;
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
+// Helper for safe localStorage access
+const safeLocalStorage = {
+  getItem: (key: string) => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      return null;
+    }
+  },
+  setItem: (key: string, value: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) { }
+  },
+  removeItem: (key: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem(key);
+    } catch (e) { }
   }
 };
 
-export default function PortalClient({ token }: { token: string }) {
-  const [preview, setPreview] = useState<PortalPreview | null>(null);
-  const [overview, setOverview] = useState<PatientPortalOverview | null>(null);
-  const [email, setEmail] = useState("");
+export default function PortalClient({ token: propToken }: { token?: string }) {
+  const params = useParams<{ token: string }>();
+  const token = propToken || params.token;
+  const router = useRouter();
+
   const [isLoading, setIsLoading] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
-  const [isSubmittingTracking, setIsSubmittingTracking] = useState(false);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<PortalTab>("consultas");
-  const [questionMessage, setQuestionMessage] = useState("");
+  const [preview, setPreview] = useState<PortalPreview | null>(null);
+  const [email, setEmail] = useState("");
   const [accessCode, setAccessCode] = useState("");
-  const [trackingForm, setTrackingForm] = useState({
-    entryDate: getTodayDateInputValue(),
-    alimentacion: "",
-    suplementos: "",
-    actividadFisica: "",
-  });
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [portalData, setPortalData] = useState<PortalVerificationResponse | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
-  const loadPortal = useCallback(async (sessionToken: string) => {
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const loadPortal = useCallback(async (tokenStr: string) => {
     try {
-      const response = await fetchApi(`/patient-portals/me`, {
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-        },
+      const response = await fetchApi("/patient-portals/me", {
+        headers: { Authorization: `Bearer ${tokenStr}` },
       });
 
-      if (!response.ok) {
-        throw new Error("No se pudo cargar el portal");
+      if (response.ok) {
+        const data = await response.json();
+        setPortalData(data);
+      } else {
+        safeLocalStorage.removeItem(getPortalStorageKey(token));
+        setAccessToken(null);
       }
-
-      const data: PatientPortalOverview = await response.json();
-      setOverview(data);
-    } catch {
-      localStorage.removeItem(getPortalStorageKey(token));
-      setAccessToken(null);
-      setOverview(null);
-      toast.error("Tu sesión del portal expiró. Vuelve a confirmar tu correo.");
+    } catch (error) {
+      console.error("Error loading portal:", error);
+    } finally {
+      setIsLoading(false);
     }
   }, [token]);
 
   useEffect(() => {
-    const stored = localStorage.getItem(getPortalStorageKey(token));
+    if (!isMounted) return;
+    const stored = safeLocalStorage.getItem(getPortalStorageKey(token));
     if (stored) {
       setAccessToken(stored);
+    } else if (token === "me") {
+      router.push("/portal/login");
     }
-  }, [token]);
+  }, [token, isMounted, router]);
 
   useEffect(() => {
+    if (token === "me") return;
     const load = async () => {
       setIsLoading(true);
       try {
@@ -134,19 +129,23 @@ export default function PortalClient({ token }: { token: string }) {
         if (response.ok) {
           const data: PortalPreview = await response.json();
           setPreview(data);
-          setEmail((current) => current || data.patientEmail || "");
+          if (data.patientEmail) {
+            setEmail(data.patientEmail);
+          }
         } else {
           toast.error("El enlace no está disponible o ya expiró.");
         }
-      } catch {
+      } catch (err) {
         toast.error("No pudimos abrir el portal de seguimiento.");
       } finally {
-        setIsLoading(false);
+        if (isMounted && !safeLocalStorage.getItem(getPortalStorageKey(token))) {
+          setIsLoading(false);
+        }
       }
     };
 
     load();
-  }, [token]);
+  }, [token, isMounted]);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -156,13 +155,16 @@ export default function PortalClient({ token }: { token: string }) {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email.trim()) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedCode = accessCode.trim().replace(/\D/g, "");
+
+    if (!normalizedEmail) {
       toast.error("Ingresa tu correo para activar el portal.");
       return;
     }
 
-    if (!accessCode.trim()) {
-      toast.error("Ingresa tu código de acceso.");
+    if (normalizedCode.length !== 6) {
+      toast.error("El código debe tener 6 dígitos.");
       return;
     }
 
@@ -171,293 +173,354 @@ export default function PortalClient({ token }: { token: string }) {
       const response = await fetchApi(`/patient-portals/invitations/${token}/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, accessCode }),
+        body: JSON.stringify({
+          email: normalizedEmail,
+          accessCode: normalizedCode
+        }),
       });
 
-      const data: PortalVerificationResponse = await response.json();
+      const data = await response.json();
       if (!response.ok) {
-        throw new Error((data as { message?: string })?.message || "No pudimos validar tu acceso");
+        throw new Error(data.message || "Código de acceso incorrecto o correo no coincide");
       }
 
-      localStorage.setItem(getPortalStorageKey(token), data.accessToken);
-      setAccessToken(data.accessToken);
-      setOverview(data);
-      setActiveTab("consultas");
-      toast.success("Portal activado. Ya puedes revisar tus materiales.");
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "No se pudo verificar el correo.");
+      const tokenStr = data.accessToken;
+      safeLocalStorage.setItem(getPortalStorageKey(token), tokenStr);
+      setAccessToken(tokenStr);
+      setPortalData(data);
+      toast.success("¡Acceso verificado!");
+    } catch (error: any) {
+      toast.error(error.message || "Error al verificar el código");
     } finally {
       setIsVerifying(false);
     }
   };
 
-  const handleSubmitQuestion = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const [activeTab, setActiveTab] = useState<"diary" | "questions" | "plans" | "notifications" | "messages">("diary");
+  const [entryText, setEntryText] = useState("");
+  const [isSubmittingEntry, setIsSubmittingEntry] = useState(false);
+  const [visibleEntriesCount, setVisibleEntriesCount] = useState(3);
 
-    if (!accessToken) {
-      toast.error("Primero activa tu portal.");
-      return;
+  const [questionText, setQuestionText] = useState("");
+  const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
+  const [hasNewNotifications, setHasNewNotifications] = useState(false);
+  const [isDownloadingDeliverableId, setIsDownloadingDeliverableId] = useState<string | null>(null);
+
+  const buildDietData = (raw: any) => {
+    const foods: any[] = [];
+
+    if (raw.metadata?.foodSummary?.length) {
+      raw.metadata.foodSummary.forEach((food: any) => {
+        foods.push({
+          producto: food.name,
+          grupo: food.group || "Varios",
+          unidad: food.unit,
+          calorias: food.calories,
+          proteinas: food.proteins,
+          lipidos: food.lipids,
+          carbohidratos: food.carbs,
+        });
+      });
+    } else if (Array.isArray(raw.content?.manualAdditions)) {
+      raw.content.manualAdditions.forEach((food: any) => {
+        foods.push({
+          producto: food.producto,
+          grupo: food.grupo || "Varios",
+          unidad: food.unidad,
+          calorias: food.calorias,
+          proteinas: food.proteinas,
+          lipidos: food.lipidos,
+          carbohidratos: food.carbohidratos,
+        });
+      });
     }
 
-    if (!questionMessage.trim()) {
-      toast.error("Escribe tu pregunta o consulta.");
-      return;
-    }
+    return {
+      dietName: raw.name,
+      dietTags: raw.tags || [],
+      activeConstraints: raw.content?.activeConstraints || [],
+      patientName: raw.metadata?.patientName || raw.content?.patientMeta?.fullName,
+      foods,
+    };
+  };
 
-    setIsSubmittingQuestion(true);
+  const buildFastDeliverableData = (raw: any) => ({
+    name:
+      typeof raw.content?.title === "string"
+        ? raw.content.title
+        : typeof raw.name === "string" && raw.name.trim()
+          ? raw.name
+          : "Entregable",
+    patientName:
+      typeof raw.metadata?.patientName === "string"
+        ? raw.metadata.patientName
+        : null,
+    patient: raw.content?.patientMeta ?? undefined,
+    meals: Array.isArray(raw.content?.meals) ? raw.content.meals : [],
+    avoidFoods: Array.isArray(raw.content?.avoidFoods) ? raw.content.avoidFoods : [],
+    resources: Array.isArray(raw.content?.resources) ? raw.content.resources : [],
+    portionGuide: Array.isArray(raw.content?.portionGuide) ? raw.content.portionGuide : [],
+    supplementNote:
+      typeof raw.content?.supplementNote === "string"
+        ? raw.content.supplementNote
+        : undefined,
+    generatedAt:
+      typeof raw.content?.updatedAt === "string"
+        ? new Date(raw.content.updatedAt).toLocaleDateString("es-CL")
+        : new Date(raw.updatedAt || Date.now()).toLocaleDateString("es-CL"),
+  });
+
+  const buildQuickRecipesData = (raw: any) => ({
+    title:
+      typeof raw.content?.title === "string"
+        ? raw.content.title
+        : typeof raw.name === "string" && raw.name.trim()
+          ? raw.name
+          : "Recetas",
+    dietName: typeof raw.name === "string" ? raw.name : undefined,
+    patientName:
+      typeof raw.metadata?.patientName === "string"
+        ? raw.metadata.patientName
+        : null,
+    nutritionistNotes:
+      typeof raw.content?.nutritionistNotes === "string"
+        ? raw.content.nutritionistNotes
+        : undefined,
+    dishes: Array.isArray(raw.content?.dishes) ? raw.content.dishes : [],
+    generatedAt:
+      typeof raw.content?.updatedAt === "string"
+        ? new Date(raw.content.updatedAt).toLocaleDateString("es-CL")
+        : new Date(raw.updatedAt || Date.now()).toLocaleDateString("es-CL"),
+  });
+
+  const handleDownloadDeliverable = async (del: any) => {
+    if (isDownloadingDeliverableId) return;
+
+    setIsDownloadingDeliverableId(del.id);
     try {
-      const response = await fetchApi(`/patient-portals/me/questions`, {
+      if (del.type === "DIET") {
+        const { downloadDietPdf } = await import("@/features/pdf/pdfExport");
+        await downloadDietPdf(buildDietData(del));
+        toast.success("PDF descargado correctamente.");
+        return;
+      }
+
+      if (del.type === "FAST_DELIVERABLE") {
+        const { downloadFastDeliverablePdf } = await import("@/features/pdf/fastDeliverablePdfExport");
+        await downloadFastDeliverablePdf(buildFastDeliverableData(del));
+        toast.success("PDF descargado correctamente.");
+        return;
+      }
+
+      if (del.type === "RECIPE" || del.type === "RECIPES") {
+        const { downloadQuickRecipesPdf } = await import("@/features/pdf/quickRecipesPdfExport");
+        await downloadQuickRecipesPdf(buildQuickRecipesData(del));
+        toast.success("PDF descargado correctamente.");
+        return;
+      }
+
+      toast.info("Exportación PDF para este tipo próximamente.");
+    } catch (error) {
+      console.error("Error downloading shared deliverable:", error);
+      toast.error("Error al generar el PDF.");
+    } finally {
+      setIsDownloadingDeliverableId(null);
+    }
+  };
+
+  // Check for new notifications
+  useEffect(() => {
+    if (isMounted && portalData?.notifications) {
+      const lastReadCount = safeLocalStorage.getItem(`portal_last_notif_${portalData.patient.id}`);
+      if (portalData.notifications.length > Number(lastReadCount || 0)) {
+        setHasNewNotifications(true);
+      }
+    }
+  }, [portalData, isMounted]);
+
+  // Mark as read when entering the info tab
+  useEffect(() => {
+    if (isMounted && activeTab === "info" && portalData) {
+      setHasNewNotifications(false);
+      safeLocalStorage.setItem(`portal_last_notif_${portalData.patient.id}`, portalData.notifications.length.toString());
+    }
+  }, [activeTab, portalData, isMounted]);
+
+  const handleSubmitEntry = async () => {
+    if (!entryText.trim() || !accessToken) return;
+
+    setIsSubmittingEntry(true);
+    try {
+      const response = await fetchApi("/patient-portals/me/journal", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`
         },
-        body: JSON.stringify({ message: questionMessage }),
+        body: JSON.stringify({
+          alimentacion: entryText.trim()
+        }),
       });
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.message || "No se pudo guardar tu consulta");
+      if (response.ok) {
+        const data = await response.json();
+        // Update local state with the new entry
+        if (portalData) {
+          setPortalData({
+            ...portalData,
+            entries: [data.entry, ...portalData.entries],
+            tracking: [data.entry, ...portalData.tracking],
+            summary: data.overview.summary
+          });
+        }
+        setEntryText("");
+        toast.success("Publicado para tu nutricionista");
+      } else {
+        toast.error("No se pudo publicar el registro");
       }
+    } catch (error) {
+      toast.error("Error de conexión");
+    } finally {
+      setIsSubmittingEntry(false);
+    }
+  };
 
-      setQuestionMessage("");
-      setOverview(data.overview);
-      toast.success("Tu pregunta quedó guardada para el nutri.");
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "No se pudo enviar tu mensaje.");
+  const handleSubmitQuestion = async () => {
+    if (!questionText.trim() || !accessToken) return;
+
+    setIsSubmittingQuestion(true);
+    try {
+      const response = await fetchApi("/patient-portals/me/questions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          message: questionText.trim()
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (portalData) {
+          setPortalData({
+            ...portalData,
+            entries: [data.entry, ...portalData.entries],
+            questions: [data.entry, ...portalData.questions],
+          });
+        }
+        setQuestionText("");
+        toast.success("Consulta enviada con éxito");
+      } else {
+        toast.error("No se pudo enviar la consulta");
+      }
+    } catch (error) {
+      toast.error("Error de conexión");
     } finally {
       setIsSubmittingQuestion(false);
     }
   };
 
-  const handleSubmitTracking = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!accessToken) {
-      toast.error("Primero activa tu portal.");
-      return;
-    }
-
-    if (
-      !isFilled(trackingForm.alimentacion) &&
-      !isFilled(trackingForm.suplementos) &&
-      !isFilled(trackingForm.actividadFisica)
-    ) {
-      toast.error("Completa al menos una sección antes de guardar.");
-      return;
-    }
-
-    setIsSubmittingTracking(true);
-    try {
-      const response = await fetchApi(`/patient-portals/me/tracking`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(trackingForm),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.message || "No se pudo guardar tu seguimiento");
-      }
-
-      setTrackingForm({
-        entryDate: getTodayDateInputValue(),
-        alimentacion: "",
-        suplementos: "",
-        actividadFisica: "",
-      });
-      setOverview(data.overview);
-      toast.success("Tu diario quedó guardado con fecha.");
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "No se pudo guardar tu seguimiento.");
-    } finally {
-      setIsSubmittingTracking(false);
-    }
-  };
-
-  const isHydratingSession = Boolean(accessToken && !overview);
-
-  const summaryCards = useMemo(
-    () => [
-      {
-        label: "Diario",
-        value: overview?.tracking.length ?? 0,
-        icon: BookOpen,
-      },
-      {
-        label: "Consultas",
-        value: overview?.summary.questionsCount ?? 0,
-        icon: MessageSquare,
-      },
-        {
-          label: "Recursos",
-          value: overview?.sharedResources.length ?? 0,
-          icon: Library,
-        },
-        {
-          label: "Avisos",
-          value: overview?.summary.notificationsCount ?? overview?.notifications?.length ?? 0,
-          icon: Bell,
-        },
-        {
-          label: "Entregables",
-          value: overview?.sharedDeliverables.length ?? 0,
-          icon: Package,
-        },
-    ],
-    [overview],
-  );
-
-  const questions = overview?.questions || [];
-  const tracking = overview?.tracking || [];
-  const recentTracking = tracking.slice(0, 6);
-  const notifications = overview?.notifications || [];
-  const sharedResources = overview?.sharedResources || [];
-  const sharedDeliverables = overview?.sharedDeliverables || [];
-
-  const tabButtonClass = (tab: PortalTab) =>
-    cn(
-      "rounded-2xl px-4 py-3 text-sm font-black uppercase tracking-[0.18em] transition-all",
-      activeTab === tab
-        ? "bg-slate-950 text-white shadow-lg shadow-slate-900/10"
-        : "bg-white text-slate-500 ring-1 ring-slate-200 hover:text-slate-900",
-    );
-
-  if (isLoading || isHydratingSession) {
+  if (!isMounted || isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.18),transparent_38%),linear-gradient(180deg,#f8fafc_0%,#eefbf5_100%)] px-6">
-        <div className="flex items-center gap-3 rounded-3xl border border-white/70 bg-white/90 px-6 py-4 shadow-2xl shadow-emerald-100">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-          <span className="text-sm font-semibold text-slate-700">Abriendo tu portal...</span>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="text-center space-y-4">
+          <Loader2 className="mx-auto h-12 w-12 animate-spin text-emerald-600" />
+          <p className="text-sm font-bold uppercase tracking-widest text-slate-400">
+            Cargando tu portal...
+          </p>
         </div>
       </div>
     );
   }
 
-  if (!accessToken || !overview) {
+  if (!accessToken || !portalData) {
     return (
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.22),transparent_35%),linear-gradient(180deg,#f8fafc_0%,#ecfdf5_100%)] px-4 py-8">
-        <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-center">
-          <div className="grid w-full gap-8 overflow-hidden rounded-[2rem] border border-white/70 bg-white/90 p-6 shadow-2xl shadow-emerald-100/60 backdrop-blur md:grid-cols-[1.1fr_0.9fr] md:p-10">
-            <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 text-[11px] font-black uppercase tracking-[0.25em] text-emerald-700">
-                <Leaf className="h-4 w-4" />
-                Portal de seguimiento
-              </div>
-              <div className="space-y-4">
-                <h1 className="text-4xl font-black tracking-tight text-slate-950 md:text-6xl">
-                  Tu espacio compartido con el nutri, ordenado por fecha
-                </h1>
-                <p className="max-w-xl text-base leading-7 text-slate-600 md:text-lg">
-                  Este espacio fue compartido por{" "}
-                  <span className="font-semibold text-slate-900">{preview?.nutritionistName || "tu nutricionista"}</span>.
-                  Aquí puedes dejar tu diario, hacer preguntas, revisar recursos y descargar entregables compartidos.
-                  Para entrar, usa tu correo y el código fijo de 6 dígitos que te compartieron.
-                </p>
-              </div>
+      <div className="min-h-screen bg-[#fafaf9] flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-emerald-600 text-white shadow-xl shadow-emerald-200 mb-4 animate-in fade-in zoom-in duration-700">
+              <ShieldCheck className="h-8 w-8" />
+            </div>
+            <h2 className="text-sm font-black uppercase tracking-[0.3em] text-emerald-600 mb-1">
+              Portal del Paciente
+            </h2>
+            <div className="h-1 w-12 bg-emerald-600 mx-auto rounded-full opacity-20" />
+          </div>
 
-              <form onSubmit={handleVerify} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
-                    Confirma tu correo
-                  </label>
+          <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-200/50 p-8 md:p-10 space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <div className="space-y-2 text-center">
+              <h1 className="text-3xl font-black tracking-tight text-slate-900">
+                Bienvenido <span className="text-emerald-600">de vuelta</span>
+              </h1>
+              <p className="text-slate-500 font-medium text-sm px-4">
+                Espacio clínico compartido con el profesional <span className="text-slate-900 font-bold">{preview?.nutritionistName || "tu nutricionista"}</span>.
+              </p>
+            </div>
+
+            <form onSubmit={handleVerify} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
+                  Email de Invitación
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <User className="h-5 w-5 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />
+                  </div>
                   <Input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="tu correo de paciente"
-                    className="h-12 rounded-2xl border-slate-200 bg-white/90"
+                    placeholder="tu@correo.com"
+                    disabled={!!preview?.patientEmail}
+                    className={cn(
+                      "h-14 pl-12 rounded-2xl border-slate-200 font-bold transition-all",
+                      !!preview?.patientEmail ? "bg-slate-50 text-slate-500 cursor-not-allowed border-transparent" : "bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500"
+                    )}
                   />
+                  {!!preview?.patientEmail && (
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
+                      <Lock className="h-4 w-4 text-slate-300" />
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
-                    Código de acceso
-                  </label>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
+                  Código de Acceso (6 dígitos)
+                </label>
+                <div className="relative">
                   <Input
                     value={accessCode}
                     onChange={(e) => setAccessCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
                     inputMode="numeric"
-                    maxLength={6}
-                    placeholder="123456"
-                    className="h-12 rounded-2xl border-slate-200 bg-white/90 tracking-[0.3em]"
+                    autoComplete="one-time-code"
+                    placeholder="· · ·   · · ·"
+                    className="h-20 rounded-2xl border-slate-200 bg-slate-50 text-center text-3xl font-black tracking-[0.3em] transition-all focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500"
                   />
                 </div>
-                <Button
-                  type="submit"
-                  isLoading={isVerifying}
-                  className="h-12 rounded-2xl bg-emerald-600 px-6 font-black text-white shadow-lg shadow-emerald-200 hover:bg-emerald-500"
-                >
-                  Activar portal
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
-              </form>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  { label: "Preguntas", icon: MessageSquare },
-                  { label: "Diario", icon: BookOpen },
-                  { label: "Material", icon: FileText },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-3"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm">
-                      <item.icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Registro</p>
-                      <p className="text-sm font-semibold text-slate-800">{item.label}</p>
-                    </div>
-                  </div>
-                ))}
               </div>
-            </div>
 
-            <div className="relative overflow-hidden rounded-[1.75rem] bg-[linear-gradient(160deg,#0f172a_0%,#0f766e_42%,#34d399_100%)] p-6 text-white shadow-2xl shadow-emerald-200 md:p-8">
-              <div className="absolute right-0 top-0 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
-              <div className="absolute bottom-0 left-0 h-44 w-44 rounded-full bg-emerald-200/20 blur-3xl" />
-              <div className="relative space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15">
-                    <ShieldCheck className="h-7 w-7 text-emerald-100" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-100/70">Acompañamiento</p>
-                    <p className="text-2xl font-black">Seguimiento simple, útil y constante</p>
-                  </div>
-                </div>
-                <div className="space-y-3 rounded-[1.5rem] border border-white/15 bg-white/8 p-5 backdrop-blur">
-                  <p className="text-sm font-semibold text-emerald-50/90">Qué puedes hacer</p>
-                  <ul className="space-y-3 text-sm text-emerald-50/90">
-                    {[
-                      "Escribir tu día a día con fecha",
-                      "Dejar preguntas para el nutri",
-                      "Revisar recursos y entregables compartidos",
-                    ].map((item) => (
-                      <li key={item} className="flex items-start gap-3">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-200" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-white/15 bg-white/8 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-100/60">Paciente</p>
-                    <p className="mt-2 break-all text-sm text-white/90">{preview?.patientName || "Portal privado"}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/15 bg-white/8 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-100/60">Expira</p>
-                    <p className="mt-2 text-sm text-white/90">
-                      {preview?.expiresAt ? formatDate(preview.expiresAt) : "—"}
-                    </p>
-                  </div>
-                </div>
+              <Button
+                type="submit"
+                isLoading={isVerifying}
+                className="w-full h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-[0.15em] text-sm shadow-xl shadow-emerald-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group"
+              >
+                Acceder al Portal
+                <ChevronRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </Button>
+            </form>
+
+            <div className="pt-4 border-t border-slate-100 flex flex-col items-center gap-2">
+              <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                <Calendar className="h-3 w-3" />
+                Vence el: {preview?.expiresAt ? new Date(preview.expiresAt).toLocaleDateString("es-CL", { day: '2-digit', month: 'long' }) : "—"}
               </div>
+              <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest">
+                Powered by NutriNet
+              </p>
             </div>
           </div>
         </div>
@@ -465,583 +528,535 @@ export default function PortalClient({ token }: { token: string }) {
     );
   }
 
-  const activeInvitationExpiresAt = overview.portal.activeInvitation?.expiresAt || preview?.expiresAt || null;
+  const { patient } = portalData;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.16),transparent_40%),linear-gradient(180deg,#f8fafc_0%,#effdf6_100%)] px-4 py-6 md:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <div className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/90 p-6 shadow-2xl shadow-emerald-100/60 backdrop-blur md:p-8">
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 text-[11px] font-black uppercase tracking-[0.25em] text-emerald-700">
-                <Leaf className="h-4 w-4" />
-                Portal privado
-              </div>
-              <div className="space-y-3">
-                <h1 className="text-3xl font-black tracking-tight text-slate-950 md:text-5xl">
-                  {preview?.patientName || overview.patient.fullName}
-                </h1>
-                <p className="max-w-2xl text-sm leading-7 text-slate-600 md:text-base">
-                  Usa este espacio para escribir tu diario, dejar preguntas, revisar materiales y descargar los entregables
-                  que tu nutri compartió especialmente contigo.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                {summaryCards.map((card) => (
-                  <div key={card.label} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm">
-                      <card.icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{card.label}</p>
-                      <p className="text-lg font-black text-slate-900">{card.value}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+    <div className="min-h-screen bg-[#fafaf9] text-slate-900 font-sans">
+      {/* Navbar Superior */}
+      <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-100">
+              <ShieldCheck className="h-5 w-5" />
             </div>
-
-            <div className="space-y-4 rounded-[1.75rem] bg-slate-950 p-6 text-white shadow-xl">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
-                  <ShieldCheck className="h-6 w-6 text-emerald-300" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-200/70">Acceso activo</p>
-                  <p className="text-lg font-bold">Portal de {preview?.nutritionistName || "tu nutricionista"}</p>
-                </div>
-              </div>
-              <div className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-5 text-sm leading-7 text-slate-200">
-                <p>• Diario con fecha y hora guardada.</p>
-                <p>• Preguntas asincrónicas para el nutri.</p>
-                <p>• Recursos y entregables compartidos por invitación.</p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-300/70">Vigencia</p>
-                  <p className="mt-2 text-sm font-semibold text-white">
-                    {activeInvitationExpiresAt ? formatDate(activeInvitationExpiresAt) : "—"}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-300/70">Pendientes</p>
-                  <p className="mt-2 text-sm font-semibold text-white">
-                    {overview.summary.pendingQuestions} consultas
-                  </p>
-                </div>
-              </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-indigo-600 leading-none mb-0.5">Mi Portal</p>
+              <h2 className="text-sm font-semibold text-slate-800 leading-none">{patient.fullName}</h2>
             </div>
           </div>
-        </div>
 
-        <div className="flex flex-wrap gap-3">
-          {[
-            { id: "diario" as const, label: "Diario" },
-            { id: "recursos" as const, label: "Recursos" },
-            { id: "notificaciones" as const, label: "Avisos" },
-            { id: "consultas" as const, label: "Preguntas" },
-            { id: "entregables" as const, label: "Entregables" },
-          ].map((tab) => (
-            <button key={tab.id} className={tabButtonClass(tab.id)} onClick={() => setActiveTab(tab.id)}>
-              {tab.label}
-            </button>
-          ))}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              safeLocalStorage.removeItem(getPortalStorageKey(token));
+              window.location.reload();
+            }}
+            className="rounded-xl h-9 px-4 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
+          >
+            Cerrar Sesión
+          </Button>
         </div>
+      </header>
 
-        {activeTab === "diario" && (
-          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-            <form
-              onSubmit={handleSubmitTracking}
-              className="space-y-5 rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8"
+      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 p-4 md:p-8">
+        {/* Sidebar del Portal - Solo 4 Tabs */}
+        <aside className="w-full lg:w-64 shrink-0 space-y-2">
+          <div className="px-2 mb-4">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Navegación</h3>
+          </div>
+          <nav className="space-y-2">
+            <button
+              onClick={() => setActiveTab("diary")}
+              className={cn(
+                "w-full flex items-center gap-3 px-6 py-4 rounded-3xl transition-all font-semibold text-sm group relative",
+                activeTab === "diary" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+              )}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-emerald-600">Diario</p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-950">Registra tu día a día</h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Escribe con fecha. El nutri verá cada registro como una entrada ordenada en el tiempo.
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-right">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">Fecha</p>
-                  <p className="text-sm font-semibold text-emerald-900">{formatDate(trackingForm.entryDate)}</p>
-                </div>
-              </div>
+              <div className={cn(
+                "w-1.5 h-1.5 rounded-full absolute left-3 transition-all",
+                activeTab === "diary" ? "bg-white scale-100" : "bg-transparent scale-0"
+              )} />
+              <User className="h-5 w-5" />
+              Diario
+            </button>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">Fecha del diario</label>
-                <Input
-                  type="date"
-                  value={trackingForm.entryDate}
-                  onChange={(e) => setTrackingForm((prev) => ({ ...prev, entryDate: e.target.value }))}
-                  className="h-12 rounded-3xl border-slate-200"
+            <button
+              onClick={() => setActiveTab("messages")}
+              className={cn(
+                "w-full flex items-center gap-3 px-6 py-4 rounded-3xl transition-all font-semibold text-sm group relative",
+                activeTab === "messages" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+              )}
+            >
+              <div className={cn(
+                "w-1.5 h-1.5 rounded-full absolute left-3 transition-all",
+                activeTab === "messages" ? "bg-white scale-100" : "bg-transparent scale-0"
+              )} />
+              <Send className="h-5 w-5" />
+              Mensajes de tu Nutri
+            </button>
+
+            <button
+              onClick={() => setActiveTab("questions")}
+              className={cn(
+                "w-full flex items-center gap-3 px-6 py-4 rounded-3xl transition-all font-semibold text-sm group relative",
+                activeTab === "questions" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+              )}
+            >
+              <div className={cn(
+                "w-1.5 h-1.5 rounded-full absolute left-3 transition-all",
+                activeTab === "questions" ? "bg-white scale-100" : "bg-transparent scale-0"
+              )} />
+              <MessageSquare className="h-5 w-5" />
+              Consultas y Dudas
+            </button>
+
+            <button
+              onClick={() => setActiveTab("plans")}
+              className={cn(
+                "w-full flex items-center gap-3 px-6 py-4 rounded-3xl transition-all font-semibold text-sm group relative",
+                activeTab === "plans" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+              )}
+            >
+              <div className={cn(
+                "w-1.5 h-1.5 rounded-full absolute left-3 transition-all",
+                activeTab === "plans" ? "bg-white scale-100" : "bg-transparent scale-0"
+              )} />
+              <Sparkles className="h-5 w-5" />
+              Planes Entregados
+            </button>
+
+            <button
+              onClick={() => setActiveTab("notifications")}
+              className={cn(
+                "w-full flex items-center gap-3 px-6 py-4 rounded-3xl transition-all font-semibold text-sm group relative",
+                activeTab === "notifications" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+              )}
+            >
+              <div className={cn(
+                "w-1.5 h-1.5 rounded-full absolute left-3 transition-all",
+                activeTab === "notifications" ? "bg-white scale-100" : "bg-transparent scale-0"
+              )} />
+              <Bell className="h-5 w-5" />
+              <span>Notificaciones Correo</span>
+              {hasNewNotifications && (
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-emerald-500 rounded-full ring-4 ring-white animate-pulse" />
+              )}
+            </button>
+          </nav>
+
+          <div className="bg-slate-50/80 rounded-[2.5rem] p-6 border border-slate-100">
+            <div className="space-y-1">
+              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-[0.25em]">Powered by NutriNet</p>
+            </div>
+          </div>
+        </aside>
+
+        {/* Contenido Principal con Renderizado Condicional */}
+        <main className="flex-1 space-y-8 min-w-0">
+          {/* TAB: DIARIO */}
+          {activeTab === "diary" && (
+            <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {/* Input de Libreta (Estilo Facebook/Tweet) */}
+              <div className="bg-white rounded-[2.5rem] p-6 md:p-8 border border-slate-100 shadow-sm space-y-4">
+                <div className="flex items-center gap-3 px-1">
+                  <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">¿Cómo va tu día?</p>
+                </div>
+                <Textarea
+                  value={entryText}
+                  onChange={(e) => setEntryText(e.target.value)}
+                  placeholder="escribe qué comiste hoy, si hiciste deporte, o si no pudiste seguir la dieta, ¿cómo te sientes?"
+                  className="min-h-[120px] rounded-3xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-indigo-500/10 focus:border-indigo-500 resize-none py-4 px-6 text-sm font-medium leading-relaxed"
                 />
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleSubmitEntry}
+                    disabled={!entryText.trim() || isSubmittingEntry}
+                    isLoading={isSubmittingEntry}
+                    className="rounded-2xl bg-indigo-600 text-white px-8 h-11 font-semibold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
+                  >
+                    Publicar para mi nutricionista
+                  </Button>
+                </div>
               </div>
 
-              {[
-                {
-                  key: "alimentacion" as const,
-                  label: "Alimentación",
-                  icon: UtensilsCrossed,
-                  placeholder:
-                    "Cuenta lo que comiste, horarios, antojos, porciones o cambios que quieras registrar.",
-                },
-                {
-                  key: "suplementos" as const,
-                  label: "Suplementos",
-                  icon: Waves,
-                  placeholder:
-                    "Escribe qué tomaste, dosis, horario y si hubo algún cambio o duda.",
-                },
-                {
-                  key: "actividadFisica" as const,
-                  label: "Actividad física",
-                  icon: Dumbbell,
-                  placeholder:
-                    "Puedes colocar el tiempo, intensidad, tipo de ejercicio o cómo te sentiste.",
-                },
-              ].map((section) => (
-                <div key={section.key} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <section.icon className="h-4 w-4 text-emerald-500" />
-                    <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">{section.label}</label>
-                  </div>
-                  <Textarea
-                    value={trackingForm[section.key]}
-                    onChange={(e) => setTrackingForm((prev) => ({ ...prev, [section.key]: e.target.value }))}
-                    className="min-h-[120px] rounded-3xl border-slate-200"
-                    placeholder={section.placeholder}
-                  />
-                </div>
-              ))}
-
-              <Button
-                type="submit"
-                isLoading={isSubmittingTracking}
-                className="h-12 rounded-2xl bg-slate-950 px-6 font-black text-white shadow-lg shadow-slate-900/10 hover:bg-slate-800"
-              >
-                Guardar diario
-              </Button>
-            </form>
-
-            <div className="space-y-6">
-              <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Resumen</p>
-                    <h2 className="mt-2 text-2xl font-black text-slate-950">Lo que ya dejaste registrado</h2>
-                  </div>
-                  <CalendarDays className="h-5 w-5 text-emerald-500" />
+              {/* Feed de Entradas (Estilo Tweets) */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 px-2">
+                  <div className="w-1 h-4 bg-indigo-500 rounded-full" />
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Historial de Libreta</h3>
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  {[
-                    { label: "Alimentación", value: overview.summary.sectionCounts.alimentacion, icon: UtensilsCrossed },
-                    { label: "Suplementos", value: overview.summary.sectionCounts.suplementos, icon: Waves },
-                    { label: "Actividad", value: overview.summary.sectionCounts.actividadFisica, icon: Dumbbell },
-                  ].map((item) => (
-                    <div key={item.label} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-4">
-                      <item.icon className="h-5 w-5 text-emerald-500" />
-                      <p className="mt-3 text-sm font-semibold text-slate-500">{item.label}</p>
-                      <p className="mt-1 text-2xl font-black text-slate-950">{item.value}</p>
+                {portalData.tracking && portalData.tracking.length > 0 ? (
+                  <div className="space-y-4">
+                    {portalData.tracking.slice(0, visibleEntriesCount).map((entry: any) => (
+                      <div key={entry.id} className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm space-y-3 hover:border-indigo-100 transition-all group">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-tight">Registro de Paciente</span>
+                            <span className="text-[10px] text-slate-300">•</span>
+                            <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {new Date(entry.createdAt).toLocaleString("es-CL", {
+                                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-sm text-slate-700 font-medium leading-relaxed">
+                          {entry.body}
+                        </p>
+                      </div>
+                    ))}
+
+                    {visibleEntriesCount < portalData.tracking.length && (
+                      <div className="flex justify-center pt-4">
+                        <Button
+                          variant="outline"
+                          onClick={() => setVisibleEntriesCount(prev => prev + 10)}
+                          className="rounded-full px-8 border-slate-200 text-slate-500 font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50 hover:text-indigo-600 transition-all group"
+                        >
+                          Ver más registros
+                          <ChevronRight className="h-3 w-3 ml-2 group-hover:translate-x-1 transition-transform" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-[2.5rem] border border-slate-100 border-dashed p-12 text-center space-y-3">
+                    <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto text-slate-300">
+                      <Calendar className="h-6 w-6" />
                     </div>
-                  ))}
+                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Aún no hay publicaciones</h3>
+                    <p className="text-[10px] text-slate-400 max-w-xs mx-auto">Tus pensamientos y progresos aparecerán aquí.</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* TAB: PREGUNTAS */}
+          {activeTab === "questions" && (
+            <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {/* Input de Consulta */}
+              <div className="bg-white rounded-[2.5rem] p-6 md:p-8 border border-slate-100 shadow-sm space-y-4">
+                <div className="flex items-center gap-3 px-1">
+                  <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                    <MessageSquare className="h-4 w-4" />
+                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">¿Tienes alguna duda para tu nutri?</p>
+                </div>
+                <Textarea
+                  value={questionText}
+                  onChange={(e) => setQuestionText(e.target.value)}
+                  placeholder="Escribe aquí tu consulta sobre la dieta, recetas o cómo te sientes..."
+                  className="min-h-[120px] rounded-3xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-emerald-500/10 focus:border-emerald-500 resize-none py-4 px-6 text-sm font-medium leading-relaxed"
+                />
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleSubmitQuestion}
+                    disabled={!questionText.trim() || isSubmittingQuestion}
+                    isLoading={isSubmittingQuestion}
+                    className="rounded-2xl bg-emerald-600 text-white px-8 h-11 font-semibold shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all"
+                  >
+                    Enviar consulta
+                  </Button>
                 </div>
               </div>
 
-              <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Historial</p>
-                    <h2 className="mt-2 text-2xl font-black text-slate-950">Últimos registros del diario</h2>
-                  </div>
-                  <Clock3 className="h-5 w-5 text-emerald-500" />
+              {/* Feed de Consultas */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 px-2">
+                  <div className="w-1 h-4 bg-emerald-500 rounded-full" />
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Tus consultas anteriores</h3>
                 </div>
 
-                <div className="mt-6 space-y-4">
-                  {recentTracking.length > 0 ? (
-                    recentTracking.map((entry) => {
-                      const sections = entry.payload.sections || {};
-                      return (
-                        <article key={entry.id} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-5">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                {entry.payload?.entryDate ? `Fecha del diario: ${entry.payload.entryDate}` : "Registro de diario"}
-                              </p>
+                {portalData.questions && portalData.questions.length > 0 ? (
+                  <div className="space-y-6">
+                    {portalData.questions.map((question: any) => (
+                      <div key={question.id} className="space-y-3">
+                        {/* Pregunta del Paciente */}
+                        <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-tight">Tu Consulta</span>
+                              <span className="text-[10px] text-slate-300">•</span>
+                              <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {new Date(question.createdAt).toLocaleString("es-CL", {
+                                  day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                                })}
+                              </span>
                             </div>
-                            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-100">
-                              Guardado
+                          </div>
+                          <p className="text-sm text-slate-700 font-medium leading-relaxed">
+                            {question.body}
+                          </p>
+                        </div>
+
+                        {/* Respuestas del Nutri (Estilo Comentarios) */}
+                        {question.replies && question.replies.length > 0 && (
+                          <div className="ml-8 space-y-3 border-l-2 border-slate-100 pl-6 py-1">
+                            {question.replies.map((reply: any) => (
+                              <div key={reply.id} className="bg-slate-50/50 rounded-[1.5rem] p-5 space-y-2 border border-slate-100/50">
+                                <div className="flex items-center gap-3">
+                                  {portalData.patient.nutritionist.avatarUrl ? (
+                                    <img
+                                      src={portalData.patient.nutritionist.avatarUrl}
+                                      alt={portalData.patient.nutritionist.fullName}
+                                      className="w-6 h-6 rounded-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                                      <User className="h-3 w-3" />
+                                    </div>
+                                  )}
+                                  <div className="flex flex-col">
+                                    <span className="text-[10px] font-bold text-slate-900">{portalData.patient.nutritionist.fullName}</span>
+                                    <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">Nutricionista</span>
+                                  </div>
+                                  <span className="text-[10px] text-slate-300 ml-auto font-medium">
+                                    {new Date(reply.createdAt).toLocaleString("es-CL", {
+                                      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                                    })}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-slate-600 font-medium leading-relaxed pl-1">
+                                  {reply.body}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-[2.5rem] border border-slate-100 border-dashed p-12 text-center space-y-3">
+                    <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto text-slate-300">
+                      <MessageSquare className="h-6 w-6" />
+                    </div>
+                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Aún no hay consultas</h3>
+                    <p className="text-[10px] text-slate-400 max-w-xs mx-auto">Tus dudas resueltas aparecerán aquí.</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* TAB: PLANES ENTREGADOS */}
+          {activeTab === "plans" && (
+            <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-slate-100 shadow-sm space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-1.5 h-8 bg-indigo-500 rounded-full" />
+                  <div>
+                    <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Planes entregados</h1>
+                    <p className="text-slate-400 font-medium text-sm">Material compartido por tu nutricionista para tu proceso.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {portalData.sharedDeliverables.length > 0 ? (
+                  portalData.sharedDeliverables.map((del: any) => {
+                    const isDiet = del.type === 'DIET';
+                    const isRecipe = del.type === 'RECIPE' || del.type === 'RECIPES';
+                    const isFast = del.type === 'FAST_DELIVERABLE';
+
+                    return (
+                      <div key={del.id} className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all group flex flex-col justify-between">
+                        <div className="space-y-4">
+                          <div className="flex items-start justify-between">
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${isDiet ? 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white' :
+                                isRecipe ? 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white' :
+                                  'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white'
+                              }`}>
+                              {isDiet ? <Utensils className="h-6 w-6" /> : isRecipe ? <BookOpen className="h-6 w-6" /> : <FileText className="h-6 w-6" />}
+                            </div>
+                            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(del.createdAt).toLocaleDateString("es-CL")}
                             </span>
                           </div>
 
-                          <div className="mt-4 grid gap-3">
-                            {sections.alimentacion && (
-                              <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
-                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Alimentación</p>
-                                <p className="mt-2 text-sm leading-7 text-slate-700">{sections.alimentacion}</p>
-                              </div>
-                            )}
-                            {sections.suplementos && (
-                              <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
-                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Suplementos</p>
-                                <p className="mt-2 text-sm leading-7 text-slate-700">{sections.suplementos}</p>
-                              </div>
-                            )}
-                            {sections.actividadFisica && (
-                              <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-100">
-                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Actividad física</p>
-                                <p className="mt-2 text-sm leading-7 text-slate-700">{sections.actividadFisica}</p>
-                              </div>
-                            )}
+                          <div className="space-y-1">
+                            <h4 className="font-bold text-slate-900 text-lg leading-tight group-hover:text-indigo-600 transition-colors">
+                              {del.name}
+                            </h4>
+                            <div className="flex gap-2">
+                              <span className={`text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ring-1 ${isDiet ? 'bg-emerald-50 text-emerald-700 ring-emerald-100' :
+                                  isRecipe ? 'bg-orange-50 text-orange-700 ring-orange-100' :
+                                    'bg-indigo-50 text-indigo-700 ring-indigo-100'
+                                }`}>
+                                {isDiet ? 'Dieta' : isRecipe ? 'Recetas' : isFast ? 'Guía rápida' : 'Entregable'}
+                              </span>
+                            </div>
                           </div>
-                        </article>
-                      );
-                    })
+                        </div>
+
+                        <div className="mt-8 pt-4 border-t border-slate-50 flex items-center justify-between">
+                          <p className="text-[10px] text-slate-400 font-medium">Formato Digital</p>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="rounded-xl text-indigo-600 font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-50 px-4 group/btn"
+                            onClick={() => handleDownloadDeliverable(del)}
+                            disabled={isDownloadingDeliverableId === del.id}
+                          >
+                            DESCARGAR
+                            <Download className="h-3 w-3 ml-2 group-hover/btn:translate-y-0.5 transition-transform" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="sm:col-span-2 lg:col-span-3 border-2 border-slate-100 border-dashed rounded-[3rem] p-20 text-center space-y-4">
+                    <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto text-slate-200">
+                      <Download className="h-10 w-10" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em]">Aún no hay planes entregados</h3>
+                      <p className="text-xs text-slate-300 max-w-xs mx-auto">Tu nutricionista compartirá tus pautas y guías PDF aquí cuando estén listas.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* TAB: MENSAJES DE TU NUTRI */}
+          {activeTab === "messages" && (
+            <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center gap-3 px-2">
+                <div className="w-1.5 h-6 bg-indigo-600 rounded-full" />
+                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-800">Mensajes de tu Profesional</h3>
+              </div>
+
+              {portalData.messages && portalData.messages.length > 0 ? (
+                <div className="space-y-6">
+                  {portalData.messages.map((msg: any) => (
+                    <div key={msg.id} className="flex gap-4 max-w-2xl">
+                      <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-100">
+                        {patient.nutritionist?.avatarUrl ? (
+                          <img src={patient.nutritionist.avatarUrl} alt="Nutri" className="w-full h-full object-cover rounded-2xl" />
+                        ) : (
+                          <User className="h-5 w-5 text-white" />
+                        )}
+                      </div>
+                      <div className="bg-white rounded-[2rem] rounded-tl-none p-6 border border-slate-100 shadow-sm space-y-2 relative">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{patient.nutritionist?.fullName}</span>
+                          <span className="text-[10px] font-bold text-slate-300">•</span>
+                          <span className="text-[10px] font-medium text-slate-400">
+                            {new Date(msg.createdAt).toLocaleString("es-CL", { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-700 font-medium leading-relaxed">
+                          {msg.body}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white rounded-[3rem] border border-slate-100 border-dashed p-20 text-center space-y-4">
+                  <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto text-slate-200">
+                    <Send className="h-10 w-10" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em]">Sin mensajes todavía</h3>
+                    <p className="text-xs text-slate-300 max-w-xs mx-auto">Aquí aparecerán los mensajes, recomendaciones y saludos que tu nutricionista te envíe.</p>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* TAB: NOTIFICACIONES POR CORREO */}
+          {activeTab === "notifications" && (
+            <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-slate-100 shadow-sm space-y-8">
+                <div className="flex flex-col md:flex-row items-center gap-8">
+                  {patient.nutritionist?.avatarUrl ? (
+                    <img
+                      src={patient.nutritionist.avatarUrl}
+                      alt={patient.nutritionist.fullName}
+                      className="w-24 h-24 rounded-[2rem] object-cover border border-indigo-100 shadow-sm"
+                    />
                   ) : (
-                    <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-                      Todavía no hay registros de diario.
+                    <div className="w-24 h-24 rounded-[2rem] bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100 shadow-sm">
+                      <User className="h-10 w-10" />
+                    </div>
+                  )}
+                  <div className="text-center md:text-left space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Tu Profesional</p>
+                    <h2 className="text-2xl font-semibold text-slate-900">{patient.nutritionist?.fullName}</h2>
+                    <p className="text-slate-500 font-medium">Nutricionista Clínico a cargo de tu proceso</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6 pt-8 border-t border-slate-100">
+                  <div className="flex items-center gap-2 px-2">
+                    <div className="w-1 h-4 bg-emerald-500 rounded-full" />
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Historial de Notificaciones Correo</h3>
+                  </div>
+
+                  {portalData.notifications && portalData.notifications.length > 0 ? (
+                    <div className="space-y-4">
+                      {portalData.notifications.map((notif: any) => {
+                        const isAlert = notif.payload?.notificationType === 'ALERT';
+                        return (
+                          <div key={notif.id} className="bg-slate-50/50 rounded-[2rem] p-8 border border-slate-100 space-y-4 relative overflow-hidden group">
+                            {isAlert && <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />}
+                            <div className="flex items-center justify-between relative z-10">
+                              <div className="flex items-center gap-3">
+                                <span className={cn(
+                                  "px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest ring-1",
+                                  isAlert ? "bg-orange-50 text-orange-700 ring-orange-100" : "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                                )}>
+                                  {notif.payload?.notificationType || "INFO"}
+                                </span>
+                                <span className="text-[10px] text-slate-300">•</span>
+                                <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {new Date(notif.createdAt).toLocaleDateString("es-CL", { day: '2-digit', month: 'long' })}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="space-y-2 relative z-10">
+                              <h4 className="text-lg font-bold text-slate-900 leading-tight">
+                                {notif.payload?.notificationTitle || "Aviso de tu nutricionista"}
+                              </h4>
+                              <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                                {notif.body}
+                              </p>
+                            </div>
+                            <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
+                              <Bell className="w-24 h-24" />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="bg-slate-50/50 rounded-[2.5rem] border border-slate-100 border-dashed p-12 text-center space-y-3">
+                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mx-auto text-slate-200">
+                        <Bell className="h-6 w-6" />
+                      </div>
+                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Sin notificaciones</h3>
+                      <p className="text-[10px] text-slate-400 max-w-xs mx-auto">No has recibido avisos por correo todavía.</p>
                     </div>
                   )}
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "recursos" && (
-          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Recursos compartidos</p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-950">Lo que tu nutri te dejó para revisar</h2>
-                </div>
-                <Library className="h-5 w-5 text-emerald-500" />
-              </div>
-
-              <div className="mt-6 space-y-4">
-                {sharedResources.length > 0 ? (
-                  sharedResources.map((resource) => (
-                    <article key={resource.id} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-5">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-black text-slate-900">{resource.title}</p>
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{resource.category}</p>
-                        </div>
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
-                          {resource.isPublic ? "Público" : "Privado"}
-                        </span>
-                      </div>
-                      <p className="mt-4 text-sm leading-7 text-slate-700">{resource.content}</p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {(resource.tags || []).map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 ring-1 ring-slate-100"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                      {resource.fileUrl && (
-                        <div className="mt-4">
-                          <Button variant="outline" className="rounded-2xl" onClick={() => window.open(resource.fileUrl || "", "_blank", "noopener,noreferrer")}>
-                            <Download className="mr-2 h-4 w-4" />
-                            Abrir archivo
-                          </Button>
-                        </div>
-                      )}
-                    </article>
-                  ))
-                ) : (
-                  <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-                    Todavía no hay recursos compartidos en este portal.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Cómo funciona</p>
-                    <h2 className="mt-2 text-2xl font-black text-slate-950">Recursos y materiales</h2>
-                  </div>
-                  <Globe className="h-5 w-5 text-emerald-500" />
-                </div>
-                <div className="mt-5 space-y-3 rounded-3xl border border-slate-100 bg-slate-50/80 p-5 text-sm leading-7 text-slate-700">
-                  <p>• Estos recursos se comparten de forma específica para tu acceso.</p>
-                  <p>• Puedes volver a abrirlos cuando quieras.</p>
-                  <p>• Si el nutri te comparte más material en una nueva invitación, lo verás aquí.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "notificaciones" && (
-          <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
-            <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Avisos</p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-950">Mensajes directos del nutri</h2>
-                </div>
-                <Bell className="h-5 w-5 text-emerald-500" />
-              </div>
-
-              <div className="mt-6 space-y-4">
-                {notifications.length > 0 ? (
-                  notifications.map((entry) => (
-                    <article key={entry.id} className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-5">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-black text-slate-900">
-                            {entry.payload?.notificationTitle || "Notificación del nutricionista"}
-                          </p>
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                            {formatDateTime(entry.createdAt)}
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
-                          {entry.payload?.notificationType || "INFO"}
-                        </span>
-                      </div>
-                      <p className="mt-4 text-sm leading-7 text-slate-700">{entry.body}</p>
-                    </article>
-                  ))
-                ) : (
-                  <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-                    Todavía no hay avisos directos del nutri.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Uso</p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-950">Para qué sirven</h2>
-                </div>
-                <Bell className="h-5 w-5 text-emerald-500" />
-              </div>
-              <div className="mt-5 space-y-3 rounded-3xl border border-slate-100 bg-slate-50/80 p-5 text-sm leading-7 text-slate-700">
-                <p>• Tu nutri puede enviarte avisos concretos para este paciente.</p>
-                <p>• Si existe un correo activo en la invitación, también llega por email.</p>
-                <p>• El mensaje queda guardado en el portal para que no se pierda entre preguntas.</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "consultas" && (
-          <div className="grid gap-6 lg:grid-cols-[1fr_0.95fr]">
-            <form
-              onSubmit={handleSubmitQuestion}
-              className="space-y-5 rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-emerald-600">Preguntas</p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-950">Deja tu pregunta o comentario</h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Escribe lo que necesites. El nutri podrá verlo y responderte cuando revise tu portal.
-                  </p>
-                </div>
-                <MessageSquare className="h-5 w-5 text-emerald-500" />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">Tu mensaje</label>
-                <Textarea
-                  value={questionMessage}
-                  onChange={(e) => setQuestionMessage(e.target.value)}
-                  className="min-h-[180px] rounded-3xl border-slate-200"
-                  placeholder="Escribe aquí tu consulta, duda o actualización breve para tu nutri."
-                />
-              </div>
-
-              <div className="rounded-3xl border border-dashed border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-950">
-                <p className="font-semibold">Tip</p>
-                <p className="mt-1 text-emerald-900/80">
-                  Mientras más claro lo escribas, más fácil será para el nutri responder cuando revise tus mensajes.
-                </p>
-              </div>
-
-              <Button
-                type="submit"
-                isLoading={isSubmittingQuestion}
-                className="h-12 rounded-2xl bg-emerald-600 px-6 font-black text-white shadow-lg shadow-emerald-200 hover:bg-emerald-500"
-              >
-                Enviar consulta
-                <Send className="ml-2 h-4 w-4" />
-              </Button>
-            </form>
-
-            <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Historial</p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-950">Tus consultas guardadas</h2>
-                </div>
-                <MessageSquare className="h-5 w-5 text-emerald-500" />
-              </div>
-
-              <div className="mt-6 space-y-4">
-                {questions.length > 0 ? (
-                  questions.map((entry) => {
-                    const hasReplies = (entry.replies || []).length > 0;
-
-                    return (
-                      <article key={entry.id} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-5">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                              {hasReplies ? "Respondida" : "En espera"}
-                            </p>
-                          </div>
-                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-100">
-                            Consulta
-                          </span>
-                        </div>
-                        <p className="mt-4 text-sm leading-7 text-slate-700">{entry.body}</p>
-
-                        <div className="mt-4 space-y-3">
-                          {hasReplies ? (
-                            entry.replies?.map((reply) => (
-                              <div key={reply.id} className="rounded-2xl bg-white p-4 ring-1 ring-emerald-100">
-                                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">
-                                  <Reply className="h-4 w-4" />
-                                  Respuesta del nutri
-                                </div>
-                                <p className="mt-2 text-sm leading-7 text-slate-700">{reply.body}</p>
-                                <p className="mt-3 text-xs font-semibold text-slate-400">{formatDateTime(reply.createdAt)}</p>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-500">
-                              El nutri todavía no responde. Cuando lo haga, aparecerá aquí.
-                            </div>
-                          )}
-                        </div>
-                      </article>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-                    Todavía no hay consultas. Puedes dejar la primera ahora mismo.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "entregables" && (
-          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Entregables compartidos</p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-950">Tus archivos listos para descargar</h2>
-                </div>
-                <FileText className="h-5 w-5 text-emerald-500" />
-              </div>
-
-              <div className="mt-6 space-y-4">
-                {sharedDeliverables.length > 0 ? (
-                  sharedDeliverables.map((deliverable) => {
-                    const downloadPdf = () => {
-                      const doc = new jsPDF("p", "mm", "a4");
-                      const margin = 16;
-                      let y = 18;
-                      const pageWidth = doc.internal.pageSize.getWidth();
-
-                      doc.setFont("helvetica", "bold");
-                      doc.setFontSize(18);
-                      doc.text(deliverable.name, margin, y);
-                      y += 8;
-
-                      doc.setFont("helvetica", "normal");
-                      doc.setFontSize(11);
-                      doc.text(`Tipo: ${deliverable.type}`, margin, y);
-                      y += 6;
-                      doc.text(`Formato: ${deliverable.format}`, margin, y);
-                      y += 6;
-                      doc.text(`Actualizado: ${formatDateTime(deliverable.updatedAt)}`, margin, y);
-                      y += 10;
-
-                      const body = safeJsonText(deliverable.content);
-                      const lines = doc.splitTextToSize(body || "Sin contenido disponible", pageWidth - margin * 2);
-                      doc.text(lines, margin, y);
-
-                      doc.save(`${deliverable.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "entregable"}.pdf`);
-                    };
-
-                    return (
-                      <article key={deliverable.id} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-5">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-black text-slate-900">{deliverable.name}</p>
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{deliverable.type}</p>
-                          </div>
-                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
-                            PDF
-                          </span>
-                        </div>
-                        <p className="mt-4 text-sm leading-7 text-slate-700">
-                          {safeJsonText(deliverable.content) || "Sin contenido disponible"}
-                        </p>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {(deliverable.tags || []).map((tag) => (
-                            <span
-                              key={tag}
-                              className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 ring-1 ring-slate-100"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                        <div className="mt-4">
-                          <Button className="rounded-2xl" onClick={downloadPdf}>
-                            <Download className="mr-2 h-4 w-4" />
-                            Descargar PDF
-                          </Button>
-                        </div>
-                      </article>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-                    Todavía no hay entregables compartidos.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="rounded-[2rem] border border-slate-200/80 bg-white p-6 shadow-xl shadow-emerald-100/60 md:p-8">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Qué recibes</p>
-                    <h2 className="mt-2 text-2xl font-black text-slate-950">Tus entregables en PDF</h2>
-                  </div>
-                  <Package className="h-5 w-5 text-emerald-500" />
-                </div>
-                <div className="mt-5 space-y-3 rounded-3xl border border-slate-100 bg-slate-50/80 p-5 text-sm leading-7 text-slate-700">
-                  <p>• Aquí verás los materiales exportados que tu nutri decidió compartir contigo.</p>
-                  <p>• El PDF se genera desde el contenido del entregable para que puedas guardarlo o reenviarlo.</p>
-                  <p>• Cada invitación puede tener su propio conjunto de materiales, así que el acceso es personalizado.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+            </section>
+          )}
+        </main>
       </div>
     </div>
   );

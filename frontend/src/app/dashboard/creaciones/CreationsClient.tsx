@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Loader2,
   NotebookText,
+  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -40,13 +41,19 @@ function cn(...inputs: ClassValue[]) {
 export interface CreationsClientProps {
   initialData?: Creation[];
   fixedPatientName?: string;
+  patientId?: string;
   isInsidePatientDetail?: boolean;
+  sharedCreationIds?: string[];
+  onUpdate?: () => void;
 }
 
 export default function CreationsClient({ 
   initialData = [], 
   fixedPatientName = "", 
-  isInsidePatientDetail = false 
+  patientId = "",
+  isInsidePatientDetail = false,
+  sharedCreationIds = [],
+  onUpdate
 }: CreationsClientProps) {
   const router = useRouter();
   const [selectedType, setSelectedType] = useState<CreationType | "Todos">("Todos");
@@ -82,6 +89,8 @@ export default function CreationsClient({
   const [fullCreationData, setFullCreationData] = useState<any | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isSharing, setIsSharing] = useState<string | null>(null);
+  const sharedCreationIdSet = useMemo(() => new Set(sharedCreationIds), [sharedCreationIds]);
 
   // -- Fetch full creation data (shared by view and export) --
   const fetchFullData = async (id: string): Promise<any | null> => {
@@ -200,6 +209,40 @@ export default function CreationsClient({
     } finally {
       setIsExportingPdf(false);
       setSelectedItem(null);
+    }
+  };
+
+  const handleShareClick = async (item: Creation) => {
+    if (!patientId) {
+      toast.error("No se ha identificado un paciente para compartir esta creación.");
+      return;
+    }
+
+    setIsSharing(item.id);
+    try {
+      const token = Cookies.get("auth_token");
+      const response = await fetchApi(`/creations/${item.id}/share`, {
+        method: "POST",
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ patientId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(data.message || "Creación compartida con el paciente");
+        if (onUpdate) onUpdate();
+      } else {
+        toast.error(data.message || "No se pudo compartir la creación");
+      }
+    } catch (error) {
+      console.error("Error sharing creation:", error);
+      toast.error("Error al conectar con el servidor");
+    } finally {
+      setIsSharing(null);
     }
   };
 
@@ -623,6 +666,22 @@ export default function CreationsClient({
                         >
                           <Download className="h-4 w-4" />
                         </button>
+                        {isInsidePatientDetail && (
+                          <button
+                            onClick={() => handleShareClick(item)}
+                            disabled={isSharing === item.id}
+                            className={cn(
+                              "p-2 rounded-xl transition-all cursor-pointer",
+                              sharedCreationIdSet.has(item.id)
+                                ? "text-emerald-600 bg-emerald-50 animate-pulse hover:bg-emerald-100"
+                                : "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50",
+                              isSharing === item.id && "cursor-not-allowed"
+                            )}
+                            title="Compartir con el paciente"
+                          >
+                            <Share2 className="h-4 w-4" />
+                          </button>
+                        )}
                         <div className="w-px h-4 bg-slate-200 mx-1" />
                         <button
                           onClick={() => handleDelete(item.id)}

@@ -135,7 +135,7 @@ export function FeedbackForm() {
               Tu mensaje nos importa
             </h3>
             <p className="text-slate-500 text-sm font-medium leading-relaxed max-w-md mx-auto">
-              Ayúdanos a mejorar NutriSaaS. Cuéntanos tus ideas, problemas o testimonios para seguir evolucionando juntos.
+              Ayúdanos a mejorar NutriNet. Cuéntanos tus ideas, problemas o testimonios para seguir evolucionando juntos.
             </p>
           </div>
 

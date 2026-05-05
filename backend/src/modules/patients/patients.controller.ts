@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Query, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Request,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
 import { PatientsService } from './patients.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
@@ -12,63 +24,74 @@ import { CacheTTL } from '@nestjs/cache-manager';
 @UseInterceptors(HttpCacheInterceptor)
 @CacheTTL(300000) // 5 minutes
 export class PatientsController {
-    constructor(private readonly patientsService: PatientsService) { }
+  constructor(private readonly patientsService: PatientsService) {}
 
-    @Post()
-    create(@Request() req: any, @Body() createPatientDto: CreatePatientDto) {
-        return this.patientsService.create(req.user.nutritionistId, createPatientDto);
-    }
+  @Post()
+  create(@Request() req: any, @Body() createPatientDto: CreatePatientDto) {
+    return this.patientsService.create(
+      req.user.nutritionistId,
+      createPatientDto,
+    );
+  }
 
-    @Get()
-    findAll(
-        @Request() req: any,
-        @Query('page') page?: string,
-        @Query('limit') limit?: string,
-        @Query('search') search?: string,
-        @Query('status') status?: string,
-        @Query('documentId') documentId?: string,
-        @Query('tags') tags?: string,
-        @Query('startDate') startDate?: string,
-        @Query('endDate') endDate?: string,
-    ) {
-        return this.patientsService.findAll(
-            req.user.nutritionistId,
-            page ? +page : 1,
-            limit ? +limit : 20,
-            search,
-            status,
-            documentId,
-            tags,
-            startDate,
-            endDate,
-        );
-    }
+  @Get()
+  findAll(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('documentId') documentId?: string,
+    @Query('tags') tags?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.patientsService.findAll(
+      req.user.nutritionistId,
+      page ? +page : 1,
+      limit ? +limit : 20,
+      search,
+      status,
+      documentId,
+      tags,
+      startDate,
+      endDate,
+    );
+  }
 
-    @Get(':id')
-    findOne(@Request() req: any, @Param('id') id: string) {
-        return this.patientsService.findOne(req.user.nutritionistId, id);
-    }
+  @Get(':id')
+  findOne(@Request() req: any, @Param('id') id: string) {
+    return this.patientsService.findOne(req.user.nutritionistId, id);
+  }
 
-    @Patch(':id')
-    update(
-        @Request() req: any,
-        @Param('id') id: string,
-        @Body() updatePatientDto: UpdatePatientDto,
-    ) {
-        return this.patientsService.update(req.user.nutritionistId, id, updatePatientDto);
-    }
+  @Patch(':id')
+  update(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() updatePatientDto: UpdatePatientDto,
+  ) {
+    return this.patientsService.update(
+      req.user.nutritionistId,
+      id,
+      updatePatientDto,
+    );
+  }
 
-    @Delete(':id')
-    remove(@Request() req: any, @Param('id') id: string) {
-        return this.patientsService.remove(req.user.nutritionistId, id);
-    }
+  @Delete(':id')
+  remove(@Request() req: any, @Param('id') id: string) {
+    return this.patientsService.remove(req.user.nutritionistId, id);
+  }
 
-    @Post(':id/exams')
-    addExam(
-        @Request() req: any,
-        @Param('id') patientId: string,
-        @Body() createExamDto: CreateExamDto,
-    ) {
-        return this.patientsService.addExam(req.user.nutritionistId, patientId, createExamDto);
-    }
+  @Post(':id/exams')
+  addExam(
+    @Request() req: any,
+    @Param('id') patientId: string,
+    @Body() createExamDto: CreateExamDto,
+  ) {
+    return this.patientsService.addExam(
+      req.user.nutritionistId,
+      patientId,
+      createExamDto,
+    );
+  }
 }

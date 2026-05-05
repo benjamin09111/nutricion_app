@@ -1,6 +1,6 @@
 # Contrato del Frontend para el Servicio de Citas
 
-Este documento describe exactamente cómo el frontend de NutriSaaS consume el servicio de citas, qué headers manda, qué rutas usa y qué flujos dependen de autenticación.
+Este documento describe exactamente cómo el frontend de NutriNet consume el servicio de citas, qué headers manda, qué rutas usa y qué flujos dependen de autenticación.
 
 La idea es que este archivo sirva para revisar por qué aparece un error de auth en el servicio y verificar si el contrato real del frontend coincide con lo que el backend espera.
 
@@ -163,7 +163,7 @@ Body esperado por el frontend:
   "description": "Comparte este enlace para que tus pacientes reserven una cita sobre tu calendario actual.",
   "timeZone": "America/Santiago",
   "metadata": {
-    "source": "nutrisaas",
+    "source": "NutriNet",
     "module": "appointments"
   }
 }

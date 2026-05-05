@@ -1,7 +1,7 @@
 import AppointmentsClient from "./AppointmentsClient";
 
 export const metadata = {
-  title: "Citas | NutriSaaS",
+  title: "Citas | NutriNet",
   description: "Calendario, próximas citas y peticiones de cita.",
 };
 
