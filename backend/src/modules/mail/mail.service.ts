@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
@@ -221,6 +221,46 @@ export class MailService {
       console.log(`✅ Notificación de portal enviada a: ${data.email}`);
     } catch (error) {
       console.error('❌ Error enviando notificación de portal:', error);
+    }
+  }
+
+  async sendBookingLinkEmail(data: {
+    email: string;
+    nutritionistName: string;
+    bookingUrl: string;
+  }) {
+    try {
+      await this.mailerService.sendMail({
+        to: data.email,
+        subject: `📅 Reserva tu cita con ${data.nutritionistName}`,
+        html: `
+          <div style="font-family: 'Inter', Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <div style="background-color: #6366f1; padding: 32px 24px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 800;">Agendar Cita</h1>
+            </div>
+            <div style="padding: 32px 24px; background-color: white;">
+              <p style="margin: 0 0 16px; font-size: 16px;">Hola,</p>
+              <p style="margin: 0 0 24px; font-size: 16px;">Tu nutricionista <strong>${data.nutritionistName}</strong> te ha compartido su enlace de agendamiento público para que puedas elegir el horario que más te acomode.</p>
+              
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="${data.bookingUrl}" style="background-color: #6366f1; color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 800; font-size: 16px; display: inline-block;">
+                  Ver Disponibilidad y Agendar
+                </a>
+              </div>
+
+              <p style="margin: 32px 0 8px; font-size: 14px; color: #64748b;">También puedes usar este enlace directo:</p>
+              <p style="margin: 0; font-size: 12px; color: #6366f1; word-break: break-all;">${data.bookingUrl}</p>
+            </div>
+            <div style="background-color: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0; font-size: 12px; color: #94a3b8;">&copy; ${new Date().getFullYear()} NutriNet. Este es un correo automático.</p>
+            </div>
+          </div>
+        `,
+      });
+      console.log(`✅ Enlace de agendamiento enviado a: ${data.email}`);
+    } catch (error) {
+      console.error('❌ Error enviando enlace de agendamiento:', error);
+      throw error;
     }
   }
 }

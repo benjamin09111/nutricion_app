@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, Clock3, Loader2, MapPin, Mail, Phone, Sparkles, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -14,6 +14,8 @@ import {
   fetchBookingLink,
 } from "@/lib/appointments";
 import { cn } from "@/lib/utils";
+import { Modal } from "@/components/ui/Modal";
+import { CheckCircle2 } from "lucide-react";
 
 type BookingPreview = {
   token?: string;
@@ -128,13 +130,24 @@ const addDays = (date: Date, days: number) => {
   return next;
 };
 
-const formatDateKey = (date: Date, timeZone?: string) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
+const formatDateKey = (date: Date, timeZone?: string) => {
+  if (timeZone) {
+    try {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(date);
+    } catch (e) {
+      console.warn("Invalid timezone for formatDateKey", timeZone);
+    }
+  }
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
 
 const formatDayLabel = (date: Date, timeZone?: string) =>
   new Intl.DateTimeFormat("es-CL", {
@@ -190,7 +203,7 @@ export default function BookingLinkClient({
       const nextValue = Number(rawDuration);
       return Number.isFinite(nextValue) && nextValue > 0 ? nextValue : 30;
     }
-    return 30;
+    return 60;
   }, [preview]);
 
   const weekDays = useMemo(() => getWeekDays(weekAnchor), [weekAnchor]);
@@ -259,42 +272,44 @@ export default function BookingLinkClient({
     };
   }, [token]);
 
-  useEffect(() => {
+  const loadSlots = useCallback(async (cancelled = false) => {
     if (!calendarId) return;
-
-    let cancelled = false;
-
-    const loadSlots = async () => {
-      setIsLoadingSlots(true);
-      try {
-        const from = `${formatDateKey(weekStart, timeZone)}T00:00:00.000Z`;
-        const to = `${formatDateKey(weekEnd, timeZone)}T23:59:59.999Z`;
-        const payload = await fetchAppointmentsJson<unknown>(
-          `/calendars/${calendarId}/slots?from=${from}&to=${to}&durationMin=${slotDurationMin}`,
-        );
-        const nextSlots = normalizeSlots(payload);
-        if (!cancelled) {
-          setSlots(nextSlots);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Error loading booking slots", error);
-          toast.error(error instanceof Error ? error.message : "No pudimos cargar los horarios disponibles.");
-          setSlots([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingSlots(false);
-        }
+    setIsLoadingSlots(true);
+    try {
+      const from = `${formatDateKey(weekStart, timeZone)}T00:00:00.000Z`;
+      const to = `${formatDateKey(weekEnd, timeZone)}T23:59:59.999Z`;
+      const payload = await fetchAppointmentsJson<unknown>(
+        `/availability/free-slots?calendarId=${calendarId}&from=${from}&to=${to}&durationMin=${slotDurationMin}`,
+      );
+      const nextSlots = normalizeSlots(payload);
+      if (!cancelled) {
+        setSlots(nextSlots);
       }
-    };
+    } catch (error) {
+      if (!cancelled) {
+        console.error("Error loading booking slots", error);
+        setSlots([]);
+      }
+    } finally {
+      if (!cancelled) {
+        setIsLoadingSlots(false);
+      }
+    }
+  }, [calendarId, slotDurationMin, timeZone, weekEnd, weekStart]);
 
-    void loadSlots();
+  useEffect(() => {
+    let cancelled = false;
+    void loadSlots(cancelled);
+
+    const interval = setInterval(() => {
+      void loadSlots(cancelled);
+    }, 60000); // Sincronizar cada 60 segundos
 
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
-  }, [calendarId, slotDurationMin, timeZone, weekEnd, weekStart]);
+  }, [loadSlots]);
 
   useEffect(() => {
     if (availableSlots.length === 0) {
@@ -303,11 +318,11 @@ export default function BookingLinkClient({
     }
 
     setSelectedSlot((current) => {
-      if (!current) return availableSlots[0];
+      if (!current) return null; // No seleccionar automáticamente
       const stillVisible = availableSlots.some(
         (slot) => slot.start === current.start && slot.end === current.end,
       );
-      return stillVisible ? current : availableSlots[0];
+      return stillVisible ? current : null;
     });
   }, [availableSlots]);
 
@@ -327,26 +342,12 @@ export default function BookingLinkClient({
     setIsSubmitting(true);
     try {
       const payload = {
-        calendarId,
-        nutriId,
-        nutritionistId: preview?.nutritionistId || nutriId,
-        patientName: form.fullName.trim(),
-        fullName: form.fullName.trim(),
-        name: form.fullName.trim(),
-        patientEmail: form.email.trim(),
-        email: form.email.trim(),
-        patientPhone: form.phone.trim() || undefined,
-        phone: form.phone.trim() || undefined,
-        reason: form.reason.trim(),
-        title: form.reason.trim(),
-        notes: form.notes.trim() || undefined,
+        guestName: form.fullName.trim(),
+        guestEmail: form.email.trim(),
+        guestPhone: form.phone.trim() || undefined,
+        startAt: selectedSlot.start,
+        endAt: selectedSlot.end,
         message: form.reason.trim(),
-        start: selectedSlot.start,
-        end: selectedSlot.end,
-        timeZone,
-        timezone: timeZone,
-        notifyPatientByEmail: true,
-        source: "booking-link",
       };
 
       await createBookingLinkRequest(token, payload);
@@ -384,7 +385,7 @@ export default function BookingLinkClient({
                 <Sparkles className="h-4 w-4" />
                 Horario compartido
               </div>
-              <CardTitle className="text-3xl font-black tracking-tight text-slate-950">
+              <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
                 No pudimos abrir este enlace
               </CardTitle>
               <CardDescription className="text-base font-medium text-slate-500">
@@ -409,286 +410,249 @@ export default function BookingLinkClient({
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.18),transparent_35%),linear-gradient(180deg,#f8fafc_0%,#eff6ff_100%)] px-4 py-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <Card className="rounded-[2rem] border-white/70 bg-white/90 shadow-2xl shadow-sky-100/50 backdrop-blur">
+        <Card className="rounded-[2rem] border-white/70 bg-white/90 shadow-xl shadow-sky-100/20 backdrop-blur">
           <CardHeader className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-sky-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-sky-700">
+              <span className="rounded-full bg-sky-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-sky-700">
                 Reserva pública
               </span>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
                 ID nutricionista: {nutriId}
               </span>
             </div>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div className="space-y-3">
-                <CardTitle className="text-4xl font-black tracking-tight text-slate-950">
+                <CardTitle className="text-3xl font-bold tracking-tight text-slate-900">
                   {preview.nutritionistName || "Tu nutricionista"} comparte su horario
                 </CardTitle>
-                <CardDescription className="max-w-3xl text-base font-medium leading-7 text-slate-500">
+                <CardDescription className="max-w-3xl text-sm font-medium leading-relaxed text-slate-500">
                   Selecciona un espacio libre, completa tus datos y registra la cita en pocos pasos. El horario mostrado
                   corresponde a la agenda actual del profesional.
                 </CardDescription>
               </div>
-              <div className="rounded-3xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-900">
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-700">Zona horaria</p>
-                <p className="mt-1 text-base font-black">{timeZone}</p>
+              <div className="rounded-2xl border border-sky-100 bg-sky-50/50 px-4 py-3 text-sm font-medium text-sky-900">
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-sky-700">Zona horaria</p>
+                <p className="mt-1 text-base font-bold">{timeZone}</p>
               </div>
             </div>
           </CardHeader>
         </Card>
 
-        <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
-          <section className="space-y-4">
-            <Card className="rounded-[2rem] border-slate-200 shadow-sm">
-              <CardHeader className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <CalendarDays className="h-5 w-5 text-sky-600" />
-                  <CardTitle className="text-2xl font-black text-slate-950">Calendario actual</CardTitle>
-                </div>
-                <CardDescription className="text-sm font-medium text-slate-500">
-                  Haz clic en un espacio libre para seleccionarlo. Luego completa el formulario de la derecha.
-                </CardDescription>
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <div className="w-full">
+          <Card className="rounded-[2rem] border-slate-200 shadow-sm overflow-hidden">
+            <CardHeader className="space-y-3 bg-white p-6 pb-4 border-b border-slate-50">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-black text-slate-900">
+                    <CardTitle className="text-lg font-bold text-slate-900">Calendario de Citas</CardTitle>
+                    <CardDescription className="text-sm font-medium text-slate-500 mt-1">
                       Semana del {weekStart.toLocaleDateString("es-CL", { day: "2-digit", month: "short" })} al{" "}
                       {weekEnd.toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}
-                    </p>
-                    <p className="text-xs font-medium text-slate-500">
-                      {availableSlots.length} horarios disponibles para esta semana.
-                    </p>
+                    </CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
-                      className="h-10 rounded-xl px-4 font-black"
+                      className="h-10 rounded-xl px-4 font-bold"
                       onClick={() => setWeekAnchor((current) => addDays(current, -7))}
                     >
-                      Semana anterior
+                      Anterior
                     </Button>
                     <Button
                       variant="outline"
-                      className="h-10 rounded-xl px-4 font-black"
+                      className="h-10 rounded-xl px-4 font-bold"
                       onClick={() => setWeekAnchor((current) => addDays(current, 7))}
                     >
-                      Siguiente semana
+                      Siguiente
                     </Button>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
+            </CardHeader>
+            <CardContent className="p-0">
                 {isLoadingSlots ? (
-                  <div className="flex items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-12">
+                  <div className="flex items-center justify-center bg-slate-50 px-6 py-20">
                     <Loader2 className="mr-2 h-5 w-5 animate-spin text-sky-600" />
                     <span className="text-sm font-semibold text-slate-600">Actualizando horarios...</span>
                   </div>
                 ) : (
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {weekDays.map((day) => {
-                      const dayKey = formatDateKey(day, timeZone);
-                      const daySlots = groupedSlots.get(dayKey) || [];
-
-                      return (
-                        <div
-                          key={dayKey}
-                          className={cn(
-                            "rounded-[1.6rem] border p-4",
-                            daySlots.length > 0 ? "border-sky-200 bg-sky-50/40" : "border-slate-200 bg-slate-50",
-                          )}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-                                {formatDayLabel(day, timeZone)}
-                              </p>
-                              <p className="mt-1 text-sm font-semibold text-slate-700">
-                                {daySlots.length} {daySlots.length === 1 ? "horario" : "horarios"}
-                              </p>
-                            </div>
-                            <CalendarDays className="h-5 w-5 text-sky-500" />
+                  <div className="w-full">
+                    <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] border-b border-slate-100 bg-white">
+                      <div className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        Hora
+                      </div>
+                      {weekDays.map((day, index) => {
+                        const dayKey = formatDateKey(day, timeZone);
+                        const daySlots = groupedSlots.get(dayKey) || [];
+                        return (
+                          <div key={index} className="border-l border-slate-100 px-3 py-3 text-center">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                              {formatDayLabel(day, timeZone)}
+                            </p>
+                            <p className="mt-1 text-xs font-bold text-slate-900">
+                              {day.toLocaleDateString("es-CL", {
+                                day: "2-digit",
+                                month: "short",
+                              })}
+                            </p>
+                            <p className="mt-1 text-[10px] font-medium text-sky-600">
+                              {daySlots.length} libres
+                            </p>
                           </div>
-                          <div className="mt-4 space-y-2">
-                            {daySlots.length === 0 ? (
-                              <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-4 text-sm font-medium text-slate-400">
-                                Sin horarios libres.
-                              </div>
-                            ) : (
-                              daySlots.map((slot) => {
-                                const isSelected = selectedSlot?.start === slot.start && selectedSlot?.end === slot.end;
-                                const slotStart = parseDateSafe(slot.start);
-
-                                return (
-                                  <button
-                                    key={`${slot.start}-${slot.end}`}
-                                    type="button"
-                                    onClick={() => setSelectedSlot(slot)}
-                                    className={cn(
-                                      "w-full rounded-2xl border px-3 py-3 text-left transition-all",
-                                      isSelected
-                                        ? "border-sky-300 bg-sky-600 text-white shadow-lg shadow-sky-200"
-                                        : "border-white bg-white text-slate-700 hover:border-sky-200 hover:bg-sky-50",
-                                    )}
-                                  >
-                                    <div className="flex items-center justify-between gap-3">
-                                      <span className="text-sm font-black">
-                                        {slotStart ? formatHourLabel(slotStart, timeZone) : "Horario libre"}
-                                      </span>
-                                      <Clock3 className={cn("h-4 w-4", isSelected ? "text-white" : "text-sky-500")} />
-                                    </div>
-                                    {slot.notes ? (
-                                      <p className={cn("mt-1 text-xs font-medium", isSelected ? "text-white/80" : "text-slate-500")}>
-                                        {slot.notes}
-                                      </p>
-                                    ) : null}
-                                  </button>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </section>
-
-          <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-            <Card className="rounded-[2rem] border-slate-200 shadow-sm">
-              <CardHeader className="space-y-2">
-                <CardTitle className="text-xl font-black text-slate-950">Tu selección</CardTitle>
-                <CardDescription className="text-sm font-medium text-slate-500">
-                  Confirma el espacio y completa tus datos para registrar la cita.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {selectedSlot ? (
-                  <div className="rounded-3xl border border-sky-200 bg-sky-50 p-4">
-                    <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-700">Horario elegido</p>
-                    <p className="mt-2 text-lg font-black text-slate-950">
-                      {selectedDayLabel}
-                    </p>
-                    <p className="text-sm font-medium text-slate-600">
-                      {parseDateSafe(selectedSlot.start)?.toLocaleTimeString("es-CL", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}{" "}
-                      -{" "}
-                      {parseDateSafe(selectedSlot.end)?.toLocaleTimeString("es-CL", {
-                        hour: "2-digit",
-                        minute: "2-digit",
+                        );
                       })}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-500">
-                    Selecciona primero un horario libre.
+                    </div>
+
+                    <div className="flex flex-col bg-slate-50/50">
+                      {Array.from({ length: 22 - 8 + 1 }, (_, hourIndex) => {
+                        const hour = 8 + hourIndex;
+                        return (
+                          <div key={hour} className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] border-b border-slate-100">
+                            {/* Hour Label */}
+                              <div className="flex h-16 items-start justify-end border-r border-slate-100 bg-white p-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                              {hour.toString().padStart(2, "0")}:00
+                            </div>
+
+                            {/* Day cells */}
+                            {weekDays.map((day) => {
+                              const dayKey = formatDateKey(day, timeZone);
+                              const daySlots = groupedSlots.get(dayKey) || [];
+                              const slot = daySlots.find((s) => {
+                                const d = parseDateSafe(s.start);
+                                return d && d.getHours() === hour && d.getMinutes() === 0;
+                              });
+
+                              return (
+                                <div key={day.toISOString()} className="relative h-16 border-l border-slate-100 bg-white p-1 flex items-center justify-center">
+                                  {slot ? (
+                                    <button
+                                      onClick={() => setSelectedSlot(slot)}
+                                      className="w-full h-full rounded-xl flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all border bg-sky-50 text-sky-800 border-sky-100 hover:bg-sky-600 hover:text-white hover:border-sky-500 shadow-sm"
+                                    >
+                                      Disponible
+                                    </button>
+                                  ) : (
+                                    <div className="h-full w-full rounded-xl bg-slate-50/10" />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
-                {submitSuccess ? (
-                  <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-900">
-                    Tu solicitud quedó enviada. El nutricionista la revisará y te responderá desde su módulo de citas.
-                  </div>
-                ) : null}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[2rem] border-slate-200 shadow-sm">
-              <CardHeader className="space-y-2">
-                <CardTitle className="text-xl font-black text-slate-950">Registrar cita</CardTitle>
-                <CardDescription className="text-sm font-medium text-slate-500">
-                  Completa nombre, correo y motivo. El correo se usa como identificador y para notificaciones.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form className="space-y-4" onSubmit={handleSubmit}>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-slate-500">Nombre completo</label>
-                    <Input
-                      value={form.fullName}
-                      onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))}
-                      placeholder="Tu nombre"
-                      className="h-12 rounded-xl"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-slate-500">Correo</label>
-                    <Input
-                      type="email"
-                      value={form.email}
-                      onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-                      placeholder="correo@ejemplo.com"
-                      className="h-12 rounded-xl"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-slate-500">Teléfono</label>
-                    <Input
-                      value={form.phone}
-                      onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
-                      placeholder="+56 9 1234 5678"
-                      className="h-12 rounded-xl"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-slate-500">
-                      Motivo de la consulta
-                    </label>
-                    <Input
-                      value={form.reason}
-                      onChange={(event) => setForm((current) => ({ ...current, reason: event.target.value }))}
-                      placeholder="Consulta nutricional"
-                      className="h-12 rounded-xl"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-slate-500">Notas opcionales</label>
-                    <Textarea
-                      value={form.notes}
-                      onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
-                      placeholder="Información adicional para el nutricionista..."
-                      className="min-h-[120px] rounded-xl"
-                    />
-                  </div>
-                  <div className="rounded-3xl border border-sky-200 bg-sky-50 p-4 text-sm font-medium text-sky-900">
-                    Al registrar la cita, el nutri podrá verla en su calendario. Si su Google Calendar está conectado,
-                    también se sincronizará automáticamente.
-                  </div>
-                  <Button
-                    type="submit"
-                    className="h-12 w-full rounded-xl bg-sky-600 text-white shadow-lg shadow-sky-200 hover:bg-sky-500"
-                    isLoading={isSubmitting}
-                    disabled={!selectedSlot}
-                  >
-                    <UserRound className="mr-2 h-4 w-4" />
-                    Registrar cita
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[2rem] border-slate-200 shadow-sm">
-              <CardHeader className="space-y-2">
-                <CardTitle className="text-lg font-black text-slate-950">Recordatorio</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm font-medium text-slate-600">
-                <div className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4">
-                  <Mail className="mt-0.5 h-4 w-4 text-sky-600" />
-                  <p>Usa un correo válido: será tu referencia de contacto y acceso.</p>
-                </div>
-                <div className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4">
-                  <Phone className="mt-0.5 h-4 w-4 text-sky-600" />
-                  <p>El teléfono es opcional, pero ayuda si el profesional necesita contactarte rápido.</p>
-                </div>
-                <div className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4">
-                  <MapPin className="mt-0.5 h-4 w-4 text-sky-600" />
-                  <p>El horario visible corresponde a la agenda actual del nutricionista en su zona horaria.</p>
-                </div>
-              </CardContent>
-            </Card>
-          </aside>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Modal para Registrar Cita */}
+        <Modal
+          isOpen={!!selectedSlot && !submitSuccess}
+          onClose={() => setSelectedSlot(null)}
+          title="Registrar cita"
+        >
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-sky-700">Horario elegido</p>
+              <p className="mt-2 text-lg font-bold text-slate-900">
+                {selectedDayLabel}
+              </p>
+              <p className="text-sm font-medium text-slate-600">
+                {selectedSlot && parseDateSafe(selectedSlot.start)?.toLocaleTimeString("es-CL", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}{" "}
+                -{" "}
+                {selectedSlot && parseDateSafe(selectedSlot.end)?.toLocaleTimeString("es-CL", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            </div>
+            
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Nombre completo</label>
+                <Input
+                  value={form.fullName}
+                  onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))}
+                  placeholder="Tu nombre"
+                  className="h-12 rounded-xl"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Correo</label>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                  placeholder="correo@ejemplo.com"
+                  className="h-12 rounded-xl"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Teléfono (opcional)</label>
+                <Input
+                  value={form.phone}
+                  onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
+                  placeholder="+56 9 1234 5678"
+                  className="h-12 rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                  Descripción de consulta
+                </label>
+                <Input
+                  value={form.reason}
+                  onChange={(event) => setForm((current) => ({ ...current, reason: event.target.value }))}
+                  placeholder="Motivo de la consulta"
+                  className="h-12 rounded-xl"
+                  required
+                />
+              </div>
+              <Button
+                type="submit"
+                className="h-12 w-full rounded-xl bg-sky-600 text-white shadow-lg shadow-sky-100 hover:bg-sky-500 font-bold"
+                isLoading={isSubmitting}
+                disabled={!selectedSlot}
+              >
+                Mandar petición de consulta
+              </Button>
+            </form>
+          </div>
+        </Modal>
+
+        {/* Modal de Éxito */}
+        <Modal
+          isOpen={submitSuccess}
+          onClose={() => {
+            setSubmitSuccess(false);
+            setSelectedSlot(null);
+          }}
+          title="¡Petición enviada!"
+        >
+          <div className="space-y-4 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <CheckCircle2 className="h-8 w-8" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900">Cita solicitada con éxito</h3>
+            <p className="text-sm text-slate-600 font-medium">
+              Recibirás una confirmación por correo electrónico o el profesional te contactará directamente.
+            </p>
+            <Button
+              onClick={() => {
+                setSubmitSuccess(false);
+                setSelectedSlot(null);
+              }}
+              className="w-full mt-4 h-12 rounded-xl"
+            >
+              Cerrar y volver al calendario
+            </Button>
+          </div>
+        </Modal>
       </div>
     </div>
   );

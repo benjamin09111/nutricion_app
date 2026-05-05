@@ -52,7 +52,7 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Pacientes", href: "/dashboard/pacientes", icon: Users, tutorialPath: "/dashboard/pacientes" },
       { name: "Consultas", href: "/dashboard/consultas", icon: CalendarDays, tutorialPath: "/dashboard/consultas" },
-      { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, tutorialPath: "/dashboard/citas" },
+      { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, tutorialPath: "/dashboard/citas", locked: true },
     ],
   },
   {
