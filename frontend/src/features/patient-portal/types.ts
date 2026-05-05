@@ -148,6 +148,7 @@ export interface PatientPortalOverview {
   notifications: PatientPortalEntry[];
   sharedResources: PatientPortalResource[];
   sharedDeliverables: PatientPortalDeliverable[];
+  status: string;
 }
 
 export interface PortalInviteResponse {

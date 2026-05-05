@@ -396,7 +396,7 @@ function CoverPage({ data }: { data: DietPdfData }) {
 
             {/* Footer */}
             <View style={S.coverFooter}>
-                <Text style={S.coverFooterBrand}>NutriSaaS</Text>
+                <Text style={S.coverFooterBrand}>NutriNet</Text>
                 <Text style={S.coverFooterDate}>{dateStr}</Text>
             </View>
         </Page>
@@ -426,7 +426,7 @@ function FoodTablePage({
             <View style={S.pageHeader}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <View style={S.headerDot} />
-                    <Text style={S.pageHeaderBrand}>NutriSaaS</Text>
+                    <Text style={S.pageHeaderBrand}>NutriNet</Text>
                     <Text style={{ ...S.pageHeaderTitle, marginLeft: 6 }}>
                         — Dieta Base
                     </Text>
@@ -555,14 +555,14 @@ function FoodTablePage({
             {/* Footnote */}
             <View style={{ marginTop: 20, paddingTop: 12, borderTop: `1px solid ${colors.slate100}` }}>
                 <Text style={{ fontSize: 7, color: colors.slate500, fontStyle: "italic" }}>
-                    * Valores nutricionales por 100g de alimento. Generado por NutriSaaS.
+                    * Valores nutricionales por 100g de alimento. Generado por NutriNet.
                 </Text>
             </View>
 
             {/* Page Footer */}
             <View style={S.pageFooter} fixed>
                 <Text style={S.pageFooterText}>{dateStr}</Text>
-                <Text style={S.watermark}>Powered by NutriSaaS</Text>
+                <Text style={S.watermark}>Powered by NutriNet</Text>
                 <Text style={S.pageFooterBrand}>Dieta Base</Text>
             </View>
         </Page>
@@ -578,9 +578,9 @@ export function DietPdfDocument({ data }: { data: DietPdfData }) {
     return (
         <Document
             title={data.dietName || "Dieta Base"}
-            author="NutriSaaS"
+            author="NutriNet"
             subject="Plan Alimentario - Dieta Base"
-            creator="NutriSaaS v1.0"
+            creator="NutriNet v1.0"
         >
             <CoverPage data={data} />
             <FoodTablePage

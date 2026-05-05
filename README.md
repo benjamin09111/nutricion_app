@@ -1,6 +1,6 @@
-# NutriSaaS
+# NutriNet
 
-NutriSaaS es una plataforma para nutricionistas. Su foco es acelerar la consulta clínica, organizar pacientes y consultas, crear dietas y recetas, y exportar entregables profesionales con soporte para recursos educativos y catálogos personalizados.
+NutriNet es una plataforma para nutricionistas. Su foco es acelerar la consulta clínica, organizar pacientes y consultas, crear dietas y recetas, y exportar entregables profesionales con soporte para recursos educativos y catálogos personalizados.
 
 ## Qué resuelve
 

@@ -50,12 +50,12 @@ type WorkHoursGridDraft = Record<string, boolean[]>;
 
 type AvailabilityRulesResponse =
   | {
-      weeklyRules?: unknown;
-      rules?: unknown;
-      data?: unknown;
-      timeZone?: string;
-      timezone?: string;
-    }
+    weeklyRules?: unknown;
+    rules?: unknown;
+    data?: unknown;
+    timeZone?: string;
+    timezone?: string;
+  }
   | Array<unknown>;
 
 const WEEK_DAYS = [
@@ -938,7 +938,7 @@ export default function AppointmentsClient() {
           "Comparte este enlace para que tus pacientes reserven una cita sobre tu calendario actual.",
         timeZone: calendarTimeZone,
         metadata: {
-          source: "nutrisaas",
+          source: "NutriNet",
           module: "appointments",
         },
       });
@@ -1231,258 +1231,258 @@ export default function AppointmentsClient() {
         <section className="grid gap-4 xl:grid-cols-[1.4fr_0.6fr]">
           <div ref={calendarSectionRef}>
             <Card className="rounded-[2rem] border-slate-100 shadow-sm bg-white overflow-hidden">
-            <CardHeader className="space-y-3 p-8">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-600">
-                  Agenda viva
-                </span>
-                <span className="rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  {calendar ? getAppointmentDisplayName(calendar) : "Sin calendario cargado"}
-                </span>
-              </div>
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                  <CardTitle className="text-2xl font-semibold text-slate-900 tracking-tight">
-                    Calendario clínico
-                  </CardTitle>
-                  <CardDescription className="mt-1 text-sm font-medium text-slate-500">
-                    Gestiona disponibilidad, citas y peticiones en tiempo real.
-                  </CardDescription>
+              <CardHeader className="space-y-3 p-8">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-600">
+                    Agenda viva
+                  </span>
+                  <span className="rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    {calendar ? getAppointmentDisplayName(calendar) : "Sin calendario cargado"}
+                  </span>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <div className="w-full rounded-2xl border border-blue-100 bg-blue-50/50 px-4 py-3 text-sm font-medium text-blue-800/90 shadow-sm">
-                    Haz clic en cualquier espacio libre para crear una cita con fecha y hora prellenadas.
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <CardTitle className="text-2xl font-semibold text-slate-900 tracking-tight">
+                      Calendario clínico
+                    </CardTitle>
+                    <CardDescription className="mt-1 text-sm font-medium text-slate-500">
+                      Gestiona disponibilidad, citas y peticiones en tiempo real.
+                    </CardDescription>
                   </div>
-                  <Button
-                    variant="outline"
-                    className="h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                    onClick={handleConnectGoogle}
-                    disabled={isConnectingGoogle || isLoading}
-                  >
-                    <Link2 className="mr-2 h-4 w-4 text-indigo-500" />
-                    {isConnectingGoogle ? "Conectando..." : "Google Calendar"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                    onClick={() => void handleShareSchedule()}
-                    disabled={isCreatingShareLink || isLoading}
-                  >
-                    <Share2 className="mr-2 h-4 w-4 text-indigo-500" />
-                    Compartir horario
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                    onClick={() => {
-                      setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft));
-                      setIsEditingWorkHours(true);
-                    }}
-                  >
-                    <Settings2 className="mr-2 h-4 w-4 text-slate-400" />
-                    Horarios laborales
-                  </Button>
-                  <Button
-                    className="h-10 rounded-xl bg-indigo-600 px-4 font-semibold text-white shadow-sm hover:bg-indigo-700"
-                    onClick={() => setIsCreateOpen(true)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Crear cita
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="h-10 rounded-xl px-4 font-semibold text-slate-500 hover:bg-slate-100"
-                    onClick={() => void handleRefresh()}
-                    disabled={isRefreshing}
-                  >
-                    <RefreshCcw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
-                    Actualizar
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-
-            <CardContent className="space-y-6 p-8 pt-0">
-              <div className="grid gap-4 sm:grid-cols-4">
-                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Próximas</p>
-                  <p className="mt-2 text-3xl font-semibold text-slate-900">{upcomingEvents.length}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Pasadas</p>
-                  <p className="mt-2 text-3xl font-semibold text-slate-900">{pastEvents.length}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Disponibles</p>
-                  <p className="mt-2 text-3xl font-semibold text-emerald-600">{availableSlots.length}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Peticiones</p>
-                  <p className="mt-2 text-3xl font-semibold text-amber-600">{requests.length}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-white px-5 py-4">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    Semana del {currentWeekStart.toLocaleDateString("es-CL", { day: "2-digit", month: "short" })} al {currentWeekEnd.toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}
-                  </p>
-                  <p className="text-xs font-medium text-slate-500">
-                    Vista semanal de agenda.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    className="h-9 rounded-xl px-4 font-semibold text-slate-700"
-                    onClick={() => setWeekAnchor((current) => addDays(current, -7))}
-                  >
-                    Anterior
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-9 rounded-xl px-4 font-semibold text-slate-700"
-                    onClick={() => setWeekAnchor(new Date())}
-                  >
-                    Hoy
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-9 rounded-xl px-4 font-semibold text-slate-700"
-                    onClick={() => setWeekAnchor((current) => addDays(current, 7))}
-                  >
-                    Siguiente
-                  </Button>
-                </div>
-              </div>
-
-              <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-50">
-                {isLoading ? (
-                  <div className="flex h-[820px] items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                  <div className="flex flex-wrap gap-2">
+                    <div className="w-full rounded-2xl border border-blue-100 bg-blue-50/50 px-4 py-3 text-sm font-medium text-blue-800/90 shadow-sm">
+                      Haz clic en cualquier espacio libre para crear una cita con fecha y hora prellenadas.
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                      onClick={handleConnectGoogle}
+                      disabled={isConnectingGoogle || isLoading}
+                    >
+                      <Link2 className="mr-2 h-4 w-4 text-indigo-500" />
+                      {isConnectingGoogle ? "Conectando..." : "Google Calendar"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                      onClick={() => void handleShareSchedule()}
+                      disabled={isCreatingShareLink || isLoading}
+                    >
+                      <Share2 className="mr-2 h-4 w-4 text-indigo-500" />
+                      Compartir horario
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                      onClick={() => {
+                        setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft));
+                        setIsEditingWorkHours(true);
+                      }}
+                    >
+                      <Settings2 className="mr-2 h-4 w-4 text-slate-400" />
+                      Horarios laborales
+                    </Button>
+                    <Button
+                      className="h-10 rounded-xl bg-indigo-600 px-4 font-semibold text-white shadow-sm hover:bg-indigo-700"
+                      onClick={() => setIsCreateOpen(true)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Crear cita
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="h-10 rounded-xl px-4 font-semibold text-slate-500 hover:bg-slate-100"
+                      onClick={() => void handleRefresh()}
+                      disabled={isRefreshing}
+                    >
+                      <RefreshCcw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
+                      Actualizar
+                    </Button>
                   </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <div className="min-w-[1024px]">
-                      <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] border-b border-slate-200 bg-white">
-                        <div className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                          Hora
-                        </div>
-                        {weekDays.map((day, index) => {
-                          const dayEvents = eventBlocks.get(formatDateKey(day)) || [];
-                          return (
-                            <div key={index} className="border-l border-slate-100 px-3 py-3">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                {formatDayLabel(day)}
-                              </p>
-                              <p className="mt-1 text-xs font-bold text-slate-900">
-                                {day.toLocaleDateString("es-CL", {
-                                  day: "2-digit",
-                                  month: "short",
-                                })}
-                              </p>
-                              <p className="mt-1 text-[10px] font-medium text-slate-500">
-                                {dayEvents.length} eventos
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
+                </div>
+              </CardHeader>
 
-                      <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))]">
-                        <div className="relative bg-white">
-                          {Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, index) => {
-                            const hour = HOUR_START + index;
+              <CardContent className="space-y-6 p-8 pt-0">
+                <div className="grid gap-4 sm:grid-cols-4">
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Próximas</p>
+                    <p className="mt-2 text-3xl font-semibold text-slate-900">{upcomingEvents.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Pasadas</p>
+                    <p className="mt-2 text-3xl font-semibold text-slate-900">{pastEvents.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Disponibles</p>
+                    <p className="mt-2 text-3xl font-semibold text-emerald-600">{availableSlots.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Peticiones</p>
+                    <p className="mt-2 text-3xl font-semibold text-amber-600">{requests.length}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-white px-5 py-4">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      Semana del {currentWeekStart.toLocaleDateString("es-CL", { day: "2-digit", month: "short" })} al {currentWeekEnd.toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}
+                    </p>
+                    <p className="text-xs font-medium text-slate-500">
+                      Vista semanal de agenda.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      className="h-9 rounded-xl px-4 font-semibold text-slate-700"
+                      onClick={() => setWeekAnchor((current) => addDays(current, -7))}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-9 rounded-xl px-4 font-semibold text-slate-700"
+                      onClick={() => setWeekAnchor(new Date())}
+                    >
+                      Hoy
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-9 rounded-xl px-4 font-semibold text-slate-700"
+                      onClick={() => setWeekAnchor((current) => addDays(current, 7))}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-50">
+                  {isLoading ? (
+                    <div className="flex h-[820px] items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <div className="min-w-[1024px]">
+                        <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] border-b border-slate-200 bg-white">
+                          <div className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            Hora
+                          </div>
+                          {weekDays.map((day, index) => {
+                            const dayEvents = eventBlocks.get(formatDateKey(day)) || [];
                             return (
-                              <div
-                                key={hour}
-                                className="flex h-16 items-start justify-end border-b border-slate-100 px-2 pt-2 text-[10px] font-black uppercase tracking-widest text-slate-400"
-                              >
-                                {formatHourLabel(hour)}
+                              <div key={index} className="border-l border-slate-100 px-3 py-3">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                  {formatDayLabel(day)}
+                                </p>
+                                <p className="mt-1 text-xs font-bold text-slate-900">
+                                  {day.toLocaleDateString("es-CL", {
+                                    day: "2-digit",
+                                    month: "short",
+                                  })}
+                                </p>
+                                <p className="mt-1 text-[10px] font-medium text-slate-500">
+                                  {dayEvents.length} eventos
+                                </p>
                               </div>
                             );
                           })}
                         </div>
 
-                        {weekDays.map((day) => {
-                          const dayEvents = eventBlocks.get(formatDateKey(day)) || [];
-                          const dayKey = WEEK_DAYS[getWeekDayIndex(day)].key;
-                          const dayRule = workHoursDraft.find((rule) => rule.day === dayKey);
-                          const dayHasWorkingWindow = Boolean(dayRule?.enabled);
-                          const dayGrid = workHoursGridDraft[dayKey] || [];
-                          return (
-                            <div key={day.toISOString()} className="relative min-h-[832px] border-l border-slate-100 bg-white">
-                              {Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, index) => {
-                                const hour = HOUR_START + index;
-                                const gridIndex = hour - HOUR_START;
-                                const isSelectedHour = Boolean(dayGrid[gridIndex]);
-                                const isWorkingHour = isEditingWorkHours ? isSelectedHour : isHourWithinRule(day, hour, dayRule);
-                                const isEditableHour = hour < HOUR_END;
-                                return (
-                                  <button
-                                    key={hour}
-                                    type="button"
-                                    onClick={() => {
-                                      if (!isEditableHour) return;
-                                      if (isEditingWorkHours) {
-                                        setWorkHoursGridDraft((current) => {
-                                          if (gridIndex < 0 || gridIndex >= (current[dayKey]?.length || 0)) {
-                                            return current;
-                                          }
-                                          const next = { ...current };
-                                          const nextDay = [...(next[dayKey] || [])];
-                                          nextDay[gridIndex] = !nextDay[gridIndex];
-                                          next[dayKey] = nextDay;
-                                          return next;
-                                        });
-                                        return;
-                                      }
+                        <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))]">
+                          <div className="relative bg-white">
+                            {Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, index) => {
+                              const hour = HOUR_START + index;
+                              return (
+                                <div
+                                  key={hour}
+                                  className="flex h-16 items-start justify-end border-b border-slate-100 px-2 pt-2 text-[10px] font-black uppercase tracking-widest text-slate-400"
+                                >
+                                  {formatHourLabel(hour)}
+                                </div>
+                              );
+                            })}
+                          </div>
 
-                                      if (!isWorkingHour) return;
-                                      openCreateFromGrid(day, hour);
-                                    }}
-                                    title={
-                                      !isEditableHour
-                                        ? isEditingWorkHours
-                                          ? "Corte horario"
-                                          : "Bloque horario"
-                                        : isEditingWorkHours
-                                        ? `${isSelectedHour ? "Desactivar" : "Activar"} ${formatHourLabel(hour)}`
-                                        : isWorkingHour
-                                          ? `Crear cita ${formatHourLabel(hour)} en ${day.toLocaleDateString("es-CL", { weekday: "short", day: "2-digit", month: "short" })}`
-                                          : "Fuera de horario"
-                                    }
-                                    className={cn(
-                                      "h-16 w-full border-b border-slate-100 transition-colors",
-                                      !isEditableHour
-                                        ? isEditingWorkHours
-                                          ? "cursor-pointer bg-slate-100/70 hover:bg-slate-200"
-                                          : "cursor-default bg-white"
-                                        : isEditingWorkHours
-                                        ? isSelectedHour
-                                          ? "cursor-pointer bg-emerald-500/85 hover:bg-emerald-600"
-                                          : "cursor-pointer bg-slate-100/80 hover:bg-slate-200"
-                                        : isWorkingHour
-                                          ? "cursor-pointer hover:bg-emerald-50/70"
-                                          : "cursor-default bg-slate-100/70",
-                                    )}
-                                  />
-                                );
-                              })}
-                              {!isEditingWorkHours && !dayHasWorkingWindow && (
-                                <div className="pointer-events-none absolute inset-0 bg-slate-100/35" />
-                              )}
-                              {!isEditingWorkHours && dayEvents.map(renderAppointmentBlock)}
-                            </div>
-                          );
-                        })}
+                          {weekDays.map((day) => {
+                            const dayEvents = eventBlocks.get(formatDateKey(day)) || [];
+                            const dayKey = WEEK_DAYS[getWeekDayIndex(day)].key;
+                            const dayRule = workHoursDraft.find((rule) => rule.day === dayKey);
+                            const dayHasWorkingWindow = Boolean(dayRule?.enabled);
+                            const dayGrid = workHoursGridDraft[dayKey] || [];
+                            return (
+                              <div key={day.toISOString()} className="relative min-h-[832px] border-l border-slate-100 bg-white">
+                                {Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, index) => {
+                                  const hour = HOUR_START + index;
+                                  const gridIndex = hour - HOUR_START;
+                                  const isSelectedHour = Boolean(dayGrid[gridIndex]);
+                                  const isWorkingHour = isEditingWorkHours ? isSelectedHour : isHourWithinRule(day, hour, dayRule);
+                                  const isEditableHour = hour < HOUR_END;
+                                  return (
+                                    <button
+                                      key={hour}
+                                      type="button"
+                                      onClick={() => {
+                                        if (!isEditableHour) return;
+                                        if (isEditingWorkHours) {
+                                          setWorkHoursGridDraft((current) => {
+                                            if (gridIndex < 0 || gridIndex >= (current[dayKey]?.length || 0)) {
+                                              return current;
+                                            }
+                                            const next = { ...current };
+                                            const nextDay = [...(next[dayKey] || [])];
+                                            nextDay[gridIndex] = !nextDay[gridIndex];
+                                            next[dayKey] = nextDay;
+                                            return next;
+                                          });
+                                          return;
+                                        }
+
+                                        if (!isWorkingHour) return;
+                                        openCreateFromGrid(day, hour);
+                                      }}
+                                      title={
+                                        !isEditableHour
+                                          ? isEditingWorkHours
+                                            ? "Corte horario"
+                                            : "Bloque horario"
+                                          : isEditingWorkHours
+                                            ? `${isSelectedHour ? "Desactivar" : "Activar"} ${formatHourLabel(hour)}`
+                                            : isWorkingHour
+                                              ? `Crear cita ${formatHourLabel(hour)} en ${day.toLocaleDateString("es-CL", { weekday: "short", day: "2-digit", month: "short" })}`
+                                              : "Fuera de horario"
+                                      }
+                                      className={cn(
+                                        "h-16 w-full border-b border-slate-100 transition-colors",
+                                        !isEditableHour
+                                          ? isEditingWorkHours
+                                            ? "cursor-pointer bg-slate-100/70 hover:bg-slate-200"
+                                            : "cursor-default bg-white"
+                                          : isEditingWorkHours
+                                            ? isSelectedHour
+                                              ? "cursor-pointer bg-emerald-500/85 hover:bg-emerald-600"
+                                              : "cursor-pointer bg-slate-100/80 hover:bg-slate-200"
+                                            : isWorkingHour
+                                              ? "cursor-pointer hover:bg-emerald-50/70"
+                                              : "cursor-default bg-slate-100/70",
+                                      )}
+                                    />
+                                  );
+                                })}
+                                {!isEditingWorkHours && !dayHasWorkingWindow && (
+                                  <div className="pointer-events-none absolute inset-0 bg-slate-100/35" />
+                                )}
+                                {!isEditingWorkHours && dayEvents.map(renderAppointmentBlock)}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="space-y-4">
@@ -1545,10 +1545,10 @@ export default function AppointmentsClient() {
                         className="h-11 rounded-xl bg-indigo-600 px-5 font-semibold text-white"
                         onClick={() => void handleSaveWorkHours()}
                         isLoading={isSavingHours}
-                        >
-                          Guardar
-                        </Button>
-                      </div>
+                      >
+                        Guardar
+                      </Button>
+                    </div>
                     <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 text-xs font-medium text-indigo-900/80">
                       Selecciona bloques directamente en la grilla. Lo que marques se repetirá semanalmente.
                     </div>

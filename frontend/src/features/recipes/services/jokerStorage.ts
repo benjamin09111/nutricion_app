@@ -3,7 +3,7 @@ export interface EmergencyJoker {
   title: string;
 }
 
-const STORAGE_KEY = "nutrisaas_jokers_db";
+const STORAGE_KEY = "NutriNet_jokers_db";
 
 const DEFAULT_JOKERS: EmergencyJoker[] = [
   { id: "1", title: "Sandwich de Atún & Palta" },

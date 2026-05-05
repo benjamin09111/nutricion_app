@@ -54,7 +54,13 @@ export class DietService {
       },
       {
         matchRestriction: /(hipertension|hipertenso|sodio|presion alta)/i,
-        forbiddenWords: ['embutido', 'salchicha', 'tocino', 'sopa instantanea', 'snack salado'],
+        forbiddenWords: [
+          'embutido',
+          'salchicha',
+          'tocino',
+          'sopa instantanea',
+          'snack salado',
+        ],
         reason: 'Puede elevar carga de sodio en hipertension.',
         severity: 'high',
       },
@@ -66,7 +72,14 @@ export class DietService {
       },
       {
         matchRestriction: /(vegetarian|vegano)/i,
-        forbiddenWords: ['pollo', 'carne', 'cerdo', 'atun', 'pescado', 'marisco'],
+        forbiddenWords: [
+          'pollo',
+          'carne',
+          'cerdo',
+          'atun',
+          'pescado',
+          'marisco',
+        ],
         reason: 'Origen animal para patron vegetariano/vegano.',
         severity: 'medium',
       },
@@ -167,7 +180,9 @@ export class DietService {
     }
   }
 
-  async verifyFoodsAgainstRestrictions(body: VerifyFoodsDto): Promise<VerifyResponse> {
+  async verifyFoodsAgainstRestrictions(
+    body: VerifyFoodsDto,
+  ): Promise<VerifyResponse> {
     const foods = await this.prisma.ingredient.findMany({
       where: { id: { in: body.foodIds } },
       select: { id: true, name: true },
@@ -177,7 +192,9 @@ export class DietService {
     const conflicts =
       aiConflicts ?? this.heuristicVerify(foods, body.restrictions);
 
-    const conflictedFoodIds = new Set(conflicts.map((conflict) => conflict.foodId));
+    const conflictedFoodIds = new Set(
+      conflicts.map((conflict) => conflict.foodId),
+    );
     const safeFoods = foods
       .filter((food) => !conflictedFoodIds.has(food.id))
       .map((food) => food.name);

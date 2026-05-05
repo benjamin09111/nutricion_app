@@ -1,6 +1,6 @@
 # Cloud Functions & Event-Driven Architecture
 
-This skill defines the standards for implementing a **Thin Backend (Backend Delgado)** using Cloud Functions and Event-Driven patterns in the NutriSaaS project.
+This skill defines the standards for implementing a **Thin Backend (Backend Delgado)** using Cloud Functions and Event-Driven patterns in the NutriNet project.
 
 ## 1. Core Principles
 - **Orchestration vs Choreography**: The main NestJS backend orchestrates the high-level flow but delegates the heavy lifting (IA, PDF processing, complex calculations) to Cloud Functions.

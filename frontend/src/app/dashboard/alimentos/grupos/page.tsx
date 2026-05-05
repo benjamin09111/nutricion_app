@@ -5,7 +5,7 @@ import { Ingredient } from "@/features/foods";
 import { fetchApi } from "@/lib/api-base";
 
 export const metadata = {
-  title: "Mis Grupos | NutriSaaS",
+  title: "Mis Grupos | NutriNet",
   description: "Gestiona tus grupos de ingredientes",
 };
 

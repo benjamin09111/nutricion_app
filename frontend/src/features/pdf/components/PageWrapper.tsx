@@ -39,7 +39,7 @@ export function PageWrapper({
             <View style={shared.pageHeader}>
                 <View style={styles.headerBrand}>
                     <View style={styles.headerDot} />
-                    <Text style={shared.pageHeaderBrand}>NutriSaaS</Text>
+                    <Text style={shared.pageHeaderBrand}>NutriNet</Text>
                     <Text style={{ ...shared.pageHeaderTitle, marginLeft: 6 }}>
                         — {moduleLabel}
                     </Text>
@@ -61,7 +61,7 @@ export function PageWrapper({
                         year: "numeric",
                     })}
                 </Text>
-                <Text style={shared.pageFooterBrand}>NutriSaaS</Text>
+                <Text style={shared.pageFooterBrand}>NutriNet</Text>
                 {pageNumber !== undefined && (
                     <Text style={shared.pageFooterText}>Pág. {pageNumber}</Text>
                 )}

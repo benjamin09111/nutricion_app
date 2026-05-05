@@ -47,7 +47,7 @@ export function NotificationsProvider({
 
   // 1. Load from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem("nutrisaas_notifications");
+    const stored = localStorage.getItem("NutriNet_notifications");
     if (stored) {
       try {
         setNotifications(JSON.parse(stored));
@@ -59,7 +59,7 @@ export function NotificationsProvider({
       const initialData: Notification[] = [
         {
           id: "1",
-          title: "¡Bienvenido a NutriSaaS!",
+          title: "¡Bienvenido a NutriNet!",
           message: "Explora las nuevas funcionalidades de tu dashboard.",
           type: "info",
           date: new Date().toISOString(),
@@ -68,7 +68,7 @@ export function NotificationsProvider({
       ];
       setNotifications(initialData);
       localStorage.setItem(
-        "nutrisaas_notifications",
+        "NutriNet_notifications",
         JSON.stringify(initialData),
       );
     }
@@ -78,7 +78,7 @@ export function NotificationsProvider({
   useEffect(() => {
     if (notifications.length > 0) {
       localStorage.setItem(
-        "nutrisaas_notifications",
+        "NutriNet_notifications",
         JSON.stringify(notifications),
       );
     }

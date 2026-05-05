@@ -22,7 +22,7 @@ type PortalSessionPayload = {
   invitationId: string;
 };
 
-type PortalEntryKind = 'QUESTION' | 'TRACKING' | 'REPLY' | 'NOTIFICATION';
+type PortalEntryKind = 'QUESTION' | 'TRACKING' | 'REPLY' | 'NOTIFICATION' | 'MESSAGE';
 
 type NormalizedPortalEntry = {
   id: string;
@@ -348,6 +348,96 @@ export class PatientPortalsService {
     };
   }
 
+  async login(email: string, accessCode: string) {
+    const normalizedEmail = this.normalizeEmail(email);
+    if (!normalizedEmail) {
+      throw new BadRequestException('Debes ingresar un correo');
+    }
+
+    const normalizedCode = this.normalizeAccessCode(accessCode);
+    if (!normalizedCode) {
+      throw new BadRequestException('Debes ingresar tu código de acceso');
+    }
+
+    // Buscar invitaciones activas por email
+    const invitations = await this.prisma.patientPortalInvitation.findMany({
+      where: {
+        email: normalizedEmail,
+        status: { in: ['ACTIVE', 'PENDING'] },
+        revokedAt: null,
+        blockedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    if (invitations.length === 0) {
+      throw new ForbiddenException('No hay portales activos para ese correo');
+    }
+
+    // Verificar el código para cada invitación
+    let validInvitation = null;
+    for (const inv of invitations) {
+      const expectedCode = this.getPortalAccessCode(
+        inv.patientId,
+        inv.nutritionistId,
+      );
+      if (normalizedCode === expectedCode) {
+        validInvitation = inv;
+        break;
+      }
+    }
+
+    if (!validInvitation) {
+      throw new ForbiddenException('Código de acceso incorrecto');
+    }
+
+    // Si encontramos una válida, generamos el token JWT
+    const accessToken = await this.jwtService.signAsync(
+      {
+        kind: 'patient-portal',
+        patientId: validInvitation.patientId,
+        nutritionistId: validInvitation.nutritionistId,
+        invitationId: validInvitation.id,
+      } satisfies PortalSessionPayload,
+      {
+        secret:
+          this.configService.get<string>('PORTAL_JWT_SECRET') ||
+          this.configService.get<string>('JWT_SECRET') ||
+          'secret',
+        expiresIn: '30d',
+      },
+    );
+
+    // Actualizar fecha de verificación
+    await this.prisma.patientPortalInvitation.update({
+      where: { id: validInvitation.id },
+      data: {
+        verifiedAt: new Date(),
+        status: 'ACTIVE', // Aseguramos que pase a ACTIVE si estaba PENDING
+      },
+    });
+
+    const overview = await this.buildOverview(
+      validInvitation.nutritionistId,
+      validInvitation.patientId,
+    );
+
+    return {
+      accessToken,
+      invitationId: validInvitation.id,
+      ...overview,
+    };
+  }
+
   async getPortalSessionOverview(session: PortalSessionPayload) {
     return this.buildOverview(session.nutritionistId, session.patientId);
   }
@@ -433,14 +523,11 @@ export class PatientPortalsService {
     session: PortalSessionPayload,
     dto: CreatePatientPortalEntryDto,
   ) {
-    const sections = this.buildTrackingSections(dto);
-    if (!sections) {
-      throw new BadRequestException(
-        'Agrega al menos una sección para guardar tu seguimiento',
-      );
+    const body = dto.alimentacion?.trim() || '';
+    if (!body) {
+      throw new BadRequestException('Escribe algo en tu diario antes de publicar');
     }
 
-    const summary = this.buildTrackingSummary(sections, dto.entryDate);
     const entryDate = this.normalizeDiaryDate(dto.entryDate);
 
     const entry = await this.prisma.patientPortalEntry.create({
@@ -449,10 +536,9 @@ export class PatientPortalsService {
         nutritionistId: session.nutritionistId,
         invitationId: session.invitationId,
         kind: 'TRACKING',
-        body: summary,
+        body: body,
         payload: {
           source: 'patient',
-          sections,
           entryDate,
         },
       },
@@ -582,6 +668,34 @@ export class PatientPortalsService {
         message,
       });
     }
+
+    return {
+      entry,
+      overview: await this.buildOverview(nutritionistId, patientId),
+    };
+  }
+
+  async createPortalMessage(
+    nutritionistId: string,
+    patientId: string,
+    body: string,
+  ) {
+    if (!body?.trim()) {
+      throw new BadRequestException('El mensaje no puede estar vacío');
+    }
+
+    const entry = await this.prisma.patientPortalEntry.create({
+      data: {
+        patientId,
+        nutritionistId,
+        kind: 'MESSAGE',
+        body: body.trim(),
+        payload: {
+          source: 'nutritionist',
+        },
+      },
+      select: ENTRY_SELECT,
+    });
 
     return {
       entry,
@@ -725,7 +839,9 @@ export class PatientPortalsService {
             where: {
               id: { in: sharingInvitation.deliverableCreationIds },
               nutritionistId,
-              type: { in: ['DELIVERABLE', 'FAST_DELIVERABLE'] },
+              type: {
+                in: ['DIET', 'SHOPPING_LIST', 'RECIPE', 'FAST_DELIVERABLE'],
+              },
             },
             orderBy: { updatedAt: 'desc' },
             select: {
@@ -752,7 +868,9 @@ export class PatientPortalsService {
     const tracking = normalizedEntries.filter(
       (entry) => entry.kind === 'TRACKING',
     );
-    const replies = normalizedEntries.filter((entry) => entry.kind === 'REPLY');
+    const messages = normalizedEntries.filter(
+      (entry) => entry.kind === 'MESSAGE',
+    );
 
     const summary = this.buildSummary(normalizedEntries);
 
@@ -778,12 +896,13 @@ export class PatientPortalsService {
       entries: normalizedEntries,
       questions,
       tracking,
-      replies,
+      messages,
       notifications: normalizedEntries.filter(
         (entry) => entry.kind === 'NOTIFICATION',
       ),
       sharedResources,
       sharedDeliverables,
+      status: activeInvitation?.status || 'NONE',
     };
   }
 
@@ -844,7 +963,7 @@ export class PatientPortalsService {
 
     if (notificationsCount > 0) {
       alerts.push(
-        `${notificationsCount} notificación${notificationsCount === 1 ? '' : 'es'} del nutri.`
+        `${notificationsCount} notificación${notificationsCount === 1 ? '' : 'es'} del nutri.`,
       );
     }
 
@@ -1033,4 +1152,3 @@ export class PatientPortalsService {
     return code.replace(/\D/g, '').slice(0, 6);
   }
 }
-

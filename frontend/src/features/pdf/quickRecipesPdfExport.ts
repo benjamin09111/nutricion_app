@@ -26,7 +26,7 @@ export async function downloadQuickRecipesPdf(
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${safeName}_NutriSaaS.pdf`;
+  link.download = `${safeName}_NutriNet.pdf`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

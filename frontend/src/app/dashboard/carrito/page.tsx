@@ -1,7 +1,7 @@
 import CartClient from "./CartClient";
 
 export const metadata = {
-  title: "Carrito de Compras (Cuantificador) | NutriSaaS",
+  title: "Carrito de Compras (Cuantificador) | NutriNet",
   description: "Cuantificación nutricional y financiera de la pauta pautada.",
 };
 

@@ -18,10 +18,10 @@ async function main() {
 
   // 1. Create Admin
   await prisma.account.upsert({
-    where: { email: 'admin@nutrisaas.com' },
+    where: { email: 'admin@NutriNet.com' },
     update: {},
     create: {
-      email: 'admin@nutrisaas.com',
+      email: 'admin@NutriNet.com',
       password: hashedAdminPassword,
       role: 'ADMIN_GENERAL',
       status: 'ACTIVE',

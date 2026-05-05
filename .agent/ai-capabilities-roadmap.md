@@ -1,6 +1,6 @@
 # AI & Automation Capabilities Roadmap
 
-Este documento resume la investigación y estrategia técnica para dotar al Agente y a la plataforma NutriSaaS de capacidades avanzadas de Inteligencia Artificial, Machine Learning y Automatización.
+Este documento resume la investigación y estrategia técnica para dotar al Agente y a la plataforma NutriNet de capacidades avanzadas de Inteligencia Artificial, Machine Learning y Automatización.
 
 ## 1. Arquitectura Híbrida (NestJS + Python)
 

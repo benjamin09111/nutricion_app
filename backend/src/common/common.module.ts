@@ -5,7 +5,7 @@ import { HttpCacheInterceptor } from './interceptors/http-cache.interceptor';
 
 @Global()
 @Module({
-    providers: [CacheService, AiService, HttpCacheInterceptor],
-    exports: [CacheService, AiService, HttpCacheInterceptor],
+  providers: [CacheService, AiService, HttpCacheInterceptor],
+  exports: [CacheService, AiService, HttpCacheInterceptor],
 })
-export class CommonModule { }
+export class CommonModule {}

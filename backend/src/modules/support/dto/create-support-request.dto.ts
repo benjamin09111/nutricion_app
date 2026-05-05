@@ -1,17 +1,32 @@
 import { IsEmail, IsEnum, IsOptional, IsString } from 'class-validator';
 
 export class CreateSupportRequestDto {
-    @IsEmail()
-    email: string;
+  @IsEmail()
+  email: string;
 
-    @IsString()
-    @IsOptional()
-    message?: string;
+  @IsString()
+  @IsOptional()
+  message?: string;
 
-    @IsEnum(['PASSWORD_RESET', 'CONTACT', 'OTHER', 'FEEDBACK', 'TESTIMONIO', 'COMPLAINT', 'IDEA'])
-    type: 'PASSWORD_RESET' | 'CONTACT' | 'OTHER' | 'FEEDBACK' | 'TESTIMONIO' | 'COMPLAINT' | 'IDEA';
+  @IsEnum([
+    'PASSWORD_RESET',
+    'CONTACT',
+    'OTHER',
+    'FEEDBACK',
+    'TESTIMONIO',
+    'COMPLAINT',
+    'IDEA',
+  ])
+  type:
+    | 'PASSWORD_RESET'
+    | 'CONTACT'
+    | 'OTHER'
+    | 'FEEDBACK'
+    | 'TESTIMONIO'
+    | 'COMPLAINT'
+    | 'IDEA';
 
-    @IsString()
-    @IsOptional()
-    subject?: string;
+  @IsString()
+  @IsOptional()
+  subject?: string;
 }

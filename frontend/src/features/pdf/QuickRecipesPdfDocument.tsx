@@ -38,7 +38,7 @@ const DEFAULT_DISH_IMAGE =
       <circle cx="400" cy="260" r="84" fill="#f8fafc"/>
       <path d="M318 208c0-22 18-40 40-40 8 0 15 2 21 6 11-22 33-36 58-36 31 0 57 21 64 50 4-1 8-2 13-2 22 0 40 18 40 40v14H318v-32z" fill="#d97706"/>
       <rect x="340" y="240" width="120" height="72" rx="24" fill="#f59e0b"/>
-      <text x="400" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#92400e">Plato NutriSaaS</text>
+      <text x="400" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#92400e">Plato NutriNet</text>
     </svg>
   `);
 
@@ -300,7 +300,7 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.brand}>NutriSaaS</Text>
+          <Text style={styles.brand}>NutriNet</Text>
           <Text style={styles.docTitle}>{data.title || "Recetas Rápidas"}</Text>
           <View style={styles.metaRow}>
             {data.dietName ? <Text style={styles.meta}>Dieta: {data.dietName}</Text> : null}
@@ -434,7 +434,7 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
         )}
 
         <View style={styles.footer}>
-          <Text>NutriSaaS · Recetas Express</Text>
+          <Text>NutriNet · Recetas Express</Text>
           <Text>Generado el {generatedAt}</Text>
         </View>
       </Page>

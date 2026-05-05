@@ -54,7 +54,7 @@ export async function sendRegistrationRequest(data: RegisterFormData) {
         <div class="container">
             <div class="header">
                 <h1 style="margin: 0; font-size: 24px;">Solicitud de Registro</h1>
-                <p style="margin: 10px 0 0 0; opacity: 0.9;">NutriSaaS Platform</p>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">NutriNet Platform</p>
             </div>
             <div class="content">
                 <p>Se ha recibido una nueva solicitud de acceso a la plataforma. Por favor revisa los detalles a continuación:</p>
@@ -79,7 +79,7 @@ export async function sendRegistrationRequest(data: RegisterFormData) {
                 </p>
             </div>
             <div class="footer">
-                &copy; ${new Date().getFullYear()} NutriSaaS System. Notificación automática.
+                &copy; ${new Date().getFullYear()} NutriNet System. Notificación automática.
             </div>
         </div>
     </body>
@@ -88,7 +88,7 @@ export async function sendRegistrationRequest(data: RegisterFormData) {
 
   try {
     await transporter.sendMail({
-      from: '"NutriSaaS" <noreply@nutrisaas.com>',
+      from: '"NutriNet" <noreply@NutriNet.com>',
       to: "benjamin.morales3@mail.udp.cl",
       subject: `🚀 Nueva Solicitud: ${name}`,
       html: htmlContent,

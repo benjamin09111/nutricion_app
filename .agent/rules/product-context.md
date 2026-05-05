@@ -2,9 +2,9 @@
 trigger: always_on
 ---
 
-# Product Context & Domain Rules (NutriSaaS)
+# Product Context & Domain Rules (NutriNet)
 
-These rules are specific to the NutriSaaS project and its business domain.
+These rules are specific to the NutriNet project and its business domain.
 
 ## 1. Product Truth & Fidelity
 
@@ -125,7 +125,7 @@ To become the leading SaaS platform for Nutritionists in LATAM and eventually gl
     *   **Contextual Prescription**: Integrate Supplements (Whey, Creatine, Vitamins) directly into the Diet Wizard.
     *   **The "Gap Filler"**: AI suggests supplements specifically when nutritional targets (e.g., Protein) are hard to reach with food alone.
     *   **Verified Partners**: Brands pay to be the "Default Recommendation" or "Verified Choice" in the dropdowns.
-    *   **Affiliate Ecosystem**: Patient clicks "Buy prescribed supplements" -> NutriSaaS gets % commission.
+    *   **Affiliate Ecosystem**: Patient clicks "Buy prescribed supplements" -> NutriNet gets % commission.
 
 ### Success Metrics
 - **Professional Adoption**: Validated by user love ("My 3 nutritionists loved it").
@@ -204,7 +204,7 @@ A premium, personalized PDF guide for the patient.
 - **Tone Selection**: Nutris can toggle between communication styles (Formal, Close, Personalized) before exporting, ensuring the content matches their brand voice.
 - **Zero-Friction QR**: Include a QR code that, when scanned, populates the shopping cart in partner retail apps (Líder/Jumbo/Cornershop) for one-click purchase.
 - **Visual Branding (Canva-Style)**: Support for custom templates or pre-designed layouts. Nutritionists can use their own Canva-inspired designs.
-- **Watermarking**: All exported PDFs will include a subtle "Powered by NutriSaaS" watermark.
+- **Watermarking**: All exported PDFs will include a subtle "Powered by NutriNet" watermark.
 - **Exclusion**: The "Dieta" technical configuration is hidden; the patient only sees actionable instructions.
 
 ## 15. The "Híbrid" Philosophy

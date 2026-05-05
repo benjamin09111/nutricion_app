@@ -1,6 +1,6 @@
 # Backend
 
-Backend de NutriSaaS construido con NestJS, Prisma y PostgreSQL.
+Backend de NutriNet construido con NestJS, Prisma y PostgreSQL.
 
 ## Qué cubre
 

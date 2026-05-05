@@ -649,8 +649,8 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
                       Tags
                     </label>
                     <TagInput
-                      tags={groupTags}
-                      setTags={setGroupTags}
+                      value={groupTags}
+                      onChange={setGroupTags}
                       placeholder="Agrega etiquetas..."
                       className="rounded-xl border-slate-200 focus:ring-indigo-500/20 focus:border-indigo-500"
                     />

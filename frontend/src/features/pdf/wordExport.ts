@@ -185,16 +185,16 @@ export async function downloadDietDocx(data: DietPdfData): Promise<void> {
         new Paragraph({
             children: [
                 new TextRun({ text: "* Valores nutricionales por 100g de alimento. ", size: 16, italics: true, color: "94A3B8" }),
-                new TextRun({ text: "Generado por NutriSaaS.", size: 16, bold: true, color: "10B981" }),
+                new TextRun({ text: "Generado por NutriNet.", size: 16, bold: true, color: "10B981" }),
             ],
             spacing: { before: 400 },
         }),
     );
 
     const doc = new Document({
-        creator: "NutriSaaS",
+        creator: "NutriNet",
         title: data.dietName || "Dieta Base",
-        description: "Plan Alimentario generado por NutriSaaS",
+        description: "Plan Alimentario generado por NutriNet",
         sections: [{ children }],
     });
 
@@ -203,7 +203,7 @@ export async function downloadDietDocx(data: DietPdfData): Promise<void> {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${safeName}_NutriSaaS.docx`;
+    link.download = `${safeName}_NutriNet.docx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

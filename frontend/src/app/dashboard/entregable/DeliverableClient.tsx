@@ -645,13 +645,13 @@ export default function DeliverableClient() {
     const draft = draftOverride
       ? draftOverride
       : (() => {
-          try {
-            const stored = localStorage.getItem("nutri_active_draft");
-            return stored ? JSON.parse(stored) : {};
-          } catch (_) {
-            return {};
-          }
-        })();
+        try {
+          const stored = localStorage.getItem("nutri_active_draft");
+          return stored ? JSON.parse(stored) : {};
+        } catch (_) {
+          return {};
+        }
+      })();
 
     setPreviousStagesSummary(
       buildPreviousStageSummary(
@@ -770,9 +770,9 @@ export default function DeliverableClient() {
             setSelectedSections(
               sanitizeSectionIds(
                 deliverableContent.selectedSections ||
-                  DELIVERABLE_SECTIONS.filter((s) => s.defaultSelected).map(
-                    (s) => s.id,
-                  ),
+                DELIVERABLE_SECTIONS.filter((s) => s.defaultSelected).map(
+                  (s) => s.id,
+                ),
               ),
             );
             setIncludeLogo(deliverableContent.includeLogo ?? true);
@@ -926,16 +926,16 @@ export default function DeliverableClient() {
   );
   const hasManualPatientData = Boolean(
     selectedPatient &&
-      (
-        safeString(selectedPatient.fullName) ||
-        selectedPatient.ageYears !== null ||
-        safeString(selectedPatient.gender) ||
-        (Array.isArray(selectedPatient.restrictions) && selectedPatient.restrictions.length > 0) ||
-        Boolean(selectedPatient.noDietaryRestrictions) ||
-        safeString(selectedPatient.likes) ||
-        safeString(selectedPatient.nutritionalFocus) ||
-        safeString(selectedPatient.fitnessGoals)
-      ),
+    (
+      safeString(selectedPatient.fullName) ||
+      selectedPatient.ageYears !== null ||
+      safeString(selectedPatient.gender) ||
+      (Array.isArray(selectedPatient.restrictions) && selectedPatient.restrictions.length > 0) ||
+      Boolean(selectedPatient.noDietaryRestrictions) ||
+      safeString(selectedPatient.likes) ||
+      safeString(selectedPatient.nutritionalFocus) ||
+      safeString(selectedPatient.fitnessGoals)
+    ),
   );
   const hasPatientAssigned = hasImportedPatient || hasManualPatientData;
 
@@ -1206,13 +1206,13 @@ export default function DeliverableClient() {
         validPackages.length > 0
           ? validPackages
           : [
-              {
-                id: crypto.randomUUID(),
-                name: "Plan Completo",
-                sections: exportSections,
-                exportAs: "single",
-              },
-            ];
+            {
+              id: crypto.randomUUID(),
+              name: "Plan Completo",
+              sections: exportSections,
+              exportAs: "single",
+            },
+          ];
 
       if (packagesToUse.length === 0 || exportSections.length === 0) {
         toast.error("Debes tener al menos un paquete con módulos seleccionados", { id: "pdf-toast" });
@@ -1348,9 +1348,9 @@ export default function DeliverableClient() {
           hasRecipes,
           ...(selectedPatient?.importedPatientId
             ? {
-                patientId: selectedPatient.importedPatientId,
-                patientName: selectedPatient.fullName,
-              }
+              patientId: selectedPatient.importedPatientId,
+              patientName: selectedPatient.fullName,
+            }
             : {}),
         },
         tags: [],
@@ -1562,11 +1562,11 @@ export default function DeliverableClient() {
       const nextResourcePages =
         resourceModalMode === "cover"
           ? [
-              page,
-              ...resolvedResourcePages.filter(
-                (item) => !/portada|cover|introducci/i.test(item.title || ""),
-              ),
-            ]
+            page,
+            ...resolvedResourcePages.filter(
+              (item) => !/portada|cover|introducci/i.test(item.title || ""),
+            ),
+          ]
           : [...resolvedResourcePages, page];
 
       setResolvedResourcePages(nextResourcePages);
@@ -1645,7 +1645,7 @@ export default function DeliverableClient() {
   const handleEditSection = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (id === "cover") {
-      toast.info("Importar portada está bloqueado por ahora. Se usa portada base de NutriSaaS.");
+      toast.info("Importar portada está bloqueado por ahora. Se usa portada base de NutriNet.");
       return;
     }
     toast.info(`Abriendo editor de ${id}...`);
@@ -1875,8 +1875,8 @@ export default function DeliverableClient() {
     const tags = baseResourceOptions.flatMap((resource) =>
       Array.isArray(resource.tags)
         ? resource.tags
-            .map((tag) => safeString(tag).replace(/^#/, ""))
-            .filter(Boolean)
+          .map((tag) => safeString(tag).replace(/^#/, ""))
+          .filter(Boolean)
         : [],
     );
     return Array.from(new Set(tags)).slice(0, 16);
@@ -1891,8 +1891,8 @@ export default function DeliverableClient() {
       const content = safeString(resource.content).toLowerCase();
       const tags = Array.isArray(resource.tags)
         ? resource.tags
-            .map((tag) => safeString(tag).replace(/^#/, "").toLowerCase())
-            .filter(Boolean)
+          .map((tag) => safeString(tag).replace(/^#/, "").toLowerCase())
+          .filter(Boolean)
         : [];
 
       if (resourceCategoryFilter !== "Todas" && category !== resourceCategoryFilter) {
@@ -2398,10 +2398,10 @@ export default function DeliverableClient() {
             <SectionProgressNav
               title="Etapas del Plan"
               items={[
-                { id: "dieta", label: "1. Estrategia", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/dieta", currentProjectId)) },
-                { id: "recetas", label: "2. Cuantificación", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/recetas", currentProjectId)) },
-                { id: "carrito", label: "3. Logística", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/carrito", currentProjectId)) },
-                { id: "entregable", label: "4. Entregable", status: "complete", active: true, onClick: () => {} },
+                { id: "dieta", label: "1. Estrategia", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/dieta", currentProjectId || null)) },
+                { id: "recetas", label: "2. Cuantificación", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/recetas", currentProjectId || null)) },
+                { id: "carrito", label: "3. Logística", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/carrito", currentProjectId || null)) },
+                { id: "entregable", label: "4. Entregable", status: "complete", active: true, onClick: () => { } },
               ]}
             />
           </div>
@@ -3003,12 +3003,12 @@ export default function DeliverableClient() {
             {/* Info / Resource Modules (Unchecked by default) */}
             <section className="space-y-6">
               <div className="flex flex-col sm:flex-row items-center gap-4">
-              {isExportDisabled && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-xs font-bold animate-pulse">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>Faltan completar etapas obligatorias</span>
-                </div>
-              )}
+                {isExportDisabled && (
+                  <div className="flex items-center gap-2 px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-xs font-bold animate-pulse">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>Faltan completar etapas obligatorias</span>
+                  </div>
+                )}
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <Sparkles className="h-5 w-5 text-blue-600" />
                 </div>
@@ -3104,66 +3104,66 @@ export default function DeliverableClient() {
                       .filter((s) => s.category === "info")
                       .filter((s) => contentFilter === "all" || s.contentType === contentFilter)
                       .map((section) => (
-                    <div
-                      key={section.id}
-                      onClick={() =>
-                        toggleSection(section.id, section.disabled)
-                      }
-                      className={cn(
-                        "p-5 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-4 group",
-                        section.disabled
-                          ? "opacity-30 cursor-not-allowed bg-slate-50 border-slate-100"
-                          : selectedSections.includes(section.id)
-                            ? "bg-white border-blue-500 shadow-lg shadow-blue-500/5"
-                            : "bg-slate-50 border-slate-100 hover:border-slate-200 opacity-60",
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
-                          section.disabled
-                            ? "bg-slate-200 text-slate-400"
-                            : selectedSections.includes(section.id)
-                              ? "bg-blue-500 text-white"
-                              : "bg-white text-slate-400 group-hover:text-slate-600 shadow-sm border border-slate-100",
-                        )}
-                      >
-                        <section.icon className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-black text-slate-800 text-xs uppercase tracking-wider">
-                          {section.label}
-                        </h4>
-                        <p
+                        <div
+                          key={section.id}
+                          onClick={() =>
+                            toggleSection(section.id, section.disabled)
+                          }
                           className={cn(
-                            "text-[10px] font-medium leading-tight mt-1",
+                            "p-5 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-4 group",
                             section.disabled
-                              ? "text-rose-500 font-bold"
-                              : "text-slate-500",
+                              ? "opacity-30 cursor-not-allowed bg-slate-50 border-slate-100"
+                              : selectedSections.includes(section.id)
+                                ? "bg-white border-blue-500 shadow-lg shadow-blue-500/5"
+                                : "bg-slate-50 border-slate-100 hover:border-slate-200 opacity-60",
                           )}
                         >
-                          {section.description}
-                        </p>
-                        <span className={cn(
-                          "inline-flex mt-2 text-[9px] uppercase font-black px-2 py-0.5 rounded",
-                          section.contentType === "practical" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
-                        )}>
-                          {section.contentType === "practical" ? "Práctica" : "Teoría"}
-                        </span>
-                      </div>
-                      <div
-                        className={cn(
-                          "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
-                          selectedSections.includes(section.id)
-                            ? "border-blue-500 bg-blue-500 text-white"
-                            : "border-slate-200",
-                        )}
-                      >
-                        {selectedSections.includes(section.id) && (
-                          <CheckCircle2 className="h-4 w-4 fill-white" />
-                        )}
-                      </div>
-                    </div>
+                          <div
+                            className={cn(
+                              "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
+                              section.disabled
+                                ? "bg-slate-200 text-slate-400"
+                                : selectedSections.includes(section.id)
+                                  ? "bg-blue-500 text-white"
+                                  : "bg-white text-slate-400 group-hover:text-slate-600 shadow-sm border border-slate-100",
+                            )}
+                          >
+                            <section.icon className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-black text-slate-800 text-xs uppercase tracking-wider">
+                              {section.label}
+                            </h4>
+                            <p
+                              className={cn(
+                                "text-[10px] font-medium leading-tight mt-1",
+                                section.disabled
+                                  ? "text-rose-500 font-bold"
+                                  : "text-slate-500",
+                              )}
+                            >
+                              {section.description}
+                            </p>
+                            <span className={cn(
+                              "inline-flex mt-2 text-[9px] uppercase font-black px-2 py-0.5 rounded",
+                              section.contentType === "practical" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                            )}>
+                              {section.contentType === "practical" ? "Práctica" : "Teoría"}
+                            </span>
+                          </div>
+                          <div
+                            className={cn(
+                              "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                              selectedSections.includes(section.id)
+                                ? "border-blue-500 bg-blue-500 text-white"
+                                : "border-slate-200",
+                            )}
+                          >
+                            {selectedSections.includes(section.id) && (
+                              <CheckCircle2 className="h-4 w-4 fill-white" />
+                            )}
+                          </div>
+                        </div>
                       ))}
                   </div>
                 )}
@@ -3177,7 +3177,7 @@ export default function DeliverableClient() {
             <div className="flex items-center gap-2 px-6 py-3 bg-emerald-50 rounded-full border border-emerald-100 text-emerald-700">
               <Sparkles className="h-4 w-4 fill-current" />
               <span className="text-[10px] font-black uppercase tracking-widest text-center">
-                El PDF se generará con la plantilla oficial de NutriSaaS usando los widgets seleccionados.
+                El PDF se generará con la plantilla oficial de NutriNet usando los widgets seleccionados.
               </span>
             </div>
           </div>

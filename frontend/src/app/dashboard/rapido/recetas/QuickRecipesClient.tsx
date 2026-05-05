@@ -114,11 +114,11 @@ type QuickAiDishResponse = {
   ingredients?: Array<
     | string
     | {
-        name?: string;
-        quantity?: string;
-        amount?: number | string;
-        unit?: string;
-      }
+      name?: string;
+      quantity?: string;
+      amount?: number | string;
+      unit?: string;
+    }
   >;
 };
 
@@ -152,7 +152,7 @@ const DEFAULT_DISH_IMAGE =
       <circle cx="400" cy="260" r="84" fill="#f8fafc"/>
       <path d="M318 208c0-22 18-40 40-40 8 0 15 2 21 6 11-22 33-36 58-36 31 0 57 21 64 50 4-1 8-2 13-2 22 0 40 18 40 40v14H318v-32z" fill="#d97706"/>
       <rect x="340" y="240" width="120" height="72" rx="24" fill="#f59e0b"/>
-      <text x="400" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#92400e">Plato NutriSaaS</text>
+      <text x="400" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#92400e">Plato NutriNet</text>
     </svg>
   `);
 
@@ -209,10 +209,10 @@ const parseLines = (value: string): string[] =>
 const isDishMeaningful = (dish: QuickDish): boolean =>
   Boolean(
     dish.title.trim() ||
-      dish.description.trim() ||
-      dish.preparation.trim() ||
-      dish.recommendedPortion.trim() ||
-      dish.ingredients.some((ingredient) => ingredient.name.trim() || ingredient.quantity.trim()),
+    dish.description.trim() ||
+    dish.preparation.trim() ||
+    dish.recommendedPortion.trim() ||
+    dish.ingredients.some((ingredient) => ingredient.name.trim() || ingredient.quantity.trim()),
   );
 const normalizeMealSectionKey = (value: string): string =>
   value
@@ -265,14 +265,14 @@ const normalizeImportedDishes = (value: unknown): QuickDish[] => {
       const item = dish as Record<string, unknown>;
       const ingredients = Array.isArray(item.ingredients)
         ? item.ingredients
-            .map((ing) => {
-              if (!ing || typeof ing !== "object") return null;
-              const raw = ing as Record<string, unknown>;
-              const name = typeof raw.name === "string" ? raw.name : "";
-              const quantity = typeof raw.quantity === "string" ? raw.quantity : "";
-              return { id: createId(), name, quantity };
-            })
-            .filter(Boolean) as QuickIngredient[]
+          .map((ing) => {
+            if (!ing || typeof ing !== "object") return null;
+            const raw = ing as Record<string, unknown>;
+            const name = typeof raw.name === "string" ? raw.name : "";
+            const quantity = typeof raw.quantity === "string" ? raw.quantity : "";
+            return { id: createId(), name, quantity };
+          })
+          .filter(Boolean) as QuickIngredient[]
         : [];
 
       return {
@@ -642,13 +642,13 @@ export default function QuickRecipesClient() {
       prev.map((dish) =>
         dish.id === dishId
           ? {
-              ...dish,
-              ingredients: dish.ingredients.map((ingredient) =>
-                ingredient.id === ingredientId
-                  ? { ...ingredient, [field]: value }
-                  : ingredient,
-              ),
-            }
+            ...dish,
+            ingredients: dish.ingredients.map((ingredient) =>
+              ingredient.id === ingredientId
+                ? { ...ingredient, [field]: value }
+                : ingredient,
+            ),
+          }
           : dish,
       ),
     );
@@ -659,12 +659,12 @@ export default function QuickRecipesClient() {
       prev.map((dish) =>
         dish.id === dishId
           ? {
-              ...dish,
-              ingredients:
-                dish.ingredients.length === 1
-                  ? dish.ingredients
-                  : dish.ingredients.filter((ingredient) => ingredient.id !== ingredientId),
-            }
+            ...dish,
+            ingredients:
+              dish.ingredients.length === 1
+                ? dish.ingredients
+                : dish.ingredients.filter((ingredient) => ingredient.id !== ingredientId),
+          }
           : dish,
       ),
     );
@@ -697,8 +697,8 @@ export default function QuickRecipesClient() {
     setAllowedFoodsMainText(dietFoodsText);
     setRestrictedFoodsText(
       toTextAreaValue(content.restrictedFoods) ||
-        toTextAreaValue(content.activeConstraints) ||
-        toTextAreaValue(content.customConstraints),
+      toTextAreaValue(content.activeConstraints) ||
+      toTextAreaValue(content.customConstraints),
     );
     setSpecialConsiderations(
       typeof content.specialConsiderations === "string" ? content.specialConsiderations : "",
@@ -818,18 +818,18 @@ export default function QuickRecipesClient() {
               .map((dish) => ({ title: dish.title.trim(), mealSection: dish.mealSection })),
             patient: selectedPatient
               ? {
-                  fullName: selectedPatient.fullName,
-                  restrictions: patientRestrictions,
-                  likes: selectedPatient.likes || "",
-                  healthTags: patientHealthTags,
-                  clinicalSummary: selectedPatient.clinicalSummary || "",
-                  nutritionalFocus: selectedPatient.nutritionalFocus || "",
-                  fitnessGoals: selectedPatient.fitnessGoals || "",
-                  weight: selectedPatient.weight,
-                  height: selectedPatient.height,
-                  gender: selectedPatient.gender,
-                  birthDate: selectedPatient.birthDate,
-                }
+                fullName: selectedPatient.fullName,
+                restrictions: patientRestrictions,
+                likes: selectedPatient.likes || "",
+                healthTags: patientHealthTags,
+                clinicalSummary: selectedPatient.clinicalSummary || "",
+                nutritionalFocus: selectedPatient.nutritionalFocus || "",
+                fitnessGoals: selectedPatient.fitnessGoals || "",
+                weight: selectedPatient.weight,
+                height: selectedPatient.height,
+                gender: selectedPatient.gender,
+                birthDate: selectedPatient.birthDate,
+              }
               : null,
           },
         }),
@@ -848,44 +848,44 @@ export default function QuickRecipesClient() {
       const mapped: QuickDish[] = aiDishes.map((dish) => {
         const ingredients: QuickIngredient[] = Array.isArray(dish.ingredients)
           ? (dish.ingredients
-              .map((ingredient) => {
-                if (typeof ingredient === "string") {
-                  const name = ingredient.trim();
-                  if (!name) return null;
-                  return { id: createId(), name, quantity: "" };
-                }
-                if (!ingredient || typeof ingredient !== "object") return null;
-                const name =
-                  typeof ingredient.name === "string" ? ingredient.name.trim() : "";
-                const quantity =
-                  typeof ingredient.quantity === "string"
-                    ? ingredient.quantity.trim()
-                    : "";
-                const amount =
-                  ingredient.amount != null ? String(ingredient.amount).trim() : "";
-                const unit =
-                  typeof ingredient.unit === "string" ? ingredient.unit.trim() : "";
+            .map((ingredient) => {
+              if (typeof ingredient === "string") {
+                const name = ingredient.trim();
                 if (!name) return null;
-                return { id: createId(), name, quantity, amount, unit };
-              })
-              .filter(Boolean) as QuickIngredient[])
+                return { id: createId(), name, quantity: "" };
+              }
+              if (!ingredient || typeof ingredient !== "object") return null;
+              const name =
+                typeof ingredient.name === "string" ? ingredient.name.trim() : "";
+              const quantity =
+                typeof ingredient.quantity === "string"
+                  ? ingredient.quantity.trim()
+                  : "";
+              const amount =
+                ingredient.amount != null ? String(ingredient.amount).trim() : "";
+              const unit =
+                typeof ingredient.unit === "string" ? ingredient.unit.trim() : "";
+              if (!name) return null;
+              return { id: createId(), name, quantity, amount, unit };
+            })
+            .filter(Boolean) as QuickIngredient[])
           : [createIngredient()];
 
         return {
-        id: createId(),
-        title: dish.title || "",
-        mealSection: dish.mealSection || "Almuerzo",
-        description: dish.description || "",
-        preparation: dish.preparation || "",
-        imageUrl: dish.imageUrl || "",
-        recommendedPortion: dish.recommendedPortion || "",
-        portions: dish.portions != null ? String(dish.portions) : "1",
-        protein: String(dish.protein ?? ""),
-        calories: String(dish.calories ?? ""),
-        carbs: String(dish.carbs ?? ""),
-        fats: String(dish.fats ?? ""),
-        ingredients,
-      };
+          id: createId(),
+          title: dish.title || "",
+          mealSection: dish.mealSection || "Almuerzo",
+          description: dish.description || "",
+          preparation: dish.preparation || "",
+          imageUrl: dish.imageUrl || "",
+          recommendedPortion: dish.recommendedPortion || "",
+          portions: dish.portions != null ? String(dish.portions) : "1",
+          protein: String(dish.protein ?? ""),
+          calories: String(dish.calories ?? ""),
+          carbs: String(dish.carbs ?? ""),
+          fats: String(dish.fats ?? ""),
+          ingredients,
+        };
       });
 
       setDishes(mapped);
@@ -904,7 +904,7 @@ export default function QuickRecipesClient() {
     } catch (error) {
       console.error("Quick AI generation error", error);
       toast.error("No se pudo generar con IA. Revisa la conexión o la configuración de la IA.");
-      
+
     } finally {
       if (mode === "single") {
         setIsGenerating(false);
@@ -962,25 +962,25 @@ export default function QuickRecipesClient() {
           ),
           customIngredientNames: Array.isArray(dish.ingredients)
             ? dish.ingredients
-                .map((ingredient) => ingredient.name.trim())
-                .filter(Boolean)
+              .map((ingredient) => ingredient.name.trim())
+              .filter(Boolean)
             : [],
           customIngredients: Array.isArray(dish.ingredients)
             ? dish.ingredients
-                .map((ingredient) => {
-                  const name = ingredient.name.trim();
-                  if (!name) return null;
-                  return {
-                    name,
-                    amount: 1,
-                    unit: "porción",
-                  };
-                })
-                .filter(
-                  (
-                    item,
-                  ): item is { name: string; amount: number; unit: string } => Boolean(item),
-                )
+              .map((ingredient) => {
+                const name = ingredient.name.trim();
+                if (!name) return null;
+                return {
+                  name,
+                  amount: 1,
+                  unit: "porción",
+                };
+              })
+              .filter(
+                (
+                  item,
+                ): item is { name: string; amount: number; unit: string } => Boolean(item),
+              )
             : [],
           metadata: {
             source: "rapido",
@@ -1268,7 +1268,7 @@ export default function QuickRecipesClient() {
         }
       >
         <div className="space-y-6">
-  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -1332,11 +1332,10 @@ export default function QuickRecipesClient() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label
-                  className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${
-                    missingGenerationFields.allowedFoodsMain
+                  className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${missingGenerationFields.allowedFoodsMain
                       ? "text-rose-600"
                       : "text-slate-400"
-                  }`}
+                    }`}
                 >
                   Alimentos permitidos principales
                 </label>
@@ -1344,20 +1343,18 @@ export default function QuickRecipesClient() {
                   value={allowedFoodsMainText}
                   onChange={(event) => setAllowedFoodsMainText(event.target.value)}
                   placeholder="Ej: pollo, huevo, yogurt griego, avena (uno por línea o separados por coma)"
-                  className={`min-h-[96px] rounded-xl bg-slate-50 text-sm ${
-                    missingGenerationFields.allowedFoodsMain
+                  className={`min-h-[96px] rounded-xl bg-slate-50 text-sm ${missingGenerationFields.allowedFoodsMain
                       ? "border-rose-300 ring-1 ring-rose-100 focus-visible:ring-rose-300"
                       : "border-slate-200"
-                  }`}
+                    }`}
                 />
               </div>
               <div>
                 <label
-                  className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${
-                    missingGenerationFields.restrictedFoods
+                  className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${missingGenerationFields.restrictedFoods
                       ? "text-rose-600"
                       : "text-slate-400"
-                  }`}
+                    }`}
                 >
                   Restricciones de alimentos
                 </label>
@@ -1365,21 +1362,19 @@ export default function QuickRecipesClient() {
                   value={restrictedFoodsText}
                   onChange={(event) => setRestrictedFoodsText(event.target.value)}
                   placeholder="Ej: mariscos, frituras, lactosa"
-                  className={`min-h-[96px] rounded-xl bg-slate-50 text-sm ${
-                    missingGenerationFields.restrictedFoods
+                  className={`min-h-[96px] rounded-xl bg-slate-50 text-sm ${missingGenerationFields.restrictedFoods
                       ? "border-rose-300 ring-1 ring-rose-100 focus-visible:ring-rose-300"
                       : "border-slate-200"
-                  }`}
+                    }`}
                 />
               </div>
             </div>
             <div>
               <label
-                className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${
-                  missingGenerationFields.specialConsiderations
+                className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${missingGenerationFields.specialConsiderations
                     ? "text-rose-600"
                     : "text-slate-400"
-                }`}
+                  }`}
               >
                 Consideraciones especiales
               </label>
@@ -1387,11 +1382,10 @@ export default function QuickRecipesClient() {
                 value={specialConsiderations}
                 onChange={(event) => setSpecialConsiderations(event.target.value)}
                 placeholder="Ej: máximo 20 min por preparación, usar ingredientes de bajo costo..."
-                className={`min-h-[80px] rounded-xl bg-slate-50 text-sm ${
-                  missingGenerationFields.specialConsiderations
+                className={`min-h-[80px] rounded-xl bg-slate-50 text-sm ${missingGenerationFields.specialConsiderations
                     ? "border-rose-300 ring-1 ring-rose-100 focus-visible:ring-rose-300"
                     : "border-slate-200"
-                }`}
+                  }`}
                 maxLength={700}
               />
             </div>
@@ -1416,10 +1410,10 @@ export default function QuickRecipesClient() {
                     key={target.mealSection}
                     className="flex items-center justify-between rounded-xl border border-indigo-100 bg-white px-3 py-2"
                   >
-                  <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={target.enabled}
+                    <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={target.enabled}
                         onChange={(event) =>
                           updateGenerationTarget(
                             target.mealSection,
@@ -1468,11 +1462,10 @@ export default function QuickRecipesClient() {
                     <button
                       key={tab}
                       onClick={() => setActiveMealSectionFilter(tab)}
-                      className={`rounded-xl px-3 py-1.5 text-xs font-bold ${
-                        activeMealSectionFilter === tab
+                      className={`rounded-xl px-3 py-1.5 text-xs font-bold ${activeMealSectionFilter === tab
                           ? "bg-slate-900 text-white"
                           : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
-                      }`}
+                        }`}
                     >
                       {tab}
                     </button>
@@ -1539,21 +1532,20 @@ export default function QuickRecipesClient() {
                           const isExpanded = expandedDishId === dish.id;
                           const rowNumber =
                             (Math.min(currentCategoryPage, totalCategoryPages) - 1) *
-                              DISHES_PER_CATEGORY_PAGE +
+                            DISHES_PER_CATEGORY_PAGE +
                             index +
                             1;
                           const summaryText = dish.preparation
                             ? dish.preparation.split("\n")[0]?.replace(/^\d+\.\s*/, "") ||
-                              "Sin preparación"
+                            "Sin preparación"
                             : dish.description || "Sin descripción";
 
                           return (
                             <Fragment key={dish.id}>
                               <tr
                                 onClick={() => setExpandedDishId(isExpanded ? null : dish.id)}
-                                className={`cursor-pointer border-t border-slate-100 transition-colors ${
-                                  isExpanded ? "bg-amber-50/60" : "hover:bg-slate-50"
-                                }`}
+                                className={`cursor-pointer border-t border-slate-100 transition-colors ${isExpanded ? "bg-amber-50/60" : "hover:bg-slate-50"
+                                  }`}
                               >
                                 <td className="px-4 py-4 align-top">
                                   <div className="flex items-center gap-3">

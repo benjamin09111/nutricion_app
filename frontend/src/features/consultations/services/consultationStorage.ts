@@ -1,6 +1,6 @@
 import { Consultation } from "../types";
 
-const STORAGE_KEY = "nutrisaas_consultations_db";
+const STORAGE_KEY = "NutriNet_consultations_db";
 
 export const ConsultationStorage = {
   getAll: (): Consultation[] => {

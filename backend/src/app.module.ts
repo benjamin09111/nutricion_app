@@ -73,8 +73,6 @@ import { PatientPortalsModule } from './modules/patient-portals/patient-portals.
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(HttpLoggerMiddleware)
-      .forRoutes('*');
+    consumer.apply(HttpLoggerMiddleware).forRoutes('*');
   }
 }

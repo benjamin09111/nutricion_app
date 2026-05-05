@@ -55,6 +55,7 @@ import {
   saveCreation,
   updateProject,
 } from "@/lib/workflow";
+import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 
 
 interface CartItem {

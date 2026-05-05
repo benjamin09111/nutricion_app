@@ -1,7 +1,7 @@
 import QuickDeliverableClient from "./QuickDeliverableClient";
 
 export const metadata = {
-  title: "Rápido | NutriSaaS",
+  title: "Rápido | NutriNet",
   description:
     "Crea un entregable express de una sola hoja para consultas rápidas.",
 };

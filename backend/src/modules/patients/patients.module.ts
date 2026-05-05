@@ -8,6 +8,6 @@ import { MetricsModule } from '../metrics/metrics.module';
 @Module({
   imports: [PrismaModule, TagsModule, MetricsModule],
   providers: [PatientsService],
-  controllers: [PatientsController]
+  controllers: [PatientsController],
 })
-export class PatientsModule { }
+export class PatientsModule {}

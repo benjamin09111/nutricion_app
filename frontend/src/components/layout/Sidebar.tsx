@@ -80,8 +80,8 @@ const groups: SidebarGroup[] = [
   {
     title: "Agentes & IA",
     items: [
-      { name: "Chatbots", href: "/dashboard/chatbots", icon: MessageCircle, locked: true },
-      { name: "Agentes", href: "/dashboard/agentes", icon: Bot, locked: true },
+      { name: "Chatbots", href: "/dashboard/chatbots", icon: MessageCircle, locked: true, hidden: true },
+      { name: "Agentes", href: "/dashboard/agentes", icon: Bot, locked: true, hidden: true },
     ],
   },
   {
@@ -148,7 +148,7 @@ export function Sidebar() {
         >
           <Image
             src="/logo_2.webp"
-            alt="NutriSaaS"
+            alt="NutriNet"
             width={isSidebarCollapsed ? 72 : 180}
             height={isSidebarCollapsed ? 23 : 57}
             className={cn("h-auto w-auto object-contain", isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
@@ -176,7 +176,7 @@ export function Sidebar() {
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-2">
           {visibleGroups.map((group) => {
-            const isOpen = openGroups[group.title] !== false; 
+            const isOpen = openGroups[group.title] !== false;
             const showItems = isSidebarCollapsed || isOpen;
 
             return (
@@ -207,12 +207,12 @@ export function Sidebar() {
                         if (isSidebarCollapsed) return null;
                         return (
                           <li key={item.name} className="mt-4 mb-1 px-3">
-                             <div className={cn(
-                               "text-[10px] font-bold uppercase tracking-widest",
-                               isDarkMode ? "text-indigo-300/40" : "text-slate-400/80"
-                             )}>
-                               {item.name}
-                             </div>
+                            <div className={cn(
+                              "text-[10px] font-bold uppercase tracking-widest",
+                              isDarkMode ? "text-indigo-300/40" : "text-slate-400/80"
+                            )}>
+                              {item.name}
+                            </div>
                           </li>
                         );
                       }
