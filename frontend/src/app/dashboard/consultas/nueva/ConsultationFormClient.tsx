@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
     ArrowLeft,
@@ -124,6 +124,70 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
     });
+
+    const draftKey = useMemo(() => {
+        const key = formData.patientId ? `consultation_draft_${formData.patientId}` : "";
+        return key;
+    }, [formData.patientId]);
+
+    const [isDraftSaving, setIsDraftSaving] = useState(false);
+    const [lastDraftSaved, setLastDraftSaved] = useState<string | null>(null);
+    const isInitialLoad = useRef(true);
+
+    // Load draft on patient selection
+    useEffect(() => {
+        if (!draftKey || id) return;
+        try {
+            const stored = localStorage.getItem(draftKey);
+            if (stored) {
+                const draft = JSON.parse(stored);
+                setFormData(prev => ({ ...prev, ...draft }));
+                isInitialLoad.current = false;
+            }
+        } catch { /* ignore */ }
+    }, [draftKey, id]);
+
+    // Auto-save draft with debounce
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        if (!draftKey || isInitialLoad.current) return;
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+        saveTimerRef.current = setTimeout(() => {
+            try {
+                const draft = {
+                    title: formData.title,
+                    description: formData.description,
+                    metrics: formData.metrics,
+                    date: formData.date,
+                };
+                localStorage.setItem(draftKey, JSON.stringify(draft));
+                setIsDraftSaving(true);
+                setLastDraftSaved(new Date().toLocaleTimeString());
+                setTimeout(() => setIsDraftSaving(false), 800);
+            } catch { /* ignore */ }
+        }, 1500);
+
+        return () => {
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        };
+    }, [formData.title, formData.description, formData.date, JSON.stringify(formData.metrics), draftKey]);
+
+    const clearDraft = useCallback(() => {
+        if (draftKey) {
+            localStorage.removeItem(draftKey);
+        }
+        setLastDraftSaved(null);
+        setIsDraftSaving(false);
+        isInitialLoad.current = true;
+    }, [draftKey]);
+
+    // Mark first load complete after initial data is set
+    useEffect(() => {
+        const timer = setTimeout(() => { isInitialLoad.current = false; }, 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     // Fetch initial data
     useEffect(() => {
@@ -296,8 +360,10 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                 phone: patientForm.phone.trim() || null,
                 documentId: patientForm.documentId.trim() || null,
                 gender: patientForm.gender.trim() || null,
-                height: patientForm.height.trim() ? Number(patientForm.height) : null,
-                weight: patientForm.weight.trim() ? Number(patientForm.weight) : null,
+                // Anthropometry should come from metrics in the consultation flow.
+                // We intentionally do not overwrite height/weight from this panel.
+                height: undefined,
+                weight: undefined,
                 nutritionalFocus: patientForm.nutritionalFocus.trim() || null,
                 fitnessGoals: patientForm.fitnessGoals.trim() || null,
                 likes: patientForm.likes.trim() || null,
@@ -315,6 +381,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
             if (!pResponse.ok) throw new Error("Error updating patient profile");
 
             toast.success(id ? "Consulta y perfil actualizados" : "Consulta registrada con éxito");
+            clearDraft();
             router.push(patientIdFromQuery ? `/dashboard/pacientes/${formData.patientId}` : "/dashboard/consultas");
         } catch (error) {
             toast.error("Hubo un error al procesar la solicitud");
@@ -342,6 +409,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
         }
 
         setHasClearedPatientSelection(true);
+        clearDraft();
         setFormData({
             patientId: "",
             date: new Date().toISOString().split("T")[0],
@@ -392,14 +460,28 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                             <ArrowLeft className="w-5 h-5 lg:w-6 lg:h-6" />
                         </button>
                         <div className="min-w-0">
-                            <h1 className="text-xl lg:text-3xl font-black text-slate-900 uppercase tracking-tight">
+                            <h1 className="text-xl lg:text-3xl font-semibold text-slate-900 uppercase tracking-tight">
                                 {id ? "Editar Sesión" : "Nueva Consulta Clínica"}
                             </h1>
-                            <p className="mt-2 text-xs lg:text-sm font-medium text-slate-500 max-w-2xl leading-relaxed">
+                            <p className="mt-2 text-xs lg:text-sm font-normal text-slate-500 max-w-2xl leading-relaxed">
                                 {id
                                     ? "Actualiza los registros de la visita."
                                     : "Registra una nueva sesión con un cliente nuevo o ya registrado."}
                             </p>
+                            {hasSelectedPatient && !id && (
+                                <div className="mt-2 flex items-center gap-2">
+                                    <div className={cn(
+                                        "flex items-center gap-1.5 text-[11px] font-semibold transition-all duration-500",
+                                        isDraftSaving ? "text-indigo-600" : lastDraftSaved ? "text-slate-400" : "text-slate-300",
+                                    )}>
+                                        <div className={cn(
+                                            "h-1.5 w-1.5 rounded-full transition-colors",
+                                            isDraftSaving ? "bg-indigo-500 animate-pulse" : lastDraftSaved ? "bg-indigo-400" : "bg-slate-300",
+                                        )} />
+                                        {isDraftSaving ? "Guardando borrador..." : lastDraftSaved ? `Borrador ${lastDraftSaved}` : "Borrador pendiente"}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -408,20 +490,20 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                             type="button"
                             variant="ghost"
                             onClick={handleReset}
-                            className="flex-1 sm:flex-none h-11 px-5 rounded-2xl text-slate-400 font-bold hover:bg-slate-100 transition-all uppercase text-[10px] tracking-widest border border-slate-100"
+                            className="flex-1 sm:flex-none h-11 px-5 rounded-2xl text-slate-400 font-semibold hover:bg-slate-100 transition-all uppercase text-[10px] tracking-widest border border-slate-100"
                         >
                             Reiniciar
                         </Button>
                         <Button
                             type="submit"
                             disabled={isSaving}
-                            className="flex-[2] sm:flex-none h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-200 transition-all active:scale-95 group flex items-center justify-center gap-3"
+                            className="flex-[2] sm:flex-none h-11 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-semibold text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-200 transition-all active:scale-95 group flex items-center justify-center gap-3"
                         >
                             {isSaving ? (
                                 <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                             ) : (
                                 <>
-                                    <Save className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+                                    <Save className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
                                     <span>Guardar</span>
                                 </>
                             )}
@@ -438,7 +520,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                             title="Reiniciar formulario"
                         >
                             <RotateCcw className="w-6 h-6 group-hover:rotate-[-45deg] transition-transform duration-300" />
-                            <span className="absolute right-full mr-4 bg-slate-900 text-white text-[10px] font-black uppercase px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap tracking-wider">
+                            <span className="absolute right-full mr-4 bg-slate-900 text-white text-[10px] font-semibold uppercase px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap tracking-wider">
                                 Reiniciar
                             </span>
                         </button>
@@ -459,7 +541,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                             ) : (
                                 <Save className="w-6 h-6 group-hover:scale-110 transition-transform" />
                             )}
-                            <span className="absolute right-full mr-4 bg-slate-900 text-white text-[10px] font-black uppercase px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap tracking-wider">
+                            <span className="absolute right-full mr-4 bg-slate-900 text-white text-[10px] font-semibold uppercase px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap tracking-wider">
                                 Guardar
                             </span>
                         </button>
@@ -467,21 +549,21 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                 </div>
 
                 <nav className="fixed left-6 top-1/2 z-40 hidden -translate-y-1/2 xl:flex flex-col gap-3">
-                    <div className="rounded-3xl border border-slate-200 bg-white/85 backdrop-blur-xl shadow-xl px-4 py-4 min-w-[220px]">
-                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 mb-3">
+                    <div className="rounded-[2rem] border border-slate-200 bg-white/85 backdrop-blur-xl shadow-xl px-4 py-4 min-w-[220px]">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400 mb-3">
                             Índice rápido
                         </p>
                         <div className="flex flex-col gap-2 text-sm">
                             <a href="#consulta-detalles" className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors">
-                                <span className="text-slate-300 group-hover:text-emerald-500 font-black">---</span>
+                                <span className="text-slate-300 group-hover:text-indigo-500 font-black">---</span>
                                 <span>Detalles de la consulta</span>
                             </a>
                             <a href="#consulta-metricas" className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors">
-                                <span className="text-slate-300 group-hover:text-emerald-500 font-black">---</span>
+                                <span className="text-slate-300 group-hover:text-indigo-500 font-black">---</span>
                                 <span>Métricas</span>
                             </a>
                             <a href="#consulta-paciente" className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors">
-                                <span className="text-slate-300 group-hover:text-emerald-500 font-black">---</span>
+                                <span className="text-slate-300 group-hover:text-indigo-500 font-black">---</span>
                                 <span>Información del paciente</span>
                             </a>
                         </div>
@@ -491,17 +573,17 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                 <div className="grid grid-cols-1 gap-6 lg:gap-8">
                     <div className="flex flex-col gap-6">
                         {/* Basic Info Card */}
-                        <div id="consulta-detalles" className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
+                        <div id="consulta-detalles" className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
                         <div className="p-5 lg:p-6 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between">
                             <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                                <ClipboardList className="w-6 h-6 text-emerald-500" />
+                                <ClipboardList className="w-6 h-6 text-indigo-500" />
                                 Detalles de la Sesión
                             </h3>
                         </div>
                         <div className="p-4 lg:p-5 space-y-5">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
                                         Paciente
                                     </label>
                                     <SearchableSelect
@@ -518,11 +600,11 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
                                         Fecha de la Sesión
                                     </label>
                                     <div className="relative group">
-                                        <div className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500 group-focus-within:bg-emerald-500 group-focus-within:text-white transition-all duration-300 pointer-events-none">
+                                        <div className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center text-indigo-500 group-focus-within:bg-indigo-500 group-focus-within:text-white transition-all duration-300 pointer-events-none">
                                             <Calendar className="h-5 w-5" />
                                         </div>
                                         <input
@@ -537,7 +619,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
                                     Título de la Sesión <span className="text-rose-500">*</span>
                                 </label>
                                 <Input
@@ -550,7 +632,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
                                     Observaciones / Notas Clínicas <span className="text-rose-500">*</span>
                                 </label>
                                 <textarea
@@ -567,17 +649,120 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                     </div>
 
                     <div className="space-y-6">
+                        <div id="consulta-metricas" className={showPatientMetrics ? "bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden" : "hidden"}>
+                            <div className="p-4 lg:p-5 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between gap-3">
+                                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
+                                    <Activity className="w-6 h-6 text-indigo-500" />
+                                    Métricas y biometría
+                                </h3>
+                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl uppercase">
+                                    Máx. 3 visibles
+                                </span>
+                            </div>
+                            <div className="p-4 lg:p-5 space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
+                                        Añadir métricas rápidas
+                                    </label>
+                                    <MetricTagInput
+                                        value={formData.metrics}
+                                        registeredKeys={registeredMetricKeys}
+                                        placeholder="Busca: Peso, Cintura, % Grasa..."
+                                        onChange={(newMetrics) =>
+                                            setFormData({
+                                                ...formData,
+                                                metrics: newMetrics.map((metric) => ({
+                                                    ...metric,
+                                                    value:
+                                                        metric.value === undefined || metric.value === null
+                                                            ? ""
+                                                            : metric.value,
+                                                })),
+                                            })
+                                        }
+                                    />
+                                </div>
+
+                                <div className="max-h-[16rem] overflow-y-auto pr-1 space-y-3 overscroll-contain">
+                                    {formData.metrics.length > 0 ? (
+                                        formData.metrics.map((m, idx) => (
+                                            <div
+                                                key={idx}
+                                                className="flex flex-col md:grid md:grid-cols-12 gap-3 items-start md:items-end bg-slate-50 p-4 rounded-3xl border border-slate-100 group hover:border-emerald-200 transition-all"
+                                            >
+                                                <div className="w-full md:col-span-5 space-y-1.5">
+                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Concepto</label>
+                                                    <Input
+                                                        placeholder="Métrica..."
+                                                        value={m.label || ""}
+                                                        onChange={(e) => updateMetric(idx, "label", e.target.value)}
+                                                        className="bg-white h-12 rounded-xl"
+                                                        disabled={!hasSelectedPatient}
+                                                    />
+                                                </div>
+                                                <div className="w-full md:col-span-3 space-y-1.5">
+                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Valor</label>
+                                                    <Input
+                                                        placeholder="0.0"
+                                                        value={m.value || ""}
+                                                        onChange={(e) => updateMetric(idx, "value", e.target.value)}
+                                                        className="bg-white h-12 rounded-xl font-bold text-center"
+                                                        disabled={!hasSelectedPatient}
+                                                    />
+                                                </div>
+                                                <div className="w-full md:col-span-3 space-y-1.5">
+                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Unidad</label>
+                                                    <Input
+                                                        placeholder="kg, %, cm..."
+                                                        value={m.unit || ""}
+                                                        onChange={(e) => updateMetric(idx, "unit", e.target.value)}
+                                                        className="bg-white h-12 rounded-xl text-slate-500 font-bold"
+                                                        disabled={!hasSelectedPatient}
+                                                    />
+                                                </div>
+                                                <div className="w-full md:col-span-1 flex justify-end">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeMetric(idx)}
+                                                        disabled={!hasSelectedPatient}
+                                                        className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all h-fit disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-300"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : null}
+                                </div>
+
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() =>
+                                        setFormData({
+                                            ...formData,
+                                            metrics: [...formData.metrics, { label: "", value: "", unit: "" }],
+                                        })
+                                    }
+                                    disabled={!hasSelectedPatient}
+                                    className="w-full h-12 rounded-2xl border-slate-200 text-slate-400 hover:text-slate-600 border-dashed disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    <PlusCircle className="w-5 h-5 mr-2" />
+                                    Añadir métrica manualmente
+                                </Button>
+                            </div>
+                        </div>
                         {patientData ? (
                         <details
                             id="consulta-paciente"
                             open={isPatientPanelOpen}
                             onToggle={(e) => setIsPatientPanelOpen(e.currentTarget.open)}
-                            className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden"
+                            className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden"
                         >
                             <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none p-4 lg:p-5 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between gap-3">
                                 <div>
                                     <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                                        <User className="w-6 h-6 text-emerald-500" />
+                                        <User className="w-6 h-6 text-indigo-500" />
                                         {patientData.fullName}
                                     </h3>
                                 </div>
@@ -598,7 +783,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                     )}>
                                         <div className="flex items-center justify-between gap-3">
                                             <div>
-                                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
                                                     {isPatientInfoEditing ? "Modo edición activo" : "Ficha rápida del paciente"}
                                                 </p>
                                                 <p className="hidden">
@@ -632,7 +817,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                         <summary className="hidden">
                                             <div className="flex items-center gap-4 min-w-0">
                                                 <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center shrink-0">
-                                                    <User className="w-6 h-6 text-emerald-500" />
+                                                    <User className="w-6 h-6 text-indigo-500" />
                                                 </div>
                                                 <div className="min-w-0">
                                                     <h4 className="text-base font-bold text-slate-900 truncate">{patientData.fullName}</h4>
@@ -652,7 +837,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                         </summary>
                                         <div className="border-t border-slate-100 bg-white p-4 lg:p-5 space-y-4">
                                             <section className="space-y-3">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
                                                     Información personal del paciente
                                                 </p>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -714,7 +899,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                             </section>
 
                                             <section className="space-y-2">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
                                                     Resumen clínico del paciente
                                                 </p>
                                                 <textarea
@@ -726,7 +911,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                             </section>
 
                                             <section className="space-y-3">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
                                                     Preferencias y contexto
                                                 </p>
                                                 <div className="space-y-2">
@@ -740,7 +925,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Foco nutricional</label>
+                                                    <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">Foco nutricional</label>
                                                     <Input
                                                         className="h-11 rounded-2xl border-slate-200 font-semibold"
                                                         placeholder="Ej: Déficit calórico"
@@ -749,7 +934,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Metas fitness</label>
+                                                    <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">Metas fitness</label>
                                                     <textarea
                                                         className="w-full h-20 rounded-2xl border border-slate-200 bg-white p-3.5 text-sm font-medium text-slate-700 outline-none transition-all resize-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                                                         placeholder="Ej: Correr 10k, mejorar fuerza..."
@@ -758,7 +943,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Gustos</label>
+                                                    <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">Gustos</label>
                                                     <textarea
                                                         className="w-full h-20 rounded-2xl border border-slate-200 bg-white p-3.5 text-sm font-medium text-slate-700 outline-none transition-all resize-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                                                         placeholder="Ej: Le gusta el chocolate, evita el brócoli..."
@@ -767,7 +952,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Etiquetas</label>
+                                                    <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">Etiquetas</label>
                                                     <TagInput
                                                         value={patientForm.tags}
                                                         onChange={(tags) => setPatientForm({ ...patientForm, tags })}
@@ -790,7 +975,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
 
                                             <div className="hidden grid-cols-1 md:grid-cols-2 gap-3">
                                                 <div className="space-y-2">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Estatura</label>
+                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Estatura</label>
                                                     <div className="flex items-center gap-2">
                                                         <Input
                                                             type="number"
@@ -805,7 +990,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                     </div>
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Foco nutricional</label>
+                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Foco nutricional</label>
                                                     <Input
                                                         className="h-11 bg-white border-slate-200 rounded-2xl font-semibold"
                                                         placeholder="Ej: Déficit calórico"
@@ -817,7 +1002,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
 
                                             <div className="hidden grid-cols-1 gap-3">
                                                 <div className="space-y-2">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Metas fitness</label>
+                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Metas fitness</label>
                                                     <textarea
                                                         className="w-full h-20 rounded-2xl bg-white border border-slate-200 p-3.5 font-medium text-slate-700 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all resize-none text-sm"
                                                         placeholder="Ej: Correr 10k, mejorar fuerza..."
@@ -827,7 +1012,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                 </div>
 
                                                 <div className="space-y-2">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Gustos y preferencias</label>
+                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Gustos y preferencias</label>
                                                     <textarea
                                                         className="w-full h-24 rounded-2xl bg-white border border-slate-200 p-4 font-medium text-slate-700 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all resize-none text-sm"
                                                         placeholder="Ej: No le gusta el brócoli, ama el chocolate..."
@@ -837,7 +1022,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                 </div>
 
                                                 <div className="space-y-3">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Restricciones de salud</label>
+                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Restricciones de salud</label>
                                                     <TagInput
                                                         value={patientForm.dietRestrictions}
                                                         onChange={(tags) => setPatientForm({ ...patientForm, dietRestrictions: tags })}
@@ -848,7 +1033,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                 </div>
 
                                                 <div className="space-y-3">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Etiquetas</label>
+                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Etiquetas</label>
                                                     <TagInput
                                                         value={patientForm.tags}
                                                         onChange={(tags) => setPatientForm({ ...patientForm, tags: tags })}
@@ -859,7 +1044,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                 </div>
 
                                                 <div className="space-y-3">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Resumen clínico</label>
+                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Resumen clínico</label>
                                                     <textarea
                                                         className="w-full h-20 rounded-2xl bg-white border border-slate-200 p-3.5 font-medium text-slate-700 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all resize-none text-sm"
                                                         placeholder="Resumen del estado clínico del paciente..."
@@ -873,7 +1058,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                     ) : (
                                         <div className="space-y-4">
                                             <section className="rounded-[24px] border border-slate-100 bg-white p-4">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
                                                     Información personal del paciente
                                                 </p>
                                                 <div className="mt-3 space-y-2">
@@ -901,7 +1086,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                             </section>
 
                                             <section className="rounded-[24px] border border-slate-100 bg-white p-4">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
                                                     Resumen clínico del paciente
                                                 </p>
                                                 <p className="mt-3 text-sm leading-relaxed text-slate-700">
@@ -910,7 +1095,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                             </section>
 
                                             <section className="rounded-[24px] border border-slate-100 bg-white p-4 space-y-4">
-                                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
                                                     Preferencias y contexto
                                                 </p>
 
@@ -933,19 +1118,19 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Foco nutricional</p>
+                                                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Foco nutricional</p>
                                                         <p className="mt-1 text-sm text-slate-700">{patientForm.nutritionalFocus || patientData.nutritionalFocus || "No definido"}</p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Metas fitness</p>
+                                                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Metas fitness</p>
                                                         <p className="mt-1 text-sm text-slate-700">{patientForm.fitnessGoals || patientData.fitnessGoals || "No definidas"}</p>
                                                     </div>
                                                     <div className="md:col-span-2">
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gustos</p>
+                                                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Gustos</p>
                                                         <p className="mt-1 text-sm text-slate-700">{patientForm.likes || patientData.likes || "Sin gustos registrados"}</p>
                                                     </div>
                                                     <div className="md:col-span-2">
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Etiquetas</p>
+                                                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Etiquetas</p>
                                                         <div className="mt-2 flex flex-wrap gap-2">
                                                             {(patientForm.tags.length > 0 ? patientForm.tags : patientData.tags || []).length > 0 ? (
                                                                 (patientForm.tags.length > 0 ? patientForm.tags : patientData.tags || []).map((item) => (
@@ -972,7 +1157,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                         >
                             <div className="p-4 lg:p-5 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between gap-3">
                                 <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                                    <User className="w-6 h-6 text-emerald-500" />
+                                    <User className="w-6 h-6 text-indigo-500" />
                                     Selecciona un paciente
                                 </h3>
                                 <Button
@@ -987,109 +1172,6 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                         </div>
                         )}
 
-                        <div id="consulta-metricas" className={showPatientMetrics ? "order-first bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden" : "hidden"}>
-                            <div className="p-4 lg:p-5 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between gap-3">
-                                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                                    <Activity className="w-6 h-6 text-emerald-500" />
-                                    Métricas y biometría
-                                </h3>
-                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl uppercase">
-                                    Máx. 3 visibles
-                                </span>
-                            </div>
-                            <div className="p-4 lg:p-5 space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                                        Añadir métricas rápidas
-                                    </label>
-                                    <MetricTagInput
-                                        value={formData.metrics}
-                                        registeredKeys={registeredMetricKeys}
-                                        placeholder="Busca: Peso, Cintura, % Grasa..."
-                                        onChange={(newMetrics) =>
-                                            setFormData({
-                                                ...formData,
-                                                metrics: newMetrics.map((metric) => ({
-                                                    ...metric,
-                                                    value:
-                                                        metric.value === undefined || metric.value === null
-                                                            ? ""
-                                                            : metric.value,
-                                                })),
-                                            })
-                                        }
-                                    />
-                                </div>
-
-                                <div className="max-h-[16rem] overflow-y-auto pr-1 space-y-3 overscroll-contain">
-                                    {formData.metrics.length > 0 ? (
-                                        formData.metrics.map((m, idx) => (
-                                            <div
-                                                key={idx}
-                                                className="flex flex-col md:grid md:grid-cols-12 gap-3 items-start md:items-end bg-slate-50 p-4 rounded-3xl border border-slate-100 group hover:border-emerald-200 transition-all"
-                                            >
-                                                <div className="w-full md:col-span-5 space-y-1.5">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Concepto</label>
-                                                    <Input
-                                                        placeholder="Métrica..."
-                                                        value={m.label || ""}
-                                                        onChange={(e) => updateMetric(idx, "label", e.target.value)}
-                                                        className="bg-white h-12 rounded-xl"
-                                                        disabled={!hasSelectedPatient}
-                                                    />
-                                                </div>
-                                                <div className="w-full md:col-span-3 space-y-1.5">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor</label>
-                                                    <Input
-                                                        placeholder="0.0"
-                                                        value={m.value || ""}
-                                                        onChange={(e) => updateMetric(idx, "value", e.target.value)}
-                                                        className="bg-white h-12 rounded-xl font-bold text-center"
-                                                        disabled={!hasSelectedPatient}
-                                                    />
-                                                </div>
-                                                <div className="w-full md:col-span-3 space-y-1.5">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Unidad</label>
-                                                    <Input
-                                                        placeholder="kg, %, cm..."
-                                                        value={m.unit || ""}
-                                                        onChange={(e) => updateMetric(idx, "unit", e.target.value)}
-                                                        className="bg-white h-12 rounded-xl text-slate-500 font-bold"
-                                                        disabled={!hasSelectedPatient}
-                                                    />
-                                                </div>
-                                                <div className="w-full md:col-span-1 flex justify-end">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeMetric(idx)}
-                                                        disabled={!hasSelectedPatient}
-                                                        className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all h-fit disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-300"
-                                                    >
-                                                        <Trash2 className="w-5 h-5" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : null}
-                                </div>
-
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() =>
-                                        setFormData({
-                                            ...formData,
-                                            metrics: [...formData.metrics, { label: "", value: "", unit: "" }],
-                                        })
-                                    }
-                                    disabled={!hasSelectedPatient}
-                                    className="w-full h-12 rounded-2xl border-slate-200 text-slate-400 hover:text-slate-600 border-dashed disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    <PlusCircle className="w-5 h-5 mr-2" />
-                                    Añadir métrica manualmente
-                                </Button>
-                            </div>
-                        </div>
                     </div>
                 </div> {/* End Grid */}
             </form>

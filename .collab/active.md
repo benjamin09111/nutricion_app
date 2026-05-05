@@ -1,12 +1,6 @@
-# Active Session
+# Sesiones Activas
 
-**Current session:** landing-ui-refactor
-**Mode:** ADAPTIVE
-**Phase:** Phase 5 (Verify)
-**Started:** 2026-05-03
+No hay sesiones activas en este momento.
 
-**Goal:** Refactor landing page UI to match mockup image
-
-**Status:** Implementation complete. Awaiting user visual verification.
-
-**Session files:** `.collab/sessions/landing-ui-refactor/`
+---
+Última sesión completada: [refactor-nutritional-goals](.collab/sessions/refactor-nutritional-goals/)

@@ -129,6 +129,16 @@ const normalizeMetricKey = (label: string = "", key?: string) => {
   return METRIC_KEY_MAP[normalizedLabel] || key || normalizedLabel;
 };
 
+const hasHistoricalMetricKey = (
+  consultations: Consultation[],
+  targetKey: string,
+) =>
+  consultations.some((c) =>
+    Array.isArray(c.metrics)
+      ? c.metrics.some((m) => normalizeMetricKey(m.label, m.key) === targetKey)
+      : false,
+  );
+
 const INDEPENDENT_METRICS_REGISTRY_TITLE = "registro de metricas independiente";
 
 const normalizeText = (value: string = "") =>
@@ -270,15 +280,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
   const prepareChartData = () => {
     const dataPoints: any[] = [];
-    const hasHistoricalWeight = Array.isArray(consultations)
-      ? consultations.some((c) =>
-          Array.isArray(c.metrics)
-            ? c.metrics.some(
-                (m) => normalizeMetricKey(m.label, m.key) === "weight",
-              )
-            : false,
-        )
-      : false;
+    const hasHistoricalWeight = hasHistoricalMetricKey(consultations, "weight");
+    const hasHistoricalHeight = hasHistoricalMetricKey(consultations, "height");
 
     // 1. Añadir registro base del perfil del paciente si existe
     if (patient) {
@@ -297,6 +300,11 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       let hasBaselineData = false;
       if (patient.weight && !hasHistoricalWeight) {
         baseline["weight"] = patient.weight;
+        hasBaselineData = true;
+      }
+
+      if (patient.height && !hasHistoricalHeight) {
+        baseline["height"] = patient.height;
         hasBaselineData = true;
       }
 
@@ -372,6 +380,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     });
     if (patient) {
       if (patient.weight) keys.add("weight");
+      if (patient.height) keys.add("height");
       if (Array.isArray(patient.customVariables)) {
         patient.customVariables.forEach((cv: any) => {
           const mk = normalizeMetricKey(cv.label, cv.key);
@@ -392,6 +401,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       { label: string; unit: string; color: string; icon: any }
     > = {
       weight: { label: "Peso", unit: "kg", color: "#3b82f6", icon: Weight },
+      height: { label: "Altura", unit: "cm", color: "#6366f1", icon: Ruler },
       body_fat: {
         label: "Grasa Corporal",
         unit: "%",
@@ -532,6 +542,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         unit: "kg",
         icon: Weight,
         color: "#3b82f6",
+      },
+      {
+        key: "height",
+        label: "Altura",
+        unit: "cm",
+        icon: Ruler,
+        color: "#6366f1",
       },
       {
         key: "body_fat",
@@ -1009,13 +1026,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     if (!editingMetricKey) return [];
 
     const history: any[] = [];
-    const hasHistoricalWeight = consultations.some((c) =>
-      Array.isArray(c.metrics)
-        ? c.metrics.some(
-            (m) => normalizeMetricKey(m.label, m.key) === "weight",
-          )
-        : false,
-    );
+    const hasHistoricalWeight = hasHistoricalMetricKey(consultations, "weight");
+    const hasHistoricalHeight = hasHistoricalMetricKey(consultations, "height");
 
     // 1. Registro base del perfil
     if (editingMetricKey === "weight" && patient?.weight && !hasHistoricalWeight) {
@@ -1025,6 +1037,17 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         value: patient.weight.toString(),
         unit: "kg",
         label: "Peso Inicial (Perfil)",
+        isBaseline: true,
+      });
+    }
+
+    if (editingMetricKey === "height" && patient?.height && !hasHistoricalHeight) {
+      history.push({
+        id: "baseline-height",
+        date: patient.createdAt || new Date().toISOString(),
+        value: patient.height.toString(),
+        unit: "cm",
+        label: "Altura Inicial (Perfil)",
         isBaseline: true,
       });
     }
@@ -1133,9 +1156,14 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   ) => {
     try {
       if (record.isBaseline) {
-        const parsedWeight = parseFloat(newValue.replace(",", "."));
-        if (Number.isNaN(parsedWeight)) {
-          toast.error("Ingresa un valor de peso valido");
+        const parsedValue = parseFloat(newValue.replace(",", "."));
+        if (Number.isNaN(parsedValue)) {
+          toast.error("Ingresa un valor válido");
+          return;
+        }
+
+        if (editingMetricKey !== "weight" && editingMetricKey !== "height") {
+          toast.error("Esta métrica base no se puede editar desde aquí");
           return;
         }
 
@@ -1143,18 +1171,22 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         const editedDate = new Date(newDate).toISOString().split("T")[0];
         const changedDate = baselineDate !== editedDate;
 
-        // Always keep patient current weight in sync.
+        const metricInfo = getMetricInfo(editingMetricKey);
+
+        // Always keep patient current anthropometry in sync.
         const profileRes = await fetchApi(`/patients/${id}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ weight: parsedWeight }),
+          body: JSON.stringify({
+            [editingMetricKey]: parsedValue,
+          }),
         });
 
         if (!profileRes.ok) {
-          toast.error("Error al actualizar peso del perfil");
+          toast.error("Error al actualizar el perfil");
           return;
         }
 
@@ -1171,12 +1203,19 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               date: newDate,
               title: "Registro de Métricas Independiente",
               description: "Entrada manual de datos de seguimiento.",
-              metrics: [{ key: "weight", label: "Peso", value: parsedWeight.toString(), unit: "kg" }],
+              metrics: [
+                {
+                  key: editingMetricKey,
+                  label: metricInfo.label,
+                  value: parsedValue.toString(),
+                  unit: metricInfo.unit,
+                },
+              ],
             }),
           });
 
           if (!consultationRes.ok) {
-            toast.error("Error al guardar el nuevo registro histórico de peso");
+            toast.error("Error al guardar el nuevo registro histórico");
             return;
           }
         }
@@ -1186,7 +1225,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         await fetchConsultations();
         toast.success(
           changedDate
-            ? "Peso actualizado y convertido a registro histórico editable"
+            ? `${metricInfo.label} actualizado y convertido a registro histórico editable`
             : "Valor del perfil actualizado",
         );
       } else {
@@ -1329,15 +1368,15 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           doc.setFontSize(10);
           doc.setTextColor(71, 85, 105);
           doc.text(`${info.label}:`, margin, currentY);
-          
+
           doc.setFont("helvetica", "normal");
           doc.text(`Inicio: ${first}${info.unit} -> Final: ${last}${info.unit}`, margin + 60, currentY);
-          
+
           doc.setFont("helvetica", "bold");
           // @ts-ignore
           doc.setTextColor(...color);
           doc.text(`${Number(diff) > 0 ? "+" : ""}${diff}${info.unit}`, pageWidth - margin - 20, currentY, { align: "right" });
-          
+
           currentY += 8;
           if (currentY > 270) { doc.addPage(); currentY = 20; }
         }
@@ -1410,7 +1449,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
     const key = metricKeyToDelete;
     try {
-      const isWeight = key === "weight";
+      const isAnthropometricMetric = key === "weight" || key === "height";
       const hasInCustomVars =
         patient?.customVariables &&
         (patient.customVariables as any[]).some(
@@ -1424,7 +1463,11 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         ),
       );
 
-      if (consultationsToUpdate.length === 0 && !isWeight && !hasInCustomVars) {
+      if (
+        consultationsToUpdate.length === 0 &&
+        !isAnthropometricMetric &&
+        !hasInCustomVars
+      ) {
         toast.info("No hay registros históricos para eliminar");
         setMetricKeyToDelete(null);
         return;
@@ -1448,8 +1491,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         }
 
         // Si no está vacía o es una consulta clínica real, solo removemos la métrica específica
-          return fetchApi(`/consultations/${c.id}`, {
-            method: "PATCH",
+        return fetchApi(`/consultations/${c.id}`, {
+          method: "PATCH",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -1462,8 +1505,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       const patientUpdates: any = {};
       let needsPatientUpdate = false;
 
-      if (isWeight && patient?.weight) {
+      if (key === "weight" && patient?.weight) {
         patientUpdates.weight = null;
+        needsPatientUpdate = true;
+      }
+
+      if (key === "height" && patient?.height) {
+        patientUpdates.height = null;
         needsPatientUpdate = true;
       }
 
@@ -1524,12 +1572,6 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           ? new Date(editForm.birthDate).toISOString()
           : undefined,
         gender: editForm.gender || undefined,
-        height: editForm.height
-          ? Number(editForm.height.toString().replace(",", "."))
-          : undefined,
-        weight: editForm.weight
-          ? Number(editForm.weight.toString().replace(",", "."))
-          : undefined,
         dietRestrictions: editForm.dietRestrictions || [],
         clinicalSummary: editForm.clinicalSummary || undefined,
         nutritionalFocus: editForm.nutritionalFocus || undefined,
@@ -1566,15 +1608,15 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value;
-    
+
     // Ensure it always starts with +
     if (!val.startsWith("+")) {
       val = "+" + val.replace(/\+/g, "");
     }
-    
+
     // Keep only + at start and digits elsewhere
     const cleanVal = "+" + val.substring(1).replace(/\D/g, "");
-    
+
     updateField("phone", cleanVal);
   };
 
@@ -1706,32 +1748,44 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           <div className="bg-white/80 backdrop-blur-xl p-3 rounded-[32px] border border-slate-200 shadow-2xl shadow-slate-200/50 flex flex-col gap-3">
             <button
               onClick={() => router.push("/dashboard/consultas/nueva?patientId=" + patient.id)}
-              className="p-4 bg-emerald-600 text-white rounded-[24px] hover:bg-emerald-700 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-emerald-200 cursor-pointer group"
+              className="group relative p-4 bg-emerald-600 text-white rounded-[24px] hover:bg-emerald-700 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-emerald-200 cursor-pointer"
               title="Nueva Consulta"
             >
               <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+              <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
+                Nueva consulta
+              </span>
             </button>
             <button
               onClick={() => setIsPortalNotificationModalOpen(true)}
-              className="p-4 bg-sky-500 text-white rounded-[24px] hover:bg-sky-600 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-sky-200 cursor-pointer"
+              className="group relative p-4 bg-indigo-500 text-white rounded-[24px] hover:bg-indigo-600 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-indigo-200 cursor-pointer"
               title="Enviar Notificación"
             >
               <Bell className="w-6 h-6" />
+              <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
+                Enviar notificación
+              </span>
             </button>
             <button
               disabled
-              className="p-4 bg-slate-50 text-slate-300 rounded-[24px] cursor-not-allowed border border-slate-100"
+              className="group relative p-4 bg-slate-50 text-slate-300 rounded-[24px] cursor-not-allowed border border-slate-100"
               title="Subir Examen (Próximamente)"
             >
               <FileText className="w-6 h-6" />
+              <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
+                Subir examen
+              </span>
             </button>
             <div className="h-px bg-slate-100 mx-2 my-1" />
             <button
               onClick={handleEdit}
-              className="p-4 bg-white text-slate-600 rounded-[24px] border border-slate-200 hover:bg-slate-50 transition-all hover:scale-110 active:scale-95 shadow-sm cursor-pointer"
+              className="group relative p-4 bg-white text-slate-600 rounded-[24px] border border-slate-200 hover:bg-slate-50 transition-all hover:scale-110 active:scale-95 shadow-sm cursor-pointer"
               title="Editar Perfil"
             >
               <Edit2 className="w-6 h-6" />
+              <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
+                Editar perfil
+              </span>
             </button>
           </div>
         </div>
@@ -1827,7 +1881,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 <Link2 className="w-4 h-4" />
                 Portal paciente
               </Button>
-              
+
               {/* Visible on Mobile/Tablet only, hidden on XL where sidebar exists */}
               <div className="xl:hidden flex items-center gap-2">
                 <Button
@@ -1840,7 +1894,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 <Button
                   onClick={() => setIsPortalNotificationModalOpen(true)}
                   variant="outline"
-                  className="h-10 px-4 rounded-2xl border-sky-100 text-sky-700 bg-sky-50/70 hover:bg-sky-50 font-semibold transition-all active:scale-95"
+                  className="h-10 px-4 rounded-2xl border-indigo-100 text-indigo-700 bg-[#fffeec]/80 hover:bg-[#fffeec] font-semibold transition-all active:scale-95"
                 >
                   <Bell className="w-4 h-4" />
                 </Button>
@@ -1865,8 +1919,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             value: patient.weight,
             unit: "kg",
             icon: Weight,
-            color: "text-blue-600",
-            bg: "bg-blue-50",
+            color: "text-indigo-600",
+            bg: "bg-indigo-50",
             field: "weight",
           },
           {
@@ -1882,16 +1936,16 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             label: "Género",
             value: patient.gender,
             icon: User,
-            color: "text-amber-600",
-            bg: "bg-amber-50",
+            color: "text-emerald-600",
+            bg: "bg-emerald-50",
             field: "gender",
           },
           {
             label: "Identificador",
             value: patient.documentId || "---",
             icon: ClipboardList,
-            color: "text-rose-600",
-            bg: "bg-rose-50",
+            color: "text-slate-700",
+            bg: "bg-[#fffeec]",
             field: "documentId",
           },
         ].map((stat, i) => (
@@ -1982,8 +2036,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               tab.disabled
                 ? "text-slate-300 bg-slate-100/80 cursor-not-allowed"
                 : activeTab === tab.label
-                ? "bg-white text-emerald-700 shadow-sm ring-1 ring-slate-200/50"
-                : "text-slate-500 hover:text-slate-700 hover:bg-white/50",
+                  ? "bg-white text-emerald-700 shadow-sm ring-1 ring-slate-200/50"
+                  : "text-slate-500 hover:text-slate-700 hover:bg-white/50",
             )}
           >
             <span className="inline-flex items-center gap-1.5">
@@ -1999,7 +2053,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         <div className="space-y-8 animate-in fade-in duration-500">
           {/* 3-Column Layout for Primary Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-            
+
             {/* Column 1: Identity & Contact */}
             <div className="flex flex-col">
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
@@ -2009,7 +2063,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   </div>
                   <h2 className="text-lg font-bold text-slate-800">Identidad</h2>
                 </div>
-                
+
                 <div className="space-y-5">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Email</label>
@@ -2029,7 +2083,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Teléfono</label>
                     <div className="relative">
@@ -2105,57 +2159,40 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               </div>
             </div>
 
-            {/* Column 2: Antropometría & Métricas Meta */}
+            {/* Column 2: Antropometría & Metas nutricionales */}
             <div className="space-y-6 flex flex-col">
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
-                  <div className="p-2 bg-blue-50 rounded-xl">
-                    <Ruler className="w-5 h-5 text-blue-600" />
+                  <div className="p-2 bg-indigo-50 rounded-xl">
+                    <Ruler className="w-5 h-5 text-indigo-600" />
                   </div>
                   <h2 className="text-lg font-bold text-slate-800">Antropometría</h2>
                 </div>
+                <p className="text-xs font-medium text-slate-400 -mt-2">
+                  Peso y altura se actualizan solo desde el historial de métricas.
+                </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Peso (kg)</label>
-                    {isEditing ? (
-                      <Input 
-                        type="number" 
-                        step="any" 
-                        className="h-12 rounded-2xl bg-slate-50 border-transparent text-center font-bold text-lg focus:bg-white transition-all" 
-                        value={editForm.weight || ""} 
-                        onChange={(e) => updateField("weight", e.target.value ? parseFloat(e.target.value) : undefined)} 
-                      />
-                    ) : (
-                      <div className="h-12 flex items-center justify-center bg-slate-50/50 rounded-2xl text-lg font-black text-blue-600 px-4 border border-blue-100">
-                        {patient.weight || "---"}
-                      </div>
-                    )}
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Último peso (kg)</label>
+                    <div className="h-12 flex items-center justify-center bg-[#fffeec]/70 rounded-2xl text-lg font-black text-indigo-700 px-4 border border-[#cbd83b]/20">
+                      {patient.weight ?? "---"}
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Altura (cm)</label>
-                    {isEditing ? (
-                      <Input 
-                        type="number" 
-                        step="any" 
-                        className="h-12 rounded-2xl bg-slate-50 border-transparent text-center font-bold text-lg focus:bg-white transition-all" 
-                        value={editForm.height || ""} 
-                        onChange={(e) => updateField("height", e.target.value ? parseFloat(e.target.value) : undefined)} 
-                      />
-                    ) : (
-                      <div className="h-12 flex items-center justify-center bg-slate-50/50 rounded-2xl text-lg font-black text-emerald-600 px-4 border border-emerald-100">
-                        {patient.height || "---"}
-                      </div>
-                    )}
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Última altura (cm)</label>
+                    <div className="h-12 flex items-center justify-center bg-slate-50/50 rounded-2xl text-lg font-black text-emerald-600 px-4 border border-emerald-100">
+                      {patient.height ?? "---"}
+                    </div>
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between border-b border-slate-50 pb-4">
-                  <h2 className="text-lg font-bold text-slate-800">Métricas Meta</h2>
+                  <h2 className="text-lg font-bold text-slate-800">Metas nutricionales</h2>
                   <Target className="w-5 h-5 text-emerald-500" />
                 </div>
-                
+
                 <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-5">
                   {(() => {
                     const dataSource = isEditing ? editForm.customVariables : patient.customVariables;
@@ -2173,20 +2210,18 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                     return (
                       <div className="grid grid-cols-2 gap-4">
                         {[
-                          { id: "Calories", label: "Calorías", unit: "kcal", color: "text-amber-600", bg: "bg-amber-50" },
-                          { id: "Protein", label: "Proteína", unit: "g", color: "text-emerald-600", bg: "bg-emerald-50" },
-                          { id: "Carbs", label: "Carbs", unit: "g", color: "text-blue-600", bg: "bg-blue-50" },
-                          { id: "Fats", label: "Grasas", unit: "g", color: "text-purple-600", bg: "bg-purple-50" }
+                          { id: "Calories", label: "Calorías", unit: "kcal", color: "text-indigo-600", bg: "bg-indigo-50" },
+                          { id: "Protein", label: "Proteína", unit: "g", color: "text-emerald-600", bg: "bg-emerald-50" }
                         ].map((f) => (
                           <div key={f.id} className="space-y-1.5">
                             <label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">{f.label}</label>
                             {isEditing ? (
-                              <Input 
-                                type="number" 
-                                value={getCV(`target${f.id}`)} 
-                                onChange={e => updateCV(`target${f.id}`, `${f.label} Meta`, e.target.value, f.unit)} 
-                                className={cn("h-10 font-bold bg-white rounded-xl text-sm border-transparent focus:ring-2 focus:ring-slate-200 transition-all", f.color)} 
-                                placeholder="0" 
+                              <Input
+                                type="number"
+                                value={getCV(`target${f.id}`)}
+                                onChange={e => updateCV(`target${f.id}`, `${f.label} Meta`, e.target.value, f.unit)}
+                                className={cn("h-10 font-bold bg-white rounded-xl text-sm border-transparent focus:ring-2 focus:ring-slate-200 transition-all", f.color)}
+                                placeholder="0"
                               />
                             ) : (
                               <div className={cn("h-10 flex items-center justify-center rounded-xl font-bold text-sm border border-transparent", f.bg, f.color)}>
@@ -2248,7 +2283,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                     className={cn(
                       "w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
                       patient.status === "Active"
-                        ? "border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100"
+                        ? "border-slate-200 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100"
                         : "border-emerald-200 text-emerald-600 hover:bg-emerald-600 hover:text-white",
                     )}
                   >
@@ -2267,9 +2302,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       {/* Consultas Tab */}
       {activeTab === "Creaciones" && (
         <div className="animate-in fade-in duration-500">
-          <CreationsClient 
-            isInsidePatientDetail={true} 
-            fixedPatientName={patient.fullName} 
+          <CreationsClient
+            isInsidePatientDetail={true}
+            fixedPatientName={patient.fullName}
           />
         </div>
       )}
@@ -2354,7 +2389,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                             e.stopPropagation();
                             router.push(`/dashboard/consultas/${consultation.id}`);
                           }}
-                          className="p-3 rounded-xl text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-all cursor-pointer"
+                          className="p-3 rounded-xl text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 transition-all cursor-pointer"
                           title="Editar consulta"
                         >
                           <Edit2 className="w-5 h-5" />
@@ -2365,7 +2400,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                             setConsultationToDelete(consultation.id);
                             setIsDeleteConsultationConfirmOpen(true);
                           }}
-                          className="p-3 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all cursor-pointer"
+                          className="p-3 rounded-xl text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 transition-all cursor-pointer"
                           title="Eliminar consulta"
                         >
                           <Trash2 className="w-5 h-5" />
@@ -2520,7 +2555,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                             className={cn(
                               "w-6 h-6",
                               info.color === "#3b82f6"
-                                ? "text-blue-500"
+                                ? "text-indigo-500"
                                 : info.color === "#10b981"
                                   ? "text-emerald-500"
                                   : "text-slate-400",
@@ -2575,7 +2610,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                     : diffRaw > 0
                                       ? "text-emerald-600"
                                       : diffRaw < 0
-                                        ? "text-rose-600"
+                                        ? "text-indigo-600"
                                         : "text-slate-700",
                                 )}
                               >
@@ -2618,7 +2653,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                             setIsDeleteEntireMetricConfirmOpen(true);
                           }}
                           data-no-export="true"
-                          className="p-3 bg-slate-50 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all active:scale-95 cursor-pointer border border-transparent hover:border-rose-100"
+                          className="p-3 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all active:scale-95 cursor-pointer border border-transparent hover:border-indigo-100"
                           title={`Eliminar toda la métrica ${info.label}`}
                         >
                           <Trash2 className="w-4 h-4" />
@@ -2897,7 +2932,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                             metrics: [],
                           })
                         }
-                        className="text-[10px] font-bold text-slate-400 hover:text-rose-500 transition-colors uppercase tracking-widest px-3 py-1 cursor-pointer"
+                        className="text-[10px] font-bold text-slate-400 hover:text-indigo-500 transition-colors uppercase tracking-widest px-3 py-1 cursor-pointer"
                       >
                         Limpiar
                       </button>
@@ -3012,7 +3047,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                       <div className="col-span-1 pb-1">
                         <button
                           onClick={() => removeMetricFromForm(idx)}
-                          className="p-2 text-slate-400 hover:text-rose-500 transition-colors"
+                          className="p-2 text-slate-400 hover:text-indigo-500 transition-colors"
                         >
                           <Trash2 className="w-5 h-5" />
                         </button>
@@ -3145,8 +3180,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 label: "Consultas",
                 value: filteredPortalQuestions.length,
                 icon: MessageSquare,
-                color: "text-amber-600",
-                bg: "bg-amber-50",
+                color: "text-indigo-600",
+                bg: "bg-indigo-50",
               },
               {
                 label: "Seguimiento",
@@ -3159,8 +3194,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 label: "Respuestas",
                 value: filteredPortalReplies.length,
                 icon: Reply,
-                color: "text-blue-600",
-                bg: "bg-blue-50",
+                color: "text-emerald-600",
+                bg: "bg-emerald-50",
               },
             ].map((card) => (
               <div key={card.label} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -3176,13 +3211,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           </div>
 
           {portalOverview?.summary.alerts?.length ? (
-            <div className="space-y-3 rounded-3xl border border-amber-100 bg-amber-50/60 p-6">
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-600">Alertas del acompañamiento</p>
+            <div className="space-y-3 rounded-3xl border border-[#cbd83b]/20 bg-[#fffeec]/80 p-6">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-indigo-700">Alertas del acompañamiento</p>
               <div className="grid gap-3 md:grid-cols-2">
                 {portalOverview.summary.alerts.map((alert) => (
                   <div
                     key={alert}
-                    className="rounded-2xl border border-amber-100 bg-white px-4 py-3 text-sm font-medium text-amber-950 shadow-sm"
+                    className="rounded-2xl border border-indigo-100 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm"
                   >
                     {alert}
                   </div>
@@ -3415,7 +3450,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
                       if (entry.kind === "NOTIFICATION") {
                         return (
-                          <article key={entry.id} className="rounded-3xl border border-sky-100 bg-sky-50/70 p-5">
+                          <article key={entry.id} className="rounded-3xl border border-indigo-100 bg-[#fffeec]/70 p-5">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                               <div>
                                 <p className="text-sm font-black text-slate-900">{formatDateTime(entry.createdAt)}</p>
@@ -3423,14 +3458,14 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                   Notificación del nutri
                                 </p>
                               </div>
-                              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-sky-600 ring-1 ring-sky-100">
+                              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-600 ring-1 ring-indigo-100">
                                 {entry.payload?.notificationType || "INFO"}
                               </span>
                             </div>
                             <p className="mt-4 text-sm leading-7 text-slate-700">{entry.body}</p>
                             {entry.payload?.notificationTitle && (
-                              <div className="mt-4 rounded-2xl border border-sky-100 bg-white p-4">
-                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-600">
+                              <div className="mt-4 rounded-2xl border border-indigo-100 bg-white p-4">
+                                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-indigo-600">
                                   Título
                                 </p>
                                 <p className="mt-2 text-sm leading-7 text-slate-600">
@@ -3451,14 +3486,14 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                                 Respuesta enviada
                               </p>
                             </div>
-                            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-600 ring-1 ring-blue-100">
+                            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-600 ring-1 ring-indigo-100">
                               Respuesta
                             </span>
                           </div>
                           <p className="mt-4 text-sm leading-7 text-slate-700">{entry.body}</p>
                           {entry.replyTo?.body && (
-                            <div className="mt-4 rounded-2xl border border-blue-100 bg-white p-4">
-                              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-600">Respondió a</p>
+                            <div className="mt-4 rounded-2xl border border-indigo-100 bg-white p-4">
+                              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-indigo-600">Respondió a</p>
                               <p className="mt-2 text-sm leading-7 text-slate-600">{entry.replyTo.body}</p>
                             </div>
                           )}
@@ -3561,12 +3596,12 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                             </span>
                           )}
                           {project.activeRecipeCreation && (
-                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-blue-700 ring-1 ring-blue-100">
+                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-emerald-100">
                               {project.activeRecipeCreation.name}
                             </span>
                           )}
                           {project.activeDeliverableCreation && (
-                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-700 ring-1 ring-amber-100">
+                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-700 ring-1 ring-indigo-100">
                               {project.activeDeliverableCreation.name}
                             </span>
                           )}
@@ -3685,11 +3720,11 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         title="Enviar notificación al paciente"
       >
         <div className="space-y-5 py-2">
-          <div className="rounded-3xl border border-sky-100 bg-sky-50/70 p-4">
-            <p className="text-sm font-semibold text-sky-900">
+          <div className="rounded-3xl border border-indigo-100 bg-[#fffeec]/80 p-4">
+            <p className="text-sm font-semibold text-indigo-900">
               Envía un aviso puntual a este paciente desde su contacto especializado.
             </p>
-            <p className="mt-2 text-xs leading-6 text-sky-900/75">
+            <p className="mt-2 text-xs leading-6 text-slate-600">
               La notificación queda guardada en el portal y, si tiene email activo, también se le envía por correo.
             </p>
           </div>
@@ -3723,7 +3758,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               type="checkbox"
               checked={portalNotificationSendEmail}
               onChange={(e) => setPortalNotificationSendEmail(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
             />
             Enviar también por correo si el paciente tiene email activo
           </label>
@@ -3739,7 +3774,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             <Button
               onClick={handleCreatePortalNotification}
               isLoading={isCreatingPortalNotification}
-              className="rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
+              className="rounded-2xl bg-indigo-600 px-5 text-white hover:bg-indigo-700"
             >
               <Bell className="mr-2 h-4 w-4" />
               Enviar notificación
@@ -3779,8 +3814,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   const known = availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase());
                   return known ? (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="h-5 w-5 rounded-full bg-amber-100 flex items-center justify-center border border-amber-200" title="Esta métrica ya existe">
-                        <AlertCircle className="w-3 h-3 text-amber-600" />
+                      <div className="h-5 w-5 rounded-full bg-[#fffeec] flex items-center justify-center border border-[#cbd83b]/25" title="Esta métrica ya existe">
+                        <AlertCircle className="w-3 h-3 text-indigo-600" />
                       </div>
                     </div>
                   ) : null;
@@ -3789,7 +3824,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               {(() => {
                 const known = availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase());
                 return known ? (
-                  <p className="text-[10px] font-bold text-amber-600 animate-in fade-in slide-in-from-top-1">
+                  <p className="text-[10px] font-bold text-indigo-600 animate-in fade-in slide-in-from-top-1">
                     Esta métrica ya está registrada en el sistema.
                   </p>
                 ) : null;
@@ -3834,9 +3869,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   <option value="unidades">unidades</option>
                 </select>
                 {!!availableMetricSuggestions.find(s => s.label.toLowerCase() === newMetric.name.toLowerCase()) && (
-                   <span className="absolute -top-6 right-0 text-[8px] font-black uppercase text-amber-500 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
+                  <span className="absolute -top-6 right-0 text-[8px] font-black uppercase text-indigo-600 bg-[#fffeec] px-2 py-0.5 rounded border border-[#cbd83b]/25">
                     Utilizar unidad existente
-                   </span>
+                  </span>
                 )}
               </div>
             </div>
@@ -3892,25 +3927,25 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             </div>
             <div className="space-y-2">
               <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Próximamente: Análisis por IA</h4>
-                En futuras actualizaciones, nuestro motor de IA realizará un análisis automático de estas tendencias para identificar patrones de éxito y áreas de mejora en el tratamiento de <strong>{patient?.fullName || "Paciente"}</strong>.
+              En futuras actualizaciones, nuestro motor de IA realizará un análisis automático de estas tendencias para identificar patrones de éxito y áreas de mejora en el tratamiento de <strong>{patient?.fullName || "Paciente"}</strong>.
             </div>
           </div>
 
           <div className="space-y-3">
-             <div className="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-xl">
-                <FileText className="w-5 h-5 text-slate-400" />
-                <div className="flex-1">
-                   <p className="text-[10px] font-black uppercase text-slate-400">Nombre del Archivo</p>
-                   <p className="text-xs font-bold text-slate-700">Evolucion_{(patient?.fullName || "Paciente").replace(/\s+/g, "_")}.pdf</p>
-                </div>
-             </div>
-             <div className="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-xl">
-                <CalendarDays className="w-5 h-5 text-slate-400" />
-                <div className="flex-1">
-                   <p className="text-[10px] font-black uppercase text-slate-400">Contenido</p>
-                   <p className="text-xs font-bold text-slate-700">Resumen textual + Gráficos de tendencia</p>
-                </div>
-             </div>
+            <div className="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-xl">
+              <FileText className="w-5 h-5 text-slate-400" />
+              <div className="flex-1">
+                <p className="text-[10px] font-black uppercase text-slate-400">Nombre del Archivo</p>
+                <p className="text-xs font-bold text-slate-700">Evolucion_{(patient?.fullName || "Paciente").replace(/\s+/g, "_")}.pdf</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-xl">
+              <CalendarDays className="w-5 h-5 text-slate-400" />
+              <div className="flex-1">
+                <p className="text-[10px] font-black uppercase text-slate-400">Contenido</p>
+                <p className="text-xs font-bold text-slate-700">Resumen textual + Gráficos de tendencia</p>
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -4008,9 +4043,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         </p>
         <button
           onClick={() => setIsDeletePatientConfirmOpen(true)}
-          className="group flex items-center gap-3 px-8 py-3.5 text-slate-900 hover:text-rose-700 hover:bg-rose-50 rounded-2xl border border-slate-200 hover:border-rose-200 transition-all cursor-pointer font-black shadow-sm"
+          className="group flex items-center gap-3 px-8 py-3.5 text-slate-900 hover:text-indigo-700 hover:bg-indigo-50 rounded-2xl border border-slate-200 hover:border-indigo-200 transition-all cursor-pointer font-black shadow-sm"
         >
-          <Trash2 className="w-4.5 h-4.5 group-hover:scale-110 transition-transform text-slate-500 group-hover:text-rose-600" />
+          <Trash2 className="w-4.5 h-4.5 group-hover:scale-110 transition-transform text-slate-500 group-hover:text-indigo-600" />
           <span className="text-[11px] uppercase tracking-widest">
             Eliminar Paciente
           </span>
@@ -4104,7 +4139,7 @@ function MetricRecordRow({
           onClick={() => setIsDeleteConfirmOpen(true)}
           className={cn(
             "p-3 rounded-xl transition-all cursor-pointer group/trash",
-            "bg-slate-50 text-slate-400 hover:bg-rose-500 hover:text-white shadow-sm",
+            "bg-slate-50 text-slate-400 hover:bg-indigo-500 hover:text-white shadow-sm",
           )}
           title="Eliminar este registro"
         >

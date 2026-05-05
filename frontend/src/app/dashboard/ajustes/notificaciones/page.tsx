@@ -27,7 +27,7 @@ export default function NotificationsPage() {
   const getIcon = (type: string) => {
     switch (type) {
       case "success":
-        return <CheckCircle2 className="text-emerald-500" />;
+        return <CheckCircle2 className="text-indigo-600" />;
       case "warning":
         return <AlertTriangle className="text-amber-500" />;
       case "error":
@@ -35,14 +35,14 @@ export default function NotificationsPage() {
       case "promo":
         return <Sparkles className="text-indigo-500" />;
       default:
-        return <Info className="text-blue-500" />;
+        return <Info className="text-slate-400" />;
     }
   };
 
   const getBgColor = (type: string) => {
     switch (type) {
       case "success":
-        return "bg-emerald-50 border-emerald-100";
+        return "bg-indigo-50 border-indigo-100";
       case "warning":
         return "bg-amber-50 border-amber-100";
       case "error":
@@ -50,19 +50,19 @@ export default function NotificationsPage() {
       case "promo":
         return "bg-indigo-50 border-indigo-100";
       default:
-        return "bg-blue-50/50 border-blue-100";
+        return "bg-slate-50 border-slate-100";
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 p-6">
+    <div className="max-w-4xl mx-auto space-y-8 p-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Bell className="text-emerald-600" />
+          <h1 className="text-2xl font-semibold text-slate-900 flex items-center gap-2">
+            <Bell className="text-indigo-600" />
             Notificaciones
           </h1>
-          <p className="text-slate-500">
+          <p className="text-slate-500 text-sm font-medium mt-1">
             Mantente al día con las últimas novedades y avisos de la plataforma.
           </p>
         </div>
@@ -72,7 +72,7 @@ export default function NotificationsPage() {
             <Button
               variant="outline"
               onClick={markAllAsRead}
-              className="bg-white hover:bg-slate-50 text-slate-600 border-slate-200"
+              className="bg-white hover:bg-slate-50 text-slate-600 border-slate-200 rounded-full font-semibold px-5"
             >
               <CheckCheck size={16} className="mr-2" />
               Marcar todo como leído
@@ -83,14 +83,14 @@ export default function NotificationsPage() {
 
       <div className="space-y-4">
         {notifications.length === 0 ? (
-          <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+          <div className="text-center py-20 bg-slate-50/50 rounded-[2rem] border border-dashed border-slate-100">
             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-slate-300">
-              <Bell size={32} />
+              <Bell size={28} />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-1">
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
               No tienes notificaciones
             </h3>
-            <p className="text-slate-500">
+            <p className="text-slate-400 text-sm font-medium">
               Te avisaremos cuando haya novedades importantes.
             </p>
           </div>
@@ -99,15 +99,15 @@ export default function NotificationsPage() {
             <div
               key={notification.id}
               className={cn(
-                "relative p-5 rounded-2xl border transition-all duration-300 group",
+                "relative p-6 rounded-[2rem] border transition-all duration-300 group cursor-pointer",
                 notification.read
-                  ? "bg-white border-slate-100 opacity-75 hover:opacity-100"
-                  : "bg-white border-slate-200 shadow-sm shadow-slate-200/50 ring-1 ring-emerald-500/10",
+                  ? "bg-white border-slate-100 opacity-80 hover:opacity-100"
+                  : "bg-white border-slate-200 shadow-sm shadow-slate-200/40 ring-1 ring-indigo-500/10",
               )}
               onClick={() => markAsRead(notification.id)}
             >
               {!notification.read && (
-                <span className="absolute top-5 right-5 w-2 h-2 bg-emerald-500 rounded-full shadow-emerald-200 shadow-sm animate-pulse" />
+                <span className="absolute top-6 right-6 w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-indigo-200 shadow-sm animate-pulse" />
               )}
 
               <div className="flex gap-4">
@@ -120,11 +120,11 @@ export default function NotificationsPage() {
                   {getIcon(notification.type)}
                 </div>
 
-                <div className="space-y-1 flex-1">
-                  <div className="flex justify-between items-start pr-6">
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex justify-between items-start pr-8">
                     <h3
                       className={cn(
-                        "font-bold text-lg",
+                        "font-semibold text-lg tracking-tight",
                         notification.read ? "text-slate-700" : "text-slate-900",
                       )}
                     >
@@ -134,8 +134,8 @@ export default function NotificationsPage() {
 
                   <p
                     className={cn(
-                      "text-sm leading-relaxed",
-                      notification.read ? "text-slate-500" : "text-slate-600",
+                      "text-sm leading-relaxed font-medium",
+                      notification.read ? "text-slate-400" : "text-slate-500",
                     )}
                   >
                     {notification.message}

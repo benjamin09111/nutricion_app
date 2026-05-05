@@ -203,7 +203,7 @@ export default function CreateIngredientModal({
                 </label>
                 <input
                   {...register("name")}
-                  className="w-full px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm"
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
                   placeholder="Ej: Pan Integral"
                 />
                 {errors.name && (
@@ -219,7 +219,7 @@ export default function CreateIngredientModal({
                 </label>
                 <input
                   {...register("brand")}
-                  className="w-full px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm"
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
                   placeholder="Ej: Ideal"
                 />
                 {errors.brand && (
@@ -235,7 +235,7 @@ export default function CreateIngredientModal({
                 </label>
                 <select
                   {...register("category")}
-                  className="w-full px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm"
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
                 >
                   <option value="">Seleccionar...</option>
                   {CATEGORIES.map((cat) => (
@@ -255,8 +255,8 @@ export default function CreateIngredientModal({
             </div>
 
             {/* Portions */}
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-4">
-              <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+            <div className="p-6 bg-slate-50/50 rounded-[1.5rem] border border-slate-100 space-y-4">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
                 Porción Base
               </h4>
               <div className="grid grid-cols-2 gap-4">
@@ -298,13 +298,13 @@ export default function CreateIngredientModal({
 
             {/* Macros */}
             <div className="space-y-4">
-              <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
                 Información Nutricional
               </h4>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase">
+                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                     Calorías (kcal) *
                   </label>
                   <input
@@ -321,7 +321,7 @@ export default function CreateIngredientModal({
                   )}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase">
+                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                     Proteínas (g) *
                   </label>
                   <input
@@ -333,7 +333,7 @@ export default function CreateIngredientModal({
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase">
+                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                     Carbohidratos (g) *
                   </label>
                   <input
@@ -345,7 +345,7 @@ export default function CreateIngredientModal({
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase">
+                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                     Grasas Totales (g) *
                   </label>
                   <input
@@ -438,7 +438,7 @@ export default function CreateIngredientModal({
             type="submit"
             form="create-ingredient-form"
             disabled={isSubmitting}
-            className="px-6 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm shadow-emerald-200 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {isSubmitting ? (
               <>

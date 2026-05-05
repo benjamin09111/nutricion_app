@@ -180,7 +180,7 @@ export default function ConsultationsClient() {
             <Input
               type="search"
               placeholder="Buscar por nombre del paciente..."
-              className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-inner"
+              className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all"
               value={searchTerm}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
             />
@@ -189,7 +189,7 @@ export default function ConsultationsClient() {
           <div className="flex gap-2 w-full md:w-auto">
             <button
               onClick={() => router.push("/dashboard/consultas/nueva")}
-              className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"
             >
               <Plus className="w-5 h-5" />
               Nueva Consulta
@@ -198,10 +198,10 @@ export default function ConsultationsClient() {
         </div>
 
         {/* Consultations Table */}
-        <div className="bg-white shadow-sm border border-slate-200 rounded-2xl overflow-hidden relative">
+        <div className="bg-white shadow-sm border border-slate-200 rounded-[2rem] overflow-hidden relative">
           {isLoading && (
             <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center">
-              <div className="h-10 w-10 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin" />
+              <div className="h-10 w-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
             </div>
           )}
 
@@ -228,12 +228,12 @@ export default function ConsultationsClient() {
                   <tr
                     key={item.id}
                     onClick={() => router.push(`/dashboard/consultas/${item.id}/view`)}
-                    className="hover:bg-emerald-50/40 hover:shadow-sm transition-all group cursor-pointer border-l-4 border-l-transparent hover:border-l-emerald-500"
+                    className="hover:bg-indigo-50/40 hover:shadow-sm transition-all group cursor-pointer border-l-4 border-l-transparent hover:border-l-indigo-500"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-                          <User className="w-4 h-4 text-emerald-600" />
+                        <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+                          <User className="w-4 h-4 text-indigo-600" />
                         </div>
                         <button
                           onClick={() =>
@@ -241,15 +241,15 @@ export default function ConsultationsClient() {
                               `/dashboard/pacientes/${item.patientId}`,
                             )
                           }
-                          className="text-sm font-semibold text-slate-700 hover:text-emerald-600 transition-colors text-left cursor-pointer"
+                          className="text-sm font-semibold text-slate-700 hover:text-indigo-600 transition-colors text-left cursor-pointer"
                         >
                           {item.patientName}
                         </button>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-slate-500 font-bold text-xs uppercase">
-                        <CalendarDays className="w-4 h-4 text-emerald-500" />
+                      <div className="flex items-center gap-2 text-slate-500 font-semibold text-xs uppercase">
+                        <CalendarDays className="w-4 h-4 text-indigo-500" />
                         {new Date(item.date).toLocaleDateString("es-ES", {
                           day: "numeric",
                           month: "short",
@@ -258,7 +258,7 @@ export default function ConsultationsClient() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm font-bold text-slate-800 tracking-tight block max-w-xs truncate">
+                      <span className="text-sm font-semibold text-slate-800 tracking-tight block max-w-xs truncate">
                         {item.title}
                       </span>
                     </td>
@@ -279,7 +279,7 @@ export default function ConsultationsClient() {
                             e.stopPropagation();
                             router.push(`/dashboard/consultas/${item.id}/view`);
                           }}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                           title="Ver Consulta"
                         >
                           <Eye className="w-5 h-5" />
@@ -338,7 +338,7 @@ export default function ConsultationsClient() {
                 <div className="flex justify-between items-start">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-semibold uppercase tracking-tight border border-emerald-100">
+                      <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold uppercase tracking-tight border border-indigo-100">
                         {new Date(selectedConsultation.date).toLocaleDateString(
                           "es-ES",
                           { day: "numeric", month: "short", year: "numeric" },
@@ -354,9 +354,9 @@ export default function ConsultationsClient() {
                           `/dashboard/pacientes/${selectedConsultation.patientId}`,
                         )
                       }
-                      className="flex items-center gap-2 text-slate-500 font-semibold uppercase text-xs tracking-tight hover:text-emerald-600 transition-colors cursor-pointer group"
+                      className="flex items-center gap-2 text-slate-500 font-semibold uppercase text-xs tracking-tight hover:text-indigo-600 transition-colors cursor-pointer group"
                     >
-                      <User className="w-4 h-4 text-emerald-500 group-hover:scale-110 transition-transform" />
+                      <User className="w-4 h-4 text-indigo-500 group-hover:scale-110 transition-transform" />
                       {selectedConsultation.patientName}
                     </button>
                   </div>

@@ -320,7 +320,7 @@ export function TagInput({
         )}
       </div>
 
-      {!hideTags && (
+      {!hideTags && value.length > 0 && (
         <div className="flex flex-wrap gap-2 min-h-[20px] px-1">
           {value.map((tag) => (
             <span

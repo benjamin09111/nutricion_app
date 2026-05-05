@@ -54,6 +54,7 @@ description: General development rules for the project
 ## Design & Experience
 - **UX & Design**: Every button, link, or interactive element **MUST** have the `cursor-pointer` class. This is a non-negotiable standard for all interactive components.
 - **Visual Consistency**: Strictly follow the existing visual style and design patterns of the application.
+- **Visual Canon**: Use `.agent/rules/pacientes-visual-standard.md` as the default aesthetic reference for dashboard surfaces, forms, tables, filters, and module refactors.
 - **Modals & Overlays**: All modals, drawers, or overlays **MUST NOT** close when clicking outside of their main content area (on the backdrop) or pressing Escape by default. This is to prevent accidental data loss. Users must explicitly click the "X" or a "Cancel" button to close the modal.
 
 ## SEO & Semantic HTML

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -1198,15 +1198,15 @@ export default function AppointmentsClient() {
       >
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-widest opacity-70">
+            <p className="text-[11px] font-semibold uppercase tracking-widest opacity-70">
               {formatTime(start)} - {formatTime(end)}
             </p>
-            <p className="text-sm font-black leading-tight">{event.title}</p>
+            <p className="text-sm font-semibold leading-tight">{event.title}</p>
             <p className="mt-1 text-xs font-medium opacity-80">
               {event.patientName || "Paciente pendiente"}
             </p>
           </div>
-          <span className="rounded-full border border-white/70 bg-white/70 px-2 py-1 text-[9px] font-black uppercase tracking-widest">
+          <span className="rounded-full border border-white/70 bg-white/70 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest">
             {normalizeText(event.status) || "CONFIRMADA"}
           </span>
         </div>
@@ -1230,60 +1230,60 @@ export default function AppointmentsClient() {
       <div className="space-y-6">
         <section className="grid gap-4 xl:grid-cols-[1.4fr_0.6fr]">
           <div ref={calendarSectionRef}>
-            <Card className="rounded-[1.8rem] border-slate-200 shadow-sm">
-            <CardHeader className="space-y-3">
+            <Card className="rounded-[2rem] border-slate-100 shadow-sm bg-white overflow-hidden">
+            <CardHeader className="space-y-3 p-8">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-600">
                   Agenda viva
                 </span>
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                <span className="rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
                   {calendar ? getAppointmentDisplayName(calendar) : "Sin calendario cargado"}
                 </span>
               </div>
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <CardTitle className="text-2xl font-black text-slate-900">
-                    Calendario estilo Google
+                  <CardTitle className="text-2xl font-semibold text-slate-900 tracking-tight">
+                    Calendario clínico
                   </CardTitle>
                   <CardDescription className="mt-1 text-sm font-medium text-slate-500">
-                    Ocupado, disponible y peticiones visibles en el mismo lugar.
+                    Gestiona disponibilidad, citas y peticiones en tiempo real.
                   </CardDescription>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <div className="w-full rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-900 shadow-sm">
-                    Haz clic en cualquier espacio libre del calendario para crear una cita con fecha y hora prellenadas, igual que en Google Calendar. Si Google Calendar está conectado, la cita también se sincroniza automáticamente al guardar.
+                  <div className="w-full rounded-2xl border border-blue-100 bg-blue-50/50 px-4 py-3 text-sm font-medium text-blue-800/90 shadow-sm">
+                    Haz clic en cualquier espacio libre para crear una cita con fecha y hora prellenadas.
                   </div>
                   <Button
                     variant="outline"
-                    className="h-10 rounded-xl border-blue-200 bg-blue-50 px-4 font-black text-blue-700 shadow-sm hover:bg-blue-100"
+                    className="h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
                     onClick={handleConnectGoogle}
                     disabled={isConnectingGoogle || isLoading}
                   >
-                    <Link2 className="mr-2 h-4 w-4" />
-                    {isConnectingGoogle ? "Conectando..." : "Conectar con Google Calendar"}
+                    <Link2 className="mr-2 h-4 w-4 text-indigo-500" />
+                    {isConnectingGoogle ? "Conectando..." : "Google Calendar"}
                   </Button>
                   <Button
                     variant="outline"
-                    className="h-10 rounded-xl border-sky-200 bg-sky-50 px-4 font-black text-sky-700 shadow-sm hover:bg-sky-100"
+                    className="h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
                     onClick={() => void handleShareSchedule()}
                     disabled={isCreatingShareLink || isLoading}
                   >
-                    <Share2 className="mr-2 h-4 w-4" />
-                    {isCreatingShareLink ? "Generando enlace..." : "Compartir mi horario"}
+                    <Share2 className="mr-2 h-4 w-4 text-indigo-500" />
+                    Compartir horario
                   </Button>
                   <Button
                     variant="outline"
-                    className="h-10 rounded-xl px-4 font-black"
+                    className="h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
                     onClick={() => {
                       setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft));
                       setIsEditingWorkHours(true);
                     }}
                   >
-                    <Settings2 className="mr-2 h-4 w-4" />
-                    Modificar mis horarios laborales
+                    <Settings2 className="mr-2 h-4 w-4 text-slate-400" />
+                    Horarios laborales
                   </Button>
                   <Button
-                    className="h-10 rounded-xl bg-emerald-600 px-4 font-black text-white"
+                    className="h-10 rounded-xl bg-indigo-600 px-4 font-semibold text-white shadow-sm hover:bg-indigo-700"
                     onClick={() => setIsCreateOpen(true)}
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -1291,7 +1291,7 @@ export default function AppointmentsClient() {
                   </Button>
                   <Button
                     variant="ghost"
-                    className="h-10 rounded-xl px-4 font-black"
+                    className="h-10 rounded-xl px-4 font-semibold text-slate-500 hover:bg-slate-100"
                     onClick={() => void handleRefresh()}
                     disabled={isRefreshing}
                   >
@@ -1302,56 +1302,56 @@ export default function AppointmentsClient() {
               </div>
             </CardHeader>
 
-            <CardContent className="space-y-5">
-              <div className="grid gap-3 sm:grid-cols-4">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Próximas</p>
-                  <p className="mt-2 text-2xl font-black text-slate-900">{upcomingEvents.length}</p>
+            <CardContent className="space-y-6 p-8 pt-0">
+              <div className="grid gap-4 sm:grid-cols-4">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Próximas</p>
+                  <p className="mt-2 text-3xl font-semibold text-slate-900">{upcomingEvents.length}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pasadas</p>
-                  <p className="mt-2 text-2xl font-black text-slate-900">{pastEvents.length}</p>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Pasadas</p>
+                  <p className="mt-2 text-3xl font-semibold text-slate-900">{pastEvents.length}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Disponibles</p>
-                  <p className="mt-2 text-2xl font-black text-emerald-700">{availableSlots.length}</p>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Disponibles</p>
+                  <p className="mt-2 text-3xl font-semibold text-emerald-600">{availableSlots.length}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Peticiones</p>
-                  <p className="mt-2 text-2xl font-black text-amber-700">{requests.length}</p>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Peticiones</p>
+                  <p className="mt-2 text-3xl font-semibold text-amber-600">{requests.length}</p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-white px-5 py-4">
                 <div>
-                  <p className="text-sm font-black text-slate-900">
+                  <p className="text-sm font-semibold text-slate-900">
                     Semana del {currentWeekStart.toLocaleDateString("es-CL", { day: "2-digit", month: "short" })} al {currentWeekEnd.toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}
                   </p>
                   <p className="text-xs font-medium text-slate-500">
-                    Vista semanal con horas libres y ocupadas.
+                    Vista semanal de agenda.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
-                    className="h-9 rounded-xl px-3 font-black"
+                    className="h-9 rounded-xl px-4 font-semibold text-slate-700"
                     onClick={() => setWeekAnchor((current) => addDays(current, -7))}
                   >
-                    Semana anterior
+                    Anterior
                   </Button>
                   <Button
                     variant="outline"
-                    className="h-9 rounded-xl px-3 font-black"
+                    className="h-9 rounded-xl px-4 font-semibold text-slate-700"
                     onClick={() => setWeekAnchor(new Date())}
                   >
                     Hoy
                   </Button>
                   <Button
                     variant="outline"
-                    className="h-9 rounded-xl px-3 font-black"
+                    className="h-9 rounded-xl px-4 font-semibold text-slate-700"
                     onClick={() => setWeekAnchor((current) => addDays(current, 7))}
                   >
-                    Siguiente semana
+                    Siguiente
                   </Button>
                 </div>
               </div>
@@ -1486,14 +1486,14 @@ export default function AppointmentsClient() {
           </div>
 
           <div className="space-y-4">
-            <Card className="rounded-[1.8rem] border-slate-200 shadow-sm">
-              <CardHeader className="space-y-2">
-                <CardTitle className="text-lg font-black text-slate-900">Navegación rápida</CardTitle>
+            <Card className="rounded-[2rem] border-slate-100 shadow-sm bg-white overflow-hidden">
+              <CardHeader className="space-y-2 p-8 pb-4">
+                <CardTitle className="text-lg font-semibold text-slate-900">Navegación</CardTitle>
                 <CardDescription className="text-sm font-medium text-slate-500">
-                  Cambia entre el calendario y tus listas de trabajo sin perder contexto.
+                  Listados de trabajo y calendario.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 p-8 pt-0">
                 <div className="grid gap-2">
                   {TAB_ITEMS.map((tab) => (
                     <button
@@ -1503,42 +1503,37 @@ export default function AppointmentsClient() {
                       className={cn(
                         "flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition-all",
                         activeTab === tab.key
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-900 shadow-sm"
-                          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+                          ? "border-indigo-200 bg-indigo-50/50 text-indigo-900 shadow-sm"
+                          : "border-slate-100 bg-white text-slate-600 hover:border-slate-200 hover:bg-slate-50",
                       )}
                     >
                       <span>
-                        <span className="block text-sm font-black">{tab.label}</span>
-                        <span className="block text-xs font-medium opacity-70">{tab.description}</span>
+                        <span className="block text-sm font-semibold">{tab.label}</span>
+                        <span className="block text-[11px] font-medium opacity-60">{tab.description}</span>
                       </span>
-                      {activeTab === tab.key && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+                      {activeTab === tab.key && <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" />}
                     </button>
                   ))}
-                </div>
-                <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-900">
-                  {activeTab === "calendar"
-                    ? "Vuelve a la agenda principal para crear o revisar citas."
-                    : "Usa esta navegación para revisar solo lo que necesitas."}
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="rounded-[1.8rem] border-slate-200 shadow-sm">
-              <CardHeader className="space-y-2">
-                <CardTitle className="text-lg font-black text-slate-900">
+            <Card className="rounded-[2rem] border-slate-100 shadow-sm bg-white overflow-hidden">
+              <CardHeader className="space-y-2 p-8 pb-4">
+                <CardTitle className="text-lg font-semibold text-slate-900">
                   {calendar ? getAppointmentDisplayName(calendar) : "Sin calendario"}
                 </CardTitle>
                 <CardDescription className="text-sm font-medium text-slate-500">
-                  Zona horaria: {calendarTimeZone}
+                  Zona: {calendarTimeZone}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 p-8 pt-0">
                 {isEditingWorkHours ? (
                   <div className="space-y-4">
                     <div className="flex justify-end gap-3">
                       <Button
                         variant="outline"
-                        className="h-11 rounded-xl px-5 font-black"
+                        className="h-11 rounded-xl px-5 font-semibold"
                         onClick={async () => {
                           setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft));
                           setIsEditingWorkHours(false);
@@ -1547,69 +1542,62 @@ export default function AppointmentsClient() {
                         Cancelar
                       </Button>
                       <Button
-                        className="h-11 rounded-xl bg-emerald-600 px-5 font-black text-white"
+                        className="h-11 rounded-xl bg-indigo-600 px-5 font-semibold text-white"
                         onClick={() => void handleSaveWorkHours()}
                         isLoading={isSavingHours}
                         >
-                          Guardar horarios
+                          Guardar
                         </Button>
                       </div>
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-900">
-                      Selecciona bloques directamente en la grilla grande del centro. Lo que marques aquí se repetirá
-                      para todas las semanas.
-                      <span className="mt-2 block font-black">
-                        Si un bloque está verde, significa que está disponible para trabajar.
-                      </span>
+                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 text-xs font-medium text-indigo-900/80">
+                      Selecciona bloques directamente en la grilla. Lo que marques se repetirá semanalmente.
                     </div>
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 p-3">
-                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                    <div className="flex items-center gap-3 rounded-2xl bg-indigo-50/50 p-4">
+                      <div className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm",
+                        (calendar?.googleCalendarConnected || calendar?.googleSyncEnabled || calendar?.isGoogleConnected) ? "text-emerald-600" : "text-slate-400"
+                      )}>
+                        <CheckCircle2 className="h-4 w-4" />
+                      </div>
                       <div>
-                        <p className="text-sm font-black text-emerald-900">
+                        <p className="text-xs font-semibold text-slate-900">
                           {calendar?.googleCalendarConnected || calendar?.googleSyncEnabled || calendar?.isGoogleConnected
-                            ? "Google Calendar conectado"
-                            : "Google Calendar pendiente"}
+                            ? "Google conectado"
+                            : "Google desconectado"}
                         </p>
-                        <p className="text-xs font-medium text-emerald-900/70">
-                          Conecta Google Calendar para tener tus notificaciones y sincronización automática.
+                        <p className="text-[10px] font-medium text-slate-500">
+                          Sincronización automática activa.
                         </p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Disponibles</p>
-                        <p className="mt-2 text-2xl font-black text-slate-900">{availableSlots.length}</p>
+                      <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Libres</p>
+                        <p className="mt-1 text-2xl font-semibold text-slate-900">{availableSlots.length}</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ocupados</p>
-                        <p className="mt-2 text-2xl font-black text-slate-900">{occupiedSlots.length}</p>
+                      <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Peticiones</p>
+                        <p className="mt-1 text-2xl font-semibold text-slate-900">{requests.length}</p>
                       </div>
                     </div>
                     <Button
                       variant="outline"
-                      className="h-11 w-full rounded-xl border-blue-200 bg-blue-50 font-black text-blue-700 shadow-sm hover:bg-blue-100"
+                      className="h-11 w-full rounded-xl border-slate-200 bg-white font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
                       onClick={handleConnectGoogle}
                       disabled={isConnectingGoogle}
                     >
-                      <Link2 className="mr-2 h-4 w-4" />
-                      {isConnectingGoogle ? "Conectando..." : "Conectar con Google Calendar"}
+                      <Link2 className="mr-2 h-4 w-4 text-indigo-500" />
+                      Google Calendar
                     </Button>
                     <Button
-                      variant="outline"
-                      className="h-11 w-full rounded-xl font-black"
-                      onClick={() => {
-                        setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft));
-                        setIsEditingWorkHours(true);
-                      }}
+                      className="h-11 w-full rounded-xl bg-indigo-600 text-white shadow-sm hover:bg-indigo-700"
+                      onClick={() => setIsCreateOpen(true)}
                     >
-                      <Settings2 className="mr-2 h-4 w-4" />
-                      Modificar mis horarios laborales
-                    </Button>
-                    <Button className="h-11 w-full rounded-xl bg-emerald-600 text-white" onClick={() => setIsCreateOpen(true)}>
                       <Plus className="mr-2 h-4 w-4" />
-                      Crear cita
+                      Nueva cita
                     </Button>
                   </>
                 )}
@@ -1639,18 +1627,18 @@ export default function AppointmentsClient() {
             {activeTab === "upcoming" && (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {upcomingEvents.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-sm font-bold text-slate-500">
-                    No hay citas próximas todavía.
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-sm font-semibold text-slate-400">
+                    No hay citas próximas.
                   </div>
                 ) : (
                   upcomingEvents.map((event) => (
-                    <Card key={event.id} className="rounded-2xl border-slate-200 shadow-sm">
-                      <CardHeader className="space-y-2">
+                    <Card key={event.id} className="rounded-2xl border-slate-100 shadow-sm hover:border-indigo-100 transition-all">
+                      <CardHeader className="space-y-2 pb-3">
                         <div className="flex items-center justify-between gap-3">
-                          <CardTitle className="text-base font-black text-slate-900">
+                          <CardTitle className="text-base font-semibold text-slate-900">
                             {event.title}
                           </CardTitle>
-                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest text-emerald-600">
                             {normalizeText(event.status) || "confirmada"}
                           </span>
                         </div>
@@ -1660,7 +1648,7 @@ export default function AppointmentsClient() {
                       </CardHeader>
                       <CardContent className="space-y-2 text-sm font-medium text-slate-600">
                         <div className="flex items-center gap-2">
-                          <Clock3 className="h-4 w-4 text-slate-400" />
+                          <Clock3 className="h-4 w-4 text-indigo-400" />
                           {parseDateSafe(event.start)?.toLocaleString("es-CL", {
                             weekday: "short",
                             day: "2-digit",
@@ -1669,7 +1657,6 @@ export default function AppointmentsClient() {
                             minute: "2-digit",
                           })}
                         </div>
-                        {event.notes ? <p className="text-xs text-slate-500">{event.notes}</p> : null}
                       </CardContent>
                     </Card>
                   ))
@@ -1680,28 +1667,22 @@ export default function AppointmentsClient() {
             {activeTab === "past" && (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {pastEvents.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-sm font-bold text-slate-500">
-                    No hay citas pasadas registradas.
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-sm font-semibold text-slate-400">
+                    No hay historial registrado.
                   </div>
                 ) : (
                   pastEvents.map((event) => (
-                    <Card key={event.id} className="rounded-2xl border-slate-200 shadow-sm">
-                      <CardHeader className="space-y-2">
-                        <CardTitle className="text-base font-black text-slate-900">{event.title}</CardTitle>
+                    <Card key={event.id} className="rounded-2xl border-slate-100 shadow-sm">
+                      <CardHeader className="space-y-2 pb-3">
+                        <CardTitle className="text-base font-semibold text-slate-900">{event.title}</CardTitle>
                         <CardDescription className="text-sm font-medium text-slate-500">
-                          {event.patientName || "Paciente pendiente"}
+                          {event.patientName || "Paciente"}
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-2 text-sm font-medium text-slate-600">
                         <div className="flex items-center gap-2">
-                          <CalendarRange className="h-4 w-4 text-slate-400" />
-                          {parseDateSafe(event.start)?.toLocaleString("es-CL", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          <CalendarRange className="h-4 w-4 text-slate-300" />
+                          {parseDateSafe(event.start)?.toLocaleDateString("es-CL")}
                         </div>
                       </CardContent>
                     </Card>
@@ -1713,19 +1694,19 @@ export default function AppointmentsClient() {
             {activeTab === "requests" && (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {requests.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-sm font-bold text-slate-500">
-                    No hay peticiones pendientes.
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-sm font-semibold text-slate-400">
+                    No hay peticiones.
                   </div>
                 ) : (
                   requests.map((request) => (
-                    <Card key={request.id} className="rounded-2xl border-slate-200 shadow-sm">
-                      <CardHeader className="space-y-2">
+                    <Card key={request.id} className="rounded-2xl border-slate-100 shadow-sm border-l-4 border-l-amber-400">
+                      <CardHeader className="space-y-2 pb-3">
                         <div className="flex items-center justify-between gap-3">
-                          <CardTitle className="text-base font-black text-slate-900">
-                            {request.title || "Solicitud de cita"}
+                          <CardTitle className="text-base font-semibold text-slate-900">
+                            {request.title || "Solicitud"}
                           </CardTitle>
-                          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700">
-                            {normalizeText(request.status) || "REQUESTED"}
+                          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest text-amber-600">
+                            {normalizeText(request.status) || "PENDIENTE"}
                           </span>
                         </div>
                         <CardDescription className="text-sm font-medium text-slate-500">
@@ -1734,7 +1715,7 @@ export default function AppointmentsClient() {
                       </CardHeader>
                       <CardContent className="space-y-3 text-sm font-medium text-slate-600">
                         <div className="flex items-center gap-2">
-                          <AlarmClock className="h-4 w-4 text-slate-400" />
+                          <AlarmClock className="h-4 w-4 text-amber-400" />
                           {parseDateSafe(request.requestedAt)?.toLocaleString("es-CL", {
                             day: "2-digit",
                             month: "short",
@@ -1742,7 +1723,6 @@ export default function AppointmentsClient() {
                             minute: "2-digit",
                           })}
                         </div>
-                        {request.notes ? <p className="text-xs text-slate-500">{request.notes}</p> : null}
                       </CardContent>
                     </Card>
                   ))

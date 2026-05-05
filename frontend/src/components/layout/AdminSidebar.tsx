@@ -137,7 +137,7 @@ export function AdminSidebar() {
       >
         <div className="flex items-center space-x-2">
           <Image
-            src="/logo.png"
+            src="/logo_2.webp"
             alt="NutriSaaS"
             width={isSidebarCollapsed ? 72 : 180}
             height={isSidebarCollapsed ? 23 : 57}

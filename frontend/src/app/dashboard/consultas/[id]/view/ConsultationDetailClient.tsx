@@ -141,7 +141,7 @@ export default function ConsultationDetailClient({ id }: Props) {
     return (
       <ModuleLayout title="Consulta" description="Cargando..." className="pb-8">
         <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="h-12 w-12 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin" />
+          <div className="h-12 w-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
         </div>
       </ModuleLayout>
     );
@@ -169,9 +169,9 @@ export default function ConsultationDetailClient({ id }: Props) {
               <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold uppercase tracking-widest mb-0.5">
                 <span>Consulta</span>
                 <ChevronRight className="w-3 h-3" />
-                <span className="text-emerald-600">{consultation.title}</span>
+                <span className="text-indigo-600">{consultation.title}</span>
               </div>
-              <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+              <p className="text-[10px] font-semibold text-slate-300 uppercase tracking-widest">
                 {formatDateDisplay(consultation.date)}
               </p>
             </div>
@@ -181,14 +181,14 @@ export default function ConsultationDetailClient({ id }: Props) {
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push(`/dashboard/pacientes/${consultation.patientId}`)}
-              className="flex items-center gap-2 h-10 px-5 bg-white border border-slate-200 hover:border-emerald-200 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 text-xs font-semibold rounded-2xl transition-all cursor-pointer shadow-sm"
+              className="flex items-center gap-2 h-10 px-5 bg-white border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50 text-slate-600 hover:text-indigo-700 text-xs font-semibold rounded-2xl transition-all cursor-pointer shadow-sm"
             >
               <User className="w-4 h-4" />
               {consultation.patientName}
             </button>
             <button
               onClick={() => router.push(`/dashboard/consultas/${id}`)}
-              className="flex items-center gap-2 h-10 px-5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-2xl transition-all cursor-pointer shadow-md"
+              className="flex items-center gap-2 h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-2xl transition-all cursor-pointer shadow-md"
             >
               <Edit2 className="w-4 h-4" />
               Editar
@@ -203,11 +203,11 @@ export default function ConsultationDetailClient({ id }: Props) {
           <div className="lg:col-span-3 space-y-6">
 
             {/* Session header card */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
               <div className="px-6 py-5 border-b border-slate-50 bg-gradient-to-r from-slate-50 to-white">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-                    <CalendarDays className="w-5 h-5 text-emerald-600" />
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+                    <CalendarDays className="w-5 h-5 text-indigo-600" />
                   </div>
                   <div>
                     <h2 className="text-xl font-semibold text-slate-900 tracking-tight">
@@ -223,8 +223,8 @@ export default function ConsultationDetailClient({ id }: Props) {
               {/* Description / clinical notes */}
               <div className="p-6 space-y-3">
                 <div className="flex items-center gap-2 text-slate-400">
-                  <ClipboardList className="w-4 h-4 text-emerald-500" />
-                  <h3 className="text-xs font-black uppercase tracking-widest">
+                  <ClipboardList className="w-4 h-4 text-indigo-500" />
+                  <h3 className="text-xs font-semibold uppercase tracking-widest">
                     Observaciones Clínicas
                   </h3>
                 </div>
@@ -236,7 +236,7 @@ export default function ConsultationDetailClient({ id }: Props) {
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-2 py-6 text-slate-300">
                       <FileText className="w-8 h-8 opacity-30" />
-                      <p className="text-xs font-bold">Sin observaciones registradas</p>
+                      <p className="text-xs font-semibold">Sin observaciones registradas</p>
                     </div>
                   )}
                 </div>
@@ -249,14 +249,14 @@ export default function ConsultationDetailClient({ id }: Props) {
           <div className="lg:col-span-2 space-y-6">
 
             {/* Metrics card */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-emerald-500" />
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">
+                <Activity className="w-4 h-4 text-indigo-500" />
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
                   Métricas Clave
                 </h3>
                 {hasMetrics && (
-                  <span className="ml-auto px-2.5 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-full border border-emerald-100">
+                  <span className="ml-auto px-2.5 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-semibold rounded-full border border-indigo-100">
                     {metrics.length}
                   </span>
                 )}
@@ -281,7 +281,7 @@ export default function ConsultationDetailClient({ id }: Props) {
                             </div>
                             <span className="text-xs font-semibold">{m.label}</span>
                           </div>
-                          <span className="text-xl font-black tabular-nums">
+                          <span className="text-xl font-semibold tabular-nums">
                             {m.value}
                             {m.unit && (
                               <span className="text-xs font-semibold opacity-60 ml-1">
@@ -296,7 +296,7 @@ export default function ConsultationDetailClient({ id }: Props) {
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-2 py-10 text-slate-300">
                     <Activity className="w-8 h-8 opacity-30" />
-                    <p className="text-xs font-bold">Sin métricas registradas</p>
+                    <p className="text-xs font-semibold">Sin métricas registradas</p>
                   </div>
                 )}
               </div>
@@ -309,15 +309,15 @@ export default function ConsultationDetailClient({ id }: Props) {
           <details
             open={isPatientPanelOpen}
             onToggle={(e) => setIsPatientPanelOpen(e.currentTarget.open)}
-            className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden animate-in slide-in-from-bottom-4 duration-500"
+            className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden animate-in slide-in-from-bottom-4 duration-500"
           >
             <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none p-5 lg:p-6 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between gap-3 group">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
-                  <User className="w-6 h-6 text-emerald-600" />
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                  <User className="w-6 h-6 text-indigo-600" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 group-hover:text-emerald-700 transition-colors flex items-center gap-2">
+                  <h3 className="text-xl font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors flex items-center gap-2">
                     {patientData.fullName}
                   </h3>
                   <p className="text-xs font-semibold text-slate-400">Ficha del Paciente</p>
@@ -332,8 +332,8 @@ export default function ConsultationDetailClient({ id }: Props) {
               {/* Personal Info */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-slate-400">
-                  <User className="w-3.5 h-3.5 text-emerald-500" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">Información Personal</p>
+                  <User className="w-3.5 h-3.5 text-indigo-500" />
+                  <p className="text-[10px] font-semibold uppercase tracking-widest">Información Personal</p>
                 </div>
                 <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 space-y-3">
                   <div className="flex items-center gap-3">
@@ -356,21 +356,21 @@ export default function ConsultationDetailClient({ id }: Props) {
               {/* Physical Info */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-slate-400">
-                  <Activity className="w-3.5 h-3.5 text-emerald-500" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">Estado Físico</p>
+                  <Activity className="w-3.5 h-3.5 text-indigo-500" />
+                  <p className="text-[10px] font-semibold uppercase tracking-widest">Estado Físico</p>
                 </div>
                 <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Estatura</p>
-                    <p className="text-sm font-black text-slate-700">{patientData.height ? `${patientData.height} cm` : "—"}</p>
+                    <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Estatura</p>
+                    <p className="text-sm font-semibold text-slate-700">{patientData.height ? `${patientData.height} cm` : "—"}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Peso</p>
-                    <p className="text-sm font-black text-slate-700">{patientData.weight ? `${patientData.weight} kg` : "—"}</p>
+                    <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Peso</p>
+                    <p className="text-sm font-semibold text-slate-700">{patientData.weight ? `${patientData.weight} kg` : "—"}</p>
                   </div>
                   <div className="col-span-2">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Género</p>
-                    <p className="text-sm font-black text-slate-700">{patientData.gender || "—"}</p>
+                    <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Género</p>
+                    <p className="text-sm font-semibold text-slate-700">{patientData.gender || "—"}</p>
                   </div>
                 </div>
               </div>
@@ -379,19 +379,19 @@ export default function ConsultationDetailClient({ id }: Props) {
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-slate-400">
                   <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">Restricciones</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest">Restricciones</p>
                 </div>
                 <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 min-h-[80px]">
                   <div className="flex flex-wrap gap-2">
-                    {Array.isArray(patientData.dietRestrictions) && patientData.dietRestrictions.length > 0 ? (
-                      patientData.dietRestrictions.map((r: string, i: number) => (
-                        <span key={i} className="px-3 py-1 bg-rose-50 text-rose-600 text-[10px] font-black rounded-lg border border-rose-100 uppercase tracking-tighter">
-                          {r}
-                        </span>
-                      ))
-                    ) : (
-                      <p className="text-xs font-bold text-slate-300">Sin restricciones registradas</p>
-                    )}
+                      {Array.isArray(patientData.dietRestrictions) && patientData.dietRestrictions.length > 0 ? (
+                        patientData.dietRestrictions.map((r: string, i: number) => (
+                          <span key={i} className="px-3 py-1 bg-rose-50 text-rose-600 text-[10px] font-semibold rounded-lg border border-rose-100 uppercase tracking-tighter">
+                            {r}
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-xs font-semibold text-slate-300">Sin restricciones registradas</p>
+                      )}
                   </div>
                 </div>
               </div>
@@ -401,7 +401,7 @@ export default function ConsultationDetailClient({ id }: Props) {
                 <div className="md:col-span-3 space-y-4">
                   <div className="flex items-center gap-2 text-slate-400">
                     <FileSearch className="w-3.5 h-3.5 text-blue-500" />
-                    <p className="text-[10px] font-black uppercase tracking-widest">Resumen Clínico</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest">Resumen Clínico</p>
                   </div>
                   <div className="bg-blue-50/30 rounded-2xl p-5 border border-blue-100/50">
                     <p className="text-sm font-medium text-slate-600 leading-relaxed italic">
@@ -416,7 +416,7 @@ export default function ConsultationDetailClient({ id }: Props) {
                 <Button
                   onClick={() => router.push(`/dashboard/pacientes/${patientData.id}`)}
                   variant="ghost"
-                  className="w-full h-12 rounded-2xl border border-slate-200 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200 font-bold transition-all flex items-center justify-center gap-3 group"
+                  className="w-full h-12 rounded-2xl border border-slate-200 text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 hover:border-indigo-200 font-semibold transition-all flex items-center justify-center gap-3 group"
                 >
                   <User className="w-4 h-4 group-hover:scale-110 transition-transform" />
                   <span>Ver perfil completo del paciente</span>

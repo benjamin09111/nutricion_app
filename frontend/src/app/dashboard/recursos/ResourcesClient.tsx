@@ -10,6 +10,7 @@ import {
   Hash,
   Image as ImageIcon,
   Loader2,
+  Lock,
   Pencil,
   Plus,
   Search,
@@ -219,66 +220,62 @@ export function ResourcesClient() {
   const Card = ({ resource }: { resource: Resource }) => {
     const cover = coverCfg(resource.category);
     return (
-      <article className="p-5 rounded-3xl border border-slate-200 bg-white space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700">
+      <article className="p-4 rounded-[2rem] border border-slate-100 bg-white hover:shadow-md transition-all group flex flex-col h-full">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5 mb-1">
+              <span className="rounded-full bg-slate-50 px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-500 border border-slate-100">
                 {CATEGORIES.find((x) => x.id === resource.category)?.label || "Otro"}
               </span>
               <span
                 className={cn(
-                  "rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
+                  "rounded-full px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
                   resource.nutritionistId === null
                     ? "bg-slate-900 text-white"
-                    : "bg-emerald-50 text-emerald-700",
+                    : "bg-indigo-50 text-indigo-700 border border-indigo-100",
                 )}
               >
                 {resource.nutritionistId === null ? "Sistema" : "Comunidad"}
               </span>
             </div>
-            <h3 className="line-clamp-2 text-lg font-black leading-tight text-slate-900">
+            <h3 className="line-clamp-1 text-base font-semibold text-slate-900">
               {resource.title}
             </h3>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
-              {cover.label}
-            </p>
           </div>
           {resource.isMine && (
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full shrink-0" onClick={() => openEdit(resource)}>
-              <Pencil className="h-4 w-4" />
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full shrink-0 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => openEdit(resource)}>
+              <Pencil className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>
 
         <div
-          className="relative w-full h-44 rounded-2xl overflow-hidden bg-slate-100 border border-slate-100 shadow-inner"
+          className="relative w-full h-32 rounded-2xl overflow-hidden bg-slate-50 border border-slate-100 mb-3"
           style={{
             backgroundImage: cover.imageUrl
-              ? `linear-gradient(135deg, rgba(15,23,42,.22), rgba(15,23,42,.05)), url(${cover.imageUrl})`
+              ? `linear-gradient(135deg, rgba(15,23,42,.1), rgba(15,23,42,.05)), url(${cover.imageUrl})`
               : `linear-gradient(135deg, ${cover.gradientFrom}, ${cover.gradientTo})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         />
 
-        <p className="text-sm leading-6 text-slate-600 min-h-[4.5rem] line-clamp-3">
-          {short(plain(resource.content || ""), 160)}
+        <p className="text-xs leading-5 text-slate-500 line-clamp-2 flex-grow">
+          {short(plain(resource.content || ""), 120)}
         </p>
 
-        <div className="flex flex-wrap gap-2">
-          {resource.tags.slice(0, 3).map((tag) => (
-            <span key={tag} className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold text-slate-600">
-              <Hash className="mr-1 h-3 w-3" />
-              {tag}
+        <div className="flex flex-wrap gap-1.5 pt-2">
+          {resource.tags.slice(0, 2).map((tag) => (
+            <span key={tag} className="inline-flex items-center text-[10px] font-medium text-indigo-500">
+              #{tag}
             </span>
           ))}
         </div>
 
-        <div className="flex items-center justify-between gap-3 pt-1">
-          <span className="text-[11px] text-slate-400">Actualizado {fmtDate(resource.updatedAt || resource.createdAt)}</span>
-          <Button variant="outline" className="rounded-full px-4" onClick={() => setResourceToPreview(resource)}>
-            Ver
+        <div className="flex items-center justify-between gap-3 pt-4 mt-auto border-t border-slate-50">
+          <span className="text-[10px] font-medium text-slate-400">{fmtDate(resource.updatedAt || resource.createdAt)}</span>
+          <Button variant="ghost" size="sm" className="h-8 rounded-full px-4 text-xs font-semibold hover:bg-indigo-50 text-indigo-600" onClick={() => setResourceToPreview(resource)}>
+            Ver recurso
           </Button>
         </div>
       </article>
@@ -288,27 +285,50 @@ export function ResourcesClient() {
   return (
     <ModuleLayout title="Biblioteca" description="Gestiona los contenidos educativos para tus pacientes. Por defecto, el Entregable usa recursos de la plataforma, pero aqui puedes explorar la comunidad, crear los tuyos y marcar favoritos para tu seleccion automatica." className="max-w-7xl">
       <div className="space-y-6 pb-20">
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-3 shadow-sm"><div className="flex flex-wrap gap-2">{[{ id: "library", label: "Biblioteca", icon: BookOpen }, { id: "coverIntro", label: "Portada e introduccion", icon: ImageIcon }, { id: "mine", label: "Mis recursos", icon: UserIcon }].map((tab) => <button key={tab.id} type="button" onClick={() => setMainTab(tab.id as MainTab)} className={cn("inline-flex items-center gap-2 rounded-[1.25rem] px-5 py-3 text-sm font-black transition-all", mainTab === tab.id ? "bg-slate-900 text-white shadow-lg" : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-900")}><tab.icon className="h-4 w-4" />{tab.label}</button>)}</div></section>
+        <section className="rounded-[2rem] border border-slate-100 bg-slate-50/50 p-2 shadow-sm w-fit">
+          <div className="flex items-center gap-1">
+            {[
+              { id: "library", label: "Biblioteca", icon: BookOpen },
+              { id: "mine", label: "Mis recursos", icon: UserIcon },
+              { id: "coverIntro", label: "Portada e introducción", icon: Lock }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setMainTab(tab.id as MainTab)}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold transition-all",
+                  mainTab === tab.id
+                    ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-100"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                )}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </section>
 
         {mainTab === "library" && (
           <>
-            <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm space-y-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+            <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-600">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-indigo-600">
                     Biblioteca general
                   </p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-900">
+                  <h2 className="mt-2 text-2xl font-semibold text-slate-900">
                     Recursos de plataforma y comunidad
                   </h2>
                 </div>
-                <div className="inline-flex items-center rounded-lg bg-slate-100 p-1">
+                <div className="inline-flex items-center rounded-2xl bg-slate-50 p-1 border border-slate-100">
                   <button
                     type="button"
                     onClick={() => setLibrarySource("system")}
                     className={cn(
-                      "rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.2em]",
-                      librarySource === "system" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                      "rounded-xl px-5 py-2 text-xs font-semibold uppercase tracking-wider",
+                      librarySource === "system" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500"
                     )}
                   >
                     Sistema
@@ -317,8 +337,8 @@ export function ResourcesClient() {
                     type="button"
                     onClick={() => setLibrarySource("community")}
                     className={cn(
-                      "rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.2em]",
-                      librarySource === "community" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                      "rounded-xl px-5 py-2 text-xs font-semibold uppercase tracking-wider",
+                      librarySource === "community" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500"
                     )}
                   >
                     Comunidad
@@ -326,66 +346,73 @@ export function ResourcesClient() {
                 </div>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.85fr)]">
-                <div className="relative flex items-center">
-                  <Search className="absolute left-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <Input
-                    value={librarySearch}
-                    onChange={(e) => setLibrarySearch(e.target.value)}
-                    placeholder="Buscar por nombre, contenido o hashtag..."
-                    className="pl-10 bg-white border-slate-200 focus:border-emerald-500 h-11 transition-all w-full"
+              <div className="grid gap-4 md:grid-cols-[1.5fr_1fr_1fr] items-start">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">
+                    <Search className="h-3.5 w-3.5" />
+                    Búsqueda
+                  </div>
+                  <div className="relative flex items-center group">
+                    <Search className="absolute left-3.5 h-4 w-4 text-slate-400 group-hover:text-indigo-500 transition-colors pointer-events-none" />
+                    <Input
+                      value={librarySearch}
+                      onChange={(e) => setLibrarySearch(e.target.value)}
+                      placeholder="Buscar por nombre, contenido o hashtag..."
+                      className="pl-10 rounded-2xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-indigo-500 h-11 transition-all w-full font-medium text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">
+                    <Hash className="h-3.5 w-3.5" />
+                    Hashtags
+                  </div>
+                  <TagInput
+                    value={libraryTags}
+                    onChange={setLibraryTags}
+                    suggestions={availableTags}
+                    placeholder="Filtrar hashtags..."
+                    className="rounded-2xl"
                   />
                 </div>
 
-                <TagInput
-                  value={libraryTags}
-                  onChange={setLibraryTags}
-                  suggestions={availableTags}
-                  placeholder="Filtrar hashtags..."
-                />
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">
-                  <Filter className="h-3.5 w-3.5" />
-                  Secciones
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {LIBRARY_CATEGORIES.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setSectionFilter(c.id)}
-                      className={cn(
-                        "rounded-full border px-4 py-2 text-xs font-bold transition-colors",
-                        sectionFilter === c.id
-                          ? "border-slate-900 bg-slate-900 text-white"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                      )}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">
+                    <Filter className="h-3.5 w-3.5" />
+                    Sección
+                  </div>
+                  <select
+                    value={sectionFilter}
+                    onChange={(e) => setSectionFilter(e.target.value)}
+                    className="h-11 w-full rounded-2xl border border-slate-100 bg-slate-50/50 px-4 text-sm font-semibold text-slate-600 outline-none focus:bg-white focus:border-indigo-500 transition-all cursor-pointer"
+                  >
+                    {LIBRARY_CATEGORIES.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </section>
 
             {isLoading ? (
-              <div className="flex min-h-[18rem] flex-col items-center justify-center rounded-[2rem] border border-slate-200 bg-white">
-                <Loader2 className="mb-4 h-9 w-9 animate-spin text-emerald-500" />
-                <p className="text-sm text-slate-500">Cargando recursos...</p>
+              <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-[2rem] border border-slate-100 bg-white shadow-sm">
+                <Loader2 className="mb-4 h-10 w-10 animate-spin text-indigo-500" />
+                <p className="text-sm font-medium text-slate-400">Cargando biblioteca...</p>
               </div>
             ) : sectionFilter === "all" && !librarySearch.trim() && libraryTags.length === 0 ? (
-              <div className="space-y-8">
+              <div className="space-y-10">
                 {groupedLibrary.map(({ category, resources }) => (
-                  <section key={category.id} className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-2xl font-black text-slate-900">{category.label}</h3>
-                      <span className="rounded-full bg-white px-4 py-2 text-xs font-bold text-slate-500 shadow-sm">
-                        {resources.length} recursos
+                  <section key={category.id} className="space-y-5">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                      <h3 className="text-xl font-semibold text-slate-800">{category.label}</h3>
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">
+                        {resources.length} recursos disponibles
                       </span>
                     </div>
-                    <div className="grid lg:grid-cols-2 gap-4">
+                    <div className="grid lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {resources.map((resource) => (
                         <Card key={resource.id} resource={resource} />
                       ))}
@@ -394,62 +421,112 @@ export function ResourcesClient() {
                 ))}
               </div>
             ) : (
-              <section className="grid lg:grid-cols-2 gap-4">
+              <section className="grid lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredLibrary.length ? (
                   filteredLibrary.map((resource) => (
                     <Card key={resource.id} resource={resource} />
                   ))
                 ) : (
-                  <div className="col-span-full rounded-[2rem] border border-dashed border-slate-200 bg-white p-10 text-center text-slate-500">
-                    No encontramos recursos con esos filtros.
+                  <div className="col-span-full rounded-[2rem] border border-dashed border-slate-200 bg-white py-20 text-center">
+                    <BookOpen className="mx-auto h-10 w-10 text-slate-200 mb-4" />
+                    <p className="text-slate-400 font-medium">No encontramos recursos con esos filtros.</p>
                   </div>
                 )}
               </section>
             )}
           </>
         )}
-        {mainTab === "coverIntro" && <div className="space-y-6"><section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm"><p className="text-[11px] font-black uppercase tracking-[0.22em] text-indigo-600">Inicio del entregable</p><h2 className="mt-2 text-2xl font-black text-slate-900">Portadas e introducciones reutilizables</h2><p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">Puedes mantener la base de la plataforma, crear una portada propia o guardar introducciones alternativas para reutilizarlas y marcarlas como favoritas.</p></section>{[{ title: "Portadas", list: coverResources, kind: "cover" as const }, { title: "Introducciones", list: introResources, kind: "intro" as const }].map((block) => <section key={block.title} className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm"><div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-slate-100 pb-5"><div><h3 className="text-xl font-black text-slate-900">{block.title}</h3><p className="mt-2 text-sm text-slate-500">{block.kind === "cover" ? "Crea una portada propia para reemplazar la de la plataforma." : "Guarda mensajes de bienvenida y contexto inicial."}</p></div><Button className="rounded-full px-5" onClick={() => openCreate(block.kind)}><Plus className="mr-2 h-4 w-4" />{block.kind === "cover" ? "Crear portada" : "Crear introduccion"}</Button></div><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{block.list.length ? block.list.map((resource) => <article key={resource.id} className="flex h-full flex-col rounded-[1.75rem] border border-slate-200 bg-slate-50/60 p-5"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">{resource.nutritionistId === null ? "Base plataforma" : "Personalizado"}</p><h4 className="mt-2 text-base font-black text-slate-900">{resource.title}</h4></div><button type="button" onClick={() => toggleFavorite(resource.id)} className={cn("inline-flex h-10 w-10 items-center justify-center rounded-full border", favorites.includes(resource.id) ? "border-amber-200 bg-amber-50 text-amber-600" : "border-slate-200 bg-white text-slate-400")}><Star className={cn("h-4 w-4", favorites.includes(resource.id) && "fill-current")} /></button></div><p className="mt-4 line-clamp-4 text-sm leading-6 text-slate-600">{short(plain(resource.content || ""), 150)}</p><div className="mt-auto flex items-center justify-between pt-5"><Button variant="ghost" className="rounded-full px-0 text-emerald-600" onClick={() => setResourceToPreview(resource)}>Ver recurso</Button>{resource.isMine && <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => openEdit(resource)}><Pencil className="h-4 w-4" /></Button>}</div></article>) : <div className="rounded-[1.75rem] border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">No hay recursos cargados todavia.</div>}</div></section>)}</div>}
+        {mainTab === "coverIntro" && (
+          <div className="space-y-6">
+            <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-indigo-600">Inicio del entregable</p>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-900">Portadas e introducciones reutilizables</h2>
+              <p className="mt-3 max-w-3xl text-sm font-medium leading-6 text-slate-500">
+                Puedes mantener la base de la plataforma, crear una portada propia o guardar introducciones alternativas para reutilizarlas y marcarlas como favoritas.
+              </p>
+            </section>
+            {[{ title: "Portadas", list: coverResources, kind: "cover" as const }, { title: "Introducciones", list: introResources, kind: "intro" as const }].map((block) => (
+              <section key={block.title} className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm">
+                <div className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-slate-100 pb-6">
+                  <div>
+                    <h3 className="text-xl font-semibold text-slate-900">{block.title}</h3>
+                    <p className="mt-2 text-sm font-medium text-slate-500">
+                      {block.kind === "cover" ? "Crea una portada propia para reemplazar la de la plataforma." : "Guarda mensajes de bienvenida y contexto inicial."}
+                    </p>
+                  </div>
+                  <Button className="rounded-full px-6 font-semibold" onClick={() => openCreate(block.kind)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    {block.kind === "cover" ? "Crear portada" : "Crear introduccion"}
+                  </Button>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {block.list.length ? block.list.map((resource) => (
+                    <article key={resource.id} className="flex h-full flex-col rounded-[2rem] border border-slate-100 bg-slate-50/50 p-6 hover:shadow-md transition-all">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                            {resource.nutritionistId === null ? "Base plataforma" : "Personalizado"}
+                          </p>
+                          <h4 className="mt-2 text-base font-semibold text-slate-900">{resource.title}</h4>
+                        </div>
+                        <button type="button" onClick={() => toggleFavorite(resource.id)} className={cn("inline-flex h-9 w-9 items-center justify-center rounded-full border transition-colors", favorites.includes(resource.id) ? "border-amber-200 bg-amber-50 text-amber-600" : "border-slate-100 bg-white text-slate-400 hover:text-indigo-600")}><Star className={cn("h-4 w-4", favorites.includes(resource.id) && "fill-current")} /></button>
+                      </div>
+                      <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-500 font-medium">{short(plain(resource.content || ""), 150)}</p>
+                      <div className="mt-auto flex items-center justify-between pt-6 border-t border-slate-100/50">
+                        <Button variant="ghost" className="rounded-full px-0 text-xs font-semibold text-indigo-600 hover:bg-transparent" onClick={() => setResourceToPreview(resource)}>Ver recurso</Button>
+                        {resource.isMine && <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-400 hover:text-indigo-600" onClick={() => openEdit(resource)}><Pencil className="h-3.5 w-3.5" /></Button>}
+                      </div>
+                    </article>
+                  )) : <div className="rounded-[2rem] border border-dashed border-slate-100 bg-slate-50/50 p-10 text-center text-sm font-medium text-slate-400">No hay recursos cargados todavia.</div>}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
 
         {mainTab === "mine" && (
           <div className="space-y-6">
-            <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm space-y-5">
+            <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm space-y-6">
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-600">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-indigo-600">
                     Gestion personal
                   </p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-900">Mis recursos</h2>
+                  <h2 className="mt-2 text-2xl font-semibold text-slate-900">Mis recursos</h2>
                 </div>
-                <Button className="rounded-full px-5" onClick={() => openCreate("general")}>
+                <Button className="rounded-full px-6 font-semibold" onClick={() => openCreate("general")}>
                   <Plus className="mr-2 h-4 w-4" />
                   Nuevo recurso
                 </Button>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-2">
-                <div className="relative flex items-center">
-                  <Search className="absolute left-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
+              <div className="grid gap-4 xl:grid-cols-[1fr_auto]">
+                <div className="relative flex items-center group">
+                  <Search className="absolute left-3.5 h-4 w-4 text-slate-400 group-hover:text-indigo-500 transition-colors pointer-events-none" />
                   <Input
                     value={mineSearch}
                     onChange={(e) => setMineSearch(e.target.value)}
                     placeholder="Buscar por titulo, contenido o fuente..."
-                    className="pl-10 bg-white border-slate-200 focus:border-emerald-500 h-11 transition-all w-full"
+                    className="pl-10 rounded-2xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-indigo-500 h-11 transition-all w-full font-medium text-sm"
                   />
                 </div>
 
-                <TagInput
-                  value={mineTags}
-                  onChange={setMineTags}
-                  suggestions={availableTags}
-                  placeholder="Filtrar hashtags..."
-                />
+                <div className="w-[300px]">
+                  <TagInput
+                    value={mineTags}
+                    onChange={setMineTags}
+                    suggestions={availableTags}
+                    placeholder="Filtrar hashtags..."
+                    className="rounded-2xl"
+                  />
+                </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <select
                   value={mineSection}
                   onChange={(e) => setMineSection(e.target.value)}
-                  className="h-12 rounded-[1.25rem] border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-emerald-500 transition-all"
+                  className="h-10 rounded-xl border border-slate-100 bg-slate-50/50 px-4 text-xs font-semibold text-slate-600 outline-none focus:bg-white focus:border-indigo-500 transition-all cursor-pointer"
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -461,7 +538,7 @@ export function ResourcesClient() {
                 <select
                   value={mineVisibility}
                   onChange={(e) => setMineVisibility(e.target.value)}
-                  className="h-12 rounded-[1.25rem] border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-emerald-500 transition-all"
+                  className="h-10 rounded-xl border border-slate-100 bg-slate-50/50 px-4 text-xs font-semibold text-slate-600 outline-none focus:bg-white focus:border-indigo-500 transition-all cursor-pointer"
                 >
                   <option value="all">Publicos y privados</option>
                   <option value="public">Solo publicos</option>
@@ -471,7 +548,7 @@ export function ResourcesClient() {
                 <select
                   value={mineFormat}
                   onChange={(e) => setMineFormat(e.target.value)}
-                  className="h-12 rounded-[1.25rem] border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-emerald-500 transition-all"
+                  className="h-10 rounded-xl border border-slate-100 bg-slate-50/50 px-4 text-xs font-semibold text-slate-600 outline-none focus:bg-white focus:border-indigo-500 transition-all cursor-pointer"
                 >
                   <option value="all">Todos los formatos</option>
                   <option value="HTML">Editor HTML</option>
@@ -482,119 +559,108 @@ export function ResourcesClient() {
                   type="button"
                   onClick={() => setMineOnlyFavorites((p) => !p)}
                   className={cn(
-                    "inline-flex h-12 items-center justify-center gap-2 rounded-[1.25rem] border text-sm font-bold transition-all",
+                    "inline-flex h-10 items-center justify-center gap-2 rounded-xl border text-xs font-semibold transition-all",
                     mineOnlyFavorites
-                      ? "border-amber-200 bg-amber-50 text-amber-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      ? "border-amber-200 bg-amber-50 text-amber-700 shadow-sm"
+                      : "border-slate-100 bg-slate-50/50 text-slate-500 hover:bg-slate-50 hover:border-slate-200"
                   )}
                 >
-                  <Star className={cn("h-4 w-4", mineOnlyFavorites && "fill-current")} />
+                  <Star className={cn("h-3.5 w-3.5", mineOnlyFavorites && "fill-current")} />
                   Solo favoritos
                 </button>
               </div>
             </section>
 
-            <div className="hidden overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm md:block">
-              <table className="min-w-full divide-y divide-slate-200">
-                <thead className="bg-slate-50">
-                  <tr className="text-left text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
-                    <th className="px-5 py-4">Recurso</th>
-                    <th className="px-5 py-4">Seccion</th>
-                    <th className="px-5 py-4">Hashtags</th>
-                    <th className="px-5 py-4">Formato</th>
-                    <th className="px-5 py-4">Visibilidad</th>
-                    <th className="px-5 py-4">Actualizado</th>
-                    <th className="px-5 py-4 text-right">Acciones</th>
+            <div className="hidden overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm md:block">
+              <table className="min-w-full divide-y divide-slate-50">
+                <thead className="bg-slate-50/50">
+                  <tr className="text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                    <th className="px-6 py-4">Recurso</th>
+                    <th className="px-6 py-4">Seccion</th>
+                    <th className="px-6 py-4">Hashtags</th>
+                    <th className="px-6 py-4">Visibilidad</th>
+                    <th className="px-6 py-4 text-right">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-50">
                   {filteredMine.length ? (
                     filteredMine.map((resource) => (
-                      <tr key={resource.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-5 py-5">
-                          <p className="font-black text-slate-900">{resource.title}</p>
-                          <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
-                            {short(plain(resource.content || ""), 120)}
+                      <tr key={resource.id} className="hover:bg-slate-50/30 transition-colors group">
+                        <td className="px-6 py-5">
+                          <p className="font-semibold text-slate-700">{resource.title}</p>
+                          <p className="mt-1 max-w-md text-xs font-medium leading-relaxed text-slate-400 line-clamp-1">
+                            {short(plain(resource.content || ""), 80)}
                           </p>
-                          {resource.sources && (
-                            <p className="mt-2 text-xs text-slate-400 italic">
-                              {resource.sources}
-                            </p>
-                          )}
                         </td>
-                        <td className="px-5 py-5 text-sm text-slate-600">
-                          {CATEGORIES.find((c) => c.id === resource.category)?.label || "Otro"}
+                        <td className="px-6 py-5">
+                          <span className="text-[11px] font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">
+                            {CATEGORIES.find((c) => c.id === resource.category)?.label || "Otro"}
+                          </span>
                         </td>
-                        <td className="px-5 py-5">
-                          <div className="flex max-w-xs flex-wrap gap-2">
+                        <td className="px-6 py-5">
+                          <div className="flex max-w-xs flex-wrap gap-1.5">
                             {resource.tags.length ? (
-                              resource.tags.map((tag) => (
+                              resource.tags.slice(0, 2).map((tag) => (
                                 <span
                                   key={`${resource.id}-${tag}`}
-                                  className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold text-slate-600"
+                                  className="text-[10px] font-semibold text-indigo-400"
                                 >
                                   #{tag}
                                 </span>
                               ))
                             ) : (
-                              <span className="text-sm text-slate-300">Sin hashtags</span>
+                              <span className="text-[10px] text-slate-300">Sin hashtags</span>
                             )}
                           </div>
                         </td>
-                        <td className="px-5 py-5 text-sm text-slate-600">
-                          {resource.format || "HTML"}
-                        </td>
-                        <td className="px-5 py-5">
+                        <td className="px-6 py-5">
                           <span
                             className={cn(
-                              "rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
-                              resource.isPublic ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+                              "rounded-full px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider",
+                              resource.isPublic ? "bg-indigo-50 text-indigo-700 border border-indigo-100" : "bg-slate-50 text-slate-500 border border-slate-100"
                             )}
                           >
                             {resource.isPublic ? "Publico" : "Privado"}
                           </span>
                         </td>
-                        <td className="px-5 py-5 text-sm text-slate-500">
-                          {fmtDate(resource.updatedAt || resource.createdAt)}
-                        </td>
-                        <td className="px-5 py-5">
-                          <div className="flex justify-end gap-2">
+                        <td className="px-6 py-5">
+                          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-10 w-10 rounded-full"
+                              className="h-8 w-8 rounded-full"
                               onClick={() => toggleFavorite(resource.id)}
                             >
                               <Star
                                 className={cn(
-                                  "h-4 w-4",
-                                  favorites.includes(resource.id) ? "fill-current text-amber-500" : "text-slate-400"
+                                  "h-3.5 w-3.5",
+                                  favorites.includes(resource.id) ? "fill-current text-amber-500" : "text-slate-300"
                                 )}
                               />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-10 w-10 rounded-full"
+                              className="h-8 w-8 rounded-full text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
                               onClick={() => openEdit(resource)}
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-10 w-10 rounded-full"
+                              className="h-8 w-8 rounded-full text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
                               onClick={() => setResourceToPreview(resource)}
                             >
-                              <ExternalLink className="h-4 w-4" />
+                              <ExternalLink className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-10 w-10 rounded-full text-rose-500"
+                              className="h-8 w-8 rounded-full text-rose-400 hover:text-rose-600 hover:bg-rose-50"
                               onClick={() => setResourceToDelete(resource)}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         </td>
@@ -602,8 +668,8 @@ export function ResourcesClient() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="px-5 py-16 text-center text-slate-500">
-                        No tienes recursos propios que coincidan con esos filtros.
+                      <td colSpan={5} className="px-6 py-16 text-center">
+                        <p className="text-sm font-medium text-slate-400">No tienes recursos propios que coincidan con esos filtros.</p>
                       </td>
                     </tr>
                   )}
@@ -614,7 +680,7 @@ export function ResourcesClient() {
         )}
       </div>
 
-      <Modal isOpen={!!resourceToPreview} onClose={() => setResourceToPreview(null)} title={resourceToPreview?.title || "Vista previa"} className="max-w-4xl"><div className="space-y-6">{resourceToPreview?.tags?.length ? <div className="flex flex-wrap gap-2">{resourceToPreview.tags.map((tag) => <span key={tag} className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold text-slate-600"><Hash className="mr-1 h-3 w-3" />{tag}</span>)}</div> : null}{resourceToPreview?.format === "PDF" ? <div className="rounded-[2rem] border border-dashed border-slate-300 bg-slate-50 p-10 text-center"><FileText className="mx-auto mb-4 h-14 w-14 text-slate-300" />{resourceToPreview.fileUrl ? <a href={resourceToPreview.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white">Abrir PDF<ExternalLink className="ml-2 h-4 w-4" /></a> : null}</div> : <div className="prose prose-slate max-w-none text-slate-700 prose-p:leading-7 prose-headings:tracking-tight prose-h1:mb-4 prose-h1:text-[1.75rem] prose-h1:font-extrabold prose-h2:mb-3 prose-h2:text-[1.375rem] prose-h2:font-extrabold prose-h3:mb-2 prose-h3:text-[1.125rem] prose-h3:font-bold" dangerouslySetInnerHTML={{ __html: resourceToPreview?.content || "" }} />}</div></Modal>
+      <Modal isOpen={!!resourceToPreview} onClose={() => setResourceToPreview(null)} title={resourceToPreview?.title || "Vista previa"} className="max-w-4xl"><div className="space-y-6">{resourceToPreview?.tags?.length ? <div className="flex flex-wrap gap-2">{resourceToPreview.tags.map((tag) => <span key={tag} className="inline-flex items-center rounded-full bg-slate-50 border border-slate-100 px-3 py-1 text-[10px] font-semibold text-slate-500"><Hash className="mr-1 h-3 w-3" />{tag}</span>)}</div> : null}{resourceToPreview?.format === "PDF" ? <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50 p-12 text-center"><FileText className="mx-auto mb-4 h-16 w-16 text-slate-200" />{resourceToPreview.fileUrl ? <a href={resourceToPreview.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-indigo-700 transition-colors">Abrir PDF<ExternalLink className="ml-2 h-4 w-4" /></a> : null}</div> : <div className="prose prose-slate max-w-none text-slate-600 prose-p:leading-relaxed prose-headings:text-slate-900 prose-headings:font-semibold prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl" dangerouslySetInnerHTML={{ __html: resourceToPreview?.content || "" }} />}</div></Modal>
       <ConfirmationModal isOpen={!!resourceToDelete} onClose={() => setResourceToDelete(null)} onConfirm={deleteResource} title="Eliminar recurso" description="Esta accion quitara el recurso de tu biblioteca personal. No se puede deshacer." confirmText="Eliminar" variant="destructive" />
     </ModuleLayout>
   );

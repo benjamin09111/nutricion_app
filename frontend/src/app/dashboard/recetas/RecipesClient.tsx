@@ -263,7 +263,7 @@ const sanitizeNutritionGoals = (value: any): NutritionGoals | null => {
   const carbs = Number(value.carbs);
   const fats = Number(value.fats);
 
-  if ([calories, protein, carbs, fats].some((item) => !Number.isFinite(item) || item <= 0)) {
+  if ([calories, protein].some((item) => !Number.isFinite(item) || item <= 0)) {
     return null;
   }
 
@@ -319,7 +319,7 @@ const getGoalsFromPatient = (patient: any): NutritionGoals | null => {
     fats: readCustomVariableNumber(customVariables, "targetFats"),
   };
 
-  if (!goals.calories || !goals.protein || !goals.carbs || !goals.fats) {
+  if (!goals.calories || !goals.protein) {
     return sanitizeNutritionGoals(patient?.nutritionGoals);
   }
 
@@ -2400,8 +2400,8 @@ export default function RecipesClient() {
 
     setTargetCalories(patientNutritionGoals.calories);
     setTargetProtein(patientNutritionGoals.protein);
-    setTargetCarbs(patientNutritionGoals.carbs);
-    setTargetFats(patientNutritionGoals.fats);
+    
+    
   }, [
     selectedPatient,
     patientNutritionGoals?.calories,
@@ -4548,41 +4548,7 @@ export default function RecipesClient() {
                       </div>
                     </div>
 
-                    {/* Carbs Progress */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        <span>Carbohidratos</span>
-                        <span className="text-blue-600">
-                          {dayTotals.carbs}g / {targetCarbs}g
-                        </span>
-                      </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-500 transition-all duration-1000"
-                          style={{
-                            width: `${Math.min(100, (dayTotals.carbs / targetCarbs) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
 
-                    {/* Fats Progress */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        <span>Grasas</span>
-                        <span className="text-purple-600">
-                          {dayTotals.fats}g / {targetFats}g
-                        </span>
-                      </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-purple-500 transition-all duration-1000"
-                          style={{
-                            width: `${Math.min(100, (dayTotals.fats / targetFats) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
 
                     {selectedPatient ? (
                       <div className="pt-2 border-t border-slate-100">
@@ -4604,8 +4570,6 @@ export default function RecipesClient() {
                                       onClick={() => {
                                         setTargetCalories(patientNutritionGoals.calories);
                                         setTargetProtein(patientNutritionGoals.protein);
-                                        setTargetCarbs(patientNutritionGoals.carbs);
-                                        setTargetFats(patientNutritionGoals.fats);
                                         setIsEditingPatientGoals(false);
                                       }}
                                     >
@@ -4625,8 +4589,6 @@ export default function RecipesClient() {
                                     onClick={() => {
                                       setTargetCalories(patientNutritionGoals.calories);
                                       setTargetProtein(patientNutritionGoals.protein);
-                                      setTargetCarbs(patientNutritionGoals.carbs);
-                                      setTargetFats(patientNutritionGoals.fats);
                                       setIsEditingPatientGoals(true);
                                     }}
                                   >
@@ -4651,22 +4613,7 @@ export default function RecipesClient() {
                                   placeholder="prot"
                                   className="h-9 rounded-xl border-slate-200 text-xs font-bold"
                                 />
-                                <Input
-                                  type="number"
-                                  value={targetCarbs}
-                                  disabled={!isEditingPatientGoals}
-                                  onChange={(e) => setTargetCarbs(Math.max(0, Number(e.target.value) || 0))}
-                                  placeholder="cho"
-                                  className="h-9 rounded-xl border-slate-200 text-xs font-bold"
-                                />
-                                <Input
-                                  type="number"
-                                  value={targetFats}
-                                  disabled={!isEditingPatientGoals}
-                                  onChange={(e) => setTargetFats(Math.max(0, Number(e.target.value) || 0))}
-                                  placeholder="lip"
-                                  className="h-9 rounded-xl border-slate-200 text-xs font-bold"
-                                />
+                                
                               </div>
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
@@ -4680,12 +4627,8 @@ export default function RecipesClient() {
                                 <span className={dayTotalsWithSupplement.protein >= patientNutritionGoals.protein ? "text-emerald-600" : "text-slate-500"}>
                                   prot {Math.round(dayTotalsWithSupplement.protein)}/{patientNutritionGoals.protein}
                                 </span>
-                                <span className={dayTotals.carbs >= patientNutritionGoals.carbs ? "text-emerald-600" : "text-slate-500"}>
-                                  cho {Math.round(dayTotals.carbs)}/{patientNutritionGoals.carbs}
-                                </span>
-                                <span className={dayTotals.fats >= patientNutritionGoals.fats ? "text-emerald-600" : "text-slate-500"}>
-                                  lip {Math.round(dayTotals.fats)}/{patientNutritionGoals.fats}
-                                </span>
+                                
+                                
                               </div>
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
@@ -4699,12 +4642,8 @@ export default function RecipesClient() {
                                 <span className={weekTotalsWithSupplement.protein >= patientNutritionGoals.protein * 7 ? "text-emerald-600" : "text-slate-500"}>
                                   prot {Math.round(weekTotalsWithSupplement.protein)}/{patientNutritionGoals.protein * 7}
                                 </span>
-                                <span className={weekTotals.carbs >= patientNutritionGoals.carbs * 7 ? "text-emerald-600" : "text-slate-500"}>
-                                  cho {Math.round(weekTotals.carbs)}/{patientNutritionGoals.carbs * 7}
-                                </span>
-                                <span className={weekTotals.fats >= patientNutritionGoals.fats * 7 ? "text-emerald-600" : "text-slate-500"}>
-                                  lip {Math.round(weekTotals.fats)}/{patientNutritionGoals.fats * 7}
-                                </span>
+                                
+                                
                               </div>
                             </div>
                             {recommendedProteinRange ? (
@@ -4728,7 +4667,7 @@ export default function RecipesClient() {
                         ) : (
                           <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
                             <p className="text-xs font-bold text-amber-900">
-                              El paciente no tiene registradas metas de proteina, calorias, carbohidratos y grasas. La IA no las considerara.
+                              El paciente no tiene registradas metas de proteína y calorías. La IA no las considerará.
                             </p>
                             <Button
                               onClick={assignPatientGoalsFromCurrentTargets}

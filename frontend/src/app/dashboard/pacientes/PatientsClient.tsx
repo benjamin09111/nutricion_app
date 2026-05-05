@@ -342,7 +342,7 @@ export default function PatientsClient() {
                     }}
                     className={cn(
                       "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
-                      activeTab === "Inactivos" ? "bg-rose-500" : "bg-slate-300"
+                      activeTab === "Inactivos" ? "bg-emerald-500" : "bg-slate-300"
                     )}
                     role="switch"
                     aria-checked={activeTab === "Inactivos"}
@@ -352,7 +352,7 @@ export default function PatientsClient() {
                       activeTab === "Inactivos" ? "translate-x-5" : "translate-x-0"
                     )} />
                   </button>
-                  <span className={cn("text-xs font-bold", activeTab === "Inactivos" ? "text-rose-600" : "text-slate-500")}>
+                  <span className={cn("text-xs font-bold", activeTab === "Inactivos" ? "text-emerald-700" : "text-slate-500")}>
                     {activeTab === "Inactivos" ? "Inhabilitados" : "Solo Habilitados"}
                   </span>
                 </div>
@@ -366,7 +366,7 @@ export default function PatientsClient() {
                 type="button"
                 variant="ghost"
                 onClick={resetPatients}
-                className="h-8 px-3 rounded-lg text-rose-500 hover:text-rose-600 hover:bg-rose-50 text-[11px] font-bold uppercase tracking-wider"
+                className="h-8 px-3 rounded-lg text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 text-[11px] font-semibold uppercase tracking-wider"
               >
                 <RotateCcw className="h-3 w-3 mr-1.5" />
                 Limpiar filtros
@@ -447,9 +447,9 @@ export default function PatientsClient() {
                             {visibleRestrictions.map((restriction) => (
                               <span
                                 key={restriction}
-                                className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700"
+                                className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
                               >
-                                <Heart className="h-3 w-3" />
+                                <Heart className="h-3 w-3 text-emerald-600" />
                                 <span className="truncate max-w-[180px]">{restriction}</span>
                               </span>
                             ))}
@@ -490,47 +490,31 @@ export default function PatientsClient() {
                           <button
                             onClick={() => openPatientPreview(patient)}
                             className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                            title="Ver"
                           >
                             <Eye className="w-4.5 h-4.5" />
-                            <span className="pointer-events-none absolute bottom-full right-0 mb-2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
-                              Ver
-                            </span>
                           </button>
                           <button
                             onClick={() => togglePatientStatus(patient)}
                             className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
-                            title={patient.status === "Active" ? "Inhabilitar" : "Habilitar"}
                           >
                             {patient.status === "Active" ? (
-                              <Ban className="w-4.5 h-4.5 text-amber-600" />
+                              <Ban className="w-4.5 h-4.5 text-emerald-600" />
                             ) : (
                               <CheckCircle2 className="w-4.5 h-4.5 text-indigo-600" />
                             )}
-                            <span className="pointer-events-none absolute bottom-full right-0 mb-2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
-                              {patient.status === "Active" ? "Inhabilitar" : "Habilitar"}
-                            </span>
                           </button>
                           <button
                             type="button"
                             disabled
                             className="group relative p-2.5 text-slate-300 bg-slate-50 rounded-xl transition-all cursor-not-allowed"
-                            title="Descargar ficha"
                           >
                             <Download className="w-4.5 h-4.5" />
-                            <span className="pointer-events-none absolute bottom-full right-0 mb-2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
-                              Descargar ficha
-                            </span>
                           </button>
                           <button
                             onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }}
-                            className="group relative p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                            title="Eliminar"
+                            className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                           >
                             <Trash2 className="w-4.5 h-4.5" />
-                            <span className="pointer-events-none absolute bottom-full right-0 mb-2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
-                              Eliminar
-                            </span>
                           </button>
                         </div>
                       </td>
@@ -602,7 +586,7 @@ export default function PatientsClient() {
                       {visibleRestrictions.map((restriction) => (
                         <span
                           key={restriction}
-                          className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700"
+                          className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
                         >
                           <Heart className="h-3 w-3" />
                           {restriction}
@@ -633,7 +617,7 @@ export default function PatientsClient() {
                       title={patient.status === "Active" ? "Inhabilitar" : "Habilitar"}
                     >
                       {patient.status === "Active" ? (
-                        <Ban className="w-4 h-4 text-amber-600" />
+                        <Ban className="w-4 h-4 text-emerald-600" />
                       ) : (
                         <CheckCircle2 className="w-4 h-4 text-indigo-600" />
                       )}
@@ -641,7 +625,7 @@ export default function PatientsClient() {
                     <button type="button" disabled className="p-2 text-slate-300 bg-slate-50 rounded-lg cursor-not-allowed" title="Descargar ficha">
                       <Download className="w-4 h-4" />
                     </button>
-                    <button onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }} className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-lg" title="Eliminar">
+                    <button onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }} className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-lg" title="Eliminar">
                       <Trash2 className="w-4 h-4" />
                     </button>
                     <button onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)} className="p-2 text-indigo-600 bg-indigo-50 rounded-lg ml-1 font-bold text-[10px] px-3 flex items-center gap-1 shadow-sm border border-indigo-100">
@@ -762,7 +746,7 @@ export default function PatientsClient() {
                     formatRestrictions(patientPreview.dietRestrictions).map((restriction) => (
                       <span
                         key={restriction}
-                        className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700"
+                        className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
                       >
                         <Heart className="h-3 w-3" />
                         {restriction}

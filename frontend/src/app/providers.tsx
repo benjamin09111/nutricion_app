@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { NotificationsProvider } from "@/context/NotificationsContext";
+import { FontProvider } from "@/context/FontContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -21,7 +22,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <NotificationsProvider>{children}</NotificationsProvider>
+        <FontProvider>
+          <NotificationsProvider>{children}</NotificationsProvider>
+        </FontProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

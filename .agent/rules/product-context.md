@@ -51,10 +51,12 @@ These rules are specific to the NutriSaaS project and its business domain.
 ## 8. UX & Product Language
 
 - **Spanish (LATAM)**: All UI/UX must be in Spanish.
-- **Visual Identity**: MATCH EXISTING LOGIN STYLE.
-  - **Vibe**: Clean, simple, attractive, friendly.
-  - **Colors**: Strict adherence to the established palette (refer to existing Login).
+- **Visual Identity**: MATCH THE `/dashboard/pacientes` STANDARD.
+  - **Primary Reference**: Follow the rules in `.agent/rules/pacientes-visual-standard.md`.
+  - **Vibe**: Clean, simple, attractive, friendly, calm.
+  - **Typography**: Light, readable, and minimal. Avoid heavy black text unless it is a deliberate focal point.
   - **Portal UX**: High contrast, readable, no clutter. "Clear & Understandable" > "Flashy".
+  - **Consistency**: If a screen feels heavier than `pacientes`, simplify it.
 - **Workflow-Driven**: Prioritize speed and clarity.
 - **Presets**: Prefer templates over free-form.
 - **Patient Navigation**: Clicking a patient in any list MUST open a dedicated tab/page for that patient, showing their specific history and associated consultations.

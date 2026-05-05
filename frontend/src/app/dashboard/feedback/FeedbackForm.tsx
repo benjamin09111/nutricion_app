@@ -125,37 +125,41 @@ export function FeedbackForm() {
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200/60 overflow-hidden relative">
+      <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/40 border border-slate-100 overflow-hidden relative">
         {/* Header Decoration */}
-        <div className="absolute top-0 left-0 right-0 h-2 bg-linear-to-r from-emerald-400 to-teal-500" />
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-indigo-500" />
 
-        <div className="p-8 md:p-10">
-          <div className="mb-8">
-            <h3 className="text-2xl font-black text-slate-800 tracking-tight mb-2">
+        <div className="p-10">
+          <div className="mb-10 text-center">
+            <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mb-3">
               Tu mensaje nos importa
             </h3>
-            <p className="text-slate-500 text-sm font-medium">
-              Ayúdanos a mejorar NutriSaaS. Puedes enviarnos una idea, un
-              reporte, un comentario o un testimonio. El testimonio puede
-              servir como referencia pública para la página, y se agradece mucho.
+            <p className="text-slate-500 text-sm font-medium leading-relaxed max-w-md mx-auto">
+              Ayúdanos a mejorar NutriSaaS. Cuéntanos tus ideas, problemas o testimonios para seguir evolucionando juntos.
             </p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Type Selection */}
-            <div className="space-y-3">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
+            <div className="space-y-4">
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
                 Tipo de Mensaje
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
-                  { id: "feedback", label: "Feedback", icon: MessageSquare },
-                  { id: "testimonio", label: "Testimonio", icon: CheckCircle2 },
-                  { id: "idea", label: "Nueva Idea", icon: Lightbulb },
-                  { id: "complaint", label: "Problema", icon: AlertTriangle },
+                  { id: "feedback", label: "Feedback", icon: MessageSquare, color: "indigo" },
+                  { id: "testimonio", label: "Testimonio", icon: CheckCircle2, color: "green" },
+                  { id: "idea", label: "Idea", icon: Lightbulb, color: "amber" },
+                  { id: "complaint", label: "Problema", icon: AlertTriangle, color: "rose" },
                 ].map((item) => {
                   const isSelected = selectedType === item.id;
-                  const styles = typeStyles[item.id as keyof typeof typeStyles];
+                  const colorMap: Record<string, string> = {
+                    indigo: "indigo",
+                    green: "emerald",
+                    amber: "amber",
+                    rose: "rose"
+                  };
+                  const color = colorMap[item.color];
 
                   return (
                     <div
@@ -164,51 +168,32 @@ export function FeedbackForm() {
                         setValue("type", item.id as FeedbackFormData["type"])
                       }
                       className={cn(
-                        "cursor-pointer relative overflow-hidden rounded-2xl border-2 p-4 transition-all duration-200 hover:shadow-md active:scale-95",
+                        "cursor-pointer relative overflow-hidden rounded-[1.5rem] border-2 p-4 transition-all duration-200 hover:shadow-sm active:scale-95 text-center flex flex-col items-center gap-2",
                         isSelected
-                          ? styles.wrapper
-                          : "border-slate-100 bg-white hover:border-slate-200",
+                          ? `border-${color}-500 bg-${color}-50 text-${color}-700`
+                          : "border-slate-50 bg-slate-50/50 text-slate-400 hover:border-slate-200 hover:bg-slate-50",
                       )}
                     >
-                      <div
+                      <item.icon
                         className={cn(
-                          "flex flex-col items-center gap-2 text-center",
-                          isSelected ? styles.label : "text-slate-400",
+                          "w-6 h-6",
+                          isSelected ? `text-${color}-600` : "text-slate-300",
                         )}
-                      >
-                        <item.icon
-                          className={cn(
-                            "w-6 h-6 transition-colors",
-                            isSelected ? styles.icon : "text-slate-300",
-                          )}
-                        />
-                        <span
-                          className={cn(
-                            "text-sm font-bold",
-                            isSelected ? styles.label : "text-slate-500",
-                          )}
-                        >
-                          {item.label}
-                        </span>
-                      </div>
+                      />
+                      <span className="text-[11px] font-semibold uppercase tracking-wider">
+                        {item.label}
+                      </span>
                       {isSelected && (
-                        <div
-                          className={`absolute top-2 right-2 w-2 h-2 rounded-full ${styles.dot}`}
-                        />
+                        <div className={cn("absolute top-2 right-2 w-1.5 h-1.5 rounded-full", `bg-${color}-500`)} />
                       )}
                     </div>
                   );
                 })}
               </div>
               {selectedType === "testimonio" && (
-                <div className="rounded-2xl border border-sky-100 bg-sky-50/80 p-4 text-sm text-sky-950">
-                  <p className="font-bold">Testimonio público</p>
-                  <p className="mt-1">
-                    Puedes usar este espacio para compartir una descripción de
-                    tu experiencia. Si nos autorizas, podemos usarla como
-                    testimonio público en la página. Se agradece mucho tu
-                    aporte.
-                  </p>
+                <div className="rounded-[1.25rem] border border-green-100 bg-green-50 p-4 text-xs text-green-700 font-medium leading-relaxed">
+                  <p className="font-semibold text-green-800 mb-1">Testimonio público</p>
+                  Si nos autorizas, podemos usar tu comentario como testimonio público en nuestra plataforma. ¡Gracias por tu apoyo!
                 </div>
               )}
               {errors.type && (
@@ -219,67 +204,49 @@ export function FeedbackForm() {
               )}
             </div>
 
-            {/* Subject */}
-            <div className="space-y-1">
-              <label
-                htmlFor="subject"
-                className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1"
-              >
-                Asunto
-              </label>
-              <Input
-                id="subject"
-                placeholder="Resumen breve..."
-                error={errors.subject?.message}
-                {...register("subject")}
-                className="bg-slate-50 border-slate-200 focus:bg-white transition-colors"
-              />
-              {errors.subject && (
-                <p className="flex items-center text-rose-500 text-xs font-bold mt-1 ml-1 animate-in slide-in-from-left-1">
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  {errors.subject.message}
-                </p>
-              )}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="subject" className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
+                  Asunto
+                </label>
+                <Input
+                  id="subject"
+                  placeholder="Resumen breve..."
+                  error={errors.subject?.message}
+                  {...register("subject")}
+                  className="rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-indigo-500 transition-all font-medium"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="message" className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
+                  Detalle del mensaje
+                </label>
+                <Textarea
+                  id="message"
+                  placeholder="Escribe aquí tus comentarios..."
+                  rows={4}
+                  error={errors.message?.message}
+                  {...register("message")}
+                  className="rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-indigo-500 transition-all font-medium resize-none"
+                />
+              </div>
             </div>
 
-            {/* Message */}
-            <div className="space-y-1">
-              <label
-                htmlFor="message"
-                className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1"
-              >
-                Detalle
-              </label>
-              <Textarea
-                id="message"
-                placeholder="Cuéntanos más detalles..."
-                rows={5}
-                error={errors.message?.message}
-                {...register("message")}
-                className="bg-slate-50 border-slate-200 focus:bg-white transition-colors resize-none"
-              />
-              {errors.message && (
-                <p className="flex items-center text-rose-500 text-xs font-bold mt-1 ml-1 animate-in slide-in-from-left-1">
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  {errors.message.message}
-                </p>
-              )}
-            </div>
-
-            <div className="pt-4">
+            <div className="pt-6">
               <Button
                 type="submit"
                 disabled={isSubmitting || isSuccess}
                 className={cn(
-                  "w-full h-12 text-base font-bold shadow-lg transition-all active:scale-[0.98] cursor-pointer",
+                  "w-full h-12 rounded-xl text-sm font-semibold shadow-md transition-all active:scale-[0.98] cursor-pointer",
                   isSuccess
-                    ? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200"
-                    : "bg-slate-900 hover:bg-slate-800 shadow-slate-300",
+                    ? "bg-green-500 hover:bg-green-600 shadow-green-100"
+                    : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100",
                 )}
               >
                 {isSubmitting ? (
                   <span className="flex items-center gap-2">
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     Enviando...
                   </span>
                 ) : isSuccess ? (
@@ -290,7 +257,7 @@ export function FeedbackForm() {
                 ) : (
                   <span className="flex items-center gap-2">
                     <Send className="w-4 h-4" />
-                    Enviar Feedback
+                    Enviar mensaje
                   </span>
                 )}
               </Button>

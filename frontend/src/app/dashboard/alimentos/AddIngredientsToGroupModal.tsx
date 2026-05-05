@@ -164,7 +164,7 @@ export default function AddIngredientsToGroupModal({
             />
           </div>
           <select
-            className="w-auto min-w-[160px] h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 shrink-0"
+            className="w-auto min-w-[160px] h-10 px-4 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shrink-0 transition-all"
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
             title="Filtrar por categoría"
@@ -178,7 +178,7 @@ export default function AddIngredientsToGroupModal({
             <Button
               variant="outline"
               onClick={onCreateNew}
-              className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 shrink-0"
+              className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
               title="Fabricar nuevo ingrediente"
             >
               <Plus size={18} />
@@ -217,7 +217,7 @@ export default function AddIngredientsToGroupModal({
                     className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border ${isSelected ? "bg-indigo-50 border-indigo-200 shadow-sm" : "bg-white border-transparent hover:bg-slate-50 hover:border-slate-100"}`}
                   >
                     <div>
-                      <div className="font-medium text-slate-900 text-sm">
+                      <div className="font-semibold text-slate-900 text-sm">
                         {ing.name}
                       </div>
                       <div className="text-xs text-slate-500">

@@ -115,13 +115,13 @@ export default function ManageTagsModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <DialogPanel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all border border-slate-100">
+              <DialogPanel className="w-full max-w-md transform overflow-hidden rounded-[1.5rem] bg-white p-8 text-left align-middle shadow-xl transition-all border border-slate-100">
                 <div className="flex justify-between items-center mb-6 border-b border-slate-50 pb-4">
                   <DialogTitle
                     as="h3"
-                    className="text-lg font-bold text-slate-800 flex items-center gap-2"
+                    className="text-lg font-semibold text-slate-800 flex items-center gap-2"
                   >
-                    <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
+                    <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
                       <Tag className="h-4 w-4" />
                     </div>
                     Gestionar Etiquetas
@@ -163,7 +163,7 @@ export default function ManageTagsModal({
                     <button
                       onClick={handleSave}
                       disabled={isSubmitting}
-                      className="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg flex items-center gap-2 disabled:opacity-50"
+                      className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl flex items-center gap-2 disabled:opacity-50 transition-all active:scale-95 shadow-sm"
                     >
                       {isSubmitting ? (
                         "Guardando..."

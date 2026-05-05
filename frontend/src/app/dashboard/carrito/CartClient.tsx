@@ -595,7 +595,7 @@ export default function CartClient() {
     const protein = read("targetProtein");
     const carbs = read("targetCarbs");
     const fats = read("targetFats");
-    if ([calories, protein, carbs, fats].some((value) => !Number.isFinite(value) || value <= 0)) {
+    if ([calories, protein].some((value) => !Number.isFinite(value) || value <= 0)) {
       return null;
     }
     return {
@@ -1630,10 +1630,10 @@ export default function CartClient() {
         title="Intercambio de Equivalentes"
       >
         <div className="space-y-4">
-          <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl">
-            <p className="text-[10px] font-black text-indigo-900 uppercase tracking-widest mb-1">Original</p>
-            <p className="text-sm font-bold text-slate-700">{selectedItemForEquivalent?.producto}</p>
-            <p className="text-[10px] font-bold text-indigo-600 uppercase mt-1">{selectedItemForEquivalent?.grupo}</p>
+          <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-[2rem]">
+            <p className="text-[10px] font-semibold text-indigo-900 uppercase tracking-widest mb-1">Original</p>
+            <p className="text-sm font-semibold text-slate-700">{selectedItemForEquivalent?.producto}</p>
+            <p className="text-[10px] font-semibold text-indigo-600 uppercase mt-1">{selectedItemForEquivalent?.grupo}</p>
           </div>
 
           <div className="relative">
@@ -1662,8 +1662,8 @@ export default function CartClient() {
                   className="p-4 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-indigo-50/30 transition-all cursor-pointer group flex items-center justify-between"
                 >
                   <div>
-                    <p className="font-bold text-slate-900 text-sm">{food.producto}</p>
-                    <div className="flex gap-2 text-[10px] text-slate-500 font-bold uppercase mt-1">
+                    <p className="font-semibold text-slate-900 text-sm">{food.producto}</p>
+                    <div className="flex gap-2 text-[10px] text-slate-500 font-semibold uppercase mt-1">
                       <span>{food.calories || food.calorias} kcal</span>
                       <span>|</span>
                       <span>P: {food.proteins || food.proteinas}g</span>
@@ -1676,7 +1676,7 @@ export default function CartClient() {
               ))
             )}
             {!isSearchingEquivalents && equivalentResults.length === 0 && (
-              <p className="py-8 text-center text-sm text-slate-400 font-bold">No se encontraron equivalentes.</p>
+              <p className="py-8 text-center text-sm text-slate-400 font-semibold">No se encontraron equivalentes.</p>
             )}
           </div>
         </div>
@@ -1697,9 +1697,9 @@ export default function CartClient() {
             <p>
               Consolidación de cantidades totales. Aquí podrás ajustar las compras mensuales estimadas y verificar que cuadren con tus metas nutricionales.
             </p>
-            <div className="flex flex-wrap gap-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">
-              <span className="text-emerald-600">1. Estrategia (✓)</span>
-              <span className="text-emerald-600">2. Cuantificación (✓)</span>
+            <div className="flex flex-wrap gap-4 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+              <span className="text-indigo-600">1. Estrategia (✓)</span>
+              <span className="text-indigo-600">2. Cuantificación (✓)</span>
               <span className="text-indigo-600 underline underline-offset-4 decoration-2">3. Logística</span>
               <span>4. Producto Final</span>
             </div>
@@ -1723,7 +1723,7 @@ export default function CartClient() {
                     key={view}
                     onClick={() => setTimeView(view)}
                     className={cn(
-                      "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                      "px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-widest transition-all",
                       timeView === view
                         ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
                         : "text-slate-400 hover:text-slate-600",
@@ -1737,10 +1737,10 @@ export default function CartClient() {
               {/* Nutritional Summary */}
               <div className="flex items-center gap-6">
                 <div className="space-y-0.5">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none">
                     Proteinas Totales
                   </p>
-                  <p className="text-xl font-black text-emerald-600 flex items-baseline gap-1">
+                  <p className="text-xl font-semibold text-indigo-600 flex items-baseline gap-1">
                     {totals.protein}
                     <span className="text-[10px] text-slate-400 uppercase">
                       g
@@ -1757,10 +1757,10 @@ export default function CartClient() {
                 </div>
                 <div className="w-px h-8 bg-slate-200" />
                 <div className="space-y-0.5">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none">
                     Calorias Totales
                   </p>
-                  <p className="text-xl font-black text-amber-600 flex items-baseline gap-1">
+                  <p className="text-xl font-semibold text-amber-600 flex items-baseline gap-1">
                     {totals.calories}
                     <span className="text-[10px] text-slate-400 uppercase">
                       kcal
@@ -1787,7 +1787,7 @@ export default function CartClient() {
                 Guardar Creacion
               </Button>
               <Button
-                className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-xl shadow-emerald-200 transition-all hover:scale-[1.02] active:scale-95"
+                className="h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-[2rem] shadow-xl shadow-indigo-200 transition-all hover:scale-[1.02] active:scale-95"
                 disabled={!hasRecipeSource}
                 onClick={handleFinalize}
               >
@@ -1832,7 +1832,7 @@ export default function CartClient() {
                 <Button
                   variant="outline"
                   onClick={() => setIsImportCreationModalOpen(true)}
-                  className="rounded-2xl border-amber-200 bg-white font-bold text-amber-900"
+                  className="rounded-[2rem] border-amber-200 bg-white font-semibold text-amber-900"
                 >
                   <Library className="mr-2 h-4 w-4" />
                   Importar dieta
@@ -1844,7 +1844,7 @@ export default function CartClient() {
                       buildProjectAwarePath("/dashboard/dieta", currentProjectId),
                     )
                   }
-                  className="rounded-2xl border-amber-200 bg-white font-bold text-amber-900"
+                  className="rounded-[2rem] border-amber-200 bg-white font-semibold text-amber-900"
                 >
                   <ChevronLeft className="mr-2 h-4 w-4" />
                   Ir a Dieta
@@ -1864,9 +1864,9 @@ export default function CartClient() {
               </span>
             </div>
             {proteinSupplement.enabled ? (
-              <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2">
-                <Target className="h-4 w-4 text-emerald-600" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+              <div className="mt-2 inline-flex items-center gap-2 rounded-[2rem] border border-indigo-200 bg-indigo-50 px-4 py-2">
+                <Target className="h-4 w-4 text-indigo-600" />
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-indigo-700">
                   Suplemento activo: +{proteinSupplement.gramsPerDay}g proteina/dia
                 </span>
               </div>
@@ -1875,17 +1875,17 @@ export default function CartClient() {
 
           {selectedPatient && (
             <div className="mb-6 animate-in slide-in-from-top duration-300">
-              <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-[2.5rem] shadow-sm">
+              <div className="bg-white border border-slate-200 p-5 rounded-[2rem] shadow-sm">
                 <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center border border-emerald-200">
-                    <User className="h-6 w-6 text-emerald-600" />
+                  <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center border border-indigo-100">
+                    <User className="h-6 w-6 text-indigo-600" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">
+                    <p className="text-[10px] font-semibold text-indigo-600 uppercase tracking-widest leading-none mb-1">
                       Paciente Vinculado
                     </p>
-                    <h3 className="text-xl font-black text-slate-900 italic leading-none">
+                    <h3 className="text-xl font-semibold text-slate-900 leading-none">
                       {selectedPatient.fullName || selectedPatient.name}
                     </h3>
                   </div>
@@ -2111,10 +2111,10 @@ export default function CartClient() {
                   <Info className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-indigo-900 uppercase tracking-tight">
+                  <h4 className="text-sm font-semibold text-indigo-900 uppercase tracking-tight">
                     Resumen de Intercambios (UDD/INTA Chile)
                   </h4>
-                  <p className="text-[10px] font-bold text-indigo-600/80 uppercase tracking-widest">
+                  <p className="text-[10px] font-semibold text-indigo-600/80 uppercase tracking-widest">
                     Informacion de referencia
                   </p>
                 </div>
@@ -2140,23 +2140,23 @@ export default function CartClient() {
                 <div className="flex flex-wrap items-center gap-4 border-t border-indigo-100 pt-3">
                   <div className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-amber-400" />
-                    <span className="text-[10px] font-black text-slate-600 uppercase">
+                    <span className="text-[10px] font-semibold text-slate-600 uppercase">
                       Cereales/Pan (~30g CHO)
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                    <span className="text-[10px] font-black text-slate-600 uppercase">
+                    <span className="h-2 w-2 rounded-full bg-indigo-500" />
+                    <span className="text-[10px] font-semibold text-slate-600 uppercase">
                       Proteinas (~11g PRO)
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-rose-500" />
-                    <span className="text-[10px] font-black text-slate-600 uppercase">
+                    <span className="text-[10px] font-semibold text-slate-600 uppercase">
                       Grasas/Aceites (~20g LIP)
                     </span>
                   </div>
-                  <span className="ml-auto text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                  <span className="ml-auto text-[10px] font-semibold uppercase tracking-widest text-indigo-600">
                     Derivado desde la dieta
                   </span>
                 </div>
@@ -2301,7 +2301,7 @@ export default function CartClient() {
                   {searchFilteredGroupEntries.length === 0 || !currentCategoryEntry ? (
                     <tr>
                       <td colSpan={5} className="px-6 py-10 text-center">
-                        <p className="text-sm font-bold text-slate-500">
+                        <p className="text-sm font-semibold text-slate-500">
                           No hay resultados para los filtros seleccionados.
                         </p>
                       </td>
@@ -2310,10 +2310,10 @@ export default function CartClient() {
                     <Fragment key={currentCategoryEntry[0]}>
                       <tr className="bg-slate-50/80">
                         <td colSpan={5} className="px-6 py-2">
-                          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                          <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                             <div className="h-1 w-1 rounded-full bg-indigo-400" />
                             {currentCategoryEntry[0]}
-                            <span className="text-[9px] bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 lowercase tracking-normal font-bold">
+                            <span className="text-[9px] bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 lowercase tracking-normal font-semibold">
                               {currentCategoryEntry[1].length} items
                             </span>
                           </h4>
@@ -2330,7 +2330,7 @@ export default function CartClient() {
                                 {item.producto.charAt(0)}
                               </div>
                               <div>
-                                <p className="font-bold text-slate-900 text-sm leading-none mb-1 flex items-center gap-2">
+                                <p className="font-semibold text-slate-900 text-sm leading-none mb-1 flex items-center gap-2">
                                   {item.producto}
                                   <button
                                     onClick={() => {
@@ -2346,7 +2346,7 @@ export default function CartClient() {
                                     <RotateCcw className="h-3 w-3" />
                                   </button>
                                 </p>
-                                <span className="text-[10px] uppercase font-bold text-slate-400">
+                                <span className="text-[10px] uppercase font-semibold text-slate-400">
                                   {item.grupo}
                                 </span>
                               </div>
@@ -2359,9 +2359,9 @@ export default function CartClient() {
                                   type="text"
                                   value={formatCartQuantity(item)}
                                   readOnly
-                                  className="h-10 pr-10 text-center font-black text-slate-700 border-slate-200 rounded-xl bg-slate-50/50"
+                                  className="h-10 pr-10 text-center font-semibold text-slate-700 border-slate-200 rounded-xl bg-slate-50/50"
                                 />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 pointer-events-none uppercase">
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-400 pointer-events-none uppercase">
                                   {item.unidad === "kg" && Number(item.cantidadMes) < 1 ? "g" : item.unidad}
                                 </span>
                               </div>

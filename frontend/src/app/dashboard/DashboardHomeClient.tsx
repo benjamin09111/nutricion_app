@@ -1,21 +1,21 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
-  ClipboardCheck,
-  Loader2,
   ChefHat,
+  Users,
+  CalendarDays,
+  Folder,
+  Loader2,
   Zap,
+  ClipboardCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -28,30 +28,7 @@ import {
   WorkflowProject,
 } from "@/lib/workflow";
 import { toast } from "sonner";
-
-const quickAccessCards = [
-  {
-    title: "Entregable rápido",
-    description: "Arma un resumen express para una consulta corta.",
-    href: "/dashboard/rapido",
-    icon: Zap,
-    accent: "bg-amber-50 border-amber-100 text-amber-700",
-  },
-  {
-    title: "Recetas rápidas",
-    description: "Genera platos reutilizables en minutos.",
-    href: "/dashboard/rapido/recetas",
-    icon: ChefHat,
-    accent: "bg-emerald-50 border-emerald-100 text-emerald-700",
-  },
-  {
-    title: "Entregable personalizado",
-    description: "Compila el paquete final para entregar al paciente.",
-    href: "/dashboard/entregable",
-    icon: ClipboardCheck,
-    accent: "bg-indigo-50 border-indigo-100 text-indigo-700",
-  },
-];
+import { cn } from "@/lib/utils";
 
 export default function DashboardHomeClient() {
   const router = useRouter();
@@ -74,6 +51,7 @@ export default function DashboardHomeClient() {
   );
   const patientCount = patients.length;
   const pendingAppointmentsCount = 0;
+  const recentProjectsCount = projects.length;
 
   const loadDashboardData = async () => {
     setIsLoading(true);
@@ -145,231 +123,186 @@ export default function DashboardHomeClient() {
 
   return (
     <>
-      <div className="max-w-6xl mx-auto space-y-8 pb-12">
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">
-                Inicio
-              </div>
-              <h1 className="text-4xl font-black tracking-tight text-slate-900">
-                Centro de trabajo clínico
-              </h1>
-              <p className="max-w-3xl text-sm font-medium text-slate-500">
-                Entra rápido a lo que más usas, revisa tu carga actual y retoma
-                proyectos sin perder tiempo.
-              </p>
+      <div className="max-w-7xl mx-auto space-y-10 pb-20 px-4 sm:px-6">
+        {/* Header Section */}
+        <header className="pt-4">
+          <div className="flex flex-col gap-4">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-indigo-600">
+              Panel de Control
             </div>
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-slate-900">
+              Centro de Trabajo Clínico
+            </h1>
+            <p className="max-w-2xl text-base text-slate-500 font-normal">
+              Gestiona tus pacientes, citas y proyectos nutricionales desde un solo lugar con eficiencia y profesionalismo.
+            </p>
+          </div>
+        </header>
 
-          </div>
-        </section>
-
-                <section className="space-y-4">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-black text-slate-900">Atajos rápidos</h2>
-              <p className="text-sm font-medium text-slate-500">
-                Solo accesos útiles para trabajar más rápido.
-              </p>
-            </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {quickAccessCards.map((module) => (
-              <Card
-                key={module.title}
-                className="rounded-[1.75rem] border-slate-200 shadow-sm"
-              >
-                <CardHeader className="space-y-4">
-                  <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-2xl border ${module.accent}`}
-                  >
-                    <module.icon className="h-5 w-5" />
+        {/* Key Metrics - 3 Columns */}
+        <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {/* Patients Metric */}
+          <Card className="group overflow-hidden rounded-[2rem] border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
+            <CardContent className="p-8">
+              <div className="flex items-start justify-between">
+                <div className="space-y-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 transition-colors group-hover:bg-indigo-600 group-hover:text-white">
+                    <Users className="h-5 w-5" />
                   </div>
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg font-black text-slate-900">
-                      {module.title}
-                    </CardTitle>
-                    <CardDescription className="text-xs font-medium text-slate-500">
-                      {module.description}
-                    </CardDescription>
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">Pacientes totales</p>
+                    <h3 className="mt-1 text-4xl font-semibold text-slate-900">{patientCount}</h3>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    variant="outline"
-                    className="h-10 w-full rounded-xl font-black"
-                    onClick={() => router.push(module.href)}
-                  >
-                    Abrir
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="rounded-[1.75rem] border-slate-200 shadow-sm">
-              <CardHeader className="space-y-2">
-                <CardTitle className="text-lg font-black text-slate-900">
-                  Pacientes registrados
-                </CardTitle>
-                <CardDescription className="text-sm font-medium text-slate-500">
-                  Total de pacientes disponibles en tu cuenta.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex items-end justify-between gap-4">
-                <div>
-                  <div className="text-4xl font-black tracking-tight text-slate-900">
-                    {patientCount}
-                  </div>
-                  <p className="mt-1 text-xs font-bold uppercase tracking-widest text-slate-400">
-                    Pacientes activos en el sistema
-                  </p>
                 </div>
-                <Button
-                  variant="outline"
-                  className="h-10 rounded-xl px-5 font-black"
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="rounded-full text-slate-400 hover:bg-slate-50"
                   onClick={() => router.push("/dashboard/pacientes")}
                 >
-                  Ver
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
-              </CardContent>
-            </Card>
-            <Card className="rounded-[1.75rem] border-slate-200 shadow-sm">
-              <CardHeader className="space-y-2">
-                <CardTitle className="text-lg font-black text-slate-900">
-                  Citas pendientes
-                </CardTitle>
-                <CardDescription className="text-sm font-medium text-slate-500">
-                  Vista visual del bloque de agenda que agregaremos después.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex items-end justify-between gap-4">
-                <div>
-                  <div className="text-4xl font-black tracking-tight text-slate-900">
-                    {pendingAppointmentsCount}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Appointments Metric */}
+          <Card className="group overflow-hidden rounded-[2rem] border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
+            <CardContent className="p-8">
+              <div className="flex items-start justify-between">
+                <div className="space-y-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-600 group-hover:text-white">
+                    <CalendarDays className="h-5 w-5" />
                   </div>
-                  <p className="mt-1 text-xs font-bold uppercase tracking-widest text-slate-400">
-                    Pendientes por revisar
-                  </p>
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">Siguiente cita</p>
+                    <h3 className="mt-1 text-lg font-semibold text-slate-900">
+                      {pendingAppointmentsCount > 0 ? "Hoy, 16:30" : "Sin citas hoy"}
+                    </h3>
+                  </div>
                 </div>
-                <Button
-                  variant="outline"
-                  className="h-10 rounded-xl px-5 font-black"
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="rounded-full text-slate-400 hover:bg-slate-50"
                   onClick={() => setIsAppointmentsPreviewOpen(true)}
                 >
-                  Ver
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Projects Metric */}
+          <Card className="group overflow-hidden rounded-[2rem] border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
+            <CardContent className="p-8">
+              <div className="flex items-start justify-between">
+                <div className="space-y-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600 transition-colors group-hover:bg-violet-600 group-hover:text-white">
+                    <Folder className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">Proyectos activos</p>
+                    <h3 className="mt-1 text-4xl font-semibold text-slate-900">{recentProjectsCount}</h3>
+                  </div>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="rounded-full text-slate-400 hover:bg-slate-50"
+                  onClick={() => router.push("/dashboard/creaciones")}
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-black text-slate-900">
-                Proyectos recientes
-              </h2>
-              <p className="text-sm font-medium text-slate-500">
-                Retoma flujos reales y continúa el trabajo desde la dieta.
-              </p>
-            </div>
+        {/* Recent Activity / Projects List */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Proyectos Recientes</h2>
             <Button
-              variant="ghost"
-              className="h-10 rounded-xl font-black"
-              onClick={loadDashboardData}
+              variant="link"
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+              onClick={() => router.push("/dashboard/creaciones")}
             >
-              Actualizar
+              Ver todos los proyectos
             </Button>
           </div>
 
           {isLoading ? (
-            <div className="flex h-40 items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+            <div className="flex h-40 items-center justify-center rounded-[2rem] border border-slate-100 bg-slate-50/30">
+              <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
             </div>
           ) : projects.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center">
-              <p className="text-sm font-bold text-slate-500">
-                Todavía no hay proyectos creados.
-              </p>
+            <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50/50 p-12 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                <Folder className="h-6 w-6" />
+              </div>
+              <h3 className="mt-4 text-base font-medium text-slate-900">No hay proyectos activos</h3>
+              <p className="mt-1 text-sm text-slate-500">Comienza creando un nuevo plan nutricional para tus pacientes.</p>
+              <Button 
+                className="mt-6 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+                onClick={() => setIsCreateModalOpen(true)}
+              >
+                Crear primer proyecto
+              </Button>
             </div>
           ) : (
-            <div className="grid gap-4 lg:grid-cols-2">
-              {projects.map((project) => (
-                <Card
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {projects.slice(0, 4).map((project) => (
+                <div
                   key={project.id}
-                  className="rounded-[1.5rem] border-slate-200 shadow-sm"
+                  className="flex items-center justify-between rounded-3xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:border-indigo-100 hover:shadow-md cursor-pointer"
+                  onClick={() => openProject(project)}
                 >
-                  <CardHeader className="space-y-3">
-                    <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest">
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-600">
-                        {project.mode === "CLINICAL" ? "Clínico" : "General"}
-                      </span>
-                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-700">
-                        {project.status}
-                      </span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-500">
+                      {project.mode === "CLINICAL" ? <Users className="h-5 w-5" /> : <Folder className="h-5 w-5" />}
                     </div>
                     <div>
-                      <CardTitle className="text-xl font-black text-slate-900">
-                        {project.name}
-                      </CardTitle>
-                      <CardDescription className="mt-1 text-sm font-medium text-slate-500">
-                        {project.patient?.fullName
-                          ? `Paciente: ${project.patient.fullName}`
-                          : "Proyecto sin paciente vinculado"}
-                      </CardDescription>
+                      <h4 className="text-base font-semibold text-slate-900">{project.name}</h4>
+                      <p className="text-xs font-medium text-slate-500">
+                        {project.patient?.fullName || "Proyecto General"} • {new Date(project.updatedAt).toLocaleDateString()}
+                      </p>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-500">
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                        Dieta: {project.activeDietCreation ? "OK" : "Pendiente"}
-                      </div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                        Recetas: {project.activeRecipeCreation ? "OK" : "Pendiente"}
-                      </div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                        Carrito: {project.activeCartCreation ? "OK" : "Pendiente"}
-                      </div>
-                      <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                        Entregable: {project.activeDeliverableCreation ? "OK" : "Pendiente"}
-                      </div>
-                    </div>
-
-                                        <div className="flex flex-wrap gap-2">
-                      <Button
-                        className="h-10 rounded-xl bg-emerald-600 px-4 font-black text-white"
-                        onClick={() => openProject(project, "/dashboard/dieta")}
-                      >
-                        Continuar proyecto
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                      project.status === "ACTIVE" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+                    )}>
+                      {project.status === "ACTIVE" ? "Activo" : "Borrador"}
+                    </span>
+                    <ArrowRight className="h-4 w-4 text-slate-300" />
+                  </div>
+                </div>
               ))}
             </div>
           )}
         </section>
       </div>
 
+      {/* Modals remain with similar logic but improved styling */}
       <Modal
         isOpen={isAppointmentsPreviewOpen}
         onClose={() => setIsAppointmentsPreviewOpen(false)}
-        title="Citas pendientes"
+        title="Citas Pendientes"
       >
-        <div className="space-y-4">
-          <p className="text-sm font-medium text-slate-600">
-            Este bloque quedará conectado a la gestión de citas en el siguiente paso.
-            Por ahora funciona como vista rápida.
+        <div className="space-y-6 py-2">
+          <p className="text-sm font-normal text-slate-500">
+            Esta sección estará conectada a tu agenda profesional próximamente.
           </p>
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-500">
-            No hay agenda activa todavía.
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-10 text-center">
+            <CalendarDays className="mx-auto h-8 w-8 text-slate-300" />
+            <p className="mt-3 text-sm font-medium text-slate-400">Sin agenda configurada</p>
           </div>
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-3">
             <Button
-              variant="outline"
-              className="h-10 rounded-xl px-5 font-black"
+              variant="ghost"
+              className="rounded-xl font-semibold text-slate-500"
               onClick={() => setIsAppointmentsPreviewOpen(false)}
             >
               Cerrar
@@ -378,64 +311,56 @@ export default function DashboardHomeClient() {
         </div>
       </Modal>
 
+      {/* Create Project Modal */}
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        title={
-          projectMode === "CLINICAL"
-            ? "Nuevo proyecto clínico"
-            : "Nuevo proyecto general"
-        }
+        title={projectMode === "CLINICAL" ? "Nuevo Proyecto Clínico" : "Nuevo Proyecto General"}
       >
-        <div className="space-y-5">
+        <div className="space-y-6 py-2">
           <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-slate-500">
-              Nombre del proyecto
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              Nombre del Proyecto
             </label>
             <Input
               value={projectName}
               onChange={(event) => setProjectName(event.target.value)}
-              placeholder="Ej: Plan antiinflamatorio María"
-              className="h-12 rounded-xl"
+              placeholder="Ej: Plan Antiinflamatorio María"
+              className="h-12 rounded-xl border-slate-200 focus:ring-indigo-500"
             />
           </div>
 
           {projectMode === "CLINICAL" && (
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500">
-                Paciente
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                Paciente Vinculado
               </label>
               <select
                 value={patientId}
                 onChange={(event) => setPatientId(event.target.value)}
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700"
+                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
               >
-                <option value="">Sin seleccionar</option>
+                <option value="">Seleccionar paciente...</option>
                 {patients.map((patient) => (
                   <option key={patient.id} value={patient.id}>
                     {patient.fullName}
                   </option>
                 ))}
               </select>
-              {selectedPatient ? (
-                <p className="text-xs font-medium text-emerald-700">
-                  Se vinculará con {selectedPatient.fullName}.
-                </p>
-              ) : null}
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-4">
             <Button
-              className="h-11 flex-1 rounded-xl bg-emerald-600 font-black text-white"
+              className="h-12 flex-1 rounded-xl bg-indigo-600 font-semibold text-white hover:bg-indigo-700"
               onClick={handleCreateProject}
               isLoading={isSubmitting}
             >
-              Crear y abrir Dieta
+              Comenzar Planificación
             </Button>
             <Button
-              variant="outline"
-              className="h-11 rounded-xl px-4 font-black"
+              variant="ghost"
+              className="h-12 rounded-xl px-6 font-semibold text-slate-500"
               onClick={() => setIsCreateModalOpen(false)}
             >
               Cancelar
@@ -446,4 +371,3 @@ export default function DashboardHomeClient() {
     </>
   );
 }
-

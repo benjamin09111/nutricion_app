@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRouter } from "next/navigation";
 import {
@@ -38,8 +38,6 @@ export default function CreatePatientClient() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-
-  // Filter out internal variables from the tags/goals list
   const selectedMetrics = (draft.customVariables || []).filter(m => m.key !== "activityLevel");
 
   // Ensure weight is always in customVariables for new/existing patients in this form
@@ -73,7 +71,7 @@ export default function CreatePatientClient() {
       return;
     }
     if (draft.documentId && !validateRut(draft.documentId)) {
-      toast.error("El RUT ingresado no es válido.");
+      toast.error("El RUT ingresado no es vÃ¡lido.");
       return;
     }
     setShowSaveConfirm(true);
@@ -86,7 +84,7 @@ export default function CreatePatientClient() {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const method = draft.id ? "PATCH" : "POST";
       const url = draft.id ? `/patients/${draft.id}` : "/patients";
-      
+
       const payload: any = {
         fullName: draft.fullName,
         email: draft.email || undefined,
@@ -104,7 +102,7 @@ export default function CreatePatientClient() {
         customVariables: draft.customVariables || [],
         activityLevel: draft.activityLevel || "sedentario",
       };
-      
+
       const response = await fetchApi(url, {
         method,
         headers: {
@@ -116,7 +114,7 @@ export default function CreatePatientClient() {
 
       if (response.ok) {
         const savedPatient = await response.json();
-        toast.success(draft.id ? "Expediente actualizado." : "Paciente registrado con éxito.");
+        toast.success(draft.id ? "Expediente actualizado." : "Paciente registrado con Ã©xito.");
         clearDraft();
         router.push(`/dashboard/pacientes/${savedPatient.id}`);
       } else {
@@ -125,7 +123,7 @@ export default function CreatePatientClient() {
       }
     } catch (error) {
       console.error("Save Patient Error:", error);
-      toast.error("Error de conexión con el servidor");
+      toast.error("Error de conexiÃ³n con el servidor");
     } finally {
       setIsSaving(false);
     }
@@ -146,9 +144,9 @@ export default function CreatePatientClient() {
               Reiniciar
             </span>
           </button>
-          
+
           <div className="h-px bg-slate-100 mx-2" />
-          
+
           <button
             onClick={handleSaveClick}
             disabled={isSaving}
@@ -203,13 +201,13 @@ export default function CreatePatientClient() {
             <ArrowLeft className="h-4 w-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
             <span className="text-sm font-medium text-slate-500 group-hover:text-slate-800 transition-colors">Volver</span>
           </Button>
-          
+
           {/* Header Buttons kept for visibility, but side menu is primary */}
           <div className="hidden xl:flex items-center gap-2">
-             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Acceso Rápido Lateral Activo
-             </div>
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Acceso RÃ¡pido Lateral Activo
+            </div>
           </div>
         </div>
 
@@ -217,7 +215,7 @@ export default function CreatePatientClient() {
         <div className="bg-slate-900 rounded-3xl p-6 lg:p-10 relative overflow-hidden shadow-2xl border border-slate-800">
           <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 blur-[100px] -translate-y-1/2 translate-x-1/2 rounded-full" />
           <div className="absolute bottom-0 left-0 w-72 h-72 bg-blue-500/5 blur-[80px] translate-y-1/2 -translate-x-1/2 rounded-full" />
-          
+
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-5 lg:gap-8">
               <div className="h-16 w-16 lg:h-20 lg:w-20 rounded-2xl bg-linear-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg border border-emerald-300/30">
@@ -225,10 +223,10 @@ export default function CreatePatientClient() {
               </div>
               <div>
                 <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight mb-2">
-                  {draft.id ? "Editando Expediente" : "Nueva Ficha Clínica"}
+                  {draft.id ? "Editando Expediente" : "Nueva Ficha ClÃ­nica"}
                 </h1>
                 <p className="text-emerald-100/60 text-sm lg:text-base max-w-xl font-medium">
-                  Completa la información necesaria para personalizar el seguimiento nutricional y optimizar los resultados del paciente.
+                  Completa la informaciÃ³n necesaria para personalizar el seguimiento nutricional y optimizar los resultados del paciente.
                 </p>
               </div>
             </div>
@@ -246,7 +244,7 @@ export default function CreatePatientClient() {
                 </div>
                 <h2 className="text-lg font-bold text-slate-800">Identidad</h2>
               </div>
-              
+
               <div className="space-y-5">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Nombre Completo *</label>
@@ -270,7 +268,7 @@ export default function CreatePatientClient() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Teléfono</label>
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">TelÃ©fono</label>
                   <div className="relative">
                     <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <Input
@@ -291,7 +289,7 @@ export default function CreatePatientClient() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Sexo biológico</label>
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Sexo biolÃ³gico</label>
                   <select
                     value={draft.gender || ""}
                     onChange={(e) => updateDraft({ gender: e.target.value })}
@@ -314,21 +312,20 @@ export default function CreatePatientClient() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-slate-400">Peso (kg)</label>
-                  <Input type="number" step="any" className="h-12 rounded-2xl bg-slate-50 border-transparent text-center font-bold text-lg" value={draft.weight} onChange={(e) => updateDraft({ weight: e.target.value ? parseFloat(e.target.value) : undefined })} />
+                  <Input type="number" step="any" className="h-12 rounded-2xl bg-slate-50 border-transparent text-center font-bold text-lg" value={draft.weight ?? ""} onChange={(e) => updateDraft({ weight: e.target.value ? parseFloat(e.target.value) : undefined })} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-slate-400">Altura (cm)</label>
-                  <Input type="number" step="any" className="h-12 rounded-2xl bg-slate-50 border-transparent text-center font-bold text-lg" value={draft.height} onChange={(e) => updateDraft({ height: e.target.value ? parseFloat(e.target.value) : undefined })} />
+                  <Input type="number" step="any" className="h-12 rounded-2xl bg-slate-50 border-transparent text-center font-bold text-lg" value={draft.height ?? ""} onChange={(e) => updateDraft({ height: e.target.value ? parseFloat(e.target.value) : undefined })} />
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between border-b border-slate-50 pb-4">
-                <h2 className="text-lg font-bold text-slate-800">Métricas Meta</h2>
+                <h2 className="text-lg font-bold text-slate-800">Metas nutricionales</h2>
                 <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg uppercase tracking-widest">Opcional</span>
               </div>
-              
               <MetricTagInput
                 value={selectedMetrics}
                 mandatoryKeys={["weight"]}
@@ -340,8 +337,11 @@ export default function CreatePatientClient() {
                 placeholder="Grasa %, Pliegues..."
                 className="bg-white"
               />
-              
+
               <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-5">
+                <p className="text-xs font-medium text-slate-500">
+                  Objetivos por día
+                </p>
                 {(() => {
                   const vars = Array.isArray(draft.customVariables) ? draft.customVariables as any[] : [];
                   const getCV = (key: string) => vars.find(v => v.key === key)?.value || "";
@@ -386,7 +386,7 @@ export default function CreatePatientClient() {
 
             <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
               <h2 className="text-lg font-bold text-slate-800 border-b border-slate-50 pb-4">Foco & Fitness</h2>
-              
+
               <div className="space-y-5">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Foco Nutricional</label>
@@ -406,20 +406,20 @@ export default function CreatePatientClient() {
                       { key: "sedentario", icon: Flame, label: "Sedentario" },
                       { key: "deportista", icon: Dumbbell, label: "Deportista" }
                     ].map((item) => (
-                      <button 
-                        key={item.key} 
-                        type="button" 
+                      <button
+                        key={item.key}
+                        type="button"
                         onClick={() => {
                           const cleanCustomVars = (draft.customVariables || []).filter(v => v.key !== "activityLevel");
-                          updateDraft({ 
+                          updateDraft({
                             activityLevel: item.key as any,
                             customVariables: cleanCustomVars
                           });
-                        }} 
+                        }}
                         className={cn(
                           "h-14 rounded-2xl border flex flex-col items-center justify-center gap-1 transition-all",
-                          draft.activityLevel === item.key 
-                            ? "bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200" 
+                          draft.activityLevel === item.key
+                            ? "bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200"
                             : "bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100"
                         )}
                       >
@@ -442,7 +442,7 @@ export default function CreatePatientClient() {
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-800">Información Extra</h2>
-              <p className="text-sm text-slate-500 font-medium">Detalles sobre el comportamiento, gustos y observaciones clínicas del paciente.</p>
+              <p className="text-sm text-slate-500 font-medium">Detalles sobre el comportamiento, gustos y observaciones clÃ­nicas del paciente.</p>
             </div>
           </div>
 
@@ -452,24 +452,24 @@ export default function CreatePatientClient() {
                 <div className="w-1.5 h-4 bg-emerald-500 rounded-full" />
                 <label className="text-xs font-black uppercase text-slate-500 tracking-wider">Gustos y Preferencias</label>
               </div>
-              <textarea 
-                className="w-full h-40 rounded-3xl bg-slate-50 border-transparent p-6 text-sm font-semibold text-slate-700 resize-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500/20 transition-all placeholder:text-slate-300" 
-                placeholder="Ej: Prefiere comidas calientes, le encanta el chocolate amargo, no tolera el sabor de la stevia..." 
-                value={draft.likes || ""} 
-                onChange={(e) => updateDraft({ likes: e.target.value })} 
+              <textarea
+                className="w-full h-40 rounded-3xl bg-slate-50 border border-slate-200 p-6 text-sm font-semibold text-slate-700 resize-none focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all placeholder:text-slate-300"
+                placeholder="Ej: Prefiere comidas calientes, le encanta el chocolate amargo, no tolera el sabor de la stevia..."
+                value={draft.likes || ""}
+                onChange={(e) => updateDraft({ likes: e.target.value })}
               />
             </div>
-            
+
             <div className="group space-y-4">
               <div className="flex items-center gap-2 ml-1">
                 <div className="w-1.5 h-4 bg-blue-500 rounded-full" />
-                <label className="text-xs font-black uppercase text-slate-500 tracking-wider">Observaciones Clínicas (Persona)</label>
+                <label className="text-xs font-black uppercase text-slate-500 tracking-wider">Observaciones ClÃ­nicas (Persona)</label>
               </div>
-              <textarea 
-                className="w-full h-40 rounded-3xl bg-slate-50 border-transparent p-6 text-sm font-semibold text-slate-700 resize-none focus:bg-white focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500/20 transition-all placeholder:text-slate-300" 
-                placeholder="Ej: Es ansiosa con los dulces por la tarde, está muy motivada con el cambio, tiene poco apoyo familiar..." 
-                value={draft.clinicalSummary || ""} 
-                onChange={(e) => updateDraft({ clinicalSummary: e.target.value })} 
+              <textarea
+                className="w-full h-40 rounded-3xl bg-slate-50 border border-slate-200 p-6 text-sm font-semibold text-slate-700 resize-none focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all placeholder:text-slate-300"
+                placeholder="Ej: Es ansiosa con los dulces por la tarde, estÃ¡ muy motivada con el cambio, tiene poco apoyo familiar..."
+                value={draft.clinicalSummary || ""}
+                onChange={(e) => updateDraft({ clinicalSummary: e.target.value })}
               />
             </div>
           </div>
@@ -481,8 +481,8 @@ export default function CreatePatientClient() {
         isOpen={showSaveConfirm}
         onClose={() => setShowSaveConfirm(false)}
         onConfirm={handleConfirmSave}
-        title={draft.id ? "¿Actualizar Expediente?" : "¿Crear Ficha Clínica?"}
-        description={draft.id ? `Se guardarán los cambios permanentes en el expediente de ${draft.fullName}.` : `Estás a punto de registrar a ${draft.fullName}. Esto habilitará la creación de planes nutricionales.`}
+        title={draft.id ? "Â¿Actualizar Expediente?" : "Â¿Crear Ficha ClÃ­nica?"}
+        description={draft.id ? `Se guardarÃ¡n los cambios permanentes en el expediente de ${draft.fullName}.` : `EstÃ¡s a punto de registrar a ${draft.fullName}. Esto habilitarÃ¡ la creaciÃ³n de planes nutricionales.`}
         confirmText="Confirmar"
         variant="primary"
       />
@@ -491,11 +491,15 @@ export default function CreatePatientClient() {
         isOpen={showResetConfirm}
         onClose={() => setShowResetConfirm(false)}
         onConfirm={() => { clearDraft(); toast.info("Formulario reiniciado."); setShowResetConfirm(false); }}
-        title="¿Reiniciar Formulario?"
-        description="Toda la información ingresada en este borrador se eliminará permanentemente. ¿Deseas continuar?"
+        title="Â¿Reiniciar Formulario?"
+        description="Toda la informaciÃ³n ingresada en este borrador se eliminarÃ¡ permanentemente. Â¿Deseas continuar?"
         confirmText="Vaciar Todo"
         variant="destructive"
       />
     </div>
   );
 }
+
+
+
+

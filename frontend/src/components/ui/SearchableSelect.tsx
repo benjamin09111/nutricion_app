@@ -104,7 +104,7 @@ export function SearchableSelect({
           "absolute z-50 mt-1 w-full overflow-auto overscroll-contain rounded-xl py-1 text-base shadow-lg ring-1 focus:outline-none sm:text-sm animate-in fade-in zoom-in-95 duration-100",
           isDarkMode ? "bg-slate-950 ring-emerald-400/10" : "bg-white ring-black/5",
         )}
-        style={{ maxHeight: "min(18rem, calc(100vh - 14rem))" }}>
+        style={{ maxHeight: "min(14rem, calc(100vh - 14rem))" }}>
           <div className={cn(
             "sticky top-0 z-10 px-2 py-1.5 border-b border-slate-100",
             isDarkMode ? "bg-slate-950 border-emerald-400/10" : "bg-white",

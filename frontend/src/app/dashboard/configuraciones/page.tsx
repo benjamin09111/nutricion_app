@@ -1,12 +1,14 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
-import { User, Lock, Save, Eye, EyeOff } from "lucide-react";
+import { User, Lock, Save, Eye, EyeOff, Sun, Moon, Type } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { authService } from "@/features/auth/services/auth.service";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
+import { useTheme } from "@/context/ThemeContext";
+import { useFont } from "@/context/FontContext";
 
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -21,7 +23,7 @@ export default function SettingsPage() {
   const [userData, setUserData] = useState<{
     email: string;
     fullName?: string;
-    settings?: any;
+    settings?: UserSettings;
   } | null>(null);
 
   const [professionalInstagram, setProfessionalInstagram] = useState("");
@@ -29,13 +31,15 @@ export default function SettingsPage() {
   const [professionalEmail, setProfessionalEmail] = useState("");
   const [isSavingProfessionalContact, setIsSavingProfessionalContact] =
     useState(false);
+  const { theme, setTheme } = useTheme();
+  const { fontPreference, setFontPreference } = useFont();
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser);
-        const settings = user.nutritionist?.settings || {};
+        const settings = (user.nutritionist?.settings || {}) as UserSettings;
         setUserData({
           email: user.email,
           fullName: user.nutritionist?.fullName || "Profesional",
@@ -79,8 +83,12 @@ export default function SettingsPage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (error: any) {
-      toast.error(error.message || "Error al actualizar la contraseña");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Error al actualizar la contraseña";
+      toast.error(message || "Error al actualizar la contraseña");
     } finally {
       setIsLoading(false);
     }
@@ -123,8 +131,10 @@ export default function SettingsPage() {
           localStorage.setItem("user", JSON.stringify(user));
         }
       }
-    } catch (error: any) {
-      toast.error(error.message || "Hubo un error");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Hubo un error";
+      toast.error(message || "Hubo un error");
     } finally {
       setIsSavingProfessionalContact(false);
     }
@@ -201,10 +211,10 @@ export default function SettingsPage() {
 
             <form onSubmit={handleSaveProfessionalContact} className="mt-6 space-y-4">
               <div className="grid gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">
-                    Instagram (Portada Entregable)
-                  </label>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">
+                  Instagram (Portada Entregable)
+                </label>
                   <Input
                     type="text"
                     value={professionalInstagram}
@@ -278,7 +288,7 @@ export default function SettingsPage() {
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     required
                   />
-                  <button
+              <button
                     type="button"
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                     className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
@@ -361,6 +371,102 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm font-medium">
+        <div className="border-b border-slate-200 px-6 py-4">
+          <div className="flex items-center gap-x-2">
+            <Type className="h-5 w-5 text-emerald-600" />
+            <h2 className="font-semibold text-slate-900">
+              Apariencia
+            </h2>
+          </div>
+        </div>
+        <div className="space-y-6 p-6">
+          <div className="space-y-3">
+            <label className="block text-sm font-semibold text-slate-700">
+              Modo visual
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setTheme("light")}
+                className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all cursor-pointer ${
+                  theme === "light"
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <Sun className="h-4 w-4" />
+                <span>
+                  <span className="block text-sm font-semibold">Claro</span>
+                  <span className="block text-xs text-slate-500">
+                    Más luminoso y limpio
+                  </span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTheme("dark")}
+                className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all cursor-pointer ${
+                  theme === "dark"
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <Moon className="h-4 w-4" />
+                <span>
+                  <span className="block text-sm font-semibold">Oscuro</span>
+                  <span className="block text-xs text-slate-500">
+                    Ideal para baja luz
+                  </span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-3 border-t border-slate-100 pt-6">
+            <label className="block text-sm font-semibold text-slate-700">
+              Tipografía
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setFontPreference("default")}
+                className={`rounded-xl border px-4 py-3 text-left transition-all cursor-pointer ${
+                  fontPreference === "default"
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                  <span className="block text-sm font-semibold">Texto por defecto</span>
+                  <span className="mt-1 block text-xs text-slate-500">
+                    Mantiene el estilo actual del portal
+                  </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFontPreference("formal")}
+                className={`rounded-xl border px-4 py-3 text-left transition-all cursor-pointer ${
+                  fontPreference === "formal"
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <span className="block text-sm font-semibold">Texto tradicional</span>
+                <span className="mt-1 block text-xs text-slate-500">
+                  Más sobria y profesional, ideal para lectura larga
+                </span>
+              </button>
+            </div>
+            <p className="text-xs text-slate-400">
+              Esta preferencia se guarda solo en tu navegador y se aplica al instante.
+            </p>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
+

@@ -155,7 +155,7 @@ export default function AddRecipesToGroupModal({
             />
           </div>
           <select
-            className="w-auto min-w-[160px] h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 shrink-0"
+            className="w-auto min-w-[160px] h-10 px-4 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shrink-0 transition-all"
             value={selectedSection}
             onChange={(e) => setSelectedSection(e.target.value)}
             title="Filtrar por sección"
@@ -184,10 +184,10 @@ export default function AddRecipesToGroupModal({
                   <div
                     key={recipe.id}
                     onClick={() => handleToggleSelect(recipe.id)}
-                    className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border ${isSelected ? "bg-violet-50 border-violet-200 shadow-sm" : "bg-white border-transparent hover:bg-slate-50 hover:border-slate-100"}`}
+                    className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border ${isSelected ? "bg-indigo-50 border-indigo-200 shadow-sm" : "bg-white border-transparent hover:bg-slate-50 hover:border-slate-100"}`}
                   >
                     <div>
-                      <div className="font-medium text-slate-900 text-sm">
+                      <div className="font-semibold text-slate-900 text-sm">
                         {recipe.name}
                       </div>
                       <div className="text-xs text-slate-500">
@@ -195,7 +195,7 @@ export default function AddRecipesToGroupModal({
                       </div>
                     </div>
                     <div
-                      className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? "bg-violet-600 border-violet-600" : "border-slate-300 bg-white"}`}
+                      className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? "bg-indigo-600 border-indigo-600" : "border-slate-300 bg-white"}`}
                     >
                       {isSelected && <Check size={12} className="text-white" />}
                     </div>
@@ -217,7 +217,7 @@ export default function AddRecipesToGroupModal({
             <Button
               onClick={handleAdd}
               disabled={selectedIds.size === 0 || isSubmitting}
-              className="bg-violet-600 hover:bg-violet-700 text-white"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
             >
               {isSubmitting ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />

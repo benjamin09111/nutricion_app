@@ -309,11 +309,11 @@ export default function DetailsClient() {
       />
 
       <div className="space-y-6 mt-6">
-        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-3xl overflow-hidden relative mb-8">
+        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative mb-8">
           <div className="p-8 pb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-slate-800 font-extrabold text-lg mb-2 flex items-center gap-2">
-                <Tag className="w-5 h-5 text-emerald-500" />
+              <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
+                <Tag className="w-5 h-5 text-indigo-500" />
                 Restricciones Clínicas
               </h3>
               <p className="text-slate-500 text-sm font-medium">
@@ -323,7 +323,7 @@ export default function DetailsClient() {
             </div>
             <Button
               variant="outline"
-              className="rounded-xl font-bold border-slate-200 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200"
+              className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
               onClick={() => setIsAddModalOpen(true)}
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -333,10 +333,10 @@ export default function DetailsClient() {
 
           <div className="px-8 mb-4">
             <div className="relative w-full max-w-xs group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
               <Input
                 placeholder="Buscar restricciones..."
-                className="h-10 pl-10 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all shadow-sm"
+                className="h-10 pl-10 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all shadow-sm font-medium"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -345,7 +345,7 @@ export default function DetailsClient() {
 
           {isLoading ? (
             <div className="p-8 flex items-center justify-center">
-              <div className="h-10 w-10 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin" />
+              <div className="h-10 w-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-8 pt-4">
@@ -376,8 +376,8 @@ export default function DetailsClient() {
                         )}
                       </div>
                       <div>
-                        <p className="font-bold text-slate-700">{tag}</p>
-                        <p className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
+                        <p className="font-semibold text-slate-700">{tag}</p>
+                        <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
                           {isSystem
                             ? "Sistema / Global"
                             : isOwner
@@ -402,11 +402,11 @@ export default function DetailsClient() {
         </div>
 
         {/* Classification Tags Section */}
-        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-3xl overflow-hidden relative mb-8">
+        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative mb-8">
           <div className="p-8 pb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-slate-800 font-extrabold text-lg mb-2 flex items-center gap-2">
-                <Hash className="w-5 h-5 text-emerald-500" />
+              <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
+                <Hash className="w-5 h-5 text-indigo-500" />
                 Etiquetas de Clasificación
               </h3>
               <p className="text-slate-500 text-sm font-medium">
@@ -415,7 +415,7 @@ export default function DetailsClient() {
             </div>
             <Button
               variant="outline"
-              className="rounded-xl font-bold border-emerald-100 text-emerald-600 hover:bg-emerald-50"
+              className="rounded-2xl font-semibold border-indigo-100 text-indigo-600 hover:bg-indigo-50"
               onClick={() => {
                 setNewTag("#");
                 setIsAddModalOpen(true);
@@ -429,7 +429,7 @@ export default function DetailsClient() {
           {!isLoading && filteredHashTags.length === 0 && searchQuery === "" ? (
             <div className="p-12 flex flex-col items-center justify-center text-slate-300 bg-slate-50/30 m-8 rounded-2xl border border-dashed border-slate-200">
               <Hash className="w-12 h-12 mb-4 opacity-20" />
-              <p className="text-sm font-bold uppercase tracking-widest">No hay etiquetas creadas</p>
+              <p className="text-sm font-semibold uppercase tracking-widest">No hay etiquetas creadas</p>
               <p className="text-xs font-medium mt-1">Crea etiquetas con # para organizar tus pacientes</p>
             </div>
           ) : (
@@ -447,12 +447,12 @@ export default function DetailsClient() {
                     className="flex items-center justify-between p-4 rounded-xl border border-emerald-50 bg-emerald-50/10 hover:bg-emerald-50/30 transition-colors group"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-emerald-100/50 flex items-center justify-center">
-                        <Hash className="w-4 h-4 text-emerald-600" />
+                      <div className="h-10 w-10 rounded-full bg-indigo-100/50 flex items-center justify-center">
+                        <Hash className="w-4 h-4 text-indigo-600" />
                       </div>
                       <div>
-                        <p className="font-bold text-slate-700">{tag}</p>
-                        <p className="text-[10px] uppercase tracking-wider font-extrabold text-emerald-400">
+                        <p className="font-semibold text-slate-700">{tag}</p>
+                        <p className="text-[10px] uppercase tracking-wider font-semibold text-indigo-400">
                           {isOwner ? "Tu etiqueta" : "Compartida"}
                         </p>
                       </div>
@@ -472,11 +472,11 @@ export default function DetailsClient() {
           )}
         </div>
 
-        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-3xl overflow-hidden relative">
+        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative">
           <div className="p-8 pb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-slate-800 font-extrabold text-lg mb-2 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-emerald-500" />
+              <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-indigo-500" />
                 Métricas de Seguimiento
               </h3>
               <p className="text-slate-500 text-sm font-medium">
@@ -486,7 +486,7 @@ export default function DetailsClient() {
             </div>
             <Button
               variant="outline"
-              className="rounded-xl font-bold border-slate-200 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200"
+              className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
               onClick={() => setIsAddMetricModalOpen(true)}
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -496,10 +496,10 @@ export default function DetailsClient() {
 
           <div className="px-8 mb-4">
             <div className="relative w-full max-w-xs group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
               <Input
                 placeholder="Buscar métricas..."
-                className="h-10 pl-10 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all shadow-sm"
+                className="h-10 pl-10 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all shadow-sm font-medium"
                 value={metricsSearchQuery}
                 onChange={(e) => setMetricsSearchQuery(e.target.value)}
               />
@@ -508,7 +508,7 @@ export default function DetailsClient() {
 
           {metricsLoading ? (
             <div className="p-8 flex items-center justify-center">
-              <div className="h-10 w-10 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin" />
+              <div className="h-10 w-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-8 pt-4">
@@ -551,20 +551,20 @@ export default function DetailsClient() {
                           <div
                             className={cn(
                               "h-10 w-10 rounded-full flex items-center justify-center",
-                              isSystem ? "bg-blue-100/50" : "bg-emerald-100/50",
+                              isSystem ? "bg-blue-100/50" : "bg-indigo-100/50",
                             )}
                           >
                             {isSystem ? (
                               <Globe className="w-4 h-4 text-blue-500" />
                             ) : (
-                              <UserIcon className="w-4 h-4 text-emerald-500" />
+                              <UserIcon className="w-4 h-4 text-indigo-500" />
                             )}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-700">
+                            <p className="font-semibold text-slate-700">
                               {metric.name}
                             </p>
-                            <p className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
+                            <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
                               {isSystem
                                 ? "Sistema / Global"
                                 : isOwner
@@ -600,7 +600,7 @@ export default function DetailsClient() {
       >
         <div className="space-y-6 py-4">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
               Nombre de la Restricción
             </label>
             <Input
@@ -613,9 +613,9 @@ export default function DetailsClient() {
               }}
             />
             <p className="text-xs text-slate-400 mt-2 font-medium">
-              <Globe className="w-3 h-3 inline mr-1 text-emerald-500" />
+              <Globe className="w-3 h-3 inline mr-1 text-indigo-500" />
               Esta restricción será{" "}
-              <span className="text-emerald-600 font-bold">Global</span>. Otros
+              <span className="text-indigo-600 font-semibold">Global</span>. Otros
               nutricionistas podrán verla y reutilizarla para evitar duplicados.
               Solo tú podrás eliminarla.
             </p>
@@ -623,13 +623,13 @@ export default function DetailsClient() {
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button
               variant="ghost"
-              className="rounded-xl font-bold text-slate-400"
+              className="rounded-2xl font-semibold text-slate-400"
               onClick={() => setIsAddModalOpen(false)}
             >
               Cancelar
             </Button>
             <Button
-              className="bg-slate-900 text-white rounded-xl font-black px-8 shadow-lg shadow-slate-200"
+              className="bg-slate-900 text-white rounded-2xl font-semibold px-8 shadow-lg shadow-slate-200"
               onClick={handleAddTag}
             >
               Crear
@@ -647,7 +647,7 @@ export default function DetailsClient() {
         <div className="space-y-6 py-4">
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                 Nombre de la Métrica
               </label>
               <Input
@@ -660,7 +660,7 @@ export default function DetailsClient() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                 Unidad (Opcional)
               </label>
               <select
@@ -668,7 +668,7 @@ export default function DetailsClient() {
                 onChange={(e) =>
                   setNewMetric({ ...newMetric, unit: e.target.value })
                 }
-                className="w-full rounded-xl border-slate-200 h-11 text-slate-900 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-300 transition-all font-medium"
+                className="w-full rounded-2xl border-slate-200 h-11 text-slate-900 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 transition-all font-medium"
               >
                 <option value="" disabled>
                   Selecciona una unidad...
@@ -689,9 +689,9 @@ export default function DetailsClient() {
               </select>
             </div>
             <p className="text-xs text-slate-400 mt-2 font-medium">
-              <Globe className="w-3 h-3 inline mr-1 text-emerald-500" />
+              <Globe className="w-3 h-3 inline mr-1 text-indigo-500" />
               Esta métrica será{" "}
-              <span className="text-emerald-600 font-bold">Global</span>. Otros
+              <span className="text-indigo-600 font-semibold">Global</span>. Otros
               nutricionistas podrán verla y reutilizarla. Solo tú podrás
               eliminarla.
             </p>
@@ -699,13 +699,13 @@ export default function DetailsClient() {
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button
               variant="ghost"
-              className="rounded-xl font-bold text-slate-400"
+              className="rounded-2xl font-semibold text-slate-400"
               onClick={() => setIsAddMetricModalOpen(false)}
             >
               Cancelar
             </Button>
             <Button
-              className="bg-slate-900 text-white rounded-xl font-black px-8 shadow-lg shadow-slate-200"
+              className="bg-slate-900 text-white rounded-2xl font-semibold px-8 shadow-lg shadow-slate-200"
               onClick={handleAddMetric}
             >
               Crear

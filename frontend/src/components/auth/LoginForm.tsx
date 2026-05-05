@@ -133,57 +133,54 @@ export default function LoginForm() {
 
   return (
     <>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
         <div>
           <label
             htmlFor="email"
-            className="block text-sm font-medium leading-6 text-slate-900"
+            className="block text-base font-semibold leading-5 text-slate-700 mb-2"
           >
             Correo electrónico
           </label>
-          <div className="mt-2">
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="ejemplo@nutricion.com"
-              error={errors.email?.message}
-              {...register("email")}
-            />
-          </div>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="ejemplo@nutricion.com"
+            error={errors.email?.message}
+            className="h-12 text-base"
+            {...register("email")}
+          />
         </div>
 
         <div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-2">
             <label
               htmlFor="password"
-              className="block text-sm font-medium leading-6 text-slate-900"
+              className="block text-base font-semibold leading-5 text-slate-700"
             >
               Contraseña
             </label>
-            <div className="text-sm">
-              <button
-                type="button"
-                onClick={() => setActiveModal("reset")}
-                className="font-semibold text-emerald-600 hover:text-emerald-500"
-              >
-                ¿Olvidaste tu contraseña?
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setActiveModal("reset")}
+              className="text-sm font-medium text-emerald-600 hover:text-emerald-500 cursor-pointer transition-colors"
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
           </div>
-          <div className="mt-2 relative">
+          <div className="relative">
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               error={errors.password?.message}
-              className="pr-10"
+              className="pr-10 h-12 text-base"
               {...register("password")}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
             >
               {showPassword ? (
                 <EyeOff className="h-5 w-5" />
@@ -194,21 +191,19 @@ export default function LoginForm() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <input
-              id="rememberMe"
-              type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 cursor-pointer"
-              {...register("rememberMe")}
-            />
-            <label
-              htmlFor="rememberMe"
-              className="ml-3 block text-sm leading-6 text-slate-900 cursor-pointer"
-            >
-              Mantener sesión iniciada
-            </label>
-          </div>
+        <div className="flex items-center">
+          <input
+            id="rememberMe"
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 cursor-pointer"
+            {...register("rememberMe")}
+          />
+          <label
+            htmlFor="rememberMe"
+            className="ml-2.5 block text-sm font-medium leading-5 text-slate-600 cursor-pointer select-none"
+          >
+            Mantener sesión iniciada
+          </label>
         </div>
 
         <div>
@@ -217,13 +212,13 @@ export default function LoginForm() {
           </Button>
         </div>
 
-        <div className="text-center pt-2">
+        <div className="text-center pt-4">
           <button
             type="button"
             onClick={() => setActiveModal("contact")}
-            className="text-xs text-slate-500 hover:text-emerald-600 transition-colors flex items-center justify-center gap-1 mx-auto"
+            className="text-sm text-slate-500 hover:text-emerald-600 transition-colors flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
           >
-            <MessageCircle className="h-3 w-3" />
+            <MessageCircle className="h-3.5 w-3.5" />
             Contactar a un supervisor
           </button>
         </div>
@@ -231,35 +226,36 @@ export default function LoginForm() {
 
       {/* Support Modals */}
       {activeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden p-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden p-8 relative animate-in zoom-in-95 duration-200">
             <button
               onClick={() => setActiveModal(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              aria-label="Cerrar"
             >
               <X className="h-5 w-5" />
             </button>
 
             <div className="mb-6">
               <div
-                className={`h-10 w-10 rounded-full flex items-center justify-center mb-3 ${
+                className={`h-12 w-12 rounded-xl flex items-center justify-center mb-4 ${
                   activeModal === "reset"
                     ? "bg-amber-100 text-amber-600"
                     : "bg-blue-100 text-blue-600"
                 }`}
               >
                 {activeModal === "reset" ? (
-                  <KeyRound className="h-5 w-5" />
+                  <KeyRound className="h-6 w-6" />
                 ) : (
-                  <MessageCircle className="h-5 w-5" />
+                  <MessageCircle className="h-6 w-6" />
                 )}
               </div>
-              <h3 className="text-lg font-semibold text-slate-900">
+              <h3 className="text-lg font-bold text-slate-900 mb-1.5">
                 {activeModal === "reset"
                   ? "Recuperar Acceso"
                   : "Contactar Soporte"}
               </h3>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 leading-relaxed">
                 {activeModal === "reset"
                   ? "Ingresa tu correo. Te enviaremos nuevas credenciales de acceso de forma automática."
                   : "Envía un mensaje al equipo de administración."}
@@ -268,7 +264,7 @@ export default function LoginForm() {
 
             <form onSubmit={handleSupportRequest} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                   Tu Correo
                 </label>
                 <Input
@@ -282,11 +278,11 @@ export default function LoginForm() {
 
               {activeModal === "contact" && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     Mensaje
                   </label>
                   <textarea
-                    className="w-full min-h-[100px] rounded-md border-slate-200 text-sm p-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none border"
+                    className="w-full min-h-[100px] rounded-lg border border-slate-200 text-sm p-3 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-colors resize-none"
                     placeholder="Describe tu problema o consulta..."
                     required
                     value={modalMessage}
@@ -295,13 +291,23 @@ export default function LoginForm() {
                 </div>
               )}
 
-              <Button
-                type="submit"
-                className={`w-full ${activeModal === "reset" ? "bg-amber-600 hover:bg-amber-700" : "bg-blue-600 hover:bg-blue-700"}`}
-                isLoading={isModalSubmitting}
-              >
-                Enviar Solicitud
-              </Button>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="flex-1"
+                  onClick={() => setActiveModal(null)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  className={`flex-1 ${activeModal === "reset" ? "bg-amber-600 hover:bg-amber-700" : "bg-blue-600 hover:bg-blue-700"}`}
+                  isLoading={isModalSubmitting}
+                >
+                  Enviar Solicitud
+                </Button>
+              </div>
             </form>
           </div>
         </div>

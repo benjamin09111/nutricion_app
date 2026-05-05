@@ -144,7 +144,7 @@ export default function CreateGroupModal({
           </Button>
           <Button
             type="submit"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 font-semibold px-6 py-2.5 rounded-xl shadow-sm transition-all active:scale-95"
             disabled={isLoading}
           >
             {isLoading ? (

@@ -399,8 +399,8 @@ export default function CreationsClient({
   return (
     <div className="space-y-6">
       {!isInsidePatientDetail && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-100 text-amber-800 text-xs font-medium">
-          <svg className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="flex items-start gap-3 px-4 py-3 rounded-[2rem] bg-indigo-50 border border-indigo-100 text-indigo-800 text-xs font-semibold">
+          <svg className="w-4 h-4 shrink-0 mt-0.5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
           </svg>
           <span>
@@ -409,7 +409,7 @@ export default function CreationsClient({
         </div>
       )}
 
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col xl:flex-row gap-4 items-center justify-between">
+      <div className="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-200 flex flex-col xl:flex-row gap-4 items-center justify-between">
         <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto flex-1">
           <div className="relative flex-1">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -418,7 +418,7 @@ export default function CreationsClient({
             <Input
               type="search"
               placeholder="Buscar por nombre..."
-              className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all w-full"
+              className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all w-full font-semibold"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -434,7 +434,7 @@ export default function CreationsClient({
               <Input
                 type="search"
                 placeholder="Filtrar por paciente..."
-                className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all w-full"
+                className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all w-full font-semibold"
                 value={patientFilter}
                 onChange={(e) => setPatientFilter(e.target.value)}
               />
@@ -454,7 +454,7 @@ export default function CreationsClient({
               <Filter className="h-4 w-4 text-slate-400" />
             </div>
             <select
-              className="w-full h-11 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-medium text-slate-700 appearance-none cursor-pointer text-sm"
+              className="w-full h-11 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-semibold text-slate-700 appearance-none cursor-pointer text-sm"
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value as any)}
             >
@@ -479,7 +479,7 @@ export default function CreationsClient({
               value={selectedTag}
               onChange={setSelectedTag}
               placeholder="Buscar tag o restricción..."
-              triggerClassName="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white pl-10"
+              triggerClassName="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white pl-10 font-semibold"
             />
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 z-10">
               <Folder className="h-4 w-4 text-slate-400" />
@@ -488,27 +488,27 @@ export default function CreationsClient({
         </div>
       </div>
 
-      <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 sm:rounded-2xl overflow-hidden">
+      <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 sm:rounded-[2rem] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-100">
             <thead className="bg-slate-50/50 text-shadow-sm">
               <tr>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
+                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
                   Nombre
                 </th>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
+                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
                   Paciente
                 </th>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
+                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
                   Etiquetas
                 </th>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
+                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
                   Tipo
                 </th>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
+                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
                   Fecha
                 </th>
-                <th scope="col" className="px-6 py-4 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
+                <th scope="col" className="px-6 py-4 text-right text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
                   Acciones
                 </th>
               </tr>
@@ -518,8 +518,8 @@ export default function CreationsClient({
                 <tr>
                   <td colSpan={6} className="text-center py-24">
                     <div className="flex flex-col items-center justify-center space-y-3">
-                      <Loader2 className="h-10 w-10 text-emerald-500 animate-spin" />
-                      <p className="text-sm font-bold text-slate-500">
+                      <Loader2 className="h-10 w-10 text-indigo-500 animate-spin" />
+                      <p className="text-sm font-semibold text-slate-500">
                         Cargando tus creaciones...
                       </p>
                     </div>
@@ -603,7 +603,7 @@ export default function CreationsClient({
                         {item.type !== CreationType.FAST_DELIVERABLE && (
                           <button
                             onClick={() => handleViewClick(item)}
-                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
                             title="Previsualizar"
                           >
                             <Eye className="h-4 w-4" />
@@ -688,7 +688,7 @@ export default function CreationsClient({
           {selectedItem ? (
             <>
               <div className="space-y-2">
-                <p className="text-lg font-black text-slate-900">
+                <p className="text-lg font-semibold text-slate-900">
                   {selectedItem.name}
                 </p>
                 <div className="flex flex-wrap gap-2">

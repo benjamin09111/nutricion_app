@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useMemo } from "react";
 import {
@@ -139,7 +139,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
   {
     id: "cover",
     label: "Portada del Entregable",
-    description: "Personaliza la primera pÃ¡gina del mini-libro.",
+    description: "Personaliza la primera página del mini-libro.",
     icon: Layout,
     defaultSelected: true,
     category: "core",
@@ -157,7 +157,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
   },
   {
     id: "patientInfo",
-    label: "InformaciÃ³n sobre el Paciente",
+    label: "Información sobre el Paciente",
     description: "Datos clave, objetivos y medidas actuales.",
     icon: User,
     defaultSelected: true,
@@ -167,7 +167,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
   {
     id: "recipes",
     label: "Recetas, Horarios y Platos",
-    description: "DistribuciÃ³n diaria y preparaciÃ³n de comidas.",
+    description: "Distribución diaria y preparación de comidas.",
     icon: Clock,
     defaultSelected: true,
     category: "core",
@@ -185,7 +185,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
   {
     id: "hormonalIntel",
     label: "Inteligencia Hormonal",
-    description: "Ajustes segÃºn fase del ciclo menstrual.",
+    description: "Ajustes según fase del ciclo menstrual.",
     icon: Sparkles,
     defaultSelected: false,
     category: "info",
@@ -193,8 +193,8 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
   },
   {
     id: "pathologyInfo",
-    label: "InformaciÃ³n sobre PatologÃ­as",
-    description: "GuÃ­a especÃ­fica sobre restricciones seleccionadas.",
+    label: "Información sobre Patologías",
+    description: "Guía específica sobre restricciones seleccionadas.",
     icon: Info,
     defaultSelected: false,
     category: "info",
@@ -212,7 +212,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
   {
     id: "myths",
     label: "Mitos vs Realidad",
-    description: "AclaraciÃ³n de conceptos nutricionales comunes.",
+    description: "Aclaración de conceptos nutricionales comunes.",
     icon: HelpCircle,
     defaultSelected: false,
     category: "info",
@@ -238,8 +238,8 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
   },
   {
     id: "psychology",
-    label: "Aspectos PsicolÃ³gicos",
-    description: "Manejo de la relaciÃ³n con la comida.",
+    label: "Aspectos Psicológicos",
+    description: "Manejo de la relación con la comida.",
     icon: Brain,
     defaultSelected: false,
     category: "info",
@@ -247,7 +247,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
   },
   {
     id: "habits",
-    label: "Checklist de HÃ¡bitos",
+    label: "Checklist de Hábitos",
     description: "Seguimiento diario de rutinas saludables.",
     icon: ClipboardCheck,
     defaultSelected: false,
@@ -257,7 +257,7 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
   {
     id: "hungerReal",
     label: "Hambre Real vs Capricho",
-    description: "GuÃ­a para identificar hambre emocional.",
+    description: "Guía para identificar hambre emocional.",
     icon: Brain,
     defaultSelected: false,
     category: "info",
@@ -958,7 +958,7 @@ export default function DeliverableClient() {
     if (section.id === "patientInfo") {
       if (!hasPatientAssigned) {
         disabled = true;
-        finalDescription = "âš ï¸ Requiere asignar paciente o cargar mÃ©tricas.";
+        finalDescription = "âš ï¸ Requiere asignar paciente o cargar métricas.";
       }
     }
 
@@ -1126,7 +1126,7 @@ export default function DeliverableClient() {
       const exportStats = getExportStats(draftData);
 
       if (!exportStats.hasAnyContent) {
-        toast.error("El entregable estÃ¡ vacÃ­o. Importa Dieta/Carrito/Recetas antes de exportar.", {
+        toast.error("El entregable está vacío. Importa Dieta/Carrito/Recetas antes de exportar.", {
           id: "pdf-toast",
         });
         setIsExporting(false);
@@ -1156,7 +1156,7 @@ export default function DeliverableClient() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast.success("Â¡PDF generado y descargado exitosamente!", {
+      toast.success("¡PDF generado y descargado exitosamente!", {
         id: "pdf-toast",
       });
       toast.info(
@@ -1166,7 +1166,7 @@ export default function DeliverableClient() {
       setIsSaveCreationModalOpen(true);
     } catch (error) {
       console.error("Error generating PDF:", error);
-      toast.error("OcurriÃ³ un error al generar de PDF. Revisa la consola.", {
+      toast.error("Ocurrió un error al generar de PDF. Revisa la consola.", {
         id: "pdf-toast",
       });
     } finally {
@@ -1190,7 +1190,7 @@ export default function DeliverableClient() {
       const exportStats = getExportStats(draftData);
 
       if (!exportStats.hasAnyContent) {
-        toast.error("El entregable estÃ¡ vacÃ­o. Importa Dieta/Carrito/Recetas antes de exportar.", {
+        toast.error("El entregable está vacío. Importa Dieta/Carrito/Recetas antes de exportar.", {
           id: "pdf-toast",
         });
         setIsExporting(false);
@@ -1215,7 +1215,7 @@ export default function DeliverableClient() {
             ];
 
       if (packagesToUse.length === 0 || exportSections.length === 0) {
-        toast.error("Debes tener al menos un paquete con mÃ³dulos seleccionados", { id: "pdf-toast" });
+        toast.error("Debes tener al menos un paquete con módulos seleccionados", { id: "pdf-toast" });
         setIsExporting(false);
         return;
       }
@@ -1268,14 +1268,14 @@ export default function DeliverableClient() {
         })
       );
 
-      toast.success("Â¡Paquetes PDF generados y descargados!", {
+      toast.success("¡Paquetes PDF generados y descargados!", {
         id: "pdf-toast",
       });
       setIsExportWizardOpen(false);
       setIsSaveCreationModalOpen(true);
     } catch (error) {
       console.error("Error generating advanced PDFs:", error);
-      toast.error("OcurriÃ³ un error al generar los PDF separados.", {
+      toast.error("Ocurrió un error al generar los PDF separados.", {
         id: "pdf-toast",
       });
     } finally {
@@ -1291,10 +1291,10 @@ export default function DeliverableClient() {
     const defaultPackages: ExportPackage[] = [];
 
     if (coreSections.length > 0) {
-      defaultPackages.push({ id: crypto.randomUUID(), name: "Plan PrÃ¡ctico", sections: coreSections, exportAs: "single" });
+      defaultPackages.push({ id: crypto.randomUUID(), name: "Plan Práctico", sections: coreSections, exportAs: "single" });
     }
     if (infoSections.length > 0) {
-      defaultPackages.push({ id: crypto.randomUUID(), name: "Material TeÃ³rico", sections: infoSections, exportAs: "single" });
+      defaultPackages.push({ id: crypto.randomUUID(), name: "Material Teórico", sections: infoSections, exportAs: "single" });
     }
 
     if (defaultPackages.length === 0) {
@@ -1312,7 +1312,7 @@ export default function DeliverableClient() {
     const remainingSections = selectedSections.filter(id => !listSections.includes(id) && !recipeSections.includes(id));
 
     const presets: ExportPackage[] = [];
-    if (remainingSections.length > 0) presets.push({ id: crypto.randomUUID(), name: "Plan ClÃ­nico General", sections: remainingSections, exportAs: "single" });
+    if (remainingSections.length > 0) presets.push({ id: crypto.randomUUID(), name: "Plan Clínico General", sections: remainingSections, exportAs: "single" });
     if (recipeSections.length > 0) presets.push({ id: crypto.randomUUID(), name: "Recetario y Minuta", sections: recipeSections, exportAs: "single" });
     if (listSections.length > 0) presets.push({ id: crypto.randomUUID(), name: "Lista del Supermercado", sections: listSections, exportAs: "single" });
 
@@ -1485,7 +1485,7 @@ export default function DeliverableClient() {
         }
       }
 
-      toast.success("Contacto profesional guardado. Se reflejarÃ¡ en la portada.");
+      toast.success("Contacto profesional guardado. Se reflejará en la portada.");
     } catch (error: any) {
       console.error("Error saving professional contact", error);
       toast.error(error?.message || "No se pudo guardar el contacto profesional.");
@@ -1555,7 +1555,7 @@ export default function DeliverableClient() {
       const data = await response.json();
       const page: ResolvedResourcePage = {
         resourceId: resource.id,
-        title: resourceModalMode === "cover" ? `Portada Â· ${resource.title}` : resource.title,
+        title: resourceModalMode === "cover" ? `Portada · ${resource.title}` : resource.title,
         content: data.resolvedContent || resource.content,
         variables: resourceVariables,
       };
@@ -1575,7 +1575,7 @@ export default function DeliverableClient() {
       toast.success(
         resourceModalMode === "cover"
           ? "Portada importada desde recursos."
-          : "PÃ¡gina extra agregada al entregable.",
+          : "Página extra agregada al entregable.",
       );
     } catch (error) {
       console.error(error);
@@ -1588,7 +1588,7 @@ export default function DeliverableClient() {
       (page) => page.resourceId === resource.id && page.title === resource.title,
     );
     if (alreadyAdded) {
-      toast.info("Este recurso ya estÃ¡ agregado al entregable.");
+      toast.info("Este recurso ya está agregado al entregable.");
       return;
     }
 
@@ -1620,7 +1620,7 @@ export default function DeliverableClient() {
       const nextResourcePages = [...resolvedResourcePages, page];
       setResolvedResourcePages(nextResourcePages);
       persistDeliverableDraftNow(nextResourcePages);
-      toast.success("Recurso agregado al capÃ­tulo de recursos.");
+      toast.success("Recurso agregado al capítulo de recursos.");
     } catch (error) {
       console.error("Error adding my resource", error);
       toast.error("No se pudo agregar este recurso.");
@@ -1645,7 +1645,7 @@ export default function DeliverableClient() {
   const handleEditSection = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (id === "cover") {
-      toast.info("Importar portada estÃ¡ bloqueado por ahora. Se usa portada base de NutriSaaS.");
+      toast.info("Importar portada está bloqueado por ahora. Se usa portada base de NutriSaaS.");
       return;
     }
     toast.info(`Abriendo editor de ${id}...`);
@@ -1728,7 +1728,7 @@ export default function DeliverableClient() {
     delete draft.patientMeta;
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
     refreshPreviousStagesSummary(draft, null);
-    toast.info("Paciente desvinculado de esta sesiÃ³n");
+    toast.info("Paciente desvinculado de esta sesión");
   };
 
   const resetDeliverable = () => {
@@ -1737,7 +1737,7 @@ export default function DeliverableClient() {
     setWelcomeMessage("");
     setResolvedResourcePages([]);
     setExportPackages([]);
-    toast.info("ConfiguraciÃ³n del entregable reiniciada.");
+    toast.info("Configuración del entregable reiniciada.");
   };
 
   const handleStartBlank = () => {
@@ -1801,7 +1801,7 @@ export default function DeliverableClient() {
         setHasRecipes(true);
         toast.success(`Plan de recetas "${creation.name}" importado al borrador.`);
       } else {
-        toast.error("Tipo de creaciÃ³n no reconocido para importar.");
+        toast.error("Tipo de creación no reconocido para importar.");
         return;
       }
 
@@ -1811,7 +1811,7 @@ export default function DeliverableClient() {
       setImportCreationAllowedTypes(undefined);
     } catch (e) {
       console.error("Error importing creation", e);
-      toast.error("Error al importar la creaciÃ³n.");
+      toast.error("Error al importar la creación.");
     }
   };
 
@@ -1952,12 +1952,12 @@ export default function DeliverableClient() {
       <Modal
         isOpen={showInitModal}
         onClose={() => setShowInitModal(false)}
-        title="ConfiguraciÃ³n Inicial del Entregable"
+        title="Configuración Inicial del Entregable"
         className="max-w-2xl"
       >
         <div className="p-4 pb-8 space-y-6">
           <p className="text-slate-500 text-sm font-medium">
-            Si procedes de las etapas anteriores tu borrador se cargarÃ¡ automÃ¡ticamente. De lo contrario, Â¿QuÃ© tipo de PDF te gustarÃ­a construir hoy?
+            Si procedes de las etapas anteriores tu borrador se cargará automáticamente. De lo contrario, ¿Qué tipo de PDF te gustaría construir hoy?
           </p>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
@@ -2030,7 +2030,7 @@ export default function DeliverableClient() {
               </div>
               <h4 className="font-black text-slate-900 text-lg">Independiente</h4>
               <p className="text-xs text-slate-500 mt-2 font-medium">
-                Limpia la base. Genial para ensamblar PDFs genÃ©ricos o importar.
+                Limpia la base. Genial para ensamblar PDFs genéricos o importar.
               </p>
             </button>
           </div>
@@ -2041,12 +2041,12 @@ export default function DeliverableClient() {
       <Modal
         isOpen={isExportWizardOpen}
         onClose={() => setIsExportWizardOpen(false)}
-        title="Opciones de ExportaciÃ³n PDF"
+        title="Opciones de Exportación PDF"
         className="max-w-4xl"
       >
         <div className="p-4 pb-8 space-y-6">
           <p className="text-slate-500 text-sm font-medium">
-            Â¿CÃ³mo te gustarÃ­a entregarle el material a tu paciente?
+            ¿Cómo te gustaría entregarle el material a tu paciente?
           </p>
 
           <div className="grid md:grid-cols-2 gap-4">
@@ -2061,10 +2061,10 @@ export default function DeliverableClient() {
             >
               <div className="flex items-center gap-3 mb-2">
                 <FileText className={cn("h-5 w-5", exportMode === "single" ? "text-indigo-600" : "text-slate-400")} />
-                <h4 className={cn("font-black text-sm", exportMode === "single" ? "text-indigo-900" : "text-slate-700")}>Documento Ãšnico</h4>
+                <h4 className={cn("font-black text-sm", exportMode === "single" ? "text-indigo-900" : "text-slate-700")}>Documento Único</h4>
               </div>
               <p className="text-xs text-slate-500 font-medium">
-                Genera 1 solo PDF largo que contiene todos los mÃ³dulos seleccionados ({selectedSections.length}).
+                Genera 1 solo PDF largo que contiene todos los módulos seleccionados ({selectedSections.length}).
               </p>
             </button>
 
@@ -2078,7 +2078,7 @@ export default function DeliverableClient() {
                 <h4 className="font-black text-sm text-slate-700">Paquetes Separados</h4>
               </div>
               <p className="text-xs text-slate-500 font-medium">
-                Bloqueado por ahora. PrÃ³ximamente podrÃ¡s generar mÃºltiples archivos PDF.
+                Bloqueado por ahora. Próximamente podrás generar múltiples archivos PDF.
               </p>
             </button>
           </div>
@@ -2089,7 +2089,7 @@ export default function DeliverableClient() {
           {exportMode === "single" && (
             <div className="space-y-4">
               <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
-                <h4 className="font-bold text-slate-800 text-sm mb-2">Se incluirÃ¡n {selectedSections.length} mÃ³dulos:</h4>
+                <h4 className="font-bold text-slate-800 text-sm mb-2">Se incluirán {selectedSections.length} módulos:</h4>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {selectedSections.map(sid => {
                     const moduleMatch = DELIVERABLE_SECTIONS.find(s => s.id === sid);
@@ -2106,7 +2106,7 @@ export default function DeliverableClient() {
               <div className="flex justify-end pt-4">
                 <Button onClick={handleExportSingle} disabled={isExporting || !previousStagesSummary.diet.hasData || !previousStagesSummary.patient.hasData || !previousStagesSummary.recipes.hasData || !previousStagesSummary.cart.hasData} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-8 h-12 uppercase tracking-widest text-xs font-black">
                   {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
-                  Exportar Documento Ãšnico
+                  Exportar Documento Único
                 </Button>
               </div>
             </div>
@@ -2147,10 +2147,10 @@ export default function DeliverableClient() {
                         setExportPackages(newPkgs);
                       }}
                       className="font-black text-emerald-900 border-slate-200 bg-slate-50 focus:bg-white"
-                      placeholder="Nombre del archivo (Ej. Plan ClÃ­nico)"
+                      placeholder="Nombre del archivo (Ej. Plan Clínico)"
                     />
                     <div className="space-y-1">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase">Modo de exportaciÃ³n</p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase">Modo de exportación</p>
                       <select
                         className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white text-slate-600 cursor-pointer"
                         value={pkg.exportAs}
@@ -2161,11 +2161,11 @@ export default function DeliverableClient() {
                         }}
                       >
                         <option value="single">Un PDF para este grupo</option>
-                        <option value="grouped">Un PDF por cada mÃ³dulo</option>
+                        <option value="grouped">Un PDF por cada módulo</option>
                       </select>
                     </div>
                     <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl min-h-[80px]">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-2">MÃ³dulos en este archivo:</p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-2">Módulos en este archivo:</p>
                       <div className="flex flex-wrap gap-1.5">
                         {pkg.sections.map(sid => {
                           const moduleMatch = DELIVERABLE_SECTIONS.find(s => s.id === sid);
@@ -2184,7 +2184,7 @@ export default function DeliverableClient() {
                             </div>
                           );
                         })}
-                        {pkg.sections.length === 0 && <span className="text-xs text-slate-400 font-medium">Carpeta vacÃ­a</span>}
+                        {pkg.sections.length === 0 && <span className="text-xs text-slate-400 font-medium">Carpeta vacía</span>}
                       </div>
                     </div>
 
@@ -2201,7 +2201,7 @@ export default function DeliverableClient() {
                       }}
                       defaultValue=""
                     >
-                      <option value="" disabled>+ AÃ±adir mÃ³dulo a este archivo...</option>
+                      <option value="" disabled>+ Añadir módulo a este archivo...</option>
                       {selectedSections.map(sid => {
                         if (pkg.sections.includes(sid)) return null;
                         const moduleMatch = DELIVERABLE_SECTIONS.find(s => s.id === sid);
@@ -2213,7 +2213,7 @@ export default function DeliverableClient() {
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-6">
-                <span className="text-xs text-slate-500 font-bold">DescargarÃ¡s {exportPackages.length} archivos separados.</span>
+                <span className="text-xs text-slate-500 font-bold">Descargarás {exportPackages.length} archivos separados.</span>
                 <Button onClick={handleExportAdvanced} disabled={isExporting || exportPackages.length === 0} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-8 h-12 uppercase tracking-widest text-xs font-black">
                   {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
                   Exportar Paquetes
@@ -2238,7 +2238,7 @@ export default function DeliverableClient() {
             <Input
               value={resourceSearchQuery}
               onChange={(e) => setResourceSearchQuery(e.target.value)}
-              placeholder="Buscar recurso, contenido o categorÃ­a..."
+              placeholder="Buscar recurso, contenido o categoría..."
               className="h-10"
             />
             <Input
@@ -2269,7 +2269,7 @@ export default function DeliverableClient() {
             >
               <option value="all">Todos los recursos</option>
               <option value="mine">Mis recursos</option>
-              <option value="public">Recursos pÃºblicos</option>
+              <option value="public">Recursos públicos</option>
             </select>
           </div>
           {resourceHashtags.length > 0 && (
@@ -2353,7 +2353,7 @@ export default function DeliverableClient() {
           )}
 
           <Button className="w-full bg-emerald-600 text-white h-11" onClick={addResolvedResourcePage}>
-            Guardar PÃ¡gina Extra
+            Guardar Página Extra
           </Button>
         </div>
       </Modal>
@@ -2415,7 +2415,7 @@ export default function DeliverableClient() {
               Contacto del profesional
             </h3>
             <p className="mt-1 text-xs font-medium text-slate-500">
-              Estos datos se muestran en la portada del PDF y puedes completarlos aquÃ­ mismo.
+              Estos datos se muestran en la portada del PDF y puedes completarlos aquí mismo.
             </p>
           </div>
 
@@ -2472,7 +2472,7 @@ export default function DeliverableClient() {
               Bienvenida opcional
             </p>
             <h3 className="mt-1 text-sm font-black uppercase tracking-widest text-slate-900">
-              Mensaje despuÃ©s de portada
+              Mensaje después de portada
             </h3>
           </div>
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
@@ -2525,7 +2525,7 @@ export default function DeliverableClient() {
                 Datos manuales o paciente importado
               </h3>
               <p className="mt-1 text-xs font-medium text-slate-500">
-                Puedes preparar el entregable para un paciente reutilizable o completar solo la informaciÃ³n de una visita puntual.
+                Puedes preparar el entregable para un paciente reutilizable o completar solo la información de una visita puntual.
               </p>
             </div>
             <div className="flex flex-col items-start gap-2">
@@ -2654,7 +2654,7 @@ export default function DeliverableClient() {
                       nutritionalFocus: e.target.value,
                     }))
                   }
-                  placeholder="Ej: mejorar energÃ­a, ordenar horarios, salud digestiva..."
+                  placeholder="Ej: mejorar energía, ordenar horarios, salud digestiva..."
                 />
               </div>
               <div className="space-y-1">
@@ -2751,7 +2751,7 @@ export default function DeliverableClient() {
               <span>{isFlowSummaryOpen ? "Clic para ocultar" : "Clic para desplegar"}</span>
             </div>
             <p className="mt-1 text-[11px] font-medium text-slate-500">
-              {isFlowSummaryOpen ? "Ocultar resumen" : "Ver resumen rÃ¡pido"}
+              {isFlowSummaryOpen ? "Ocultar resumen" : "Ver resumen rápido"}
             </p>
           </button>
 
@@ -2763,7 +2763,7 @@ export default function DeliverableClient() {
                 </p>
                 <p className="text-xs font-medium text-slate-700">
                   {previousStagesSummary.diet.hasData
-                    ? `${previousStagesSummary.diet.foodCount} alimento(s) Â· ${previousStagesSummary.diet.restrictions.length} restricciÃ³n(es)`
+                    ? `${previousStagesSummary.diet.foodCount} alimento(s) · ${previousStagesSummary.diet.restrictions.length} restricción(es)`
                     : "Sin datos cargados"}
                 </p>
               </div>
@@ -2804,15 +2804,15 @@ export default function DeliverableClient() {
         <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
-              RevisiÃ³n de mÃ³dulos
+              Revisión de módulos
             </p>
             <h3 className="mt-1 text-sm font-black uppercase tracking-widest text-slate-900">
-              MÃ³dulos obligatorios para exportaciÃ³n
+              Módulos obligatorios para exportación
             </h3>
             {isExportDisabled && (
               <p className="mt-2 text-xs font-bold text-rose-600 flex items-center gap-2 animate-in fade-in slide-in-from-left duration-500">
                 <AlertCircle className="h-4 w-4" />
-                Debes completar todos los mÃ³dulos marcados en rojo para habilitar la descarga del PDF.
+                Debes completar todos los módulos marcados en rojo para habilitar la descarga del PDF.
               </p>
             )}
           </div>
@@ -2861,7 +2861,7 @@ export default function DeliverableClient() {
           </div>
 
           <p className="text-xs font-semibold text-slate-500">
-            Este mÃ³dulo estÃ¡ hecho para completarse despuÃ©s de los demÃ¡s mÃ³dulos.
+            Este módulo está hecho para completarse después de los demás módulos.
           </p>
         </div>
         <div className="space-y-12 mt-8">
@@ -2879,7 +2879,7 @@ export default function DeliverableClient() {
               <div className="p-4 rounded-2xl border border-slate-200 bg-white space-y-2">
                 {selectedSectionItems.length === 0 && (
                   <p className="text-xs text-slate-500 font-medium">
-                    Selecciona mÃ³dulos para incluir en el entregable.
+                    Selecciona módulos para incluir en el entregable.
                   </p>
                 )}
                 {selectedSectionItems.map((section) => (
@@ -2893,7 +2893,7 @@ export default function DeliverableClient() {
                       "text-[10px] uppercase font-black px-2 py-1 rounded-md",
                       section.contentType === "practical" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
                     )}>
-                      {section.contentType === "practical" ? "PrÃ¡ctica" : "TeorÃ­a"}
+                      {section.contentType === "practical" ? "Práctica" : "Teoría"}
                     </span>
                   </div>
                 ))}
@@ -2952,7 +2952,7 @@ export default function DeliverableClient() {
                           "inline-flex mt-2 text-[9px] uppercase font-black px-2 py-0.5 rounded",
                           section.contentType === "practical" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
                         )}>
-                          {section.contentType === "practical" ? "PrÃ¡ctica" : "TeorÃ­a"}
+                          {section.contentType === "practical" ? "Práctica" : "Teoría"}
                         </span>
                       </div>
 
@@ -3013,7 +3013,7 @@ export default function DeliverableClient() {
                   <Sparkles className="h-5 w-5 text-blue-600" />
                 </div>
                 <h3 className="font-black text-slate-800 text-sm uppercase tracking-widest">
-                  EducaciÃ³n & Recursos Sugeridos
+                  Educación & Recursos Sugeridos
                 </h3>
                 <div className="ml-auto flex gap-2">
                   <Button
@@ -3030,7 +3030,7 @@ export default function DeliverableClient() {
                     className="h-8 text-[10px] uppercase font-black"
                     onClick={() => setContentFilter("practical")}
                   >
-                    PrÃ¡ctica
+                    Práctica
                   </Button>
                   <Button
                     variant={contentFilter === "theory" ? "default" : "ghost"}
@@ -3038,7 +3038,7 @@ export default function DeliverableClient() {
                     className="h-8 text-[10px] uppercase font-black"
                     onClick={() => setContentFilter("theory")}
                   >
-                    TeorÃ­a
+                    Teoría
                   </Button>
                   <Button
                     variant={contentFilter === "my-resources" ? "default" : "ghost"}
@@ -3061,10 +3061,10 @@ export default function DeliverableClient() {
                     {myResourcesForSection.length === 0 ? (
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-center">
                         <p className="text-xs font-bold text-slate-600">
-                          AÃºn no tienes recursos propios creados.
+                          Aún no tienes recursos propios creados.
                         </p>
                         <p className="mt-1 text-[11px] text-slate-500">
-                          Crea recursos en el mÃ³dulo de recursos y aparecerÃ¡n aquÃ­.
+                          Crea recursos en el módulo de recursos y aparecerán aquí.
                         </p>
                       </div>
                     ) : (
@@ -3092,7 +3092,7 @@ export default function DeliverableClient() {
                             </Button>
                           </div>
                           <p className="text-[10px] font-bold text-indigo-700">
-                            Se agregarÃ¡ al capÃ­tulo de recursos como subtÃ­tulo + texto.
+                            Se agregará al capítulo de recursos como subtítulo + texto.
                           </p>
                         </div>
                       ))
@@ -3148,7 +3148,7 @@ export default function DeliverableClient() {
                           "inline-flex mt-2 text-[9px] uppercase font-black px-2 py-0.5 rounded",
                           section.contentType === "practical" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
                         )}>
-                          {section.contentType === "practical" ? "PrÃ¡ctica" : "TeorÃ­a"}
+                          {section.contentType === "practical" ? "Práctica" : "Teoría"}
                         </span>
                       </div>
                       <div
@@ -3177,7 +3177,7 @@ export default function DeliverableClient() {
             <div className="flex items-center gap-2 px-6 py-3 bg-emerald-50 rounded-full border border-emerald-100 text-emerald-700">
               <Sparkles className="h-4 w-4 fill-current" />
               <span className="text-[10px] font-black uppercase tracking-widest text-center">
-                El PDF se generarÃ¡ con la plantilla oficial de NutriSaaS usando los widgets seleccionados.
+                El PDF se generará con la plantilla oficial de NutriSaaS usando los widgets seleccionados.
               </span>
             </div>
           </div>
@@ -3238,7 +3238,7 @@ export default function DeliverableClient() {
                         {patient.fullName}
                       </h3>
                       <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
-                        {patient.email || "Sin email"} â€¢{" "}
+                        {patient.email || "Sin email"} •{" "}
                         {patient.weight
                           ? `${patient.weight}kg`
                           : "Peso no reg."}
@@ -3275,7 +3275,7 @@ export default function DeliverableClient() {
         description={creationDescription}
         onDescriptionChange={setCreationDescription}
         title="Guardar entregable"
-        subtitle="AÃ±ade una breve descripciÃ³n para identificar este entregable dentro de Mis creaciones."
+        subtitle="Añade una breve descripción para identificar este entregable dentro de Mis creaciones."
         isSaving={isSaving}
       />
     </>

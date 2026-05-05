@@ -9,8 +9,6 @@ import {
   Bell,
   Sparkles,
   Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
   Moon,
   Sun,
 } from "lucide-react";
@@ -24,8 +22,8 @@ import {
 } from "@/context/SubscriptionContext";
 import { authService } from "@/features/auth/services/auth.service";
 import { useNotifications } from "@/context/NotificationsContext";
-import { useDashboardShell } from "@/context/DashboardShellContext";
 import { useTheme } from "@/context/ThemeContext";
+import { useFont } from "@/context/FontContext";
 
 function SubscriptionSwitcher() {
   const { plan, forceUpdatePlan } = useSubscription();
@@ -67,7 +65,23 @@ function SubscriptionSwitcher() {
 export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState<string>("usuario@demo.com");
+  const [userEmail] = useState<string>(() => {
+    if (typeof window === "undefined") {
+      return "usuario@demo.com";
+    }
+
+    const storedUser = window.localStorage.getItem("user");
+    if (!storedUser) {
+      return "usuario@demo.com";
+    }
+
+    try {
+      const user = JSON.parse(storedUser);
+      return typeof user?.email === "string" ? user.email : "usuario@demo.com";
+    } catch {
+      return "usuario@demo.com";
+    }
+  });
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -76,25 +90,9 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
     useNotifications();
   const { isDarkMode, toggleTheme } = useTheme();
-  const {
-    isSidebarCollapsed,
-    isSidebarToggleHighlighted,
-    toggleSidebarCollapsed,
-  } = useDashboardShell();
+  const { fontPreference, setFontPreference } = useFont();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        if (user && user.email) {
-          setUserEmail(user.email);
-        }
-      } catch (error) {
-        console.error("Error parsing user data", error);
-      }
-    }
-
     function handleClickOutside(event: MouseEvent) {
       if (
         dropdownRef.current &&
@@ -179,21 +177,6 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
         <div className="flex flex-1 justify-end gap-x-6 self-stretch lg:gap-x-12">
           <div className="flex items-center gap-x-6 lg:gap-x-8">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-black uppercase tracking-[0.2em] transition-all",
-              isDarkMode
-                ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50 hover:bg-emerald-500/18"
-                : "border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700",
-            )}
-            title={isDarkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-          >
-            {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            <span className="hidden sm:inline">{isDarkMode ? "Light" : "Dark"}</span>
-          </button>
-
           <Link
             href="/dashboard/actualizaciones"
             className={cn(
@@ -451,7 +434,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                 <Link
                   href="/dashboard/configuraciones"
                   className={cn(
-                    "flex w-full items-center gap-2 px-4 py-2 text-left text-sm leading-6 transition-colors",
+                    "flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-sm leading-6 transition-colors",
                     isDarkMode
                       ? "text-emerald-100/85 hover:bg-emerald-500/8"
                       : "text-slate-700 hover:bg-slate-50",
@@ -470,8 +453,74 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                 </Link>
 
                 <button
+                  type="button"
+                  onClick={toggleTheme}
                   className={cn(
-                    "flex w-full items-center gap-2 px-4 py-2 text-left text-sm leading-6 transition-colors",
+                    "flex w-full items-center gap-2 px-4 py-2 text-left text-sm leading-6 transition-colors cursor-pointer",
+                    isDarkMode
+                      ? "text-emerald-100/85 hover:bg-emerald-500/8"
+                      : "text-slate-700 hover:bg-slate-50",
+                  )}
+                  role="menuitem"
+                  tabIndex={-1}
+                >
+                  {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  {isDarkMode ? "Modo claro" : "Modo oscuro"}
+                </button>
+
+                <div
+                  className={cn(
+                    "border-t px-4 py-2",
+                    isDarkMode ? "border-emerald-400/10" : "border-slate-100",
+                  )}
+                >
+                  <p
+                    className={cn(
+                      "mb-2 text-[10px] font-semibold uppercase tracking-wider",
+                      isDarkMode ? "text-emerald-100/50" : "text-slate-400",
+                    )}
+                  >
+                    Tipografía
+                  </p>
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => setFontPreference("default")}
+                      className={cn(
+                        "flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                        fontPreference === "default"
+                          ? isDarkMode
+                            ? "bg-emerald-500/10 text-emerald-50"
+                            : "bg-emerald-50 text-emerald-700"
+                          : isDarkMode
+                            ? "text-emerald-100/80 hover:bg-emerald-500/8"
+                            : "text-slate-700 hover:bg-slate-50",
+                      )}
+                    >
+                      <span>Texto por defecto</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFontPreference("formal")}
+                      className={cn(
+                        "flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                        fontPreference === "formal"
+                          ? isDarkMode
+                            ? "bg-emerald-500/10 text-emerald-50"
+                            : "bg-emerald-50 text-emerald-700"
+                          : isDarkMode
+                            ? "text-emerald-100/80 hover:bg-emerald-500/8"
+                            : "text-slate-700 hover:bg-slate-50",
+                      )}
+                    >
+                      <span>Texto tradicional</span>
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  className={cn(
+                    "flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-sm leading-6 transition-colors",
                     isDarkMode
                       ? "text-rose-300 hover:bg-rose-500/8"
                       : "text-red-600 hover:bg-slate-50",
