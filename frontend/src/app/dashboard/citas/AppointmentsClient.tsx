@@ -271,25 +271,27 @@ const extractCalendarCandidate = (payload: unknown): Record<string, unknown> | n
 
 const normalizeAvailabilityRules = (payload: unknown): WeekRule[] => {
   const items = extractAvailabilityRules(payload);
+  console.log("[appointments] normalizeAvailabilityRules raw items:", items);
   if (!items.length) {
-    return DEFAULT_WEEK_RULES();
+    return [];
   }
 
   const parsed = items
     .map(parseAvailabilityRuleItem)
     .filter((item): item is WeekRule => item !== null);
+  console.log("[appointments] normalizeAvailabilityRules parsed:", parsed);
 
   if (!parsed.length) {
-    return DEFAULT_WEEK_RULES();
+    return [];
   }
 
   return parsed;
 };
 
 const parseWeekRulesPayload = (payload: unknown): WeekRule[] => {
-  if (!payload) return DEFAULT_WEEK_RULES();
+  if (!payload) return [];
   if (Array.isArray(payload)) return normalizeAvailabilityRules(payload);
-  if (typeof payload !== "object") return DEFAULT_WEEK_RULES();
+  if (typeof payload !== "object") return [];
   return normalizeAvailabilityRules(payload);
 };
 
@@ -523,7 +525,7 @@ const createRulesFromWorkHoursGrid = (grid: WorkHoursGridDraft): WeekRule[] => {
     }
   }
 
-  return rules.length ? rules : DEFAULT_WEEK_RULES();
+  return rules;
 };
 
 const createAppointmentDraft = () => ({
@@ -700,8 +702,8 @@ export default function AppointmentsClient() {
         setEvents([]);
         setSlots([]);
         setRequests([]);
-        setWorkHoursDraft(DEFAULT_WEEK_RULES());
-        setWorkHoursGridDraft(createWorkHoursGridFromRules(DEFAULT_WEEK_RULES()));
+        setWorkHoursDraft([]);
+        setWorkHoursGridDraft(createEmptyWorkHoursGrid());
         setAvailabilitySource("default");
         setIsEditingWorkHours(false);
         return;
@@ -723,9 +725,8 @@ export default function AppointmentsClient() {
           setWorkHoursGridDraft(createWorkHoursGridFromRules(normalizedRules));
           setAvailabilitySource("service");
         } else if (rulesResponse.status === 404 || rulesResponse.status === 405) {
-          const fallbackRules = DEFAULT_WEEK_RULES();
-          setWorkHoursDraft(fallbackRules);
-          setWorkHoursGridDraft(createWorkHoursGridFromRules(fallbackRules));
+          setWorkHoursDraft([]);
+          setWorkHoursGridDraft(createEmptyWorkHoursGrid());
           setAvailabilitySource("default");
         } else {
           const message =
@@ -733,16 +734,14 @@ export default function AppointmentsClient() {
               ? rulesPayload.message
               : "No pudimos cargar tus horarios laborales.";
           console.warn("Availability rules could not be loaded", message);
-          const fallbackRules = DEFAULT_WEEK_RULES();
-          setWorkHoursDraft(fallbackRules);
-          setWorkHoursGridDraft(createWorkHoursGridFromRules(fallbackRules));
+          setWorkHoursDraft([]);
+          setWorkHoursGridDraft(createEmptyWorkHoursGrid());
           setAvailabilitySource("default");
         }
       } catch (rulesError) {
         console.warn("Availability rules fetch failed", rulesError);
-        const fallbackRules = DEFAULT_WEEK_RULES();
-        setWorkHoursDraft(fallbackRules);
-        setWorkHoursGridDraft(createWorkHoursGridFromRules(fallbackRules));
+        setWorkHoursDraft([]);
+        setWorkHoursGridDraft(createEmptyWorkHoursGrid());
         setAvailabilitySource("default");
       }
 
@@ -1011,61 +1010,58 @@ export default function AppointmentsClient() {
     }
 
     const nextRules = createRulesFromWorkHoursGrid(workHoursGridDraft);
-    const mappedRules = nextRules.map((rule) => ({
+    const mappedRules = nextRules.filter(r => r.enabled).map((rule) => ({
       dayOfWeek: DAY_OF_WEEK_BY_KEY[rule.day] ?? 1,
       startTime: rule.start,
       endTime: rule.end,
+      slotIntervalMin: 15,
+      isActive: true,
     }));
-    const payloadVariants = [
-      { label: "rules", body: { rules: mappedRules } },
-      { label: "weeklyRules", body: { weeklyRules: mappedRules } },
-    ];
 
     setIsSavingHours(true);
+    const payload = { rules: mappedRules };
+    console.log("[appointments] save work hours calendarId:", calendarId);
+    console.log("[appointments] save work hours payload exacto:", JSON.stringify(payload, null, 2));
+
     try {
-      for (const variant of payloadVariants) {
-        console.log("[appointments] saving availability rules", variant.label, variant.body);
-        const response = await fetchAppointmentsApi(`/calendars/${calendarId}/availability/rules`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(variant.body),
-        });
+      const response = await fetchAppointmentsApi(`/calendars/${calendarId}/availability/rules`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-        const responseText = await response.text().catch(() => "");
-        const responsePayload = (() => {
-          if (!responseText) return {};
-          try {
-            return JSON.parse(responseText) as Record<string, unknown>;
-          } catch {
-            return { raw: responseText };
-          }
-        })();
-        console.log("[appointments] save availability response", variant.label, response.status, responsePayload);
-
-        if (response.ok) {
-          toast.success("Horarios laborales actualizados.");
-          setWorkHoursDraft(nextRules);
-          setWorkHoursGridDraft(createWorkHoursGridFromRules(nextRules));
-          setAvailabilitySource("service");
-          setIsEditingWorkHours(false);
-          await loadData();
-          return;
+      const responseText = await response.text().catch(() => "");
+      const responsePayload = (() => {
+        if (!responseText) return {};
+        try {
+          return JSON.parse(responseText) as Record<string, unknown>;
+        } catch {
+          return { raw: responseText };
         }
+      })();
+      console.log("[appointments] save availability response PUT:", response.status, responsePayload);
 
-        if (response.status !== 400 || variant.label === payloadVariants[payloadVariants.length - 1].label) {
-          const message =
-            typeof responsePayload?.message === "string"
-              ? responsePayload.message
-              : typeof responsePayload?.error === "string"
-                ? responsePayload.error
-                : typeof responsePayload?.raw === "string" && responsePayload.raw.trim()
-                  ? responsePayload.raw
-                  : "No se pudieron guardar los horarios laborales.";
-          throw new Error(message);
-        }
+      if (response.ok) {
+        toast.success("Horarios laborales actualizados.");
+        setWorkHoursDraft(nextRules);
+        setWorkHoursGridDraft(createWorkHoursGridFromRules(nextRules));
+        setAvailabilitySource("service");
+        setIsEditingWorkHours(false);
+        await loadData();
+        return;
       }
+
+      const message =
+        typeof responsePayload?.message === "string"
+          ? responsePayload.message
+          : typeof responsePayload?.error === "string"
+            ? responsePayload.error
+            : typeof responsePayload?.raw === "string" && responsePayload.raw.trim()
+              ? responsePayload.raw
+              : "No se pudieron guardar los horarios laborales.";
+      throw new Error(message);
     } catch (error) {
       console.error("Error saving work hours", error);
       toast.error(error instanceof Error ? error.message : "No se pudieron guardar los horarios.");
