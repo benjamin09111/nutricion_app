@@ -12,6 +12,8 @@ import {
   NotebookText,
   MessageCircle,
   ClipboardCheck,
+  Calculator,
+  BookOpen,
   MessageSquare,
   Lock,
   Folder,
@@ -73,7 +75,7 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Creaciones", href: "/dashboard/creaciones", icon: Folder, tutorialPath: "/dashboard/creaciones" },
       { name: "Recursos", href: "/dashboard/recursos", icon: FileText, tutorialPath: "/dashboard/recursos" },
-      { name: "Porciones de Intercambio", href: "/dashboard/herramientas/porciones-intercambio", icon: ClipboardCheck, tutorialPath: "/dashboard/herramientas/porciones-intercambio" },
+      { name: "Calculadora", href: "/dashboard/herramientas/calculos", icon: Calculator, tutorialPath: "/dashboard/herramientas/calculos" },
       { name: "Configuración Clínica", href: "/dashboard/detalles", icon: Settings, tutorialPath: "/dashboard/detalles" },
     ],
   },
@@ -87,6 +89,7 @@ const groups: SidebarGroup[] = [
   {
     title: "Ajustes",
     items: [
+      { name: "Información de Cálculos", href: "/dashboard/herramientas/porciones-intercambio", icon: BookOpen },
       { name: "Notificaciones", href: "/dashboard/ajustes/notificaciones", icon: Bell },
       { name: "Feedback & Soporte", href: "/dashboard/feedback", icon: MessageSquare },
     ],
@@ -137,7 +140,7 @@ export function Sidebar() {
       <div
         className={cn(
           "flex h-16 shrink-0 items-center justify-between",
-          isSidebarCollapsed ? "flex-col gap-2 pt-4" : "pl-2",
+          isSidebarCollapsed ? "flex-col gap-1 pt-2 pb-1 h-20" : "pl-2",
         )}
       >
         <Link
@@ -165,7 +168,6 @@ export function Sidebar() {
               ? "text-indigo-100/50 hover:text-indigo-50 hover:bg-indigo-500/10"
               : "text-slate-400 hover:text-indigo-600 hover:bg-slate-50",
             isSidebarToggleHighlighted && "animate-pulse ring-2 ring-indigo-500/20",
-            isSidebarCollapsed && "mt-2",
           )}
           title={isSidebarCollapsed ? "Mostrar menú" : "Contraer menú"}
         >

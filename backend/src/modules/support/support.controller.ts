@@ -36,6 +36,18 @@ export class SupportController {
     });
   }
 
+  // Secure Subscription Request
+  @UseGuards(AuthGuard('jwt'))
+  @Post('secure-subscription')
+  secureSubscription(@Request() req: any) {
+    return this.supportService.create({
+      email: req.user.email,
+      type: 'OTHER',
+      subject: 'ASEGURAR_SUSCRIPCION',
+      message: `El nutricionista ${req.user.email} desea asegurar su suscripción post-beta.`,
+    });
+  }
+
   // Admin Only: List requests
   @UseGuards(AuthGuard('jwt'))
   @Get()

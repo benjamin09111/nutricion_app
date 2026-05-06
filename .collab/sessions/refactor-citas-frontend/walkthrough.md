@@ -13,6 +13,8 @@
 ## Verification
 - Code compilation checked via `npx tsc --noEmit`. No errors were found in the `citas` domain.
 - Missing imports and minor syntax issues (such as `TabKey` and accent marks) have been completely resolved.
+- Removed the patient info edit toggle from `/dashboard/consultas/nueva`; the patient panel now stays in read-only mode from this view.
+- Added patient activity level visibility/editing in the patient detail view and aligned patient creation with the supported GET activity factors (`sedentario`, `ligero`, `moderado`, `activo`, `muy_activo`).
 
 ## Next Steps (For the User / Backend Agent)
 The frontend is now optimized and structurally sound.

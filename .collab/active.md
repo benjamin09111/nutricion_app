@@ -1,10 +1,12 @@
 # Sesiones Activas
 
-Sesión activa: `refactor-citas-frontend`
+# Sesiones Activas
 
-- Modo: `TURBO`
-- Estado: `Phase 2: Plan`
-- Objetivo: Refactorizar `AppointmentsClient.tsx` para usar SWR, extraer lógica a adaptadores y modularizar pestañas y modales.
+Sesión activa: [fix-build-errors-production](.collab/sessions/fix-build-errors-production/) (MODO: TURBO)
+---
+Última sesión completada: [fix-ai-quota-issue](.collab/sessions/fix-ai-quota-issue/)
+Última sesión completada: [update-nutria-chat-text](.collab/sessions/update-nutria-chat-text/)
+
 
 ---
 Última sesión completada: [patient-creation-share-indicator](.collab/sessions/patient-creation-share-indicator/)

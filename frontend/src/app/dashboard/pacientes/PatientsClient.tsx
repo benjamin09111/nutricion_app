@@ -202,7 +202,7 @@ export default function PatientsClient() {
   return (
     <ModuleLayout
       title="Mis Pacientes"
-      description="Gestiona los expedientes y progreso de tus pacientes de forma profesional."
+      description="Gestiona a tus pacientes: puedes crear, ver su progreso a través del tiempo, crear un espacio de comunicación privado y mucho más."
       className="pb-8"
     >
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
@@ -417,109 +417,110 @@ export default function PatientsClient() {
                     const remainingRestrictions = restrictions.length - visibleRestrictions.length;
 
                     return (
-                    <tr 
-                      key={patient.id} 
-                      onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
-                      className="hover:bg-slate-50 transition-colors group cursor-pointer"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          <div className="h-10 w-10 shrink-0">
-                            <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-semibold border border-indigo-100 shadow-sm">
-                              {patient.fullName.charAt(0)}
+                      <tr
+                        key={patient.id}
+                        onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
+                        className="hover:bg-slate-50 transition-colors group cursor-pointer"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center">
+                            <div className="h-10 w-10 shrink-0">
+                              <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-semibold border border-indigo-100 shadow-sm">
+                                {patient.fullName.charAt(0)}
+                              </div>
+                            </div>
+                            <div className="ml-4 min-w-0">
+                              <div className="text-sm font-semibold text-slate-900 leading-none mb-1 truncate">{patient.fullName}</div>
+                              <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5 min-w-0">
+                                <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                                <span className="truncate">{patient.email || "Sin correo"}</span>
+                              </div>
                             </div>
                           </div>
-                          <div className="ml-4 min-w-0">
-                            <div className="text-sm font-semibold text-slate-900 leading-none mb-1 truncate">{patient.fullName}</div>
-                            <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5 min-w-0">
-                              <Mail className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span className="truncate">{patient.email || "Sin correo"}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center text-sm font-medium text-slate-600">{patient.documentId || "---"}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {restrictions.length > 0 ? (
+                            <div className="flex flex-wrap items-center gap-2 max-w-[280px]">
+                              {visibleRestrictions.map((restriction) => (
+                                <span
+                                  key={restriction}
+                                  className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
+                                >
+                                  <Heart className="h-3 w-3 text-emerald-600" />
+                                  <span className="truncate max-w-[180px]">{restriction}</span>
+                                </span>
+                              ))}
+                              {remainingRestrictions > 0 && (
+                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
+                                  +{remainingRestrictions}
+                                </span>
+                              )}
                             </div>
+                          ) : (
+                            <span className="text-xs font-medium text-slate-400">Sin restricciones</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => togglePatientStatus(patient)}
+                              className={cn(
+                                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
+                                patient.status !== "Inactive" ? "bg-indigo-500" : "bg-slate-300"
+                              )}
+                              role="switch"
+                              aria-checked={patient.status !== "Inactive"}
+                            >
+                              <span className={cn(
+                                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
+                                patient.status !== "Inactive" ? "translate-x-4" : "translate-x-0"
+                              )} />
+                            </button>
+                            <span className={cn("text-xs font-medium w-12 text-left", patient.status !== "Inactive" ? "text-indigo-700" : "text-slate-500")}>
+                              {patient.status !== "Inactive" ? "Activo" : "Inactivo"}
+                            </span>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center text-sm font-medium text-slate-600">{patient.documentId || "---"}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {restrictions.length > 0 ? (
-                          <div className="flex flex-wrap items-center gap-2 max-w-[280px]">
-                            {visibleRestrictions.map((restriction) => (
-                              <span
-                                key={restriction}
-                                className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
-                              >
-                                <Heart className="h-3 w-3 text-emerald-600" />
-                                <span className="truncate max-w-[180px]">{restriction}</span>
-                              </span>
-                            ))}
-                            {remainingRestrictions > 0 && (
-                              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
-                                +{remainingRestrictions}
-                              </span>
-                            )}
+                        </td>
+                        <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => openPatientPreview(patient)}
+                              className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            >
+                              <Eye className="w-4.5 h-4.5" />
+                            </button>
+                            <button
+                              onClick={() => togglePatientStatus(patient)}
+                              className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
+                            >
+                              {patient.status === "Active" ? (
+                                <Ban className="w-4.5 h-4.5 text-emerald-600" />
+                              ) : (
+                                <CheckCircle2 className="w-4.5 h-4.5 text-indigo-600" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              disabled
+                              className="group relative p-2.5 text-slate-300 bg-slate-50 rounded-xl transition-all cursor-not-allowed"
+                            >
+                              <Download className="w-4.5 h-4.5" />
+                            </button>
+                            <button
+                              onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }}
+                              className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            >
+                              <Trash2 className="w-4.5 h-4.5" />
+                            </button>
                           </div>
-                        ) : (
-                          <span className="text-xs font-medium text-slate-400">Sin restricciones</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => togglePatientStatus(patient)}
-                            className={cn(
-                              "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
-                              patient.status !== "Inactive" ? "bg-indigo-500" : "bg-slate-300"
-                            )}
-                            role="switch"
-                            aria-checked={patient.status !== "Inactive"}
-                          >
-                            <span className={cn(
-                              "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
-                              patient.status !== "Inactive" ? "translate-x-4" : "translate-x-0"
-                            )} />
-                          </button>
-                          <span className={cn("text-xs font-medium w-12 text-left", patient.status !== "Inactive" ? "text-indigo-700" : "text-slate-500")}>
-                            {patient.status !== "Inactive" ? "Activo" : "Inactivo"}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => openPatientPreview(patient)}
-                            className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                          >
-                            <Eye className="w-4.5 h-4.5" />
-                          </button>
-                          <button
-                            onClick={() => togglePatientStatus(patient)}
-                            className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
-                          >
-                            {patient.status === "Active" ? (
-                              <Ban className="w-4.5 h-4.5 text-emerald-600" />
-                            ) : (
-                              <CheckCircle2 className="w-4.5 h-4.5 text-indigo-600" />
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            disabled
-                            className="group relative p-2.5 text-slate-300 bg-slate-50 rounded-xl transition-all cursor-not-allowed"
-                          >
-                            <Download className="w-4.5 h-4.5" />
-                          </button>
-                          <button
-                            onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }}
-                            className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                          >
-                            <Trash2 className="w-4.5 h-4.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )})
+                        </td>
+                      </tr>
+                    )
+                  })
                 ) : (
                   <tr><td colSpan={5} className="text-center py-20"><div className="flex flex-col items-center gap-4"><div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100"><User className="h-8 w-8 text-slate-300" /></div><p className="text-slate-500 font-medium">Sin pacientes registrados</p></div></td></tr>
                 )}
@@ -549,92 +550,93 @@ export default function PatientsClient() {
               const remainingRestrictions = restrictions.length - visibleRestrictions.length;
 
               return (
-              <div 
-                key={patient.id} 
-                onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
-                className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm active:scale-[0.98] transition-all"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100">
-                      {patient.fullName.charAt(0)}
+                <div
+                  key={patient.id}
+                  onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
+                  className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm active:scale-[0.98] transition-all"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100">
+                        {patient.fullName.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-slate-900 line-clamp-1">{patient.fullName}</h3>
+                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 min-w-0">
+                          <Mail className="w-3 h-3 shrink-0" />
+                          <span className="break-all">{patient.email || "Sin correo"}</span>
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <h3 className="font-bold text-slate-900 line-clamp-1">{patient.fullName}</h3>
-                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 min-w-0">
-                        <Mail className="w-3 h-3 shrink-0" /> 
-                        <span className="break-all">{patient.email || "Sin correo"}</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div 
-                    className={cn(
-                      "px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider",
-                      patient.status !== "Inactive" ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600"
-                    )}
-                  >
-                    {patient.status !== "Inactive" ? "Activo" : "Inactivo"}
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Restricciones Médicas
-                  </p>
-                  {restrictions.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {visibleRestrictions.map((restriction) => (
-                        <span
-                          key={restriction}
-                          className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
-                        >
-                          <Heart className="h-3 w-3" />
-                          {restriction}
-                        </span>
-                      ))}
-                      {remainingRestrictions > 0 && (
-                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
-                          +{remainingRestrictions}
-                        </span>
+                    <div
+                      className={cn(
+                        "px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider",
+                        patient.status !== "Inactive" ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600"
                       )}
-                    </div>
-                  ) : (
-                    <p className="text-xs font-medium text-slate-400">Sin restricciones</p>
-                  )}
-                </div>
-                
-                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                  <div className="text-xs font-semibold text-slate-400">
-                    ID: <span className="text-slate-600 ml-1">{patient.documentId || "---"}</span>
-                  </div>
-                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => openPatientPreview(patient)} className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-lg" title="Ver">
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => togglePatientStatus(patient)}
-                      className="p-2 bg-slate-50 rounded-lg"
-                      title={patient.status === "Active" ? "Inhabilitar" : "Habilitar"}
                     >
-                      {patient.status === "Active" ? (
-                        <Ban className="w-4 h-4 text-emerald-600" />
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4 text-indigo-600" />
-                      )}
-                    </button>
-                    <button type="button" disabled className="p-2 text-slate-300 bg-slate-50 rounded-lg cursor-not-allowed" title="Descargar ficha">
-                      <Download className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }} className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-lg" title="Eliminar">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)} className="p-2 text-indigo-600 bg-indigo-50 rounded-lg ml-1 font-bold text-[10px] px-3 flex items-center gap-1 shadow-sm border border-indigo-100">
-                      VER FICHA <ArrowRight className="w-3 h-3" />
-                    </button>
+                      {patient.status !== "Inactive" ? "Activo" : "Inactivo"}
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      Restricciones Médicas
+                    </p>
+                    {restrictions.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {visibleRestrictions.map((restriction) => (
+                          <span
+                            key={restriction}
+                            className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
+                          >
+                            <Heart className="h-3 w-3" />
+                            {restriction}
+                          </span>
+                        ))}
+                        {remainingRestrictions > 0 && (
+                          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
+                            +{remainingRestrictions}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs font-medium text-slate-400">Sin restricciones</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                    <div className="text-xs font-semibold text-slate-400">
+                      ID: <span className="text-slate-600 ml-1">{patient.documentId || "---"}</span>
+                    </div>
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => openPatientPreview(patient)} className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-lg" title="Ver">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => togglePatientStatus(patient)}
+                        className="p-2 bg-slate-50 rounded-lg"
+                        title={patient.status === "Active" ? "Inhabilitar" : "Habilitar"}
+                      >
+                        {patient.status === "Active" ? (
+                          <Ban className="w-4 h-4 text-emerald-600" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4 text-indigo-600" />
+                        )}
+                      </button>
+                      <button type="button" disabled className="p-2 text-slate-300 bg-slate-50 rounded-lg cursor-not-allowed" title="Descargar ficha">
+                        <Download className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }} className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-lg" title="Eliminar">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)} className="p-2 text-indigo-600 bg-indigo-50 rounded-lg ml-1 font-bold text-[10px] px-3 flex items-center gap-1 shadow-sm border border-indigo-100">
+                        VER FICHA <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )})
+              )
+            })
           ) : (
             <div className="bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
               <User className="w-12 h-12 text-slate-300 mx-auto mb-4" />
@@ -710,7 +712,7 @@ export default function PatientsClient() {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-slate-700">
                     <Phone className="h-4 w-4 text-slate-400" />
-                    <span>{patientPreview.phone || "Sin telefono"}</span>
+                    <span>{patientPreview.phone || "Sin teléfono"}</span>
                   </div>
                 </div>
               </div>
@@ -719,7 +721,7 @@ export default function PatientsClient() {
                 <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Perfil</p>
                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-slate-700">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Genero</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Género</p>
                     <p className="mt-1 font-semibold">{patientPreview.gender || "No registrado"}</p>
                   </div>
                   <div>

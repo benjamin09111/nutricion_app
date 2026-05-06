@@ -1,6 +1,6 @@
 import React from "react";
 import { Document, Image, Page, Path, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
-import exchangePortionGuide from "@/content/exchange-portions.json";
+import { buildExchangeGuideForPatient } from "@/lib/exchange-portions";
 
 interface StandardTemplateProps {
   data: Record<string, unknown>;
@@ -109,9 +109,7 @@ const INFO_SECTION_CATALOG: Record<string, { title: string; subtitle: string; de
   },
 };
 
-const EXCHANGE_PORTION_GUIDE = Array.isArray(exchangePortionGuide)
-  ? (exchangePortionGuide as ExchangePortionRow[])
-  : [];
+const EXCHANGE_PORTION_GUIDE = buildExchangeGuideForPatient() as ExchangePortionRow[];
 
 const S = StyleSheet.create({
   coverPage: {

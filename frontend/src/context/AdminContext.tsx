@@ -19,49 +19,49 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [role] = useState<UserRole | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      return null;
-    }
-
-    try {
-      const user = JSON.parse(storedUser);
-      return user.role as UserRole;
-    } catch {
-      return null;
-    }
-  });
   const router = useRouter();
+  const [role, setRole] = useState<UserRole | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        setRole(user.role as UserRole);
+      } catch (error) {
+        console.error("Error parsing stored user:", error);
+      }
+    }
+    setIsLoading(false);
+  }, []);
+
   function checkIsAdmin(r: string | null) {
     return r ? ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(r) : false;
   }
 
-  const viewMode: ViewMode = checkIsAdmin(role) ? "ADMIN" : "NUTRITIONIST";
-  const isLoading = false;
+  const isAdmin = checkIsAdmin(role);
+  const viewMode: ViewMode = isAdmin ? "ADMIN" : "NUTRITIONIST";
 
   useEffect(() => {
-    if (checkIsAdmin(role)) {
+    if (!isLoading && isAdmin) {
       if (pathname === "/dashboard") {
         router.push("/dashboard/admin");
       }
     }
-  }, [pathname, role, router]);
+  }, [pathname, isAdmin, router, isLoading]);
 
   const toggleViewMode = () => {
-    // Logic removed to prevent admins from seeing nutritionist-specific data
-    console.warn("View switching is disabled for Admins to ensure data isolation.");
+    console.warn(
+      "View switching is disabled for Admins to ensure data isolation.",
+    );
   };
 
   const value = {
     role,
     viewMode,
     toggleViewMode,
-    isAdmin: checkIsAdmin(role),
+    isAdmin,
     isAdminView: viewMode === "ADMIN",
     isLoading,
   };

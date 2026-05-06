@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useRef, useEffect } from "react";
 import {
@@ -24,6 +24,10 @@ import { authService } from "@/features/auth/services/auth.service";
 import { useNotifications } from "@/context/NotificationsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useFont } from "@/context/FontContext";
+import { useTutorials } from "@/context/TutorialContext";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 function SubscriptionSwitcher() {
   const { plan, forceUpdatePlan } = useSubscription();
@@ -91,6 +95,25 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
     useNotifications();
   const { isDarkMode, toggleTheme } = useTheme();
   const { fontPreference, setFontPreference } = useFont();
+  const { openCurrentTutorial, currentTutorial, isTutorialAvailable } =
+    useTutorials();
+
+  const [isSecureSubModalOpen, setIsSecureSubModalOpen] = useState(false);
+  const [isSecuringSub, setIsSecuringSub] = useState(false);
+
+  const handleSecureSubscription = async () => {
+    setIsSecuringSub(true);
+    try {
+      await api.post("/support/secure-subscription");
+      toast.success("¡Excelente! Hemos registrado tu interés. Nos pondremos en contacto contigo pronto.");
+      setIsSecureSubModalOpen(false);
+    } catch (error) {
+      console.error("Error securing subscription:", error);
+      toast.error("Hubo un error al procesar tu solicitud. Por favor intenta más tarde.");
+    } finally {
+      setIsSecuringSub(false);
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -172,6 +195,23 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
           )}
 
           {isAdmin && <SubscriptionSwitcher />}
+
+          {!isAdmin && !isAdminView && (
+            <button
+              onClick={() => setIsSecureSubModalOpen(true)}
+              className={cn(
+                "shiny-button group hidden items-center gap-2 rounded-full border px-4 py-1.5 transition-all md:flex",
+                isDarkMode
+                  ? "border-amber-400/30 bg-amber-500/15 text-amber-50 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                  : "border-amber-200 bg-amber-50 text-amber-700 shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:bg-amber-100",
+              )}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-500 transition-transform group-hover:scale-110" />
+              <span className="text-[11px] font-black uppercase tracking-wider">
+                Asegurar mi suscripción
+              </span>
+            </button>
+          )}
 
         </div>
 
@@ -452,6 +492,33 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                   Configuraciones
                 </Link>
 
+                {isTutorialAvailable && currentTutorial ? (
+                  <button
+                    type="button"
+                    data-tutorial-id="tutorial-trigger"
+                    onClick={() => {
+                      openCurrentTutorial();
+                      setIsProfileOpen(false);
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-2 px-4 py-2 text-left text-sm leading-6 transition-colors cursor-pointer",
+                      isDarkMode
+                        ? "text-emerald-100/85 hover:bg-emerald-500/8"
+                        : "text-slate-700 hover:bg-slate-50",
+                    )}
+                    role="menuitem"
+                    tabIndex={-1}
+                  >
+                    <Sparkles
+                      className={cn(
+                        "h-4 w-4",
+                        isDarkMode ? "text-emerald-100/55" : "text-slate-400",
+                      )}
+                    />
+                    Activar tutorial actual
+                  </button>
+                ) : null}
+
                 <button
                   type="button"
                   onClick={toggleTheme}
@@ -538,6 +605,17 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
           </div>
         </div>
       </div>
+      
+      <ConfirmationModal
+        isOpen={isSecureSubModalOpen}
+        onClose={() => !isSecuringSub && setIsSecureSubModalOpen(false)}
+        onConfirm={handleSecureSubscription}
+        title="Asegurar mi suscripción"
+        description="¿Te gusta NutriNet? Al confirmar, registraremos tu interés para mantener tu cuenta activa después de la versión beta. Nos pondremos en contacto contigo manualmente vía email para coordinar los detalles."
+        confirmText="Confirmar interés"
+        cancelText="Volver"
+        isLoading={isSecuringSub}
+      />
     </div>
   );
 }

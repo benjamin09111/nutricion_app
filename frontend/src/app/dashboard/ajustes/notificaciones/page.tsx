@@ -63,7 +63,7 @@ export default function NotificationsPage() {
             Notificaciones
           </h1>
           <p className="text-slate-500 text-sm font-medium mt-1">
-            Mantente al día con las últimas novedades y avisos de la plataforma.
+            Acá encontrarás todas las notificaciones que has recibido, los administradores pueden enviarte mensajes para avisos o información relevante.
           </p>
         </div>
 

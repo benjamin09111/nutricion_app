@@ -12,10 +12,10 @@ export type WorkHoursGridDraft = Record<string, boolean[]>;
 export const WEEK_DAYS = [
   { key: "monday", label: "Lun" },
   { key: "tuesday", label: "Mar" },
-  { key: "wednesday", label: "MiÃ©" },
+  { key: "wednesday", label: "Mié" },
   { key: "thursday", label: "Jue" },
   { key: "friday", label: "Vie" },
-  { key: "saturday", label: "SÃ¡b" },
+  { key: "saturday", label: "Sáb" },
   { key: "sunday", label: "Dom" },
 ];
 
@@ -310,8 +310,10 @@ export const normalizeCalendar = (payload: unknown): AppointmentCalendar | null 
   if (!id) return null;
   return {
     id,
+    nutritionistId: normalizeText(cal.nutritionistId) || normalizeText(cal.nutritionist_id),
     name: normalizeText(cal.name),
     title: normalizeText(cal.title),
+    description: normalizeText(cal.description),
     timeZone: normalizeText(cal.timeZone) || normalizeText(cal.timezone),
     timezone: normalizeText(cal.timezone),
     googleCalendarConnected:

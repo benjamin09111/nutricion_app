@@ -10,7 +10,7 @@ export default function CreationsPage() {
             Mis Creaciones
           </h2>
           <p className="mt-1 text-sm font-medium text-slate-500">
-            Gestiona y descarga todos los recursos generados para tus pacientes.
+            Aquí encontrarás todo lo que has creado para tus pacientes, puedes filtrar, buscar y volver a descargar tus creaciones que hayas guardado, ya sea en el módulo de entregable personalizable o en entregables rápidos.
           </p>
         </div>
       </div>

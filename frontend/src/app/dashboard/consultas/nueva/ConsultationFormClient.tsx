@@ -24,13 +24,12 @@ import {
     Heart,
     RotateCcw,
     ChevronDown,
-    PencilLine,
-    X,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { MetricTagInput } from "@/components/ui/metric-tag-input";
+import { calculateBMI, calculateGET, calculateAge } from "@/lib/nutrition-formulas";
 import { TagInput } from "@/components/ui/TagInput";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
@@ -85,9 +84,9 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const [isPatientsLoading, setIsPatientsLoading] = useState(false);
     const [isPatientDataLoading, setIsPatientDataLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [isPatientPanelOpen, setIsPatientPanelOpen] = useState(false);
     const [isPatientInfoEditing, setIsPatientInfoEditing] = useState(false);
     const [hasClearedPatientSelection, setHasClearedPatientSelection] = useState(false);
+    const [activityLevel, setActivityLevel] = useState<string>("sedentario");
 
     const [patients, setPatients] = useState<{ id: string; fullName: string }[]>([]);
     const [patientData, setPatientData] = useState<Patient | null>(null);
@@ -210,7 +209,6 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
             fetchPatientData(formData.patientId);
         } else {
             setPatientData(null);
-            setIsPatientPanelOpen(false);
             setIsPatientInfoEditing(false);
             setPatientForm({
                 fullName: "",
@@ -256,7 +254,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
             if (response.ok) {
                 const data: Patient = await response.json();
                 setPatientData(data);
-                setIsPatientPanelOpen(false);
+                setActivityLevel((data as any).activityLevel || "sedentario");
                 setIsPatientInfoEditing(false);
                 // Only autocomplete if we are creating a new consultation
                 // or if the form is currently empty for these fields
@@ -418,7 +416,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
             metrics: [],
         });
         setPatientData(null);
-        setIsPatientPanelOpen(false);
+        setActivityLevel("sedentario");
         setIsPatientInfoEditing(false);
         setPatientForm({
             fullName: "",
@@ -548,31 +546,9 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                     </div>
                 </div>
 
-                <nav className="fixed left-6 top-1/2 z-40 hidden -translate-y-1/2 xl:flex flex-col gap-3">
-                    <div className="rounded-[2rem] border border-slate-200 bg-white/85 backdrop-blur-xl shadow-xl px-4 py-4 min-w-[220px]">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400 mb-3">
-                            Índice rápido
-                        </p>
-                        <div className="flex flex-col gap-2 text-sm">
-                            <a href="#consulta-detalles" className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors">
-                                <span className="text-slate-300 group-hover:text-indigo-500 font-black">---</span>
-                                <span>Detalles de la consulta</span>
-                            </a>
-                            <a href="#consulta-metricas" className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors">
-                                <span className="text-slate-300 group-hover:text-indigo-500 font-black">---</span>
-                                <span>Métricas</span>
-                            </a>
-                            <a href="#consulta-paciente" className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors">
-                                <span className="text-slate-300 group-hover:text-indigo-500 font-black">---</span>
-                                <span>Información del paciente</span>
-                            </a>
-                        </div>
-                    </div>
-                </nav>
-
-                <div className="grid grid-cols-1 gap-6 lg:gap-8">
-                    <div className="flex flex-col gap-6">
-                        {/* Basic Info Card */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+                    {/* LEFT COLUMN: Detalles + Métricas */}
+                    <div className="space-y-6">
                         <div id="consulta-detalles" className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
                         <div className="p-5 lg:p-6 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between">
                             <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
@@ -645,10 +621,8 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                 />
                             </div>
                         </div>
-                        </div>
                     </div>
 
-                    <div className="space-y-6">
                         <div id="consulta-metricas" className={showPatientMetrics ? "bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden" : "hidden"}>
                             <div className="p-4 lg:p-5 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between gap-3">
                                 <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
@@ -752,27 +726,70 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                 </Button>
                             </div>
                         </div>
+                    </div>
+
+                    {/* RIGHT COLUMN: Información del paciente */}
+                    <div className="space-y-6">
                         {patientData ? (
-                        <details
+                        <div
                             id="consulta-paciente"
-                            open={isPatientPanelOpen}
-                            onToggle={(e) => setIsPatientPanelOpen(e.currentTarget.open)}
                             className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden"
                         >
-                            <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none p-4 lg:p-5 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between gap-3">
+                            <div className="p-4 lg:p-5 border-b border-slate-50 bg-slate-50/30">
                                 <div>
                                     <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
                                         <User className="w-6 h-6 text-indigo-500" />
                                         {patientData.fullName}
                                     </h3>
+                                    {(() => {
+                                      const bmi = calculateBMI(
+                                        Number(patientForm.weight || patientData.weight),
+                                        Number(patientForm.height || patientData.height)
+                                      );
+                                      const getVal = calculateGET(
+                                        (patientForm.gender || patientData.gender) === "Masculino" ? "Masculino" : "Femenino",
+                                        Number(patientForm.weight || patientData.weight) || 0,
+                                        Number(patientForm.height || patientData.height) || 0,
+                                        calculateAge(patientData.birthDate) || 30,
+                                        (activityLevel as any) || "sedentario",
+                                        "mifflin-st-jeor"
+                                      );
+                                      return (
+                                        <>
+                                          <div className="flex items-center gap-2 mt-2">
+                                          {bmi && (
+                                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white px-2 py-0.5 rounded-lg" style={{ backgroundColor: bmi.color }}>
+                                              IMC {bmi.bmi}
+                                            </span>
+                                          )}
+                                          {getVal && (
+                                            <>
+                                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg">
+                                                GET {getVal.get} kcal
+                                              </span>
+                                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg">
+                                                {getVal.macros.protein}g prot
+                                              </span>
+                                            </>
+                                          )}
+                                        </div>
+                                        <select
+                                          value={activityLevel}
+                                          onChange={(e) => setActivityLevel(e.target.value)}
+                                          className="mt-2 h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-600 cursor-pointer hover:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                          title="Nivel de actividad para calcular GET"
+                                        >
+                                          <option value="sedentario">Sedentario (×1.2)</option>
+                                          <option value="ligero">Ligero (×1.375)</option>
+                                          <option value="moderado">Moderado (×1.55)</option>
+                                          <option value="activo">Activo (×1.725)</option>
+                                          <option value="muy_activo">Muy activo (×1.9)</option>
+                                        </select>
+                                        </>
+                                      );
+                                    })()}
                                 </div>
-                                <div className="flex items-center gap-3 shrink-0">
-                                    <span className="text-[10px] font-bold px-3 py-1.5 rounded-xl uppercase tracking-widest text-emerald-700 bg-emerald-50">
-                                        Paciente asignado
-                                    </span>
-                                    <ChevronDown className={cn("w-5 h-5 text-slate-400 transition-transform duration-200", isPatientPanelOpen && "rotate-180")} />
-                                </div>
-                            </summary>
+                            </div>
                             <div className="p-4 lg:p-5">
                                 <>
                                     <div className={cn(
@@ -792,49 +809,13 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                         : "Consulta lo esencial y entra a edición solo si necesitas cambiar algo."}
                                                 </p>
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsPatientInfoEditing((prev) => !prev)}
-                                                className={cn(
-                                                    "inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all",
-                                                    isPatientInfoEditing
-                                                        ? "border border-emerald-200 bg-white text-slate-700"
-                                                        : "bg-slate-900 text-white",
-                                                )}
-                                            >
-                                                {isPatientInfoEditing ? <X className="h-4 w-4" /> : <PencilLine className="h-4 w-4" />}
-                                                {isPatientInfoEditing ? "Salir" : "Editar"}
-                                            </button>
                                         </div>
                                     </div>
 
                                     {isPatientInfoEditing ? (
-                                    <details
-                                        open={isPatientPanelOpen}
-                                        onToggle={(e) => setIsPatientPanelOpen(e.currentTarget.open)}
+                                    <div
                                         className="bg-slate-50/50 rounded-[28px] border border-slate-100 overflow-hidden"
                                     >
-                                        <summary className="hidden">
-                                            <div className="flex items-center gap-4 min-w-0">
-                                                <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center shrink-0">
-                                                    <User className="w-6 h-6 text-indigo-500" />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <h4 className="text-base font-bold text-slate-900 truncate">{patientData.fullName}</h4>
-                                                    <p className="mt-1 text-xs font-medium text-slate-500 truncate">
-                                                        {formatRut(patientData.documentId || "") || "RUT no registrado"}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-col items-end gap-2 shrink-0">
-                                                <span className="rounded-full bg-emerald-50 text-emerald-700 px-3 py-1 text-[10px] font-black uppercase tracking-widest">
-                                                    Activo
-                                                </span>
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                                    Editar rápido
-                                                </span>
-                                            </div>
-                                        </summary>
                                         <div className="border-t border-slate-100 bg-white p-4 lg:p-5 space-y-4">
                                             <section className="space-y-3">
                                                 <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
@@ -1054,7 +1035,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                 </div>
                                             </div>
                                         </div>
-                                    </details>
+                                    </div>
                                     ) : (
                                         <div className="space-y-4">
                                             <section className="rounded-[24px] border border-slate-100 bg-white p-4">
@@ -1149,29 +1130,19 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                     )}
                                 </>
                             </div>
-                        </details>
+                        </div>
                         ) : (
                         <div
                             id="consulta-paciente"
-                            className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden"
+                            className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden"
                         >
-                            <div className="p-4 lg:p-5 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between gap-3">
-                                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                                    <User className="w-6 h-6 text-indigo-500" />
-                                    Selecciona un paciente
-                                </h3>
-                                <Button
-                                    type="button"
-                                    onClick={() => router.push("/dashboard/pacientes/new")}
-                                    className="h-10 px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-slate-200 transition-all flex items-center gap-2"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                    Crear paciente manualmente
-                                </Button>
+                            <div className="p-5 lg:p-6 text-center">
+                                <User className="mx-auto h-8 w-8 text-slate-300 mb-2" />
+                                <p className="text-sm font-semibold text-slate-500">Sin paciente seleccionado</p>
+                                <p className="text-xs text-slate-400 mt-1">Selecciona un paciente para ver su información clínica y cálculos nutricionales.</p>
                             </div>
                         </div>
                         )}
-
                     </div>
                 </div> {/* End Grid */}
             </form>

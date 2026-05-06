@@ -9,7 +9,7 @@ export default function FeedbackPage() {
             Centro de Feedback
           </h2>
           <p className="text-sm font-medium text-slate-500">
-            Ayúdanos a construir la mejor plataforma para nutricionistas.
+            En esta sección puedes enviar tus sugerencias, comentarios o reportes. Esto nos ayuda a crear un mejor servicio para ustedes, los nutricionistas, y crecer, añadiendo y mejorando funcionalidades. Puedes dejar <b>tu testimonio</b> para aparecer en nuestra página principal. Todo comentario se agradece y es bienvenido.
           </p>
         </div>
       </div>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { calculateBMI, calculateGET, getIdealWeightRange, calculateAge, isPediatric } from "@/lib/nutrition-formulas";
+import type { ActivityLevel } from "@/lib/nutrition-formulas";
 import {
   User,
   Mail,
@@ -22,6 +24,7 @@ import {
   Edit2,
   Save,
   X as CloseIcon,
+  CheckCircle2,
   ChevronRight,
   Eye,
   Trash2,
@@ -206,6 +209,19 @@ interface PatientDetailClientProps {
 
 type TabType = "General" | "Consultas" | "Progreso" | "Acompañamiento" | "Creaciones";
 
+const ACTIVITY_LEVEL_OPTIONS: {
+  key: ActivityLevel;
+  label: string;
+  description: string;
+  icon: typeof Activity;
+}[] = [
+  { key: "sedentario", label: "Sedentario", description: "Poco o ningún ejercicio", icon: Flame },
+  { key: "ligero", label: "Ligero", description: "Ejercicio 1-3 días/semana", icon: Activity },
+  { key: "moderado", label: "Moderado", description: "Ejercicio 3-5 días/semana", icon: Heart },
+  { key: "activo", label: "Activo", description: "Ejercicio 6-7 días/semana", icon: Dumbbell },
+  { key: "muy_activo", label: "Muy activo", description: "Atleta o trabajo físico pesado", icon: Zap },
+];
+
 export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const router = useRouter();
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -217,6 +233,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const [activeTab, setActiveTab] = useState<TabType>("General");
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Patient>>({});
+  const [recalcKey, setRecalcKey] = useState(0);
   const [selectedConsultation, setSelectedConsultation] =
     useState<Consultation | null>(null);
   const [isMetricModalOpen, setIsMetricModalOpen] = useState(false);
@@ -1625,7 +1642,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         nutritionalFocus: editForm.nutritionalFocus || undefined,
         fitnessGoals: editForm.fitnessGoals || undefined,
         likes: editForm.likes || undefined,
-        customVariables: editForm.customVariables || undefined,
+        activityLevel: editForm.activityLevel || "sedentario",
+        customVariables: Array.isArray(editForm.customVariables)
+          ? editForm.customVariables.filter((item: any) => item?.key !== "activityLevel")
+          : undefined,
       };
 
       const response = await fetchApi(`/patients/${id}`, {
@@ -1668,25 +1688,32 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     updateField("phone", cleanVal);
   };
 
+  const normalizeActivityLevel = (value?: string | null): ActivityLevel => {
+    const raw = String(value || "").toLowerCase();
+    if (ACTIVITY_LEVEL_OPTIONS.some((item) => item.key === raw)) {
+      return raw as ActivityLevel;
+    }
+    return raw === "deportista" ? "activo" : "sedentario";
+  };
+
   const getActivityLevelFromVariables = (vars: any[]) => {
-    const raw = String(vars.find((item) => item?.key === "activityLevel")?.value || "").toLowerCase();
-    return raw === "deportista" ? "deportista" : "sedentario";
+    const raw = vars.find((item) => item?.key === "activityLevel")?.value;
+    return normalizeActivityLevel(raw);
   };
 
   const getCurrentActivityLevel = () => {
+    const directValue = isEditing ? editForm.activityLevel : patient?.activityLevel;
+    if (directValue) return normalizeActivityLevel(directValue);
     const source = isEditing ? editForm.customVariables : patient?.customVariables;
     const vars = Array.isArray(source) ? (source as any[]) : [];
     return getActivityLevelFromVariables(vars);
   };
 
-  const updateActivityLevel = (value: "sedentario" | "deportista") => {
+  const updateActivityLevel = (value: ActivityLevel) => {
     if (!isEditing) return;
     const vars = Array.isArray(editForm.customVariables) ? [...(editForm.customVariables as any[])] : [];
-    const index = vars.findIndex((item) => item?.key === "activityLevel");
-    const entry = { key: "activityLevel", label: "Nivel de actividad", value, unit: "" };
-    if (index >= 0) vars[index] = entry;
-    else vars.push(entry);
-    updateField("customVariables", vars);
+    updateField("activityLevel", value);
+    updateField("customVariables", vars.filter((item) => item?.key !== "activityLevel"));
   };
 
   const handleDelete = async () => {
@@ -1791,54 +1818,42 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   return (
     <div className="max-w-7xl mx-auto space-y-10 pb-24 animate-in fade-in duration-700 relative">
       {/* Sticky Right Sidebar Actions */}
-      {!isEditing && (
-        <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4 animate-in slide-in-from-right-8 duration-500">
-          <div className="bg-white/80 backdrop-blur-xl p-3 rounded-[32px] border border-slate-200 shadow-2xl shadow-slate-200/50 flex flex-col gap-3">
-            <button
-              onClick={() => router.push("/dashboard/consultas/nueva?patientId=" + patient.id)}
-              className="group relative p-4 bg-emerald-600 text-white rounded-[24px] hover:bg-emerald-700 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-emerald-200 cursor-pointer"
-              title="Nueva Consulta"
-            >
-              <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
-              <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
-                Nueva consulta
-              </span>
-            </button>
-            <button
-              onClick={() => setIsPortalNotificationModalOpen(true)}
-              className="group relative p-4 bg-indigo-500 text-white rounded-[24px] hover:bg-indigo-600 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-indigo-200 cursor-pointer"
-              title="Enviar Notificación"
-            >
-              <Bell className="w-6 h-6" />
-              <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
-                Enviar notificación
-              </span>
-            </button>
-            <button
-              disabled
-              className="group relative p-4 bg-slate-50 text-slate-300 rounded-[24px] cursor-not-allowed border border-slate-100"
-              title="Subir Examen (Próximamente)"
-            >
-              <FileText className="w-6 h-6" />
-              <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
-                Subir examen
-              </span>
-            </button>
-            <div className="h-px bg-slate-100 mx-2 my-1" />
-            <button
-              onClick={handleEdit}
-              className="group relative p-4 bg-white text-slate-600 rounded-[24px] border border-slate-200 hover:bg-slate-50 transition-all hover:scale-110 active:scale-95 shadow-sm cursor-pointer"
-              title="Editar Perfil"
-            >
-              <Edit2 className="w-6 h-6" />
-              <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
-                Editar perfil
-              </span>
-            </button>
-          </div>
+      <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4 animate-in slide-in-from-right-8 duration-500">
+        <div className="bg-white/80 backdrop-blur-xl p-3 rounded-[32px] border border-slate-200 shadow-2xl shadow-slate-200/50 flex flex-col gap-3">
+          {isEditing ? (
+            <>
+              <button onClick={() => { handleSave(); }} className="group relative p-4 bg-emerald-600 text-white rounded-[24px] hover:bg-emerald-700 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-emerald-200 cursor-pointer" title="Guardar Cambios">
+                <CheckCircle2 className="w-6 h-6" />
+                <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">Guardar cambios</span>
+              </button>
+              <button onClick={() => { setIsEditing(false); setEditForm({ ...patient }); }} className="group relative p-4 bg-rose-50 text-rose-500 rounded-[24px] hover:bg-rose-100 transition-all hover:scale-110 active:scale-95 shadow-sm cursor-pointer" title="Cancelar Edición">
+                <CloseIcon className="w-6 h-6" />
+                <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">Cancelar</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => router.push("/dashboard/consultas/nueva?patientId=" + patient.id)} className="group relative p-4 bg-emerald-600 text-white rounded-[24px] hover:bg-emerald-700 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-emerald-200 cursor-pointer" title="Nueva Consulta">
+                <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+                <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">Nueva consulta</span>
+              </button>
+              <button onClick={() => setIsPortalNotificationModalOpen(true)} className="group relative p-4 bg-indigo-500 text-white rounded-[24px] hover:bg-indigo-600 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-indigo-200 cursor-pointer" title="Enviar Notificación">
+                <Bell className="w-6 h-6" />
+                <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">Enviar notificación</span>
+              </button>
+              <button disabled className="group relative p-4 bg-slate-50 text-slate-300 rounded-[24px] cursor-not-allowed border border-slate-100" title="Subir Examen (Próximamente)">
+                <FileText className="w-6 h-6" />
+                <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">Subir examen</span>
+              </button>
+              <div className="h-px bg-slate-100 mx-2 my-1" />
+              <button onClick={handleEdit} className="group relative p-4 bg-white text-slate-600 rounded-[24px] border border-slate-200 hover:bg-slate-50 transition-all hover:scale-110 active:scale-95 shadow-sm cursor-pointer" title="Editar Perfil">
+                <Edit2 className="w-6 h-6" />
+                <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">Editar perfil</span>
+              </button>
+            </>
+          )}
         </div>
-      )}
-
+      </div>
       {/* Header & Back Button */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1 lg:px-0">
         <div className="flex items-center gap-4 lg:gap-6">
@@ -1924,6 +1939,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <Button
                 onClick={() => setIsPortalInviteModalOpen(true)}
                 variant="outline"
+                data-tutorial-id="patient-portal-button"
                 className="h-10 px-6 rounded-2xl border-emerald-100 text-emerald-700 bg-emerald-50/70 hover:bg-emerald-50 font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
               >
                 <Link2 className="w-4 h-4" />
@@ -2063,6 +2079,118 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         ))}
       </div>
 
+      {/* Panel de Cálculo Nutricional Automático */}
+      <div key={recalcKey} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-5">
+        {(() => {
+          void recalcKey;
+          const w = isEditing ? (Number(editForm.weight) || patient.weight) : patient.weight;
+          const h = isEditing ? (Number(editForm.height) || patient.height) : patient.height;
+          const g = isEditing ? (editForm.gender || patient.gender) : patient.gender;
+          const bd = isEditing ? (editForm.birthDate || patient.birthDate) : patient.birthDate;
+          const al = getCurrentActivityLevel();
+          const bmi = calculateBMI(w, h);
+          const idealWeight = getIdealWeightRange(h);
+          const get = calculateGET(
+            g === "Masculino" || g === "Femenino" ? g : "Femenino",
+            w || 0,
+            h || 0,
+            calculateAge(bd) || 30,
+            al,
+            "mifflin-st-jeor",
+          );
+          const isKid = isPediatric(bd);
+          const factorLabel = ACTIVITY_LEVEL_OPTIONS.find((o) => o.key === al)?.label || "Sedentario";
+
+          return (
+            <>
+              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <span className="text-xs font-bold text-blue-600">IMC</span>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700">Índice de Masa Corporal</p>
+                </div>
+                {bmi ? (
+                  <div>
+                    <p className="text-2xl font-bold text-slate-900">{bmi.bmi} <span className="text-sm font-normal text-slate-400">kg/m²</span></p>
+                    <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: bmi.color }}>
+                      {bmi.classification}
+                    </span>
+                    {idealWeight && (
+                      <p className="mt-2 text-xs text-slate-400">
+                        Rango ideal: {idealWeight.min} – {idealWeight.max} kg
+                      </p>
+                    )}
+                    {isKid && (
+                      <p className="mt-1 text-xs text-amber-600 font-medium">
+                        Pediátrico — usar curvas OMS
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">Ingresa peso y talla del paciente.</p>
+                )}
+              </div>
+              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm sm:col-span-2 lg:col-span-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center">
+                    <span className="text-xs font-bold text-emerald-600">GET</span>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700">Gasto Energético Total</p>
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => setRecalcKey((k) => k + 1)}
+                      className="ml-auto text-[10px] font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-lg cursor-pointer transition-colors"
+                      title="Refrescar cálculos con los datos actuales del formulario"
+                    >
+                      Recalcular
+                    </button>
+                  )}
+                  <span className="text-[10px] font-medium text-slate-400 ml-auto">
+                    Mifflin-St Jeor · {get ? `×${get.activityFactor} (${factorLabel})` : "—"}
+                  </span>
+                </div>
+                {get ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-slate-50 rounded-xl p-3 text-center">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">TMB</p>
+                      <p className="text-lg font-bold text-slate-900">{get.tmb} <span className="text-xs font-normal text-slate-400">kcal</span></p>
+                    </div>
+                    <div className="bg-emerald-50 rounded-xl p-3 text-center">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 mb-1">GET</p>
+                      <p className="text-lg font-bold text-emerald-700">{get.get} <span className="text-xs font-normal text-emerald-500">kcal</span></p>
+                    </div>
+                    <div className="bg-blue-50 rounded-xl p-3 text-center">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-500 mb-1">Proteínas</p>
+                      <p className="text-lg font-bold text-blue-700">{get.macros.protein} <span className="text-xs font-normal text-blue-400">g</span></p>
+                      <p className="text-[10px] text-blue-400">{get.macros.proteinPercent}%</p>
+                    </div>
+                    <div className="bg-amber-50 rounded-xl p-3 text-center">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 mb-1">Carbohidratos</p>
+                      <p className="text-lg font-bold text-amber-700">{get.macros.carbs} <span className="text-xs font-normal text-amber-500">g</span></p>
+                      <p className="text-[10px] text-amber-400">{get.macros.carbsPercent}%</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">Completa los datos del paciente para calcular automáticamente.</p>
+                )}
+                <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2">
+                  <p className="text-[10px] text-slate-400">
+                    {get ? `Distribución: ${get.macros.carbsPercent}% CHO · ${get.macros.proteinPercent}% Prot · ${get.macros.fatsPercent}% Grasas` : "Fórmula Mifflin-St Jeor (1990) — estándar clínico internacional para adultos."}
+                  </p>
+                  {isKid && (
+                    <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                      Ajustar para pediatría
+                    </span>
+                  )}
+                </div>
+              </div>
+            </>
+          );
+        })()}
+      </div>
+
       {/* Tabs Navigation */}
       <div className="flex p-1 bg-slate-100/50 rounded-2xl w-full lg:w-fit border border-slate-200 backdrop-blur-sm overflow-x-auto no-scrollbar scroll-smooth">
         {([
@@ -2075,6 +2203,19 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         ] as Array<{ label: TabType | "Exámenes"; disabled: boolean }>).map((tab) => (
           <button
             key={tab.label}
+            data-tutorial-id={
+              tab.label === "General"
+                ? "patient-tab-general"
+                : tab.label === "Consultas"
+                  ? "patient-tab-consultations"
+                  : tab.label === "Creaciones"
+                    ? "patient-tab-creations"
+                    : tab.label === "Progreso"
+                      ? "patient-tab-progress"
+                    : (tab.label as string).toLowerCase().includes("ex")
+                      ? "patient-tab-exams"
+                      : undefined
+            }
             onClick={() => {
               if (!tab.disabled) setActiveTab(tab.label as TabType);
             }}
@@ -2494,7 +2635,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       {/* Main Content Area */}
       {activeTab === "General" && (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div
+          className="space-y-8 animate-in fade-in duration-500"
+          data-tutorial-id="patient-overview-section"
+        >
           {/* 3-Column Layout for Primary Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
 
@@ -2628,6 +2772,61 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                       {patient.height ?? "---"}
                     </div>
                   </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-emerald-500" />
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                      Nivel de actividad
+                    </label>
+                  </div>
+                  {isEditing ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {ACTIVITY_LEVEL_OPTIONS.map((item) => {
+                        const Icon = item.icon;
+                        const isSelected = getCurrentActivityLevel() === item.key;
+                        return (
+                          <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => updateActivityLevel(item.key)}
+                            className={cn(
+                              "min-h-14 rounded-2xl border px-3 py-2 text-left transition-all cursor-pointer",
+                              isSelected
+                                ? "border-emerald-500 bg-emerald-600 text-white shadow-lg shadow-emerald-100"
+                                : "border-transparent bg-slate-50 text-slate-600 hover:bg-slate-100",
+                            )}
+                          >
+                            <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider">
+                              <Icon className="h-4 w-4" />
+                              {item.label}
+                            </span>
+                            <span className={cn("mt-1 block text-[10px] font-semibold", isSelected ? "text-emerald-50" : "text-slate-400")}>
+                              {item.description}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3">
+                      {(() => {
+                        const current = ACTIVITY_LEVEL_OPTIONS.find((item) => item.key === getCurrentActivityLevel()) || ACTIVITY_LEVEL_OPTIONS[0];
+                        const Icon = current.icon;
+                        return (
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-xl bg-white text-emerald-600 flex items-center justify-center">
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-slate-800">{current.label}</p>
+                              <p className="text-xs font-medium text-slate-500">{current.description}</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
               </div>
 
