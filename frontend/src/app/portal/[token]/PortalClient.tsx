@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { type PortalVerificationResponse } from "@/features/patient-portal/types";
 
 interface PortalPreview {
   patientName: string;
@@ -34,16 +35,7 @@ interface PortalPreview {
   expiresAt: string;
 }
 
-interface PortalVerificationResponse {
-  accessToken: string;
-  patient: any;
-  summary: any;
-  entries: any[];
-  questions: any[];
-  tracking: any[];
-  sharedResources: any[];
-  sharedDeliverables: any[];
-}
+
 
 const getPortalStorageKey = (token: string) =>
   token === "me" ? "portal_session_me" : `portal_session_${token}`;
@@ -338,9 +330,9 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
     }
   }, [portalData, isMounted]);
 
-  // Mark as read when entering the info tab
+  // Mark as read when entering the notifications tab
   useEffect(() => {
-    if (isMounted && activeTab === "info" && portalData) {
+    if (isMounted && activeTab === "notifications" && portalData) {
       setHasNewNotifications(false);
       safeLocalStorage.setItem(`portal_last_notif_${portalData.patient.id}`, portalData.notifications.length.toString());
     }
@@ -647,7 +639,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
             {portalData.patient?.nutritionist?.settings?.isScheduleActive && (
               <button
                 onClick={() => {
-                  const url = portalData.patient.nutritionist.settings.bookingUrl;
+                  const url = portalData.patient.nutritionist?.settings?.bookingUrl;
                   if (url) window.open(url, "_blank");
                 }}
                 className="w-full flex items-center gap-3 px-6 py-4 rounded-3xl transition-all font-bold text-sm bg-emerald-600 text-white shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-[0.98] mt-4"
@@ -816,10 +808,10 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                             {question.replies.map((reply: any) => (
                               <div key={reply.id} className="bg-slate-50/50 rounded-[1.5rem] p-5 space-y-2 border border-slate-100/50">
                                 <div className="flex items-center gap-3">
-                                  {portalData.patient.nutritionist.avatarUrl ? (
+                                  {portalData.patient.nutritionist?.avatarUrl ? (
                                     <img
-                                      src={portalData.patient.nutritionist.avatarUrl}
-                                      alt={portalData.patient.nutritionist.fullName}
+                                      src={portalData.patient.nutritionist?.avatarUrl}
+                                      alt={portalData.patient.nutritionist?.fullName}
                                       className="w-6 h-6 rounded-full object-cover"
                                     />
                                   ) : (
@@ -828,7 +820,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                                     </div>
                                   )}
                                   <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold text-slate-900">{portalData.patient.nutritionist.fullName}</span>
+                                    <span className="text-[10px] font-bold text-slate-900">{portalData.patient.nutritionist?.fullName}</span>
                                     <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">Nutricionista</span>
                                   </div>
                                   <span className="text-[10px] text-slate-300 ml-auto font-medium">

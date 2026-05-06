@@ -57,6 +57,7 @@ import {
   fetchProject,
   saveCreation,
   updateProject,
+  buildProjectAwarePath,
 } from "@/lib/workflow";
 
 interface ExportPackage {

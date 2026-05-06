@@ -310,8 +310,10 @@ export const normalizeCalendar = (payload: unknown): AppointmentCalendar | null 
   if (!id) return null;
   return {
     id,
+    nutritionistId: normalizeText(cal.nutritionistId) || normalizeText(cal.nutritionist_id),
     name: normalizeText(cal.name),
     title: normalizeText(cal.title),
+    description: normalizeText(cal.description),
     timeZone: normalizeText(cal.timeZone) || normalizeText(cal.timezone),
     timezone: normalizeText(cal.timezone),
     googleCalendarConnected:

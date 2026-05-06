@@ -115,6 +115,7 @@ export interface PatientPortalPatient {
     id: string;
     fullName: string;
     avatarUrl?: string | null;
+    settings?: any;
   };
   projects?: PatientPortalProject[];
 }
@@ -145,6 +146,7 @@ export interface PatientPortalOverview {
   questions: PatientPortalEntry[];
   tracking: PatientPortalEntry[];
   replies: PatientPortalEntry[];
+  messages: PatientPortalEntry[];
   notifications: PatientPortalEntry[];
   sharedResources: PatientPortalResource[];
   sharedDeliverables: PatientPortalDeliverable[];

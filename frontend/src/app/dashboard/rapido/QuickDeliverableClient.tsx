@@ -755,7 +755,7 @@ export default function QuickDeliverableClient() {
     });
   }, [createdRecipes, createdRecipesOnlyMine, createdRecipesSearch]);
 
-  function getCreatedRecipeMatchScore(recipe: CreatedRecipeSummary, section: QuickSection) {
+  function getCreatedRecipeMatchScore(recipe: CreatedRecipeSummary, section: string) {
     const normalizedSection = normalizeQuickText(section);
     const recipeSection = normalizeQuickText(recipe.mealSection || "");
     if (recipeSection && recipeSection === normalizedSection) return 100;

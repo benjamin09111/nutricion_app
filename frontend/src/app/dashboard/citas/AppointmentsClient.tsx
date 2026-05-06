@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Send,
   X,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -356,8 +357,10 @@ const normalizeCalendar = (payload: unknown): AppointmentCalendar | null => {
 
   return {
     id,
+    nutritionistId: normalizeText(cal.nutritionistId) || normalizeText(cal.nutritionist_id),
     name: normalizeText(cal.name),
     title: normalizeText(cal.title),
+    description: normalizeText(cal.description),
     timeZone: normalizeText(cal.timeZone) || normalizeText(cal.timezone),
     timezone: normalizeText(cal.timezone),
     googleCalendarConnected:
@@ -1750,13 +1753,13 @@ export default function AppointmentsClient() {
                     <div className="flex items-center gap-3 rounded-2xl bg-indigo-50/50 p-4">
                       <div className={cn(
                         "flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm",
-                        (calendar?.googleCalendarConnected || calendar?.googleSyncEnabled || calendar?.isGoogleConnected) ? "text-emerald-600" : "text-slate-400"
+                        calendar?.googleCalendarConnected ? "text-emerald-600" : "text-slate-400"
                       )}>
                         <CheckCircle2 className="h-4 w-4" />
                       </div>
                       <div>
                         <p className="text-xs font-semibold text-slate-900">
-                          {calendar?.googleCalendarConnected || calendar?.googleSyncEnabled || calendar?.isGoogleConnected
+                          {calendar?.googleCalendarConnected
                             ? "Google conectado"
                             : "Google desconectado"}
                         </p>
