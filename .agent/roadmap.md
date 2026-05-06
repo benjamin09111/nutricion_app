@@ -1,4 +1,4 @@
-# Roadmap de Desarrollo NutriSaaS
+# Roadmap de Desarrollo NutriNet
 
 Estado basado en el codigo actual. 
 
@@ -39,6 +39,12 @@ Leyenda:
 - `[x]` **Modulo 3: Priorizacion (Favoritos)**
   - Favoritos y ocultos ya existen como preferencias sobre alimentos/ingredientes.
   - Se usan en listados y en la logica de recomendacion.
+- `[x]` **Modulo Portal del Paciente: Engagement & Seguimiento**
+  - Diario personal (estilo feed/tweets) para registro de comidas y actividad.
+  - Canal de consultas directo con el nutricionista.
+  - Acceso a planes entregados y documentos compartidos.
+  - Login independiente por Email + Código de Acceso (Acceso Universal).
+  - Navegación simplificada en 4 pilares fundamentales.
 
 ## Fase 4: Engagement y Futuro
 - `[ ]` **Modulo 11: Asistente 24/7 (WhatsApp)**

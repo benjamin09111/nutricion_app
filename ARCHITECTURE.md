@@ -1,10 +1,10 @@
-# NutriSaaS Architecture
+# NutriNet Architecture
 
 Este documento resume la arquitectura funcional y técnica actual del proyecto. La idea es separar con claridad lo que ya existe, lo que está parcial y lo que sigue en roadmap.
 
 ## 1. Producto
 
-NutriSaaS es un SaaS para nutricionistas. El objetivo es reducir trabajo manual en consulta clínica, centralizar pacientes y consultas, y producir entregables profesionales con contenido reutilizable.
+NutriNet es un SaaS para nutricionistas. El objetivo es reducir trabajo manual en consulta clínica, centralizar pacientes y consultas, y producir entregables profesionales con contenido reutilizable.
 
 ## 2. Flujo Principal
 

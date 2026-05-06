@@ -43,7 +43,7 @@ export function TagInput({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<string | null>(null);
 
-  const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+  const token = typeof window !== "undefined" ? (Cookies.get("auth_token") || localStorage.getItem("auth_token")) : "";
 
   useEffect(() => {
     let isMounted = true;
@@ -320,7 +320,7 @@ export function TagInput({
         )}
       </div>
 
-      {!hideTags && (
+      {!hideTags && value.length > 0 && (
         <div className="flex flex-wrap gap-2 min-h-[20px] px-1">
           {value.map((tag) => (
             <span

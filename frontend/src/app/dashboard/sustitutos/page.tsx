@@ -1,7 +1,7 @@
 import { SubstitutesClient } from "./SubstitutesClient";
 
 export const metadata = {
-  title: "Sustitutos Comunes | NutriSaaS",
+  title: "Sustitutos Comunes | NutriNet",
   description:
     "Gestiona los sustitutos frecuentes para tus pacientes y entrena a tu asistente IA.",
 };

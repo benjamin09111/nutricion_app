@@ -1,0 +1,62 @@
+[
+  {
+    "category": "Cereales, panes y tuberculos",
+    "portion": "1/2 taza cocida o 1 rebanada de pan",
+    "notes": "Base practica para arroz, pasta, pan, avena y papa."
+  },
+  {
+    "category": "Legumbres",
+    "portion": "3/4 taza cocida",
+    "notes": "Suman carbohidrato y proteina vegetal."
+  },
+  {
+    "category": "Verduras de bajo aporte",
+    "portion": "2 tazas crudas o 1 taza cocida",
+    "notes": "Base libre o de bajo aporte segun contexto clinico."
+  },
+  {
+    "category": "Verduras con mayor aporte",
+    "portion": "1 taza cocida",
+    "notes": "Contarlas cuando el volumen o el aporte de CHO es relevante."
+  },
+  {
+    "category": "Frutas",
+    "portion": "1 unidad mediana o 1 taza picada",
+    "notes": "Priorizar fruta entera antes que jugos."
+  },
+  {
+    "category": "Lacteos descremados",
+    "portion": "1 taza de leche o yogurt descremado",
+    "notes": "Buena forma de sumar proteina con baja grasa."
+  },
+  {
+    "category": "Proteina magra",
+    "portion": "50 g cocidos",
+    "notes": "Referencia util para pollo, pavo, atun al agua y cortes magros."
+  },
+  {
+    "category": "Huevos",
+    "portion": "1 huevo entero",
+    "notes": "Practico para desayuno, once y colaciones."
+  },
+  {
+    "category": "Pescados y mariscos",
+    "portion": "80 g cocidos",
+    "notes": "Equivalente proteico util para rotar con carnes magras."
+  },
+  {
+    "category": "Grasas y aceites",
+    "portion": "1 cucharada de aceite o 1/4 de palta",
+    "notes": "Usar como complemento, no como base del plato."
+  },
+  {
+    "category": "Azucares y extras",
+    "portion": "1 cucharadita a 1 cucharada",
+    "notes": "Idealmente restringir o reservar para casos puntuales."
+  },
+  {
+    "category": "Bebidas y jugos con azucar",
+    "portion": "1 vaso de 200 ml",
+    "notes": "Contarlas como carbohidrato rapido cuando esten presentes."
+  }
+]

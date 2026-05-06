@@ -10,4 +10,4 @@ import { CommonModule } from '../../common/common.module';
   providers: [MetricsService],
   exports: [MetricsService],
 })
-export class MetricsModule { }
+export class MetricsModule {}

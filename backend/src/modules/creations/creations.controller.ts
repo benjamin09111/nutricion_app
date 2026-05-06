@@ -1,4 +1,15 @@
-import { Controller, Post, Body, Get, UseGuards, Request, Param, Delete, Query, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  UseGuards,
+  Request,
+  Param,
+  Delete,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { CreationsService } from './creations.service';
 import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
@@ -9,35 +20,45 @@ import { CacheTTL } from '@nestjs/cache-manager';
 @UseInterceptors(HttpCacheInterceptor)
 @CacheTTL(300000) // 5 minutes
 export class CreationsController {
-    constructor(private readonly creationsService: CreationsService) { }
+  constructor(private readonly creationsService: CreationsService) {}
 
-    @Post()
-    async create(@Request() req: any, @Body() data: any) {
-        const nutritionistId = req.user.nutritionistId;
-        return this.creationsService.create(nutritionistId, data);
-    }
+  @Post()
+  async create(@Request() req: any, @Body() data: any) {
+    const nutritionistId = req.user.nutritionistId;
+    return this.creationsService.create(nutritionistId, data);
+  }
 
-    @Get()
-    async findAll(@Request() req: any, @Query('type') type?: string) {
-        const nutritionistId = req.user.nutritionistId;
-        return this.creationsService.findAll(nutritionistId, type);
-    }
+  @Get()
+  async findAll(@Request() req: any, @Query('type') type?: string) {
+    const nutritionistId = req.user.nutritionistId;
+    return this.creationsService.findAll(nutritionistId, type);
+  }
 
-    @Get('tags')
-    async getTags(@Request() req: any) {
-        const nutritionistId = req.user.nutritionistId;
-        return this.creationsService.getAvailableTags(nutritionistId);
-    }
+  @Get('tags')
+  async getTags(@Request() req: any) {
+    const nutritionistId = req.user.nutritionistId;
+    return this.creationsService.getAvailableTags(nutritionistId);
+  }
 
-    @Get(':id')
-    async findOne(@Request() req: any, @Param('id') id: string) {
-        const nutritionistId = req.user.nutritionistId;
-        return this.creationsService.findOne(id, nutritionistId);
-    }
+  @Get(':id')
+  async findOne(@Request() req: any, @Param('id') id: string) {
+    const nutritionistId = req.user.nutritionistId;
+    return this.creationsService.findOne(id, nutritionistId);
+  }
 
-    @Delete(':id')
-    async delete(@Request() req: any, @Param('id') id: string) {
-        const nutritionistId = req.user.nutritionistId;
-        return this.creationsService.delete(id, nutritionistId);
-    }
+  @Delete(':id')
+  async delete(@Request() req: any, @Param('id') id: string) {
+    const nutritionistId = req.user.nutritionistId;
+    return this.creationsService.delete(id, nutritionistId);
+  }
+
+  @Post(':id/share')
+  async share(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body('patientId') patientId: string,
+  ) {
+    const nutritionistId = req.user.nutritionistId;
+    return this.creationsService.share(id, nutritionistId, patientId);
+  }
 }

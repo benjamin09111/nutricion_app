@@ -43,9 +43,10 @@ import { formatCLP } from "@/lib/utils/currency";
 import { useAdmin } from "@/context/AdminContext";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
-import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
+import { SectionProgressNav } from "@/components/shared/SectionProgressNav";
+import { useDashboardShell } from "@/context/DashboardShellContext";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import {
   buildProjectAwarePath,
@@ -54,6 +55,12 @@ import {
   saveCreation,
   updateProject,
 } from "@/lib/workflow";
+import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
+import {
+  calculateFoodExchange,
+  calculateGramsForExchange,
+  getExchangeProfileForFood,
+} from "@/lib/exchange-portions";
 
 
 interface CartItem {
@@ -79,6 +86,17 @@ interface CartItem {
   precioPorUnidad: number;
   unidad: string;
 }
+
+type CartExchangeSummary = {
+  val: string;
+  label: string;
+  weekly: number;
+  monthly: number;
+  profileLabel: string;
+  note: string;
+  isClinical: boolean;
+  confidence: "high" | "medium" | "low";
+};
 
 export type ExtraTarget = {
   id: string;
@@ -208,6 +226,7 @@ export default function CartClient() {
   const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(
     null,
   );
+  const { isSidebarCollapsed } = useDashboardShell();
 
   useEffect(() => {
     setCurrentProjectId(projectIdFromUrl);
@@ -297,7 +316,6 @@ export default function CartClient() {
       food.group ||
       (typeof food.category === "string" ? food.category : food.category?.name) ||
       "Varios",
-    cantidadMes: 0,
     frecuenciaSemanal: weeklyHits,
     porcionGramos: 100,
     carbohidratosPor100g: food.carbohidratos || food.carbohydrates || food.carbs || 0,
@@ -315,43 +333,122 @@ export default function CartClient() {
     ironPor100g: food.hierro || food.iron || 0,
     precioPorUnidad: food.precioPromedio || food.price || 0,
     unidad: food.unidad || food.unit || "kg",
+    cantidadMes: calculateMonthlyQuantity(
+      100,
+      food.unidad || food.unit || "kg",
+      weeklyHits,
+    ),
   });
 
-  const extractRecipeIngredientHints = (recipesContent: any) => {
-    const rawHints: Array<{ name: string; weeklyHits: number }> =
-      Array.isArray(recipesContent?.ingredientHints)
-        ? recipesContent.ingredientHints
-        : [];
+  const parseNumericValue = (value: unknown): number | null => {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === "string") {
+      const normalized = value.replace(",", ".").match(/-?\d+(\.\d+)?/);
+      if (!normalized) return null;
+      const parsed = Number(normalized[0]);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  };
 
-    const map = new Map<string, { name: string; weeklyHits: number }>();
+  const normalizeRecipeUnit = (value: unknown): string => {
+    const unit = String(value || "").trim().toLowerCase();
+    if (!unit) return "unidad";
+    if (["u", "un", "unidad", "unidades"].includes(unit)) return "unidad";
+    if (["gr", "gramos", "gramo", "g"].includes(unit)) return "g";
+    if (["lt", "l", "litro", "litros"].includes(unit)) return "l";
+    return unit;
+  };
 
-    const pushHint = (name: string, weeklyHits = 1) => {
-      const normalized = normalizeFoodKey(name);
-      if (!normalized) return;
-      const safeHits = Math.max(1, Math.round(Number(weeklyHits) || 1));
-      const current = map.get(normalized);
-      if (current) {
-        current.weeklyHits += safeHits;
-        return;
+  const calculateMonthlyQuantity = (baseValue: number, unit: string, weeklyHits: number) => {
+    const totalWeekly = Math.max(0, baseValue) * Math.max(1, weeklyHits);
+    if (unit === "kg") {
+      return Number((totalWeekly / 1000 * WEEKS_PER_MONTH).toFixed(2));
+    }
+    return Number((totalWeekly * WEEKS_PER_MONTH).toFixed(2));
+  };
+
+  const formatCartQuantity = (item: CartItem) => {
+    const value = Number(item.cantidadMes) || 0;
+    if (item.unidad === "kg") {
+      return value < 1 ? `${Math.round(value * 1000)}` : `${value}`;
+    }
+    return `${value}`;
+  };
+
+  type RecipeIngredientUsage = {
+    name: string;
+    unit: string;
+    amount: number | null;
+    quantityLabel: string;
+    weeklyHits: number;
+  };
+
+  const extractRecipeIngredientUsages = (recipesContent: any): RecipeIngredientUsage[] => {
+    const map = new Map<string, RecipeIngredientUsage>();
+
+    const pushUsage = (ingredient: any, weeklyHits = 1) => {
+      if (!ingredient) return;
+      const name = typeof ingredient === "string"
+        ? ingredient.trim()
+        : String(
+            ingredient.name ||
+              ingredient.ingredient ||
+              ingredient.food ||
+              ingredient.producto ||
+              "",
+          ).trim();
+      if (!name) return;
+
+      const unit = normalizeRecipeUnit(
+        typeof ingredient === "object" ? ingredient.unit || ingredient.unidad : "",
+      );
+      const amount = parseNumericValue(
+        typeof ingredient === "object"
+          ? ingredient.amount ?? ingredient.quantityValue ?? ingredient.portion
+          : null,
+      );
+      const quantityLabel =
+        typeof ingredient === "object" && typeof ingredient.quantity === "string"
+          ? ingredient.quantity.trim()
+          : "";
+
+      const key = `${normalizeFoodKey(name)}|${unit}`;
+      const current =
+        map.get(key) ||
+        {
+          name,
+          unit,
+          amount: null,
+          quantityLabel,
+          weeklyHits: 0,
+        };
+
+      current.weeklyHits += Math.max(1, Math.round(Number(weeklyHits) || 1));
+      if (amount != null) {
+        current.amount = (current.amount || 0) + amount;
+      } else if (quantityLabel && !current.quantityLabel) {
+        current.quantityLabel = quantityLabel;
       }
-      map.set(normalized, { name: name.trim(), weeklyHits: safeHits });
+      map.set(key, current);
     };
 
-    rawHints.forEach((hint) => {
-      if (!hint?.name) return;
-      pushHint(hint.name, hint.weeklyHits);
-    });
+    const visitRecipe = (recipe: any, weeklyHits = 1) => {
+      if (!recipe) return;
 
-    const extractName = (ingredient: any): string => {
-      if (typeof ingredient === "string") return ingredient;
-      if (!ingredient || typeof ingredient !== "object") return "";
-      return (
-        ingredient.name ||
-        ingredient.ingredient ||
-        ingredient.food ||
-        ingredient.producto ||
-        ""
-      );
+      const structuredIngredients: any[] = Array.isArray(recipe.ingredientDetails)
+        ? recipe.ingredientDetails
+        : [];
+      const rawIngredients: any[] = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
+      const mainIngredients: any[] = Array.isArray(recipe.mainIngredients) ? recipe.mainIngredients : [];
+      const ingredients: any[] = structuredIngredients.length > 0 ? structuredIngredients : rawIngredients;
+
+      ingredients.forEach((ingredient: any) => pushUsage(ingredient, weeklyHits));
+      if (ingredients.length === 0) {
+        mainIngredients.forEach((ingredient: any) => pushUsage(ingredient, weeklyHits));
+      }
     };
 
     const weekSlots = recipesContent?.weekSlots;
@@ -359,67 +456,110 @@ export default function CartClient() {
       Object.values(weekSlots).forEach((slots) => {
         if (!Array.isArray(slots)) return;
         slots.forEach((slot: any) => {
-          const recipe = slot?.recipe;
-          if (!recipe) return;
-
-          const names: string[] = [];
-          if (Array.isArray(recipe.mainIngredients)) {
-            recipe.mainIngredients.forEach((value: any) => {
-              const name = extractName(value);
-              if (name) names.push(name);
-            });
+          if (slot?.recipe) {
+            visitRecipe(slot.recipe, 1);
           }
-          if (Array.isArray(recipe.ingredients)) {
-            recipe.ingredients.forEach((value: any) => {
-              const name = extractName(value);
-              if (name) names.push(name);
-            });
-          }
-
-          names.forEach((name) => pushHint(name, 1));
         });
       });
     }
+
+    if (Array.isArray(recipesContent?.dishes)) {
+      recipesContent.dishes.forEach((dish: any) => visitRecipe(dish, 1));
+    }
+
+    if (map.size === 0 && Array.isArray(recipesContent?.ingredientHints)) {
+      recipesContent.ingredientHints.forEach((hint: any) => {
+        if (!hint?.name) return;
+        pushUsage({ name: hint.name }, hint.weeklyHits || 1);
+      });
+    }
+
+    return Array.from(map.values()).filter((item) => item.name.trim().length > 0);
+  };
+
+  const buildCartItemFromRecipeUsage = (usage: RecipeIngredientUsage): CartItem => ({
+    id: `recipe-${normalizeFoodKey(usage.name)}-${usage.unit}`,
+    producto: usage.name,
+    grupo: "Ingredientes de platos",
+    frecuenciaSemanal: Math.max(1, Math.round(usage.weeklyHits || 1)),
+    porcionGramos: Math.max(0, usage.amount || 1),
+    carbohidratosPor100g: 0,
+    grasasPor100g: 0,
+    caloriasPor100g: 0,
+    proteinaPor100g: 0,
+    sugarsPor100g: 0,
+    fiberPor100g: 0,
+    sodiumPor100g: 0,
+    cholesterolPor100g: 0,
+    potassiumPor100g: 0,
+    vitaminAPor100g: 0,
+    vitaminCPor100g: 0,
+    calciumPor100g: 0,
+    ironPor100g: 0,
+    precioPorUnidad: 0,
+    unidad: usage.unit || (usage.amount != null ? "g" : "unidad"),
+    cantidadMes: calculateMonthlyQuantity(
+      Math.max(0, usage.amount || 1),
+      usage.unit || (usage.amount != null ? "g" : "unidad"),
+      Math.max(1, Math.round(usage.weeklyHits || 1)),
+    ),
+  });
+
+  const mergeCartItemsByKey = (baseItems: CartItem[], extraItems: CartItem[]) => {
+    const map = new Map<string, CartItem>();
+
+    const keyFor = (item: CartItem) => `${normalizeFoodKey(item.producto)}|${normalizeFoodKey(item.unidad)}`;
+
+    baseItems.forEach((item) => {
+      map.set(keyFor(item), { ...item });
+    });
+
+    extraItems.forEach((item) => {
+      const key = keyFor(item);
+      const current = map.get(key);
+      if (!current) {
+        map.set(key, { ...item });
+        return;
+      }
+
+      map.set(key, {
+        ...current,
+        frecuenciaSemanal: Math.max(current.frecuenciaSemanal, item.frecuenciaSemanal),
+        cantidadMes: Number((Number(current.cantidadMes || 0) + Number(item.cantidadMes || 0)).toFixed(2)),
+        porcionGramos: Math.max(current.porcionGramos, item.porcionGramos),
+      });
+    });
 
     return Array.from(map.values());
   };
 
   const buildCartItemsFromDiet = (draft: any, recipesOverride?: any) => {
     const recipesSource = recipesOverride || draft?.recipes || {};
-    const recipeHints = extractRecipeIngredientHints(recipesSource);
     const dietFoods = getDietSourceFoods(draft);
-
+    const recipeUsages = extractRecipeIngredientUsages(recipesSource);
     const hintForFood = (foodName: string) => {
       const normalized = normalizeFoodKey(foodName);
-      const match = recipeHints.find((hint) => {
-        const hintKey = normalizeFoodKey(hint.name);
-        return normalized.includes(hintKey) || hintKey.includes(normalized);
+      const match = recipeUsages.find((usage) => {
+        const usageKey = normalizeFoodKey(usage.name);
+        return normalized.includes(usageKey) || usageKey.includes(normalized);
       });
       return match?.weeklyHits || 3;
     };
 
-    if (dietFoods.length > 0) {
-      return dietFoods.map((food) =>
-        buildCartItemFromDietFood(food, hintForFood(food?.producto || food?.name || "")),
-      );
+    const dietItems = dietFoods.map((food) =>
+      buildCartItemFromDietFood(food, hintForFood(food?.producto || food?.name || "")),
+    );
+    const recipeItems = recipeUsages.map((usage) => buildCartItemFromRecipeUsage(usage));
+
+    if (dietItems.length === 0) {
+      return recipeItems;
     }
 
-    // Fallback: if diet is missing, build from recipe slots to avoid losing the draft plan.
-    if (recipeHints.length > 0) {
-      return recipeHints.map((hint) =>
-        buildCartItemFromDietFood(
-          {
-            id: `recipe-hint-${normalizeFoodKey(hint.name)}`,
-            producto: hint.name,
-            grupo: "Ingredientes de platos",
-            unidad: "unidad",
-          },
-          hint.weeklyHits,
-        ),
-      );
+    if (recipeItems.length === 0) {
+      return dietItems;
     }
 
-    return [];
+    return mergeCartItemsByKey(dietItems, recipeItems);
   };
 
   const WEEKS_PER_MONTH = 4;
@@ -436,20 +576,15 @@ export default function CartClient() {
     baseItems: CartItem[],
     extraIngredients: Array<{ name: string; weeklyHits: number }>,
   ) => {
-    const existingKeys = new Set(
-      baseItems.map((item) => normalizeFoodKey(item.producto)),
-    );
-
     const extraItems: CartItem[] = extraIngredients
       .filter((item) => item?.name)
-      .filter((item) => !existingKeys.has(normalizeFoodKey(item.name)))
       .map((item) => ({
         id: `extra-ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         producto: item.name,
         grupo: "Ingredientes IA",
         cantidadMes: 0,
         frecuenciaSemanal: Math.max(1, Math.round(Number(item.weeklyHits) || 1)),
-        porcionGramos: 100,
+        porcionGramos: 1,
         carbohidratosPor100g: 0,
         grasasPor100g: 0,
         caloriasPor100g: 0,
@@ -467,7 +602,7 @@ export default function CartClient() {
         unidad: "unidad",
       }));
 
-    return [...baseItems, ...extraItems];
+    return mergeCartItemsByKey(baseItems, extraItems);
   };
 
   const getPatientTargetsFromCustomVariables = (patient: any) => {
@@ -477,7 +612,7 @@ export default function CartClient() {
     const protein = read("targetProtein");
     const carbs = read("targetCarbs");
     const fats = read("targetFats");
-    if ([calories, protein, carbs, fats].some((value) => !Number.isFinite(value) || value <= 0)) {
+    if ([calories, protein].some((value) => !Number.isFinite(value) || value <= 0)) {
       return null;
     }
     return {
@@ -536,14 +671,7 @@ export default function CartClient() {
         const dietItems = buildCartItemsFromDiet(draft);
         setProteinSupplement(normalizeProteinSupplement(draft?.recipes?.proteinSupplement));
         if (dietItems.length > 0) {
-          setItems(
-            dietItems.map((item) => ({
-              ...item,
-              cantidadMes: Number(
-                ((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2),
-              ),
-            })),
-          );
+          setItems(dietItems);
           setCartSourceLabel("Generado desde la dieta");
           toast.success("Carrito generado usando los alimentos de la dieta.");
         } else if (draft.cart && draft.cart.items && draft.cart.items.length > 0) {
@@ -638,8 +766,10 @@ export default function CartClient() {
           setItems(
             dietItems.map((item) => ({
               ...item,
-              cantidadMes: Number(
-                ((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2),
+              cantidadMes: calculateMonthlyQuantity(
+                item.porcionGramos,
+                item.unidad,
+                item.frecuenciaSemanal,
               ),
             })),
           );
@@ -745,76 +875,52 @@ export default function CartClient() {
     };
   }, [items, proteinSupplement, timeView]);
 
-  const calculateExchangePortions = (item: CartItem) => {
-    const {
-      carbohidratosPor100g,
-      proteinaPor100g,
-      grasasPor100g,
-      porcionGramos,
-      grupo,
-    } = item;
-    const totalCarbs = (carbohidratosPor100g * porcionGramos) / 100;
-    const totalProt = (proteinaPor100g * porcionGramos) / 100;
-    const totalFat = (grasasPor100g * porcionGramos) / 100;
+  const getExchangeSummary = (item: CartItem): CartExchangeSummary => {
+    const detection = getExchangeProfileForFood({
+      category: item.grupo,
+      name: item.producto,
+      macros: {
+        carbs: item.carbohidratosPor100g,
+        protein: item.proteinaPor100g,
+        fat: item.grasasPor100g,
+      },
+    });
 
-    const g = grupo.toLowerCase();
+    const exchangeResult = calculateFoodExchange({
+      grams: item.porcionGramos,
+      macrosPer100g: {
+        carbs: item.carbohidratosPor100g,
+        protein: item.proteinaPor100g,
+        fat: item.grasasPor100g,
+      },
+      profile: detection.profile,
+    });
 
-    // Estandar UDD/INTA Chile (basado en aporte predominante)
-    if (
-      g.includes("cereal") ||
-      g.includes("pan") ||
-      g.includes("legumbre") ||
-      g.includes("tuberculo")
-    ) {
-      return { val: (totalCarbs / 30).toFixed(1), label: "Porc." }; // 30g CHO
-    }
-    if (g.includes("fruta")) {
-      return { val: (totalCarbs / 15).toFixed(1), label: "Porc." }; // 15g CHO
-    }
-    if (g.includes("verdura")) {
-      const factor = g.includes("libre") ? 2.5 : 5;
-      return { val: (totalCarbs / factor).toFixed(1), label: "Porc." }; // 5g o 2.5g CHO
-    }
-    if (
-      g.includes("carne") ||
-      g.includes("huevo") ||
-      g.includes("pescado") ||
-      g.includes("proteina")
-    ) {
-      return { val: (totalProt / 11).toFixed(1), label: "Porc." }; // 11g PRO
-    }
-    if (g.includes("lacteo") || g.includes("leche") || g.includes("yogur")) {
-      return { val: (totalProt / 8).toFixed(1), label: "Porc." }; // Promedio PRO para lacteos
-    }
-    if (
-      g.includes("grasa") ||
-      g.includes("aceite") ||
-      g.includes("frutos secos")
-    ) {
-      return { val: (totalFat / 20).toFixed(1), label: "Porc." }; // 20g lipidos (Bloque UDD)
-    }
-    if (g.includes("azucar") || g.includes("miel") || g.includes("mermelada")) {
-      return { val: (totalCarbs / 5).toFixed(1), label: "Porc." }; // 5g CHO
-    }
+    const weekly = Number((exchangeResult.portions * getWeeklyPortions(item)).toFixed(1));
+    const monthly = Number((weekly * WEEKS_PER_MONTH).toFixed(1));
 
-    // Fallback dinamico si no hay grupo claro
-    if (totalCarbs > totalProt && totalCarbs > totalFat)
-      return { val: (totalCarbs / 30).toFixed(1), label: "Porc." };
-    if (totalProt > totalCarbs && totalProt > totalFat)
-      return { val: (totalProt / 11).toFixed(1), label: "Porc." };
-    return { val: (totalFat / 20).toFixed(1), label: "Porc." };
+    return {
+      val: exchangeResult.displayPortions,
+      label: detection.profile.isClinicalExchange ? "interc." : "extra",
+      weekly,
+      monthly,
+      profileLabel: detection.profile.label,
+      note: detection.profile.clinicalNote,
+      isClinical: detection.profile.isClinicalExchange,
+      confidence: detection.confidence,
+    };
   };
 
   const groupedItems = useMemo(() => {
     const groups: Record<
       string,
-      (CartItem & { exchange: { val: string; label: string } })[]
+      (CartItem & { exchange: CartExchangeSummary })[]
     > = {};
     items.forEach((item) => {
       if (!groups[item.grupo]) groups[item.grupo] = [];
       groups[item.grupo].push({
         ...item,
-        exchange: calculateExchangePortions(item),
+        exchange: getExchangeSummary(item),
       });
     });
     return groups;
@@ -828,7 +934,7 @@ export default function CartClient() {
   const searchFilteredGroupEntries = useMemo(() => {
     const normalizedQuery = normalizeFoodKey(cartItemSearchQuery);
     const entries: Array<
-      [string, (CartItem & { exchange: { val: string; label: string } })[]]
+      [string, (CartItem & { exchange: CartExchangeSummary })[]]
     > = [];
 
     Object.entries(groupedItems).forEach(([groupName, groupItems]) => {
@@ -875,9 +981,7 @@ export default function CartClient() {
       prev.map((item) => {
         if (item.id === id) {
           const newFreq = numValue;
-          const newQty = Number(
-            ((item.porcionGramos * newFreq * 4) / 1000).toFixed(2),
-          );
+          const newQty = calculateMonthlyQuantity(item.porcionGramos, item.unidad, newFreq);
           return { ...item, frecuenciaSemanal: newFreq, cantidadMes: newQty };
         }
         return item;
@@ -891,9 +995,7 @@ export default function CartClient() {
       prev.map((item) => {
         if (item.id === id) {
           const newPortion = numValue;
-          const newQty = Number(
-            ((newPortion * item.frecuenciaSemanal * 4) / 1000).toFixed(2),
-          );
+          const newQty = calculateMonthlyQuantity(newPortion, item.unidad, item.frecuenciaSemanal);
           return { ...item, porcionGramos: newPortion, cantidadMes: newQty };
         }
         return item;
@@ -901,56 +1003,34 @@ export default function CartClient() {
     );
   };
 
-  const safeDiv = (val: number, fallback: number) => val > 0 ? val : fallback;
-
   const handleExchangePortionChange = (item: CartItem, value: string) => {
     const targetPortions = parseFloat(value);
-    // Allow empty during typing
     if (isNaN(targetPortions)) return;
+    const detection = getExchangeProfileForFood({
+      category: item.grupo,
+      name: item.producto,
+      macros: {
+        carbs: item.carbohidratosPor100g,
+        protein: item.proteinaPor100g,
+        fat: item.grasasPor100g,
+      },
+    });
+    if (!detection.profile.isClinicalExchange) return;
 
-    const {
-      carbohidratosPor100g = 0,
-      proteinaPor100g = 0,
-      grasasPor100g = 0,
-      grupo,
-    } = item;
-    const g = (grupo || "").toLowerCase();
-
-    let newGrams = 0;
-
-    if (g.includes("cereal") || g.includes("pan") || g.includes("legumbre") || g.includes("tuberculo")) {
-      newGrams = (targetPortions * 30 * 100) / safeDiv(carbohidratosPor100g, 1);
-    } else if (g.includes("fruta")) {
-      newGrams = (targetPortions * 15 * 100) / safeDiv(carbohidratosPor100g, 1);
-    } else if (g.includes("verdura")) {
-      const factor = g.includes("libre") ? 2.5 : 5;
-      newGrams = (targetPortions * factor * 100) / safeDiv(carbohidratosPor100g, 1);
-    } else if (g.includes("carne") || g.includes("huevo") || g.includes("pescado") || g.includes("proteina")) {
-      newGrams = (targetPortions * 11 * 100) / safeDiv(proteinaPor100g, 1);
-    } else if (g.includes("lacteo") || g.includes("leche") || g.includes("yogur")) {
-      newGrams = (targetPortions * 8 * 100) / safeDiv(proteinaPor100g, 1);
-    } else if (g.includes("grasa") || g.includes("aceite") || g.includes("frutos secos")) {
-      newGrams = (targetPortions * 20 * 100) / safeDiv(grasasPor100g, 1);
-    } else if (g.includes("azucar") || g.includes("miel") || g.includes("mermelada")) {
-      newGrams = (targetPortions * 5 * 100) / safeDiv(carbohidratosPor100g, 1);
-    } else {
-      if (carbohidratosPor100g > proteinaPor100g && carbohidratosPor100g > grasasPor100g) {
-        newGrams = (targetPortions * 30 * 100) / safeDiv(carbohidratosPor100g, 1);
-      } else if (proteinaPor100g > carbohidratosPor100g && proteinaPor100g > grasasPor100g) {
-        newGrams = (targetPortions * 11 * 100) / safeDiv(proteinaPor100g, 1);
-      } else {
-        newGrams = (targetPortions * 20 * 100) / safeDiv(grasasPor100g, 1);
-      }
-    }
-
-    newGrams = Math.round(newGrams);
+    const newGrams = calculateGramsForExchange({
+      targetPortions,
+      macrosPer100g: {
+        carbs: item.carbohidratosPor100g,
+        protein: item.proteinaPor100g,
+        fat: item.grasasPor100g,
+      },
+      profile: detection.profile,
+    });
 
     setItems((prev) =>
       prev.map((i) => {
         if (i.id === item.id) {
-          const newQty = Number(
-            ((newGrams * i.frecuenciaSemanal * 4) / 1000).toFixed(2),
-          );
+          const newQty = calculateMonthlyQuantity(newGrams, i.unidad, i.frecuenciaSemanal);
           return { ...i, porcionGramos: newGrams, cantidadMes: newQty };
         }
         return i;
@@ -962,40 +1042,36 @@ export default function CartClient() {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id === oldItemId) {
-          // Calculate new grams based on old exchange portions to maintain the target
-          const oldExchangeVal = parseFloat(calculateExchangePortions(item).val);
-
           const carbs = newFood.carbohydrates || newFood.carbs || 0;
           const prot = newFood.proteins || newFood.proteinas || 0;
           const fat = newFood.lipids || newFood.lipidos || 0;
-          const g = (newFood.grupo || "").toLowerCase();
-
-          let newGrams = 0;
-          if (g.includes("cereal") || g.includes("pan") || g.includes("legumbre") || g.includes("tuberculo")) {
-            newGrams = (oldExchangeVal * 30 * 100) / safeDiv(carbs, 1);
-          } else if (g.includes("fruta")) {
-            newGrams = (oldExchangeVal * 15 * 100) / safeDiv(carbs, 1);
-          } else if (g.includes("verdura")) {
-            const factor = g.includes("libre") ? 2.5 : 5;
-            newGrams = (oldExchangeVal * factor * 100) / safeDiv(carbs, 1);
-          } else if (g.includes("carne") || g.includes("huevo") || g.includes("pescado") || g.includes("proteina")) {
-            newGrams = (oldExchangeVal * 11 * 100) / safeDiv(prot, 1);
-          } else if (g.includes("lacteo") || g.includes("leche") || g.includes("yogur")) {
-            newGrams = (oldExchangeVal * 8 * 100) / safeDiv(prot, 1);
-          } else if (g.includes("grasa") || g.includes("aceite") || g.includes("frutos secos")) {
-            newGrams = (oldExchangeVal * 20 * 100) / safeDiv(fat, 1);
-          } else if (g.includes("azucar") || g.includes("miel") || g.includes("mermelada")) {
-            newGrams = (oldExchangeVal * 5 * 100) / safeDiv(carbs, 1);
-          } else {
-            newGrams = (oldExchangeVal * 30 * 100) / safeDiv(carbs, 1);
-          }
-
-          newGrams = Math.round(newGrams);
-          const newQty = Number(((newGrams * item.frecuenciaSemanal * 4) / 1000).toFixed(2));
+          const currentExchange = getExchangeSummary(item);
+          const nextProfile = getExchangeProfileForFood({
+            category: newFood.grupo,
+            name: newFood.producto,
+            macros: {
+              carbs,
+              protein: prot,
+              fat,
+            },
+          }).profile;
+          const newGrams = nextProfile.isClinicalExchange
+            ? calculateGramsForExchange({
+                targetPortions: Number(currentExchange.val) || 0,
+                macrosPer100g: {
+                  carbs,
+                  protein: prot,
+                  fat,
+                },
+                profile: nextProfile,
+              })
+            : item.porcionGramos;
+          const newQty = calculateMonthlyQuantity(newGrams, item.unidad, item.frecuenciaSemanal);
 
           return {
             ...item,
             producto: newFood.producto,
+            grupo: newFood.grupo || item.grupo,
             carbohidratosPor100g: carbs,
             proteinaPor100g: prot,
             grasasPor100g: fat,
@@ -1156,10 +1232,10 @@ export default function CartClient() {
     };
 
     // Calculate monthly quantity
-    newItem.cantidadMes = Number(
-      ((newItem.porcionGramos * newItem.frecuenciaSemanal * 4) / 1000).toFixed(
-        2,
-      ),
+    newItem.cantidadMes = calculateMonthlyQuantity(
+      newItem.porcionGramos,
+      newItem.unidad,
+      newItem.frecuenciaSemanal,
     );
 
     setItems((prev) => [...prev, newItem]);
@@ -1431,14 +1507,7 @@ export default function CartClient() {
           return;
         }
 
-        setItems(
-          cartItems.map((item) => ({
-            ...item,
-            cantidadMes: Number(
-              ((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2),
-            ),
-          })),
-        );
+        setItems(cartItems);
         if (extraIngredientsFromAI.length > 0) {
           toast.info(`Se agregaron ${extraIngredientsFromAI.length} ingrediente(s) extra sugeridos por IA.`);
         }
@@ -1469,14 +1538,7 @@ export default function CartClient() {
         setProteinSupplement(normalizeProteinSupplement(content.proteinSupplement || draft?.recipes?.proteinSupplement));
 
         if (dietItems.length > 0) {
-          setItems(
-            dietItems.map((item) => ({
-              ...item,
-              cantidadMes: Number(
-                ((item.porcionGramos * item.frecuenciaSemanal * 4) / 1000).toFixed(2),
-              ),
-            })),
-          );
+          setItems(dietItems);
           setCartSourceLabel(`Generado desde la dieta: ${creation.name}`);
           toast.success(`Dieta "${creation.name}" importada al carrito.`);
         } else {
@@ -1537,10 +1599,10 @@ export default function CartClient() {
         title="Intercambio de Equivalentes"
       >
         <div className="space-y-4">
-          <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl">
-            <p className="text-[10px] font-black text-indigo-900 uppercase tracking-widest mb-1">Original</p>
-            <p className="text-sm font-bold text-slate-700">{selectedItemForEquivalent?.producto}</p>
-            <p className="text-[10px] font-bold text-indigo-600 uppercase mt-1">{selectedItemForEquivalent?.grupo}</p>
+          <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-[2rem]">
+            <p className="text-[10px] font-semibold text-indigo-900 uppercase tracking-widest mb-1">Original</p>
+            <p className="text-sm font-semibold text-slate-700">{selectedItemForEquivalent?.producto}</p>
+            <p className="text-[10px] font-semibold text-indigo-600 uppercase mt-1">{selectedItemForEquivalent?.grupo}</p>
           </div>
 
           <div className="relative">
@@ -1569,8 +1631,8 @@ export default function CartClient() {
                   className="p-4 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-indigo-50/30 transition-all cursor-pointer group flex items-center justify-between"
                 >
                   <div>
-                    <p className="font-bold text-slate-900 text-sm">{food.producto}</p>
-                    <div className="flex gap-2 text-[10px] text-slate-500 font-bold uppercase mt-1">
+                    <p className="font-semibold text-slate-900 text-sm">{food.producto}</p>
+                    <div className="flex gap-2 text-[10px] text-slate-500 font-semibold uppercase mt-1">
                       <span>{food.calories || food.calorias} kcal</span>
                       <span>|</span>
                       <span>P: {food.proteins || food.proteinas}g</span>
@@ -1583,7 +1645,7 @@ export default function CartClient() {
               ))
             )}
             {!isSearchingEquivalents && equivalentResults.length === 0 && (
-              <p className="py-8 text-center text-sm text-slate-400 font-bold">No se encontraron equivalentes.</p>
+              <p className="py-8 text-center text-sm text-slate-400 font-semibold">No se encontraron equivalentes.</p>
             )}
           </div>
         </div>
@@ -1598,11 +1660,23 @@ export default function CartClient() {
       />
 
       <ModuleLayout
-        title="Carrito Inteligente"
-        description="Genera automaticamente la lista de compra desde Dieta y Recetas."
+        title="Logística: Carrito de Compras"
+        description={
+          <div className="space-y-4">
+            <p>
+              Consolidación de cantidades totales. Aquí podrás ajustar las compras mensuales estimadas y verificar que cuadren con tus metas nutricionales.
+            </p>
+            <div className="flex flex-wrap gap-4 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+              <span className="text-indigo-600">1. Estrategia (✓)</span>
+              <span className="text-indigo-600">2. Cuantificación (✓)</span>
+              <span className="text-indigo-600 underline underline-offset-4 decoration-2">3. Logística</span>
+              <span>4. Producto Final</span>
+            </div>
+          </div>
+        }
         className="max-w-[1800px] w-full overflow-x-hidden"
         step={{
-          number: 2,
+          number: 3,
           label: "Cantidades & Compras",
           icon: ShoppingCart,
           color: "text-indigo-600",
@@ -1618,7 +1692,7 @@ export default function CartClient() {
                     key={view}
                     onClick={() => setTimeView(view)}
                     className={cn(
-                      "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                      "px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-widest transition-all",
                       timeView === view
                         ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
                         : "text-slate-400 hover:text-slate-600",
@@ -1632,10 +1706,10 @@ export default function CartClient() {
               {/* Nutritional Summary */}
               <div className="flex items-center gap-6">
                 <div className="space-y-0.5">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none">
                     Proteinas Totales
                   </p>
-                  <p className="text-xl font-black text-emerald-600 flex items-baseline gap-1">
+                  <p className="text-xl font-semibold text-indigo-600 flex items-baseline gap-1">
                     {totals.protein}
                     <span className="text-[10px] text-slate-400 uppercase">
                       g
@@ -1652,10 +1726,10 @@ export default function CartClient() {
                 </div>
                 <div className="w-px h-8 bg-slate-200" />
                 <div className="space-y-0.5">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none">
                     Calorias Totales
                   </p>
-                  <p className="text-xl font-black text-amber-600 flex items-baseline gap-1">
+                  <p className="text-xl font-semibold text-amber-600 flex items-baseline gap-1">
                     {totals.calories}
                     <span className="text-[10px] text-slate-400 uppercase">
                       kcal
@@ -1682,17 +1756,30 @@ export default function CartClient() {
                 Guardar Creacion
               </Button>
               <Button
-                className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-xl shadow-emerald-200 transition-all hover:scale-[1.02] active:scale-95"
+                className="h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-[2rem] shadow-xl shadow-indigo-200 transition-all hover:scale-[1.02] active:scale-95"
                 disabled={!hasRecipeSource}
                 onClick={handleFinalize}
               >
-                Continuar
+                SIGUIENTE
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </div>
           </ModuleFooter>
         }
       >
+        {isSidebarCollapsed && (
+          <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
+            <SectionProgressNav
+              title="Etapas del Plan"
+              items={[
+                { id: "dieta", label: "1. Estrategia", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/dieta", currentProjectId)) },
+                { id: "recetas", label: "2. Cuantificación", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/recetas", currentProjectId)) },
+                { id: "carrito", label: "3. Logística", status: "complete", active: true, onClick: () => {} },
+                { id: "entregable", label: "4. Entregable", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/entregable", currentProjectId)) },
+              ]}
+            />
+          </div>
+        )}
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}
@@ -1714,7 +1801,7 @@ export default function CartClient() {
                 <Button
                   variant="outline"
                   onClick={() => setIsImportCreationModalOpen(true)}
-                  className="rounded-2xl border-amber-200 bg-white font-bold text-amber-900"
+                  className="rounded-[2rem] border-amber-200 bg-white font-semibold text-amber-900"
                 >
                   <Library className="mr-2 h-4 w-4" />
                   Importar dieta
@@ -1726,7 +1813,7 @@ export default function CartClient() {
                       buildProjectAwarePath("/dashboard/dieta", currentProjectId),
                     )
                   }
-                  className="rounded-2xl border-amber-200 bg-white font-bold text-amber-900"
+                  className="rounded-[2rem] border-amber-200 bg-white font-semibold text-amber-900"
                 >
                   <ChevronLeft className="mr-2 h-4 w-4" />
                   Ir a Dieta
@@ -1746,9 +1833,9 @@ export default function CartClient() {
               </span>
             </div>
             {proteinSupplement.enabled ? (
-              <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2">
-                <Target className="h-4 w-4 text-emerald-600" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+              <div className="mt-2 inline-flex items-center gap-2 rounded-[2rem] border border-indigo-200 bg-indigo-50 px-4 py-2">
+                <Target className="h-4 w-4 text-indigo-600" />
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-indigo-700">
                   Suplemento activo: +{proteinSupplement.gramsPerDay}g proteina/dia
                 </span>
               </div>
@@ -1757,17 +1844,17 @@ export default function CartClient() {
 
           {selectedPatient && (
             <div className="mb-6 animate-in slide-in-from-top duration-300">
-              <div className="bg-emerald-50 border border-emerald-100 p-5 rounded-[2.5rem] shadow-sm">
+              <div className="bg-white border border-slate-200 p-5 rounded-[2rem] shadow-sm">
                 <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center border border-emerald-200">
-                    <User className="h-6 w-6 text-emerald-600" />
+                  <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center border border-indigo-100">
+                    <User className="h-6 w-6 text-indigo-600" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest leading-none mb-1">
+                    <p className="text-[10px] font-semibold text-indigo-600 uppercase tracking-widest leading-none mb-1">
                       Paciente Vinculado
                     </p>
-                    <h3 className="text-xl font-black text-slate-900 italic leading-none">
+                    <h3 className="text-xl font-semibold text-slate-900 leading-none">
                       {selectedPatient.fullName || selectedPatient.name}
                     </h3>
                   </div>
@@ -1993,10 +2080,10 @@ export default function CartClient() {
                   <Info className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-indigo-900 uppercase tracking-tight">
-                    Resumen de Intercambios (UDD/INTA Chile)
+                  <h4 className="text-sm font-semibold text-indigo-900 uppercase tracking-tight">
+                    Resumen del motor clinico de intercambios
                   </h4>
-                  <p className="text-[10px] font-bold text-indigo-600/80 uppercase tracking-widest">
+                  <p className="text-[10px] font-semibold text-indigo-600/80 uppercase tracking-widest">
                     Informacion de referencia
                   </p>
                 </div>
@@ -2016,29 +2103,29 @@ export default function CartClient() {
                   La calculadora completa se trabaja en la dieta.
                 </p>
                 <p className="text-[10px] text-indigo-600/60 font-medium leading-relaxed mb-4">
-                  <strong>Logica UDD:</strong> Cereales y Pan (30g CHO), Carnes y Proteinas (11g PRO),
-                  Frutas (15g CHO), Verduras (5g CHO), Grasas (20g LIP).
+                  Ahora el carrito usa la misma tabla clinica V1 del resto de NutriNet.
+                  Si un alimento no tiene intercambio clinico, se muestra como extra o requiere revision.
                 </p>
                 <div className="flex flex-wrap items-center gap-4 border-t border-indigo-100 pt-3">
                   <div className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-amber-400" />
-                    <span className="text-[10px] font-black text-slate-600 uppercase">
+                    <span className="text-[10px] font-semibold text-slate-600 uppercase">
                       Cereales/Pan (~30g CHO)
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                    <span className="text-[10px] font-black text-slate-600 uppercase">
+                    <span className="h-2 w-2 rounded-full bg-indigo-500" />
+                    <span className="text-[10px] font-semibold text-slate-600 uppercase">
                       Proteinas (~11g PRO)
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-rose-500" />
-                    <span className="text-[10px] font-black text-slate-600 uppercase">
+                    <span className="text-[10px] font-semibold text-slate-600 uppercase">
                       Grasas/Aceites (~20g LIP)
                     </span>
                   </div>
-                  <span className="ml-auto text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                  <span className="ml-auto text-[10px] font-semibold uppercase tracking-widest text-indigo-600">
                     Derivado desde la dieta
                   </span>
                 </div>
@@ -2183,7 +2270,7 @@ export default function CartClient() {
                   {searchFilteredGroupEntries.length === 0 || !currentCategoryEntry ? (
                     <tr>
                       <td colSpan={5} className="px-6 py-10 text-center">
-                        <p className="text-sm font-bold text-slate-500">
+                        <p className="text-sm font-semibold text-slate-500">
                           No hay resultados para los filtros seleccionados.
                         </p>
                       </td>
@@ -2192,10 +2279,10 @@ export default function CartClient() {
                     <Fragment key={currentCategoryEntry[0]}>
                       <tr className="bg-slate-50/80">
                         <td colSpan={5} className="px-6 py-2">
-                          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                          <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                             <div className="h-1 w-1 rounded-full bg-indigo-400" />
                             {currentCategoryEntry[0]}
-                            <span className="text-[9px] bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 lowercase tracking-normal font-bold">
+                            <span className="text-[9px] bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 lowercase tracking-normal font-semibold">
                               {currentCategoryEntry[1].length} items
                             </span>
                           </h4>
@@ -2212,7 +2299,7 @@ export default function CartClient() {
                                 {item.producto.charAt(0)}
                               </div>
                               <div>
-                                <p className="font-bold text-slate-900 text-sm leading-none mb-1 flex items-center gap-2">
+                                <p className="font-semibold text-slate-900 text-sm leading-none mb-1 flex items-center gap-2">
                                   {item.producto}
                                   <button
                                     onClick={() => {
@@ -2228,7 +2315,7 @@ export default function CartClient() {
                                     <RotateCcw className="h-3 w-3" />
                                   </button>
                                 </p>
-                                <span className="text-[10px] uppercase font-bold text-slate-400">
+                                <span className="text-[10px] uppercase font-semibold text-slate-400">
                                   {item.grupo}
                                 </span>
                               </div>
@@ -2239,16 +2326,12 @@ export default function CartClient() {
                               <div className="relative w-28">
                                 <Input
                                   type="text"
-                                  value={
-                                    item.unidad === 'kg' && item.cantidadMes < 1
-                                      ? Math.round(item.cantidadMes * 1000)
-                                      : item.cantidadMes
-                                  }
+                                  value={formatCartQuantity(item)}
                                   readOnly
-                                  className="h-10 pr-10 text-center font-black text-slate-700 border-slate-200 rounded-xl bg-slate-50/50"
+                                  className="h-10 pr-10 text-center font-semibold text-slate-700 border-slate-200 rounded-xl bg-slate-50/50"
                                 />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 pointer-events-none uppercase">
-                                  {item.unidad === 'kg' && item.cantidadMes < 1 ? 'g' : item.unidad}
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-400 pointer-events-none uppercase">
+                                  {item.unidad === "kg" && Number(item.cantidadMes) < 1 ? "g" : item.unidad}
                                 </span>
                               </div>
                             </div>
@@ -2289,44 +2372,33 @@ export default function CartClient() {
                                       className="h-8 w-14 p-0 text-center bg-transparent border-none font-black text-blue-700 text-xs focus-visible:ring-0"
                                     />
                                   </div>
-                                  <div
-                                    className={cn(
-                                      "px-1.5 py-0.5 rounded-lg border text-[9px] font-black flex items-center gap-1 min-w-[65px] justify-center shadow-sm",
-                                      item.grupo.toLowerCase().includes("cereal") ||
-                                        item.grupo
-                                          .toLowerCase()
-                                          .includes("fruta") ||
-                                        item.grupo.toLowerCase().includes("verdura")
-                                        ? "bg-amber-50 text-amber-700 border-amber-100"
-                                        : item.grupo
-                                          .toLowerCase()
-                                          .includes("carne") ||
-                                          item.grupo
-                                            .toLowerCase()
-                                            .includes("huevo") ||
-                                          item.grupo
-                                            .toLowerCase()
-                                            .includes("pescado")
-                                          ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                                          : item.grupo
-                                            .toLowerCase()
-                                            .includes("grasa") ||
-                                            item.grupo
-                                              .toLowerCase()
-                                              .includes("aceite") ||
-                                            item.grupo
-                                              .toLowerCase()
-                                              .includes("frutos secos")
-                                            ? "bg-rose-50 text-rose-700 border-rose-100"
-                                            : "bg-indigo-50 text-indigo-700 border-indigo-100",
-                                    )}
-                                  >
-                                    <span className="inline-flex h-6 min-w-[40px] items-center justify-center text-[10px] font-black">
-                                      {item.exchange.val}
-                                    </span>
-                                    <span className="opacity-50 text-[8px] uppercase tracking-tighter ml-1">
-                                      {item.exchange.label}
-                                    </span>
+                                  <div className="flex flex-col items-center gap-1">
+                                    <div
+                                      className={cn(
+                                        "rounded-lg border px-2 py-1 text-[9px] font-black shadow-sm",
+                                        item.exchange.isClinical
+                                          ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                                          : "border-slate-200 bg-slate-100 text-slate-500",
+                                      )}
+                                      title={item.exchange.note}
+                                    >
+                                      {item.exchange.profileLabel}
+                                    </div>
+                                    <div className="flex items-center gap-1 rounded-lg border border-indigo-100 bg-indigo-50 px-2">
+                                      <Input
+                                        type="number"
+                                        step="0.1"
+                                        value={item.exchange.val}
+                                        onChange={(e) =>
+                                          handleExchangePortionChange(item, e.target.value)
+                                        }
+                                        disabled={!item.exchange.isClinical}
+                                        className="h-7 w-14 border-none bg-transparent p-0 text-center text-[10px] font-black text-indigo-700 focus-visible:ring-0"
+                                      />
+                                      <span className="text-[8px] font-black uppercase tracking-widest text-indigo-500">
+                                        {item.exchange.label}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -2345,8 +2417,16 @@ export default function CartClient() {
                                   porciones
                                 </span>
                               </div>
+                              <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-1.5 border border-slate-200">
+                                <span className="text-sm font-black text-slate-700">
+                                  {formatPortionCount(item.exchange.monthly)}
+                                </span>
+                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                                  interc/mes
+                                </span>
+                              </div>
                               <span className="text-[9px] text-slate-400 font-medium">
-                                {WEEKS_PER_MONTH} semanas
+                                {formatPortionCount(item.exchange.weekly)} interc/semana
                               </span>
                             </div>
                           </td>

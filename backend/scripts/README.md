@@ -1,6 +1,6 @@
 # Backend Utility Scripts
 
-This directory contains various utility and maintenance scripts for the NutriSaaS backend.
+This directory contains various utility and maintenance scripts for the NutriNet backend.
 
 ## Usage
 
@@ -23,7 +23,7 @@ node scripts/<script-name>.js
 - **check-admins.ts**: Queries the database to list all users with `ADMIN_MASTER` or `ADMIN_GENERAL` roles. Useful for verifying admin access.
 - **check-env.js**: Checks if critical environment variables (like `DATABASE_URL`) are loaded correctly.
 - **test-metrics.ts**: A standalone script to test metric calculation logic without starting the full NestJS application.
-- **update-admin-role.ts**: Updates a specific user (e.g., `admin@nutrisaas.com`) to a specific role. **Use with caution.**
+- **update-admin-role.ts**: Updates a specific user (e.g., `admin@NutriNet.com`) to a specific role. **Use with caution.**
 
 ## Note
 Ensure your `.env` file is present in the backend root before running these scripts as they rely on environment variables for database connections.

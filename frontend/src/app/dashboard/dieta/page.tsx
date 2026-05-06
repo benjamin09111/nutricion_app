@@ -2,7 +2,7 @@ import DietClient from "./DietClient";
 import { getDietBaseFoods } from "@/lib/data-reader";
 
 export const metadata = {
-  title: "Generador de Dieta | NutriSaaS",
+  title: "Generador de Dieta | NutriNet",
   description: "Crea dietas personalizadas basadas en patrones generales.",
 };
 

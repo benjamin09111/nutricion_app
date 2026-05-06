@@ -1,0 +1,51 @@
+{
+  "id": "introBeta",
+  "label": "Introducción Beta",
+  "version": 1,
+  "steps": [
+    {
+      "id": "intro-device",
+      "title": "Optimizado para tu espacio de trabajo",
+      "body": "NutriNet es una plataforma de gestión clínica profesional diseñada específicamente para ser utilizada en **notebooks o computadores**.\n\nDebido a la complejidad de las herramientas de cálculo y diseño de dietas, **no recomendamos su uso en teléfonos celulares**, ya que la experiencia y precisión están optimizadas para pantallas más grandes.",
+      "nextLabel": "Entendido, continuar",
+      "hideSkip": true
+    },
+    {
+      "id": "intro-welcome",
+      "title": "Bienvenido a la beta de NutriNet",
+      "body": "Yo te estaré acompañando en este proceso.\n\n**Agradecemos tu participación**, y esperamos que te encante esta aplicación hecha para ustedes.\n\nTen en cuenta que **la página está en revisión y beta**, por lo que pueden haber errores, **sobre todo en cálculos**, en los cuales se está trabajando intensamente.\n\nLo importante es que ya puedes ver y probar el contenido actual que ofrecemos, con algunos detalles que se irán mejorando con tu ayuda.",
+      "nextLabel": "Continuar",
+      "hideSkip": true
+    },
+    {
+      "id": "intro-terms",
+      "title": "Aviso de uso beta",
+      "body": "NutriNet se encuentra en una **versión beta de prueba**.\n\nLa plataforma aún está en desarrollo y puede contener errores, omisiones, cálculos incompletos, fallas de funcionamiento o cambios sin previo aviso.\n\nEl contenido mostrado en esta beta tiene fines de prueba, revisión y mejora del producto, por lo que **no debe considerarse definitivo**.\n\nAl continuar, el usuario declara que entiende que:\n\n- esta es una versión no terminada;\n- algunas funciones pueden no operar correctamente;\n- la información generada debe ser revisada antes de ser utilizada;\n- el uso de la plataforma en esta etapa es bajo su propia responsabilidad.",
+      "checkboxLabel": "Entiendo que estoy usando una **versión beta de prueba** de NutriNet y acepto continuar bajo estas condiciones.",
+      "requireCheckbox": true,
+      "nextLabel": "Continuar",
+      "hideSkip": true
+    },
+    {
+      "id": "intro-nutria",
+      "title": "Tu asistente siempre disponible",
+      "body": "En la esquina inferior derecha verás siempre a **la Nutria**.\n\nElla te ayudará con información específica sobre qué puedes hacer en cada vista de la plataforma. No dudes en consultarla si tienes dudas sobre algún módulo.",
+      "nextLabel": "Continuar",
+      "hideSkip": true
+    },
+    {
+      "id": "intro-profile",
+      "title": "Perfil y Seguridad",
+      "body": "Recuerda que puedes personalizar tu perfil y **cambiar tu contraseña** en cualquier momento.\n\nSolo debes hacer clic en tu nombre arriba a la derecha y seleccionar **'Perfil y Configuración'**.",
+      "nextLabel": "Continuar",
+      "hideSkip": true
+    },
+    {
+      "id": "intro-enter",
+      "title": "Asegura tu lugar",
+      "body": "Si te gusta la aplicación y quieres seguir utilizándola cuando termine la beta, **asegura tu suscripción** apretando el botón que verás en la barra superior una vez dentro de la página.\n\n¡Ya está todo listo para entrar a **NutriNet**!",
+      "nextLabel": "Entrar a NutriNet",
+      "hideSkip": true
+    }
+  ]
+}

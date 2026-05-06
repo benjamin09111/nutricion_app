@@ -36,11 +36,11 @@ export default async function FoodsPage() {
         <div>
           <h2
             id="foods-page-title"
-            className="text-3xl font-black tracking-tight text-slate-900"
+            className="text-3xl font-semibold tracking-tight text-slate-900"
           >
             Catálogo de Ingredientes
           </h2>
-          <p className="mt-1 text-sm font-medium text-slate-500">
+          <p className="mt-1 text-sm text-slate-500">
             Gestiona los ingredientes base para tus pautas y recetas.
           </p>
         </div>

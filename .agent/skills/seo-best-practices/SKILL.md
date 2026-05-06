@@ -11,7 +11,7 @@ This skill provides guidelines and actionable steps to ensure the application is
 
 Before applying SEO changes, always:
 - **Identify the Page Type**: Is it a landing page, a dashboard (private), or a public resource?
-- **Understand the User Intent**: For this project (NutriSaaS), keywords focus on "Software para nutricionistas", "Gestión de pacientes", "Automatización de dietas".
+- **Understand the User Intent**: For this project (NutriNet), keywords focus on "Software para nutricionistas", "Gestión de pacientes", "Automatización de dietas".
 - **Check Project Structure**: Use `list_dir` to see where the page resides (e.g., `src/app/(public)` vs `src/app/(authenticated)`). **Private dashboards do not need aggressive indexing, but semantic HTML is still required for accessibility.**
 
 ## 2. Semantic HTML (The Google Standard)
@@ -47,16 +47,16 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | NutriSaaS',
-    default: 'NutriSaaS - Software para Nutricionistas',
+    template: '%s | NutriNet',
+    default: 'NutriNet - Software para Nutricionistas',
   },
   description: 'Gestiona tus pacientes, automatiza dietas y ahorra tiempo con el software líder para nutricionistas en Chile y LATAM.',
   keywords: ['nutricionista', 'software', 'dietas', 'gestión pacientes', 'saas salud'],
   openGraph: {
     type: 'website',
     locale: 'es_CL',
-    url: 'https://nutrisaas.com',
-    siteName: 'NutriSaaS',
+    url: 'https://NutriNet.com',
+    siteName: 'NutriNet',
     // ...
   }
 };
@@ -77,7 +77,7 @@ For public pages (Landing, Blog, Pricing), inject JSON-LD to help Google underst
   {JSON.stringify({
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": "NutriSaaS",
+    "name": "NutriNet",
     "applicationCategory": "HealthApplication",
     // ...
   })}

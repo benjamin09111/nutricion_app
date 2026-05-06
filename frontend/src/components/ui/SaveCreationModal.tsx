@@ -21,7 +21,7 @@ export function SaveCreationModal({
   isOpen,
   onClose,
   onConfirm,
-  description,
+  description = "",
   onDescriptionChange,
   title = "Guardar creación",
   subtitle = "Añade una breve descripción para reconocer esta creación más tarde.",
@@ -46,7 +46,7 @@ export function SaveCreationModal({
           />
           <div className="flex justify-end">
             <span className={cn("text-xs font-medium", isDarkMode ? "text-emerald-100/45" : "text-slate-400")}>
-              {description.trim().length}/240
+              {description?.trim().length ?? 0}/240
             </span>
           </div>
         </div>

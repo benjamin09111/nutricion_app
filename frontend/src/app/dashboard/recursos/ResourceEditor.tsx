@@ -456,7 +456,7 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
               <div className="flex items-center gap-2 mb-4 text-emerald-400">
                 <FileText className="h-4 w-4" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                  Consejo de NutriSaaS
+                  Consejo de NutriNet
                 </p>
               </div>
               <p className="text-xs leading-6 text-slate-300 italic">

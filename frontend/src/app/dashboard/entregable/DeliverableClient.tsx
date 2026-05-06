@@ -40,6 +40,8 @@ import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
+import { SectionProgressNav } from "@/components/shared/SectionProgressNav";
+import { useDashboardShell } from "@/context/DashboardShellContext";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { PremiumGuard } from "@/components/common/PremiumGuard";
 import { useAdmin } from "@/context/AdminContext";
@@ -55,6 +57,7 @@ import {
   fetchProject,
   saveCreation,
   updateProject,
+  buildProjectAwarePath,
 } from "@/lib/workflow";
 
 interface ExportPackage {
@@ -168,6 +171,15 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     description: "Distribución diaria y preparación de comidas.",
     icon: Clock,
     defaultSelected: true,
+    category: "core",
+    contentType: "practical",
+  },
+  {
+    id: "exchangePortions",
+    label: "Porciones de Intercambio",
+    description: "Tabla oficial para validar equivalencias y porciones.",
+    icon: ClipboardCheck,
+    defaultSelected: false,
     category: "core",
     contentType: "practical",
   },
@@ -579,6 +591,7 @@ export default function DeliverableClient() {
   const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(
     null,
   );
+  const { isSidebarCollapsed } = useDashboardShell();
 
   const updateSelectedPatient = (
     updater: (current: DeliverablePatientContext) => DeliverablePatientContext,
@@ -633,13 +646,13 @@ export default function DeliverableClient() {
     const draft = draftOverride
       ? draftOverride
       : (() => {
-          try {
-            const stored = localStorage.getItem("nutri_active_draft");
-            return stored ? JSON.parse(stored) : {};
-          } catch (_) {
-            return {};
-          }
-        })();
+        try {
+          const stored = localStorage.getItem("nutri_active_draft");
+          return stored ? JSON.parse(stored) : {};
+        } catch (_) {
+          return {};
+        }
+      })();
 
     setPreviousStagesSummary(
       buildPreviousStageSummary(
@@ -758,9 +771,9 @@ export default function DeliverableClient() {
             setSelectedSections(
               sanitizeSectionIds(
                 deliverableContent.selectedSections ||
-                  DELIVERABLE_SECTIONS.filter((s) => s.defaultSelected).map(
-                    (s) => s.id,
-                  ),
+                DELIVERABLE_SECTIONS.filter((s) => s.defaultSelected).map(
+                  (s) => s.id,
+                ),
               ),
             );
             setIncludeLogo(deliverableContent.includeLogo ?? true);
@@ -914,16 +927,16 @@ export default function DeliverableClient() {
   );
   const hasManualPatientData = Boolean(
     selectedPatient &&
-      (
-        safeString(selectedPatient.fullName) ||
-        selectedPatient.ageYears !== null ||
-        safeString(selectedPatient.gender) ||
-        (Array.isArray(selectedPatient.restrictions) && selectedPatient.restrictions.length > 0) ||
-        Boolean(selectedPatient.noDietaryRestrictions) ||
-        safeString(selectedPatient.likes) ||
-        safeString(selectedPatient.nutritionalFocus) ||
-        safeString(selectedPatient.fitnessGoals)
-      ),
+    (
+      safeString(selectedPatient.fullName) ||
+      selectedPatient.ageYears !== null ||
+      safeString(selectedPatient.gender) ||
+      (Array.isArray(selectedPatient.restrictions) && selectedPatient.restrictions.length > 0) ||
+      Boolean(selectedPatient.noDietaryRestrictions) ||
+      safeString(selectedPatient.likes) ||
+      safeString(selectedPatient.nutritionalFocus) ||
+      safeString(selectedPatient.fitnessGoals)
+    ),
   );
   const hasPatientAssigned = hasImportedPatient || hasManualPatientData;
 
@@ -934,19 +947,19 @@ export default function DeliverableClient() {
     if (section.id === "shoppingList") {
       if (!hasCart) {
         disabled = true;
-        finalDescription = "⚠️ Requiere carrito cargado o paciente asociado.";
+        finalDescription = "âš ï¸ Requiere carrito cargado o paciente asociado.";
       }
     }
     if (section.id === "recipes") {
       if (!hasRecipes) {
         disabled = true;
-        finalDescription = "⚠️ Requiere recetario cargado o paciente asociado.";
+        finalDescription = "âš ï¸ Requiere recetario cargado o paciente asociado.";
       }
     }
     if (section.id === "patientInfo") {
       if (!hasPatientAssigned) {
         disabled = true;
-        finalDescription = "⚠️ Requiere asignar paciente o cargar métricas.";
+        finalDescription = "âš ï¸ Requiere asignar paciente o cargar métricas.";
       }
     }
 
@@ -1151,6 +1164,7 @@ export default function DeliverableClient() {
         `Exportado con dieta ${exportStats.dietFoods}, carrito ${exportStats.cartItems}, recetas ${exportStats.recipeCount}.`,
       );
       setIsExportWizardOpen(false);
+      setIsSaveCreationModalOpen(true);
     } catch (error) {
       console.error("Error generating PDF:", error);
       toast.error("Ocurrió un error al generar de PDF. Revisa la consola.", {
@@ -1193,13 +1207,13 @@ export default function DeliverableClient() {
         validPackages.length > 0
           ? validPackages
           : [
-              {
-                id: crypto.randomUUID(),
-                name: "Plan Completo",
-                sections: exportSections,
-                exportAs: "single",
-              },
-            ];
+            {
+              id: crypto.randomUUID(),
+              name: "Plan Completo",
+              sections: exportSections,
+              exportAs: "single",
+            },
+          ];
 
       if (packagesToUse.length === 0 || exportSections.length === 0) {
         toast.error("Debes tener al menos un paquete con módulos seleccionados", { id: "pdf-toast" });
@@ -1259,6 +1273,7 @@ export default function DeliverableClient() {
         id: "pdf-toast",
       });
       setIsExportWizardOpen(false);
+      setIsSaveCreationModalOpen(true);
     } catch (error) {
       console.error("Error generating advanced PDFs:", error);
       toast.error("Ocurrió un error al generar los PDF separados.", {
@@ -1334,9 +1349,9 @@ export default function DeliverableClient() {
           hasRecipes,
           ...(selectedPatient?.importedPatientId
             ? {
-                patientId: selectedPatient.importedPatientId,
-                patientName: selectedPatient.fullName,
-              }
+              patientId: selectedPatient.importedPatientId,
+              patientName: selectedPatient.fullName,
+            }
             : {}),
         },
         tags: [],
@@ -1548,11 +1563,11 @@ export default function DeliverableClient() {
       const nextResourcePages =
         resourceModalMode === "cover"
           ? [
-              page,
-              ...resolvedResourcePages.filter(
-                (item) => !/portada|cover|introducci/i.test(item.title || ""),
-              ),
-            ]
+            page,
+            ...resolvedResourcePages.filter(
+              (item) => !/portada|cover|introducci/i.test(item.title || ""),
+            ),
+          ]
           : [...resolvedResourcePages, page];
 
       setResolvedResourcePages(nextResourcePages);
@@ -1631,7 +1646,7 @@ export default function DeliverableClient() {
   const handleEditSection = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (id === "cover") {
-      toast.info("Importar portada está bloqueado por ahora. Se usa portada base de NutriSaaS.");
+      toast.info("Importar portada está bloqueado por ahora. Se usa portada base de NutriNet.");
       return;
     }
     toast.info(`Abriendo editor de ${id}...`);
@@ -1639,7 +1654,7 @@ export default function DeliverableClient() {
 
   const printJson = () => {
     const storedDraft = localStorage.getItem("nutri_active_draft");
-    console.group("📊 PROJECT DRAFT JSON (STAGE 1-4)");
+    console.group("ðŸ“Š PROJECT DRAFT JSON (STAGE 1-4)");
     console.log(storedDraft ? JSON.parse(storedDraft) : "No draft found");
     console.groupEnd();
     toast.info("JSON completo del proyecto impreso en consola.");
@@ -1861,8 +1876,8 @@ export default function DeliverableClient() {
     const tags = baseResourceOptions.flatMap((resource) =>
       Array.isArray(resource.tags)
         ? resource.tags
-            .map((tag) => safeString(tag).replace(/^#/, ""))
-            .filter(Boolean)
+          .map((tag) => safeString(tag).replace(/^#/, ""))
+          .filter(Boolean)
         : [],
     );
     return Array.from(new Set(tags)).slice(0, 16);
@@ -1877,8 +1892,8 @@ export default function DeliverableClient() {
       const content = safeString(resource.content).toLowerCase();
       const tags = Array.isArray(resource.tags)
         ? resource.tags
-            .map((tag) => safeString(tag).replace(/^#/, "").toLowerCase())
-            .filter(Boolean)
+          .map((tag) => safeString(tag).replace(/^#/, "").toLowerCase())
+          .filter(Boolean)
         : [];
 
       if (resourceCategoryFilter !== "Todas" && category !== resourceCategoryFilter) {
@@ -2345,8 +2360,8 @@ export default function DeliverableClient() {
       </Modal>
 
       <ModuleLayout
-        title="Personalización & Entrega"
-        description="Configura el entregable final para tu paciente."
+        title="Producto Final: Entregable PDF"
+        description={<div className="space-y-4"><p>Personaliza la presentación final para tu paciente. Añade recursos educativos, portadas y genera el PDF profesional con todo el plan consolidado.</p><div className="flex flex-wrap gap-4 text-[11px] font-bold uppercase tracking-widest text-slate-400"><span className="text-emerald-600">1. Estrategia (✓)</span><span className="text-emerald-600">2. Cuantificación (✓)</span><span className="text-emerald-600">3. Logística (✓)</span><span className="text-slate-600 underline underline-offset-4 decoration-2">4. Producto Final</span></div></div>}
         step={{
           number: 4,
           label: "Entregable PDF",
@@ -2377,9 +2392,21 @@ export default function DeliverableClient() {
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}
-          mode={currentProjectMode}
           moduleLabel="Entregable"
         />
+        {isSidebarCollapsed && (
+          <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
+            <SectionProgressNav
+              title="Etapas del Plan"
+              items={[
+                { id: "dieta", label: "1. Estrategia", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/dieta", currentProjectId || null)) },
+                { id: "recetas", label: "2. Cuantificación", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/recetas", currentProjectId || null)) },
+                { id: "carrito", label: "3. Logística", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/carrito", currentProjectId || null)) },
+                { id: "entregable", label: "4. Entregable", status: "complete", active: true, onClick: () => { } },
+              ]}
+            />
+          </div>
+        )}
         <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
@@ -2977,12 +3004,12 @@ export default function DeliverableClient() {
             {/* Info / Resource Modules (Unchecked by default) */}
             <section className="space-y-6">
               <div className="flex flex-col sm:flex-row items-center gap-4">
-              {isExportDisabled && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-xs font-bold animate-pulse">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>Faltan completar etapas obligatorias</span>
-                </div>
-              )}
+                {isExportDisabled && (
+                  <div className="flex items-center gap-2 px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-xs font-bold animate-pulse">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>Faltan completar etapas obligatorias</span>
+                  </div>
+                )}
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <Sparkles className="h-5 w-5 text-blue-600" />
                 </div>
@@ -3078,66 +3105,66 @@ export default function DeliverableClient() {
                       .filter((s) => s.category === "info")
                       .filter((s) => contentFilter === "all" || s.contentType === contentFilter)
                       .map((section) => (
-                    <div
-                      key={section.id}
-                      onClick={() =>
-                        toggleSection(section.id, section.disabled)
-                      }
-                      className={cn(
-                        "p-5 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-4 group",
-                        section.disabled
-                          ? "opacity-30 cursor-not-allowed bg-slate-50 border-slate-100"
-                          : selectedSections.includes(section.id)
-                            ? "bg-white border-blue-500 shadow-lg shadow-blue-500/5"
-                            : "bg-slate-50 border-slate-100 hover:border-slate-200 opacity-60",
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
-                          section.disabled
-                            ? "bg-slate-200 text-slate-400"
-                            : selectedSections.includes(section.id)
-                              ? "bg-blue-500 text-white"
-                              : "bg-white text-slate-400 group-hover:text-slate-600 shadow-sm border border-slate-100",
-                        )}
-                      >
-                        <section.icon className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-black text-slate-800 text-xs uppercase tracking-wider">
-                          {section.label}
-                        </h4>
-                        <p
+                        <div
+                          key={section.id}
+                          onClick={() =>
+                            toggleSection(section.id, section.disabled)
+                          }
                           className={cn(
-                            "text-[10px] font-medium leading-tight mt-1",
+                            "p-5 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-4 group",
                             section.disabled
-                              ? "text-rose-500 font-bold"
-                              : "text-slate-500",
+                              ? "opacity-30 cursor-not-allowed bg-slate-50 border-slate-100"
+                              : selectedSections.includes(section.id)
+                                ? "bg-white border-blue-500 shadow-lg shadow-blue-500/5"
+                                : "bg-slate-50 border-slate-100 hover:border-slate-200 opacity-60",
                           )}
                         >
-                          {section.description}
-                        </p>
-                        <span className={cn(
-                          "inline-flex mt-2 text-[9px] uppercase font-black px-2 py-0.5 rounded",
-                          section.contentType === "practical" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
-                        )}>
-                          {section.contentType === "practical" ? "Práctica" : "Teoría"}
-                        </span>
-                      </div>
-                      <div
-                        className={cn(
-                          "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
-                          selectedSections.includes(section.id)
-                            ? "border-blue-500 bg-blue-500 text-white"
-                            : "border-slate-200",
-                        )}
-                      >
-                        {selectedSections.includes(section.id) && (
-                          <CheckCircle2 className="h-4 w-4 fill-white" />
-                        )}
-                      </div>
-                    </div>
+                          <div
+                            className={cn(
+                              "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
+                              section.disabled
+                                ? "bg-slate-200 text-slate-400"
+                                : selectedSections.includes(section.id)
+                                  ? "bg-blue-500 text-white"
+                                  : "bg-white text-slate-400 group-hover:text-slate-600 shadow-sm border border-slate-100",
+                            )}
+                          >
+                            <section.icon className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-black text-slate-800 text-xs uppercase tracking-wider">
+                              {section.label}
+                            </h4>
+                            <p
+                              className={cn(
+                                "text-[10px] font-medium leading-tight mt-1",
+                                section.disabled
+                                  ? "text-rose-500 font-bold"
+                                  : "text-slate-500",
+                              )}
+                            >
+                              {section.description}
+                            </p>
+                            <span className={cn(
+                              "inline-flex mt-2 text-[9px] uppercase font-black px-2 py-0.5 rounded",
+                              section.contentType === "practical" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                            )}>
+                              {section.contentType === "practical" ? "Práctica" : "Teoría"}
+                            </span>
+                          </div>
+                          <div
+                            className={cn(
+                              "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all",
+                              selectedSections.includes(section.id)
+                                ? "border-blue-500 bg-blue-500 text-white"
+                                : "border-slate-200",
+                            )}
+                          >
+                            {selectedSections.includes(section.id) && (
+                              <CheckCircle2 className="h-4 w-4 fill-white" />
+                            )}
+                          </div>
+                        </div>
                       ))}
                   </div>
                 )}
@@ -3151,7 +3178,7 @@ export default function DeliverableClient() {
             <div className="flex items-center gap-2 px-6 py-3 bg-emerald-50 rounded-full border border-emerald-100 text-emerald-700">
               <Sparkles className="h-4 w-4 fill-current" />
               <span className="text-[10px] font-black uppercase tracking-widest text-center">
-                El PDF se generará con la plantilla oficial de NutriSaaS usando los widgets seleccionados.
+                El PDF se generará con la plantilla oficial de NutriNet usando los widgets seleccionados.
               </span>
             </div>
           </div>

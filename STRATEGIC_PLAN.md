@@ -1,6 +1,6 @@
-# NutriSaaS Strategic Core Improvement Plan (The "Antigravity" Vision)
+# NutriNet Strategic Core Improvement Plan (The "Antigravity" Vision)
 
-Este documento define la hoja de ruta para que NutriSaaS no solo reemplace, sino que **supere y revolucione** el flujo de trabajo tradicional basado en PDFs estáticos. El objetivo es proporcionar una herramienta dinámica, rápida y altamente personalizada para el paciente.
+Este documento define la hoja de ruta para que NutriNet no solo reemplace, sino que **supere y revolucione** el flujo de trabajo tradicional basado en PDFs estáticos. El objetivo es proporcionar una herramienta dinámica, rápida y altamente personalizada para el paciente.
 
 ## 1. El Déficit del Modelo Actual
 Muchos nutricionistas trabajan con un sistema de **Intercambio de Porciones**. El paciente no tiene un menú rígido, sino una estructura (ej: "1 Porción de Cereal") y una lista de opciones equivalentes (Avena, Pan, Galletas). 

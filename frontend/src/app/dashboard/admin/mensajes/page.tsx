@@ -82,7 +82,7 @@ export default function MessagesPage() {
     {
       id: 1,
       title: "Bienvenida Estándar",
-      subject: "¡Bienvenido(a) a la familia NutriSaaS!",
+      subject: "¡Bienvenido(a) a la familia NutriNet!",
       content:
         "Estamos muy felices de tenerte con nosotros. Tu cuenta ya está activa y puedes empezar a gestionar tus pacientes de inmediato.",
       lastUsed: new Date().toISOString(),
@@ -138,7 +138,7 @@ export default function MessagesPage() {
   const [history, setHistory] = useState([
     {
       id: 1,
-      subject: "Bienvenida a NutriSaaS",
+      subject: "Bienvenida a NutriNet",
       sentAt: new Date().toISOString(),
       recipientCount: 15,
       status: "completed",
@@ -241,11 +241,10 @@ export default function MessagesPage() {
               }}
               className={`
                                 whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium flex items-center gap-2 transition-all
-                                ${
-                                  activeTab === tab.id
-                                    ? "border-indigo-500 text-indigo-600"
-                                    : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
-                                }
+                                ${activeTab === tab.id
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
+                }
                             `}
             >
               <tab.icon className="h-4 w-4" />

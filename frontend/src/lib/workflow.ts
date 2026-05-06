@@ -27,6 +27,8 @@ export interface WorkflowProject {
   activeCartCreation?: any;
   activeDeliverableCreation?: any;
   metadata?: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const getWorkflowApiUrl = () =>
@@ -107,14 +109,19 @@ export async function fetchCreation(creationId: string) {
 }
 
 export async function saveCreation(payload: {
+  id?: string;
   name: string;
   type: WorkflowCreationType;
   content: Record<string, unknown>;
   metadata?: Record<string, unknown>;
   tags?: string[];
 }) {
-  const response = await fetchApi(`/creations`, {
-    method: "POST",
+  const isUpdate = Boolean(payload.id);
+  const endpoint = isUpdate ? `/creations/${payload.id}` : `/creations`;
+  const method = isUpdate ? "PATCH" : "POST";
+
+  const response = await fetchApi(endpoint, {
+    method,
     headers: getWorkflowAuthHeaders({
       "Content-Type": "application/json",
     }),

@@ -5,8 +5,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { RecipeMatchingService } from './recipe-matching.service';
 
 @Module({
-    controllers: [RecipesController],
-    providers: [RecipesService, PrismaService, RecipeMatchingService],
-    exports: [RecipesService, RecipeMatchingService],
+  controllers: [RecipesController],
+  providers: [RecipesService, PrismaService, RecipeMatchingService],
+  exports: [RecipesService, RecipeMatchingService],
 })
-export class RecipesModule { }
+export class RecipesModule {}

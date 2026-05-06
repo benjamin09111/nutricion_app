@@ -1,7 +1,7 @@
 import { ResourceEditor } from "../ResourceEditor";
 
 export const metadata = {
-  title: "Nuevo Recurso | NutriSaaS",
+  title: "Nuevo Recurso | NutriNet",
   description: "Crea un nuevo recurso educativo para tus pacientes.",
 };
 

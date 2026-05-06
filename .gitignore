@@ -1,7 +1,58 @@
+# dependencies
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# build outputs (CRITICAL: never track compiled files)
+backend/dist/
+frontend/.next/
+frontend/out/
+next-env.d.ts
+
+# env files (keep .example files for reference)
+.env
+.env.*
+!.env.*.example
 backend/.env
-backend/.env.localdev
-backend/.env.testing
-backend/.env.previous
-backend/backups/
+backend/.env.*
+!backend/.env.*.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.*.example
+
+# prisma generated
 backend/prisma/generated/
-frontend/.env.local
+
+# backups
+backend/backups/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# TypeScript
+*.tsbuildinfo
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# misc
+.cache/
+.turbo/
+coverage/
+.nyc_output/
+*.pem
+*.key
+*.cert

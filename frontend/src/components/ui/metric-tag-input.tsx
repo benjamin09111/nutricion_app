@@ -20,6 +20,7 @@ interface MetricTagInputProps {
   value: Array<{ key?: string; label: string; unit?: string; value?: string | number }>;
   onChange: (metrics: Array<{ key?: string; label: string; unit?: string; value?: string | number }>) => void;
   registeredKeys?: string[];
+  mandatoryKeys?: string[];
   placeholder?: string;
   className?: string;
 }
@@ -28,6 +29,7 @@ export function MetricTagInput({
   value = [],
   onChange,
   registeredKeys = [],
+  mandatoryKeys = [],
   placeholder = "Buscar o agregar métrica...",
   className,
 }: MetricTagInputProps) {
@@ -40,7 +42,7 @@ export function MetricTagInput({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [metricToDelete, setMetricToDelete] = useState<Metric | null>(null);
 
-  const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+  const token = typeof window !== "undefined" ? (Cookies.get("auth_token") || localStorage.getItem("auth_token")) : "";
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -88,6 +90,10 @@ export function MetricTagInput({
 
   const removeMetric = (key: string) => {
     if (!key) return;
+    if (mandatoryKeys.includes(key)) {
+      toast.error("Esta métrica es obligatoria");
+      return;
+    }
     onChange(value.filter((m) => !m.key || m.key !== key));
   };
 
@@ -273,13 +279,15 @@ export function MetricTagInput({
               className="inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm animate-in fade-in zoom-in duration-200"
             >
               {metric.label} {metric.unit ? `(${metric.unit})` : ""}
-              <button
-                type="button"
-                onClick={() => removeMetric(metric.key || "")}
-                className="ml-2 h-4 w-4 rounded-full inline-flex items-center justify-center hover:bg-emerald-100 hover:text-emerald-900 transition-colors cursor-pointer"
-              >
-                <X className="h-3 w-3" />
-              </button>
+              {!mandatoryKeys.includes(metric.key || "") && (
+                <button
+                  type="button"
+                  onClick={() => removeMetric(metric.key || "")}
+                  className="ml-2 h-4 w-4 rounded-full inline-flex items-center justify-center hover:bg-emerald-100 hover:text-emerald-900 transition-colors cursor-pointer"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
             </span>
           ))}
       </div>

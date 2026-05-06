@@ -10,6 +10,11 @@ let preferredApiOrigin: string | null = null;
 const normalizeOrigin = (origin: string) => origin.replace(/\/$/, "");
 const isProductionBuild = process.env.NODE_ENV === "production";
 
+const getTenantId = () =>
+  process.env.NEXT_PUBLIC_TENANT_ID ||
+  process.env.TENANT_ID ||
+  "";
+
 const isLoopbackHost = (host: string) =>
   host === "localhost" || host === "127.0.0.1" || host === "::1";
 
@@ -74,14 +79,42 @@ export async function fetchApi(
 
   for (const origin of getApiOriginCandidates()) {
     try {
-      const response = await fetch(`${origin}${path}`, init);
-
-      if (response.ok || ![404].includes(response.status)) {
-        preferredApiOrigin = origin;
-        return response;
+      const headers = new Headers(init?.headers || {});
+      const tenantId = getTenantId();
+      if (tenantId && !headers.has("X-Tenant-ID")) {
+        headers.set("X-Tenant-ID", tenantId);
       }
 
-      lastResponse = response;
+      const requestInit = {
+        ...init,
+        headers,
+      };
+      const responseWithTenant = await fetch(`${origin}${path}`, requestInit);
+
+      if (responseWithTenant.status === 401 && typeof window !== "undefined" && window.location.pathname !== "/login") {
+        // Prevent multiple toasts/redirects if there are concurrent requests
+        if (!(window as any)._isRedirectingToLogin) {
+          (window as any)._isRedirectingToLogin = true;
+          import("js-cookie").then((m) => m.default.remove("auth_token"));
+          localStorage.removeItem("auth_token");
+          import("sonner").then(({ toast }) => {
+            toast.error("Tu sesión expiró. Por favor inicia sesión nuevamente.", { id: "session-expired", duration: 3000 });
+          });
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 2000);
+        }
+        // Return a promise that never resolves so the component just waits while we redirect
+        // This prevents component-level "error loading X" toasts from showing up.
+        return new Promise(() => {});
+      }
+
+      if (responseWithTenant.ok || ![404].includes(responseWithTenant.status)) {
+        preferredApiOrigin = origin;
+        return responseWithTenant;
+      }
+
+      lastResponse = responseWithTenant;
     } catch (error) {
       lastError = error;
     }

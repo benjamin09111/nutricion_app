@@ -5,6 +5,17 @@ export function proxy(request: NextRequest) {
   const token = request.cookies.get("auth_token")?.value;
   const userData = request.cookies.get("user")?.value;
   const { pathname } = request.nextUrl;
+  let parsedUser: { role?: string } | null = null;
+  let userParseFailed = false;
+
+  if (userData) {
+    try {
+      parsedUser = JSON.parse(userData);
+    } catch {
+      userParseFailed = true;
+      parsedUser = null;
+    }
+  }
 
   // Define protected routes
   const isDashboardRoute = pathname.startsWith("/dashboard");
@@ -18,30 +29,34 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (userParseFailed) {
+    const response = NextResponse.redirect(new URL("/login", request.url));
+    response.cookies.delete("auth_token");
+    response.cookies.delete("user");
+    return response;
+  }
+
   // 2. If logged in and trying to access auth routes, redirect to dashboard
   if (isAuthRoute && token) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const target =
+      parsedUser && ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(parsedUser.role || "")
+        ? "/dashboard/admin"
+        : "/dashboard";
+    return NextResponse.redirect(new URL(target, request.url));
   }
 
   // 3. Authorization (RBAC)
-  if (isDashboardRoute && userData) {
-    try {
-      const user = JSON.parse(userData);
+  if (isDashboardRoute && parsedUser) {
+    const isAdmin = ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(
+      parsedUser.role || "",
+    );
 
-      // Example: Admin-only routes
-      // If we have specific admin routes like /dashboard/admin, only Allow ADMIN role
-      if (
-        pathname.startsWith("/dashboard/admin") &&
-        !["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(user.role)
-      ) {
-        return NextResponse.redirect(new URL("/dashboard", request.url));
-      }
-    } catch (e) {
-      // If user cookie is malformed, clear it and redirect to login
-      const response = NextResponse.redirect(new URL("/login", request.url));
-      response.cookies.delete("auth_token");
-      response.cookies.delete("user");
-      return response;
+    if (pathname === "/dashboard" && isAdmin) {
+      return NextResponse.redirect(new URL("/dashboard/admin", request.url));
+    }
+
+    if (pathname.startsWith("/dashboard/admin") && !isAdmin) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
     }
   }
 

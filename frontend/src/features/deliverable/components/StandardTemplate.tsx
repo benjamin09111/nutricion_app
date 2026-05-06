@@ -1,5 +1,6 @@
 import React from "react";
 import { Document, Image, Page, Path, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
+import { buildExchangeGuideForPatient } from "@/lib/exchange-portions";
 
 interface StandardTemplateProps {
   data: Record<string, unknown>;
@@ -43,6 +44,12 @@ type WeeklyRecipeRow = {
   section: string;
   title: string;
   portion: string;
+};
+
+type ExchangePortionRow = {
+  category: string;
+  portion: string;
+  notes?: string;
 };
 
 const INFO_SECTION_CATALOG: Record<string, { title: string; subtitle: string; defaultText: string }> = {
@@ -101,6 +108,8 @@ const INFO_SECTION_CATALOG: Record<string, { title: string; subtitle: string; de
       "Guia para diferenciar hambre fisiologica de hambre emocional.",
   },
 };
+
+const EXCHANGE_PORTION_GUIDE = buildExchangeGuideForPatient() as ExchangePortionRow[];
 
 const S = StyleSheet.create({
   coverPage: {
@@ -439,6 +448,48 @@ const S = StyleSheet.create({
   c2: { width: "30%" },
   c3: { width: "30%" },
 
+  exchangeTable: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  exchangeHeader: {
+    flexDirection: "row",
+    backgroundColor: "#ecfeff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#bfdbfe",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  exchangeRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  exchangeHeadText: {
+    fontSize: 9.2,
+    color: "#0f172a",
+    fontFamily: "Helvetica-Bold",
+    textTransform: "uppercase",
+  },
+  exchangeCell: {
+    fontSize: 10.1,
+    color: "#1f2937",
+    lineHeight: 1.35,
+  },
+  exchangeNote: {
+    fontSize: 8.6,
+    color: "#475569",
+    lineHeight: 1.3,
+  },
+  e1: { width: "28%" },
+  e2: { width: "50%" },
+  e3: { width: "22%" },
+
   recipeDay: {
     marginTop: 10,
     marginBottom: 8,
@@ -680,7 +731,7 @@ const normalizeRecipeImageSrc = (value?: string): string | undefined => {
   const lower = raw.toLowerCase();
   if (lower.startsWith("data:image/")) return raw;
   if (lower.startsWith("blob:") || lower.startsWith("file:")) return undefined;
-  
+
   // If it's a URL, we allow it. React PDF will handle the fetching.
   // We remove the strict extension check because many dynamic URLs (Supabase, S3) 
   // don't end in .jpg/.png but are still valid images.
@@ -887,13 +938,13 @@ const buildResourceChapters = (selectedSections: string[], resourcePagesRaw: unk
 
   const customPages = Array.isArray(resourcePagesRaw)
     ? resourcePagesRaw
-        .map((p) => toRecord(p))
-        .filter((page) => !/portada|cover|introducci/i.test(safeString(page.title)))
-        .map((page) => ({
-          title: safeString(page.title) || "Recurso adicional",
-          subtitle: "Contenido personalizado",
-          content: htmlToText(safeString(page.content)),
-        }))
+      .map((p) => toRecord(p))
+      .filter((page) => !/portada|cover|introducci/i.test(safeString(page.title)))
+      .map((page) => ({
+        title: safeString(page.title) || "Recurso adicional",
+        subtitle: "Contenido personalizado",
+        content: htmlToText(safeString(page.content)),
+      }))
     : [];
 
   return [...infoResources, ...customPages].filter((r) => safeString(r.content));
@@ -994,6 +1045,7 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
   const brandSettings = toRecord(config.brandSettings);
   const selectedSections = Array.isArray(config.selectedSections) ? config.selectedSections : [];
   const resources = buildResourceChapters(selectedSections, deliverable.resourcePages);
+  const showExchangePortions = selectedSections.includes("exchangePortions");
 
   const patientName = safeString(patientMeta.fullName) || "Paciente sin asignar";
   const welcomeMessage = htmlToText(safeString(deliverable.welcomeMessage));
@@ -1039,7 +1091,7 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
     toRecord(recipesRaw.patientAdvisories).allowMealRepetition,
   );
   return (
-    <Document title={`Entregable Nutricional - ${patientName}`} author="NutriSaaS" creator="NutriSaaS">
+    <Document title={`Entregable Nutricional - ${patientName}`} author="NutriNet" creator="NutriNet">
       <Page size="A4" style={S.coverPage}>
         <View style={S.coverWrap}>
           <View style={S.coverGradientTop} />
@@ -1050,11 +1102,11 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
 
           <View style={S.coverContent}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={S.coverBrandTop}>nutrisaas</Text>
+              <Text style={S.coverBrandTop}>NutriNet</Text>
               {Boolean(config.includeLogo && brandSettings.brandBackgroundUrl) && (
-                <Image 
-                  src={brandSettings.brandBackgroundUrl as string} 
-                  style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'contain' }} 
+                <Image
+                  src={brandSettings.brandBackgroundUrl as string}
+                  style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'contain' }}
                 />
               )}
             </View>
@@ -1250,15 +1302,15 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
                       const macros = `Kcal ${entry.calories ?? "-"} | Prot ${entry.protein ?? "-"}g | HC ${entry.carbs ?? "-"}g | Grasas ${entry.fats ?? "-"}g`;
                       return (
                         <View key={`${day}-${idx}-${entry.title}`} style={S.recipeCard} wrap={false}>
-                        {entry.image ? (
-                          <Image src={entry.image} style={S.recipeCardImage} />
-                        ) : (
-                          <View style={[S.recipeCardImage, { backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' }]}>
-                             <Svg width={40} height={40} viewBox="0 0 24 24">
+                          {entry.image ? (
+                            <Image src={entry.image} style={S.recipeCardImage} />
+                          ) : (
+                            <View style={[S.recipeCardImage, { backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' }]}>
+                              <Svg width={40} height={40} viewBox="0 0 24 24">
                                 <Path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke="#94a3b8" strokeWidth={1} fill="none" />
-                             </Svg>
-                          </View>
-                        )}
+                              </Svg>
+                            </View>
+                          )}
                           <View style={S.recipeCardBody}>
                             <Text style={S.recipeTitle}>{entry.title}</Text>
                             <Text style={S.recipeMeta}>{entry.time} | {entry.section}</Text>
@@ -1279,9 +1331,45 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
         </View>
       </Page>
 
+      {showExchangePortions && (
+        <Page size="A4" style={S.chapterPage} wrap>
+          <View style={[S.chapterHero, { backgroundColor: "#059669" }]}>
+            <Text style={S.chapterHeroOverline}>Capitulo III</Text>
+            <Text style={S.chapterHeroTitle}>Porciones de intercambio</Text>
+            <Text style={S.chapterHeroDesc}>
+              Tabla oficial para validar equivalencias, ajustar porciones y revisar intercambios del plan.
+            </Text>
+          </View>
+          <View style={S.chapterPageBody}>
+            <View style={S.tableChunk}>
+              <View style={S.tableHeader}>
+                <View style={S.e1}><Text style={S.tableHeadText}>Categoria</Text></View>
+                <View style={S.e2}><Text style={S.tableHeadText}>Porcion oficial</Text></View>
+                <View style={S.e3}><Text style={S.tableHeadText}>Notas</Text></View>
+              </View>
+              {EXCHANGE_PORTION_GUIDE.length > 0 ? (
+                EXCHANGE_PORTION_GUIDE.map((row, index) => (
+                  <View key={`exchange-${index}`} style={S.exchangeRow} wrap={false}>
+                    <View style={S.e1}><Text style={S.exchangeCell}>{row.category}</Text></View>
+                    <View style={S.e2}><Text style={S.exchangeCell}>{row.portion}</Text></View>
+                    <View style={S.e3}><Text style={S.exchangeNote}>{row.notes || "Verificar referencia oficial"}</Text></View>
+                  </View>
+                ))
+              ) : (
+                <View style={S.tableRow}>
+                  <View style={S.c1}><Text style={S.tableCellPrimary}>Sin datos</Text></View>
+                  <View style={S.c2}><Text style={S.tableCellSecondary}>Agrega el JSON oficial de porciones.</Text></View>
+                  <View style={S.c3}><Text style={S.tableCellSecondary}>Pendiente</Text></View>
+                </View>
+              )}
+            </View>
+          </View>
+        </Page>
+      )}
+
       <Page size="A4" style={S.chapterPage} wrap>
         <View style={[S.chapterHero, { backgroundColor: "#7c3aed" }]}>
-          <Text style={S.chapterHeroOverline}>Capitulo III</Text>
+          <Text style={S.chapterHeroOverline}>{showExchangePortions ? "Capitulo IV" : "Capitulo III"}</Text>
           <Text style={S.chapterHeroTitle}>Recursos y recomendaciones</Text>
           <Text style={S.chapterHeroDesc}>
             Material educativo complementario para reforzar adherencia y autonomia.

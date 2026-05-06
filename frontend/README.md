@@ -1,6 +1,6 @@
 # Frontend
 
-Frontend de NutriSaaS construido con Next.js 16, React, TypeScript y Tailwind.
+Frontend de NutriNet construido con Next.js 16, React, TypeScript y Tailwind.
 
 ## Qué cubre
 

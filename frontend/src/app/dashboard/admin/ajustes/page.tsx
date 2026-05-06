@@ -38,7 +38,7 @@ export default function AdminSettingsPage() {
             Ajustes Globales
           </h1>
           <p className="text-slate-500">
-            Configuración general de la plataforma NutriSaaS.
+            Configuración general de la plataforma NutriNet.
           </p>
         </div>
         <Button
@@ -65,13 +65,13 @@ export default function AdminSettingsPage() {
               <label className="block text-sm font-medium leading-6 text-slate-900 mb-1">
                 Nombre de la Plataforma
               </label>
-              <Input defaultValue="NutriSaaS" />
+              <Input defaultValue="NutriNet" />
             </div>
             <div>
               <label className="block text-sm font-medium leading-6 text-slate-900 mb-1">
                 URL de Soporte
               </label>
-              <Input defaultValue="https://soporte.nutrisaas.com" />
+              <Input defaultValue="https://soporte.NutriNet.com" />
             </div>
             <div className="flex items-center justify-between pt-2">
               <span className="text-sm font-medium text-slate-700">
@@ -107,7 +107,7 @@ export default function AdminSettingsPage() {
               <label className="block text-sm font-medium leading-6 text-slate-900 mb-1">
                 Email Remitente
               </label>
-              <Input defaultValue="no-reply@nutrisaas.com" />
+              <Input defaultValue="no-reply@NutriNet.com" />
             </div>
           </div>
         </div>

@@ -1,17 +1,24 @@
 import type { Metadata } from "next";
+import { Poppins } from "next/font/google";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const poppins = Poppins({
+  variable: "--font-poppins",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800", "900"],
 });
 
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+});
+
 export const metadata: Metadata = {
   title: {
-    template: "%s | NutriSaaS",
-    default: "NutriSaaS - Software para Nutricionistas",
+    template: "%s | NutriNet",
+    default: "NutriNet - Software para Nutricionistas",
   },
   description:
     "Plataforma integral para gestión de pacientes, creación de dietas automatizadas y seguimiento clínico. Diseñado para nutricionistas en Chile.",
@@ -51,7 +58,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body className={`${inter.variable} antialiased`}>
+      <body className={`${poppins.variable} ${inter.variable} antialiased`}>
         <Providers>
           {children}
           <Toaster position="top-right" richColors />

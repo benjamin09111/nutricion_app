@@ -35,7 +35,11 @@ export class ProjectsController {
     @Query('search') search?: string,
     @Query('status') status?: string,
   ) {
-    return this.projectsService.findAll(req.user.nutritionistId, search, status);
+    return this.projectsService.findAll(
+      req.user.nutritionistId,
+      search,
+      status,
+    );
   }
 
   @Get(':id')

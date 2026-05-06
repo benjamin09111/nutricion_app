@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { VerifyFoodsDto } from './dto/verify-foods.dto';
+import { AiService } from '../../common/services/ai.service';
 
 type RestrictionConflict = {
   foodId: string;
@@ -22,7 +23,10 @@ type VerifyResponse = {
 
 @Injectable()
 export class DietService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aiService: AiService,
+  ) {}
 
   private normalizeText(value: string): string {
     return value
@@ -50,7 +54,13 @@ export class DietService {
       },
       {
         matchRestriction: /(hipertension|hipertenso|sodio|presion alta)/i,
-        forbiddenWords: ['embutido', 'salchicha', 'tocino', 'sopa instantanea', 'snack salado'],
+        forbiddenWords: [
+          'embutido',
+          'salchicha',
+          'tocino',
+          'sopa instantanea',
+          'snack salado',
+        ],
         reason: 'Puede elevar carga de sodio en hipertension.',
         severity: 'high',
       },
@@ -62,7 +72,14 @@ export class DietService {
       },
       {
         matchRestriction: /(vegetarian|vegano)/i,
-        forbiddenWords: ['pollo', 'carne', 'cerdo', 'atun', 'pescado', 'marisco'],
+        forbiddenWords: [
+          'pollo',
+          'carne',
+          'cerdo',
+          'atun',
+          'pescado',
+          'marisco',
+        ],
         reason: 'Origen animal para patron vegetariano/vegano.',
         severity: 'medium',
       },
@@ -111,13 +128,10 @@ export class DietService {
     return Array.from(uniqueMap.values());
   }
 
-  private async verifyWithOpenAI(
+  private async verifyWithAi(
     foods: Array<{ id: string; name: string }>,
     restrictions: string[],
   ): Promise<RestrictionConflict[] | null> {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) return null;
-
     const prompt = [
       'Eres un validador nutricional estricto.',
       'Revisa si los alimentos entran en conflicto con las restricciones.',
@@ -128,32 +142,10 @@ export class DietService {
     ].join('\n');
 
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-          temperature: 0.1,
-          messages: [
-            {
-              role: 'system',
-              content:
-                'Eres un asistente clinico de apoyo para nutricionistas. Evalua incompatibilidades de alimentos.',
-            },
-            { role: 'user', content: prompt },
-          ],
-        }),
-      });
-
-      if (!response.ok) return null;
-      const json = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-      const content = json.choices?.[0]?.message?.content;
-      if (!content) return null;
+      const content = await this.aiService.callJson(
+        'Eres un asistente clinico de apoyo para nutricionistas. Evalua incompatibilidades de alimentos.',
+        prompt,
+      );
 
       const parsed = JSON.parse(content) as {
         conflicts?: Array<{
@@ -188,24 +180,28 @@ export class DietService {
     }
   }
 
-  async verifyFoodsAgainstRestrictions(body: VerifyFoodsDto): Promise<VerifyResponse> {
+  async verifyFoodsAgainstRestrictions(
+    body: VerifyFoodsDto,
+  ): Promise<VerifyResponse> {
     const foods = await this.prisma.ingredient.findMany({
       where: { id: { in: body.foodIds } },
       select: { id: true, name: true },
     });
 
-    const openAiConflicts = await this.verifyWithOpenAI(foods, body.restrictions);
+    const aiConflicts = await this.verifyWithAi(foods, body.restrictions);
     const conflicts =
-      openAiConflicts ?? this.heuristicVerify(foods, body.restrictions);
+      aiConflicts ?? this.heuristicVerify(foods, body.restrictions);
 
-    const conflictedFoodIds = new Set(conflicts.map((conflict) => conflict.foodId));
+    const conflictedFoodIds = new Set(
+      conflicts.map((conflict) => conflict.foodId),
+    );
     const safeFoods = foods
       .filter((food) => !conflictedFoodIds.has(food.id))
       .map((food) => food.name);
 
     return {
       ok: conflicts.length === 0,
-      source: openAiConflicts ? 'openai' : 'heuristic',
+      source: aiConflicts ? 'openai' : 'heuristic',
       checkedFoods: foods.length,
       checkedRestrictions: body.restrictions.length,
       conflicts,

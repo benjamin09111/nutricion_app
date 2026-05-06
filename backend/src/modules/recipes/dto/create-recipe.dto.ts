@@ -1,120 +1,129 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, ValidateNested, Min, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  ValidateNested,
+  Min,
+  IsBoolean,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 class RecipeIngredientDto {
-    @IsString()
-    @IsNotEmpty()
-    ingredientId: string;
+  @IsString()
+  @IsNotEmpty()
+  ingredientId: string;
 
-    @IsNumber()
-    @Min(0)
-    amount: number;
+  @IsNumber()
+  @Min(0)
+  amount: number;
 
-    @IsString()
-    @IsNotEmpty()
-    unit: string;
+  @IsString()
+  @IsNotEmpty()
+  unit: string;
 
-    @IsString()
-    @IsOptional()
-    brandSuggestion?: string;
+  @IsString()
+  @IsOptional()
+  brandSuggestion?: string;
 
-    @IsBoolean()
-    @IsOptional()
-    isMain?: boolean;
+  @IsBoolean()
+  @IsOptional()
+  isMain?: boolean;
 }
 
 class CustomIngredientDto {
-    @IsString()
-    @IsNotEmpty()
-    name: string;
+  @IsString()
+  @IsNotEmpty()
+  name: string;
 
-    @IsNumber()
-    @Min(0)
-    amount: number;
+  @IsNumber()
+  @Min(0)
+  amount: number;
 
-    @IsString()
-    @IsNotEmpty()
-    unit: string;
+  @IsString()
+  @IsNotEmpty()
+  unit: string;
 }
 
 export class CreateRecipeDto {
-    @IsString()
-    @IsNotEmpty()
-    name: string;
+  @IsString()
+  @IsNotEmpty()
+  name: string;
 
-    @IsString()
-    @IsOptional()
-    description?: string;
+  @IsString()
+  @IsOptional()
+  description?: string;
 
-    @IsString()
-    @IsOptional()
-    preparation?: string;
+  @IsString()
+  @IsOptional()
+  preparation?: string;
 
-    @IsNumber()
-    @Min(1)
-    @IsOptional()
-    portions?: number;
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  portions?: number;
 
-    @IsNumber()
-    @IsOptional()
-    portionSize?: number;
+  @IsNumber()
+  @IsOptional()
+  portionSize?: number;
 
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => RecipeIngredientDto)
-    @IsOptional()
-    ingredients?: RecipeIngredientDto[];
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RecipeIngredientDto)
+  @IsOptional()
+  ingredients?: RecipeIngredientDto[];
 
-    // Optional manual overrides for macros per portion
-    @IsNumber()
-    @IsOptional()
-    calories?: number;
+  // Optional manual overrides for macros per portion
+  @IsNumber()
+  @IsOptional()
+  calories?: number;
 
-    @IsNumber()
-    @IsOptional()
-    proteins?: number;
+  @IsNumber()
+  @IsOptional()
+  proteins?: number;
 
-    @IsNumber()
-    @IsOptional()
-    carbs?: number;
+  @IsNumber()
+  @IsOptional()
+  carbs?: number;
 
-    @IsNumber()
-    @IsOptional()
-    lipids?: number;
+  @IsNumber()
+  @IsOptional()
+  lipids?: number;
 
-    @IsNumber()
-    @IsOptional()
-    fiber?: number;
+  @IsNumber()
+  @IsOptional()
+  fiber?: number;
 
-    @IsNumber()
-    @IsOptional()
-    sodium?: number;
+  @IsNumber()
+  @IsOptional()
+  sodium?: number;
 
-    @IsBoolean()
-    @IsOptional()
-    isPublic?: boolean;
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
 
-    @IsArray()
-    @IsString({ each: true })
-    @IsOptional()
-    tags?: string[];
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
 
-    @IsString()
-    @IsOptional()
-    mealSection?: string;
+  @IsString()
+  @IsOptional()
+  mealSection?: string;
 
-    @IsString()
-    @IsOptional()
-    imageUrl?: string;
+  @IsString()
+  @IsOptional()
+  imageUrl?: string;
 
-    @IsArray()
-    @IsString({ each: true })
-    @IsOptional()
-    customIngredientNames?: string[];
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  customIngredientNames?: string[];
 
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => CustomIngredientDto)
-    @IsOptional()
-    customIngredients?: CustomIngredientDto[];
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CustomIngredientDto)
+  @IsOptional()
+  customIngredients?: CustomIngredientDto[];
 }

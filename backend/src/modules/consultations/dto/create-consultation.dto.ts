@@ -1,23 +1,30 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray, IsDateString, IsUUID } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsArray,
+  IsDateString,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateConsultationDto {
-    @IsUUID()
-    @IsNotEmpty()
-    patientId: string;
+  @IsUUID()
+  @IsNotEmpty()
+  patientId: string;
 
-    @IsDateString()
-    @IsNotEmpty()
-    date: string;
+  @IsDateString()
+  @IsNotEmpty()
+  date: string;
 
-    @IsString()
-    @IsNotEmpty()
-    title: string;
+  @IsString()
+  @IsNotEmpty()
+  title: string;
 
-    @IsString()
-    @IsOptional()
-    description?: string;
+  @IsString()
+  @IsOptional()
+  description?: string;
 
-    @IsArray()
-    @IsOptional()
-    metrics?: any[];
+  @IsArray()
+  @IsOptional()
+  metrics?: any[];
 }

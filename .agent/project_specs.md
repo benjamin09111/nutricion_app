@@ -1,9 +1,9 @@
-# NutriSaaS - Especificaciones del Proyecto
+# NutriNet - Especificaciones del Proyecto
 
-Este documento define la estructura y funcionalidad de la aplicación NutriSaaS, basada en los requerimientos del usuario.
+Este documento define la estructura y funcionalidad de la aplicación NutriNet, basada en los requerimientos del usuario.
 
 ## Visión General
-NutriSaaS es una plataforma integral para nutricionistas que combina gestión de pacientes, creación inteligente de dietas mediante IA y algoritmos de optimización, y herramientas de educación y engagement.
+NutriNet es una plataforma integral para nutricionistas que combina gestión de pacientes, creación inteligente de dietas mediante IA y algoritmos de optimización, y herramientas de educación y engagement.
 
 ## Módulos del Sistema
 

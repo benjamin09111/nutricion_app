@@ -194,7 +194,9 @@ export class ProjectsService {
 
     const data: Prisma.ProjectUncheckedUpdateInput = {
       ...(dto.name !== undefined ? { name: dto.name } : {}),
-      ...(dto.description !== undefined ? { description: dto.description } : {}),
+      ...(dto.description !== undefined
+        ? { description: dto.description }
+        : {}),
       ...(dto.patientId !== undefined ? { patientId: dto.patientId } : {}),
       ...(dto.mode !== undefined ? { mode: dto.mode } : {}),
       ...(dto.status !== undefined ? { status: dto.status } : {}),

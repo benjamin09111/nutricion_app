@@ -3,8 +3,10 @@ import type { TutorialContentDefinition } from "@/lib/tutorials";
 import patients from "./patients.json";
 import consultations from "./consultations.json";
 import foods from "./foods.json";
+import introBeta from "./introBeta.json";
 import quickDeliverable from "./quickDeliverable.json";
 import quickRecipes from "./quickRecipes.json";
+import exchangePortions from "./exchangePortions.json";
 import diet from "./diet.json";
 import recipes from "./recipes.json";
 import cart from "./cart.json";
@@ -15,11 +17,13 @@ import details from "./details.json";
 import dishes from "./dishes.json";
 
 export const tutorialContentById: Record<string, TutorialContentDefinition> = {
-  patients,
+  introBeta,
+  patients: patients as TutorialContentDefinition,
   consultations,
   foods,
   quickDeliverable,
   quickRecipes,
+  exchangePortions,
   diet,
   recipes,
   cart,

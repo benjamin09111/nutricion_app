@@ -210,57 +210,57 @@ export function FastDeliverablePdfDocument({
 }) {
   const patientFields = data.patient
     ? [
-        {
-          label: "Nombre",
-          value: data.patient.name?.trim() || "",
-        },
-        {
-          label: "Edad",
-          value:
-            data.patient.ageYears !== null && data.patient.ageYears !== undefined
-              ? `${data.patient.ageYears} años`
+      {
+        label: "Nombre",
+        value: data.patient.name?.trim() || "",
+      },
+      {
+        label: "Edad",
+        value:
+          data.patient.ageYears !== null && data.patient.ageYears !== undefined
+            ? `${data.patient.ageYears} años`
+            : "",
+      },
+      {
+        label: "Sexo",
+        value: data.patient.gender?.trim() || "",
+      },
+      {
+        label: "Origen",
+        value:
+          data.patient.source === "imported"
+            ? "Paciente importado"
+            : data.patient.source === "manual"
+              ? "Datos manuales"
               : "",
-        },
-        {
-          label: "Sexo",
-          value: data.patient.gender?.trim() || "",
-        },
-        {
-          label: "Origen",
-          value:
-            data.patient.source === "imported"
-              ? "Paciente importado"
-              : data.patient.source === "manual"
-                ? "Datos manuales"
-                : "",
-        },
-        {
-          label: "Enfoque",
-          value: data.patient.nutritionalFocus?.trim() || "",
-        },
-        {
-          label: "Metas",
-          value: data.patient.fitnessGoals?.trim() || "",
-        },
-        {
-          label: "Restricciones",
-          value: (data.patient.restrictions || [])
-            .map((restriction) => restriction.trim())
-            .filter(Boolean)
-            .join(", "),
-        },
-        {
-          label: "Gustos",
-          value: data.patient.likes?.trim() || "",
-        },
-      ].filter((item) => item.value.trim().length > 0)
+      },
+      {
+        label: "Enfoque",
+        value: data.patient.nutritionalFocus?.trim() || "",
+      },
+      {
+        label: "Metas",
+        value: data.patient.fitnessGoals?.trim() || "",
+      },
+      {
+        label: "Restricciones",
+        value: (data.patient.restrictions || [])
+          .map((restriction) => restriction.trim())
+          .filter(Boolean)
+          .join(", "),
+      },
+      {
+        label: "Gustos",
+        value: data.patient.likes?.trim() || "",
+      },
+    ].filter((item) => item.value.trim().length > 0)
     : [];
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.brand}>NutriSaaS</Text>
+          <Text style={styles.brand}>NutriNet</Text>
           <Text style={styles.title}>{data.name || "Entregable rápido"}</Text>
           <Text style={styles.meta}>
             {data.patientName ? `Paciente: ${data.patientName}` : "Formato express"}{" "}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { calculateGET, calculateAge, type ActivityLevel as NutritionActivityLevel } from "@/lib/nutrition-formulas";
 import {
   GraduationCap,
   Zap,
@@ -53,11 +54,13 @@ import { Modal } from "@/components/ui/Modal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
+import { SectionProgressNav, type SectionProgressStatus } from "@/components/shared/SectionProgressNav";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { useAdmin } from "@/context/AdminContext";
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import mealSectionsData from "@/content/meal-sections.json";
+import { downloadQuickRecipesPdf } from "@/features/pdf/quickRecipesPdfExport";
 import {
   buildProjectAwarePath,
   fetchCreation,
@@ -68,6 +71,7 @@ import {
 import { fetchApi } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
 import { useDashboardShell } from "@/context/DashboardShellContext";
+import { buildExchangeGuideForAi } from "@/lib/exchange-portions";
 
 // -- Types --
 
@@ -77,7 +81,17 @@ type RecipeMetadata = {
   tags?: string[];
   mealSection?: string;
   customIngredientNames?: string[];
-  customIngredients?: string[];
+  customIngredients?: Array<string | { name?: string }>;
+  ingredients?: string[];
+  source?: string;
+};
+
+type RecipeIngredientDetail = {
+  name: string;
+  quantity?: string;
+  amount?: number;
+  unit?: string;
+  isMain?: boolean;
 };
 
 type RecipeApiSummary = {
@@ -92,9 +106,10 @@ type RecipeApiSummary = {
   calories: number;
   isPublic: boolean;
   isMine?: boolean;
+  isAdopted?: boolean;
   nutritionist?: { fullName?: string | null } | null;
   metadata?: RecipeMetadata | null;
-  ingredients?: { isMain: boolean; ingredient: { name: string } }[];
+  ingredients?: { isMain: boolean; amount?: number; unit?: string; ingredient: { name: string } }[];
   matchPercentage?: number;
   matchCount?: number;
   totalMain?: number;
@@ -106,12 +121,14 @@ interface Recipe {
   description: string;
   preparation?: string;
   recommendedPortion?: string;
+  portions?: number;
   complexity: "simple" | "elaborada";
   protein: number;
   calories: number;
   carbs: number;
   fats: number;
   ingredients: string[];
+  ingredientDetails?: RecipeIngredientDetail[];
   extraIngredients?: string[];
   image?: string;
   source: RecipeCatalogTab;
@@ -137,6 +154,8 @@ interface MealSlot {
 interface QuickIngredient {
   name: string;
   quantity?: string;
+  amount?: string;
+  unit?: string;
 }
 
 interface QuickGeneratedDish {
@@ -146,11 +165,13 @@ interface QuickGeneratedDish {
   description: string;
   preparation: string;
   recommendedPortion: string;
+  portions?: number;
   protein: number;
   calories: number;
   carbs: number;
   fats: number;
   ingredients: QuickIngredient[];
+  ingredientDetails?: RecipeIngredientDetail[];
 }
 
 type MealSectionTarget = {
@@ -213,16 +234,6 @@ type ProteinSupplement = {
   gramsPerDay: number;
 };
 
-const CHILE_EXCHANGE_PORTION_GUIDE = [
-  "Cereales/tuberculos: 1/2 taza cocida o 1 rebanada de pan.",
-  "Legumbres: 3/4 taza cocida.",
-  "Proteinas: 90-120 g cocidos (tamano palma).",
-  "Frutas: 1 unidad mediana o 1 taza picada.",
-  "Verduras: 2 tazas crudas o 1 taza cocida.",
-  "Grasas: 1 cucharada de aceite o 1/4 palta.",
-  "Lacteos: 1 taza leche/yogur o 1 lamina de queso fresco.",
-];
-
 const calculateAgeYears = (birthDate?: string) => {
   if (!birthDate) return undefined;
   const date = new Date(birthDate);
@@ -244,7 +255,7 @@ const sanitizeNutritionGoals = (value: any): NutritionGoals | null => {
   const carbs = Number(value.carbs);
   const fats = Number(value.fats);
 
-  if ([calories, protein, carbs, fats].some((item) => !Number.isFinite(item) || item <= 0)) {
+  if ([calories, protein].some((item) => !Number.isFinite(item) || item <= 0)) {
     return null;
   }
 
@@ -300,16 +311,38 @@ const getGoalsFromPatient = (patient: any): NutritionGoals | null => {
     fats: readCustomVariableNumber(customVariables, "targetFats"),
   };
 
-  if (!goals.calories || !goals.protein || !goals.carbs || !goals.fats) {
-    return sanitizeNutritionGoals(patient?.nutritionGoals);
+  if (goals.calories && goals.protein) {
+    return {
+      calories: Math.round(goals.calories),
+      protein: Math.round(goals.protein),
+      carbs: goals.carbs ? Math.round(goals.carbs) : Math.round(goals.calories * 0.55 / 4),
+      fats: goals.fats ? Math.round(goals.fats) : Math.round(goals.calories * 0.25 / 9),
+    };
   }
 
-  return {
-    calories: Math.round(goals.calories),
-    protein: Math.round(goals.protein),
-    carbs: Math.round(goals.carbs),
-    fats: Math.round(goals.fats),
-  };
+  const fromGoals = sanitizeNutritionGoals(patient?.nutritionGoals);
+  if (fromGoals) return fromGoals;
+
+  const weight = Number(patient?.weight) || 0;
+  const height = Number(patient?.height) || 0;
+  const gender = (patient?.gender === "Masculino" || patient?.gender === "Femenino")
+    ? patient.gender : "Femenino";
+  const age = calculateAge(patient?.birthDate) || 30;
+  const activityLevel = (getActivityLevel(patient) || "sedentario") as NutritionActivityLevel;
+
+  if (weight > 0 && height > 0) {
+    const get = calculateGET(gender, weight, height, age, activityLevel);
+    if (get) {
+      return {
+        calories: get.macros.calories,
+        protein: get.macros.protein,
+        carbs: get.macros.carbs,
+        fats: get.macros.fats,
+      };
+    }
+  }
+
+  return null;
 };
 
 const getRecommendedProteinRange = (
@@ -419,6 +452,12 @@ const normalizePatientContext = (patient: any): PatientContext | null => {
 };
 
 type PlannerView = "daily" | "weekly";
+type RecipesGuideSectionId =
+  | "base"
+  | "patient"
+  | "structure"
+  | "library"
+  | "planner";
 
 const MOCK_RECIPES: Recipe[] = [
   {
@@ -546,6 +585,11 @@ export default function RecipesClient() {
   const { setSidebarCollapsed, flashSidebarToggle, isSidebarCollapsed } =
     useDashboardShell();
   const hasCollapsedSidebarForRecipesRef = useRef(false);
+  const baseSectionRef = useRef<HTMLDivElement | null>(null);
+  const patientSectionRef = useRef<HTMLDivElement | null>(null);
+  const structureSectionRef = useRef<HTMLDivElement | null>(null);
+  const librarySectionRef = useRef<HTMLDivElement | null>(null);
+  const plannerSectionRef = useRef<HTMLDivElement | null>(null);
 
   // -- State --
   const [mealCount, setMealCount] = useState(DEFAULT_MEAL_COUNT);
@@ -679,8 +723,11 @@ export default function RecipesClient() {
   const [draftMeta, setDraftMeta] = useState<{ label: string; date?: string }>({ label: "" });
 
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
+  const [activeGuideSection, setActiveGuideSection] =
+    useState<RecipesGuideSectionId>("base");
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [creationDescription, setCreationDescription] = useState("");
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(
     projectIdFromUrl,
   );
@@ -724,14 +771,126 @@ export default function RecipesClient() {
     setSidebarCollapsed,
   ]);
 
+  const getGuideSectionStatus = (
+    enabled: boolean,
+    isComplete: boolean,
+  ): SectionProgressStatus => {
+    if (!enabled) return "hidden";
+    return isComplete ? "complete" : "pending";
+  };
+
+  const recipesGuideSections = useMemo(
+    () => [
+      {
+        id: "base" as RecipesGuideSectionId,
+        label: "Base alimentaria",
+        status: getGuideSectionStatus(true, hasSourceData),
+        ref: baseSectionRef,
+      },
+      {
+        id: "patient" as RecipesGuideSectionId,
+        label: "Paciente",
+        status: getGuideSectionStatus(
+          true,
+          Boolean(selectedPatient?.fullName) &&
+            selectedPatient?.ageYears !== null &&
+            selectedPatient?.ageYears !== undefined &&
+            Boolean(selectedPatient?.gender) &&
+            (Boolean(selectedPatient?.noDietaryRestrictions) ||
+              Boolean(selectedPatient?.restrictions?.length)),
+        ),
+        ref: patientSectionRef,
+      },
+      {
+        id: "structure" as RecipesGuideSectionId,
+        label: "Configuracion",
+        status: getGuideSectionStatus(
+          hasSourceData,
+          mealCount > 0 && cycleDayCount > 0,
+        ),
+        ref: structureSectionRef,
+      },
+      {
+        id: "library" as RecipesGuideSectionId,
+        label: "Biblioteca",
+        status: getGuideSectionStatus(
+          hasSourceData,
+          recipeLibrary.length > 0,
+        ),
+        ref: librarySectionRef,
+      },
+      {
+        id: "planner" as RecipesGuideSectionId,
+        label: "Planner",
+        status: getGuideSectionStatus(
+          hasSourceData,
+          currentSlots.some((slot) => Boolean(slot.recipe)),
+        ),
+        ref: plannerSectionRef,
+      },
+    ],
+    [
+      cycleDayCount,
+      currentSlots,
+      hasSourceData,
+      mealCount,
+      recipeLibrary.length,
+      selectedPatient?.ageYears,
+      selectedPatient?.fullName,
+      selectedPatient?.gender,
+      selectedPatient?.noDietaryRestrictions,
+      selectedPatient?.restrictions,
+    ],
+  );
+
+  const scrollToGuideSection = (sectionId: RecipesGuideSectionId) => {
+    const targetSection = recipesGuideSections.find(
+      (section) => section.id === sectionId,
+    );
+    targetSection?.ref.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  useEffect(() => {
+    const updateActiveSection = () => {
+      const viewportOffset = 180;
+      let nextSection = recipesGuideSections[0]?.id ?? "base";
+
+      recipesGuideSections.forEach((section) => {
+        const top = section.ref.current?.getBoundingClientRect().top;
+        if (typeof top === "number" && top - viewportOffset <= 0) {
+          nextSection = section.id;
+        }
+      });
+
+      setActiveGuideSection(nextSection);
+    };
+
+    updateActiveSection();
+    window.addEventListener("scroll", updateActiveSection, { passive: true });
+    window.addEventListener("resize", updateActiveSection);
+
+    return () => {
+      window.removeEventListener("scroll", updateActiveSection);
+      window.removeEventListener("resize", updateActiveSection);
+    };
+  }, [recipesGuideSections]);
+
   const buildRecipeIngredientHints = (
     slotsByDay: Record<string, MealSlot[]>,
   ): Array<{ name: string; weeklyHits: number }> => {
     const counter = new Map<string, number>();
     Object.values(slotsByDay).forEach((slots) => {
       slots.forEach((slot) => {
-        slot.recipe?.ingredients?.forEach((ingredientName) => {
-          const key = ingredientName.toLowerCase().trim();
+        const recipe = slot.recipe;
+        const ingredientNames =
+          recipe && Array.isArray(recipe.ingredientDetails) && recipe.ingredientDetails.length > 0
+            ? recipe.ingredientDetails.map((ingredient) => ingredient.name)
+            : recipe?.ingredients || [];
+        ingredientNames.forEach((ingredientName) => {
+          const key = String(ingredientName).toLowerCase().trim();
           counter.set(key, (counter.get(key) || 0) + 1);
         });
       });
@@ -793,7 +952,7 @@ export default function RecipesClient() {
     }));
 
   const classifyRecipeSource = (recipe: RecipeApiSummary): RecipeCatalogTab => {
-    if (recipe.isMine) {
+    if (recipe.isMine || recipe.isAdopted) {
       return "mine";
     }
 
@@ -801,12 +960,25 @@ export default function RecipesClient() {
   };
 
   const mapRecipeSummaryToRecipe = (recipe: RecipeApiSummary): Recipe => {
-    const ingredientNames = (recipe.ingredients || []).map(
-      (item) => item.ingredient.name,
-    );
-    const mainIngredients = (recipe.ingredients || [])
+    const ingredientNames = (recipe.ingredients || []).map((item) => item.ingredient.name);
+    const metadataIngredientNames = Array.from(
+      new Set([
+        ...(recipe.metadata?.customIngredientNames || []),
+        ...(recipe.metadata?.customIngredients || []).map((item) =>
+          typeof item === "string" ? item : item?.name || "",
+        ),
+        ...(recipe.metadata?.ingredients || []),
+      ]),
+    ).filter(Boolean);
+    const resolvedIngredientNames =
+      ingredientNames.length > 0 ? ingredientNames : metadataIngredientNames;
+    const resolvedMainIngredients = (recipe.ingredients || [])
       .filter((item) => item.isMain)
       .map((item) => item.ingredient.name);
+    const mainIngredients =
+      resolvedMainIngredients.length > 0
+        ? resolvedMainIngredients
+        : resolvedIngredientNames.slice(0, Math.max(1, Math.min(3, resolvedIngredientNames.length)));
 
     return {
       id: recipe.id,
@@ -816,8 +988,9 @@ export default function RecipesClient() {
         recipe.preparation ||
         "Plato disponible para asignar a este bloque.",
       preparation: recipe.preparation || undefined,
+      portions: recipe.portions,
       complexity:
-        ingredientNames.length > 6 || (recipe.preparation || "").length > 180
+        resolvedIngredientNames.length > 6 || (recipe.preparation || "").length > 180
           ? "elaborada"
           : "simple",
       protein: recipe.proteins || 0,
@@ -825,6 +998,12 @@ export default function RecipesClient() {
       carbs: recipe.carbs || 0,
       fats: recipe.lipids || 0,
       ingredients: ingredientNames,
+      ingredientDetails: (recipe.ingredients || []).map((item) => ({
+        name: item.ingredient.name,
+        amount: Number.isFinite(Number(item.amount)) ? Number(item.amount) : undefined,
+        unit: item.unit,
+        isMain: item.isMain,
+      })),
       source: classifyRecipeSource(recipe),
       authorLabel: recipe.nutritionist?.fullName || undefined,
       mainIngredients,
@@ -1535,6 +1714,7 @@ export default function RecipesClient() {
           notes: aiNutritionistNotes,
           specialConsiderations: aiSpecialConsiderations,
           allowedFoodsMain: sourceFoods,
+          exchangeGuide: buildExchangeGuideForAi(),
           mealSectionTargets,
           generationMode: "single" as const,
           patient: {
@@ -1577,11 +1757,43 @@ export default function RecipesClient() {
           description: d.description || "",
           preparation: d.preparation || "",
           recommendedPortion: d.recommendedPortion || "",
+          portions: d.portions != null ? Number(d.portions) : 1,
           protein: Number(d.protein) || 0,
           calories: Number(d.calories) || 0,
           carbs: Number(d.carbs) || 0,
           fats: Number(d.fats) || 0,
-          ingredients: Array.isArray(d.ingredients) ? d.ingredients : [],
+          ingredients: Array.isArray(d.ingredients)
+            ? d.ingredients.map((ing: any) =>
+                typeof ing === "string"
+                  ? { name: ing, quantity: "" }
+                  : {
+                      name: String(ing?.name || ""),
+                      quantity: String(ing?.quantity || ""),
+                      amount: ing?.amount != null ? String(ing.amount) : undefined,
+                      unit: ing?.unit ? String(ing.unit) : undefined,
+                    },
+              )
+            : [],
+          ingredientDetails: Array.isArray(d.ingredients)
+            ? d.ingredients
+                .map((ing: any) => {
+                  if (typeof ing === "string") {
+                    const name = ing.trim();
+                    if (!name) return null;
+                    return { name, quantity: "", amount: undefined, unit: undefined };
+                  }
+                  if (!ing || typeof ing !== "object") return null;
+                  const name = String(ing.name || "").trim();
+                  if (!name) return null;
+                  return {
+                    name,
+                    quantity: String(ing.quantity || ""),
+                    amount: ing.amount != null ? Number(ing.amount) : undefined,
+                    unit: ing.unit ? String(ing.unit) : undefined,
+                  };
+                })
+                .filter((item: RecipeIngredientDetail | null): item is RecipeIngredientDetail => !!item)
+            : [],
         }),
       );
 
@@ -1605,11 +1817,13 @@ export default function RecipesClient() {
                 description: dish.description,
                 preparation: dish.preparation,
                 recommendedPortion: dish.recommendedPortion,
+                portions: dish.portions,
                 calories: dish.calories,
                 protein: dish.protein,
                 carbs: dish.carbs,
                 fats: dish.fats,
                 ingredients: dish.ingredients.map(ing => ing.name),
+                ingredientDetails: dish.ingredientDetails,
                 mainIngredients: dish.ingredients.map(ing => ing.name),
                 complexity: "simple",
                 source: "app",
@@ -1820,12 +2034,14 @@ export default function RecipesClient() {
       description: quickMealDraft.description.trim() || "Comida rápida creada manualmente.",
       preparation: quickMealDraft.preparation.trim() || undefined,
       recommendedPortion: quickMealDraft.recommendedPortion.trim() || undefined,
+      portions: 1,
       complexity: "simple",
       protein: toNumber(quickMealDraft.protein),
       calories: toNumber(quickMealDraft.calories),
       carbs: toNumber(quickMealDraft.carbs),
       fats: toNumber(quickMealDraft.fats),
       ingredients: [],
+      ingredientDetails: [],
       mainIngredients: [],
       source: "mine",
       mealSection: targetSlot.mealSection || targetSlot.type,
@@ -1884,6 +2100,51 @@ export default function RecipesClient() {
     assignRecipeToSlot(activeSlotDay, activeSwapSlot, recipe);
     setShowSwapModal(false);
     toast.success(`Bloque actualizado con ${recipe.title}`);
+  };
+
+  const fillCurrentDayWithMyRecipes = () => {
+    const myRecipes = recipeLibrary.filter((recipe) => recipe.source === "mine");
+
+    if (myRecipes.length === 0) {
+      toast.error("Todavía no tienes platos creados para rellenar.");
+      return;
+    }
+
+    let filledCount = 0;
+
+    setWeekSlots((prev) => {
+      const next = { ...prev };
+      const daySlots = [...(next[currentDay] || [])];
+      const usedIds = new Set<string>();
+
+      const updatedSlots = daySlots.map((slot) => {
+        if (slot.recipe) return slot;
+
+        const selectedRecipe = myRecipes.find(
+          (recipe) => !usedIds.has(recipe.id) && isRecipeMealSectionCompatible(recipe, slot),
+        );
+
+        if (!selectedRecipe) return slot;
+
+        usedIds.add(selectedRecipe.id);
+        filledCount += 1;
+        return {
+          ...slot,
+          recipe: selectedRecipe,
+        };
+      });
+
+      next[currentDay] = updatedSlots;
+      return next;
+    });
+
+    if (filledCount === 0) {
+      toast.info("No encontramos platos creados que coincidan con los bloques de hoy.");
+      return;
+    }
+
+    setShowAiFillModal(false);
+    toast.success(`Se rellenaron ${filledCount} bloques con tus platos creados.`);
   };
 
   const availableMealSectionsToAdd = useMemo(() => {
@@ -2274,8 +2535,8 @@ export default function RecipesClient() {
 
     setTargetCalories(patientNutritionGoals.calories);
     setTargetProtein(patientNutritionGoals.protein);
-    setTargetCarbs(patientNutritionGoals.carbs);
-    setTargetFats(patientNutritionGoals.fats);
+    
+    
   }, [
     selectedPatient,
     patientNutritionGoals?.calories,
@@ -2555,8 +2816,107 @@ export default function RecipesClient() {
     return savedCreation;
   };
 
+  const buildRecipesPdfData = () => {
+    const pdfDishes = days.flatMap((day) =>
+      (weekSlots[day] || [])
+        .filter((slot) => slot.recipe)
+        .map((slot) => ({
+          title: slot.recipe!.title,
+          mealSection: slot.recipe!.mealSection || slot.mealSection || slot.type,
+          description: slot.recipe!.description || "",
+          preparation: slot.recipe!.preparation || "",
+          recommendedPortion: slot.recipe!.recommendedPortion || "",
+          portions: slot.recipe!.portions,
+          protein: slot.recipe!.protein,
+          calories: slot.recipe!.calories,
+          carbs: slot.recipe!.carbs,
+          fats: slot.recipe!.fats,
+          ingredients: Array.isArray(slot.recipe!.ingredients)
+            ? slot.recipe!.ingredients.map((ingredient) => ({
+                name: ingredient,
+              }))
+            : [],
+        })),
+    );
+
+    return {
+      title: "Recetas y porciones",
+      dietName: currentProjectName?.trim() || "Recetas y porciones",
+      patientName: selectedPatient?.fullName || null,
+      specialConsiderations:
+        selectedPatient
+          ? [
+              selectedPatient.nutritionalFocus ? `Foco: ${selectedPatient.nutritionalFocus}` : "",
+              selectedPatient.fitnessGoals ? `Fitness: ${selectedPatient.fitnessGoals}` : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : undefined,
+      restrictedFoods: selectedPatient?.restrictions?.length
+        ? selectedPatient.restrictions
+        : undefined,
+      dishes: pdfDishes,
+      generatedAt: new Date().toISOString(),
+    };
+  };
+
+  const handleExportPdf = async () => {
+    if (isExportingPdf) return;
+
+    const pdfDishes = days.flatMap((day) =>
+      (weekSlots[day] || []).filter((slot) => slot.recipe),
+    );
+
+    if (pdfDishes.length === 0) {
+      toast.error("Agrega al menos un plato antes de exportar.");
+      return;
+    }
+
+    setIsExportingPdf(true);
+    try {
+      await downloadQuickRecipesPdf(buildRecipesPdfData());
+      toast.success("PDF de recetas descargado correctamente.");
+      setIsSaveCreationModalOpen(true);
+    } catch (error) {
+      console.error("Error exporting recipes PDF", error);
+      toast.error("No se pudo generar el PDF de recetas.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const actionDockItems: ActionDockItem[] = useMemo(
     () => [
+      {
+        id: "created-recipes",
+        icon: ChefHat,
+        label: showOnlyMyRecipes ? "Mis platos creados" : "Mostrar mis platos",
+        variant: "emerald",
+        onClick: () => {
+          setShowOnlyMyRecipes(true);
+          setShowMatchingOnly(true);
+          setRecipeModalTab("mine");
+          setRecipeSearch("");
+          setRecipeMealSectionFilter("");
+          setRecipeLibraryPage(1);
+          toast.success("Mostrando tus platos creados.");
+        },
+      },
+      {
+        id: "created-recipes-anyway",
+        icon: Library,
+        label: "Importar aunque no coincidan",
+        variant: "slate",
+        onClick: () => {
+          setShowOnlyMyRecipes(true);
+          setShowMatchingOnly(false);
+          setRecipeModalTab("mine");
+          setRecipeSearch("");
+          setRecipeMealSectionFilter("");
+          setRecipeLibraryPage(1);
+          toast.info("Ahora puedes elegir platos creados aunque no coincidan al 100%.");
+        },
+      },
       {
         id: "import-creation",
         icon: Library,
@@ -2589,8 +2949,8 @@ export default function RecipesClient() {
         icon: Download,
         label: "Exportar PDF",
         variant: "slate",
-        onClick: () => toast.info("PDF de recetas disponible en la etapa Entregable."),
-        disabled: isRecipesLocked,
+        onClick: handleExportPdf,
+        disabled: isRecipesLocked || isExportingPdf,
       },
       {
         id: "reset",
@@ -2601,7 +2961,7 @@ export default function RecipesClient() {
         disabled: isRecipesLocked,
       },
     ].filter(Boolean) as ActionDockItem[],
-    [isRecipesLocked, printJson, resetRecipes, selectedPatient, sleepTime, targetCalories, targetCarbs, targetFats, targetProtein, wakeUpTime, weekSlots],
+    [isExportingPdf, isRecipesLocked, printJson, resetRecipes, selectedPatient, showOnlyMyRecipes, sleepTime, targetCalories, targetCarbs, targetFats, targetProtein, wakeUpTime, weekSlots],
   );
 
   const assignedSourceSummary = useMemo(() => {
@@ -2723,12 +3083,24 @@ export default function RecipesClient() {
         </div>
       ) : null}
       <ModuleLayout
-        title="Recetas y Porciones"
-        description="En este apartado modificarás, en base a los alimentos anteriores, las cantidades de cada uno de forma diaria, semanal o mensual, y sus porciones en base a la documentación oficial."
+        title="Cuantificación: Recetas y Porciones"
+        description={
+          <div className="space-y-4">
+            <p>
+              Transforma tu estrategia en platos concretos. Define horarios, porciones y genera recetas alineadas con los alimentos seleccionados.
+            </p>
+            <div className="flex flex-wrap gap-4 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              <span className="text-emerald-600">1. Estrategia (✓)</span>
+              <span className="text-emerald-600 underline underline-offset-4 decoration-2">2. Cuantificación</span>
+              <span>3. Logística</span>
+              <span>4. Producto Final</span>
+            </div>
+          </div>
+        }
         step={{
-          number: 3,
-          label: "Planes & Recetas (AI)",
-          icon: GraduationCap,
+          number: 2,
+          label: "Recetas & Porciones",
+          icon: ChefHat,
           color: "text-emerald-600",
         }}
         className="max-w-none"
@@ -2800,20 +3172,33 @@ export default function RecipesClient() {
                 }}
                 className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-2xl shadow-emerald-200 transition-all hover:scale-[1.02] flex items-center gap-3 uppercase tracking-widest text-xs"
               >
-                CONTINUAR
+                SIGUIENTE
                 <ArrowRight className="h-5 w-5" />
               </Button>
             </div>
           </ModuleFooter>
         }
       >
+        {isSidebarCollapsed && (
+          <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
+            <SectionProgressNav
+              items={recipesGuideSections.map((section) => ({
+                id: section.id,
+                label: section.label,
+                status: section.status,
+                active: activeGuideSection === section.id,
+                onClick: () => scrollToGuideSection(section.id),
+              }))}
+            />
+          </div>
+        )}
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}
           mode={currentProjectMode}
           moduleLabel="Recetas"
         />
-        <div className="mb-6 animate-in slide-in-from-top duration-300 mx-auto w-full">
+        <div ref={baseSectionRef} className="mb-6 animate-in slide-in-from-top duration-300 mx-auto w-full">
           <div
             className={cn(
               "rounded-[2.5rem] border p-6 shadow-sm",
@@ -2905,7 +3290,11 @@ export default function RecipesClient() {
           </div>
         )}
 
-        <div id="patient-context-section" className="mb-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+        <div
+          id="patient-context-section"
+          ref={patientSectionRef}
+          className="mb-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm"
+        >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-2">
               <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
@@ -3149,7 +3538,10 @@ export default function RecipesClient() {
         ) : null}
 
         <div className={cn("space-y-8 mt-6", isRecipesLocked && "pointer-events-none opacity-55 select-none")}>
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <div
+            ref={structureSectionRef}
+            className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm"
+          >
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-3">
                 <div>
@@ -3210,6 +3602,16 @@ export default function RecipesClient() {
                     {isGenerating
                       ? "Generando..."
                       : "Generar con IA"}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={fillCurrentDayWithMyRecipes}
+                    disabled={isGenerating || recipeTabCounts.mine === 0}
+                    className="rounded-2xl font-bold flex items-center gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <ChefHat className="h-4 w-4" />
+                    Rellenar con mis platos
                   </Button>
                 </div>
               </div>
@@ -3413,7 +3815,10 @@ export default function RecipesClient() {
           </div>
 
           <div className="relative grid lg:grid-cols-12 gap-8 items-start">
-            <div className="hidden lg:col-span-3 lg:block lg:self-start lg:sticky lg:top-24">
+            <div
+              ref={librarySectionRef}
+              className="hidden lg:col-span-3 lg:block lg:self-start lg:sticky lg:top-24"
+            >
               <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="space-y-4">
                   <div>
@@ -3731,7 +4136,7 @@ export default function RecipesClient() {
             </div>
 
             {/* Center Panel: Planner */}
-            <div className="lg:col-span-6 space-y-6">
+            <div ref={plannerSectionRef} className="lg:col-span-6 space-y-6">
               {plannerView === "daily" && (
 
                 <>
@@ -4288,41 +4693,7 @@ export default function RecipesClient() {
                       </div>
                     </div>
 
-                    {/* Carbs Progress */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        <span>Carbohidratos</span>
-                        <span className="text-blue-600">
-                          {dayTotals.carbs}g / {targetCarbs}g
-                        </span>
-                      </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-500 transition-all duration-1000"
-                          style={{
-                            width: `${Math.min(100, (dayTotals.carbs / targetCarbs) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
 
-                    {/* Fats Progress */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        <span>Grasas</span>
-                        <span className="text-purple-600">
-                          {dayTotals.fats}g / {targetFats}g
-                        </span>
-                      </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-purple-500 transition-all duration-1000"
-                          style={{
-                            width: `${Math.min(100, (dayTotals.fats / targetFats) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
 
                     {selectedPatient ? (
                       <div className="pt-2 border-t border-slate-100">
@@ -4344,8 +4715,6 @@ export default function RecipesClient() {
                                       onClick={() => {
                                         setTargetCalories(patientNutritionGoals.calories);
                                         setTargetProtein(patientNutritionGoals.protein);
-                                        setTargetCarbs(patientNutritionGoals.carbs);
-                                        setTargetFats(patientNutritionGoals.fats);
                                         setIsEditingPatientGoals(false);
                                       }}
                                     >
@@ -4365,8 +4734,6 @@ export default function RecipesClient() {
                                     onClick={() => {
                                       setTargetCalories(patientNutritionGoals.calories);
                                       setTargetProtein(patientNutritionGoals.protein);
-                                      setTargetCarbs(patientNutritionGoals.carbs);
-                                      setTargetFats(patientNutritionGoals.fats);
                                       setIsEditingPatientGoals(true);
                                     }}
                                   >
@@ -4391,22 +4758,7 @@ export default function RecipesClient() {
                                   placeholder="prot"
                                   className="h-9 rounded-xl border-slate-200 text-xs font-bold"
                                 />
-                                <Input
-                                  type="number"
-                                  value={targetCarbs}
-                                  disabled={!isEditingPatientGoals}
-                                  onChange={(e) => setTargetCarbs(Math.max(0, Number(e.target.value) || 0))}
-                                  placeholder="cho"
-                                  className="h-9 rounded-xl border-slate-200 text-xs font-bold"
-                                />
-                                <Input
-                                  type="number"
-                                  value={targetFats}
-                                  disabled={!isEditingPatientGoals}
-                                  onChange={(e) => setTargetFats(Math.max(0, Number(e.target.value) || 0))}
-                                  placeholder="lip"
-                                  className="h-9 rounded-xl border-slate-200 text-xs font-bold"
-                                />
+                                
                               </div>
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
@@ -4420,12 +4772,8 @@ export default function RecipesClient() {
                                 <span className={dayTotalsWithSupplement.protein >= patientNutritionGoals.protein ? "text-emerald-600" : "text-slate-500"}>
                                   prot {Math.round(dayTotalsWithSupplement.protein)}/{patientNutritionGoals.protein}
                                 </span>
-                                <span className={dayTotals.carbs >= patientNutritionGoals.carbs ? "text-emerald-600" : "text-slate-500"}>
-                                  cho {Math.round(dayTotals.carbs)}/{patientNutritionGoals.carbs}
-                                </span>
-                                <span className={dayTotals.fats >= patientNutritionGoals.fats ? "text-emerald-600" : "text-slate-500"}>
-                                  lip {Math.round(dayTotals.fats)}/{patientNutritionGoals.fats}
-                                </span>
+                                
+                                
                               </div>
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
@@ -4439,12 +4787,8 @@ export default function RecipesClient() {
                                 <span className={weekTotalsWithSupplement.protein >= patientNutritionGoals.protein * 7 ? "text-emerald-600" : "text-slate-500"}>
                                   prot {Math.round(weekTotalsWithSupplement.protein)}/{patientNutritionGoals.protein * 7}
                                 </span>
-                                <span className={weekTotals.carbs >= patientNutritionGoals.carbs * 7 ? "text-emerald-600" : "text-slate-500"}>
-                                  cho {Math.round(weekTotals.carbs)}/{patientNutritionGoals.carbs * 7}
-                                </span>
-                                <span className={weekTotals.fats >= patientNutritionGoals.fats * 7 ? "text-emerald-600" : "text-slate-500"}>
-                                  lip {Math.round(weekTotals.fats)}/{patientNutritionGoals.fats * 7}
-                                </span>
+                                
+                                
                               </div>
                             </div>
                             {recommendedProteinRange ? (
@@ -4468,7 +4812,7 @@ export default function RecipesClient() {
                         ) : (
                           <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
                             <p className="text-xs font-bold text-amber-900">
-                              El paciente no tiene registradas metas de proteina, calorias, carbohidratos y grasas. La IA no las considerara.
+                              El paciente no tiene registradas metas de proteína y calorías. La IA no las considerará.
                             </p>
                             <Button
                               onClick={assignPatientGoalsFromCurrentTargets}
