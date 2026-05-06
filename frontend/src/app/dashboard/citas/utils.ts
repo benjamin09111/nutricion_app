@@ -12,10 +12,10 @@ export type WorkHoursGridDraft = Record<string, boolean[]>;
 export const WEEK_DAYS = [
   { key: "monday", label: "Lun" },
   { key: "tuesday", label: "Mar" },
-  { key: "wednesday", label: "MiÃ©" },
+  { key: "wednesday", label: "Mié" },
   { key: "thursday", label: "Jue" },
   { key: "friday", label: "Vie" },
-  { key: "saturday", label: "SÃ¡b" },
+  { key: "saturday", label: "Sáb" },
   { key: "sunday", label: "Dom" },
 ];
 

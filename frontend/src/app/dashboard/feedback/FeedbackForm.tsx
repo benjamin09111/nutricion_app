@@ -193,7 +193,7 @@ export function FeedbackForm() {
               {selectedType === "testimonio" && (
                 <div className="rounded-[1.25rem] border border-green-100 bg-green-50 p-4 text-xs text-green-700 font-medium leading-relaxed">
                   <p className="font-semibold text-green-800 mb-1">Testimonio público</p>
-                  Si nos autorizas, podemos usar tu comentario como testimonio público en nuestra plataforma. ¡Gracias por tu apoyo!
+                  Usaremos tu comentario como testimonio público en nuestra plataforma. ¡Gracias por tu apoyo!
                 </div>
               )}
               {errors.type && (

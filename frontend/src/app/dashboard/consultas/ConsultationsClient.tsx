@@ -156,7 +156,7 @@ export default function ConsultationsClient() {
   return (
     <ModuleLayout
       title="Mis Consultas"
-      description="Historial de sesiones"
+      description="Espacio con todas tus consultas realizadas, puedes filtrar por pacientes y ver el detalle de cada consulta que has realizado. Todas se conectan con tus pacientes."
       className="pb-8"
     >
       <ConfirmationModal

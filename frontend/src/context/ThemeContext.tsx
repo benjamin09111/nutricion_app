@@ -7,6 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { usePathname } from "next/navigation";
 
 type Theme = "light" | "dark";
 
@@ -22,6 +23,7 @@ const STORAGE_KEY = "nutri_theme_preference";
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [theme, setThemeState] = useState<Theme>("light");
 
   useEffect(() => {
@@ -35,14 +37,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof document === "undefined") return;
 
-    const root = document.documentElement;
-    root.classList.toggle("theme-dark", theme === "dark");
-    root.classList.toggle("theme-light", theme === "light");
-    root.dataset.theme = theme;
-    root.style.colorScheme = theme;
+    const isDashboard = pathname?.startsWith("/dashboard");
+    const activeTheme = isDashboard ? theme : "light";
 
-    window.localStorage.setItem(STORAGE_KEY, theme);
-  }, [theme]);
+    const root = document.documentElement;
+    root.classList.toggle("theme-dark", activeTheme === "dark");
+    root.classList.toggle("theme-light", activeTheme === "light");
+    root.dataset.theme = activeTheme;
+    root.style.colorScheme = activeTheme;
+
+    if (isDashboard) {
+      window.localStorage.setItem(STORAGE_KEY, theme);
+    }
+  }, [theme, pathname]);
 
   const value = useMemo(
     () => ({

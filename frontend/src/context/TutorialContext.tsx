@@ -13,31 +13,48 @@ import { toast } from "sonner";
 import {
   getTutorialForPath,
   getTutorialProgress,
+  getLastTutorialContextPath,
   hasSeenTutorialCoachmark,
   hasTutorialSteps,
   markTutorialCoachmarkSeen,
+  setLastTutorialContextPath,
   setTutorialCompleted,
   setTutorialInProgress,
   setTutorialSkipped,
   type TutorialDefinition,
   type TutorialRuntimeState,
 } from "@/lib/tutorials";
+import { tutorialContentById } from "@/content/tutorials";
 import { TutorialLayer } from "@/components/tutorials/TutorialLayer";
+import { useAdmin } from "./AdminContext";
 
 type TutorialContextValue = {
   currentTutorial: TutorialDefinition | null;
+  launchableTutorial: TutorialDefinition | null;
   isTutorialAvailable: boolean;
   isTutorialOpen: boolean;
+  isIntroTutorialActive: boolean;
   currentStepIndex: number;
   stepCount: number;
   currentStep: TutorialDefinition["steps"][number] | null;
   openCurrentTutorial: () => void;
+  openLaunchableTutorial: () => void;
   nextStep: () => void;
   skipTutorial: () => void;
   closeTutorial: () => void;
 };
 
 const TutorialContext = createContext<TutorialContextValue | null>(null);
+
+const INTRO_BETA_TUTORIAL: TutorialDefinition = {
+  id: "introBeta",
+  moduleKey: "introBeta",
+  label: "Introducción Beta",
+  routePatterns: ["/dashboard/*"],
+  status: "ready",
+  version: tutorialContentById.introBeta.version,
+  steps: tutorialContentById.introBeta.steps,
+};
 
 const TUTORIAL_TRIGGER_COACHMARK: TutorialDefinition = {
   id: "__tutorial_trigger_coachmark__",
@@ -73,7 +90,9 @@ export function TutorialProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const { isAdmin, isLoading: isAdminLoading } = useAdmin();
   const pathname = usePathname();
+  const [progressRevision, setProgressRevision] = useState(0);
   const [runtimeState, setRuntimeState] = useState<TutorialRuntimeState | null>(
     null,
   );
@@ -97,30 +116,114 @@ export function TutorialProvider({
             lastStepIndex: 0,
             updatedAt: new Date().toISOString(),
           },
-    [currentTutorial],
+    [currentTutorial, progressRevision],
   );
 
   const isTutorialAvailable = hasTutorialSteps(currentTutorial);
+  const launchableTutorial = useMemo(() => {
+    if (isTutorialAvailable && currentTutorial) {
+      return currentTutorial;
+    }
+
+    const lastContextPath = getLastTutorialContextPath();
+    if (!lastContextPath) {
+      return null;
+    }
+
+    const contextualTutorial = getTutorialForPath(lastContextPath);
+    return hasTutorialSteps(contextualTutorial) ? contextualTutorial : null;
+  }, [currentTutorial, isTutorialAvailable, pathname]);
+  const introProgress = useMemo(
+    () => getTutorialProgress(INTRO_BETA_TUTORIAL),
+    [pathname, progressRevision],
+  );
+
+  const bumpProgressRevision = () => {
+    setProgressRevision((currentValue) => currentValue + 1);
+  };
+
+  const markTutorialInProgress = (
+    tutorial: TutorialDefinition,
+    stepIndex: number,
+  ) => {
+    setTutorialInProgress(tutorial, stepIndex);
+    bumpProgressRevision();
+  };
+
+  const markTutorialAsCompleted = (tutorial: TutorialDefinition) => {
+    setTutorialCompleted(tutorial);
+    bumpProgressRevision();
+  };
+
+  const markTutorialAsSkipped = (tutorial: TutorialDefinition) => {
+    setTutorialSkipped(tutorial);
+    bumpProgressRevision();
+  };
 
   useEffect(() => {
-    if (!currentTutorial) {
-      setRuntimeState(null);
+    if (
+      pathname &&
+      currentTutorial &&
+      hasTutorialSteps(currentTutorial) &&
+      currentTutorial.id !== INTRO_BETA_TUTORIAL.id
+    ) {
+      setLastTutorialContextPath(pathname);
+    }
+  }, [currentTutorial, pathname]);
+
+  useEffect(() => {
+    if (!pathname?.startsWith("/dashboard") || isAdminLoading || isAdmin) {
+      return;
+    }
+
+    if (
+      introProgress.status === "new" ||
+      introProgress.status === "in_progress"
+    ) {
+      setRuntimeState((currentRuntime) => {
+        if (currentRuntime?.tutorialId === INTRO_BETA_TUTORIAL.id) {
+          return {
+            tutorialId: INTRO_BETA_TUTORIAL.id,
+            stepIndex: introProgress.lastStepIndex,
+            source: "auto",
+          };
+        }
+
+        if (introProgress.status !== "in_progress") {
+          markTutorialInProgress(INTRO_BETA_TUTORIAL, 0);
+        }
+
+        return {
+          tutorialId: INTRO_BETA_TUTORIAL.id,
+          stepIndex: introProgress.lastStepIndex,
+          source: "auto",
+        };
+      });
+      return;
+    }
+  }, [introProgress.lastStepIndex, introProgress.status, pathname, isAdmin, isAdminLoading]);
+
+  useEffect(() => {
+    if (!currentTutorial || isAdminLoading || isAdmin) {
       return;
     }
 
     if (!isTutorialAvailable) {
-      setRuntimeState(null);
       return;
     }
 
     setRuntimeState((currentRuntime) => {
+      if (currentRuntime?.tutorialId === INTRO_BETA_TUTORIAL.id) {
+        return currentRuntime;
+      }
+
       if (!isRuntimeState(currentRuntime)) {
         if (
           currentProgress.status === "new" ||
           currentProgress.status === "in_progress"
         ) {
           if (currentProgress.status !== "in_progress") {
-            setTutorialInProgress(currentTutorial, 0);
+            markTutorialInProgress(currentTutorial, 0);
           }
           return {
             tutorialId: currentTutorial.id,
@@ -137,60 +240,82 @@ export function TutorialProvider({
 
       return currentRuntime;
     });
-  }, [currentProgress.lastStepIndex, currentProgress.status, currentTutorial, isTutorialAvailable]);
+  }, [
+    currentProgress.lastStepIndex,
+    currentProgress.status,
+    currentTutorial,
+    isTutorialAvailable,
+    runtimeState?.tutorialId,
+    isAdmin,
+    isAdminLoading,
+  ]);
 
   const closeTutorial = () => {
+    if (runtimeState?.tutorialId === INTRO_BETA_TUTORIAL.id) {
+      return;
+    }
     setRuntimeState(null);
     setShowCoachmark(false);
   };
 
   const openCurrentTutorial = () => {
-    if (!currentTutorial || !isTutorialAvailable) {
+    if (!launchableTutorial) {
       toast.info("Todavía no hay un tutorial configurado para esta vista.");
       return;
     }
 
     setShowCoachmark(false);
-    const progress = getTutorialProgress(currentTutorial);
+    const progress = getTutorialProgress(launchableTutorial);
     const nextStepIndex =
       progress.status === "in_progress" ? progress.lastStepIndex : 0;
 
     setRuntimeState({
-      tutorialId: currentTutorial.id,
+      tutorialId: launchableTutorial.id,
       stepIndex: nextStepIndex,
       source: "manual",
     });
   };
 
   const nextStep = () => {
-    if (!currentTutorial || !isRuntimeState(runtimeState)) {
+    if (!isRuntimeState(runtimeState)) {
       return;
     }
 
+    const activeBaseTutorial =
+      runtimeState.tutorialId === INTRO_BETA_TUTORIAL.id
+        ? INTRO_BETA_TUTORIAL
+        : currentTutorial;
+
+    if (!activeBaseTutorial) return;
+
     const currentStepIndex = runtimeState.stepIndex;
     const nextIndex = currentStepIndex + 1;
-    const lastIndex = currentTutorial.steps.length - 1;
+    const lastIndex = activeBaseTutorial.steps.length - 1;
 
     if (nextIndex > lastIndex) {
-      setTutorialCompleted(currentTutorial);
+      markTutorialAsCompleted(activeBaseTutorial);
       setRuntimeState(null);
       return;
     }
 
-    setTutorialInProgress(currentTutorial, nextIndex);
+    markTutorialInProgress(activeBaseTutorial, nextIndex);
     setRuntimeState({
-      tutorialId: currentTutorial.id,
+      tutorialId: activeBaseTutorial.id,
       stepIndex: nextIndex,
       source: runtimeState.source,
     });
   };
 
   const skipTutorial = () => {
+    if (runtimeState?.tutorialId === INTRO_BETA_TUTORIAL.id) {
+      return;
+    }
+
     if (!currentTutorial || !isRuntimeState(runtimeState)) {
       return;
     }
 
-    setTutorialSkipped(currentTutorial);
+    markTutorialAsSkipped(currentTutorial);
     setRuntimeState(null);
 
     if (!coachmarkSeen) {
@@ -203,6 +328,10 @@ export function TutorialProvider({
   const activeTutorial = useMemo(() => {
     if (showCoachmark) {
       return TUTORIAL_TRIGGER_COACHMARK;
+    }
+
+    if (runtimeState?.tutorialId === INTRO_BETA_TUTORIAL.id) {
+      return INTRO_BETA_TUTORIAL;
     }
 
     if (!currentTutorial || !isRuntimeState(runtimeState)) {
@@ -230,12 +359,15 @@ export function TutorialProvider({
 
   const contextValue: TutorialContextValue = {
     currentTutorial,
+    launchableTutorial,
     isTutorialAvailable,
     isTutorialOpen: Boolean(activeTutorial && activeStep),
+    isIntroTutorialActive: activeTutorial?.id === INTRO_BETA_TUTORIAL.id,
     currentStepIndex: showCoachmark ? 0 : runtimeState?.stepIndex ?? 0,
     stepCount: activeTutorial?.steps.length ?? 0,
     currentStep: activeStep,
     openCurrentTutorial,
+    openLaunchableTutorial: openCurrentTutorial,
     nextStep: showCoachmark
       ? () => {
           setShowCoachmark(false);

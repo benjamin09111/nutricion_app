@@ -73,6 +73,7 @@ export class AiService {
       `[AI:${config.provider}] Request model=${config.model} promptChars=${userPrompt.length}`,
     );
 
+    // Standard OpenAI payload structure
     const payload: Record<string, unknown> = {
       model: config.model,
       messages: [
@@ -82,11 +83,6 @@ export class AiService {
       temperature: 0.2,
       response_format: { type: 'json_object' },
     };
-
-    if (config.provider === 'deepseek') {
-      payload.thinking = { type: 'enabled' };
-      payload.reasoning_effort = 'medium';
-    }
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -142,8 +138,10 @@ export class AiService {
       }
     }
 
+    const errorSummary = errors.join(' | ');
+    this.logger.error(`[AI] All providers failed: ${errorSummary}`);
     throw new BadRequestException(
-      `No se pudo completar la solicitud de IA. ${errors.join(' | ')}`,
+      `No se pudo completar la solicitud de IA. Detalles: ${errorSummary}`,
     );
   }
 }

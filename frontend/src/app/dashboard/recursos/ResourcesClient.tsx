@@ -55,15 +55,15 @@ interface Resource {
 const FAVORITES_KEY = "resource-favorites-v1";
 const CATEGORIES = [
   { id: "all", label: "Todas las secciones" },
-  { id: "portada", label: "Portada e introduccion" },
+  { id: "portada", label: "Portada e introducción" },
   { id: "mitos", label: "Mitos vs realidad" },
-  { id: "habitos", label: "Habitos y rutinas" },
+  { id: "habitos", label: "Hábitos y rutinas" },
   { id: "salud-mental", label: "Salud mental" },
   { id: "salud-intestinal", label: "Salud intestinal" },
-  { id: "deporte", label: "Nutricion deportiva" },
+  { id: "deporte", label: "Nutrición deportiva" },
   { id: "maternidad", label: "Maternidad y lactancia" },
   { id: "rendimiento", label: "Rendimiento y foco" },
-  { id: "consejos", label: "Consejos practicos" },
+  { id: "consejos", label: "Consejos prácticos" },
   { id: "faq", label: "Preguntas frecuentes" },
   { id: "otro", label: "Otro" },
 ];
@@ -72,11 +72,11 @@ const LIBRARY_CATEGORIES = CATEGORIES.filter((c) => c.id !== "portada");
 const DEFAULT_SYSTEM_RESOURCES: Resource[] = [
   {
     id: "sys-cover-intro",
-    title: "Portada e introduccion base de la plataforma",
+    title: "Portada e introducción base de la plataforma",
     content:
-      "<h1>Bienvenida/o {NOMBRE_PACIENTE}</h1><p>Este entregable fue preparado para acompanarte de forma practica y cercana.</p><p><strong>Objetivo principal:</strong> {OBJETIVO_PRINCIPAL}</p>",
+      "<h1>Bienvenida/o {NOMBRE_PACIENTE}</h1><p>Este entregable fue preparado para acompañarte de forma práctica y cercana.</p><p><strong>Objetivo principal:</strong> {OBJETIVO_PRINCIPAL}</p>",
     category: "portada",
-    tags: ["Portada", "Introduccion", "Plantilla"],
+    tags: ["Portada", "Introducción", "Plantilla"],
     nutritionistId: null,
     isMine: false,
     isPublic: true,
@@ -283,7 +283,7 @@ export function ResourcesClient() {
   };
 
   return (
-    <ModuleLayout title="Biblioteca" description="Gestiona los contenidos educativos para tus pacientes. Por defecto, el Entregable usa recursos de la plataforma, pero aqui puedes explorar la comunidad, crear los tuyos y marcar favoritos para tu seleccion automatica." className="max-w-7xl">
+    <ModuleLayout title="Biblioteca" description="Gestiona los contenidos educativos para tus pacientes. Por defecto, el Entregable usa recursos de la plataforma, pero aquí puedes explorar la comunidad, crear los tuyos y marcar favoritos para tu selección automática." className="max-w-7xl">
       <div className="space-y-6 pb-20">
         <section className="rounded-[2rem] border border-slate-100 bg-slate-50/50 p-2 shadow-sm w-fit">
           <div className="flex items-center gap-1">
@@ -456,7 +456,7 @@ export function ResourcesClient() {
                   </div>
                   <Button className="rounded-full px-6 font-semibold" onClick={() => openCreate(block.kind)}>
                     <Plus className="mr-2 h-4 w-4" />
-                    {block.kind === "cover" ? "Crear portada" : "Crear introduccion"}
+                    {block.kind === "cover" ? "Crear portada" : "Crear introducción"}
                   </Button>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -477,7 +477,7 @@ export function ResourcesClient() {
                         {resource.isMine && <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-400 hover:text-indigo-600" onClick={() => openEdit(resource)}><Pencil className="h-3.5 w-3.5" /></Button>}
                       </div>
                     </article>
-                  )) : <div className="rounded-[2rem] border border-dashed border-slate-100 bg-slate-50/50 p-10 text-center text-sm font-medium text-slate-400">No hay recursos cargados todavia.</div>}
+                  )) : <div className="rounded-[2rem] border border-dashed border-slate-100 bg-slate-50/50 p-10 text-center text-sm font-medium text-slate-400">No hay recursos cargados todavía.</div>}
                 </div>
               </section>
             ))}
@@ -490,7 +490,7 @@ export function ResourcesClient() {
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-indigo-600">
-                    Gestion personal
+                    Gestión personal
                   </p>
                   <h2 className="mt-2 text-2xl font-semibold text-slate-900">Mis recursos</h2>
                 </div>
@@ -506,7 +506,7 @@ export function ResourcesClient() {
                   <Input
                     value={mineSearch}
                     onChange={(e) => setMineSearch(e.target.value)}
-                    placeholder="Buscar por titulo, contenido o fuente..."
+                    placeholder="Buscar por título, contenido o fuente..."
                     className="pl-10 rounded-2xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-indigo-500 h-11 transition-all w-full font-medium text-sm"
                   />
                 </div>
@@ -540,8 +540,8 @@ export function ResourcesClient() {
                   onChange={(e) => setMineVisibility(e.target.value)}
                   className="h-10 rounded-xl border border-slate-100 bg-slate-50/50 px-4 text-xs font-semibold text-slate-600 outline-none focus:bg-white focus:border-indigo-500 transition-all cursor-pointer"
                 >
-                  <option value="all">Publicos y privados</option>
-                  <option value="public">Solo publicos</option>
+                  <option value="all">Públicos y privados</option>
+                  <option value="public">Solo públicos</option>
                   <option value="private">Solo privados</option>
                 </select>
 
@@ -576,7 +576,7 @@ export function ResourcesClient() {
                 <thead className="bg-slate-50/50">
                   <tr className="text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400">
                     <th className="px-6 py-4">Recurso</th>
-                    <th className="px-6 py-4">Seccion</th>
+                    <th className="px-6 py-4">Sección</th>
                     <th className="px-6 py-4">Hashtags</th>
                     <th className="px-6 py-4">Visibilidad</th>
                     <th className="px-6 py-4 text-right">Acciones</th>
@@ -620,7 +620,7 @@ export function ResourcesClient() {
                               resource.isPublic ? "bg-indigo-50 text-indigo-700 border border-indigo-100" : "bg-slate-50 text-slate-500 border border-slate-100"
                             )}
                           >
-                            {resource.isPublic ? "Publico" : "Privado"}
+                            {resource.isPublic ? "Público" : "Privado"}
                           </span>
                         </td>
                         <td className="px-6 py-5">
@@ -681,7 +681,7 @@ export function ResourcesClient() {
       </div>
 
       <Modal isOpen={!!resourceToPreview} onClose={() => setResourceToPreview(null)} title={resourceToPreview?.title || "Vista previa"} className="max-w-4xl"><div className="space-y-6">{resourceToPreview?.tags?.length ? <div className="flex flex-wrap gap-2">{resourceToPreview.tags.map((tag) => <span key={tag} className="inline-flex items-center rounded-full bg-slate-50 border border-slate-100 px-3 py-1 text-[10px] font-semibold text-slate-500"><Hash className="mr-1 h-3 w-3" />{tag}</span>)}</div> : null}{resourceToPreview?.format === "PDF" ? <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50 p-12 text-center"><FileText className="mx-auto mb-4 h-16 w-16 text-slate-200" />{resourceToPreview.fileUrl ? <a href={resourceToPreview.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-indigo-700 transition-colors">Abrir PDF<ExternalLink className="ml-2 h-4 w-4" /></a> : null}</div> : <div className="prose prose-slate max-w-none text-slate-600 prose-p:leading-relaxed prose-headings:text-slate-900 prose-headings:font-semibold prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl" dangerouslySetInnerHTML={{ __html: resourceToPreview?.content || "" }} />}</div></Modal>
-      <ConfirmationModal isOpen={!!resourceToDelete} onClose={() => setResourceToDelete(null)} onConfirm={deleteResource} title="Eliminar recurso" description="Esta accion quitara el recurso de tu biblioteca personal. No se puede deshacer." confirmText="Eliminar" variant="destructive" />
+      <ConfirmationModal isOpen={!!resourceToDelete} onClose={() => setResourceToDelete(null)} onConfirm={deleteResource} title="Eliminar recurso" description="Esta acción quitará el recurso de tu biblioteca personal. No se puede deshacer." confirmText="Eliminar" variant="destructive" />
     </ModuleLayout>
   );
 }

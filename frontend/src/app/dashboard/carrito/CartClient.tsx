@@ -56,6 +56,11 @@ import {
   updateProject,
 } from "@/lib/workflow";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
+import {
+  calculateFoodExchange,
+  calculateGramsForExchange,
+  getExchangeProfileForFood,
+} from "@/lib/exchange-portions";
 
 
 interface CartItem {
@@ -81,6 +86,17 @@ interface CartItem {
   precioPorUnidad: number;
   unidad: string;
 }
+
+type CartExchangeSummary = {
+  val: string;
+  label: string;
+  weekly: number;
+  monthly: number;
+  profileLabel: string;
+  note: string;
+  isClinical: boolean;
+  confidence: "high" | "medium" | "low";
+};
 
 export type ExtraTarget = {
   id: string;
@@ -859,76 +875,52 @@ export default function CartClient() {
     };
   }, [items, proteinSupplement, timeView]);
 
-  const calculateExchangePortions = (item: CartItem) => {
-    const {
-      carbohidratosPor100g,
-      proteinaPor100g,
-      grasasPor100g,
-      porcionGramos,
-      grupo,
-    } = item;
-    const totalCarbs = (carbohidratosPor100g * porcionGramos) / 100;
-    const totalProt = (proteinaPor100g * porcionGramos) / 100;
-    const totalFat = (grasasPor100g * porcionGramos) / 100;
+  const getExchangeSummary = (item: CartItem): CartExchangeSummary => {
+    const detection = getExchangeProfileForFood({
+      category: item.grupo,
+      name: item.producto,
+      macros: {
+        carbs: item.carbohidratosPor100g,
+        protein: item.proteinaPor100g,
+        fat: item.grasasPor100g,
+      },
+    });
 
-    const g = grupo.toLowerCase();
+    const exchangeResult = calculateFoodExchange({
+      grams: item.porcionGramos,
+      macrosPer100g: {
+        carbs: item.carbohidratosPor100g,
+        protein: item.proteinaPor100g,
+        fat: item.grasasPor100g,
+      },
+      profile: detection.profile,
+    });
 
-    // Estandar UDD/INTA Chile (basado en aporte predominante)
-    if (
-      g.includes("cereal") ||
-      g.includes("pan") ||
-      g.includes("legumbre") ||
-      g.includes("tuberculo")
-    ) {
-      return { val: (totalCarbs / 30).toFixed(1), label: "Porc." }; // 30g CHO
-    }
-    if (g.includes("fruta")) {
-      return { val: (totalCarbs / 15).toFixed(1), label: "Porc." }; // 15g CHO
-    }
-    if (g.includes("verdura")) {
-      const factor = g.includes("libre") ? 2.5 : 5;
-      return { val: (totalCarbs / factor).toFixed(1), label: "Porc." }; // 5g o 2.5g CHO
-    }
-    if (
-      g.includes("carne") ||
-      g.includes("huevo") ||
-      g.includes("pescado") ||
-      g.includes("proteina")
-    ) {
-      return { val: (totalProt / 11).toFixed(1), label: "Porc." }; // 11g PRO
-    }
-    if (g.includes("lacteo") || g.includes("leche") || g.includes("yogur")) {
-      return { val: (totalProt / 8).toFixed(1), label: "Porc." }; // Promedio PRO para lacteos
-    }
-    if (
-      g.includes("grasa") ||
-      g.includes("aceite") ||
-      g.includes("frutos secos")
-    ) {
-      return { val: (totalFat / 20).toFixed(1), label: "Porc." }; // 20g lipidos (Bloque UDD)
-    }
-    if (g.includes("azucar") || g.includes("miel") || g.includes("mermelada")) {
-      return { val: (totalCarbs / 5).toFixed(1), label: "Porc." }; // 5g CHO
-    }
+    const weekly = Number((exchangeResult.portions * getWeeklyPortions(item)).toFixed(1));
+    const monthly = Number((weekly * WEEKS_PER_MONTH).toFixed(1));
 
-    // Fallback dinamico si no hay grupo claro
-    if (totalCarbs > totalProt && totalCarbs > totalFat)
-      return { val: (totalCarbs / 30).toFixed(1), label: "Porc." };
-    if (totalProt > totalCarbs && totalProt > totalFat)
-      return { val: (totalProt / 11).toFixed(1), label: "Porc." };
-    return { val: (totalFat / 20).toFixed(1), label: "Porc." };
+    return {
+      val: exchangeResult.displayPortions,
+      label: detection.profile.isClinicalExchange ? "interc." : "extra",
+      weekly,
+      monthly,
+      profileLabel: detection.profile.label,
+      note: detection.profile.clinicalNote,
+      isClinical: detection.profile.isClinicalExchange,
+      confidence: detection.confidence,
+    };
   };
 
   const groupedItems = useMemo(() => {
     const groups: Record<
       string,
-      (CartItem & { exchange: { val: string; label: string } })[]
+      (CartItem & { exchange: CartExchangeSummary })[]
     > = {};
     items.forEach((item) => {
       if (!groups[item.grupo]) groups[item.grupo] = [];
       groups[item.grupo].push({
         ...item,
-        exchange: calculateExchangePortions(item),
+        exchange: getExchangeSummary(item),
       });
     });
     return groups;
@@ -942,7 +934,7 @@ export default function CartClient() {
   const searchFilteredGroupEntries = useMemo(() => {
     const normalizedQuery = normalizeFoodKey(cartItemSearchQuery);
     const entries: Array<
-      [string, (CartItem & { exchange: { val: string; label: string } })[]]
+      [string, (CartItem & { exchange: CartExchangeSummary })[]]
     > = [];
 
     Object.entries(groupedItems).forEach(([groupName, groupItems]) => {
@@ -1011,49 +1003,29 @@ export default function CartClient() {
     );
   };
 
-  const safeDiv = (val: number, fallback: number) => val > 0 ? val : fallback;
-
   const handleExchangePortionChange = (item: CartItem, value: string) => {
     const targetPortions = parseFloat(value);
-    // Allow empty during typing
     if (isNaN(targetPortions)) return;
+    const detection = getExchangeProfileForFood({
+      category: item.grupo,
+      name: item.producto,
+      macros: {
+        carbs: item.carbohidratosPor100g,
+        protein: item.proteinaPor100g,
+        fat: item.grasasPor100g,
+      },
+    });
+    if (!detection.profile.isClinicalExchange) return;
 
-    const {
-      carbohidratosPor100g = 0,
-      proteinaPor100g = 0,
-      grasasPor100g = 0,
-      grupo,
-    } = item;
-    const g = (grupo || "").toLowerCase();
-
-    let newGrams = 0;
-
-    if (g.includes("cereal") || g.includes("pan") || g.includes("legumbre") || g.includes("tuberculo")) {
-      newGrams = (targetPortions * 30 * 100) / safeDiv(carbohidratosPor100g, 1);
-    } else if (g.includes("fruta")) {
-      newGrams = (targetPortions * 15 * 100) / safeDiv(carbohidratosPor100g, 1);
-    } else if (g.includes("verdura")) {
-      const factor = g.includes("libre") ? 2.5 : 5;
-      newGrams = (targetPortions * factor * 100) / safeDiv(carbohidratosPor100g, 1);
-    } else if (g.includes("carne") || g.includes("huevo") || g.includes("pescado") || g.includes("proteina")) {
-      newGrams = (targetPortions * 11 * 100) / safeDiv(proteinaPor100g, 1);
-    } else if (g.includes("lacteo") || g.includes("leche") || g.includes("yogur")) {
-      newGrams = (targetPortions * 8 * 100) / safeDiv(proteinaPor100g, 1);
-    } else if (g.includes("grasa") || g.includes("aceite") || g.includes("frutos secos")) {
-      newGrams = (targetPortions * 20 * 100) / safeDiv(grasasPor100g, 1);
-    } else if (g.includes("azucar") || g.includes("miel") || g.includes("mermelada")) {
-      newGrams = (targetPortions * 5 * 100) / safeDiv(carbohidratosPor100g, 1);
-    } else {
-      if (carbohidratosPor100g > proteinaPor100g && carbohidratosPor100g > grasasPor100g) {
-        newGrams = (targetPortions * 30 * 100) / safeDiv(carbohidratosPor100g, 1);
-      } else if (proteinaPor100g > carbohidratosPor100g && proteinaPor100g > grasasPor100g) {
-        newGrams = (targetPortions * 11 * 100) / safeDiv(proteinaPor100g, 1);
-      } else {
-        newGrams = (targetPortions * 20 * 100) / safeDiv(grasasPor100g, 1);
-      }
-    }
-
-    newGrams = Math.round(newGrams);
+    const newGrams = calculateGramsForExchange({
+      targetPortions,
+      macrosPer100g: {
+        carbs: item.carbohidratosPor100g,
+        protein: item.proteinaPor100g,
+        fat: item.grasasPor100g,
+      },
+      profile: detection.profile,
+    });
 
     setItems((prev) =>
       prev.map((i) => {
@@ -1070,40 +1042,36 @@ export default function CartClient() {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id === oldItemId) {
-          // Calculate new grams based on old exchange portions to maintain the target
-          const oldExchangeVal = parseFloat(calculateExchangePortions(item).val);
-
           const carbs = newFood.carbohydrates || newFood.carbs || 0;
           const prot = newFood.proteins || newFood.proteinas || 0;
           const fat = newFood.lipids || newFood.lipidos || 0;
-          const g = (newFood.grupo || "").toLowerCase();
-
-          let newGrams = 0;
-          if (g.includes("cereal") || g.includes("pan") || g.includes("legumbre") || g.includes("tuberculo")) {
-            newGrams = (oldExchangeVal * 30 * 100) / safeDiv(carbs, 1);
-          } else if (g.includes("fruta")) {
-            newGrams = (oldExchangeVal * 15 * 100) / safeDiv(carbs, 1);
-          } else if (g.includes("verdura")) {
-            const factor = g.includes("libre") ? 2.5 : 5;
-            newGrams = (oldExchangeVal * factor * 100) / safeDiv(carbs, 1);
-          } else if (g.includes("carne") || g.includes("huevo") || g.includes("pescado") || g.includes("proteina")) {
-            newGrams = (oldExchangeVal * 11 * 100) / safeDiv(prot, 1);
-          } else if (g.includes("lacteo") || g.includes("leche") || g.includes("yogur")) {
-            newGrams = (oldExchangeVal * 8 * 100) / safeDiv(prot, 1);
-          } else if (g.includes("grasa") || g.includes("aceite") || g.includes("frutos secos")) {
-            newGrams = (oldExchangeVal * 20 * 100) / safeDiv(fat, 1);
-          } else if (g.includes("azucar") || g.includes("miel") || g.includes("mermelada")) {
-            newGrams = (oldExchangeVal * 5 * 100) / safeDiv(carbs, 1);
-          } else {
-            newGrams = (oldExchangeVal * 30 * 100) / safeDiv(carbs, 1);
-          }
-
-          newGrams = Math.round(newGrams);
+          const currentExchange = getExchangeSummary(item);
+          const nextProfile = getExchangeProfileForFood({
+            category: newFood.grupo,
+            name: newFood.producto,
+            macros: {
+              carbs,
+              protein: prot,
+              fat,
+            },
+          }).profile;
+          const newGrams = nextProfile.isClinicalExchange
+            ? calculateGramsForExchange({
+                targetPortions: Number(currentExchange.val) || 0,
+                macrosPer100g: {
+                  carbs,
+                  protein: prot,
+                  fat,
+                },
+                profile: nextProfile,
+              })
+            : item.porcionGramos;
           const newQty = calculateMonthlyQuantity(newGrams, item.unidad, item.frecuenciaSemanal);
 
           return {
             ...item,
             producto: newFood.producto,
+            grupo: newFood.grupo || item.grupo,
             carbohidratosPor100g: carbs,
             proteinaPor100g: prot,
             grasasPor100g: fat,
@@ -2113,7 +2081,7 @@ export default function CartClient() {
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold text-indigo-900 uppercase tracking-tight">
-                    Resumen de Intercambios (UDD/INTA Chile)
+                    Resumen del motor clinico de intercambios
                   </h4>
                   <p className="text-[10px] font-semibold text-indigo-600/80 uppercase tracking-widest">
                     Informacion de referencia
@@ -2135,8 +2103,8 @@ export default function CartClient() {
                   La calculadora completa se trabaja en la dieta.
                 </p>
                 <p className="text-[10px] text-indigo-600/60 font-medium leading-relaxed mb-4">
-                  <strong>Logica UDD:</strong> Cereales y Pan (30g CHO), Carnes y Proteinas (11g PRO),
-                  Frutas (15g CHO), Verduras (5g CHO), Grasas (20g LIP).
+                  Ahora el carrito usa la misma tabla clinica V1 del resto de NutriNet.
+                  Si un alimento no tiene intercambio clinico, se muestra como extra o requiere revision.
                 </p>
                 <div className="flex flex-wrap items-center gap-4 border-t border-indigo-100 pt-3">
                   <div className="flex items-center gap-1.5">
@@ -2404,44 +2372,33 @@ export default function CartClient() {
                                       className="h-8 w-14 p-0 text-center bg-transparent border-none font-black text-blue-700 text-xs focus-visible:ring-0"
                                     />
                                   </div>
-                                  <div
-                                    className={cn(
-                                      "px-1.5 py-0.5 rounded-lg border text-[9px] font-black flex items-center gap-1 min-w-[65px] justify-center shadow-sm",
-                                      item.grupo.toLowerCase().includes("cereal") ||
-                                        item.grupo
-                                          .toLowerCase()
-                                          .includes("fruta") ||
-                                        item.grupo.toLowerCase().includes("verdura")
-                                        ? "bg-amber-50 text-amber-700 border-amber-100"
-                                        : item.grupo
-                                          .toLowerCase()
-                                          .includes("carne") ||
-                                          item.grupo
-                                            .toLowerCase()
-                                            .includes("huevo") ||
-                                          item.grupo
-                                            .toLowerCase()
-                                            .includes("pescado")
-                                          ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                                          : item.grupo
-                                            .toLowerCase()
-                                            .includes("grasa") ||
-                                            item.grupo
-                                              .toLowerCase()
-                                              .includes("aceite") ||
-                                            item.grupo
-                                              .toLowerCase()
-                                              .includes("frutos secos")
-                                            ? "bg-rose-50 text-rose-700 border-rose-100"
-                                            : "bg-indigo-50 text-indigo-700 border-indigo-100",
-                                    )}
-                                  >
-                                    <span className="inline-flex h-6 min-w-[40px] items-center justify-center text-[10px] font-black">
-                                      {item.exchange.val}
-                                    </span>
-                                    <span className="opacity-50 text-[8px] uppercase tracking-tighter ml-1">
-                                      {item.exchange.label}
-                                    </span>
+                                  <div className="flex flex-col items-center gap-1">
+                                    <div
+                                      className={cn(
+                                        "rounded-lg border px-2 py-1 text-[9px] font-black shadow-sm",
+                                        item.exchange.isClinical
+                                          ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                                          : "border-slate-200 bg-slate-100 text-slate-500",
+                                      )}
+                                      title={item.exchange.note}
+                                    >
+                                      {item.exchange.profileLabel}
+                                    </div>
+                                    <div className="flex items-center gap-1 rounded-lg border border-indigo-100 bg-indigo-50 px-2">
+                                      <Input
+                                        type="number"
+                                        step="0.1"
+                                        value={item.exchange.val}
+                                        onChange={(e) =>
+                                          handleExchangePortionChange(item, e.target.value)
+                                        }
+                                        disabled={!item.exchange.isClinical}
+                                        className="h-7 w-14 border-none bg-transparent p-0 text-center text-[10px] font-black text-indigo-700 focus-visible:ring-0"
+                                      />
+                                      <span className="text-[8px] font-black uppercase tracking-widest text-indigo-500">
+                                        {item.exchange.label}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -2460,8 +2417,16 @@ export default function CartClient() {
                                   porciones
                                 </span>
                               </div>
+                              <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-1.5 border border-slate-200">
+                                <span className="text-sm font-black text-slate-700">
+                                  {formatPortionCount(item.exchange.monthly)}
+                                </span>
+                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                                  interc/mes
+                                </span>
+                              </div>
                               <span className="text-[9px] text-slate-400 font-medium">
-                                {WEEKS_PER_MONTH} semanas
+                                {formatPortionCount(item.exchange.weekly)} interc/semana
                               </span>
                             </div>
                           </td>

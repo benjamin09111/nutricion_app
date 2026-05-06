@@ -24,7 +24,7 @@ export interface Patient {
   nutritionalFocus?: string;
   fitnessGoals?: string;
   likes?: string;
-  activityLevel?: "sedentario" | "deportista";
+  activityLevel?: "sedentario" | "ligero" | "moderado" | "activo" | "muy_activo";
 
   // UI specific/Legacy fields
   status?: "Active" | "Inactive";

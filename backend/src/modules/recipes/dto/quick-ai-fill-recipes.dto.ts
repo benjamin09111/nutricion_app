@@ -115,6 +115,11 @@ class QuickAiFillPayloadDto {
   @IsOptional()
   resources?: string[];
 
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  exchangeGuide?: string[];
+
   @ValidateNested()
   @Type(() => QuickAiPatientDto)
   @IsOptional()

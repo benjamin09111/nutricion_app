@@ -25,7 +25,7 @@
     "moduleKey": "exchangePortions",
     "label": "Porciones de Intercambio",
     "routePatterns": ["/dashboard/herramientas/porciones-intercambio"],
-    "status": "ready"
+    "status": "planned"
   },
   {
     "id": "recipes",
@@ -59,7 +59,7 @@
     "id": "patients",
     "moduleKey": "patients",
     "label": "Pacientes",
-    "routePatterns": ["/dashboard/pacientes", "/dashboard/pacientes/*"],
+    "routePatterns": ["/dashboard/pacientes/:id"],
     "status": "planned"
   },
   {

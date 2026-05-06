@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { calculateGET, calculateAge, type ActivityLevel as NutritionActivityLevel } from "@/lib/nutrition-formulas";
 import {
   ChefHat,
   Download,
@@ -27,11 +28,13 @@ import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { TagInput } from "@/components/ui/TagInput";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
+import { SectionProgressNav, type SectionProgressStatus } from "@/components/shared/SectionProgressNav";
 import { type ActionDockItem } from "@/components/ui/ActionDock";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { fetchCreation, saveCreation } from "@/lib/workflow";
 import { getAuthToken } from "@/lib/auth-token";
 import { formatRut } from "@/lib/rut-utils";
+import { useDashboardShell } from "@/context/DashboardShellContext";
 
 type QuickIngredient = {
   id: string;
@@ -227,6 +230,12 @@ type MealGenerationTarget = {
   count: number;
 };
 
+type QuickRecipesSectionId =
+  | "general"
+  | "instructions"
+  | "generation"
+  | "dishes";
+
 const createDefaultGenerationTargets = (): MealGenerationTarget[] =>
   MEAL_SECTIONS.map((mealSection) => ({
     mealSection,
@@ -302,8 +311,13 @@ const normalizeImportedDishes = (value: unknown): QuickDish[] => {
 };
 
 export default function QuickRecipesClient() {
+  const { setSidebarCollapsed, isSidebarCollapsed } = useDashboardShell();
   const searchParams = useSearchParams();
   const creationId = searchParams.get("creationId");
+  const generalSectionRef = useRef<HTMLDivElement | null>(null);
+  const instructionsSectionRef = useRef<HTMLDivElement | null>(null);
+  const generationSectionRef = useRef<HTMLDivElement | null>(null);
+  const dishesSectionRef = useRef<HTMLDivElement | null>(null);
 
   const [title, setTitle] = useState(DEFAULT_TITLE);
   const [dietName, setDietName] = useState(DEFAULT_DIET_NAME);
@@ -353,8 +367,14 @@ export default function QuickRecipesClient() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [activeGuideSection, setActiveGuideSection] =
+    useState<QuickRecipesSectionId>("general");
 
   const resetQuickPatientDraft = () => setQuickPatientDraft(createQuickPatientDraft());
+
+  useEffect(() => {
+    setSidebarCollapsed(true);
+  }, [setSidebarCollapsed]);
 
   useEffect(() => {
     const draft = localStorage.getItem(DRAFT_KEY);
@@ -813,6 +833,24 @@ export default function QuickRecipesClient() {
             desiredDishCount: Math.max(2, Math.min(60, desiredDishCount)),
             mealSectionTargets: selectedTargets,
             generationMode: mode,
+            nutritionalTargets: selectedPatient
+              ? (() => {
+                  const w = Number(selectedPatient.weight) || 0;
+                  const h = Number(selectedPatient.height) || 0;
+                  const g = (selectedPatient.gender === "Masculino" || selectedPatient.gender === "Femenino")
+                    ? selectedPatient.gender : "Femenino";
+                  const age = calculateAge(selectedPatient.birthDate) || 30;
+                  const al = "moderado" as NutritionActivityLevel;
+                  const get = calculateGET(g, w, h, age, al);
+                  return get ? {
+                    dailyCalories: get.macros.calories,
+                    dailyProtein: get.macros.protein,
+                    dailyCarbs: get.macros.carbs,
+                    dailyFats: get.macros.fats,
+                    tmb: get.tmb,
+                  } : null;
+                })()
+              : null,
             existingDishes: dishes
               .filter((dish) => dish.title.trim())
               .map((dish) => ({ title: dish.title.trim(), mealSection: dish.mealSection })),
@@ -1217,6 +1255,101 @@ export default function QuickRecipesClient() {
     });
   }, [activeMealSectionFilter, totalCategoryPages]);
 
+  const getSectionStatus = (
+    enabled: boolean,
+    isComplete: boolean,
+  ): SectionProgressStatus => {
+    if (!enabled) return "hidden";
+    return isComplete ? "complete" : "pending";
+  };
+
+  const quickRecipeSections = useMemo(
+    () => [
+      {
+        id: "general" as QuickRecipesSectionId,
+        label: "Informacion general",
+        status: getSectionStatus(
+          true,
+          title.trim().length > 0 && Boolean(selectedPatient?.fullName),
+        ),
+        ref: generalSectionRef,
+      },
+      {
+        id: "instructions" as QuickRecipesSectionId,
+        label: "Instrucciones",
+        status: getSectionStatus(
+          true,
+          parseLines(allowedFoodsMainText).length > 0 &&
+            parseLines(restrictedFoodsText).length > 0 &&
+            specialConsiderations.trim().length > 0,
+        ),
+        ref: instructionsSectionRef,
+      },
+      {
+        id: "generation" as QuickRecipesSectionId,
+        label: "Generacion IA",
+        status: getSectionStatus(
+          true,
+          mealGenerationTargets.some((target) => target.enabled),
+        ),
+        ref: generationSectionRef,
+      },
+      {
+        id: "dishes" as QuickRecipesSectionId,
+        label: "Platos",
+        status: getSectionStatus(
+          true,
+          meaningfulDishes.length > 0,
+        ),
+        ref: dishesSectionRef,
+      },
+    ],
+    [
+      allowedFoodsMainText,
+      meaningfulDishes.length,
+      mealGenerationTargets,
+      restrictedFoodsText,
+      selectedPatient?.fullName,
+      specialConsiderations,
+      title,
+    ],
+  );
+
+  const scrollToGuideSection = (sectionId: QuickRecipesSectionId) => {
+    const targetSection = quickRecipeSections.find(
+      (section) => section.id === sectionId,
+    );
+    targetSection?.ref.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  useEffect(() => {
+    const updateActiveSection = () => {
+      const viewportOffset = 180;
+      let nextSection = quickRecipeSections[0]?.id ?? "general";
+
+      quickRecipeSections.forEach((section) => {
+        const top = section.ref.current?.getBoundingClientRect().top;
+        if (typeof top === "number" && top - viewportOffset <= 0) {
+          nextSection = section.id;
+        }
+      });
+
+      setActiveGuideSection(nextSection);
+    };
+
+    updateActiveSection();
+    window.addEventListener("scroll", updateActiveSection, { passive: true });
+    window.addEventListener("resize", updateActiveSection);
+
+    return () => {
+      window.removeEventListener("scroll", updateActiveSection);
+      window.removeEventListener("resize", updateActiveSection);
+    };
+  }, [quickRecipeSections]);
+
   return (
     <>
       <ModuleLayout
@@ -1267,8 +1400,21 @@ export default function QuickRecipesClient() {
           </ModuleFooter>
         }
       >
+        {isSidebarCollapsed && (
+          <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
+            <SectionProgressNav
+              items={quickRecipeSections.map((section) => ({
+                id: section.id,
+                label: section.label,
+                status: section.status,
+                active: activeGuideSection === section.id,
+                onClick: () => scrollToGuideSection(section.id),
+              }))}
+            />
+          </div>
+        )}
         <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div ref={generalSectionRef} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -1328,7 +1474,10 @@ export default function QuickRecipesClient() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+          <div
+            ref={instructionsSectionRef}
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4"
+          >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label
@@ -1394,7 +1543,7 @@ export default function QuickRecipesClient() {
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div ref={generationSectionRef} className="space-y-4">
             <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className="text-sm font-black uppercase tracking-widest text-indigo-700">
@@ -1449,7 +1598,8 @@ export default function QuickRecipesClient() {
                   onClick={() => generateWithAi("single")}
                   disabled={isGenerating || isGeneratingWeekly}
                 >
-                  <Sparkles className="mr-2 h-4 w-4" />
+                                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+
                   {isGenerating ? "Generando..." : "Generar platos IA"}
                 </Button>
               </div>
@@ -1457,6 +1607,7 @@ export default function QuickRecipesClient() {
 
             {showDishesSection && meaningfulDishes.length > 0 ? (
               <>
+                <div ref={dishesSectionRef} />
                 <div className="flex flex-wrap items-center gap-2">
                   {mealSectionTabs.map((tab) => (
                     <button
@@ -1828,7 +1979,10 @@ export default function QuickRecipesClient() {
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50/50 py-16 text-center">
+              <div
+                ref={dishesSectionRef}
+                className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50/50 py-16 text-center"
+              >
                 <ChefHat className="mb-4 h-12 w-12 text-slate-300" />
                 <h3 className="text-lg font-bold text-slate-400">Aún no hay platos generados</h3>
                 <p className="mt-1 text-sm text-slate-400">Configura los parámetros arriba y usa el botón Generar con IA.</p>

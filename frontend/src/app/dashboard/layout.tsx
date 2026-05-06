@@ -5,12 +5,14 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { Navbar } from "@/components/layout/Navbar";
+import { NutriaChatWidget } from "@/components/layout/NutriaChatWidget";
 import { AdminProvider, useAdmin } from "@/context/AdminContext";
 import {
   DashboardShellProvider,
   useDashboardShell,
 } from "@/context/DashboardShellContext";
 import { TutorialProvider } from "@/context/TutorialContext";
+import { useTutorials } from "@/context/TutorialContext";
 import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
@@ -22,6 +24,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isSidebarCollapsed } = useDashboardShell();
   const { isDarkMode } = useTheme();
+  const { isIntroTutorialActive } = useTutorials();
   const pathname = usePathname();
   const isRecipesModule = pathname.startsWith("/dashboard/recetas");
 
@@ -31,6 +34,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
       </div>
     );
+  }
+
+  if (isIntroTutorialActive) {
+    return <div className="min-h-screen bg-white" />;
   }
 
   return (
@@ -98,6 +105,8 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           </div>
         </main>
       </div>
+
+      <NutriaChatWidget />
     </div>
   );
 }

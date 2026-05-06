@@ -24,6 +24,10 @@ export interface TutorialStepDefinition {
   targetId?: string;
   title: string;
   body: string;
+  checkboxLabel?: string;
+  requireCheckbox?: boolean;
+  nextLabel?: string;
+  hideSkip?: boolean;
   placement?: TutorialStepPlacement;
   highlight?: TutorialStepHighlight;
   allowInteraction?: boolean;
@@ -61,8 +65,31 @@ export interface TutorialRuntimeState {
   source: TutorialLaunchSource | null;
 }
 
-export const TUTORIAL_STORE_KEY = "nutri_tutorial_store_v1";
+export const TUTORIAL_STORE_KEY = "nutri_tutorial_store_v2";
 export const TUTORIAL_TRIGGER_TARGET_ID = "tutorial-trigger";
+export const TUTORIAL_CONTEXT_PATH_KEY = "nutri_tutorial_context_path_v1";
+
+const getTutorialUserScope = () => {
+  if (typeof window === "undefined") {
+    return "anonymous";
+  }
+
+  try {
+    const rawUser = window.localStorage.getItem("user");
+    if (!rawUser) return "anonymous";
+    const user = JSON.parse(rawUser) as {
+      id?: string;
+      email?: string;
+      accountId?: string;
+    };
+    return user.id || user.accountId || user.email || "anonymous";
+  } catch {
+    return "anonymous";
+  }
+};
+
+const getTutorialStoreKey = () =>
+  `${TUTORIAL_STORE_KEY}::${getTutorialUserScope()}`;
 
 export const tutorialRegistry =
   tutorialRegistryData as TutorialRegistryEntry[];
@@ -83,6 +110,23 @@ export const matchesPattern = (pathname: string, pattern: string) => {
     return (
       normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`)
     );
+  }
+
+  if (normalizedPattern.includes(":")) {
+    const pathSegments = normalizedPath.split("/").filter(Boolean);
+    const patternSegments = normalizedPattern.split("/").filter(Boolean);
+
+    if (pathSegments.length !== patternSegments.length) {
+      return false;
+    }
+
+    return patternSegments.every((segment, index) => {
+      if (segment.startsWith(":")) {
+        return pathSegments[index]?.length > 0;
+      }
+
+      return pathSegments[index] === segment;
+    });
   }
 
   return normalizedPath === normalizedPattern;
@@ -119,7 +163,7 @@ export const getTutorialForPath = (pathname: string) => {
 };
 
 export const hasTutorialSteps = (tutorial: TutorialDefinition | null) =>
-  Boolean(tutorial && tutorial.steps.length > 0);
+  Boolean(tutorial && tutorial.status === "ready" && tutorial.steps.length > 0);
 
 export const isTutorialUnseen = (tutorial: TutorialDefinition | null) => {
   if (!tutorial || !hasTutorialSteps(tutorial) || tutorial.status !== "ready") {
@@ -154,7 +198,7 @@ const readStore = (): TutorialStore => {
     return { tutorials: {}, hasSeenTutorialCoachmark: false };
   }
 
-  const raw = window.localStorage.getItem(TUTORIAL_STORE_KEY);
+  const raw = window.localStorage.getItem(getTutorialStoreKey());
   if (!raw) {
     return { tutorials: {}, hasSeenTutorialCoachmark: false };
   }
@@ -173,7 +217,7 @@ const readStore = (): TutorialStore => {
 
 const writeStore = (store: TutorialStore) => {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(TUTORIAL_STORE_KEY, JSON.stringify(store));
+  window.localStorage.setItem(getTutorialStoreKey(), JSON.stringify(store));
 };
 
 export const getTutorialProgress = (
@@ -238,5 +282,24 @@ export const setTutorialInProgress = (
     ),
     updatedAt: new Date().toISOString(),
   });
+};
+
+export const getLastTutorialContextPath = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.localStorage.getItem(TUTORIAL_CONTEXT_PATH_KEY);
+};
+
+export const setLastTutorialContextPath = (pathname: string) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    TUTORIAL_CONTEXT_PATH_KEY,
+    normalizePath(pathname),
+  );
 };
 

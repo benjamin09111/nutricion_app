@@ -33,7 +33,7 @@ import { SectionProgressNav, type SectionProgressStatus } from "@/components/sha
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { type ActionDockItem } from "@/components/ui/ActionDock";
 import { fetchApi } from "@/lib/api-base";
-import exchangePortionGuide from "@/content/exchange-portions.json";
+import { buildExchangeGuideForPatient } from "@/lib/exchange-portions";
 import { cn } from "@/lib/utils";
 import { fetchCreation, fetchProject, saveCreation } from "@/lib/workflow";
 import { downloadFastDeliverablePdf } from "@/features/pdf/fastDeliverablePdfExport";
@@ -180,7 +180,7 @@ const QUICK_WEEK_DAYS: QuickWeekDay[] = [
 ];
 
 const QUICK_PORTION_GUIDE = [
-  ...((Array.isArray(exchangePortionGuide) ? exchangePortionGuide : []) as Array<{ category: string; portion: string }>),
+  ...(buildExchangeGuideForPatient() as Array<{ category: string; portion: string }>),
 ];
 
 const DEFAULT_TITLE = "Entregable rápido";
@@ -1779,7 +1779,12 @@ export default function QuickDeliverableClient() {
                     onClick={() => setIsCreatedRecipesModalOpen(true)}
                     title="Rellenar con platos creados"
                   >
-                    <Sparkles className="mr-2 h-4 w-4 text-emerald-600" />
+                                        {isGeneratingQuickAi ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-600" />
+                    ) : (
+                      <Sparkles className="mr-2 h-4 w-4 text-emerald-600" />
+                    )}
+
                     Rellenar con IA / platos creados
                   </Button>
                 </div>
@@ -1844,7 +1849,12 @@ export default function QuickDeliverableClient() {
                               title="Rellenar con IA / platos creados"
                               aria-label="Rellenar con IA / platos creados"
                             >
-                              <Sparkles className="h-3.5 w-3.5" />
+                                                            {isGeneratingQuickAi ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Sparkles className="h-3.5 w-3.5" />
+                              )}
+
                             </button>
                           </div>
                         </th>
@@ -2721,7 +2731,13 @@ export default function QuickDeliverableClient() {
                   onClick={() => void generateMealsWithAi()}
                   disabled={isGeneratingQuickAi || quickAiMealTargets.length === 0}
                 >
+                                    {isGeneratingQuickAi ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
                   {isGeneratingQuickAi ? "Generando..." : "Generar con IA"}
+
                 </Button>
               </div>
             </div>

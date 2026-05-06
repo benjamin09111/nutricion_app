@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { calculateGET, calculateAge, type ActivityLevel as NutritionActivityLevel } from "@/lib/nutrition-formulas";
 import {
   GraduationCap,
   Zap,
@@ -53,7 +54,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
-import { SectionProgressNav } from "@/components/shared/SectionProgressNav";
+import { SectionProgressNav, type SectionProgressStatus } from "@/components/shared/SectionProgressNav";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { useAdmin } from "@/context/AdminContext";
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
@@ -70,6 +71,7 @@ import {
 import { fetchApi } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
 import { useDashboardShell } from "@/context/DashboardShellContext";
+import { buildExchangeGuideForAi } from "@/lib/exchange-portions";
 
 // -- Types --
 
@@ -232,16 +234,6 @@ type ProteinSupplement = {
   gramsPerDay: number;
 };
 
-const CHILE_EXCHANGE_PORTION_GUIDE = [
-  "Cereales/tuberculos: 1/2 taza cocida o 1 rebanada de pan.",
-  "Legumbres: 3/4 taza cocida.",
-  "Proteinas: 90-120 g cocidos (tamano palma).",
-  "Frutas: 1 unidad mediana o 1 taza picada.",
-  "Verduras: 2 tazas crudas o 1 taza cocida.",
-  "Grasas: 1 cucharada de aceite o 1/4 palta.",
-  "Lacteos: 1 taza leche/yogur o 1 lamina de queso fresco.",
-];
-
 const calculateAgeYears = (birthDate?: string) => {
   if (!birthDate) return undefined;
   const date = new Date(birthDate);
@@ -319,16 +311,38 @@ const getGoalsFromPatient = (patient: any): NutritionGoals | null => {
     fats: readCustomVariableNumber(customVariables, "targetFats"),
   };
 
-  if (!goals.calories || !goals.protein) {
-    return sanitizeNutritionGoals(patient?.nutritionGoals);
+  if (goals.calories && goals.protein) {
+    return {
+      calories: Math.round(goals.calories),
+      protein: Math.round(goals.protein),
+      carbs: goals.carbs ? Math.round(goals.carbs) : Math.round(goals.calories * 0.55 / 4),
+      fats: goals.fats ? Math.round(goals.fats) : Math.round(goals.calories * 0.25 / 9),
+    };
   }
 
-  return {
-    calories: Math.round(goals.calories),
-    protein: Math.round(goals.protein),
-    carbs: Math.round(goals.carbs),
-    fats: Math.round(goals.fats),
-  };
+  const fromGoals = sanitizeNutritionGoals(patient?.nutritionGoals);
+  if (fromGoals) return fromGoals;
+
+  const weight = Number(patient?.weight) || 0;
+  const height = Number(patient?.height) || 0;
+  const gender = (patient?.gender === "Masculino" || patient?.gender === "Femenino")
+    ? patient.gender : "Femenino";
+  const age = calculateAge(patient?.birthDate) || 30;
+  const activityLevel = (getActivityLevel(patient) || "sedentario") as NutritionActivityLevel;
+
+  if (weight > 0 && height > 0) {
+    const get = calculateGET(gender, weight, height, age, activityLevel);
+    if (get) {
+      return {
+        calories: get.macros.calories,
+        protein: get.macros.protein,
+        carbs: get.macros.carbs,
+        fats: get.macros.fats,
+      };
+    }
+  }
+
+  return null;
 };
 
 const getRecommendedProteinRange = (
@@ -438,6 +452,12 @@ const normalizePatientContext = (patient: any): PatientContext | null => {
 };
 
 type PlannerView = "daily" | "weekly";
+type RecipesGuideSectionId =
+  | "base"
+  | "patient"
+  | "structure"
+  | "library"
+  | "planner";
 
 const MOCK_RECIPES: Recipe[] = [
   {
@@ -565,6 +585,11 @@ export default function RecipesClient() {
   const { setSidebarCollapsed, flashSidebarToggle, isSidebarCollapsed } =
     useDashboardShell();
   const hasCollapsedSidebarForRecipesRef = useRef(false);
+  const baseSectionRef = useRef<HTMLDivElement | null>(null);
+  const patientSectionRef = useRef<HTMLDivElement | null>(null);
+  const structureSectionRef = useRef<HTMLDivElement | null>(null);
+  const librarySectionRef = useRef<HTMLDivElement | null>(null);
+  const plannerSectionRef = useRef<HTMLDivElement | null>(null);
 
   // -- State --
   const [mealCount, setMealCount] = useState(DEFAULT_MEAL_COUNT);
@@ -698,6 +723,8 @@ export default function RecipesClient() {
   const [draftMeta, setDraftMeta] = useState<{ label: string; date?: string }>({ label: "" });
 
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
+  const [activeGuideSection, setActiveGuideSection] =
+    useState<RecipesGuideSectionId>("base");
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [creationDescription, setCreationDescription] = useState("");
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -743,6 +770,113 @@ export default function RecipesClient() {
     isSidebarCollapsed,
     setSidebarCollapsed,
   ]);
+
+  const getGuideSectionStatus = (
+    enabled: boolean,
+    isComplete: boolean,
+  ): SectionProgressStatus => {
+    if (!enabled) return "hidden";
+    return isComplete ? "complete" : "pending";
+  };
+
+  const recipesGuideSections = useMemo(
+    () => [
+      {
+        id: "base" as RecipesGuideSectionId,
+        label: "Base alimentaria",
+        status: getGuideSectionStatus(true, hasSourceData),
+        ref: baseSectionRef,
+      },
+      {
+        id: "patient" as RecipesGuideSectionId,
+        label: "Paciente",
+        status: getGuideSectionStatus(
+          true,
+          Boolean(selectedPatient?.fullName) &&
+            selectedPatient?.ageYears !== null &&
+            selectedPatient?.ageYears !== undefined &&
+            Boolean(selectedPatient?.gender) &&
+            (Boolean(selectedPatient?.noDietaryRestrictions) ||
+              Boolean(selectedPatient?.restrictions?.length)),
+        ),
+        ref: patientSectionRef,
+      },
+      {
+        id: "structure" as RecipesGuideSectionId,
+        label: "Configuracion",
+        status: getGuideSectionStatus(
+          hasSourceData,
+          mealCount > 0 && cycleDayCount > 0,
+        ),
+        ref: structureSectionRef,
+      },
+      {
+        id: "library" as RecipesGuideSectionId,
+        label: "Biblioteca",
+        status: getGuideSectionStatus(
+          hasSourceData,
+          recipeLibrary.length > 0,
+        ),
+        ref: librarySectionRef,
+      },
+      {
+        id: "planner" as RecipesGuideSectionId,
+        label: "Planner",
+        status: getGuideSectionStatus(
+          hasSourceData,
+          currentSlots.some((slot) => Boolean(slot.recipe)),
+        ),
+        ref: plannerSectionRef,
+      },
+    ],
+    [
+      cycleDayCount,
+      currentSlots,
+      hasSourceData,
+      mealCount,
+      recipeLibrary.length,
+      selectedPatient?.ageYears,
+      selectedPatient?.fullName,
+      selectedPatient?.gender,
+      selectedPatient?.noDietaryRestrictions,
+      selectedPatient?.restrictions,
+    ],
+  );
+
+  const scrollToGuideSection = (sectionId: RecipesGuideSectionId) => {
+    const targetSection = recipesGuideSections.find(
+      (section) => section.id === sectionId,
+    );
+    targetSection?.ref.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  useEffect(() => {
+    const updateActiveSection = () => {
+      const viewportOffset = 180;
+      let nextSection = recipesGuideSections[0]?.id ?? "base";
+
+      recipesGuideSections.forEach((section) => {
+        const top = section.ref.current?.getBoundingClientRect().top;
+        if (typeof top === "number" && top - viewportOffset <= 0) {
+          nextSection = section.id;
+        }
+      });
+
+      setActiveGuideSection(nextSection);
+    };
+
+    updateActiveSection();
+    window.addEventListener("scroll", updateActiveSection, { passive: true });
+    window.addEventListener("resize", updateActiveSection);
+
+    return () => {
+      window.removeEventListener("scroll", updateActiveSection);
+      window.removeEventListener("resize", updateActiveSection);
+    };
+  }, [recipesGuideSections]);
 
   const buildRecipeIngredientHints = (
     slotsByDay: Record<string, MealSlot[]>,
@@ -1580,6 +1714,7 @@ export default function RecipesClient() {
           notes: aiNutritionistNotes,
           specialConsiderations: aiSpecialConsiderations,
           allowedFoodsMain: sourceFoods,
+          exchangeGuide: buildExchangeGuideForAi(),
           mealSectionTargets,
           generationMode: "single" as const,
           patient: {
@@ -3047,13 +3182,13 @@ export default function RecipesClient() {
         {isSidebarCollapsed && (
           <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
             <SectionProgressNav
-              title="Etapas del Plan"
-              items={[
-                { id: "dieta", label: "1. Estrategia", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/dieta", currentProjectId)) },
-                { id: "recetas", label: "2. Cuantificación", status: "complete", active: true, onClick: () => {} },
-                { id: "carrito", label: "3. Logística", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/carrito", currentProjectId)) },
-                { id: "entregable", label: "4. Entregable", status: "pending", active: false, onClick: () => {} },
-              ]}
+              items={recipesGuideSections.map((section) => ({
+                id: section.id,
+                label: section.label,
+                status: section.status,
+                active: activeGuideSection === section.id,
+                onClick: () => scrollToGuideSection(section.id),
+              }))}
             />
           </div>
         )}
@@ -3063,7 +3198,7 @@ export default function RecipesClient() {
           mode={currentProjectMode}
           moduleLabel="Recetas"
         />
-        <div className="mb-6 animate-in slide-in-from-top duration-300 mx-auto w-full">
+        <div ref={baseSectionRef} className="mb-6 animate-in slide-in-from-top duration-300 mx-auto w-full">
           <div
             className={cn(
               "rounded-[2.5rem] border p-6 shadow-sm",
@@ -3155,7 +3290,11 @@ export default function RecipesClient() {
           </div>
         )}
 
-        <div id="patient-context-section" className="mb-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+        <div
+          id="patient-context-section"
+          ref={patientSectionRef}
+          className="mb-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm"
+        >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-2">
               <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
@@ -3399,7 +3538,10 @@ export default function RecipesClient() {
         ) : null}
 
         <div className={cn("space-y-8 mt-6", isRecipesLocked && "pointer-events-none opacity-55 select-none")}>
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <div
+            ref={structureSectionRef}
+            className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm"
+          >
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-3">
                 <div>
@@ -3673,7 +3815,10 @@ export default function RecipesClient() {
           </div>
 
           <div className="relative grid lg:grid-cols-12 gap-8 items-start">
-            <div className="hidden lg:col-span-3 lg:block lg:self-start lg:sticky lg:top-24">
+            <div
+              ref={librarySectionRef}
+              className="hidden lg:col-span-3 lg:block lg:self-start lg:sticky lg:top-24"
+            >
               <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="space-y-4">
                   <div>
@@ -3991,7 +4136,7 @@ export default function RecipesClient() {
             </div>
 
             {/* Center Panel: Planner */}
-            <div className="lg:col-span-6 space-y-6">
+            <div ref={plannerSectionRef} className="lg:col-span-6 space-y-6">
               {plannerView === "daily" && (
 
                 <>
