@@ -9,13 +9,24 @@ import {
   Request,
   Delete,
 } from '@nestjs/common';
+import type { Request as ExpressRequest } from 'express';
 import { SupportService } from './support.service';
 import { CreateSupportRequestDto } from './dto/create-support-request.dto';
 import { AuthGuard } from '@nestjs/passport';
 
+type JwtRequest = ExpressRequest & {
+  user: {
+    email: string;
+  };
+};
+
 @Controller('support')
 export class SupportController {
   constructor(private readonly supportService: SupportService) {}
+
+  private getUserEmail(req: JwtRequest): string {
+    return (req as unknown as { user: { email: string } }).user.email;
+  }
 
   // Public endpoint for submitting requests (Password Reset / Contact)
   @Post()
@@ -27,24 +38,24 @@ export class SupportController {
   @UseGuards(AuthGuard('jwt'))
   @Post('feedback')
   createFeedback(
-    @Request() req: any,
+    @Request() req: JwtRequest,
     @Body() body: import('./dto/create-feedback.dto').CreateFeedbackDto,
   ) {
     return this.supportService.create({
       ...body,
-      email: req.user.email,
+      email: this.getUserEmail(req),
     });
   }
 
   // Secure Subscription Request
   @UseGuards(AuthGuard('jwt'))
   @Post('secure-subscription')
-  secureSubscription(@Request() req: any) {
+  secureSubscription(@Request() req: JwtRequest) {
     return this.supportService.create({
-      email: req.user.email,
+      email: this.getUserEmail(req),
       type: 'OTHER',
-      subject: 'ASEGURAR_SUSCRIPCION',
-      message: `El nutricionista ${req.user.email} desea asegurar su suscripción post-beta.`,
+      subject: `ASEGURAR_SUSCRIPCION - ${this.getUserEmail(req)}`,
+      message: `El nutricionista ${this.getUserEmail(req)} desea asegurar su suscripción post-beta.`,
     });
   }
 

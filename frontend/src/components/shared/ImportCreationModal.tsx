@@ -13,8 +13,8 @@ interface Creation {
   id: string;
   name: string;
   type: string;
-  content: any;
-  metadata?: any;
+  content: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   tags: string[];
   createdAt: string;
 }
@@ -32,6 +32,7 @@ const CREATION_TYPE_OPTIONS = [
   { value: "DIET", label: "Dietas" },
   { value: "SHOPPING_LIST", label: "Carrito" },
   { value: "RECIPE", label: "Recetas" },
+  { value: "RECETARIO", label: "Recetarios" },
   { value: "FAST_DELIVERABLE", label: "Entregable rápido" },
 ] as const;
 
@@ -123,6 +124,8 @@ export function ImportCreationModal({
         return "Carrito";
       case "RECIPE":
         return "Receta";
+      case "RECETARIO":
+        return "Recetario";
       case "FAST_DELIVERABLE":
         return "Entregable rápido";
       default:
@@ -137,6 +140,8 @@ export function ImportCreationModal({
       case "SHOPPING_LIST":
         return "bg-emerald-100 text-emerald-700";
       case "RECIPE":
+        return "bg-amber-100 text-amber-700";
+      case "RECETARIO":
         return "bg-amber-100 text-amber-700";
       case "FAST_DELIVERABLE":
         return "bg-fuchsia-100 text-fuchsia-700";

@@ -1015,7 +1015,7 @@ export class PatientPortalsService {
         : null,
     ].filter(Boolean) as string[];
 
-    return pieces.join(' Â· ');
+    return pieces.join(' ? ');
   }
 
   private normalizeDiaryDate(value?: string) {

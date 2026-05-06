@@ -265,7 +265,7 @@ export default function DashboardHomeClient() {
                     <div>
                       <h4 className="text-base font-semibold text-slate-900">{project.name}</h4>
                       <p className="text-xs font-medium text-slate-500">
-                        {project.patient?.fullName || "Proyecto General"} • {new Date(project.updatedAt).toLocaleDateString()}
+                        {(project.patient as any)?.fullName || "Proyecto General"} • {new Date(project.updatedAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>

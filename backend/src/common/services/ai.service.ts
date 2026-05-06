@@ -63,6 +63,21 @@ export class AiService {
     return null;
   }
 
+  private buildEmptyContentMessage(config: AiConfig, payload: any): string {
+    const choice = Array.isArray(payload?.choices) ? payload.choices[0] : null;
+    const finishReason =
+      typeof choice?.finish_reason === 'string' ? choice.finish_reason : 'unknown';
+    const hasReasoning = Boolean(choice?.message?.reasoning_content);
+
+    return [
+      'La IA no devolvio contenido util.',
+      `provider=${config.provider}`,
+      `model=${config.model}`,
+      `finish_reason=${finishReason}`,
+      `reasoning=${hasReasoning ? 'yes' : 'no'}`,
+    ].join(' ');
+  }
+
   private async callProviderJson(
     config: AiConfig,
     systemInstruction: string,
@@ -94,7 +109,12 @@ export class AiService {
       body: JSON.stringify(payload),
     });
 
-    const raw = await response.json().catch(() => ({}) as any);
+    const raw = await response.json().catch((e) => {
+      this.logger.error(
+        `[AI:${config.provider}] JSON parse error: ${e.message}`,
+      );
+      return {};
+    });
     if (!response.ok) {
       const upstreamMessage = raw?.error?.message || raw?.message || '';
       throw new BadRequestException(
@@ -105,7 +125,10 @@ export class AiService {
 
     const text = this.extractOpenAICompatibleText(raw);
     if (!text) {
-      throw new BadRequestException('La IA no devolvio contenido.');
+      this.logger.error(`[AI:${config.provider}] No usable content. Raw response: ${JSON.stringify(raw)}`);
+      throw new BadRequestException(
+        this.buildEmptyContentMessage(config, raw),
+      );
     }
 
     return text;

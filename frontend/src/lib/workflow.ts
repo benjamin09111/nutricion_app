@@ -4,6 +4,7 @@ import { fetchApi, getApiUrl } from "@/lib/api-base";
 type WorkflowCreationType =
   | "DIET"
   | "RECIPE"
+  | "RECETARIO"
   | "SHOPPING_LIST"
   | "DELIVERABLE"
   | "FAST_DELIVERABLE";
@@ -17,15 +18,15 @@ export interface WorkflowProject {
   mode: WorkflowProjectMode;
   status: string;
   patientId?: string | null;
-  patient?: any;
+  patient?: Record<string, unknown> | null;
   activeDietCreationId?: string | null;
   activeRecipeCreationId?: string | null;
   activeCartCreationId?: string | null;
   activeDeliverableCreationId?: string | null;
-  activeDietCreation?: any;
-  activeRecipeCreation?: any;
-  activeCartCreation?: any;
-  activeDeliverableCreation?: any;
+  activeDietCreation?: Record<string, unknown> | null;
+  activeRecipeCreation?: Record<string, unknown> | null;
+  activeCartCreation?: Record<string, unknown> | null;
+  activeDeliverableCreation?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;

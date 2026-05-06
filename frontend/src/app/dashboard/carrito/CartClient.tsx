@@ -19,7 +19,6 @@ import {
   AlertTriangle,
   Loader2,
   Save,
-  FileCode,
   RotateCcw,
   Library,
   User,
@@ -45,7 +44,6 @@ import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
-import { SectionProgressNav } from "@/components/shared/SectionProgressNav";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import {
@@ -1384,15 +1382,6 @@ export default function CartClient() {
     }
   };
 
-  const printJson = () => {
-    console.group("DEBUG CART / CARRO DATA");
-    console.log("Items en Carrito:", items);
-    console.log("Totales Calculados:", totals);
-    if (selectedPatient) console.log("Paciente Vinculado:", selectedPatient);
-    console.groupEnd();
-    toast.info("JSON del carrito impreso en consola.");
-  };
-
   const clearCart = () => {
     setItems([]);
     setCartSourceLabel("Dieta no asignada");
@@ -1414,7 +1403,7 @@ export default function CartClient() {
       {
         id: "import-creation",
         icon: Library,
-        label: "Importar Creacion",
+        label: "Importar Creación",
         variant: "indigo",
         onClick: () => {
           setIsImportCreationModalOpen(true);
@@ -1429,14 +1418,6 @@ export default function CartClient() {
           setIsImportPatientModalOpen(true);
           fetchPatients();
         },
-      },
-      {
-        id: "export-json",
-        icon: FileCode,
-        label: "Imprimir JSON",
-        variant: "slate",
-        onClick: printJson,
-        disabled: !hasRecipeSource,
       },
       {
         id: "export-pdf",
@@ -1455,7 +1436,7 @@ export default function CartClient() {
         disabled: !hasRecipeSource,
       },
     ],
-    [printJson, clearCart, selectedPatient, items, totals, cartTargets, currentProjectId, cartSourceLabel, hasRecipeSource],
+    [clearCart, selectedPatient, items, totals, cartTargets, currentProjectId, cartSourceLabel, hasRecipeSource],
   );
 
   const handleKeepDraft = () => {
@@ -1580,7 +1561,7 @@ export default function CartClient() {
       }
     } catch (e) {
       console.error("Error importing creation", e);
-      toast.error("Ocurrio un error al importar la creacion.");
+      toast.error("Ocurrió un error al importar la creación.");
     }
   };
 
@@ -1707,7 +1688,7 @@ export default function CartClient() {
               <div className="flex items-center gap-6">
                 <div className="space-y-0.5">
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none">
-                    Proteinas Totales
+                    Proteínas Totales
                   </p>
                   <p className="text-xl font-semibold text-indigo-600 flex items-baseline gap-1">
                     {totals.protein}
@@ -1727,7 +1708,7 @@ export default function CartClient() {
                 <div className="w-px h-8 bg-slate-200" />
                 <div className="space-y-0.5">
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none">
-                    Calorias Totales
+                    Calorías Totales
                   </p>
                   <p className="text-xl font-semibold text-amber-600 flex items-baseline gap-1">
                     {totals.calories}
@@ -1753,7 +1734,7 @@ export default function CartClient() {
                 disabled={!hasRecipeSource}
                 onClick={() => setIsSaveCreationModalOpen(true)}
               >
-                Guardar Creacion
+                Guardar Creación
               </Button>
               <Button
                 className="h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-[2rem] shadow-xl shadow-indigo-200 transition-all hover:scale-[1.02] active:scale-95"
@@ -1767,19 +1748,6 @@ export default function CartClient() {
           </ModuleFooter>
         }
       >
-        {isSidebarCollapsed && (
-          <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
-            <SectionProgressNav
-              title="Etapas del Plan"
-              items={[
-                { id: "dieta", label: "1. Estrategia", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/dieta", currentProjectId)) },
-                { id: "recetas", label: "2. Cuantificación", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/recetas", currentProjectId)) },
-                { id: "carrito", label: "3. Logística", status: "complete", active: true, onClick: () => {} },
-                { id: "entregable", label: "4. Entregable", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/entregable", currentProjectId)) },
-              ]}
-            />
-          </div>
-        )}
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}
@@ -1884,7 +1852,7 @@ export default function CartClient() {
                   <Button className="h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700" onClick={() => {
                     setIsEditingTargets(false);
                     // Optionally save targets back to patient if needed
-                    toast.success("Metas actualizadas para esta sesion de Carrito");
+                    toast.success("Metas actualizadas para esta sesión de Carrito");
                   }}>Guardar</Button>
                 </div>
               ) : (
@@ -1904,11 +1872,11 @@ export default function CartClient() {
               <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400">Calorias (kcal)</label>
+                    <label className="text-[10px] font-black uppercase text-slate-400">Calorías (kcal)</label>
                     <Input type="number" value={cartTargets.calories} onChange={e => setCartTargets(p => ({ ...p, calories: Number(e.target.value) }))} className="font-black text-amber-600 border-slate-200" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400">Proteina (g)</label>
+                    <label className="text-[10px] font-black uppercase text-slate-400">Proteína (g)</label>
                     <Input type="number" value={cartTargets.protein} onChange={e => setCartTargets(p => ({ ...p, protein: Number(e.target.value) }))} className="font-black text-emerald-600 border-slate-200" />
                   </div>
                   <div className="space-y-1">
@@ -1940,7 +1908,7 @@ export default function CartClient() {
                       const newId = Date.now().toString();
                       setCartTargets(p => ({ ...p, extras: [...p.extras, { id: newId, name: "Nueva Meta", target: 0, unit: "g", key: "sugars" }] }));
                     }}>
-                      <Plus className="w-3 h-3 mr-1" /> Anadir
+                      <Plus className="w-3 h-3 mr-1" /> Añadir
                     </Button>
                   </div>
                   <div className="space-y-3">
@@ -1956,7 +1924,7 @@ export default function CartClient() {
                           next[idx].key = e.target.value as any;
                           setCartTargets(p => ({ ...p, extras: next }));
                         }} className="h-10 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 px-3">
-                          <option value="sugars">Azucares</option>
+                          <option value="sugars">Azúcares</option>
                           <option value="fiber">Fibra</option>
                           <option value="sodium">Sodio</option>
                           <option value="cholesterol">Colesterol</option>
@@ -1985,7 +1953,7 @@ export default function CartClient() {
                       </div>
                     ))}
                     {cartTargets.extras.length === 0 && (
-                      <p className="text-xs text-slate-400 font-medium italic">No hay metas adicionales. Anade una para trackear azucares, sodio, fibra, etc.</p>
+                      <p className="text-xs text-slate-400 font-medium italic">No hay metas adicionales. Añade una para trackear azúcares, sodio, fibra, etc.</p>
                     )}
                   </div>
                 </div>
@@ -2006,8 +1974,8 @@ export default function CartClient() {
                 </div>
 
                 {[
-                  { label: "Calorias", target: cartTargets.calories, val: totals.calories, unit: "kcal", color: "text-amber-500", rawKey: 'calories' },
-                  { label: "Proteinas", target: cartTargets.protein, val: totals.protein, unit: "g", color: "text-emerald-500", rawKey: 'protein' },
+                  { label: "Calorías", target: cartTargets.calories, val: totals.calories, unit: "kcal", color: "text-amber-500", rawKey: 'calories' },
+                  { label: "Proteínas", target: cartTargets.protein, val: totals.protein, unit: "g", color: "text-emerald-500", rawKey: 'protein' },
                   { label: "Carbos", target: cartTargets.carbs, val: totals.carbs, unit: "g", color: "text-blue-500", rawKey: 'carbs' },
                   { label: "Grasas", target: cartTargets.fats, val: totals.fats, unit: "g", color: "text-purple-500", rawKey: 'fats' },
                   ...cartTargets.extras.map(e => ({
