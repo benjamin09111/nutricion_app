@@ -1,7 +1,12 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { calculateGET, calculateAge, type ActivityLevel as NutritionActivityLevel } from "@/lib/nutrition-formulas";
+import {
+  calculateBMI,
+  calculateGET,
+  calculateAge,
+  type ActivityLevel as NutritionActivityLevel,
+} from "@/lib/nutrition-formulas";
 import {
   ChefHat,
   Download,
@@ -25,15 +30,13 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
-import { TagInput } from "@/components/ui/TagInput";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { SectionProgressNav, type SectionProgressStatus } from "@/components/shared/SectionProgressNav";
 import { type ActionDockItem } from "@/components/ui/ActionDock";
-import { fetchApi, getApiUrl } from "@/lib/api-base";
+import { fetchApi } from "@/lib/api-base";
 import { fetchCreation, saveCreation } from "@/lib/workflow";
 import { getAuthToken } from "@/lib/auth-token";
-import { formatRut } from "@/lib/rut-utils";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 
 type QuickIngredient = {
@@ -78,20 +81,17 @@ type QuickPatient = {
   fitnessGoals?: string;
 };
 
-type QuickPatientDraft = {
-  fullName: string;
-  email: string;
-  phone: string;
-  documentId: string;
-  gender: string;
-  height: string;
-  weight: string;
-  clinicalSummary: string;
-  nutritionalFocus: string;
-  fitnessGoals: string;
-  likes: string;
-  dietRestrictions: string[];
-  tags: string[];
+type QuickNutritionalTargets = {
+  dailyCalories?: number;
+  dailyProtein?: number;
+  dailyCarbs?: number;
+  dailyFats?: number;
+  tmb?: number;
+  get?: number;
+  activityLevel?: string;
+  bmi?: number;
+  bmiClassification?: string;
+  ageYears?: number;
 };
 
 type ImportedCreation = {
@@ -183,22 +183,6 @@ const createDish = (): QuickDish => ({
   ingredients: [createIngredient()],
 });
 
-const createQuickPatientDraft = (): QuickPatientDraft => ({
-  fullName: "",
-  email: "",
-  phone: "",
-  documentId: "",
-  gender: "",
-  height: "",
-  weight: "",
-  clinicalSummary: "",
-  nutritionalFocus: "",
-  fitnessGoals: "",
-  likes: "",
-  dietRestrictions: [],
-  tags: [],
-});
-
 const parseLines = (value: string): string[] =>
   Array.from(
     new Set(
@@ -228,6 +212,57 @@ type MealGenerationTarget = {
   mealSection: string;
   enabled: boolean;
   count: number;
+};
+
+type QuickAiMealTargetPayload = {
+  mealSection: string;
+  count: number;
+};
+
+const QUICK_AI_MAX_DISHES_PER_BATCH = 4;
+const QUICK_AI_MAX_SECTIONS_PER_BATCH = 2;
+
+const buildQuickAiTargetBatches = (
+  targets: QuickAiMealTargetPayload[],
+): QuickAiMealTargetPayload[][] => {
+  const expanded = targets.flatMap((target) =>
+    Array.from({ length: Math.max(1, target.count) }, () => target.mealSection),
+  );
+  const batches: QuickAiMealTargetPayload[][] = [];
+  let current = new Map<string, number>();
+
+  const flushCurrent = () => {
+    if (current.size === 0) return;
+    batches.push(
+      Array.from(current.entries()).map(([mealSection, count]) => ({
+        mealSection,
+        count,
+      })),
+    );
+    current = new Map<string, number>();
+  };
+
+  for (const mealSection of expanded) {
+    const currentDishCount = Array.from(current.values()).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+    const currentSectionCount = current.size;
+    const wouldAddNewSection = !current.has(mealSection);
+
+    if (
+      currentDishCount >= QUICK_AI_MAX_DISHES_PER_BATCH ||
+      (wouldAddNewSection &&
+        currentSectionCount >= QUICK_AI_MAX_SECTIONS_PER_BATCH)
+    ) {
+      flushCurrent();
+    }
+
+    current.set(mealSection, (current.get(mealSection) || 0) + 1);
+  }
+
+  flushCurrent();
+  return batches;
 };
 
 type QuickRecipesSectionId =
@@ -263,6 +298,71 @@ const toTextAreaValueFromFoods = (value: unknown): string => {
     })
     .filter(Boolean)
     .join("\n");
+};
+
+const normalizeQuickPatientGender = (gender?: string): "Masculino" | "Femenino" | "Otro" => {
+  if (gender === "Masculino" || gender === "Femenino" || gender === "Otro") {
+    return gender;
+  }
+
+  return "Otro";
+};
+
+const buildQuickNutritionalTargets = (
+  patient: QuickPatient | null,
+): QuickNutritionalTargets | null => {
+  if (!patient) return null;
+
+  const weight = Number(patient.weight) || 0;
+  const height = Number(patient.height) || 0;
+  if (weight <= 0 || height <= 0) return null;
+
+  const gender = normalizeQuickPatientGender(patient.gender);
+  const ageYears = calculateAge(patient.birthDate) || 30;
+  const activityLevel = "moderado" as NutritionActivityLevel;
+  const get = calculateGET(gender, weight, height, ageYears, activityLevel);
+  if (!get) return null;
+
+  const bmi = calculateBMI(weight, height);
+
+  return {
+    dailyCalories: Math.round(get.macros.calories),
+    dailyProtein: Math.round(get.macros.protein),
+    dailyCarbs: Math.round(get.macros.carbs),
+    dailyFats: Math.round(get.macros.fats),
+    tmb: Math.round(get.tmb),
+    get: Math.round(get.get),
+    activityLevel,
+    bmi: bmi?.bmi,
+    bmiClassification: bmi?.classification,
+    ageYears,
+  };
+};
+
+const extractApiErrorMessage = async (
+  response: Response,
+  fallback: string,
+): Promise<string> => {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    const data = await response.json().catch(() => null);
+    if (typeof data?.message === "string" && data.message.trim()) {
+      return data.message.trim();
+    }
+    if (Array.isArray(data?.message) && data.message.length > 0) {
+      return data.message
+        .map((item: unknown) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean)
+        .join(" · ");
+    }
+    if (typeof data?.error === "string" && data.error.trim()) {
+      return data.error.trim();
+    }
+  }
+
+  const text = await response.text().catch(() => "");
+  return text.trim() || fallback;
 };
 
 const normalizeImportedDishes = (value: unknown): QuickDish[] => {
@@ -352,13 +452,10 @@ export default function QuickRecipesClient() {
   );
 
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
-  const [isQuickPatientCreateOpen, setIsQuickPatientCreateOpen] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [creationDescription, setCreationDescription] = useState("");
-  const [isCreatingPatient, setIsCreatingPatient] = useState(false);
-  const [quickPatientDraft, setQuickPatientDraft] = useState<QuickPatientDraft>(createQuickPatientDraft());
 
   const [patients, setPatients] = useState<QuickPatient[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
@@ -369,8 +466,6 @@ export default function QuickRecipesClient() {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [activeGuideSection, setActiveGuideSection] =
     useState<QuickRecipesSectionId>("general");
-
-  const resetQuickPatientDraft = () => setQuickPatientDraft(createQuickPatientDraft());
 
   useEffect(() => {
     setSidebarCollapsed(true);
@@ -543,79 +638,6 @@ export default function QuickRecipesClient() {
     );
   };
 
-  const handleCreateQuickPatient = async () => {
-    if (!quickPatientDraft.fullName.trim()) {
-      toast.error("El nombre del paciente es obligatorio.");
-      return;
-    }
-
-    setIsCreatingPatient(true);
-    try {
-      const token = getAuthToken();
-      if (!token) {
-        toast.error("Sesión no válida");
-        return;
-      }
-
-      const response = await fetchApi("/patients", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          fullName: quickPatientDraft.fullName.trim(),
-          email: quickPatientDraft.email.trim() || undefined,
-          phone: quickPatientDraft.phone.trim() || undefined,
-          documentId: quickPatientDraft.documentId.trim() || undefined,
-          gender: quickPatientDraft.gender.trim() || undefined,
-          height: quickPatientDraft.height.trim() ? Number(quickPatientDraft.height) : undefined,
-          weight: quickPatientDraft.weight.trim() ? Number(quickPatientDraft.weight) : undefined,
-          clinicalSummary: quickPatientDraft.clinicalSummary.trim() || undefined,
-          nutritionalFocus: quickPatientDraft.nutritionalFocus.trim() || undefined,
-          fitnessGoals: quickPatientDraft.fitnessGoals.trim() || undefined,
-          likes: quickPatientDraft.likes.trim() || undefined,
-          dietRestrictions: quickPatientDraft.dietRestrictions,
-          tags: quickPatientDraft.tags,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.message || "No se pudo crear el paciente");
-      }
-
-      const savedPatient = await response.json();
-      const quickPatient: QuickPatient = {
-        id: savedPatient.id,
-        fullName: savedPatient.fullName,
-        email: savedPatient.email ?? null,
-        phone: savedPatient.phone ?? null,
-        documentId: savedPatient.documentId ?? null,
-        gender: savedPatient.gender ?? undefined,
-        height: savedPatient.height ?? undefined,
-        weight: savedPatient.weight ?? undefined,
-        clinicalSummary: savedPatient.clinicalSummary ?? undefined,
-        nutritionalFocus: savedPatient.nutritionalFocus ?? undefined,
-        fitnessGoals: savedPatient.fitnessGoals ?? undefined,
-        likes: savedPatient.likes ?? undefined,
-        dietRestrictions: Array.isArray(savedPatient.dietRestrictions) ? savedPatient.dietRestrictions : [],
-        tags: Array.isArray(savedPatient.tags) ? savedPatient.tags : [],
-      };
-
-      setSelectedPatient(quickPatient);
-      setIsQuickPatientCreateOpen(false);
-      setIsPatientModalOpen(false);
-      resetQuickPatientDraft();
-      toast.success(`Paciente "${quickPatient.fullName}" creado y vinculado.`);
-    } catch (error) {
-      console.error("Error creating quick patient", error);
-      toast.error(error instanceof Error ? error.message : "No se pudo crear el paciente");
-    } finally {
-      setIsCreatingPatient(false);
-    }
-  };
-
   const addDish = () => {
     const newDish = createDish();
     setShowDishesSection(true);
@@ -690,8 +712,8 @@ export default function QuickRecipesClient() {
     );
   };
   const applyImportedCreation = (creation: ImportedCreation) => {
-    if (creation.type !== "RECIPE" && creation.type !== "DIET") {
-      toast.error("Solo puedes importar recetas o dietas en este módulo.");
+    if (creation.type !== "DIET") {
+      toast.error("Solo puedes importar dietas en este módulo.");
       return;
     }
     const content = (creation.content || {}) as Record<string, unknown>;
@@ -709,11 +731,11 @@ export default function QuickRecipesClient() {
       typeof content.nutritionistNotes === "string" ? content.nutritionistNotes : "",
     );
     const dietFoodsText =
+      toTextAreaValueFromFoods(content.foods) ||
+      toTextAreaValueFromFoods(content.includedFoods) ||
       toTextAreaValue(content.allowedFoodsMain) ||
       toTextAreaValue(content.includedFoods) ||
-      toTextAreaValue(content.foods) ||
-      toTextAreaValueFromFoods(content.includedFoods) ||
-      toTextAreaValueFromFoods(content.foods);
+      toTextAreaValue(content.foods);
     setAllowedFoodsMainText(dietFoodsText);
     setRestrictedFoodsText(
       toTextAreaValue(content.restrictedFoods) ||
@@ -723,12 +745,8 @@ export default function QuickRecipesClient() {
     setSpecialConsiderations(
       typeof content.specialConsiderations === "string" ? content.specialConsiderations : "",
     );
-    setDishes(normalizeImportedDishes(content.dishes));
-    setMealGenerationTargets(
-      Array.isArray(content.mealGenerationTargets)
-        ? (content.mealGenerationTargets as MealGenerationTarget[])
-        : createDefaultGenerationTargets(),
-    );
+    setDishes([]);
+    setMealGenerationTargets(createDefaultGenerationTargets());
 
     const patientName =
       typeof creation.metadata?.patientName === "string" ? creation.metadata.patientName : null;
@@ -736,11 +754,7 @@ export default function QuickRecipesClient() {
       typeof creation.metadata?.patientId === "string" ? creation.metadata.patientId : undefined;
     setSelectedPatient(patientName ? { id: patientId, fullName: patientName } : null);
     setIsImportCreationModalOpen(false);
-    toast.success(
-      creation.type === "DIET"
-        ? "Dieta importada al borrador actual para crear platos."
-        : "Receta importada al borrador actual.",
-    );
+    toast.success("Dieta importada. Los alimentos permitidos se cargaron en el borrador.");
   };
 
   const updateGenerationTarget = (
@@ -792,93 +806,99 @@ export default function QuickRecipesClient() {
         };
       });
 
-      const selectedTargets = effectiveTargets
+      const selectedTargets: QuickAiMealTargetPayload[] = effectiveTargets
         .filter((target) => target.enabled)
         .map((target) => ({
           mealSection: target.mealSection,
           count: Math.max(1, Math.min(14, target.count || 1)),
         }));
 
-      if (!selectedPatient) {
-        toast.error("Primero selecciona un paciente para generar esta receta.");
-        return;
-      }
-
       if (selectedTargets.length === 0) {
         toast.error("Selecciona al menos una categoría para generar platos.");
         return;
       }
 
-      const desiredDishCount = selectedTargets.reduce((sum, target) => sum + target.count, 0);
+      const targetBatches = buildQuickAiTargetBatches(selectedTargets);
       const aiInstruction =
         mode === "weekly"
           ? "Generar plan semanal. Ser creativo para que no se aburran."
           : "Ser creativo para que no se aburran.";
+      const nutritionalTargets = buildQuickNutritionalTargets(selectedPatient);
+      const patientGender = selectedPatient?.gender
+        ? normalizeQuickPatientGender(selectedPatient.gender)
+        : undefined;
+      const patientAge = selectedPatient?.birthDate
+        ? calculateAge(selectedPatient.birthDate) || undefined
+        : undefined;
+      const patientBmi =
+        selectedPatient?.weight && selectedPatient?.height
+          ? calculateBMI(Number(selectedPatient.weight) || 0, Number(selectedPatient.height) || 0)
+          : null;
 
-      const response = await fetchApi("/recipes/quick-ai-fill", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          payload: {
-            dietName: dietName.trim() || DEFAULT_DIET_NAME,
-            notes: aiInstruction,
-            allowedFoodsMain: parseLines(allowedFoodsMainText),
-            restrictedFoods: Array.from(
-              new Set([...userRestricted, ...patientRestrictions, ...patientHealthTags]),
-            ),
-            specialConsiderations: specialConsiderations.trim(),
-            desiredDishCount: Math.max(2, Math.min(60, desiredDishCount)),
-            mealSectionTargets: selectedTargets,
-            generationMode: mode,
-            nutritionalTargets: selectedPatient
-              ? (() => {
-                  const w = Number(selectedPatient.weight) || 0;
-                  const h = Number(selectedPatient.height) || 0;
-                  const g = (selectedPatient.gender === "Masculino" || selectedPatient.gender === "Femenino")
-                    ? selectedPatient.gender : "Femenino";
-                  const age = calculateAge(selectedPatient.birthDate) || 30;
-                  const al = "moderado" as NutritionActivityLevel;
-                  const get = calculateGET(g, w, h, age, al);
-                  return get ? {
-                    dailyCalories: get.macros.calories,
-                    dailyProtein: get.macros.protein,
-                    dailyCarbs: get.macros.carbs,
-                    dailyFats: get.macros.fats,
-                    tmb: get.tmb,
-                  } : null;
-                })()
-              : null,
-            existingDishes: dishes
-              .filter((dish) => dish.title.trim())
-              .map((dish) => ({ title: dish.title.trim(), mealSection: dish.mealSection })),
-            patient: selectedPatient
-              ? {
-                fullName: selectedPatient.fullName,
-                restrictions: patientRestrictions,
-                likes: selectedPatient.likes || "",
-                healthTags: patientHealthTags,
-                clinicalSummary: selectedPatient.clinicalSummary || "",
-                nutritionalFocus: selectedPatient.nutritionalFocus || "",
-                fitnessGoals: selectedPatient.fitnessGoals || "",
-                weight: selectedPatient.weight,
-                height: selectedPatient.height,
-                gender: selectedPatient.gender,
-                birthDate: selectedPatient.birthDate,
-              }
-              : null,
+      const baseExistingDishes = dishes
+        .filter((dish) => dish.title.trim())
+        .map((dish) => ({ title: dish.title.trim(), mealSection: dish.mealSection }));
+      const aiDishes: QuickAiDishResponse[] = [];
+
+      for (const batchTargets of targetBatches) {
+        const response = await fetchApi("/recipes/quick-ai-fill", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
-        }),
-      });
+          body: JSON.stringify({
+            payload: {
+              dietName: dietName.trim() || DEFAULT_DIET_NAME,
+              notes: aiInstruction,
+              allowedFoodsMain: parseLines(allowedFoodsMainText),
+              restrictedFoods: Array.from(
+                new Set([...userRestricted, ...patientRestrictions, ...patientHealthTags]),
+              ),
+              specialConsiderations: specialConsiderations.trim(),
+              desiredDishCount: batchTargets.reduce((sum, target) => sum + target.count, 0),
+              mealSectionTargets: batchTargets,
+              generationMode: mode,
+              nutritionalTargets,
+              existingDishes: [
+                ...baseExistingDishes,
+                ...aiDishes.map((dish) => ({
+                  title: String(dish.title || "").trim(),
+                  mealSection: String(dish.mealSection || "").trim(),
+                })),
+              ],
+              patient: selectedPatient
+                ? {
+                  fullName: selectedPatient.fullName,
+                  restrictions: patientRestrictions,
+                  likes: selectedPatient.likes || "",
+                  healthTags: patientHealthTags,
+                  clinicalSummary: selectedPatient.clinicalSummary || "",
+                  nutritionalFocus: selectedPatient.nutritionalFocus || "",
+                  fitnessGoals: selectedPatient.fitnessGoals || "",
+                  weight: selectedPatient.weight,
+                  height: selectedPatient.height,
+                  gender: patientGender,
+                  birthDate: selectedPatient.birthDate,
+                  ageYears: patientAge,
+                  bmi: patientBmi?.bmi,
+                  bmiClassification: patientBmi?.classification,
+                }
+                : null,
+            },
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error("No se pudo generar con IA.");
+        if (!response.ok) {
+          throw new Error(await extractApiErrorMessage(response, "No se pudo generar con IA."));
+        }
+
+        const data = await response.json();
+        const batchDishes = Array.isArray(data?.dishes)
+          ? (data.dishes as QuickAiDishResponse[])
+          : [];
+        aiDishes.push(...batchDishes);
       }
-
-      const data = await response.json();
-      const aiDishes = Array.isArray(data?.dishes) ? (data.dishes as QuickAiDishResponse[]) : [];
       if (aiDishes.length === 0) {
         throw new Error("La IA no devolvió platos.");
       }
@@ -941,7 +961,11 @@ export default function QuickRecipesClient() {
       );
     } catch (error) {
       console.error("Quick AI generation error", error);
-      toast.error("No se pudo generar con IA. Revisa la conexión o la configuración de la IA.");
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "No se pudo generar con IA. Revisa la conexión o la configuración de la IA.",
+      );
 
     } finally {
       if (mode === "single") {
@@ -1020,14 +1044,6 @@ export default function QuickRecipesClient() {
                 ): item is { name: string; amount: number; unit: string } => Boolean(item),
               )
             : [],
-          metadata: {
-            source: "rapido",
-            quickCreationId: savedCreationId || null,
-            mealSection: dish.mealSection || null,
-            ingredients: Array.isArray(dish.ingredients)
-              ? dish.ingredients.map((ingredient) => ingredient.name.trim()).filter(Boolean)
-              : [],
-          },
         }),
       });
 
@@ -1051,7 +1067,7 @@ export default function QuickRecipesClient() {
     try {
       const savedCreation = await saveCreation({
         name: title.trim(),
-        type: "RECIPE",
+        type: "RECETARIO",
         content: buildContent(),
         metadata: {
           ...(creationDescription.trim() ? { description: creationDescription.trim() } : {}),
@@ -1061,7 +1077,7 @@ export default function QuickRecipesClient() {
           dishCount: meaningfulDishes.length,
           source: "rapido",
         },
-        tags: ["rapido", "receta"],
+        tags: ["rapido", "recetario"],
       });
 
       const savedDishCount =
@@ -1137,7 +1153,7 @@ export default function QuickRecipesClient() {
 
   const handleExportPdf = async () => {
     if (!selectedPatient) {
-      toast.error("Primero selecciona o crea un paciente para exportar el PDF.");
+      toast.error("Primero importa un paciente para exportar el PDF.");
       return;
     }
     setIsExportingPdf(true);
@@ -1270,7 +1286,7 @@ export default function QuickRecipesClient() {
         label: "Informacion general",
         status: getSectionStatus(
           true,
-          title.trim().length > 0 && Boolean(selectedPatient?.fullName),
+          title.trim().length > 0,
         ),
         ref: generalSectionRef,
       },
@@ -1309,7 +1325,6 @@ export default function QuickRecipesClient() {
       meaningfulDishes.length,
       mealGenerationTargets,
       restrictedFoodsText,
-      selectedPatient?.fullName,
       specialConsiderations,
       title,
     ],
@@ -1370,7 +1385,7 @@ export default function QuickRecipesClient() {
                 onClick={openPatientModal}
               >
                 <User className="mr-2 h-4 w-4" />
-                Vincular / crear paciente
+                Importar paciente
               </Button>
               <Button
                 variant="outline"
@@ -1456,9 +1471,9 @@ export default function QuickRecipesClient() {
               <div className="mt-4 rounded-xl border border-dashed border-amber-200 bg-amber-50/60 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm font-bold text-amber-900">Selecciona un paciente para usar la IA y exportar el PDF.</p>
+                    <p className="text-sm font-bold text-amber-900">Puedes generar platos sin paciente o importar uno para personalizar mejor la IA.</p>
                     <p className="mt-1 text-xs leading-5 text-amber-800/80">
-                      Si aún no tienes uno, puedes crear un paciente general aquí mismo para trabajar más rápido y usarlo como contexto del prompt.
+                      Si importas un paciente, la IA considerará sus restricciones, objetivos y contexto clínico. El PDF sigue requiriendo un paciente vinculado.
                     </p>
                   </div>
                   <Button
@@ -1467,7 +1482,7 @@ export default function QuickRecipesClient() {
                     onClick={openPatientModal}
                   >
                     <User className="mr-2 h-4 w-4" />
-                    Seleccionar o crear
+                    Importar paciente
                   </Button>
                 </div>
               </div>
@@ -2003,7 +2018,7 @@ export default function QuickRecipesClient() {
       <Modal
         isOpen={isPatientModalOpen}
         onClose={() => setIsPatientModalOpen(false)}
-        title="Selecciona o crea paciente"
+        title="Importar paciente"
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-500">
@@ -2047,256 +2062,6 @@ export default function QuickRecipesClient() {
               <p className="py-4 text-center text-sm text-slate-400">No se encontraron pacientes.</p>
             )}
           </div>
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-bold text-emerald-900">¿No tienes paciente aún?</p>
-                <p className="text-xs leading-5 text-emerald-900/70">
-                  Crea un paciente general aquí mismo para usarlo como contexto práctico del prompt y seguir sin salirte del flujo.
-                </p>
-              </div>
-              <Button
-                type="button"
-                className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
-                onClick={() => {
-                  setIsQuickPatientCreateOpen(true);
-                  setIsPatientModalOpen(false);
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Crear paciente general
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal
-        isOpen={isQuickPatientCreateOpen}
-        onClose={() => {
-          setIsQuickPatientCreateOpen(false);
-          resetQuickPatientDraft();
-        }}
-        title="Crear paciente general"
-        className="max-w-3xl"
-      >
-        <div className="space-y-5">
-          <p className="text-sm text-slate-500">
-            Este paciente sirve como contexto práctico para la IA y para el PDF. Puedes dejar muchos campos vacíos y completarlo después.
-          </p>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Nombre completo *
-              </label>
-              <Input
-                value={quickPatientDraft.fullName}
-                onChange={(event) =>
-                  setQuickPatientDraft((prev) => ({ ...prev, fullName: event.target.value }))
-                }
-                placeholder="Ej: Paciente general"
-                className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm font-semibold"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Email
-              </label>
-              <Input
-                type="email"
-                value={quickPatientDraft.email}
-                onChange={(event) =>
-                  setQuickPatientDraft((prev) => ({ ...prev, email: event.target.value }))
-                }
-                placeholder="correo@ejemplo.com"
-                className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Teléfono
-              </label>
-              <Input
-                value={quickPatientDraft.phone}
-                onChange={(event) =>
-                  setQuickPatientDraft((prev) => ({ ...prev, phone: event.target.value }))
-                }
-                placeholder="+56..."
-                className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                RUT
-              </label>
-              <Input
-                value={quickPatientDraft.documentId}
-                onChange={(event) =>
-                  setQuickPatientDraft((prev) => ({
-                    ...prev,
-                    documentId: formatRut(event.target.value),
-                  }))
-                }
-                placeholder="12.345.678-9"
-                className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Sexo biológico
-              </label>
-              <Input
-                value={quickPatientDraft.gender}
-                onChange={(event) =>
-                  setQuickPatientDraft((prev) => ({ ...prev, gender: event.target.value }))
-                }
-                placeholder="Masculino / Femenino / Otro"
-                className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Estatura
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={quickPatientDraft.height}
-                  onChange={(event) =>
-                    setQuickPatientDraft((prev) => ({ ...prev, height: event.target.value }))
-                  }
-                  placeholder="cm"
-                  className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Peso
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={quickPatientDraft.weight}
-                  onChange={(event) =>
-                    setQuickPatientDraft((prev) => ({ ...prev, weight: event.target.value }))
-                  }
-                  placeholder="kg"
-                  className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Resumen clínico
-              </label>
-              <Textarea
-                value={quickPatientDraft.clinicalSummary}
-                onChange={(event) =>
-                  setQuickPatientDraft((prev) => ({ ...prev, clinicalSummary: event.target.value }))
-                }
-                placeholder="Contexto breve, diagnóstico, adherencia o cualquier nota útil."
-                className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Restricciones alimentarias
-              </label>
-              <TagInput
-                value={quickPatientDraft.dietRestrictions}
-                onChange={(tags) =>
-                  setQuickPatientDraft((prev) => ({ ...prev, dietRestrictions: tags }))
-                }
-                placeholder="Escribe y presiona Enter..."
-                fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Foco nutricional
-              </label>
-              <Textarea
-                value={quickPatientDraft.nutritionalFocus}
-                onChange={(event) =>
-                  setQuickPatientDraft((prev) => ({ ...prev, nutritionalFocus: event.target.value }))
-                }
-                placeholder="Ej: bajar grasa, mejorar adherencia, subir proteínas."
-                className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Metas fitness
-              </label>
-              <Textarea
-                value={quickPatientDraft.fitnessGoals}
-                onChange={(event) =>
-                  setQuickPatientDraft((prev) => ({ ...prev, fitnessGoals: event.target.value }))
-                }
-                placeholder="Ej: fuerza, recomposición, resistencia."
-                className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Gustos
-              </label>
-              <Textarea
-                value={quickPatientDraft.likes}
-                onChange={(event) =>
-                  setQuickPatientDraft((prev) => ({ ...prev, likes: event.target.value }))
-                }
-                placeholder="Ej: prefiere comidas simples, pollo, avena."
-                className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Etiquetas
-              </label>
-              <TagInput
-                value={quickPatientDraft.tags}
-                onChange={(tags) =>
-                  setQuickPatientDraft((prev) => ({ ...prev, tags }))
-                }
-                placeholder="Escribe y presiona Enter..."
-                fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setIsQuickPatientCreateOpen(false);
-                resetQuickPatientDraft();
-              }}
-              disabled={isCreatingPatient}
-            >
-              Cancelar
-            </Button>
-            <Button
-              className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
-              onClick={handleCreateQuickPatient}
-              disabled={isCreatingPatient}
-            >
-              {isCreatingPatient ? "Creando..." : "Crear y usar paciente"}
-            </Button>
-          </div>
         </div>
       </Modal>
 
@@ -2315,7 +2080,7 @@ export default function QuickRecipesClient() {
         isOpen={isImportCreationModalOpen}
         onClose={() => setIsImportCreationModalOpen(false)}
         onImport={applyImportedCreation}
-        allowedTypes={["DIET", "RECIPE"]}
+        allowedTypes={["DIET"]}
       />
 
     </>

@@ -5,6 +5,7 @@ import {
   IsInt,
   IsObject,
   IsOptional,
+  IsNumber,
   IsString,
   Max,
   Min,
@@ -66,6 +67,7 @@ class QuickAiPatientDto {
   @IsOptional()
   gender?: string;
 
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   @IsOptional()
@@ -75,11 +77,75 @@ class QuickAiPatientDto {
   @IsOptional()
   birthDate?: string;
 
+  @Type(() => Number)
+  @IsNumber()
   @IsOptional()
   weight?: number;
 
+  @Type(() => Number)
+  @IsNumber()
   @IsOptional()
   height?: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  bmi?: number;
+
+  @IsString()
+  @IsOptional()
+  bmiClassification?: string;
+}
+
+class QuickAiNutritionalTargetsDto {
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  dailyCalories?: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  dailyProtein?: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  dailyCarbs?: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  dailyFats?: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  tmb?: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  get?: number;
+
+  @IsString()
+  @IsOptional()
+  activityLevel?: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  bmi?: number;
+
+  @IsString()
+  @IsOptional()
+  bmiClassification?: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  ageYears?: number;
 }
 
 class QuickAiFillPayloadDto {
@@ -124,6 +190,11 @@ class QuickAiFillPayloadDto {
   @Type(() => QuickAiPatientDto)
   @IsOptional()
   patient?: QuickAiPatientDto;
+
+  @ValidateNested()
+  @Type(() => QuickAiNutritionalTargetsDto)
+  @IsOptional()
+  nutritionalTargets?: QuickAiNutritionalTargetsDto;
 
   @IsArray()
   @ValidateNested({ each: true })

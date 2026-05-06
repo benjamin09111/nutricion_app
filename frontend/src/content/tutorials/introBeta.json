@@ -13,7 +13,7 @@
     {
       "id": "intro-welcome",
       "title": "Bienvenido a la beta de NutriNet",
-      "body": "Yo te estaré acompañando en este proceso.\n\n**Agradecemos tu participación**, y esperamos que te encante esta aplicación hecha para ustedes.\n\nTen en cuenta que **la página está en revisión y beta**, por lo que pueden haber errores, **sobre todo en cálculos**, en los cuales se está trabajando intensamente.\n\nLo importante es que ya puedes ver y probar el contenido actual que ofrecemos, con algunos detalles que se irán mejorando con tu ayuda.",
+      "body": "Yo te estaré acompañando en este proceso.\n\n**Agradecemos tu participación**, y esperamos que te encante esta aplicación diseñada para potenciar tu trabajo.\n\nTen en cuenta que **NutriNet está en fase beta**, por lo que podrías encontrar detalles en revisión o ajustes en los cálculos.\n\n**Exportaciones PDF**: Los documentos descargables ya pueden generarse, pero su diseño visual aún no es el definitivo. El objetivo es que explores las funcionalidades y nos ayudes a mejorar la herramienta con tu experiencia.",
       "nextLabel": "Continuar",
       "hideSkip": true
     },
@@ -29,7 +29,7 @@
     {
       "id": "intro-nutria",
       "title": "Tu asistente siempre disponible",
-      "body": "En la esquina inferior derecha verás siempre a **la Nutria**.\n\nElla te ayudará con información específica sobre qué puedes hacer en cada vista de la plataforma. No dudes en consultarla si tienes dudas sobre algún módulo.",
+      "body": "En la esquina inferior derecha verás siempre a **Nati**, la nutria.\n\nElla te ayudará con información específica sobre qué puedes hacer en cada vista de la plataforma. No dudes en consultarla si tienes dudas sobre algún módulo.",
       "nextLabel": "Continuar",
       "hideSkip": true
     },

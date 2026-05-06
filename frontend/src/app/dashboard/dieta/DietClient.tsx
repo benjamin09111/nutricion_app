@@ -32,7 +32,6 @@ import {
   Check,
   UserPlus,
   RotateCcw,
-  FileCode,
   Download,
 } from "lucide-react";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
@@ -40,7 +39,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { TagInput } from "@/components/ui/TagInput";
 import { useDashboardShell } from "@/context/DashboardShellContext";
-import { SectionProgressNav } from "@/components/shared/SectionProgressNav";
 import { MarketPrice, FoodGroup } from "@/features/foods";
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
@@ -1251,7 +1249,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
     // 1. UI Local & Feedback Inmediato
     if (!isCurrentlyFavorite) {
-      toast.success(`${productName} guardado en favoritos 🎉`);
+      toast.success(`${productName} guardado en favoritos ??`);
     } else {
       toast.info(`${productName} eliminado de favoritos`);
     }
@@ -1744,11 +1742,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     ],
   );
 
-  const printJson = () => {
-    console.log("DIET DATA:", dietJson);
-    toast.info("Datos impresos en consola.");
-  };
-
   const createBaseFoodStatus = () => {
     const nextStatus: Record<string, "base"> = {};
     initialFoods.forEach((food) => {
@@ -2134,8 +2127,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           description: "No hubo cambios visibles en los ingredientes actuales.",
         });
       } else {
-        toast.success("Preferencias aplicadas 🎉", {
-          description: `Agregados: ${uniqueAddedFoods.length} · Favoritos: ${uniqueFavoritedFoods.length} · Eliminados: ${uniqueRemovedFoods.length}`,
+        toast.success("Preferencias aplicadas ??", {
+          description: `Agregados: ${uniqueAddedFoods.length} ? Favoritos: ${uniqueFavoritedFoods.length} ? Eliminados: ${uniqueRemovedFoods.length}`,
         });
         showPreferenceChangeToasts(
           "Ingredientes agregados",
@@ -2287,8 +2280,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             description: "No hubo cambios visibles en los ingredientes actuales.",
           });
         } else {
-          toast.success("Preferencias aplicadas 🎉", {
-            description: `Agregados: ${addedFoods.length} · Eliminados: ${uniqueRemovedFoods.length}`,
+          toast.success("Preferencias aplicadas ??", {
+            description: `Agregados: ${addedFoods.length} ? Eliminados: ${uniqueRemovedFoods.length}`,
           });
           showPreferenceChangeToasts(
             "Ingredientes agregados",
@@ -2506,13 +2499,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         disabled: true,
       },
       {
-        id: "export-json",
-        icon: FileCode,
-        label: "Imprimir JSON",
-        variant: "slate",
-        onClick: printJson,
-      },
-      {
         id: "export-pdf",
         icon: isExportingPdf ? Download : Download,
         label: isExportingPdf ? "Generando PDF..." : "Exportar PDF",
@@ -2549,7 +2535,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       },
     ],
     [
-      printJson,
       resetDiet,
       selectedPatient,
       handleExportPdf,
@@ -2687,19 +2672,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           </ModuleFooter>
         }
       >
-        {isSidebarCollapsed && (
-          <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
-            <SectionProgressNav
-              title="Etapas del Plan"
-              items={[
-                { id: "dieta", label: "1. Estrategia", status: "complete", active: true, onClick: () => { } },
-                { id: "recetas", label: "2. Cuantificación", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/recetas", currentProjectId)) },
-                { id: "carrito", label: "3. Logística", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/carrito", currentProjectId)) },
-                { id: "entregable", label: "4. Entregable", status: "pending", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/entregable", currentProjectId)) },
-              ]}
-            />
-          </div>
-        )}
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}
@@ -2901,21 +2873,21 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                           <span className="text-orange-600 font-bold">
                             {food.calorias || 0} kcal
                           </span>
-                          <span>·</span>
+                          <span>?</span>
                           <span className="text-blue-600">
                             P: {food.proteinas || 0}g
                           </span>
-                          <span>·</span>
+                          <span>?</span>
                           <span className="text-emerald-600">
                             C: {food.carbohidratos || 0}g
                           </span>
-                          <span>·</span>
+                          <span>?</span>
                           <span className="text-yellow-600">
                             L: {food.lipidos || 0}g
                           </span>
                           {food.azucares !== undefined && food.azucares > 0 && (
                             <>
-                              <span>·</span>
+                              <span>?</span>
                               <span className="text-slate-500">
                                 Az: {food.azucares}g
                               </span>
@@ -2923,7 +2895,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                           )}
                           {food.fibra !== undefined && food.fibra > 0 && (
                             <>
-                              <span>·</span>
+                              <span>?</span>
                               <span className="text-slate-500">
                                 Fib: {food.fibra}g
                               </span>
@@ -2931,7 +2903,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                           )}
                           {food.sodio !== undefined && food.sodio > 0 && (
                             <>
-                              <span>·</span>
+                              <span>?</span>
                               <span className="text-slate-500">
                                 Na: {food.sodio}mg
                               </span>
@@ -3035,7 +3007,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         </p>
                         <div className="flex gap-2 text-xs text-slate-500 mt-1 font-medium">
                           <span className="text-orange-600 font-bold">{f.calorias || 0} kcal</span>
-                          <span>·</span>
+                          <span>?</span>
                           <span className="text-blue-600">P: {f.proteinas || 0}g</span>
                         </div>
                       </div>
@@ -3165,7 +3137,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         <Modal
           isOpen={isSmartModalOpen}
           onClose={() => setIsSmartModalOpen(false)}
-          title="Selección Inteligente 🧠"
+          title="Selecci?n Inteligente ??"
           className="sm:max-w-2xl"
         >
           <div className="space-y-6">
@@ -3848,7 +3820,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         {patient.fullName}
                       </h3>
                       <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
-                        {patient.email || "Sin email"} ·{" "}
+                        {patient.email || "Sin email"} ?{" "}
                         {patient.weight
                           ? `${patient.weight}kg`
                           : "Peso no reg."}

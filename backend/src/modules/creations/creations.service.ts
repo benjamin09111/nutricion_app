@@ -79,7 +79,7 @@ export class CreationsService {
 
     if (!nutritionistId) {
       throw new Error(
-        'No se pudo identificar tu perfil de nutricionista. AsegÃºrate de tener una cuenta de nutricionista activa.',
+        'No se pudo identificar tu perfil de nutricionista. Asegúrate de tener una cuenta de nutricionista activa.',
       );
     }
 
@@ -90,13 +90,13 @@ export class CreationsService {
 
     if (!nutritionist) {
       throw new Error(
-        'Perfil de nutricionista no encontrado. Intenta cerrar sesiÃ³n y volver a entrar.',
+        'Perfil de nutricionista no encontrado. Intenta cerrar sesión y volver a entrar.',
       );
     }
 
-    // Validar que el nombre no estÃ© vacÃ­o
+    // Validar que el nombre no esté vacío
     if (!name || name.trim() === '') {
-      throw new Error('El nombre de la creaciÃ³n es obligatorio');
+      throw new Error('El nombre de la creación es obligatorio');
     }
 
     const trimmedName = name.trim();
@@ -184,7 +184,7 @@ export class CreationsService {
 
     if (!creation) {
       throw new NotFoundException(
-        'La creaciÃ³n solicitada no existe o no tienes permiso para verla.',
+        'La creación solicitada no existe o no tienes permiso para verla.',
       );
     }
 
@@ -204,7 +204,7 @@ export class CreationsService {
   }
 
   async getAvailableTags(nutritionistId: string) {
-    // Obtenemos todos los tags Ãºnicos usando unnest de PostgreSQL
+    // Obtenemos todos los tags únicos usando unnest de PostgreSQL
     const result: any[] = await this.prisma.$queryRaw`
             SELECT DISTINCT unnest(tags) as tag 
             FROM creations 

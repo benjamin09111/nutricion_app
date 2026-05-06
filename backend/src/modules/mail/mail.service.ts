@@ -1,9 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 
+type SupportEmailRequestData = {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  professionalId?: string;
+  specialty?: string;
+  message?: string;
+};
+
 @Injectable()
 export class MailService {
-  constructor(private readonly mailerService: MailerService) { }
+  constructor(private readonly mailerService: MailerService) {}
+
+  private getSupportInboxEmail(): string {
+    return process.env.ADMIN_EMAIL || 'contactonutrinet.cl@gmail.com';
+  }
 
   async sendWelcomeEmail(
     email: string,
@@ -14,7 +27,8 @@ export class MailService {
     try {
       await this.mailerService.sendMail({
         to: email,
-        subject: '🌿 ¡Bienvenido a NutriNet! Tus credenciales de acceso',
+        subject:
+          '🌿 ¡Bienvenido a NutriNet! Tus credenciales de acceso',
         template: 'welcome',
         context: {
           name: fullName,
@@ -27,7 +41,7 @@ export class MailService {
       });
       console.log(`✅ Correo de bienvenida enviado a: ${email}`);
     } catch (error) {
-      console.error('❌ Error enviando correo de bienvenida:', error);
+      console.error('? Error enviando correo de bienvenida:', error);
     }
   }
 
@@ -45,18 +59,26 @@ export class MailService {
           year: new Date().getFullYear(),
         },
       });
-      console.log(`✅ Correo de confirmación enviado a: ${email}`);
+      console.log(
+        `✅ Correo de confirmación enviado a: ${email}`,
+      );
     } catch (error) {
-      console.error('❌ Error enviando confirmación de registro:', error);
+      console.error(
+        '? Error enviando confirmaci?n de registro:',
+        error,
+      );
     }
   }
 
-  async sendAdminNotification(requestData: any): Promise<void> {
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@NutriNet.com';
+  async sendAdminNotification(
+    requestData: SupportEmailRequestData,
+  ): Promise<void> {
+    const adminEmail = this.getSupportInboxEmail();
     try {
       await this.mailerService.sendMail({
         to: adminEmail,
-        subject: 'ðŸ”” Nueva Solicitud de Registro',
+        subject:
+          '? Nueva Solicitud de Registro',
         template: 'admin-notification',
         context: {
           fullName: requestData.fullName,
@@ -68,9 +90,14 @@ export class MailService {
           year: new Date().getFullYear(),
         },
       });
-      console.log(`✅ Notificación enviada al administrador (${adminEmail})`);
+      console.log(
+        `✅ Notificación enviada al administrador (${adminEmail})`,
+      );
     } catch (error) {
-      console.error('❌ Error enviando notificación al administrador:', error);
+      console.error(
+        '? Error enviando notificaci?n al administrador:',
+        error,
+      );
     }
   }
 
@@ -80,11 +107,11 @@ export class MailService {
     message: string;
     fromEmail: string;
   }): Promise<void> {
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@NutriNet.com';
+    const adminEmail = this.getSupportInboxEmail();
     try {
       await this.mailerService.sendMail({
         to: adminEmail,
-        subject: `ðŸ’¬ [${data.type}] ${data.subject}`,
+        subject: `💬 [${data.type}] ${data.subject}`,
         template: 'admin-notification',
         context: {
           fullName: data.fromEmail.split('@')[0],
@@ -100,7 +127,10 @@ export class MailService {
         `✅ Notificación de soporte enviada al admin (${adminEmail})`,
       );
     } catch (error) {
-      console.error('❌ Error enviando notificación de soporte:', error);
+      console.error(
+        '? Error enviando notificaci?n de soporte:',
+        error,
+      );
     }
   }
 
@@ -108,16 +138,22 @@ export class MailService {
     try {
       await this.mailerService.sendMail({
         to: email,
-        subject: 'ðŸ’¬ Recibimos tu feedback - NutriNet',
+        subject:
+          '💬 Recibimos tu feedback - NutriNet',
         template: 'request-confirmation',
         context: {
           name: 'Usuario',
           year: new Date().getFullYear(),
         },
       });
-      console.log(`✅ Confirmación de feedback enviada a: ${email}`);
+      console.log(
+        `✅ Confirmación de feedback enviada a: ${email}`,
+      );
     } catch (error) {
-      console.error('❌ Error enviando confirmación de feedback:', error);
+      console.error(
+        '? Error enviando confirmaci?n de feedback:',
+        error,
+      );
     }
   }
 
@@ -139,7 +175,7 @@ export class MailService {
       });
       console.log(`✅ Correo de rechazo enviado a: ${email}`);
     } catch (error) {
-      console.error('❌ Error enviando correo de rechazo:', error);
+      console.error('? Error enviando correo de rechazo:', error);
     }
   }
 
@@ -151,7 +187,7 @@ export class MailService {
     try {
       await this.mailerService.sendMail({
         to: email,
-        subject: '🔑 Recuperación de Acceso - NutriNet',
+        subject: '🔒 Recuperación de Acceso - NutriNet',
         template: 'password-reset',
         context: {
           name: fullName,
@@ -161,9 +197,14 @@ export class MailService {
           year: new Date().getFullYear(),
         },
       });
-      console.log(`✅ Correo de recuperación enviado a: ${email}`);
+      console.log(
+        `✅ Correo de recuperación enviado a: ${email}`,
+      );
     } catch (error) {
-      console.error('❌ Error enviando correo de recuperación:', error);
+      console.error(
+        '? Error enviando correo de recuperaci?n:',
+        error,
+      );
       throw error;
     }
   }
@@ -190,9 +231,14 @@ export class MailService {
           year: new Date().getFullYear(),
         },
       });
-      console.log(`✅ Invitación de portal enviada a: ${data.email}`);
+      console.log(
+        `✅ Invitación de portal enviada a: ${data.email}`,
+      );
     } catch (error) {
-      console.error('❌ Error enviando invitación de portal:', error);
+      console.error(
+        '? Error enviando invitaci?n de portal:',
+        error,
+      );
     }
   }
   async sendPatientPortalNotificationEmail(data: {
@@ -218,9 +264,14 @@ export class MailService {
                   </div>
                 `,
       });
-      console.log(`✅ Notificación de portal enviada a: ${data.email}`);
+      console.log(
+        `✅ Notificación de portal enviada a: ${data.email}`,
+      );
     } catch (error) {
-      console.error('❌ Error enviando notificación de portal:', error);
+      console.error(
+        '? Error enviando notificaci?n de portal:',
+        error,
+      );
     }
   }
 
@@ -257,9 +308,14 @@ export class MailService {
           </div>
         `,
       });
-      console.log(`✅ Enlace de agendamiento enviado a: ${data.email}`);
+      console.log(
+        `✅ Enlace de agendamiento enviado a: ${data.email}`,
+      );
     } catch (error) {
-      console.error('❌ Error enviando enlace de agendamiento:', error);
+      console.error(
+        '? Error enviando enlace de agendamiento:',
+        error,
+      );
       throw error;
     }
   }
