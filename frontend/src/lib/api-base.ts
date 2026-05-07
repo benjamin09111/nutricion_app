@@ -109,13 +109,14 @@ export async function fetchApi(
         return new Promise(() => {});
       }
 
-      if (responseWithTenant.ok || ![404].includes(responseWithTenant.status)) {
+      if (responseWithTenant.ok || ![404, 502, 503, 504].includes(responseWithTenant.status)) {
         preferredApiOrigin = origin;
         return responseWithTenant;
       }
 
       lastResponse = responseWithTenant;
     } catch (error) {
+      console.error(`[fetchApi] Failed to connect to ${origin}:`, error);
       lastError = error;
     }
   }

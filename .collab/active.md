@@ -3,6 +3,10 @@
 No hay sesiones activas.
 
 ---
+Última sesión completada: [fix-api-404-error](.collab/sessions/fix-api-404-error/)
+
+
+---
 Última sesión completada: [debug-mail-logs](.collab/sessions/debug-mail-logs/)
 
 

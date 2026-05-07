@@ -71,11 +71,16 @@ export default function LandingPage() {
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
-      const responseData = data as { message?: string };
+      // Handle non-JSON responses (like 404 HTML from Vercel)
+      const contentType = response.headers.get("content-type");
+      let responseData: { message?: string } = {};
+      
+      if (contentType && contentType.includes("application/json")) {
+        responseData = await response.json();
+      }
 
       if (!response.ok) {
-        throw new Error(responseData.message || "Error al enviar solicitud");
+        throw new Error(responseData.message || `Error ${response.status}: No se pudo procesar la solicitud.`);
       }
 
       toast.success(
