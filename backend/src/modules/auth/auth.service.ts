@@ -109,13 +109,10 @@ export class AuthService {
         }
       });
 
-      // SEND REAL EMAIL
-      await this.mailService.sendWelcomeEmail(
-        email,
-        fullName,
-        password,
-        adminMessage,
-      );
+      // SEND REAL EMAIL (Non-blocking to prevent UI hang)
+      this.mailService
+        .sendWelcomeEmail(email, fullName, password, adminMessage)
+        .catch((err) => console.error('Error sending welcome email:', err));
 
       return {
         success: true,
@@ -273,12 +270,14 @@ export class AuthService {
       console.log(
         `[AuthService] Triggering MailService.sendPasswordResetEmail for ${email}...`,
       );
-      await this.mailService.sendPasswordResetEmail(
-        email,
-        greetingName,
-        password,
+      this.mailService
+        .sendPasswordResetEmail(email, greetingName, password)
+        .catch((err) =>
+          console.error('Error sending password reset email:', err),
+        );
+      console.log(
+        `[AuthService] MailService call triggered (non-blocking) for ${email}`,
       );
-      console.log(`[AuthService] MailService call finished for ${email}`);
 
       return {
         success: true,

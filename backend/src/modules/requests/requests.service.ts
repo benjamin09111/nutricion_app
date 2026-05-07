@@ -46,12 +46,15 @@ export class RequestsService {
       data: createDto,
     });
 
-    // 3. Send Notifications
-    await this.mailService.sendAdminNotification(createDto);
-    await this.mailService.sendRegistrationConfirmation(
-      createDto.email,
-      createDto.fullName,
-    );
+    // 3. Send Notifications (Non-blocking to prevent UI hang)
+    this.mailService
+      .sendAdminNotification(createDto)
+      .catch((err) => console.error('Error sending admin notification:', err));
+    this.mailService
+      .sendRegistrationConfirmation(createDto.email, createDto.fullName)
+      .catch((err) =>
+        console.error('Error sending registration confirmation:', err),
+      );
 
     return {
       success: true,
@@ -209,11 +212,9 @@ export class RequestsService {
     }
 
     if (status === 'REJECTED') {
-      await this.mailService.sendRejectionEmail(
-        request.email,
-        request.fullName,
-        adminNotes,
-      );
+      this.mailService
+        .sendRejectionEmail(request.email, request.fullName, adminNotes)
+        .catch((err) => console.error('Error sending rejection email:', err));
     }
 
     // Standard update for other cases (Rejection or moving back to pending)

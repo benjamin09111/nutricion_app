@@ -66,7 +66,9 @@ export class AiService {
   private buildEmptyContentMessage(config: AiConfig, payload: any): string {
     const choice = Array.isArray(payload?.choices) ? payload.choices[0] : null;
     const finishReason =
-      typeof choice?.finish_reason === 'string' ? choice.finish_reason : 'unknown';
+      typeof choice?.finish_reason === 'string'
+        ? choice.finish_reason
+        : 'unknown';
     const hasReasoning = Boolean(choice?.message?.reasoning_content);
 
     return [
@@ -125,10 +127,10 @@ export class AiService {
 
     const text = this.extractOpenAICompatibleText(raw);
     if (!text) {
-      this.logger.error(`[AI:${config.provider}] No usable content. Raw response: ${JSON.stringify(raw)}`);
-      throw new BadRequestException(
-        this.buildEmptyContentMessage(config, raw),
+      this.logger.error(
+        `[AI:${config.provider}] No usable content. Raw response: ${JSON.stringify(raw)}`,
       );
+      throw new BadRequestException(this.buildEmptyContentMessage(config, raw));
     }
 
     return text;

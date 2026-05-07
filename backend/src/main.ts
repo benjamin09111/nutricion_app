@@ -50,7 +50,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3001;
   try {
-    await app.listen(port);
+    await app.listen(port, '0.0.0.0');
     console.log(`Application is running on: ${await app.getUrl()}`);
   } catch (error: any) {
     if (error.code === 'EADDRINUSE') {
@@ -58,7 +58,7 @@ async function bootstrap() {
       console.warn(
         `Port ${port} is in use, trying secondary port ${secondaryPort}...`,
       );
-      await app.listen(secondaryPort);
+      await app.listen(secondaryPort, '0.0.0.0');
       console.log(`Application is running on: ${await app.getUrl()}`);
     } else {
       throw error;

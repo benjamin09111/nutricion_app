@@ -20,6 +20,10 @@ import { join } from 'path';
             user: configService.get('MAIL_USER'),
             pass: configService.get('MAIL_PASS'),
           },
+          // Anti-hang timeouts for production
+          connectionTimeout: 5000, // 5 seconds
+          greetingTimeout: 5000, // 5 seconds
+          socketTimeout: 10000, // 10 seconds
         },
         defaults: {
           from: `"NutriNet Support" <${configService.get('MAIL_FROM')}>`,
@@ -37,4 +41,4 @@ import { join } from 'path';
   providers: [MailService],
   exports: [MailService],
 })
-export class MailModule { }
+export class MailModule {}
