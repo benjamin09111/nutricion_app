@@ -21,9 +21,10 @@ import { join } from 'path';
             pass: configService.get('MAIL_PASS'),
           },
           // Anti-hang timeouts for production
-          connectionTimeout: 5000, // 5 seconds
-          greetingTimeout: 5000, // 5 seconds
-          socketTimeout: 10000, // 10 seconds
+          family: 4,
+          connectionTimeout: 10000, // 10 seconds
+          greetingTimeout: 10000, // 10 seconds
+          socketTimeout: 20000, // 20 seconds
         },
         defaults: {
           from: `"NutriNet Support" <${configService.get('MAIL_FROM')}>`,
