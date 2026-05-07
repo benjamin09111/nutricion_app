@@ -3,6 +3,10 @@
 No hay sesiones activas.
 
 ---
+Última sesión completada: [fix-smtp-typing-error](.collab/sessions/fix-smtp-typing-error/)
+
+
+---
 Última sesión completada: [smtp-fallback-mechanism](.collab/sessions/smtp-fallback-mechanism/)
 
 

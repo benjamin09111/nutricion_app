@@ -55,7 +55,7 @@ export class MailService {
           connectionTimeout: 10000,
           greetingTimeout: 10000,
           socketTimeout: 20000,
-        });
+        } as any);
 
         const from = (mailOptions.from as string) || `"NutriNet Support" <${process.env.MAIL_FROM || process.env.MAIL_USER}>`;
 
