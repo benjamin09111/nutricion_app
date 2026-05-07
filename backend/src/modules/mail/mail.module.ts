@@ -9,18 +9,11 @@ import { join } from 'path';
   imports: [
     MailerModule.forRoot({
       transport: {
-        host: process.env.MAIL_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.MAIL_PORT || '587'),
-        secure: process.env.MAIL_SECURE === 'true', // true for 465
+        service: 'gmail',
         auth: {
           user: process.env.MAIL_USER,
           pass: process.env.MAIL_PASS,
         },
-        family: 4, // FORZAR IPv4 para evitar problemas de red en Railway
-        tls: {
-          rejectUnauthorized: false,
-        },
-
       },
       defaults: {
         from: `"NutriNet" <${process.env.MAIL_FROM || process.env.MAIL_USER}>`,
@@ -33,6 +26,7 @@ import { join } from 'path';
         },
       },
     }),
+
 
   ],
   providers: [MailService],
