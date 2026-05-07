@@ -3,6 +3,14 @@
 No hay sesiones activas.
 
 ---
+Última sesión completada: [smtp-fallback-mechanism](.collab/sessions/smtp-fallback-mechanism/)
+
+
+---
+Última sesión completada: [fix-smtp-ipv6-error](.collab/sessions/fix-smtp-ipv6-error/)
+
+
+---
 Última sesión completada: [fix-api-404-error](.collab/sessions/fix-api-404-error/)
 
 
