@@ -7,6 +7,10 @@ import { SanitizationPipe } from './common/pipes/sanitization.pipe';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { join } from 'path';
 import * as express from 'express';
+import * as dns from 'dns';
+
+// Force IPv4 preference for DNS resolution to avoid ENETUNREACH on IPv6-only cloud networks
+dns.setDefaultResultOrder('ipv4first');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

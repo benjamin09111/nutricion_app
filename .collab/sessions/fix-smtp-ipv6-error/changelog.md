@@ -1,11 +1,11 @@
-# Changelog: SMTP IPv6 Connectivity Fix
+# Changelog: Global IPv4 DNS Preference Fix
 
 ## Summary
-Resolved `ENETUNREACH` errors in production by forcing the SMTP client to use IPv4 instead of IPv6 and adjusted connection timeouts for better reliability.
+Forced the entire backend application to prefer IPv4 for DNS resolution to eliminate persistent `ENETUNREACH` errors when connecting to Google's SMTP servers in production.
 
 ## Changes
-- **MailerModule**: Added `family: 4` to the transport options to prevent unreachable IPv6 network paths.
-- **Timeouts**: Increased SMTP connection and greeting timeouts to 10 seconds and socket timeout to 20 seconds.
+- **Main Entry Point**: Set global DNS default result order to `ipv4first`.
+- **Mail Service**: Expanded error matching to more reliably trigger the SMTP fallback mechanism.
 
 ## Next Steps
-- Verify if emails are now being delivered correctly in the production environment.
+- Verify email delivery in production. This global setting is the most robust way to handle IPv6/IPv4 mismatch in cloud environments.

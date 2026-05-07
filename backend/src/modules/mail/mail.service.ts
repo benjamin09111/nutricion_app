@@ -31,10 +31,17 @@ export class MailService {
       console.log(`✅ [MailService] Correo enviado con éxito a: ${email}`);
     } catch (primaryError: any) {
       // Si el error parece ser de red o timeout, intentamos el fallback
-      const isNetworkError = primaryError.code === 'ENETUNREACH' || primaryError.code === 'ETIMEDOUT' || primaryError.message?.toLowerCase().includes('timeout');
+      const errorMessage = primaryError.message?.toLowerCase() || '';
+      const isNetworkError = 
+        primaryError.code === 'ENETUNREACH' || 
+        primaryError.code === 'ETIMEDOUT' || 
+        primaryError.code === 'ECONNREFUSED' ||
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('unreachable') ||
+        errorMessage.includes('connection');
       
       if (!isNetworkError) {
-        console.error(`❌ [MailService] Error permanente enviando a ${email}:`, primaryError.message || primaryError);
+        console.error(`❌ [MailService] Error permanente (no-red) enviando a ${email}:`, primaryError.message || primaryError);
         return;
       }
 
