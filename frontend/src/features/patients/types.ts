@@ -5,6 +5,7 @@ export interface Patient {
   email?: string;
   phone?: string;
   documentId?: string;
+  age?: number;
   birthDate?: string;
   gender?: string;
   height?: number;

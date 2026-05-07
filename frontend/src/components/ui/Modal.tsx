@@ -62,6 +62,7 @@ export function Modal({
     >
       <div
         ref={modalRef}
+        onClick={(e) => e.stopPropagation()}
         className={cn(
           "w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl relative animate-in zoom-in-95 duration-200",
           className,

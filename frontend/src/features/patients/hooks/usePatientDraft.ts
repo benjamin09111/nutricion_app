@@ -3,10 +3,11 @@ import { Patient } from "../types";
 
 const STORAGE_KEY = "NutriNet_patient_creation_draft";
 
-const INITIAL_STATE: Partial<Patient> = {
+const INITIAL_STATE: Partial<Patient> = { // updated with age field support
   fullName: "",
   email: "",
   phone: "+56",
+  age: undefined,
   birthDate: "",
   gender: "Masculino",
   height: 170,

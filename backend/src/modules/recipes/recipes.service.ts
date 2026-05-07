@@ -125,7 +125,13 @@ export class RecipesService {
         ? RECIPES_AI_PROMPTS.week
         : RECIPES_AI_PROMPTS.day;
 
-    return [scopePrompt, JSON.stringify(payload)].join('\n');
+    // Sanitize sensitive patient info
+    const sanitizedPayload = JSON.parse(JSON.stringify(payload));
+    if (sanitizedPayload.patientProfile) {
+      delete sanitizedPayload.patientProfile.fullName;
+    }
+
+    return [scopePrompt, JSON.stringify(sanitizedPayload)].join('\n');
   }
 
   private mapAiErrorMessage(upstreamMessage: string): string {
@@ -596,6 +602,16 @@ export class RecipesService {
       ),
     );
 
+    const sanitizedPatient = payload.patient
+      ? JSON.parse(JSON.stringify(payload.patient))
+      : null;
+
+    if (sanitizedPatient) {
+      delete sanitizedPatient.fullName;
+      delete sanitizedPatient.birthDate;
+      // We keep ageYears, gender, weight, height, etc.
+    }
+
     const safePayload = {
       dietName: payload.dietName || '',
       notes: payload.notes || '',
@@ -617,7 +633,7 @@ export class RecipesService {
         12,
       ),
       resources: this.sanitizeStringList(payload.resources).slice(0, 12),
-      patient: payload.patient || null,
+      patient: sanitizedPatient,
       nutritionalTargets: payload.nutritionalTargets || null,
       existingDishes: this.sanitizeQuickExistingDishes(payload.existingDishes),
       desiredDishCount,

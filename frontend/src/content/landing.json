@@ -36,17 +36,19 @@
   },
   "registration": {
     "titleLine1": "¿ERES NUTRICIONISTA?",
-    "titleLine2": "Esto es para ti.",
+    "titleLine2": "Crea tu cuenta ahora.",
     "subtitle": "Empieza a trabajar de forma más eficiente",
-    "paragraph1": "Sabemos que gran parte de tu trabajo no está en la consulta, sino en tareas repetitivas, cálculos y gestión de pacientes.",
-    "paragraph2": "Estamos desarrollando una plataforma que automatiza esos procesos, te permite organizar toda tu información y optimizar tu tiempo profesional.",
-    "paragraph3": "Hoy puedes acceder a la versión beta de forma gratuita y ser parte de quienes están construyendo una nueva forma de trabajar en nutrición.",
+    "paragraph1": "Únete a la plataforma que automatiza tus procesos, organiza toda tu información y optimiza tu tiempo profesional.",
+    "paragraph2": "Regístrate hoy para acceder a la versión beta de forma gratuita y comienza a gestionar tus pacientes de manera profesional.",
+    "paragraph3": "Configura tu perfil en segundos y empieza a usar todas las herramientas de NutriNet de inmediato.",
     "formTitle": "NOMBRE COMPLETO:",
     "formEmail": "CORREO PROFESIONAL:",
-    "formMessage": "¿TIENES ALGUNA CONSULTA? OPCIONAL",
-    "formSubmit": "Solicitar acceso",
-    "encryptionText": "Tu información profesional está protegida por encriptación de grado bancario."
+    "formPassword": "CONTRASEÑA DE ACCESO:",
+    "formMessage": "¿TIENES ALGUNA CONSULTA? (OPCIONAL)",
+    "formSubmit": "Crear mi cuenta",
+    "encryptionText": "Tu cuenta y datos están protegidos por encriptación de grado bancario."
   },
+
   "footer": {
     "brand": "nutrinet",
     "line1": "Diseñado en Chile para nutricionistas.",

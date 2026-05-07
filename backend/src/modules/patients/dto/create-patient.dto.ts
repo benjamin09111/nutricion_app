@@ -27,6 +27,10 @@ export class CreatePatientDto {
   documentId?: string;
 
   @IsOptional()
+  @IsNumber({}, { message: 'La edad debe ser un número' })
+  age?: number;
+
+  @IsOptional()
   @IsDateString(
     {},
     { message: 'La fecha de nacimiento debe ser válida (ISO 8601)' },

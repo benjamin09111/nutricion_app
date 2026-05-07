@@ -11,7 +11,7 @@ import { LoginDto } from './dto/login.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { MailService } from '../mail/mail.service';
 
-import { UserRole } from '@prisma/client';
+import { UserRole, SubscriptionPlan } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -109,16 +109,6 @@ export class AuthService {
         }
       });
 
-      // SEND REAL EMAIL (Non-blocking to prevent UI hang)
-      this.mailService
-        .sendWelcomeEmail(email, fullName, password, adminMessage)
-        .catch((err) => console.error('Error sending welcome email:', err));
-
-      return {
-        success: true,
-        message:
-          'Cuenta creada. Las credenciales han sido enviadas al correo especificado.',
-      };
     } catch (error) {
       console.error('CRITICAL ERROR creating account:', error);
       if (error instanceof BadRequestException) {
@@ -129,6 +119,83 @@ export class AuthService {
       );
     }
   }
+
+  async register(data: {
+    email: string;
+    password?: string;
+    fullName: string;
+    metadata?: any;
+  }) {
+    const { email, password, fullName } = data;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const existingAccount = await this.prisma.account.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (existingAccount) {
+      throw new BadRequestException('Este correo ya está registrado.');
+    }
+
+    // Default password if none provided (shouldn't happen with new form)
+    const finalPassword = password || crypto.randomBytes(8).toString('hex');
+    const hashedPassword = await bcrypt.hash(finalPassword, 10);
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // 1. Get default plan
+        const membershipPlan = await tx.membershipPlan.findFirst({
+          where: { isActive: true },
+          orderBy: { displayOrder: 'asc' },
+        });
+
+        const subscriptionPlan = membershipPlan?.slug.toUpperCase() || 'FREE';
+
+        // 2. Create Account
+        const newAccount = await tx.account.create({
+          data: {
+            email: normalizedEmail,
+            password: hashedPassword,
+            role: 'NUTRITIONIST',
+            plan: subscriptionPlan as SubscriptionPlan,
+            status: 'ACTIVE',
+          },
+        });
+
+        // 3. Create Nutritionist Profile
+        await tx.nutritionist.create({
+          data: {
+            accountId: newAccount.id,
+            fullName: fullName,
+          },
+        });
+
+        // 4. Create Subscription
+        if (membershipPlan) {
+          await tx.subscription.create({
+            data: {
+              accountId: newAccount.id,
+              planId: membershipPlan.id,
+              status: 'ACTIVE',
+              startDate: new Date(),
+              endDate: new Date(new Date().setDate(new Date().getDate() + 30)),
+            },
+          });
+        }
+
+        console.log(`✅ [AuthService] Usuario registrado con éxito: ${normalizedEmail}`);
+        
+        return {
+          success: true,
+          message: 'Registro completado con éxito.',
+        };
+      });
+    } catch (error: any) {
+      console.error('Error en register:', error);
+      throw new BadRequestException('No se pudo completar el registro: ' + error.message);
+    }
+  }
+
 
   async login(loginDto: LoginDto) {
     const { email, password } = loginDto;
@@ -263,27 +330,20 @@ export class AuthService {
       }
 
       console.log(
-        `[AuthService] Password updated in DB for ${normalizedEmail}. New random pass: ${password}`,
+        `[AuthService] Password updated in DB for ${normalizedEmail}. New temporary pass: ${password}`,
       );
 
-      // Use specific password reset email
+      // EMAIL DISABLED (SMTP BLOCKED)
       console.log(
-        `[AuthService] Triggering MailService.sendPasswordResetEmail for ${email}...`,
-      );
-      this.mailService
-        .sendPasswordResetEmail(email, greetingName, password)
-        .catch((err) =>
-          console.error('Error sending password reset email:', err),
-        );
-      console.log(
-        `[AuthService] MailService call triggered (non-blocking) for ${email}`,
+        `⚠️ [AuthService] MailService.sendPasswordResetEmail skipped for ${email} (SMTP Disabled).`,
       );
 
       return {
         success: true,
         message:
-          'Contraseña restablecida. Las nuevas credenciales han sido enviadas al correo especificado.',
+          `Contraseña restablecida temporalmente a: ${password}. (Anótala, ya que el servicio de correo está desactivado).`,
       };
+
     } catch (error) {
       console.error('Error resetting password:', error);
       throw new BadRequestException('Error al restablecer la contraseña.');

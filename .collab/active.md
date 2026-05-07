@@ -1,5 +1,5 @@
-# Sesión Activa: revert-to-smtp
-- **ID**: `revert-to-smtp`
+# Sesión Activa: stabilize-patient-dashboard
+- **ID**: `stabilize-patient-dashboard`
 - **Modo**: `TURBO`
-- **Objetivo**: Revertir el sistema de correo de SendGrid API a SMTP (Nodemailer) para Railway.
-- **Estado**: En progreso (Phase 1: Research)
+- **Objetivo**: Estabilizar el dashboard de pacientes, corregir el campo Edad, arreglar modales de portal y resolver errores de tipos en auth.
+- **Estado**: Iniciando Phase 1: Research

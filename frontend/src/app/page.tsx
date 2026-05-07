@@ -25,8 +25,10 @@ export default function LandingPage() {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
+    password: "",
     message: "",
   });
+
 
   const featuresInView = useInView({ threshold: 0.15 });
   const pricingInView = useInView({ threshold: 0.15 });
@@ -65,13 +67,20 @@ export default function LandingPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetchApi(`/requests`, {
+      const response = await fetchApi(`/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          fullName: formData.fullName,
+          metadata: {
+            message: formData.message,
+            source: "landing_registration"
+          }
+        }),
       });
 
-      // Handle non-JSON responses (like 404 HTML from Vercel)
       const contentType = response.headers.get("content-type");
       let responseData: { message?: string } = {};
       
@@ -80,22 +89,34 @@ export default function LandingPage() {
       }
 
       if (!response.ok) {
-        throw new Error(responseData.message || `Error ${response.status}: No se pudo procesar la solicitud.`);
+        throw new Error(responseData.message || `Error ${response.status}: No se pudo crear la cuenta.`);
       }
 
       toast.success(
-        "¡Solicitud enviada! Te contactaremos vía correo electrónico.",
+        "¡Cuenta creada con éxito! Ahora puedes iniciar sesión.",
+        {
+          duration: 5000,
+        }
       );
+      
+      // Limpiar formulario y dar tiempo para ver el toast antes de redirigir
       setFormData({
         fullName: "",
         email: "",
+        password: "",
         message: "",
       });
+
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 2000);
+      
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Hubo un error al enviar tu solicitud.");
+      toast.error(error instanceof Error ? error.message : "Hubo un error al crear tu cuenta.");
     } finally {
       setIsSubmitting(false);
     }
+
   };
 
   return (
@@ -304,6 +325,22 @@ export default function LandingPage() {
                       }
                     />
                   </div>
+                  <div className="space-y-2">
+                    <label className={cn("text-sm font-bold uppercase tracking-wide", "text-[#a88aed]")}>
+                      {(content.registration as any).formPassword}
+                    </label>
+                    <Input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      className={cn("rounded-full h-12 px-5 transition-all duration-300 focus:shadow-md", "border-[#a88aed]/30 bg-white/80 focus:border-[#a88aed] focus:ring-[#a88aed]/20")}
+                      value={formData.password}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
+                    />
+                  </div>
+
                   <div className="space-y-2">
                     <label className={cn("text-sm font-bold uppercase tracking-wide", "text-[#a88aed]")}>
                       {content.registration.formMessage}
