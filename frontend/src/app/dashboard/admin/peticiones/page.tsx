@@ -93,7 +93,9 @@ export default function PeticionesPage() {
           headers: { Authorization: `Bearer ${token}` },
         },
       );
+      
       if (!response.ok) throw new Error("Error al cargar peticiones");
+      
       const result = await response.json();
 
       setRequests(result.data);
@@ -128,8 +130,15 @@ export default function PeticionesPage() {
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Error al actualizar estado");
+        let errorMessage = "Error al actualizar estado";
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } else {
+          errorMessage = `Error ${response.status}: El servidor no respondió con un formato válido.`;
+        }
+        throw new Error(errorMessage);
       }
 
       let successMsg = "Estado actualizado";
