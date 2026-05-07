@@ -16,9 +16,11 @@ import { join } from 'path';
           user: process.env.MAIL_USER,
           pass: process.env.MAIL_PASS,
         },
+        family: 4, // FORZAR IPv4 para evitar problemas de red en Railway
         tls: {
           rejectUnauthorized: false,
         },
+
       },
       defaults: {
         from: `"NutriNet" <${process.env.MAIL_FROM || process.env.MAIL_USER}>`,
