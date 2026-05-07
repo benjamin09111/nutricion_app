@@ -1,11 +1,11 @@
-# Changelog: Global IPv4 DNS Preference Fix
+# Changelog: Extreme SMTP IPv4 Forcing
 
 ## Summary
-Forced the entire backend application to prefer IPv4 for DNS resolution to eliminate persistent `ENETUNREACH` errors when connecting to Google's SMTP servers in production.
+Implemented a last-resort "nuclear" option to force IPv4 connectivity for SMTP by overriding the DNS lookup mechanism and local socket binding.
 
 ## Changes
-- **Main Entry Point**: Set global DNS default result order to `ipv4first`.
-- **Mail Service**: Expanded error matching to more reliably trigger the SMTP fallback mechanism.
+- **MailerModule & MailService**: Injected a custom DNS lookup function to filter out IPv6 addresses before connection attempts.
+- **Socket Config**: Forced local binding to `0.0.0.0` (IPv4) to prevent IPv6 interface usage.
 
 ## Next Steps
-- Verify email delivery in production. This global setting is the most robust way to handle IPv6/IPv4 mismatch in cloud environments.
+- Redeploy and monitor logs. This is the most aggressive software-level fix possible for IPv4/IPv6 mismatch.

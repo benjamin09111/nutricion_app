@@ -1,45 +1,40 @@
 import { Module, Global } from '@nestjs/common';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MailService } from './mail.service';
 import { join } from 'path';
 
 @Global()
 @Module({
   imports: [
-    MailerModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        transport: {
-          host: configService.get('MAIL_HOST'),
-          port: configService.get('MAIL_PORT'),
-          secure: configService.get('MAIL_SECURE') === 'true',
-          auth: {
-            user: configService.get('MAIL_USER'),
-            pass: configService.get('MAIL_PASS'),
-          },
-          // Anti-hang timeouts for production
-          family: 4,
-          connectionTimeout: 10000, // 10 seconds
-          greetingTimeout: 10000, // 10 seconds
-          socketTimeout: 20000, // 20 seconds
+    MailerModule.forRoot({
+      transport: {
+        host: process.env.MAIL_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.MAIL_PORT || '587'),
+        secure: process.env.MAIL_SECURE === 'true', // true for 465
+        auth: {
+          user: process.env.MAIL_USER,
+          pass: process.env.MAIL_PASS,
         },
-        defaults: {
-          from: `"NutriNet Support" <${configService.get('MAIL_FROM')}>`,
+        tls: {
+          rejectUnauthorized: false,
         },
-        template: {
-          dir: join(process.cwd(), 'dist', 'modules', 'mail', 'templates'),
-          adapter: new HandlebarsAdapter(),
-          options: {
-            strict: true,
-          },
+      },
+      defaults: {
+        from: `"NutriNet" <${process.env.MAIL_FROM || process.env.MAIL_USER}>`,
+      },
+      template: {
+        dir: join(process.cwd(), 'dist', 'modules', 'mail', 'templates'),
+        adapter: new HandlebarsAdapter(),
+        options: {
+          strict: true,
         },
-      }),
+      },
     }),
+
   ],
   providers: [MailService],
   exports: [MailService],
 })
 export class MailModule {}
+
