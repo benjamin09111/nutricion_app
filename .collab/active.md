@@ -3,6 +3,16 @@
 No hay sesiones activas.
 
 ---
+Última sesión completada: [debug-mail-logs](.collab/sessions/debug-mail-logs/)
+
+
+---
+Última sesión completada: [fix-production-mail-hang](.collab/sessions/fix-production-mail-hang/)
+
+
+---
+Última sesión completada: [fix-login-api-error](.collab/sessions/fix-login-api-error/)
+Última sesión completada: [fix-frontend-dev-lock](.collab/sessions/fix-frontend-dev-lock/)
 Última sesión completada: [recipes-restore-direct-ai-fill](.collab/sessions/recipes-restore-direct-ai-fill/)
 Última sesión completada: [quick-recipes-remove-recipe-metadata-payload](.collab/sessions/quick-recipes-remove-recipe-metadata-payload/)
 Última sesión completada: [recipes-remove-quick-index](.collab/sessions/recipes-remove-quick-index/)

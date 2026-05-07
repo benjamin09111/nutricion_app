@@ -24,6 +24,7 @@ export class MailService {
     password: string,
     validAdminMessage?: string,
   ): Promise<void> {
+    console.log(`📧 [MailService] Preparando correo de bienvenida para: ${email}`);
     try {
       await this.mailerService.sendMail({
         to: email,
@@ -39,9 +40,9 @@ export class MailService {
           year: new Date().getFullYear(),
         },
       });
-      console.log(`✅ Correo de bienvenida enviado a: ${email}`);
+      console.log(`✅ [MailService] Correo de bienvenida enviado con éxito a: ${email}`);
     } catch (error) {
-      console.error('? Error enviando correo de bienvenida:', error);
+      console.error(`❌ [MailService] Error enviando correo de bienvenida a ${email}:`, error.message || error);
     }
   }
 
@@ -49,6 +50,7 @@ export class MailService {
     email: string,
     fullName: string,
   ): Promise<void> {
+    console.log(`📧 [MailService] Preparando confirmación de registro para: ${email}`);
     try {
       await this.mailerService.sendMail({
         to: email,
@@ -60,12 +62,12 @@ export class MailService {
         },
       });
       console.log(
-        `✅ Correo de confirmación enviado a: ${email}`,
+        `✅ [MailService] Correo de confirmación enviado con éxito a: ${email}`,
       );
     } catch (error) {
       console.error(
-        '? Error enviando confirmaci?n de registro:',
-        error,
+        `❌ [MailService] Error enviando confirmación de registro a ${email}:`,
+        error.message || error,
       );
     }
   }
@@ -74,6 +76,7 @@ export class MailService {
     requestData: SupportEmailRequestData,
   ): Promise<void> {
     const adminEmail = this.getSupportInboxEmail();
+    console.log(`📧 [MailService] Notificando al administrador sobre nueva solicitud: ${requestData.email}`);
     try {
       await this.mailerService.sendMail({
         to: adminEmail,
@@ -91,12 +94,12 @@ export class MailService {
         },
       });
       console.log(
-        `✅ Notificación enviada al administrador (${adminEmail})`,
+        `✅ [MailService] Notificación enviada al administrador (${adminEmail}) para: ${requestData.email}`,
       );
     } catch (error) {
       console.error(
-        '? Error enviando notificaci?n al administrador:',
-        error,
+        `❌ [MailService] Error enviando notificación al administrador (${adminEmail}):`,
+        error.message || error,
       );
     }
   }
@@ -108,6 +111,7 @@ export class MailService {
     fromEmail: string;
   }): Promise<void> {
     const adminEmail = this.getSupportInboxEmail();
+    console.log(`📧 [MailService] Enviando feedback (${data.type}) de ${data.fromEmail} al admin`);
     try {
       await this.mailerService.sendMail({
         to: adminEmail,
@@ -124,17 +128,18 @@ export class MailService {
         },
       });
       console.log(
-        `✅ Notificación de soporte enviada al admin (${adminEmail})`,
+        `✅ [MailService] Notificación de soporte enviada al admin (${adminEmail})`,
       );
     } catch (error) {
       console.error(
-        '? Error enviando notificaci?n de soporte:',
-        error,
+        `❌ [MailService] Error enviando notificación de soporte a ${adminEmail}:`,
+        error.message || error,
       );
     }
   }
 
   async sendFeedbackConfirmation(email: string): Promise<void> {
+    console.log(`📧 [MailService] Enviando confirmación de feedback a: ${email}`);
     try {
       await this.mailerService.sendMail({
         to: email,
@@ -147,12 +152,12 @@ export class MailService {
         },
       });
       console.log(
-        `✅ Confirmación de feedback enviada a: ${email}`,
+        `✅ [MailService] Confirmación de feedback enviada con éxito a: ${email}`,
       );
     } catch (error) {
       console.error(
-        '? Error enviando confirmaci?n de feedback:',
-        error,
+        `❌ [MailService] Error enviando confirmación de feedback a ${email}:`,
+        error.message || error,
       );
     }
   }
@@ -162,6 +167,7 @@ export class MailService {
     fullName: string,
     adminMessage?: string,
   ) {
+    console.log(`📧 [MailService] Enviando correo de rechazo a: ${email}`);
     try {
       await this.mailerService.sendMail({
         to: email,
@@ -173,9 +179,9 @@ export class MailService {
           year: new Date().getFullYear(),
         },
       });
-      console.log(`✅ Correo de rechazo enviado a: ${email}`);
+      console.log(`✅ [MailService] Correo de rechazo enviado con éxito a: ${email}`);
     } catch (error) {
-      console.error('? Error enviando correo de rechazo:', error);
+      console.error(`❌ [MailService] Error enviando correo de rechazo a ${email}:`, error.message || error);
     }
   }
 
@@ -184,6 +190,7 @@ export class MailService {
     fullName: string,
     password: string,
   ) {
+    console.log(`📧 [MailService] Enviando recuperación de contraseña a: ${email}`);
     try {
       await this.mailerService.sendMail({
         to: email,
@@ -198,12 +205,12 @@ export class MailService {
         },
       });
       console.log(
-        `✅ Correo de recuperación enviado a: ${email}`,
+        `✅ [MailService] Correo de recuperación enviado con éxito a: ${email}`,
       );
     } catch (error) {
       console.error(
-        '? Error enviando correo de recuperaci?n:',
-        error,
+        `❌ [MailService] Error enviando correo de recuperación a ${email}:`,
+        error.message || error,
       );
       throw error;
     }
@@ -231,14 +238,9 @@ export class MailService {
           year: new Date().getFullYear(),
         },
       });
-      console.log(
-        `✅ Invitación de portal enviada a: ${data.email}`,
-      );
+      console.log(`✅ Invitación de portal enviada a: ${data.email}`);
     } catch (error) {
-      console.error(
-        '? Error enviando invitaci?n de portal:',
-        error,
-      );
+      console.error('? Error enviando invitaci?n de portal:', error);
     }
   }
   async sendPatientPortalNotificationEmail(data: {
@@ -264,14 +266,9 @@ export class MailService {
                   </div>
                 `,
       });
-      console.log(
-        `✅ Notificación de portal enviada a: ${data.email}`,
-      );
+      console.log(`✅ Notificación de portal enviada a: ${data.email}`);
     } catch (error) {
-      console.error(
-        '? Error enviando notificaci?n de portal:',
-        error,
-      );
+      console.error('? Error enviando notificaci?n de portal:', error);
     }
   }
 
@@ -308,14 +305,9 @@ export class MailService {
           </div>
         `,
       });
-      console.log(
-        `✅ Enlace de agendamiento enviado a: ${data.email}`,
-      );
+      console.log(`✅ Enlace de agendamiento enviado a: ${data.email}`);
     } catch (error) {
-      console.error(
-        '? Error enviando enlace de agendamiento:',
-        error,
-      );
+      console.error('? Error enviando enlace de agendamiento:', error);
       throw error;
     }
   }

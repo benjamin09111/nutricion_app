@@ -302,9 +302,7 @@ export class RecipesService {
 
   private validateReplacementGuide(meta?: AiMetaResponse) {
     if (!meta) {
-      throw new BadRequestException(
-        'La IA no devolvió metadata de guía.',
-      );
+      throw new BadRequestException('La IA no devolvió metadata de guía.');
     }
 
     if (typeof meta.note !== 'string' || !meta.note.trim()) {
@@ -454,7 +452,7 @@ export class RecipesService {
       new Set(
         value
           .map((item) => (typeof item === 'string' ? item.trim() : ''))
-        .filter(Boolean),
+          .filter(Boolean),
       ),
     );
   }
