@@ -42,6 +42,8 @@ export type AppointmentSlot = {
   end: string;
   available: boolean;
   status: string;
+  dayKey?: string;
+  hour?: number;
   title?: string;
   label?: string;
   patientName?: string;
@@ -119,6 +121,18 @@ export const parseAppointmentsError = (
 const getAppointmentsAuthMode = () =>
   process.env.NEXT_PUBLIC_APPOINTMENTS_AUTH_MODE || "jwt";
 
+const getNutritionistId = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      return user?.id || user?.nutritionistId || null;
+    }
+  } catch (e) { }
+  return null;
+};
+
 const buildHeaders = (init?: RequestInit) => {
   const headers = new Headers(init?.headers || {});
   const authMode = getAppointmentsAuthMode();
@@ -131,6 +145,11 @@ const buildHeaders = (init?: RequestInit) => {
   const tenantId = getTenantId();
   if (tenantId && !headers.has("X-Tenant-ID")) {
     headers.set("X-Tenant-ID", tenantId);
+  }
+
+  const nutritionistId = getNutritionistId();
+  if (nutritionistId && !headers.has("X-Nutritionist-Id")) {
+    headers.set("X-Nutritionist-Id", nutritionistId);
   }
 
   return headers;
@@ -191,6 +210,10 @@ export async function createBookingLink(payload: CreateBookingLinkRequest) {
 
 export async function fetchBookingLink(token: string) {
   return fetchAppointmentsJson<AppointmentBookingLink>(`/booking-links/${token}`);
+}
+
+export async function fetchBookingLinkAvailabilityRules(token: string) {
+  return fetchAppointmentsJson<unknown>(`/booking-links/${token}/availability/rules`);
 }
 
 export async function createBookingLinkRequest(

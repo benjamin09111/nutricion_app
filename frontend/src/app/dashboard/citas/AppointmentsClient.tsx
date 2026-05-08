@@ -19,7 +19,6 @@ import {
   ChevronRight,
   Send,
   X,
-  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -28,7 +27,6 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
-import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
 import { QRCodeSVG } from "qrcode.react";
@@ -45,7 +43,6 @@ import {
 } from "@/lib/appointments";
 import { getAuthToken } from "@/lib/auth-token";
 
-type TabKey = "calendar" | "upcoming" | "past" | "requests";
 type WeekRule = {
   day: string;
   enabled: boolean;
@@ -65,6 +62,20 @@ type AvailabilityRulesResponse =
   }
   | Array<unknown>;
 
+type ScheduleTabKey = "schedule" | "citas";
+type CitasTabKey = "accepted" | "pending" | "rejected";
+
+const SCHEDULE_TABS: Array<{ key: ScheduleTabKey; label: string }> = [
+  { key: "schedule", label: "Mi horario" },
+  { key: "citas", label: "Citas" },
+];
+
+const CITAS_TABS: Array<{ key: CitasTabKey; label: string }> = [
+  { key: "accepted", label: "Aceptadas" },
+  { key: "pending", label: "Pendientes" },
+  { key: "rejected", label: "Rechazadas" },
+];
+
 const WEEK_DAYS = [
   { key: "monday", label: "Lun" },
   { key: "tuesday", label: "Mar" },
@@ -79,9 +90,21 @@ const DEFAULT_WEEK_RULES = (): WeekRule[] =>
   WEEK_DAYS.map((day, index) => ({
     day: day.key,
     enabled: index < 5,
-    start: "09:00",
-    end: "18:00",
+    start: "08:00",
+    end: "16:00",
   }));
+
+const createDefaultWorkHoursGrid = (): WorkHoursGridDraft => {
+  const grid = createEmptyWorkHoursGrid();
+
+  for (const day of ["monday", "tuesday", "wednesday", "thursday", "friday"]) {
+    for (let hour = 8; hour < 16; hour++) {
+      grid[day][hour - HOUR_START] = true;
+    }
+  }
+
+  return grid;
+};
 
 const DAY_INDEX_BY_KEY: Record<string, number> = {
   monday: 0,
@@ -609,13 +632,6 @@ const getStoredNutritionistProfile = () => {
   }
 };
 
-const TAB_ITEMS: Array<{ key: TabKey; label: string; description: string }> = [
-  { key: "calendar", label: "Calendario", description: "Volver a la agenda." },
-  { key: "upcoming", label: "Próximas citas", description: "Sesiones agendadas por venir." },
-  { key: "past", label: "Citas pasadas", description: "Historial reciente de sesiones." },
-  { key: "requests", label: "Peticiones de cita", description: "Solicitudes pendientes por revisar." },
-];
-
 export default function AppointmentsClient() {
   const [calendar, setCalendar] = useState<AppointmentCalendar | null>(null);
   const [weekAnchor, setWeekAnchor] = useState(new Date());
@@ -624,7 +640,8 @@ export default function AppointmentsClient() {
   const [requests, setRequests] = useState<AppointmentRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabKey>("upcoming");
+  const [activeTab, setActiveTab] = useState<ScheduleTabKey>("schedule");
+  const [activeCitasTab, setActiveCitasTab] = useState<CitasTabKey>("accepted");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isPatientPickerOpen, setIsPatientPickerOpen] = useState(false);
   const [isEditingWorkHours, setIsEditingWorkHours] = useState(false);
@@ -827,12 +844,6 @@ export default function AppointmentsClient() {
     void loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentWeekStart.getTime()]);
-
-  useEffect(() => {
-    if (activeTab === "calendar") {
-      calendarSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [activeTab]);
 
   useEffect(() => {
     if (!isPatientPickerOpen) return;
@@ -1367,566 +1378,209 @@ export default function AppointmentsClient() {
       hour12: false,
     });
 
+  const todayKey = formatDateKey(new Date());
+
   return (
-    <ModuleLayout
-      title="Citas"
-      description="Calendario clínico, próximas citas, citas pasadas y peticiones en una sola vista."
-      className="max-w-7xl relative"
-    >
-      {/* Candado de bloqueo temporal solicitado por el usuario */}
-      <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm rounded-[2rem]">
-        <div className="flex flex-col items-center gap-6 p-10 bg-white border border-slate-200 shadow-2xl rounded-[3rem] max-w-md text-center animate-in zoom-in-95 duration-300">
-          <div className="h-20 w-20 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
-            <Lock className="h-10 w-10" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Módulo en Mantenimiento</h2>
-            <p className="text-slate-500 font-medium">
-              Estamos estabilizando este módulo para asegurar la mejor experiencia. Estará disponible próximamente.
-            </p>
-          </div>
-          <Button 
-            variant="outline" 
-            className="rounded-xl border-slate-200 px-8 font-semibold text-slate-600"
-            onClick={() => window.location.href = '/dashboard'}
+    <div className="space-y-6">
+      <section className="flex flex-wrap gap-2">
+        {SCHEDULE_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] transition-all",
+              activeTab === tab.key
+                ? "border-slate-900 bg-slate-900 text-white shadow-sm"
+                : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700",
+            )}
           >
-            Volver al Inicio
-          </Button>
-        </div>
-      </div>
+            {tab.label}
+          </button>
+        ))}
+      </section>
 
-      <div className="space-y-6">
-        <section className="grid gap-4 xl:grid-cols-[1.4fr_0.6fr]">
-          <div ref={calendarSectionRef}>
-            <Card className="rounded-[2rem] border-slate-100 shadow-sm bg-white overflow-hidden">
-              <CardHeader className="space-y-3 p-8">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-600">
-                    Agenda viva
-                  </span>
-                  <span className="rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    {calendar ? getAppointmentDisplayName(calendar) : "Sin calendario cargado"}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                  <div>
-                    <CardTitle className="text-2xl font-semibold text-slate-900 tracking-tight">
-                      Calendario clínico
-                    </CardTitle>
-                    <CardDescription className="mt-1 text-sm font-medium text-slate-500">
-                      Gestiona disponibilidad, citas y peticiones en tiempo real.
-                    </CardDescription>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <div className="w-full rounded-2xl border border-blue-100 bg-blue-50/50 px-4 py-3 text-sm font-medium text-blue-800/90 shadow-sm">
-                      Haz clic en cualquier espacio libre para crear una cita con fecha y hora prellenadas.
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                      onClick={handleConnectGoogle}
-                      disabled={isConnectingGoogle || isLoading}
-                    >
-                      <Link2 className="mr-2 h-4 w-4 text-indigo-500" />
-                      {isConnectingGoogle ? "Conectando..." : "Google Calendar"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                      onClick={() => void handleShareSchedule()}
-                      disabled={isCreatingShareLink || isLoading}
-                    >
-                      <Share2 className="mr-2 h-4 w-4 text-indigo-500" />
-                      Compartir horario
-                    </Button>
-                    <Button
-                      variant={isScheduleActive ? "secondary" : "outline"}
-                      className={cn(
-                        "h-10 rounded-xl border-slate-200 px-4 font-semibold shadow-sm transition-all",
-                        isScheduleActive ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-100" : "bg-white text-slate-700 hover:bg-slate-50"
-                      )}
-                      onClick={handleTogglePublicSchedule}
-                      disabled={isUpdatingActivation || !shareLinkUrl}
-                    >
-                      {isUpdatingActivation ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className={cn("mr-2 h-4 w-4", isScheduleActive ? "text-emerald-500" : "text-slate-300")} />
-                      )}
-                      {isScheduleActive ? "Agendamiento Activo" : "Activar Agendamiento"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-10 rounded-xl border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                      onClick={() => {
-                        setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft));
-                        setIsEditingWorkHours(true);
-                      }}
-                    >
-                      <Settings2 className="mr-2 h-4 w-4 text-slate-400" />
-                      Horarios laborales
-                    </Button>
-                    <Button
-                      className="h-10 rounded-xl bg-indigo-600 px-4 font-semibold text-white shadow-sm hover:bg-indigo-700"
-                      onClick={() => setIsCreateOpen(true)}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Crear cita
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="h-10 rounded-xl px-4 font-semibold text-slate-500 hover:bg-slate-100"
-                      onClick={() => void handleRefresh()}
-                      disabled={isRefreshing}
-                    >
-                      <RefreshCcw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
-                      Actualizar
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
+      {activeTab === "schedule" ? (
+        <section ref={calendarSectionRef} className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" title="Modificar horarios laborales" aria-label="Modificar horarios laborales" className="h-11 w-11 rounded-full border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:bg-slate-50" onClick={() => { setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft)); setIsEditingWorkHours(true); }}>
+                <Settings2 className="h-4 w-4" />
+              </Button>
+              <Button type="button" title="Crear cita" aria-label="Crear cita" className="h-11 w-11 rounded-full bg-indigo-600 p-0 text-white shadow-sm hover:bg-indigo-700" onClick={() => setIsCreateOpen(true)}>
+                <Plus className="h-4 w-4" />
+              </Button>
+              <Button type="button" variant="outline" title="Actualizar" aria-label="Actualizar" className="h-11 w-11 rounded-full border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:bg-slate-50" onClick={() => void handleRefresh()} disabled={isRefreshing}>
+                <RefreshCcw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+              </Button>
+              <Button type="button" variant="outline" title="Compartir horario" aria-label="Compartir horario" className="h-11 w-11 rounded-full border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:bg-slate-50" onClick={() => void handleShareSchedule()} disabled={isCreatingShareLink || isLoading}>
+                <Share2 className="h-4 w-4" />
+              </Button>
+            </div>
 
-              <CardContent className="space-y-6 p-8 pt-0">
-                <div className="grid gap-4 sm:grid-cols-4">
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Próximas</p>
-                    <p className="mt-2 text-3xl font-semibold text-slate-900">{upcomingEvents.length}</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Pasadas</p>
-                    <p className="mt-2 text-3xl font-semibold text-slate-900">{pastEvents.length}</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Disponibles</p>
-                    <p className="mt-2 text-3xl font-semibold text-emerald-600">{availableSlots.length}</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Peticiones</p>
-                    <p className="mt-2 text-3xl font-semibold text-amber-600">{requests.length}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-white px-5 py-4">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      Semana del {currentWeekStart.toLocaleDateString("es-CL", { day: "2-digit", month: "short" })} al {currentWeekEnd.toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}
-                    </p>
-                    <p className="text-xs font-medium text-slate-500">
-                      Vista semanal de agenda.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      className="h-9 rounded-xl px-4 font-semibold text-slate-700"
-                      onClick={() => setWeekAnchor((current) => addDays(current, -7))}
-                    >
-                      Anterior
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-9 rounded-xl px-4 font-semibold text-slate-700"
-                      onClick={() => setWeekAnchor(new Date())}
-                    >
-                      Hoy
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-9 rounded-xl px-4 font-semibold text-slate-700"
-                      onClick={() => setWeekAnchor((current) => addDays(current, 7))}
-                    >
-                      Siguiente
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-50">
-                  {isLoading ? (
-                    <div className="flex h-[820px] items-center justify-center">
-                      <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <div className="min-w-[1024px]">
-                        <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] border-b border-slate-200 bg-white">
-                          <div className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            Hora
-                          </div>
-                          {weekDays.map((day, index) => {
-                            const dayEvents = eventBlocks.get(formatDateKey(day)) || [];
-                            return (
-                              <div key={index} className="border-l border-slate-100 px-3 py-3">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                  {formatDayLabel(day)}
-                                </p>
-                                <p className="mt-1 text-xs font-bold text-slate-900">
-                                  {day.toLocaleDateString("es-CL", {
-                                    day: "2-digit",
-                                    month: "short",
-                                  })}
-                                </p>
-                                <p className="mt-1 text-[10px] font-medium text-slate-500">
-                                  {dayEvents.length} eventos
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))]">
-                          <div className="relative bg-white">
-                            {Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, index) => {
-                              const hour = HOUR_START + index;
-                              return (
-                                <div
-                                  key={hour}
-                                  className="flex h-16 items-start justify-end border-b border-slate-100 px-2 pt-2 text-[10px] font-black uppercase tracking-widest text-slate-400"
-                                >
-                                  {formatHourLabel(hour)}
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          {weekDays.map((day) => {
-                            const dayEvents = eventBlocks.get(formatDateKey(day)) || [];
-                            const dayKey = WEEK_DAYS[getWeekDayIndex(day)].key;
-                            const dayHasWorkingWindow = workHoursDraft.some((rule) => rule.day === dayKey && rule.enabled);
-                            const dayGrid = workHoursGridDraft[dayKey] || [];
-                            return (
-                              <div key={day.toISOString()} className="relative min-h-[832px] border-l border-slate-100 bg-white">
-                                  {Array.from({ length: HOUR_END - HOUR_START }, (_, index) => {
-                                    const hour = HOUR_START + index;
-                                    const gridIndex = hour - HOUR_START;
-                                    const isSelectedHour = Boolean(dayGrid[gridIndex]);
-                                    const isWorkingHour = isEditingWorkHours ? isSelectedHour : isHourWithinRule(day, hour, workHoursDraft);
-                                    const isEditableHour = hour < HOUR_END;
-
-                                    return (
-                                      <button
-                                        key={hour}
-                                        type="button"
-                                        onClick={() => {
-                                          if (!isEditableHour) return;
-                                          if (isEditingWorkHours) {
-                                            setWorkHoursGridDraft((current) => {
-                                              if (gridIndex < 0 || gridIndex >= (current[dayKey]?.length || 0)) {
-                                                return current;
-                                              }
-                                              const next = { ...current };
-                                              const nextDay = [...(next[dayKey] || [])];
-                                              nextDay[gridIndex] = !nextDay[gridIndex];
-                                              next[dayKey] = nextDay;
-                                              return next;
-                                            });
-                                            return;
-                                          }
-
-                                          if (!isWorkingHour) return;
-                                          openCreateFromGrid(day, hour);
-                                        }}
-                                        title={
-                                          !isEditableHour
-                                            ? isEditingWorkHours
-                                              ? "Corte horario"
-                                              : "Bloque horario"
-                                            : isEditingWorkHours
-                                              ? `${isSelectedHour ? "Desactivar" : "Activar"} ${formatHourLabel(hour)}`
-                                              : isWorkingHour
-                                                ? `Crear cita ${formatHourLabel(hour)} en ${day.toLocaleDateString("es-CL", { weekday: "short", day: "2-digit", month: "short" })}`
-                                                : `No disponible (${formatHourLabel(hour)})`
-                                        }
-                                        className={cn(
-                                          "h-16 w-full border-b border-slate-100 transition-colors flex items-center justify-center",
-                                          !isEditableHour
-                                            ? isEditingWorkHours
-                                              ? "cursor-pointer bg-slate-100/70 hover:bg-slate-200"
-                                              : "cursor-default bg-white"
-                                            : isEditingWorkHours
-                                              ? isSelectedHour
-                                                ? "cursor-pointer bg-emerald-500/85 hover:bg-emerald-600"
-                                                : "cursor-pointer bg-slate-100/80 hover:bg-slate-200"
-                                              : isWorkingHour
-                                                ? "cursor-pointer bg-emerald-50/40 hover:bg-emerald-100/60"
-                                                : "cursor-default bg-slate-100/70",
-                                        )}
-                                      >
-                                        {!isEditingWorkHours && isWorkingHour && isEditableHour && (
-                                          <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600/60">
-                                            Disponible
-                                          </span>
-                                        )}
-                                        {!isEditingWorkHours && !isWorkingHour && isEditableHour && (
-                                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400/50">
-                                            No laboral
-                                          </span>
-                                        )}
-                                      </button>
-                                    );
-                                  })}
-                                {!isEditingWorkHours && !dayHasWorkingWindow && (
-                                  <div className="pointer-events-none absolute inset-0 bg-slate-100/35" />
-                                )}
-                                {!isEditingWorkHours && dayEvents.map(renderAppointmentBlock)}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" title="Semana anterior" aria-label="Semana anterior" className="h-11 w-11 rounded-full border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:bg-slate-50" onClick={() => setWeekAnchor((current) => addDays(current, -7))}>
+                <ChevronRight className="h-4 w-4 rotate-180" />
+              </Button>
+              <Button type="button" variant="outline" title="Ir a hoy" aria-label="Ir a hoy" className="h-11 w-11 rounded-full border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:bg-slate-50" onClick={() => setWeekAnchor(new Date())}>
+                <CalendarDays className="h-4 w-4" />
+              </Button>
+              <Button type="button" variant="outline" title="Siguiente semana" aria-label="Siguiente semana" className="h-11 w-11 rounded-full border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:bg-slate-50" onClick={() => setWeekAnchor((current) => addDays(current, 7))}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            <Card className="rounded-[2rem] border-slate-100 shadow-sm bg-white overflow-hidden">
-              <CardHeader className="space-y-2 p-8 pb-4">
-                <CardTitle className="text-lg font-semibold text-slate-900">Navegación</CardTitle>
-                <CardDescription className="text-sm font-medium text-slate-500">
-                  Listados de trabajo y calendario.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 p-8 pt-0">
-                <div className="grid gap-2">
-                  {TAB_ITEMS.map((tab) => (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setActiveTab(tab.key)}
-                      className={cn(
-                        "flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition-all",
-                        activeTab === tab.key
-                          ? "border-indigo-200 bg-indigo-50/50 text-indigo-900 shadow-sm"
-                          : "border-slate-100 bg-white text-slate-600 hover:border-slate-200 hover:bg-slate-50",
-                      )}
-                    >
-                      <span>
-                        <span className="block text-sm font-semibold">{tab.label}</span>
-                        <span className="block text-[11px] font-medium opacity-60">{tab.description}</span>
-                      </span>
-                      {activeTab === tab.key && <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" />}
-                    </button>
-                  ))}
+          <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
+            {isEditingWorkHours && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 sm:px-5">
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" className="h-10 rounded-full border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-[0.18em] text-slate-600" onClick={() => { setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft)); setIsEditingWorkHours(false); }}>
+                    Cancelar
+                  </Button>
+                  <Button type="button" className="h-10 rounded-full bg-slate-900 px-4 text-xs font-black uppercase tracking-[0.18em] text-white" onClick={() => void handleSaveWorkHours()} isLoading={isSavingHours}>
+                    Guardar
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[2rem] border-slate-100 shadow-sm bg-white overflow-hidden">
-              <CardHeader className="space-y-2 p-8 pb-4">
-                <CardTitle className="text-lg font-semibold text-slate-900">
-                  {calendar ? getAppointmentDisplayName(calendar) : "Sin calendario"}
-                </CardTitle>
-                <CardDescription className="text-sm font-medium text-slate-500">
-                  Zona: {calendarTimeZone}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 p-8 pt-0">
-                {isEditingWorkHours ? (
-                  <div className="space-y-4">
-                    <div className="flex justify-end gap-3">
-                      <Button
-                        variant="outline"
-                        className="h-11 rounded-xl px-5 font-semibold"
-                        onClick={async () => {
-                          setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft));
-                          setIsEditingWorkHours(false);
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button
-                        className="h-11 rounded-xl bg-indigo-600 px-5 font-semibold text-white"
-                        onClick={() => void handleSaveWorkHours()}
-                        isLoading={isSavingHours}
-                      >
-                        Guardar
-                      </Button>
-                    </div>
-                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 text-xs font-medium text-indigo-900/80">
-                      Selecciona bloques directamente en la grilla. Lo que marques se repetirá semanalmente.
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-3 rounded-2xl bg-indigo-50/50 p-4">
-                      <div className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm",
-                        calendar?.googleCalendarConnected ? "text-emerald-600" : "text-slate-400"
-                      )}>
-                        <CheckCircle2 className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-slate-900">
-                          {calendar?.googleCalendarConnected
-                            ? "Google conectado"
-                            : "Google desconectado"}
-                        </p>
-                        <p className="text-[10px] font-medium text-slate-500">
-                          Sincronización automática activa.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Libres</p>
-                        <p className="mt-1 text-2xl font-semibold text-slate-900">{availableSlots.length}</p>
-                      </div>
-                      <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Peticiones</p>
-                        <p className="mt-1 text-2xl font-semibold text-slate-900">{requests.length}</p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="h-11 w-full rounded-xl border-slate-200 bg-white font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                      onClick={handleConnectGoogle}
-                      disabled={isConnectingGoogle}
-                    >
-                      <Link2 className="mr-2 h-4 w-4 text-indigo-500" />
-                      Google Calendar
-                    </Button>
-                    <Button
-                      className="h-11 w-full rounded-xl bg-indigo-600 text-white shadow-sm hover:bg-indigo-700"
-                      onClick={() => setIsCreateOpen(true)}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Nueva cita
-                    </Button>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-
-        <section className="rounded-[1.8rem] border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="pt-1">
-            {activeTab === "calendar" && (
-              <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-                <CalendarDays className="mx-auto h-8 w-8 text-emerald-500" />
-                <h3 className="mt-4 text-lg font-black text-slate-900">Calendario</h3>
-                <p className="mt-2 text-sm font-medium text-slate-500">
-                  Usa la agenda superior para ver bloques libres, ocupados y crear citas con un clic.
-                </p>
-                <Button
-                  className="mt-5 rounded-xl bg-slate-900 px-5 font-black text-white"
-                  onClick={() => calendarSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                >
-                  Volver al calendario
-                </Button>
               </div>
             )}
 
-            {activeTab === "upcoming" && (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {upcomingEvents.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-sm font-semibold text-slate-400">
-                    No hay citas próximas.
-                  </div>
-                ) : (
-                  upcomingEvents.map((event) => (
-                    <Card key={event.id} className="rounded-2xl border-slate-100 shadow-sm hover:border-indigo-100 transition-all">
-                      <CardHeader className="space-y-2 pb-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <CardTitle className="text-base font-semibold text-slate-900">
-                            {event.title}
-                          </CardTitle>
-                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest text-emerald-600">
-                            {normalizeText(event.status) || "confirmada"}
-                          </span>
+            {isLoading ? (
+              <div className="flex h-[820px] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-emerald-600" /></div>
+            ) : (
+              <div className="overflow-x-auto">
+                <div className="min-w-[1024px]">
+                  <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] border-b border-slate-200 bg-white">
+                    <div className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Hora</div>
+                    {weekDays.map((day) => {
+                      const isToday = formatDateKey(day) === todayKey;
+                      return (
+                        <div key={day.toISOString()} className={cn("border-l border-slate-100 px-3 py-3 transition-colors", isToday && "border-emerald-200 bg-emerald-50/80")}>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{formatDayLabel(day)}</p>
+                          <p className="mt-1 text-xs font-bold text-slate-900">{day.toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}</p>
+                          {isToday && <span className="mt-2 inline-flex rounded-full bg-emerald-600 px-2 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-white">Hoy</span>}
                         </div>
-                        <CardDescription className="text-sm font-medium text-slate-500">
-                          {event.patientName || "Paciente pendiente"}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-2 text-sm font-medium text-slate-600">
-                        <div className="flex items-center gap-2">
-                          <Clock3 className="h-4 w-4 text-indigo-400" />
-                          {parseDateSafe(event.start)?.toLocaleString("es-CL", {
-                            weekday: "short",
-                            day: "2-digit",
-                            month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
+                      );
+                    })}
+                  </div>
+
+                  <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))]">
+                    <div className="relative bg-white">
+                      {Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, index) => {
+                        const hour = HOUR_START + index;
+                        return <div key={hour} className="flex h-16 items-start justify-end border-b border-slate-100 px-2 pt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">{formatHourLabel(hour)}</div>;
+                      })}
+                    </div>
+
+                    {weekDays.map((day) => {
+                      const dayEvents = eventBlocks.get(formatDateKey(day)) || [];
+                      const dayKey = WEEK_DAYS[getWeekDayIndex(day)].key;
+                      const dayHasWorkingWindow = workHoursDraft.some((rule) => rule.day === dayKey && rule.enabled);
+                      const dayGrid = workHoursGridDraft[dayKey] || [];
+                      const isToday = formatDateKey(day) === todayKey;
+
+                      return (
+                        <div key={day.toISOString()} className={cn("relative min-h-[832px] border-l border-slate-100 bg-white transition-colors", isToday && "bg-emerald-50/30 ring-1 ring-inset ring-emerald-200/70")}>
+                          {Array.from({ length: HOUR_END - HOUR_START }, (_, index) => {
+                            const hour = HOUR_START + index;
+                            const gridIndex = hour - HOUR_START;
+                            const isSelectedHour = Boolean(dayGrid[gridIndex]);
+                            const isWorkingHour = isEditingWorkHours ? isSelectedHour : isHourWithinRule(day, hour, workHoursDraft);
+                            const isEditableHour = hour < HOUR_END;
+
+                            return (
+                              <button key={hour} type="button" onClick={() => {
+                                if (!isEditableHour) return;
+                                if (isEditingWorkHours) {
+                                  setWorkHoursGridDraft((current) => {
+                                    if (gridIndex < 0 || gridIndex >= (current[dayKey]?.length || 0)) return current;
+                                    const next = { ...current };
+                                    const nextDay = [...(next[dayKey] || [])];
+                                    nextDay[gridIndex] = !nextDay[gridIndex];
+                                    next[dayKey] = nextDay;
+                                    return next;
+                                  });
+                                  return;
+                                }
+                                if (!isWorkingHour) return;
+                                openCreateFromGrid(day, hour);
+                              }} title={!isEditableHour ? (isEditingWorkHours ? "Corte horario" : "Bloque horario") : isEditingWorkHours ? `${isSelectedHour ? "Desactivar" : "Activar"} ${formatHourLabel(hour)}` : isWorkingHour ? `Crear cita ${formatHourLabel(hour)} en ${day.toLocaleDateString("es-CL", { weekday: "short", day: "2-digit", month: "short" })}` : `No disponible (${formatHourLabel(hour)})`} className={cn("flex h-16 w-full items-center justify-center border-b border-slate-100 transition-colors", !isEditableHour ? (isEditingWorkHours ? "cursor-pointer bg-slate-100/70 hover:bg-slate-200" : "cursor-default bg-white") : isEditingWorkHours ? (isSelectedHour ? "cursor-pointer bg-emerald-500/85 hover:bg-emerald-600" : "cursor-pointer bg-slate-100/80 hover:bg-slate-200") : isWorkingHour ? (isToday ? "cursor-pointer bg-emerald-100/70 hover:bg-emerald-200/70" : "cursor-pointer bg-emerald-50/40 hover:bg-emerald-100/60") : isToday ? "cursor-default bg-emerald-50/20" : "cursor-default bg-slate-100/70")}>
+                                {!isEditingWorkHours && isWorkingHour && isEditableHour && <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600/60">Disponible</span>}
+                                {!isEditingWorkHours && !isWorkingHour && isEditableHour && <span className="text-[9px] font-black uppercase tracking-widest text-slate-400/50">No laboral</span>}
+                              </button>
+                            );
                           })}
+                          {!isEditingWorkHours && !dayHasWorkingWindow && <div className="pointer-events-none absolute inset-0 bg-slate-100/35" />}
+                          {!isEditingWorkHours && dayEvents.map(renderAppointmentBlock)}
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
-              </div>
-            )}
-
-            {activeTab === "past" && (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {pastEvents.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-sm font-semibold text-slate-400">
-                    No hay historial registrado.
+                      );
+                    })}
                   </div>
-                ) : (
-                  pastEvents.map((event) => (
-                    <Card key={event.id} className="rounded-2xl border-slate-100 shadow-sm">
-                      <CardHeader className="space-y-2 pb-3">
-                        <CardTitle className="text-base font-semibold text-slate-900">{event.title}</CardTitle>
-                        <CardDescription className="text-sm font-medium text-slate-500">
-                          {event.patientName || "Paciente"}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-2 text-sm font-medium text-slate-600">
-                        <div className="flex items-center gap-2">
-                          <CalendarRange className="h-4 w-4 text-slate-300" />
-                          {parseDateSafe(event.start)?.toLocaleDateString("es-CL")}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
-              </div>
-            )}
-
-            {activeTab === "requests" && (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {requests.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-sm font-semibold text-slate-400">
-                    No hay peticiones.
-                  </div>
-                ) : (
-                  requests.map((request) => (
-                    <Card key={request.id} className="rounded-2xl border-slate-100 shadow-sm border-l-4 border-l-amber-400">
-                      <CardHeader className="space-y-2 pb-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <CardTitle className="text-base font-semibold text-slate-900">
-                            {request.title || "Solicitud"}
-                          </CardTitle>
-                          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-widest text-amber-600">
-                            {normalizeText(request.status) || "PENDIENTE"}
-                          </span>
-                        </div>
-                        <CardDescription className="text-sm font-medium text-slate-500">
-                          {request.patientName || "Paciente pendiente"}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-3 text-sm font-medium text-slate-600">
-                        <div className="flex items-center gap-2">
-                          <AlarmClock className="h-4 w-4 text-amber-400" />
-                          {parseDateSafe(request.requestedAt)?.toLocaleString("es-CL", {
-                            day: "2-digit",
-                            month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
+                </div>
               </div>
             )}
           </div>
         </section>
-      </div>
+      ) : (
+        <section className="rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-wrap gap-2 border-b border-slate-100 p-3 sm:p-4">
+            {CITAS_TABS.map((tab) => (
+              <button key={tab.key} type="button" onClick={() => setActiveCitasTab(tab.key)} className={cn("rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] transition-all", activeCitasTab === tab.key ? "border-slate-900 bg-slate-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700")}>{tab.label}</button>
+            ))}
+          </div>
+
+          <div className="p-4 sm:p-6">
+            {activeCitasTab === "accepted" && (
+              <div className="overflow-hidden rounded-2xl border border-slate-100">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      <th className="py-3 px-4">Fecha</th>
+                      <th className="py-3 px-4">Hora</th>
+                      <th className="py-3 px-4">Paciente</th>
+                      <th className="py-3 px-4">Motivo</th>
+                      <th className="py-3 px-4">Google Meet</th>
+                    </tr>
+                  </thead>
+                  <tbody />
+                </table>
+              </div>
+            )}
+
+            {activeCitasTab === "pending" && (
+              <div className="overflow-hidden rounded-2xl border border-slate-100">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      <th className="py-3 px-4">Fecha</th>
+                      <th className="py-3 px-4">Hora</th>
+                      <th className="py-3 px-4">Paciente</th>
+                      <th className="py-3 px-4">Motivo</th>
+                    </tr>
+                  </thead>
+                  <tbody />
+                </table>
+              </div>
+            )}
+
+            {activeCitasTab === "rejected" && (
+              <div className="overflow-hidden rounded-2xl border border-slate-100">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      <th className="py-3 px-4">Fecha</th>
+                      <th className="py-3 px-4">Hora</th>
+                      <th className="py-3 px-4">Paciente</th>
+                      <th className="py-3 px-4">Motivo</th>
+                    </tr>
+                  </thead>
+                  <tbody />
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <Modal
         isOpen={isPatientPickerOpen}
@@ -2283,7 +1937,8 @@ export default function AppointmentsClient() {
         </div>
       </Modal>
 
-    </ModuleLayout>
+    </div>
+
   );
 }
 

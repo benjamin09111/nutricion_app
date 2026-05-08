@@ -56,6 +56,7 @@ model Nutritionist {
   resources             Resource[]
   substitutes           Substitute[]
   createdTags           Tag[]
+  appointmentCalendars  AppointmentCalendar[]
 
   @@map("nutritionists")
 }
@@ -717,4 +718,107 @@ enum SubscriptionStatus {
   PAST_DUE
   CANCELED
   UNPAID
+}
+
+model AppointmentCalendar {
+  id             String   @id @default(uuid())
+  nutritionistId String   @unique @map("nutritionist_id")
+  name           String   @default("Mi Agenda")
+  title          String   @default("Calendario de Citas")
+  description    String?
+  timeZone       String   @default("America/Santiago") @map("time_zone")
+  metadata       Json?    @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  timeSlots      AppointmentTimeSlot[]
+  appointments   Appointment[]
+  bookingLinks   BookingLink[]
+  availabilityRules AvailabilityRule[]
+
+  @@map("appointment_calendars")
+}
+
+model AppointmentTimeSlot {
+  id          String   @id @default(uuid())
+  calendarId  String   @map("calendar_id")
+  dayOfWeek   Int      @map("day_of_week") // 0=Domingo, 6=Sábado
+  hour        Int      // 0-23
+  isAvailable Boolean  @default(true) @map("is_available")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  calendar    AppointmentCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarId, dayOfWeek, hour])
+  @@index([calendarId, dayOfWeek])
+  @@map("appointment_time_slots")
+}
+
+model Appointment {
+  id          String   @id @default(uuid())
+  calendarId  String   @map("calendar_id")
+  patientId   String?  @map("patient_id")
+  patientName String?  @map("patient_name")
+  title       String
+  description String?
+  startTime   DateTime @map("start_time")
+  endTime     DateTime @map("end_time")
+  status      AppointmentStatus @default(SCHEDULED)
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  calendar    AppointmentCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+
+  @@index([calendarId, startTime])
+  @@index([status])
+  @@map("appointments")
+}
+
+model BookingLink {
+  id          String   @id @default(uuid())
+  calendarId  String   @map("calendar_id")
+  token       String   @unique
+  url         String
+  isActive    Boolean  @default(true) @map("is_active")
+  allowedUses Int?     @map("allowed_uses")
+  useCount    Int      @default(0) @map("use_count")
+  expiresAt   DateTime? @map("expires_at")
+  metadata    Json?    @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  calendar    AppointmentCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+
+  @@index([calendarId])
+  @@map("booking_links")
+}
+
+model AvailabilityRule {
+  id          String   @id @default(uuid())
+  calendarId  String   @map("calendar_id")
+  name        String
+  ruleType    AvailabilityRuleType @map("rule_type")
+  dayOfWeek   Int?     @map("day_of_week")
+  startTime   String?  @map("start_time")
+  endTime     String?  @map("end_time")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  calendar    AppointmentCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+
+  @@index([calendarId])
+  @@map("availability_rules")
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum AvailabilityRuleType {
+  WEEKLY
+  SPECIFIC_DATE
+  BLOCK
 }

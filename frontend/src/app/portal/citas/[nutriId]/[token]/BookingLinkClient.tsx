@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import {
   AppointmentSlot,
   createBookingLinkRequest,
+  fetchBookingLinkAvailabilityRules,
   fetchAppointmentsJson,
   fetchBookingLink,
 } from "@/lib/appointments";
@@ -37,13 +38,20 @@ type BookingFormState = {
   notes: string;
 };
 
+type WeeklyRule = {
+  day: string;
+  enabled: boolean;
+  start: string;
+  end: string;
+};
+
 const normalizeText = (value: unknown) => (typeof value === "string" ? value.trim() : "");
 
 const extractArray = (payload: unknown) => {
   if (Array.isArray(payload)) return payload;
   if (!payload || typeof payload !== "object") return [];
   const record = payload as Record<string, unknown>;
-  const candidates = [record.data, record.items, record.results, record.slots];
+  const candidates = [record.data, record.items, record.results, record.slots, record.rules];
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) return candidate;
   }
@@ -85,6 +93,181 @@ const normalizeBookingPreview = (payload: unknown): BookingPreview | null => {
         ? (booking.metadata as Record<string, unknown>)
         : null,
   };
+};
+
+const normalizeWeekDayKey = (value: unknown) => {
+  const day = normalizeText(value).toLowerCase();
+  const aliases: Record<string, string> = {
+    mon: "monday",
+    tue: "tuesday",
+    wed: "wednesday",
+    thu: "thursday",
+    fri: "friday",
+    sat: "saturday",
+    sun: "sunday",
+  };
+
+  return aliases[day] || day;
+};
+
+const normalizeWeekDayFromIndex = (value: unknown) => {
+  const normalized = typeof value === "number" ? Math.trunc(value) : Number(normalizeText(value));
+  if (Number.isNaN(normalized)) {
+    return normalizeWeekDayKey(value);
+  }
+
+  const index = normalized === 7 ? 0 : normalized;
+  const dayMap: Record<number, string> = {
+    0: "sunday",
+    1: "monday",
+    2: "tuesday",
+    3: "wednesday",
+    4: "thursday",
+    5: "friday",
+    6: "saturday",
+  };
+
+  return dayMap[index] || "";
+};
+
+const normalizeAvailabilityRules = (payload: unknown): WeeklyRule[] => {
+  const items = extractArray(payload);
+  return items
+    .map((item): WeeklyRule | null => {
+      if (!item || typeof item !== "object") return null;
+      const record = item as Record<string, unknown>;
+      const dayValue = record.day || record.weekDay || record.weekday || record.dayOfWeek || record.day_of_week;
+      const day = normalizeWeekDayFromIndex(dayValue);
+      if (!day) return null;
+
+      const enabled =
+        typeof record.enabled === "boolean"
+          ? record.enabled
+          : typeof record.available === "boolean"
+            ? record.available
+            : typeof record.isWorking === "boolean"
+              ? record.isWorking
+              : typeof record.active === "boolean"
+                ? record.active
+                : typeof record.isActive === "boolean"
+                  ? record.isActive
+                  : true;
+
+      const startRaw = normalizeText(record.start || record.from || record.begin || record.startTime);
+      const endRaw = normalizeText(record.end || record.to || record.finish || record.endTime);
+
+      return {
+        day,
+        enabled,
+        start: startRaw.slice(0, 5) || "08:00",
+        end: endRaw.slice(0, 5) || "16:00",
+      };
+    })
+    .filter((item): item is WeeklyRule => item !== null);
+};
+
+const getWeekdayKeyInTimeZone = (dateKey: string, timeZone: string) => {
+  const { year, month, day } = parseDateKeyParts(dateKey);
+  const ref = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "long",
+  })
+    .format(ref)
+    .toLowerCase();
+
+  const aliases: Record<string, string> = {
+    monday: "monday",
+    tuesday: "tuesday",
+    wednesday: "wednesday",
+    thursday: "thursday",
+    friday: "friday",
+    saturday: "saturday",
+    sunday: "sunday",
+  };
+
+  return aliases[weekday] || weekday;
+};
+
+const parseDateKeyParts = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  return { year, month, day };
+};
+
+const localDateTimeToUtcIso = (dateKey: string, hour: number, minute: number, timeZone: string) => {
+  const { year, month, day } = parseDateKeyParts(dateKey);
+  let utcGuess = Date.UTC(year, month - 1, day, hour, minute, 0);
+
+  for (let i = 0; i < 2; i += 1) {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date(utcGuess));
+
+    const getPart = (type: string) => Number(parts.find((part) => part.type === type)?.value || 0);
+    const formattedAsUtc = Date.UTC(
+      getPart("year"),
+      getPart("month") - 1,
+      getPart("day"),
+      getPart("hour"),
+      getPart("minute"),
+      getPart("second"),
+    );
+
+    const delta = formattedAsUtc - utcGuess;
+    if (delta === 0) break;
+    utcGuess -= delta;
+  }
+
+  return new Date(utcGuess).toISOString();
+};
+
+const expandRulesToSlots = (
+  rules: WeeklyRule[],
+  weekDays: Date[],
+  timeZone: string,
+  durationMin: number,
+): AppointmentSlot[] => {
+  const slots: AppointmentSlot[] = [];
+  const slotDuration = Math.max(15, durationMin);
+  const slotDurationMs = slotDuration * 60 * 1000;
+
+  for (const day of weekDays) {
+    const dateKey = formatDateKey(day, timeZone);
+    const weekdayKey = getWeekdayKeyInTimeZone(dateKey, timeZone);
+    const dayRules = rules.filter((rule) => rule.enabled && rule.day === weekdayKey);
+
+    for (const rule of dayRules) {
+      const [startHour, startMinute] = rule.start.split(":").map(Number);
+      const [endHour, endMinute] = rule.end.split(":").map(Number);
+      const startTotalMin = startHour * 60 + startMinute;
+      const endTotalMin = endHour * 60 + endMinute;
+
+      for (let minute = startTotalMin; minute + slotDuration <= endTotalMin; minute += slotDuration) {
+        const hour = Math.floor(minute / 60);
+        const minuteOfHour = minute % 60;
+        const start = localDateTimeToUtcIso(dateKey, hour, minuteOfHour, timeZone);
+        const end = new Date(new Date(start).getTime() + slotDurationMs).toISOString();
+
+        slots.push({
+          start,
+          end,
+          available: true,
+          status: "AVAILABLE",
+          dayKey: dateKey,
+          hour,
+        });
+      }
+    }
+  }
+
+  return slots;
 };
 
 const normalizeSlots = (payload: unknown): AppointmentSlot[] =>
@@ -215,9 +398,10 @@ export default function BookingLinkClient({
     weekDays.forEach((day) => map.set(formatDateKey(day, timeZone), []));
 
     slots.forEach((slot) => {
-      const start = parseDateSafe(slot.start);
-      if (!start) return;
-      const key = formatDateKey(start, timeZone);
+      const key = slot.dayKey || (() => {
+        const start = parseDateSafe(slot.start);
+        return start ? formatDateKey(start, timeZone) : "";
+      })();
       const current = map.get(key);
       if (current) current.push(slot);
     });
@@ -245,8 +429,11 @@ export default function BookingLinkClient({
       setIsLoading(true);
       setErrorMessage("");
       try {
+        console.log("[booking-link] loading preview", { token, nutriId });
         const payload = await fetchBookingLink(token);
+        console.log("[booking-link] preview raw payload", payload);
         const nextPreview = normalizeBookingPreview(payload);
+        console.log("[booking-link] preview normalized", nextPreview);
         if (!nextPreview?.calendarId) {
           throw new Error("No pudimos encontrar el calendario compartido.");
         }
@@ -276,12 +463,19 @@ export default function BookingLinkClient({
     if (!calendarId) return;
     setIsLoadingSlots(true);
     try {
-      const from = `${formatDateKey(weekStart, timeZone)}T00:00:00.000Z`;
-      const to = `${formatDateKey(weekEnd, timeZone)}T23:59:59.999Z`;
-      const payload = await fetchAppointmentsJson<unknown>(
-        `/availability/free-slots?calendarId=${calendarId}&from=${from}&to=${to}&durationMin=${slotDurationMin}`,
-      );
-      const nextSlots = normalizeSlots(payload);
+      console.log("[booking-link] loading slots", {
+        calendarId,
+        timeZone,
+        weekStart: formatDateKey(weekStart, timeZone),
+        weekEnd: formatDateKey(weekEnd, timeZone),
+        slotDurationMin,
+      });
+      const payload = await fetchBookingLinkAvailabilityRules(token);
+      console.log("[booking-link] availability rules raw", payload);
+      const rules = normalizeAvailabilityRules(payload);
+      console.log("[booking-link] availability rules normalized", rules);
+      const nextSlots = expandRulesToSlots(rules, weekDays, timeZone, slotDurationMin);
+      console.log("[booking-link] expanded slots", nextSlots);
       if (!cancelled) {
         setSlots(nextSlots);
       }
@@ -313,6 +507,7 @@ export default function BookingLinkClient({
 
   useEffect(() => {
     if (availableSlots.length === 0) {
+      console.log("[booking-link] no available slots", { slots, rules: preview?.metadata });
       setSelectedSlot(null);
       return;
     }
@@ -481,8 +676,8 @@ export default function BookingLinkClient({
                       </div>
                       {weekDays.map((day, index) => {
                         const dayKey = formatDateKey(day, timeZone);
-                        const daySlots = groupedSlots.get(dayKey) || [];
-                        return (
+                            const daySlots = groupedSlots.get(dayKey) || [];
+                            return (
                           <div key={index} className="border-l border-slate-100 px-3 py-3 text-center">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                               {formatDayLabel(day, timeZone)}
@@ -516,8 +711,7 @@ export default function BookingLinkClient({
                               const dayKey = formatDateKey(day, timeZone);
                               const daySlots = groupedSlots.get(dayKey) || [];
                               const slot = daySlots.find((s) => {
-                                const d = parseDateSafe(s.start);
-                                return d && d.getHours() === hour && d.getMinutes() === 0;
+                                return s.hour === hour;
                               });
 
                               return (

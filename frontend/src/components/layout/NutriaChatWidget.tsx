@@ -56,6 +56,12 @@ const NUTRIA_ROUTE_MESSAGES: Array<{
       "Aquí podré explicarte cómo usar recetas, porciones y planificación para avanzar más rápido dentro del flujo clínico.",
   },
   {
+    pattern: "/dashboard/citas",
+    moduleLabel: "Citas",
+    message:
+      "En esta vista puedes:\n\n- Modificar tus horarios laborales en cualquier momento.\n- Crear una cita haciendo clic sobre un bloque libre.\n- Conectar Google Calendar para coordinar notificaciones.\n- Revisar las pestañas de citas.\n- Partir con horario por defecto de 8:00 a 16:00.\n- Pasa el cursor o haz clic encima de cada acción para ver qué hace.",
+  },
+  {
     pattern: "/dashboard/carrito",
     moduleLabel: "Carrito",
     message:
@@ -203,6 +209,7 @@ export function NutriaChatWidget() {
     "/dashboard/pacientes/:id",
     "/dashboard/alimentos",
     "/dashboard/alimentos/grupos",
+    "/dashboard/citas",
     "/dashboard/detalles",
     "/dashboard/herramientas/calculos",
     "/dashboard/herramientas/porciones-intercambio",
@@ -282,7 +289,10 @@ export function NutriaChatWidget() {
               </div>
               <div className="max-w-[calc(100%-3.25rem)] rounded-[1.6rem] rounded-tl-md bg-white px-4 py-3 text-sm leading-6 text-slate-600 shadow-sm ring-1 ring-violet-100">
                 {welcomeMessage.split("\n\n").map((paragraph, index) => (
-                  <p key={`${paragraph}-${index}`} className={index > 0 ? "mt-3" : ""}>
+                  <p
+                    key={`${paragraph}-${index}`}
+                    className={cn(index > 0 ? "mt-3" : "", "whitespace-pre-line")}
+                  >
                     {renderInlineRichText(paragraph)}
                   </p>
                 ))}
