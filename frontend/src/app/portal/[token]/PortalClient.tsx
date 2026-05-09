@@ -188,7 +188,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<"diary" | "questions" | "plans" | "notifications" | "messages">("diary");
+  const [activeTab, setActiveTab] = useState<"diary" | "questions" | "plans" | "notifications" | "messages" | "appointments">("diary");
   const [entryText, setEntryText] = useState("");
   const [isSubmittingEntry, setIsSubmittingEntry] = useState(false);
   const [visibleEntriesCount, setVisibleEntriesCount] = useState(3);
@@ -552,16 +552,16 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
       </header>
 
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 p-4 md:p-8">
-        {/* Sidebar del Portal - Solo 4 Tabs */}
-        <aside className="w-full lg:w-64 shrink-0 space-y-2">
-          <div className="px-2 mb-4">
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Navegación</h3>
+        {/* Sidebar */}
+        <aside className="w-full lg:w-64 shrink-0 space-y-3 lg:space-y-2">
+          <div className="hidden lg:block px-2 mb-4">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Navegaci&#243;n</h3>
           </div>
-          <nav className="space-y-2">
+          <nav className="flex lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
             <button
               onClick={() => setActiveTab("diary")}
               className={cn(
-                "w-full flex items-center gap-3 px-6 py-4 rounded-3xl transition-all font-semibold text-sm group relative",
+                "shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
                 activeTab === "diary" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               )}
             >
@@ -576,7 +576,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
             <button
               onClick={() => setActiveTab("messages")}
               className={cn(
-                "w-full flex items-center gap-3 px-6 py-4 rounded-3xl transition-all font-semibold text-sm group relative",
+                "shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
                 activeTab === "messages" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               )}
             >
@@ -591,7 +591,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
             <button
               onClick={() => setActiveTab("questions")}
               className={cn(
-                "w-full flex items-center gap-3 px-6 py-4 rounded-3xl transition-all font-semibold text-sm group relative",
+                "shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
                 activeTab === "questions" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               )}
             >
@@ -606,7 +606,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
             <button
               onClick={() => setActiveTab("plans")}
               className={cn(
-                "w-full flex items-center gap-3 px-6 py-4 rounded-3xl transition-all font-semibold text-sm group relative",
+                "shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
                 activeTab === "plans" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               )}
             >
@@ -621,7 +621,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
             <button
               onClick={() => setActiveTab("notifications")}
               className={cn(
-                "w-full flex items-center gap-3 px-6 py-4 rounded-3xl transition-all font-semibold text-sm group relative",
+                "shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
                 activeTab === "notifications" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               )}
             >
@@ -636,13 +636,31 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
               )}
             </button>
 
+            <button
+              onClick={() => setActiveTab("appointments")}
+              className={cn(
+                "shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
+                activeTab === "appointments" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+              )}
+            >
+              <div className={cn(
+                "w-1.5 h-1.5 rounded-full absolute left-3 transition-all",
+                activeTab === "appointments" ? "bg-white scale-100" : "bg-transparent scale-0"
+              )} />
+              <Calendar className="h-5 w-5" />
+              Mis Citas
+              {portalData.appointments && portalData.appointments.length > 0 && (
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-emerald-500 rounded-full ring-4 ring-white" />
+              )}
+            </button>
+
             {portalData.patient?.nutritionist?.settings?.isScheduleActive && (
               <button
                 onClick={() => {
                   const url = portalData.patient.nutritionist?.settings?.bookingUrl;
                   if (url) window.open(url, "_blank");
                 }}
-                className="w-full flex items-center gap-3 px-6 py-4 rounded-3xl transition-all font-bold text-sm bg-emerald-600 text-white shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-[0.98] mt-4"
+                className="shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-bold text-xs lg:text-sm bg-emerald-600 text-white shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-[0.98] mt-0 lg:mt-4 whitespace-nowrap"
               >
                 <Calendar className="h-5 w-5" />
                 Agendar Cita
@@ -650,7 +668,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
             )}
           </nav>
 
-          <div className="bg-slate-50/80 rounded-[2.5rem] p-6 border border-slate-100">
+          <div className="hidden lg:block bg-slate-50/80 rounded-[2.5rem] p-6 border border-slate-100">
             <div className="space-y-1">
               <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-[0.25em]">Powered by NutriNet</p>
             </div>
@@ -1059,6 +1077,74 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                   )}
                 </div>
               </div>
+            </section>
+          )}
+
+          {/* TAB: MIS CITAS */}
+          {activeTab === "appointments" && (
+            <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-slate-100 shadow-sm space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-1.5 h-8 bg-indigo-500 rounded-full" />
+                  <div>
+                    <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Mis Citas</h1>
+                    <p className="text-slate-400 font-medium text-sm">Tus próximas citas agendadas con tu nutricionista.</p>
+                  </div>
+                </div>
+              </div>
+
+              {portalData.appointments && portalData.appointments.length > 0 ? (
+                <div className="space-y-6">
+                  {portalData.appointments.map((apt: any) => (
+                    <div key={apt.id} className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all group">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                            <Calendar className="h-7 w-7" />
+                          </div>
+                          <div className="space-y-2">
+                            <h3 className="text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                              {apt.title}
+                            </h3>
+                            {apt.description && (
+                              <p className="text-sm text-slate-500 font-medium leading-relaxed max-w-xl">
+                                {apt.description}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-4 pt-2">
+                              <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                <Clock className="h-4 w-4" />
+                                {new Date(apt.startTime).toLocaleDateString("es-CL", { weekday: 'long', day: '2-digit', month: 'long' })}
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] font-bold text-indigo-600 uppercase tracking-widest">
+                                {new Date(apt.startTime).toLocaleTimeString("es-CL", { hour: '2-digit', minute: '2-digit' })}
+                                -
+                                {new Date(apt.endTime).toLocaleTimeString("es-CL", { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <span className={cn(
+                          "px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest ring-1",
+                          apt.status === 'CONFIRMED' ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-amber-50 text-amber-700 ring-amber-100"
+                        )}>
+                          {apt.status === 'CONFIRMED' ? 'Confirmada' : 'Agendada'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white rounded-[3rem] border border-slate-100 border-dashed p-20 text-center space-y-4">
+                  <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto text-slate-200">
+                    <Calendar className="h-10 w-10" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em]">No hay citas agendadas</h3>
+                    <p className="text-xs text-slate-300 max-w-xs mx-auto">Tu nutritionistate contactará para agendar tu próxima cita.</p>
+                  </div>
+                </div>
+              )}
             </section>
           )}
         </main>

@@ -1,4 +1,11 @@
-import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
 import { MailService } from '../mail/mail.service';
@@ -20,7 +27,8 @@ export class NutritionistsController {
   @Post('share-schedule')
   async shareSchedule(
     @Request() req: any,
-    @Body() body: { email: string; bookingUrl: string; nutritionistName: string },
+    @Body()
+    body: { email: string; bookingUrl: string; nutritionistName: string },
   ) {
     await this.mailService.sendBookingLinkEmail({
       email: body.email,

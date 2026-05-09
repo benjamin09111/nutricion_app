@@ -1,8 +1,23 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { AppointmentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateCalendarDto } from './dto/create-calendar.dto';
 import { UpdateScheduleDto, TimeSlotDto } from './dto/update-schedule.dto';
+import { CreateAppointmentDto } from './dto/create-appointment.dto';
+
+import {
+  AppointmentCalendarWithNutritionist,
+  AppointmentCalendarWithSchedule,
+  AppointmentRecord,
+  AppointmentTimeSlotRecord,
+  AvailabilityRuleRecord,
+  BookingLinkRecord,
+  FreeSlotRecord,
+} from './appointments.types';
 
 interface AvailabilityRulePayload {
   rules?: Array<{
@@ -27,6 +42,14 @@ interface FreeSlotQuery {
   from: string;
   to: string;
   durationMin?: number;
+}
+
+interface ListAppointmentsQuery {
+  nutritionistId: string;
+  calendarId?: string;
+  from?: string;
+  to?: string;
+  status?: string;
 }
 
 const WEEKDAY_INDEX_BY_NAME: Record<string, number> = {
@@ -59,7 +82,45 @@ const getWeekdayIndexInTimeZone = (dateKey: string, timeZone: string) => {
   return WEEKDAY_INDEX_BY_NAME[weekday] ?? ref.getUTCDay();
 };
 
-const localDateTimeToUtcIso = (dateKey: string, hour: number, timeZone: string) => {
+const getDatePartsInTimeZone = (date: Date, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+
+  const readPart = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value || 0);
+
+  return {
+    dateKey: `${readPart('year')}-${String(readPart('month')).padStart(2, '0')}-${String(readPart('day')).padStart(2, '0')}`,
+    hour: readPart('hour'),
+    minute: readPart('minute'),
+  };
+};
+
+const getBlockKeyInTimeZone = (date: Date, timeZone: string) => {
+  const { dateKey, hour } = getDatePartsInTimeZone(date, timeZone);
+  return `${dateKey}-${hour}`;
+};
+
+const getBlockRangeInTimeZone = (date: Date, timeZone: string) => {
+  const { dateKey, hour } = getDatePartsInTimeZone(date, timeZone);
+  return {
+    start: new Date(localDateTimeToUtcIso(dateKey, hour, timeZone)),
+    end: new Date(localDateTimeToUtcIso(dateKey, hour + 1, timeZone)),
+  };
+};
+
+const localDateTimeToUtcIso = (
+  dateKey: string,
+  hour: number,
+  timeZone: string,
+) => {
   const { year, month, day } = parseDateKey(dateKey);
   let utcGuess = Date.UTC(year, month - 1, day, hour, 0, 0);
 
@@ -99,9 +160,44 @@ const localDateTimeToUtcIso = (dateKey: string, hour: number, timeZone: string) 
 export class AppointmentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getOrCreateCalendar(nutritionistId: string): Promise<any> {
+  private normalizeAppointment(appointment: {
+    id: string;
+    calendarId: string;
+    patientId: string | null;
+    patientName?: string | null;
+    title: string | null;
+    description: string | null;
+    startTime: Date;
+    endTime: Date;
+    status: AppointmentStatus;
+    notes: string | null;
+    meetingUrl?: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }): AppointmentRecord {
+    return {
+      id: appointment.id,
+      calendarId: appointment.calendarId,
+      patientId: appointment.patientId,
+      patientName: appointment.patientName || null,
+      title: appointment.title,
+      description: appointment.description,
+      start: appointment.startTime,
+      end: appointment.endTime,
+      status: appointment.status,
+      notes: appointment.notes,
+      meetingUrl: appointment.meetingUrl || null,
+      createdAt: appointment.createdAt,
+      updatedAt: appointment.updatedAt,
+    };
+  }
+
+  async getOrCreateCalendar(
+    nutritionistId: string,
+  ): Promise<AppointmentCalendarWithNutritionist> {
     let calendar = await this.prisma.appointmentCalendar.findUnique({
       where: { nutritionistId },
+      include: { nutritionist: true },
     });
 
     if (!calendar) {
@@ -112,13 +208,17 @@ export class AppointmentsService {
           title: 'Calendario de Citas',
           timeZone: 'America/Santiago',
         },
+        include: { nutritionist: true },
       });
     }
 
     return calendar;
   }
 
-  async createBookingLink(calendarId: string, payload: CreateBookingLinkPayload): Promise<any> {
+  async createBookingLink(
+    calendarId: string,
+    payload: CreateBookingLinkPayload,
+  ): Promise<BookingLinkRecord> {
     const calendar = await this.prisma.appointmentCalendar.findUnique({
       where: { id: calendarId },
       include: { nutritionist: true },
@@ -129,7 +229,11 @@ export class AppointmentsService {
     }
 
     const token = randomUUID();
-    const frontendUrl = (process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_FRONTEND_URL || '').replace(/\/$/, '');
+    const frontendUrl = (
+      process.env.FRONTEND_URL ||
+      process.env.NEXT_PUBLIC_FRONTEND_URL ||
+      ''
+    ).replace(/\/$/, '');
     const url = frontendUrl
       ? `${frontendUrl}/portal/citas/${calendar.nutritionistId}/${token}`
       : `/portal/citas/${calendar.nutritionistId}/${token}`;
@@ -159,10 +263,11 @@ export class AppointmentsService {
       description: calendar.description,
       timeZone: calendar.timeZone,
       timezone: calendar.timeZone,
+      metadata: bookingLink.metadata as Record<string, unknown> | null,
     };
   }
 
-  async getBookingLinkByToken(token: string): Promise<any> {
+  async getBookingLinkByToken(token: string): Promise<BookingLinkRecord> {
     const bookingLink = await this.prisma.bookingLink.findUnique({
       where: { token },
       include: {
@@ -180,15 +285,20 @@ export class AppointmentsService {
       ...bookingLink,
       calendarId: bookingLink.calendarId,
       nutritionistId: bookingLink.calendar.nutritionistId,
-      nutritionistName: bookingLink.calendar.nutritionist?.fullName || bookingLink.calendar.name,
+      nutritionistName:
+        bookingLink.calendar.nutritionist?.fullName ||
+        bookingLink.calendar.name,
       title: bookingLink.calendar.title,
       description: bookingLink.calendar.description,
       timeZone: bookingLink.calendar.timeZone,
       timezone: bookingLink.calendar.timeZone,
+      metadata: bookingLink.metadata as Record<string, unknown> | null,
     };
   }
 
-  async getFreeSlots(query: FreeSlotQuery): Promise<any> {
+  async getFreeSlots(
+    query: FreeSlotQuery,
+  ): Promise<{ slots: FreeSlotRecord[] }> {
     const calendar = await this.prisma.appointmentCalendar.findUnique({
       where: { id: query.calendarId },
       include: { timeSlots: true },
@@ -207,7 +317,21 @@ export class AppointmentsService {
 
     const durationMin = Math.max(15, Math.trunc(query.durationMin || 60));
     const durationMs = durationMin * 60 * 1000;
-    const slots: Array<{ start: string; end: string; available: boolean; status: string }> = [];
+    const slots: FreeSlotRecord[] = [];
+    const blockingAppointments = await this.prisma.appointment.findMany({
+      where: {
+        calendarId: calendar.id,
+        status: { not: AppointmentStatus.CANCELLED },
+        startTime: { gte: new Date(`${fromKey}T00:00:00.000Z`) },
+        endTime: { lte: new Date(`${toKey}T23:59:59.999Z`) },
+      },
+      select: { startTime: true },
+    });
+    const occupiedBlocks = new Set(
+      blockingAppointments.map((appointment) =>
+        getBlockKeyInTimeZone(appointment.startTime, timeZone),
+      ),
+    );
 
     const current = new Date(`${fromKey}T12:00:00.000Z`);
     const end = new Date(`${toKey}T12:00:00.000Z`);
@@ -229,12 +353,17 @@ export class AppointmentsService {
         const slotStart = new Date(startIso);
         const slotEnd = new Date(slotStart.getTime() + durationMs);
 
-        if (slotStart.getTime() >= new Date(`${fromKey}T00:00:00.000Z`).getTime() && slotEnd.getTime() <= new Date(`${toKey}T23:59:59.999Z`).getTime()) {
+        if (
+          slotStart.getTime() >=
+            new Date(`${fromKey}T00:00:00.000Z`).getTime() &&
+          slotEnd.getTime() <= new Date(`${toKey}T23:59:59.999Z`).getTime()
+        ) {
+          const isBusy = occupiedBlocks.has(`${dateKey}-${slot.hour}`);
           slots.push({
             start: slotStart.toISOString(),
             end: slotEnd.toISOString(),
-            available: true,
-            status: 'AVAILABLE',
+            available: !isBusy,
+            status: isBusy ? 'BUSY' : 'AVAILABLE',
           });
         }
       }
@@ -245,12 +374,16 @@ export class AppointmentsService {
     return { slots };
   }
 
-  async getCalendarById(calendarId: string, nutritionistId: string): Promise<any> {
+  async getCalendarById(
+    calendarId: string,
+    nutritionistId: string,
+  ): Promise<AppointmentCalendarWithNutritionist> {
     const calendar = await this.prisma.appointmentCalendar.findFirst({
       where: {
         id: calendarId,
         nutritionistId,
       },
+      include: { nutritionist: true },
     });
 
     if (!calendar) {
@@ -260,14 +393,19 @@ export class AppointmentsService {
     return calendar;
   }
 
-  async getMyCalendar(nutritionistId: string): Promise<any> {
+  async getMyCalendar(
+    nutritionistId: string,
+  ): Promise<AppointmentCalendarWithSchedule> {
     const calendar = await this.getOrCreateCalendar(nutritionistId);
     return this.getCalendarWithSchedule(calendar.id, nutritionistId);
   }
 
-  async getCalendarWithSchedule(calendarId: string, nutritionistId: string): Promise<any> {
+  async getCalendarWithSchedule(
+    calendarId: string,
+    nutritionistId: string,
+  ): Promise<AppointmentCalendarWithSchedule> {
     const calendar = await this.getCalendarById(calendarId, nutritionistId);
-    
+
     const timeSlots = await this.prisma.appointmentTimeSlot.findMany({
       where: { calendarId },
       orderBy: [{ dayOfWeek: 'asc' }, { hour: 'asc' }],
@@ -279,9 +417,127 @@ export class AppointmentsService {
     };
   }
 
-  private formatSchedule(slots: any[]): Record<string, any> {
-    const schedule: Record<string, any> = {};
-    
+  async listAppointments(
+    query: ListAppointmentsQuery,
+  ): Promise<AppointmentRecord[]> {
+    const where: Prisma.AppointmentWhereInput = {
+      calendar: {
+        nutritionistId: query.nutritionistId,
+      },
+    };
+
+    if (query.calendarId) {
+      where.calendarId = query.calendarId;
+    }
+
+    if (query.from || query.to) {
+      where.startTime = {};
+      if (query.from) where.startTime.gte = new Date(query.from);
+      if (query.to) where.startTime.lte = new Date(query.to);
+    }
+
+    if (query.status) {
+      where.status = query.status.toUpperCase() as AppointmentStatus;
+    }
+
+    const appointments = await this.prisma.appointment.findMany({
+      where,
+      orderBy: { startTime: 'asc' },
+    });
+
+    return appointments.map((appointment) =>
+      this.normalizeAppointment(appointment),
+    );
+  }
+
+  async createAppointment(
+    nutritionistId: string,
+    dto: CreateAppointmentDto,
+  ): Promise<AppointmentRecord> {
+    const calendar = await this.getCalendarById(dto.calendarId, nutritionistId);
+    const description = dto.description.trim();
+
+    const patient = await this.prisma.patient.findFirst({
+      where: {
+        id: dto.patientId,
+        nutritionistId,
+      },
+    });
+
+    if (!patient) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
+
+    const start = new Date(dto.start);
+    const end = new Date(dto.end);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new BadRequestException('Fechas inválidas');
+    }
+
+    if (!description) {
+      throw new BadRequestException('La descripción de la cita es obligatoria');
+    }
+
+    if (end.getTime() <= start.getTime()) {
+      throw new BadRequestException('La cita debe terminar después de iniciar');
+    }
+
+    const durationMin = Math.round((end.getTime() - start.getTime()) / 60000);
+    if (durationMin < 5 || durationMin > 60) {
+      throw new BadRequestException(
+        'La duración debe estar entre 5 y 60 minutos',
+      );
+    }
+
+    if (start.getTime() < Date.now() + 5 * 60 * 1000) {
+      throw new BadRequestException(
+        'La cita debe empezar al menos 5 minutos en el futuro',
+      );
+    }
+
+    const blockRange = getBlockRangeInTimeZone(
+      start,
+      calendar.timeZone || dto.timeZone || 'UTC',
+    );
+    const blockingAppointment = await this.prisma.appointment.findFirst({
+      where: {
+        calendarId: calendar.id,
+        status: { not: AppointmentStatus.CANCELLED },
+        startTime: {
+          gte: blockRange.start,
+          lt: blockRange.end,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (blockingAppointment) {
+      throw new BadRequestException('Ese bloque ya no está disponible');
+    }
+
+    const appointment = await this.prisma.appointment.create({
+      data: {
+        calendarId: calendar.id,
+        patientId: patient.id,
+        patientName: patient.fullName,
+        title: dto.title?.trim() || description,
+        description,
+        startTime: start,
+        endTime: end,
+        status: AppointmentStatus.SCHEDULED,
+        notes: dto.notes?.trim() || description,
+      },
+    });
+
+    return this.normalizeAppointment(appointment);
+  }
+
+  private formatSchedule(
+    slots: AppointmentTimeSlotRecord[],
+  ): Record<string, Record<number, { available: boolean }>> {
+    const schedule: Record<string, Record<number, { available: boolean }>> = {};
+
     for (let day = 0; day < 7; day++) {
       schedule[day] = {};
       for (let hour = 0; hour < 24; hour++) {
@@ -302,7 +558,7 @@ export class AppointmentsService {
     calendarId: string,
     nutritionistId: string,
     dto: UpdateScheduleDto,
-  ): Promise<any> {
+  ): Promise<AppointmentCalendarWithSchedule> {
     const calendar = await this.getCalendarById(calendarId, nutritionistId);
 
     const existingSlots = await this.prisma.appointmentTimeSlot.findMany({
@@ -310,10 +566,10 @@ export class AppointmentsService {
     });
 
     const existingMap = new Map(
-      existingSlots.map(s => [`${s.dayOfWeek}-${s.hour}`, s.id])
+      existingSlots.map((s) => [`${s.dayOfWeek}-${s.hour}`, s.id]),
     );
 
-    const upsertPromises: Promise<any>[] = [];
+    const upsertPromises: Array<Prisma.PrismaPromise<unknown>> = [];
 
     for (const slot of dto.slots) {
       const key = `${slot.dayOfWeek}-${slot.hour}`;
@@ -324,7 +580,7 @@ export class AppointmentsService {
           this.prisma.appointmentTimeSlot.update({
             where: { id: existingId },
             data: { isAvailable: slot.isAvailable },
-          })
+          }),
         );
       } else {
         upsertPromises.push(
@@ -335,7 +591,7 @@ export class AppointmentsService {
               hour: slot.hour,
               isAvailable: slot.isAvailable,
             },
-          })
+          }),
         );
       }
     }
@@ -345,11 +601,13 @@ export class AppointmentsService {
     return this.getCalendarWithSchedule(calendarId, nutritionistId);
   }
 
-  async setDefaultSchedule(nutritionistId: string): Promise<any> {
+  async setDefaultSchedule(
+    nutritionistId: string,
+  ): Promise<AppointmentCalendarWithSchedule> {
     const calendar = await this.getOrCreateCalendar(nutritionistId);
 
     const defaultSlots: TimeSlotDto[] = [];
-    
+
     for (let day = 1; day <= 5; day++) {
       for (let hour = 8; hour <= 16; hour++) {
         defaultSlots.push({
@@ -360,14 +618,16 @@ export class AppointmentsService {
       }
     }
 
-    return this.updateSchedule(calendar.id, nutritionistId, { slots: defaultSlots });
+    return this.updateSchedule(calendar.id, nutritionistId, {
+      slots: defaultSlots,
+    });
   }
 
   async updateAvailabilityRules(
     calendarId: string,
     nutritionistId: string,
     payload: AvailabilityRulePayload,
-  ): Promise<any> {
+  ): Promise<AppointmentCalendarWithSchedule> {
     const calendar = await this.getCalendarById(calendarId, nutritionistId);
 
     await this.prisma.appointmentTimeSlot.deleteMany({
@@ -396,7 +656,7 @@ export class AppointmentsService {
 
     if (slots.length > 0) {
       await this.prisma.appointmentTimeSlot.createMany({
-        data: slots.map(slot => ({
+        data: slots.map((slot) => ({
           calendarId: calendar.id,
           dayOfWeek: slot.dayOfWeek,
           hour: slot.hour,
@@ -411,15 +671,15 @@ export class AppointmentsService {
   async getAvailabilityRules(
     calendarId: string,
     nutritionistId: string,
-  ): Promise<any> {
-    const calendar = await this.getCalendarById(calendarId, nutritionistId);
+  ): Promise<{ rules: AvailabilityRuleRecord[] }> {
+    await this.getCalendarById(calendarId, nutritionistId);
 
     const timeSlots = await this.prisma.appointmentTimeSlot.findMany({
       where: { calendarId, isAvailable: true },
       orderBy: [{ dayOfWeek: 'asc' }, { hour: 'asc' }],
     });
 
-    const rules: any[] = [];
+    const rules: AvailabilityRuleRecord[] = [];
     const dayRules = new Map<number, { start: number; end: number }>();
 
     for (const slot of timeSlots) {
@@ -442,5 +702,100 @@ export class AppointmentsService {
     }
 
     return { rules };
+  }
+
+  async getPendingAppointments(nutritionistId: string) {
+    const calendar = await this.prisma.appointmentCalendar.findFirst({
+      where: { nutritionistId },
+      select: { id: true },
+    });
+
+    if (!calendar) {
+      return [];
+    }
+
+    const appointments = await this.prisma.appointment.findMany({
+      where: {
+        calendarId: calendar.id,
+        status: 'REQUESTED',
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        startTime: true,
+        endTime: true,
+        status: true,
+        notes: true,
+        createdAt: true,
+        patient: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return appointments;
+  }
+
+  async approveAppointment(nutritionistId: string, appointmentId: string, startTime?: string, endTime?: string) {
+    const calendar = await this.prisma.appointmentCalendar.findFirst({
+      where: { nutritionistId },
+      select: { id: true },
+    });
+
+    if (!calendar) {
+      throw new NotFoundException('Calendario no encontrado');
+    }
+
+    const appointment = await this.prisma.appointment.findFirst({
+      where: { id: appointmentId, calendarId: calendar.id, status: 'REQUESTED' as any },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Cita solicitada no encontrada');
+    }
+
+    const updateData: any = {
+      status: 'SCHEDULED' as const,
+    };
+
+    if (startTime && endTime) {
+      updateData.startTime = new Date(startTime);
+      updateData.endTime = new Date(endTime);
+    }
+
+    return this.prisma.appointment.update({
+      where: { id: appointmentId },
+      data: updateData,
+    });
+  }
+
+  async rejectAppointment(nutritionistId: string, appointmentId: string) {
+    const calendar = await this.prisma.appointmentCalendar.findFirst({
+      where: { nutritionistId },
+      select: { id: true },
+    });
+
+    if (!calendar) {
+      throw new NotFoundException('Calendario no encontrado');
+    }
+
+    const appointment = await this.prisma.appointment.findFirst({
+      where: { id: appointmentId, calendarId: calendar.id, status: 'REQUESTED' as any },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Cita solicitada no encontrada');
+    }
+
+    return this.prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { status: 'CANCELLED' as const },
+    });
   }
 }

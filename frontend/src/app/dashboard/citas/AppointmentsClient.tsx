@@ -3,26 +3,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
-  CalendarRange,
-  CheckCircle2,
-  Clock3,
   ClipboardCopy,
+  Lock,
   Share2,
   Loader2,
   Plus,
   RefreshCcw,
   Settings2,
-  Link2,
-  AlarmClock,
   BadgeInfo,
   Search,
   ChevronRight,
-  Send,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
@@ -31,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
 import { QRCodeSVG } from "qrcode.react";
 import { type Patient, type PatientsResponse } from "@/features/patients";
+import { type PatientPortalOverview } from "@/features/patient-portal/types";
 import {
   AppointmentCalendar,
   AppointmentEvent,
@@ -39,7 +34,6 @@ import {
   AppointmentSlot,
   fetchAppointmentsApi,
   fetchAppointmentsJson,
-  getAppointmentDisplayName,
 } from "@/lib/appointments";
 import { getAuthToken } from "@/lib/auth-token";
 
@@ -52,21 +46,12 @@ type WeekRule = {
 
 type WorkHoursGridDraft = Record<string, boolean[]>;
 
-type AvailabilityRulesResponse =
-  | {
-    weeklyRules?: unknown;
-    rules?: unknown;
-    data?: unknown;
-    timeZone?: string;
-    timezone?: string;
-  }
-  | Array<unknown>;
-
-type ScheduleTabKey = "schedule" | "citas";
+type ScheduleTabKey = "schedule" | "upcoming" | "citas";
 type CitasTabKey = "accepted" | "pending" | "rejected";
 
 const SCHEDULE_TABS: Array<{ key: ScheduleTabKey; label: string }> = [
   { key: "schedule", label: "Mi horario" },
+  { key: "upcoming", label: "Próximas citas" },
   { key: "citas", label: "Citas" },
 ];
 
@@ -94,28 +79,6 @@ const DEFAULT_WEEK_RULES = (): WeekRule[] =>
     end: "16:00",
   }));
 
-const createDefaultWorkHoursGrid = (): WorkHoursGridDraft => {
-  const grid = createEmptyWorkHoursGrid();
-
-  for (const day of ["monday", "tuesday", "wednesday", "thursday", "friday"]) {
-    for (let hour = 8; hour < 16; hour++) {
-      grid[day][hour - HOUR_START] = true;
-    }
-  }
-
-  return grid;
-};
-
-const DAY_INDEX_BY_KEY: Record<string, number> = {
-  monday: 0,
-  tuesday: 1,
-  wednesday: 2,
-  thursday: 3,
-  friday: 4,
-  saturday: 5,
-  sunday: 6,
-};
-
 const DAY_OF_WEEK_BY_KEY: Record<string, number> = {
   sunday: 0,
   monday: 1,
@@ -130,14 +93,10 @@ const HOUR_START = 8;
 const HOUR_END = 23;
 const ROW_HEIGHT = 64;
 
-const HOUR_BLOCKS = Array.from({ length: HOUR_END - HOUR_START }, (_, index) => HOUR_START + index);
-
 const createEmptyWorkHoursGrid = (): WorkHoursGridDraft =>
   Object.fromEntries(
     WEEK_DAYS.map((day) => [day.key, Array.from({ length: HOUR_END - HOUR_START + 1 }, () => false)]),
   ) as WorkHoursGridDraft;
-
-const formatHourBlockLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
 
 const formatDateKey = (date: Date) => {
   const y = date.getFullYear();
@@ -165,6 +124,21 @@ const addDays = (date: Date, days: number) => {
   next.setDate(next.getDate() + days);
   return next;
 };
+
+const formatTimeInTimeZone = (date: Date, timeZone: string) =>
+  new Intl.DateTimeFormat("es-CL", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+
+const formatDateInTimeZone = (
+  date: Date,
+  timeZone: string,
+  options: Intl.DateTimeFormatOptions,
+) =>
+  new Intl.DateTimeFormat("es-CL", { timeZone, ...options }).format(date);
 
 const normalizeText = (value: unknown) =>
   typeof value === "string" ? value.trim() : "";
@@ -311,7 +285,6 @@ const extractCalendarCandidate = (payload: unknown): Record<string, unknown> | n
 
 const normalizeAvailabilityRules = (payload: unknown): WeekRule[] => {
   const items = extractAvailabilityRules(payload);
-  console.log("[appointments] normalizeAvailabilityRules raw items:", items);
   if (!items.length) {
     return [];
   }
@@ -319,7 +292,6 @@ const normalizeAvailabilityRules = (payload: unknown): WeekRule[] => {
   const parsed = items
     .map(parseAvailabilityRuleItem)
     .filter((item): item is WeekRule => item !== null);
-  console.log("[appointments] normalizeAvailabilityRules parsed:", parsed);
 
   if (!parsed.length) {
     return [];
@@ -517,10 +489,6 @@ const formatDayLabel = (date: Date) =>
 
 const formatHourLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
 
-const toMinutes = (date: Date) => date.getHours() * 60 + date.getMinutes();
-
-const sameDayKey = (left: Date, right: Date) => formatDateKey(left) === formatDateKey(right);
-
 const createWorkHoursGridFromRules = (rules: WeekRule[]) => {
   const grid = createEmptyWorkHoursGrid();
 
@@ -579,12 +547,11 @@ const createAppointmentDraft = () => ({
   patientId: "",
   patientName: "",
   patientEmail: "",
+  description: "",
   notifyPatientByEmail: true,
-  title: "Consulta nutricional",
   date: formatDateKey(new Date()),
   time: "09:00",
   durationMin: 30,
-  notes: "",
 });
 
 const formatTimeInput = (date: Date) =>
@@ -636,8 +603,8 @@ export default function AppointmentsClient() {
   const [calendar, setCalendar] = useState<AppointmentCalendar | null>(null);
   const [weekAnchor, setWeekAnchor] = useState(new Date());
   const [events, setEvents] = useState<AppointmentEvent[]>([]);
-  const [slots, setSlots] = useState<AppointmentSlot[]>([]);
-  const [requests, setRequests] = useState<AppointmentRequest[]>([]);
+  const [, setSlots] = useState<AppointmentSlot[]>([]);
+  const [, setRequests] = useState<AppointmentRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<ScheduleTabKey>("schedule");
@@ -648,23 +615,28 @@ export default function AppointmentsClient() {
   const [isShareLinkOpen, setIsShareLinkOpen] = useState(false);
   const [shareMode, setShareMode] = useState<"manual" | "patient">("manual");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
+  const [selectedPatientPortalStatus, setSelectedPatientPortalStatus] = useState<string | null>(null);
+  const [isLoadingPatientPortalStatus, setIsLoadingPatientPortalStatus] = useState(false);
   const [isSavingHours, setIsSavingHours] = useState(false);
   const [isCreatingShareLink, setIsCreatingShareLink] = useState(false);
   const [createDraft, setCreateDraft] = useState(createAppointmentDraft());
   const [workHoursDraft, setWorkHoursDraft] = useState<WeekRule[]>(DEFAULT_WEEK_RULES);
   const [workHoursGridDraft, setWorkHoursGridDraft] = useState<WorkHoursGridDraft>(createEmptyWorkHoursGrid());
-  const [availabilitySource, setAvailabilitySource] = useState<"service" | "default">("default");
+  const [, setAvailabilitySource] = useState<"service" | "default">("default");
   const [shareLinkUrl, setShareLinkUrl] = useState("");
-  const [shareLinkToken, setShareLinkToken] = useState("");
   const [shareLinkNutritionistName, setShareLinkNutritionistName] = useState("");
   const [patientCandidates, setPatientCandidates] = useState<Patient[]>([]);
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
-  const [isScheduleActive, setIsScheduleActive] = useState(false);
-  const [isUpdatingActivation, setIsUpdatingActivation] = useState(false);
+  const [, setIsScheduleActive] = useState(false);
   const [shareEmail, setShareEmail] = useState("");
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [now, setNow] = useState(() => new Date());
+const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent | null>(null);
+  const [isAppointmentDetailOpen, setIsAppointmentDetailOpen] = useState(false);
+  const [mobileDayOffset, setMobileDayOffset] = useState(0);
+  const [pendingAppointments, setPendingAppointments] = useState<any[]>([]);
+  const [isLoadingPending, setIsLoadingPending] = useState(false);
   const calendarSectionRef = useRef<HTMLDivElement | null>(null);
 
   const calendarId = calendar?.id || null;
@@ -684,25 +656,6 @@ export default function AppointmentsClient() {
     [events],
   );
 
-  const pastEvents = useMemo(
-    () =>
-      events.filter((event) => {
-        const end = parseDateSafe(event.end || event.start);
-        return end ? end.getTime() < Date.now() : false;
-      }),
-    [events],
-  );
-
-  const availableSlots = useMemo(
-    () => slots.filter((slot) => slot.available !== false),
-    [slots],
-  );
-
-  const occupiedSlots = useMemo(
-    () => slots.filter((slot) => slot.available === false || normalizeText(slot.status).toUpperCase() === "BUSY"),
-    [slots],
-  );
-
   const patientCandidateOptions = useMemo(
     () =>
       patientCandidates.map((patient) => ({
@@ -715,12 +668,19 @@ export default function AppointmentsClient() {
   const loadPatientCandidates = async (query = "") => {
     setIsLoadingPatients(true);
     try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error("Tu sesión expiró. Por favor inicia sesión nuevamente.");
+      }
+
       const searchParams = new URLSearchParams({
         page: "1",
         limit: "20",
         ...(query.trim() ? { search: query.trim() } : {}),
       });
-      const response = await fetchApi(`/patients?${searchParams}`);
+      const response = await fetchApi(`/patients?${searchParams}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!response.ok) {
         throw new Error("No se pudieron cargar los pacientes.");
       }
@@ -736,13 +696,40 @@ export default function AppointmentsClient() {
     }
   };
 
+  const loadPatientPortalStatus = async (patientId: string) => {
+    setIsLoadingPatientPortalStatus(true);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error("Tu sesión expiró. Por favor inicia sesión nuevamente.");
+      }
+
+      const response = await fetchApi(`/patient-portals/patients/${patientId}/overview`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        setSelectedPatientPortalStatus(null);
+        return;
+      }
+
+      const payload = (await response.json().catch(() => ({}))) as Partial<PatientPortalOverview> & {
+        status?: string;
+      };
+
+      setSelectedPatientPortalStatus(typeof payload.status === "string" ? payload.status : null);
+    } catch (error) {
+      console.warn("Error loading patient portal status", error);
+      setSelectedPatientPortalStatus(null);
+    } finally {
+      setIsLoadingPatientPortalStatus(false);
+    }
+  };
+
   const loadData = async () => {
     setIsLoading(true);
     try {
       const calendarPayload = await fetchAppointmentsJson<unknown>("/calendars/me");
-      console.log("[appointments] /calendars/me payload", calendarPayload);
       const nextCalendar = normalizeCalendar(calendarPayload);
-      console.log("[appointments] normalized calendar", nextCalendar);
       setCalendar(nextCalendar);
 
       if (!nextCalendar?.id) {
@@ -760,11 +747,11 @@ export default function AppointmentsClient() {
       const weekEnd = formatDateKey(currentWeekEnd);
       const from = `${weekStart}T00:00:00.000Z`;
       const to = `${weekEnd}T23:59:59.999Z`;
+      const appointmentsTo = `${formatDateKey(addDays(currentWeekEnd, 30))}T23:59:59.999Z`;
 
       try {
         const rulesResponse = await fetchAppointmentsApi(`/calendars/${nextCalendar.id}/availability/rules`);
         const rulesPayload = await rulesResponse.json().catch(() => ({}));
-        console.log("[appointments] /availability/rules payload", rulesPayload);
 
         if (rulesResponse.ok) {
           const normalizedRules = parseWeekRulesPayload(rulesPayload);
@@ -799,8 +786,8 @@ export default function AppointmentsClient() {
       try {
         weekPayload = await fetchPathWithFallback([
           `/calendars/${nextCalendar.id}/view/week?weekStart=${weekStart}`,
-          `/calendars/${nextCalendar.id}/appointments?from=${from}&to=${to}`,
-          `/appointments?calendarId=${nextCalendar.id}&from=${from}&to=${to}`,
+          `/calendars/${nextCalendar.id}/appointments?from=${from}&to=${appointmentsTo}`,
+          `/appointments?calendarId=${nextCalendar.id}&from=${from}&to=${appointmentsTo}`,
         ]);
       } catch (error) {
         console.warn("Weekly calendar could not be loaded", error);
@@ -845,6 +832,20 @@ export default function AppointmentsClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentWeekStart.getTime()]);
 
+useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(new Date());
+    }, 60_000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "citas" && activeCitasTab === "pending") {
+      void loadPendingAppointments();
+    }
+  }, [activeTab, activeCitasTab]);
+
   useEffect(() => {
     if (!isPatientPickerOpen) return;
 
@@ -860,10 +861,8 @@ export default function AppointmentsClient() {
 
     for (const path of paths) {
       try {
-        console.log("[appointments] fetching", path);
         const response = await fetchAppointmentsApi(path);
         const payload = await response.json().catch(() => ({}));
-        console.log("[appointments] response", path, response.status, payload);
 
         if (response.ok) {
           return payload;
@@ -902,12 +901,21 @@ export default function AppointmentsClient() {
       return;
     }
 
+    if (!patient.email) {
+      toast.error("El paciente necesita correo para poder agendarlo.");
+      return;
+    }
+
+    const patientEmail = patient.email;
+
     setCreateDraft((current) => ({
       ...current,
       patientId: patient.id,
       patientName: patient.fullName,
-      patientEmail: patient.email || current.patientEmail,
+      patientEmail,
     }));
+    setSelectedPatient(patient);
+    void loadPatientPortalStatus(patient.id);
     setIsPatientPickerOpen(false);
     toast.success("Paciente importado.");
   };
@@ -921,38 +929,10 @@ export default function AppointmentsClient() {
       date: formatDateKey(nextDate),
       time: formatTimeInput(nextDate),
     }));
+    if (selectedPatient?.id) {
+      void loadPatientPortalStatus(selectedPatient.id);
+    }
     setIsCreateOpen(true);
-  };
-
-  const handleConnectGoogle = async () => {
-    if (!calendarId) {
-      toast.error("Primero carga tu calendario.");
-      return;
-    }
-
-    setIsConnectingGoogle(true);
-    try {
-      const response = await fetchAppointmentsApi(`/calendars/${calendarId}/google-calendar/connect`, {
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(
-          typeof payload?.message === "string"
-            ? payload.message
-            : "La ruta de conexión no respondió como se esperaba.",
-        );
-      }
-
-      toast.success("Conexión con Google Calendar iniciada.");
-      await loadData();
-    } catch (error) {
-      console.warn("Google Calendar connection not available yet", error);
-      toast.info("La integración con Google Calendar quedó preparada para el servicio de citas.");
-    } finally {
-      setIsConnectingGoogle(false);
-    }
   };
 
   const handleShareSchedule = async () => {
@@ -1004,7 +984,6 @@ export default function AppointmentsClient() {
         profile.nutritionistId,
       )}/${encodeURIComponent(rawToken)}`;
 
-      setShareLinkToken(rawToken);
       setShareLinkUrl(publicUrl);
       setShareLinkNutritionistName(profile.nutritionistName);
       setIsShareLinkOpen(true);
@@ -1019,21 +998,6 @@ export default function AppointmentsClient() {
       toast.error(error instanceof Error ? error.message : "No se pudo compartir el horario.");
     } finally {
       setIsCreatingShareLink(false);
-    }
-  };
-
-  const handleCopyShareLink = async () => {
-    if (!shareLinkUrl) {
-      toast.error("Aún no hay un enlace para copiar.");
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(shareLinkUrl);
-      toast.success("Enlace copiado.");
-    } catch (error) {
-      console.error("Error copying share link", error);
-      toast.error("No pudimos copiar el enlace.");
     }
   };
 
@@ -1091,36 +1055,6 @@ export default function AppointmentsClient() {
     const timer = setTimeout(searchPatients, 400);
     return () => clearTimeout(timer);
   }, [patientSearchQuery, shareMode]);
-
-  const handleTogglePublicSchedule = async () => {
-    setIsUpdatingActivation(true);
-    const nextState = !isScheduleActive;
-    try {
-      const token = getAuthToken();
-      const response = await fetchApi("/users/me/settings", {
-        method: "PATCH",
-        headers: { 
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          isScheduleActive: nextState,
-          bookingUrl: shareLinkUrl,
-        }),
-      });
-
-      if (response.ok) {
-        setIsScheduleActive(nextState);
-        toast.success(nextState ? "Horario público activado" : "Horario público desactivado");
-      } else {
-        toast.error("No se pudo actualizar el estado del horario.");
-      }
-    } catch (error) {
-      toast.error("Error de conexión al activar horario.");
-    } finally {
-      setIsUpdatingActivation(false);
-    }
-  };
 
   const handleSendEmail = async () => {
     if (!shareEmail.trim() || !shareEmail.includes("@")) {
@@ -1181,8 +1115,6 @@ export default function AppointmentsClient() {
 
     setIsSavingHours(true);
     const payload = { rules: mappedRules };
-    console.log("[appointments] save work hours calendarId:", calendarId);
-    console.log("[appointments] save work hours payload exacto:", JSON.stringify(payload, null, 2));
 
     try {
       const response = await fetchAppointmentsApi(`/calendars/${calendarId}/availability/rules`, {
@@ -1202,7 +1134,6 @@ export default function AppointmentsClient() {
           return { raw: responseText };
         }
       })();
-      console.log("[appointments] save availability response PUT:", response.status, responsePayload);
 
       if (response.ok) {
         toast.success("Horarios laborales actualizados.");
@@ -1237,53 +1168,74 @@ export default function AppointmentsClient() {
       return;
     }
 
-    const title = createDraft.title.trim();
+    const description = createDraft.description.trim();
+    const patientId = createDraft.patientId.trim();
     const patientName = createDraft.patientName.trim();
     const patientEmail = createDraft.patientEmail.trim();
-    const notes = createDraft.notes.trim();
 
-    if (!title || !patientName || !patientEmail) {
-      toast.error("Completa paciente, correo y motivo de la cita.");
+    if (!patientId || !patientName || !patientEmail) {
+      toast.error("Debes asociar un paciente para crear la cita.");
       return;
     }
 
-    if (createDraft.notifyPatientByEmail && !patientEmail) {
-      toast.error("Necesitas un correo válido para notificar al paciente.");
+    if (!description) {
+      toast.error("Agrega la descripción de la cita.");
       return;
     }
+
     const startDate = parseDateSafe(`${createDraft.date}T${createDraft.time}:00`);
     if (!startDate) {
       toast.error("Selecciona una fecha válida.");
       return;
     }
 
+    const minStart = Date.now() + 5 * 60 * 1000;
+    if (startDate.getTime() < minStart) {
+      toast.error("La cita debe empezar al menos 5 minutos en el futuro.");
+      return;
+    }
+
+    const durationMin = Math.min(60, Math.max(5, Number(createDraft.durationMin || 30)));
+
     const endDate = new Date(startDate);
-    endDate.setMinutes(endDate.getMinutes() + Number(createDraft.durationMin || 30));
+    endDate.setMinutes(endDate.getMinutes() + durationMin);
 
     try {
-      const response = await fetchAppointmentsApi("/appointments", {
+      const appointmentPayload = {
+        patientId,
+        patientName,
+        patientEmail,
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+        durationMin,
+        title: description,
+        description,
+        notes: description || undefined,
+        status: "scheduled",
+        timeZone: calendarTimeZone,
+        notifyPatientByEmail: true,
+      };
+
+      const response = await fetchAppointmentsApi(`/calendars/${calendarId}/appointments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          calendarId,
-          title,
-          patientName,
-          patientEmail,
-          patientId: createDraft.patientId || undefined,
-          start: startDate.toISOString(),
-          end: endDate.toISOString(),
-          durationMin: Number(createDraft.durationMin || 30),
-          notes: notes || undefined,
-          status: "confirmed",
-          timeZone: calendarTimeZone,
-          notifyPatientByEmail: createDraft.notifyPatientByEmail,
-        }),
+        body: JSON.stringify(appointmentPayload),
       });
 
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
+      const fallbackResponse = response.status === 404
+        ? await fetchAppointmentsApi("/appointments", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ calendarId, ...appointmentPayload }),
+          })
+        : response;
+
+      if (!fallbackResponse.ok) {
+        const payload = await fallbackResponse.json().catch(() => ({}));
         const message =
           typeof payload?.message === "string"
             ? payload.message
@@ -1294,6 +1246,8 @@ export default function AppointmentsClient() {
       toast.success("Cita creada correctamente.");
       setIsCreateOpen(false);
       setCreateDraft(createAppointmentDraft());
+      setSelectedPatient(null);
+      setSelectedPatientPortalStatus(null);
       await loadData();
     } catch (error) {
       console.error("Error creating appointment", error);
@@ -1301,84 +1255,104 @@ export default function AppointmentsClient() {
     }
   };
 
-  const eventBlocks = useMemo(() => {
-    const blocks = new Map<string, AppointmentEvent[]>();
+  const loadPendingAppointments = async () => {
+    setIsLoadingPending(true);
+    try {
+      const response = await fetchAppointmentsApi("/appointments/pending");
+      if (response.ok) {
+        const data = await response.json();
+        setPendingAppointments(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error("Error loading pending appointments", error);
+    } finally {
+      setIsLoadingPending(false);
+    }
+  };
 
-    weekDays.forEach((day) => {
-      blocks.set(formatDateKey(day), []);
-    });
+  const handleAcceptAppointment = async (appointmentId: string) => {
+    try {
+      const response = await fetchAppointmentsApi(`/appointments/${appointmentId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (response.ok) {
+        toast.success("Cita aceptada");
+        await loadPendingAppointments();
+        await loadData();
+      } else {
+        const err = await response.json().catch(() => ({}));
+        toast.error(err.message || "No se pudo aceptar la cita");
+      }
+    } catch (error) {
+      toast.error("Error al aceptar la cita");
+    }
+  };
+
+  const handleRejectAppointment = async (appointmentId: string) => {
+    try {
+      const response = await fetchAppointmentsApi(`/appointments/${appointmentId}/reject`, {
+        method: "POST",
+      });
+      if (response.ok) {
+        toast.success("Cita rechazada");
+        await loadPendingAppointments();
+      } else {
+        const err = await response.json().catch(() => ({}));
+        toast.error(err.message || "No se pudo rechazar la cita");
+      }
+    } catch (error) {
+      toast.error("Error al rechazar la cita");
+    }
+  };
+
+  const appointmentBlocks = useMemo(() => {
+    const blocks = new Map<string, AppointmentEvent>();
 
     events.forEach((event) => {
       const start = parseDateSafe(event.start);
       if (!start) return;
-      const key = formatDateKey(start);
-      const list = blocks.get(key);
-      if (list) list.push(event);
-    });
-
-    blocks.forEach((list, key) => {
-      list.sort(
-        (a, b) =>
-          (parseDateSafe(a.start)?.getTime() || 0) - (parseDateSafe(b.start)?.getTime() || 0),
-      );
-      blocks.set(key, list);
+      blocks.set(`${formatDateKey(start)}-${start.getHours()}`, event);
     });
 
     return blocks;
-  }, [events, weekDays]);
+  }, [events]);
 
-  const renderAppointmentBlock = (event: AppointmentEvent) => {
+  const renderAppointmentCell = (event: AppointmentEvent) => {
     const start = parseDateSafe(event.start);
     const end = parseDateSafe(event.end || event.start);
     if (!start || !end) return null;
-
-    const startMinutes = toMinutes(start);
-    const endMinutes = toMinutes(end);
-    const top = Math.max(0, ((startMinutes / 60) - HOUR_START) * ROW_HEIGHT);
-    const height = Math.max(52, ((endMinutes - startMinutes) / 60) * ROW_HEIGHT);
     const status = normalizeText(event.status).toLowerCase();
     const statusClass =
       status === "pending" || status === "requested"
-        ? "border-amber-200 bg-amber-50 text-amber-900"
+        ? "border-amber-200 bg-amber-100 text-amber-950"
         : status === "cancelled"
-          ? "border-rose-200 bg-rose-50 text-rose-900"
-          : "border-emerald-200 bg-emerald-50 text-emerald-900";
+          ? "border-rose-200 bg-rose-100 text-rose-950"
+          : "border-emerald-200 bg-emerald-100 text-emerald-950";
 
     return (
-      <div
+      <button
         key={event.id || `${event.title}-${event.start}`}
+        type="button"
+        onClick={() => {
+          setSelectedAppointment(event);
+          setIsAppointmentDetailOpen(true);
+        }}
         className={cn(
-          "absolute left-2 right-2 rounded-2xl border px-3 py-2 shadow-sm",
+          "flex h-full w-full items-center justify-center overflow-hidden rounded-none border px-2 text-center shadow-sm transition-colors hover:brightness-95",
           statusClass,
         )}
-        style={{ top, height }}
+        title={`Cita: ${formatTimeInTimeZone(start, calendarTimeZone)} - ${formatTimeInTimeZone(end, calendarTimeZone)}`}
       >
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-widest opacity-70">
-              {formatTime(start)} - {formatTime(end)}
-            </p>
-            <p className="text-sm font-semibold leading-tight">{event.title}</p>
-            <p className="mt-1 text-xs font-medium opacity-80">
-              {event.patientName || "Paciente pendiente"}
-            </p>
-          </div>
-          <span className="rounded-full border border-white/70 bg-white/70 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest">
-            {normalizeText(event.status) || "CONFIRMADA"}
-          </span>
-        </div>
-      </div>
+        <p className="truncate text-xs font-black uppercase tracking-[0.12em]">
+          Cita: {formatTimeInTimeZone(start, calendarTimeZone)} - {formatTimeInTimeZone(end, calendarTimeZone)}
+        </p>
+      </button>
     );
   };
 
-  const formatTime = (date: Date) =>
-    date.toLocaleTimeString("es-CL", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-
-  const todayKey = formatDateKey(new Date());
+  const todayKey = formatDateKey(now);
 
   return (
     <div className="space-y-6">
@@ -1402,7 +1376,7 @@ export default function AppointmentsClient() {
 
       {activeTab === "schedule" ? (
         <section ref={calendarSectionRef} className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+<div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Button type="button" variant="outline" title="Modificar horarios laborales" aria-label="Modificar horarios laborales" className="h-11 w-11 rounded-full border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:bg-slate-50" onClick={() => { setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft)); setIsEditingWorkHours(true); }}>
                 <Settings2 className="h-4 w-4" />
@@ -1431,6 +1405,47 @@ export default function AppointmentsClient() {
             </div>
           </div>
 
+          {/* Mobile day selector */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 md:hidden">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 w-9 shrink-0 rounded-full border-slate-200 bg-white p-0"
+              onClick={() => setMobileDayOffset((c) => c - 1)}
+            >
+              <ChevronRight className="h-3 w-3 rotate-180" />
+            </Button>
+            {weekDays.map((day, i) => {
+              const isToday = formatDateKey(day) === todayKey;
+              const isSelected = i === mobileDayOffset;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setMobileDayOffset(i)}
+                  className={cn(
+                    "shrink-0 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] transition-all",
+                    isSelected
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : isToday
+                        ? "border border-emerald-300 bg-emerald-50 text-emerald-700"
+                        : "border border-slate-200 bg-white text-slate-500",
+                  )}
+                >
+                  {day.toLocaleDateString("es-CL", { weekday: "short", day: "numeric" })}
+                </button>
+              );
+            })}
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 w-9 shrink-0 rounded-full border-slate-200 bg-white p-0"
+              onClick={() => setMobileDayOffset((c) => Math.min(c + 1, 6))}
+            >
+              <ChevronRight className="h-3 w-3" />
+            </Button>
+          </div>
+
           <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
             {isEditingWorkHours && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 sm:px-5">
@@ -1447,8 +1462,80 @@ export default function AppointmentsClient() {
 
             {isLoading ? (
               <div className="flex h-[820px] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-emerald-600" /></div>
-            ) : (
-              <div className="overflow-x-auto">
+) : (
+              <>
+                {/* Mobile single-day schedule */}
+                <div className="md:hidden">
+                  {(() => {
+                    const mobileDay = weekDays[mobileDayOffset];
+                    const mobileDayKey = WEEK_DAYS[getWeekDayIndex(mobileDay)].key;
+                    const mobileIsToday = formatDateKey(mobileDay) === todayKey;
+                    const mobileDayHasWorking = workHoursDraft.some((rule) => rule.day === mobileDayKey && rule.enabled);
+                    const mobileDayGrid = workHoursGridDraft[mobileDayKey] || [];
+                    
+                    return (
+                      <div className="divide-y divide-slate-100">
+                        <div className={cn("px-4 py-3 flex items-center justify-between", mobileIsToday && "bg-emerald-50/60")}>
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+                              {mobileDay.toLocaleDateString("es-CL", { weekday: "long" })}
+                            </p>
+                            <p className="text-sm font-bold text-slate-900">
+                              {mobileDay.toLocaleDateString("es-CL", { day: "2-digit", month: "long" })}
+                            </p>
+                          </div>
+                          {mobileIsToday && (
+                            <span className="rounded-full bg-emerald-600 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white">Hoy</span>
+                          )}
+                        </div>
+                        {Array.from({ length: HOUR_END - HOUR_START }, (_, index) => {
+                          const hour = HOUR_START + index;
+                          const gridIndex = hour - HOUR_START;
+                          const isEditableHour = hour < HOUR_END;
+                          const isWorkingHour = isEditingWorkHours 
+                            ? Boolean(mobileDayGrid[gridIndex])
+                            : isHourWithinRule(mobileDay, hour, workHoursDraft);
+                          const appointment = appointmentBlocks.get(`${formatDateKey(mobileDay)}-${hour}`);
+
+                          return (
+                            <div key={hour} className={cn("flex items-center gap-3 px-4 py-3", !isWorkingHour && !appointment && "opacity-40")}>
+                              <span className="w-12 text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
+                                {formatHourLabel(hour)}
+                              </span>
+                              {appointment ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedAppointment(appointment);
+                                    setIsAppointmentDetailOpen(true);
+                                  }}
+                                  className="flex-1 rounded-xl bg-emerald-100 px-3 py-2 text-left text-xs font-bold text-emerald-900 border border-emerald-200"
+                                >
+                                  {appointment.title}
+                                </button>
+                              ) : isWorkingHour ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openCreateFromGrid(mobileDay, hour)}
+                                  className="flex-1 rounded-xl border border-dashed border-slate-200 px-3 py-2 text-left text-[10px] font-medium text-slate-400 hover:border-emerald-300 hover:text-emerald-600"
+                                >
+                                  {isEditingWorkHours ? (isEditableHour ? "Tocar para cambiar" : "") : "Disponible — tocar para crear cita"}
+                                </button>
+                              ) : isEditableHour ? (
+                                <span className="flex-1 text-[10px] font-medium text-slate-300 px-3">No laboral</span>
+                              ) : (
+                                <span className="flex-1" />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Desktop full-week schedule */}
+                <div className="hidden md:block overflow-x-auto">
                 <div className="min-w-[1024px]">
                   <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] border-b border-slate-200 bg-white">
                     <div className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Hora</div>
@@ -1473,11 +1560,13 @@ export default function AppointmentsClient() {
                     </div>
 
                     {weekDays.map((day) => {
-                      const dayEvents = eventBlocks.get(formatDateKey(day)) || [];
                       const dayKey = WEEK_DAYS[getWeekDayIndex(day)].key;
                       const dayHasWorkingWindow = workHoursDraft.some((rule) => rule.day === dayKey && rule.enabled);
                       const dayGrid = workHoursGridDraft[dayKey] || [];
                       const isToday = formatDateKey(day) === todayKey;
+                      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                      const currentLineTop = ((currentMinutes / 60) - HOUR_START) * ROW_HEIGHT;
+                      const showCurrentLine = isToday && currentLineTop >= 0 && currentLineTop <= (HOUR_END - HOUR_START) * ROW_HEIGHT;
 
                       return (
                         <div key={day.toISOString()} className={cn("relative min-h-[832px] border-l border-slate-100 bg-white transition-colors", isToday && "bg-emerald-50/30 ring-1 ring-inset ring-emerald-200/70")}>
@@ -1487,51 +1576,66 @@ export default function AppointmentsClient() {
                             const isSelectedHour = Boolean(dayGrid[gridIndex]);
                             const isWorkingHour = isEditingWorkHours ? isSelectedHour : isHourWithinRule(day, hour, workHoursDraft);
                             const isEditableHour = hour < HOUR_END;
+                            const appointment = appointmentBlocks.get(`${formatDateKey(day)}-${hour}`);
 
                             return (
-                              <button key={hour} type="button" onClick={() => {
-                                if (!isEditableHour) return;
-                                if (isEditingWorkHours) {
-                                  setWorkHoursGridDraft((current) => {
-                                    if (gridIndex < 0 || gridIndex >= (current[dayKey]?.length || 0)) return current;
-                                    const next = { ...current };
-                                    const nextDay = [...(next[dayKey] || [])];
-                                    nextDay[gridIndex] = !nextDay[gridIndex];
-                                    next[dayKey] = nextDay;
-                                    return next;
-                                  });
-                                  return;
-                                }
-                                if (!isWorkingHour) return;
-                                openCreateFromGrid(day, hour);
-                              }} title={!isEditableHour ? (isEditingWorkHours ? "Corte horario" : "Bloque horario") : isEditingWorkHours ? `${isSelectedHour ? "Desactivar" : "Activar"} ${formatHourLabel(hour)}` : isWorkingHour ? `Crear cita ${formatHourLabel(hour)} en ${day.toLocaleDateString("es-CL", { weekday: "short", day: "2-digit", month: "short" })}` : `No disponible (${formatHourLabel(hour)})`} className={cn("flex h-16 w-full items-center justify-center border-b border-slate-100 transition-colors", !isEditableHour ? (isEditingWorkHours ? "cursor-pointer bg-slate-100/70 hover:bg-slate-200" : "cursor-default bg-white") : isEditingWorkHours ? (isSelectedHour ? "cursor-pointer bg-emerald-500/85 hover:bg-emerald-600" : "cursor-pointer bg-slate-100/80 hover:bg-slate-200") : isWorkingHour ? (isToday ? "cursor-pointer bg-emerald-100/70 hover:bg-emerald-200/70" : "cursor-pointer bg-emerald-50/40 hover:bg-emerald-100/60") : isToday ? "cursor-default bg-emerald-50/20" : "cursor-default bg-slate-100/70")}>
-                                {!isEditingWorkHours && isWorkingHour && isEditableHour && <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600/60">Disponible</span>}
-                                {!isEditingWorkHours && !isWorkingHour && isEditableHour && <span className="text-[9px] font-black uppercase tracking-widest text-slate-400/50">No laboral</span>}
-                              </button>
+                              <div key={hour} className="h-16 w-full border-b border-slate-100">
+                                {!isEditingWorkHours && appointment ? (
+                                  renderAppointmentCell(appointment)
+                                ) : (
+                                  <button type="button" onClick={() => {
+                                    if (!isEditableHour) return;
+                                    if (isEditingWorkHours) {
+                                      setWorkHoursGridDraft((current) => {
+                                        if (gridIndex < 0 || gridIndex >= (current[dayKey]?.length || 0)) return current;
+                                        const next = { ...current };
+                                        const nextDay = [...(next[dayKey] || [])];
+                                        nextDay[gridIndex] = !nextDay[gridIndex];
+                                        next[dayKey] = nextDay;
+                                        return next;
+                                      });
+                                      return;
+                                    }
+                                    if (!isWorkingHour) return;
+                                    openCreateFromGrid(day, hour);
+                                  }} title={!isEditableHour ? (isEditingWorkHours ? "Corte horario" : "Bloque horario") : isEditingWorkHours ? `${isSelectedHour ? "Desactivar" : "Activar"} ${formatHourLabel(hour)}` : isWorkingHour ? `Crear cita ${formatHourLabel(hour)} en ${day.toLocaleDateString("es-CL", { weekday: "short", day: "2-digit", month: "short" })}` : `No disponible (${formatHourLabel(hour)})`} className={cn("flex h-full w-full items-center justify-center transition-colors", !isEditableHour ? (isEditingWorkHours ? "cursor-pointer bg-slate-100/70 hover:bg-slate-200" : "cursor-default bg-white") : isEditingWorkHours ? (isSelectedHour ? "cursor-pointer bg-emerald-500/85 hover:bg-emerald-600" : "cursor-pointer bg-slate-100/80 hover:bg-slate-200") : isWorkingHour ? (isToday ? "cursor-pointer bg-emerald-100/70 hover:bg-emerald-200/70" : "cursor-pointer bg-emerald-50/40 hover:bg-emerald-100/60") : isToday ? "cursor-default bg-emerald-50/20" : "cursor-default bg-slate-100/70")}> 
+                                    {!isEditingWorkHours && isWorkingHour && isEditableHour && <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600/60">Disponible</span>}
+                                    {!isEditingWorkHours && !isWorkingHour && isEditableHour && <span className="text-[9px] font-black uppercase tracking-widest text-slate-400/50">No laboral</span>}
+                                  </button>
+                                )}
+                              </div>
                             );
                           })}
+                          {showCurrentLine && !isEditingWorkHours && (
+                            <div
+                              className="pointer-events-none absolute inset-x-0 z-20"
+                              style={{ top: currentLineTop }}
+                            >
+                              <div className="relative h-0">
+                                <div className="absolute left-0 right-0 top-0 border-t-2 border-rose-500" />
+                                <span className="absolute -top-2 left-2 rounded-full bg-rose-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-white shadow-sm">
+                                  Ahora
+                                </span>
+                              </div>
+                            </div>
+                          )}
                           {!isEditingWorkHours && !dayHasWorkingWindow && <div className="pointer-events-none absolute inset-0 bg-slate-100/35" />}
-                          {!isEditingWorkHours && dayEvents.map(renderAppointmentBlock)}
                         </div>
                       );
                     })}
                   </div>
                 </div>
               </div>
+              </>
             )}
           </div>
         </section>
-      ) : (
+) : activeTab === "upcoming" ? (
         <section className="rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap gap-2 border-b border-slate-100 p-3 sm:p-4">
-            {CITAS_TABS.map((tab) => (
-              <button key={tab.key} type="button" onClick={() => setActiveCitasTab(tab.key)} className={cn("rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] transition-all", activeCitasTab === tab.key ? "border-slate-900 bg-slate-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700")}>{tab.label}</button>
-            ))}
-          </div>
-
-          <div className="p-4 sm:p-6">
-            {activeCitasTab === "accepted" && (
-              <div className="overflow-hidden rounded-2xl border border-slate-100">
+          <div className="p-3 sm:p-6">
+            {/* Desktop table */}
+            <div className="overflow-x-auto hidden sm:block">
+              <div className="min-w-[640px] overflow-hidden rounded-2xl border border-slate-100">
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -1542,41 +1646,314 @@ export default function AppointmentsClient() {
                       <th className="py-3 px-4">Google Meet</th>
                     </tr>
                   </thead>
-                  <tbody />
+                  <tbody>
+                    {upcomingEvents.length === 0 ? (
+                      <tr>
+                        <td className="px-4 py-8 text-slate-400 text-center" colSpan={5}>
+                          No hay próximas citas.
+                        </td>
+                      </tr>
+                    ) : (
+                      upcomingEvents.map((event) => {
+                        const start = parseDateSafe(event.start);
+                        const end = parseDateSafe(event.end || event.start);
+                        return (
+                          <tr key={event.id} className="border-b border-slate-100 last:border-b-0">
+                            <td className="px-4 py-3 font-medium text-slate-700">
+                              {start ? formatDateInTimeZone(start, calendarTimeZone, { day: "2-digit", month: "short", year: "numeric" }) : "--"}
+                            </td>
+                            <td className="px-4 py-3 text-slate-600">
+                              {start && end ? `${formatTimeInTimeZone(start, calendarTimeZone)} - ${formatTimeInTimeZone(end, calendarTimeZone)}` : "--"}
+                            </td>
+                            <td className="px-4 py-3 text-slate-600">{event.patientName || "Paciente pendiente"}</td>
+                            <td className="px-4 py-3 text-slate-600">{event.title}</td>
+                            <td className="px-4 py-3 text-slate-400">---</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
                 </table>
               </div>
+            </div>
+            {/* Mobile cards */}
+            <div className="block sm:hidden space-y-3">
+              {upcomingEvents.length === 0 ? (
+                <div className="text-center py-10">
+                  <CalendarDays className="h-8 w-8 text-slate-200 mx-auto mb-2" />
+                  <p className="text-xs text-slate-400 font-medium">No hay próximas citas.</p>
+                </div>
+              ) : (
+                upcomingEvents.map((event) => {
+                  const start = parseDateSafe(event.start);
+                  const end = parseDateSafe(event.end || event.start);
+                  return (
+                    <div key={event.id} className="rounded-2xl border border-slate-100 p-4 bg-white shadow-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                          {start ? formatDateInTimeZone(start, calendarTimeZone, { day: "2-digit", month: "short" }) : "--"}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-500">
+                          {start && end ? `${formatTimeInTimeZone(start, calendarTimeZone)} - ${formatTimeInTimeZone(end, calendarTimeZone)}` : "--"}
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold text-slate-900">{event.title}</p>
+                      <p className="text-xs font-medium text-slate-500 mt-1">{event.patientName || "Paciente pendiente"}</p>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section className="rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-wrap gap-2 border-b border-slate-100 p-3 sm:p-4">
+            {CITAS_TABS.map((tab) => (
+              <button key={tab.key} type="button" onClick={() => setActiveCitasTab(tab.key)} className={cn("rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] transition-all", activeCitasTab === tab.key ? "border-slate-900 bg-slate-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700")}>{tab.label}</button>
+            ))}
+          </div>
+
+          <div className="p-3 sm:p-6">
+            {activeCitasTab === "accepted" && (
+              <>
+                {/* Desktop table */}
+                <div className="overflow-x-auto hidden sm:block">
+                  <div className="min-w-[640px] overflow-hidden rounded-2xl border border-slate-100">
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          <th className="py-3 px-4">Fecha</th>
+                          <th className="py-3 px-4">Hora</th>
+                          <th className="py-3 px-4">Paciente</th>
+                          <th className="py-3 px-4">Motivo</th>
+                          <th className="py-3 px-4">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {events.filter(e => e.status !== "cancelled" && e.status !== "requested" && e.status !== "REQUESTED" && parseDateSafe(e.start) && parseDateSafe(e.start)!.getTime() >= Date.now()).length === 0 ? (
+                          <tr>
+                            <td className="px-4 py-8 text-slate-400 text-center" colSpan={5}>Sin citas aceptadas.</td>
+                          </tr>
+                        ) : (
+                          events.filter(e => e.status !== "cancelled" && e.status !== "requested" && e.status !== "REQUESTED" && parseDateSafe(e.start) && parseDateSafe(e.start)!.getTime() >= Date.now()).map((event) => {
+                            const start = parseDateSafe(event.start);
+                            const end = parseDateSafe(event.end || event.start);
+                            return (
+                              <tr key={event.id} className="border-b border-slate-100 last:border-b-0">
+                                <td className="px-4 py-3 font-medium text-slate-700">
+                                  {start ? formatDateInTimeZone(start, calendarTimeZone, { day: "2-digit", month: "short", year: "numeric" }) : "--"}
+                                </td>
+                                <td className="px-4 py-3 text-slate-600">
+                                  {start && end ? `${formatTimeInTimeZone(start, calendarTimeZone)} - ${formatTimeInTimeZone(end, calendarTimeZone)}` : "--"}
+                                </td>
+                                <td className="px-4 py-3 text-slate-600">{event.patientName || "--"}</td>
+                                <td className="px-4 py-3 text-slate-600">{event.title}</td>
+                                <td className="px-4 py-3">
+                                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-700 ring-1 ring-emerald-100">
+                                    {event.status === "confirmed" || event.status === "CONFIRMED" ? "Confirmada" : "Agendada"}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                {/* Mobile cards */}
+                <div className="block sm:hidden space-y-3">
+                  {events.filter(e => e.status !== "cancelled" && e.status !== "requested" && e.status !== "REQUESTED" && parseDateSafe(e.start) && parseDateSafe(e.start)!.getTime() >= Date.now()).length === 0 ? (
+                    <div className="text-center py-10">
+                      <CalendarDays className="h-8 w-8 text-slate-200 mx-auto mb-2" />
+                      <p className="text-xs text-slate-400 font-medium">Sin citas aceptadas.</p>
+                    </div>
+                  ) : (
+                    events.filter(e => e.status !== "cancelled" && e.status !== "requested" && e.status !== "REQUESTED" && parseDateSafe(e.start) && parseDateSafe(e.start)!.getTime() >= Date.now()).map((event) => {
+                      const start = parseDateSafe(event.start);
+                      const end = parseDateSafe(event.end || event.start);
+                      return (
+                        <div key={event.id} className="rounded-2xl border border-slate-100 p-4 bg-white shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                              {start ? formatDateInTimeZone(start, calendarTimeZone, { day: "2-digit", month: "short" }) : "--"}
+                            </span>
+                            <span className="rounded-full bg-amber-50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-amber-700 ring-1 ring-amber-100">
+                              {event.status === "confirmed" || event.status === "CONFIRMED" ? "Confirmada" : "Agendada"}
+                            </span>
+                          </div>
+                          <p className="text-sm font-bold text-slate-900">{event.title}</p>
+                          <div className="flex items-center gap-3 mt-2 text-[10px] font-medium text-slate-500">
+                            <span>{start && end ? `${formatTimeInTimeZone(start, calendarTimeZone)} - ${formatTimeInTimeZone(end, calendarTimeZone)}` : "--"}</span>
+                            <span>·</span>
+                            <span>{event.patientName || "--"}</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </>
             )}
 
             {activeCitasTab === "pending" && (
-              <div className="overflow-hidden rounded-2xl border border-slate-100">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      <th className="py-3 px-4">Fecha</th>
-                      <th className="py-3 px-4">Hora</th>
-                      <th className="py-3 px-4">Paciente</th>
-                      <th className="py-3 px-4">Motivo</th>
-                    </tr>
-                  </thead>
-                  <tbody />
-                </table>
-              </div>
+              <>
+                {isLoadingPending ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-slate-300" />
+                  </div>
+                ) : (
+                  <>
+                    {/* Desktop table */}
+                    <div className="overflow-x-auto hidden sm:block">
+                      <div className="min-w-[640px] overflow-hidden rounded-2xl border border-slate-100">
+                        <table className="w-full border-collapse text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">
+                              <th className="py-3 px-4">Fecha</th>
+                              <th className="py-3 px-4">Paciente</th>
+                              <th className="py-3 px-4">Motivo</th>
+                              <th className="py-3 px-4 w-40">Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {pendingAppointments.length === 0 ? (
+                              <tr>
+                                <td className="px-4 py-8 text-slate-400 text-center" colSpan={4}>No hay citas pendientes.</td>
+                              </tr>
+                            ) : (
+                              pendingAppointments.map((apt: any) => {
+                                const start = parseDateSafe(apt.startTime);
+                                return (
+                                  <tr key={apt.id} className="border-b border-slate-100 last:border-b-0">
+                                    <td className="px-4 py-3 font-medium text-slate-700">
+                                      {start ? formatDateInTimeZone(start, calendarTimeZone, { day: "2-digit", month: "short", year: "numeric" }) : "--"}
+                                    </td>
+                                    <td className="px-4 py-3 text-slate-600">{apt.patient?.fullName || "--"}</td>
+                                    <td className="px-4 py-3 text-slate-600">{apt.description || apt.title}</td>
+                                    <td className="px-4 py-3">
+                                      <div className="flex gap-2">
+                                        <Button size="sm" className="h-8 rounded-full bg-emerald-600 px-4 text-[9px] font-black uppercase tracking-widest text-white" onClick={() => handleAcceptAppointment(apt.id)}>Aceptar</Button>
+                                        <Button size="sm" variant="outline" className="h-8 rounded-full border-rose-200 px-4 text-[9px] font-black uppercase tracking-widest text-rose-600 hover:bg-rose-50" onClick={() => handleRejectAppointment(apt.id)}>Rechazar</Button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    {/* Mobile cards */}
+                    <div className="block sm:hidden space-y-3">
+                      {pendingAppointments.length === 0 ? (
+                        <div className="text-center py-10">
+                          <CalendarDays className="h-8 w-8 text-slate-200 mx-auto mb-2" />
+                          <p className="text-xs text-slate-400 font-medium">No hay citas pendientes.</p>
+                        </div>
+                      ) : (
+                        pendingAppointments.map((apt: any) => {
+                          const start = parseDateSafe(apt.startTime);
+                          return (
+                            <div key={apt.id} className="rounded-2xl border border-amber-100 bg-amber-50/30 p-4 shadow-sm">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700">
+                                  Pendiente
+                                </span>
+                                {start && (
+                                  <span className="text-[10px] font-bold text-slate-500">
+                                    {formatDateInTimeZone(start, calendarTimeZone, { day: "2-digit", month: "short" })}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm font-bold text-slate-900">{apt.description || apt.title}</p>
+                              <p className="text-xs font-medium text-slate-500 mt-1">{apt.patient?.fullName || "Paciente"}</p>
+                              <div className="flex gap-2 mt-3 pt-3 border-t border-amber-100">
+                                <Button size="sm" className="flex-1 h-9 rounded-xl bg-emerald-600 text-[10px] font-black uppercase tracking-widest text-white" onClick={() => handleAcceptAppointment(apt.id)}>Aceptar</Button>
+                                <Button size="sm" variant="outline" className="flex-1 h-9 rounded-xl border-rose-200 text-[10px] font-black uppercase tracking-widest text-rose-600 hover:bg-rose-50" onClick={() => handleRejectAppointment(apt.id)}>Rechazar</Button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </>
+                )}
+              </>
             )}
 
             {activeCitasTab === "rejected" && (
-              <div className="overflow-hidden rounded-2xl border border-slate-100">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      <th className="py-3 px-4">Fecha</th>
-                      <th className="py-3 px-4">Hora</th>
-                      <th className="py-3 px-4">Paciente</th>
-                      <th className="py-3 px-4">Motivo</th>
-                    </tr>
-                  </thead>
-                  <tbody />
-                </table>
-              </div>
+              <>
+                {/* Desktop table */}
+                <div className="overflow-x-auto hidden sm:block">
+                  <div className="min-w-[640px] overflow-hidden rounded-2xl border border-slate-100">
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          <th className="py-3 px-4">Fecha</th>
+                          <th className="py-3 px-4">Hora</th>
+                          <th className="py-3 px-4">Paciente</th>
+                          <th className="py-3 px-4">Motivo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {events.filter(e => e.status === "cancelled" || e.status === "CANCELLED").length === 0 ? (
+                          <tr>
+                            <td className="px-4 py-8 text-slate-400 text-center" colSpan={4}>Sin citas rechazadas.</td>
+                          </tr>
+                        ) : (
+                          events.filter(e => e.status === "cancelled" || e.status === "CANCELLED").map((event) => {
+                            const start = parseDateSafe(event.start);
+                            const end = parseDateSafe(event.end || event.start);
+                            return (
+                              <tr key={event.id} className="border-b border-slate-100 last:border-b-0">
+                                <td className="px-4 py-3 font-medium text-slate-400">
+                                  {start ? formatDateInTimeZone(start, calendarTimeZone, { day: "2-digit", month: "short", year: "numeric" }) : "--"}
+                                </td>
+                                <td className="px-4 py-3 text-slate-400">
+                                  {start && end ? `${formatTimeInTimeZone(start, calendarTimeZone)} - ${formatTimeInTimeZone(end, calendarTimeZone)}` : "--"}
+                                </td>
+                                <td className="px-4 py-3 text-slate-400">{event.patientName || "--"}</td>
+                                <td className="px-4 py-3 text-slate-400">{event.title}</td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                {/* Mobile cards */}
+                <div className="block sm:hidden space-y-3">
+                  {events.filter(e => e.status === "cancelled" || e.status === "CANCELLED").length === 0 ? (
+                    <div className="text-center py-10">
+                      <CalendarDays className="h-8 w-8 text-slate-200 mx-auto mb-2" />
+                      <p className="text-xs text-slate-400 font-medium">Sin citas rechazadas.</p>
+                    </div>
+                  ) : (
+                    events.filter(e => e.status === "cancelled" || e.status === "CANCELLED").map((event) => {
+                      const start = parseDateSafe(event.start);
+                      const end = parseDateSafe(event.end || event.start);
+                      return (
+                        <div key={event.id} className="rounded-2xl border border-slate-100 p-4 bg-white shadow-sm opacity-60">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="rounded-full bg-rose-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-rose-700">
+                              Rechazada
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400">
+                              {start ? formatDateInTimeZone(start, calendarTimeZone, { day: "2-digit", month: "short" }) : "--"}
+                            </span>
+                          </div>
+                          <p className="text-sm font-bold text-slate-500">{event.title}</p>
+                          <p className="text-xs font-medium text-slate-400 mt-1">{event.patientName || "--"}</p>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </>
             )}
           </div>
         </section>
@@ -1609,10 +1986,7 @@ export default function AppointmentsClient() {
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
             <div>
-              <p className="text-sm font-black text-slate-900">Paciente de la cita</p>
-              <p className="text-xs font-medium text-slate-500">
-                Debes indicar nombre y correo. El correo funciona como identificador y permite notificar al paciente.
-              </p>
+              <p className="text-sm font-black text-slate-900">Paciente asociado</p>
             </div>
             <Button
               type="button"
@@ -1626,56 +2000,34 @@ export default function AppointmentsClient() {
               Importar paciente
             </Button>
           </div>
+
+          {selectedPatient ? (
+            <div className="flex items-center justify-between rounded-2xl border border-indigo-100 bg-indigo-50/60 p-3">
+              <div className="min-w-0">
+                <p className="text-sm font-black text-slate-900 truncate">{selectedPatient.fullName}</p>
+                <p className="text-xs font-medium text-slate-500 truncate">{selectedPatient.email || "Sin correo"}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPatient(null);
+                  setSelectedPatientPortalStatus(null);
+                  setCreateDraft((current) => ({ ...current, patientId: "", patientName: "", patientEmail: "" }));
+                }}
+                className="p-2 text-slate-400 hover:text-rose-500 hover:bg-white rounded-xl transition-all"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+
+          {selectedPatientPortalStatus === "ACTIVE" && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+              El paciente podrá ver su cita en su portal
+            </div>
+          )}
+
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500">Paciente</label>
-              <Input
-                value={createDraft.patientName}
-                onChange={(event) => setCreateDraft((current) => ({ ...current, patientName: event.target.value }))}
-                placeholder="Nombre del paciente"
-                className="h-12 rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500">Correo del paciente</label>
-              <Input
-                type="email"
-                value={createDraft.patientEmail}
-                onChange={(event) => setCreateDraft((current) => ({ ...current, patientEmail: event.target.value }))}
-                placeholder="correo@ejemplo.com"
-                className="h-12 rounded-xl"
-              />
-            </div>
-            <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <label className="flex cursor-pointer items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={createDraft.notifyPatientByEmail}
-                  onChange={(event) =>
-                    setCreateDraft((current) => ({
-                      ...current,
-                      notifyPatientByEmail: event.target.checked,
-                    }))
-                  }
-                  className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                />
-                <span>
-                  <span className="block text-sm font-black text-slate-900">Notificar al paciente por correo</span>
-                  <span className="block text-xs font-medium text-slate-500">
-                    Se enviará una notificación al correo del paciente si el calendario está conectado.
-                  </span>
-                </span>
-              </label>
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500">Motivo</label>
-              <Input
-                value={createDraft.title}
-                onChange={(event) => setCreateDraft((current) => ({ ...current, title: event.target.value }))}
-                placeholder="Consulta nutricional"
-                className="h-12 rounded-xl"
-              />
-            </div>
             <div className="space-y-2">
               <label className="text-xs font-black uppercase tracking-widest text-slate-500">Fecha</label>
               <Input
@@ -1686,7 +2038,7 @@ export default function AppointmentsClient() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500">Hora</label>
+              <label className="text-xs font-black uppercase tracking-widest text-slate-500">Hora de la sesión</label>
               <Input
                 type="time"
                 value={createDraft.time}
@@ -1695,34 +2047,49 @@ export default function AppointmentsClient() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-500">Duración (min)</label>
+              <label className="text-xs font-black uppercase tracking-widest text-slate-500">Duración (min, máx. 60)</label>
               <Input
                 type="number"
-                min={15}
-                step={15}
+                min={5}
+                max={60}
+                step={5}
                 value={createDraft.durationMin}
                 onChange={(event) => setCreateDraft((current) => ({ ...current, durationMin: Number(event.target.value) || 30 }))}
                 className="h-12 rounded-xl"
               />
             </div>
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-slate-500">Notas</label>
-            <Textarea
-              value={createDraft.notes}
-              onChange={(event) => setCreateDraft((current) => ({ ...current, notes: event.target.value }))}
-              className="min-h-[120px] rounded-xl"
-              placeholder="Observaciones de la cita..."
-            />
-          </div>
-          <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-900">
-            También puedes crear la cita haciendo clic en cualquier espacio libre del calendario. Si Google Calendar está conectado, la cita se sincronizará automáticamente al guardar.
+            <div className="md:col-span-2 space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-500">Descripción de la cita</label>
+              <Textarea
+                value={createDraft.description}
+                onChange={(event) => setCreateDraft((current) => ({ ...current, description: event.target.value }))}
+                className="min-h-[120px] rounded-xl"
+                placeholder="Describe la cita..."
+              />
+            </div>
+            <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <label className="flex items-center gap-3 opacity-80">
+                <input
+                  type="checkbox"
+                  checked
+                  readOnly
+                  disabled
+                  className="h-4 w-4 rounded border-slate-300 text-slate-400"
+                />
+                <Lock className="h-4 w-4 text-slate-400" />
+                <span className="text-sm font-black text-slate-900">Notificar por correo al paciente</span>
+              </label>
+            </div>
           </div>
           <div className="flex justify-end gap-3">
             <Button variant="outline" className="h-11 rounded-xl px-5 font-black" onClick={() => setIsCreateOpen(false)}>
               Cancelar
             </Button>
-            <Button className="h-11 rounded-xl bg-emerald-600 px-5 font-black text-white" onClick={() => void handleCreateAppointment()}>
+            <Button
+              className="h-11 rounded-xl bg-emerald-600 px-5 font-black text-white"
+              onClick={() => void handleCreateAppointment()}
+              disabled={!selectedPatient || isLoadingPatientPortalStatus}
+            >
               Crear cita
             </Button>
           </div>
@@ -1935,6 +2302,45 @@ export default function AppointmentsClient() {
             Cerrar Ventana
           </Button>
         </div>
+      </Modal>
+
+      <Modal isOpen={isAppointmentDetailOpen} onClose={() => setIsAppointmentDetailOpen(false)} title="Detalle de cita">
+        {selectedAppointment ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400">Horario</p>
+              <p className="mt-1 text-sm font-black text-slate-900">
+                {(() => {
+                  const start = parseDateSafe(selectedAppointment.start);
+                  const end = parseDateSafe(selectedAppointment.end || selectedAppointment.start);
+                  return start && end
+                    ? `${formatDateInTimeZone(start, calendarTimeZone, { weekday: "short", day: "2-digit", month: "short", year: "numeric" })} · ${formatTimeInTimeZone(start, calendarTimeZone)} - ${formatTimeInTimeZone(end, calendarTimeZone)}`
+                    : "--";
+                })()}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400">Título</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{selectedAppointment.title}</p>
+            </div>
+
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400">Paciente</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{selectedAppointment.patientName || "Paciente pendiente"}</p>
+            </div>
+
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400">Estado</p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{selectedAppointment.status}</p>
+            </div>
+
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400">Notas</p>
+              <p className="mt-1 text-sm text-slate-600">{selectedAppointment.notes || "Sin notas."}</p>
+            </div>
+          </div>
+        ) : null}
       </Modal>
 
     </div>

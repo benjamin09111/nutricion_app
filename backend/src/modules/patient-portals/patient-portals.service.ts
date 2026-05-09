@@ -14,6 +14,7 @@ import { CreatePatientPortalEntryDto } from './dto/create-patient-portal-entry.d
 import { CreatePatientPortalQuestionDto } from './dto/create-patient-portal-question.dto';
 import { CreatePatientPortalReplyDto } from './dto/create-patient-portal-reply.dto';
 import { CreatePatientPortalNotificationDto } from './dto/create-patient-portal-notification.dto';
+import { RequestAppointmentDto } from './dto/request-appointment.dto';
 
 type PortalSessionPayload = {
   kind: 'patient-portal';
@@ -22,7 +23,12 @@ type PortalSessionPayload = {
   invitationId: string;
 };
 
-type PortalEntryKind = 'QUESTION' | 'TRACKING' | 'REPLY' | 'NOTIFICATION' | 'MESSAGE';
+type PortalEntryKind =
+  | 'QUESTION'
+  | 'TRACKING'
+  | 'REPLY'
+  | 'NOTIFICATION'
+  | 'MESSAGE';
 
 type NormalizedPortalEntry = {
   id: string;
@@ -110,6 +116,17 @@ type PortalDeliverable = {
   tags: string[];
   createdAt: Date;
   updatedAt: Date;
+};
+
+type PortalAppointment = {
+  id: string;
+  title: string;
+  description: string | null;
+  startTime: Date;
+  endTime: Date;
+  status: string;
+  notes: string | null;
+  meetingUrl: string | null;
 };
 
 type TrackingSections = {
@@ -525,7 +542,9 @@ export class PatientPortalsService {
   ) {
     const body = dto.alimentacion?.trim() || '';
     if (!body) {
-      throw new BadRequestException('Escribe algo en tu diario antes de publicar');
+      throw new BadRequestException(
+        'Escribe algo en tu diario antes de publicar',
+      );
     }
 
     const entryDate = this.normalizeDiaryDate(dto.entryDate);
@@ -703,6 +722,48 @@ export class PatientPortalsService {
     };
   }
 
+  async requestAppointment(session: PortalSessionPayload, dto: RequestAppointmentDto) {
+    const { patientId, nutritionistId } = session;
+
+    const calendar = await this.prisma.appointmentCalendar.findFirst({
+      where: { nutritionistId },
+    });
+
+    if (!calendar) {
+      throw new BadRequestException('El nutricionista no tiene agenda configurada');
+    }
+
+    const patient = await this.prisma.patient.findFirst({
+      where: { id: patientId, nutritionistId },
+      select: { fullName: true },
+    });
+
+    if (!patient) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
+
+    const title = `Solicitud de cita - ${patient.fullName}`;
+    const description = dto.message;
+
+    const appointment = await this.prisma.appointment.create({
+      data: {
+        calendarId: calendar.id,
+        patientId,
+        patientName: patient.fullName,
+        title,
+        description,
+        startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000),
+        status: 'REQUESTED' as const,
+      },
+    });
+
+    return {
+      appointment,
+      overview: await this.buildOverview(nutritionistId, patientId),
+    };
+  }
+
   private async buildOverview(nutritionistId: string, patientId: string) {
     const [patient, invitations, entries] = await Promise.all([
       this.prisma.patient.findFirst({
@@ -809,7 +870,7 @@ export class PatientPortalsService {
     const latestInvitation = invitations[0] || null;
     const sharingInvitation = activeInvitation || latestInvitation;
 
-    const [sharedResources, sharedDeliverables] = await Promise.all([
+    const [sharedResources, sharedDeliverables, appointments] = await Promise.all([
       sharingInvitation?.resourceIds?.length
         ? this.prisma.resource.findMany({
             where: {
@@ -858,6 +919,29 @@ export class PatientPortalsService {
             },
           })
         : Promise.resolve([] as PortalDeliverable[]),
+      this.prisma.appointment.findMany({
+        where: {
+          patientId,
+          status: {
+            in: ['REQUESTED' as const, 'SCHEDULED' as const, 'CONFIRMED' as const],
+          },
+          OR: [
+            { status: 'REQUESTED' as const },
+            { startTime: { gte: new Date() } },
+          ],
+        },
+        orderBy: { startTime: 'asc' },
+        take: 10,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          startTime: true,
+          endTime: true,
+          status: true,
+          notes: true,
+        },
+      }),
     ]);
 
     const normalizedEntries = entries.map((entry) =>
@@ -903,6 +987,10 @@ export class PatientPortalsService {
       ),
       sharedResources,
       sharedDeliverables,
+      appointments: appointments.map((apt) => ({
+        ...apt,
+        meetingUrl: null,
+      })),
       status: activeInvitation?.status || 'NONE',
     };
   }

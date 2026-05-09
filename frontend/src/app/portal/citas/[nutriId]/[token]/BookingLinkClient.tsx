@@ -1,22 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Clock3, Loader2, MapPin, Mail, Phone, Sparkles, UserRound } from "lucide-react";
+import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { Textarea } from "@/components/ui/Textarea";
 import {
   AppointmentSlot,
   createBookingLinkRequest,
-  fetchBookingLinkAvailabilityRules,
   fetchAppointmentsJson,
   fetchBookingLink,
 } from "@/lib/appointments";
-import { cn } from "@/lib/utils";
 import { Modal } from "@/components/ui/Modal";
-import { CheckCircle2 } from "lucide-react";
 
 type BookingPreview = {
   token?: string;
@@ -36,13 +32,6 @@ type BookingFormState = {
   phone: string;
   reason: string;
   notes: string;
-};
-
-type WeeklyRule = {
-  day: string;
-  enabled: boolean;
-  start: string;
-  end: string;
 };
 
 const normalizeText = (value: unknown) => (typeof value === "string" ? value.trim() : "");
@@ -95,181 +84,6 @@ const normalizeBookingPreview = (payload: unknown): BookingPreview | null => {
   };
 };
 
-const normalizeWeekDayKey = (value: unknown) => {
-  const day = normalizeText(value).toLowerCase();
-  const aliases: Record<string, string> = {
-    mon: "monday",
-    tue: "tuesday",
-    wed: "wednesday",
-    thu: "thursday",
-    fri: "friday",
-    sat: "saturday",
-    sun: "sunday",
-  };
-
-  return aliases[day] || day;
-};
-
-const normalizeWeekDayFromIndex = (value: unknown) => {
-  const normalized = typeof value === "number" ? Math.trunc(value) : Number(normalizeText(value));
-  if (Number.isNaN(normalized)) {
-    return normalizeWeekDayKey(value);
-  }
-
-  const index = normalized === 7 ? 0 : normalized;
-  const dayMap: Record<number, string> = {
-    0: "sunday",
-    1: "monday",
-    2: "tuesday",
-    3: "wednesday",
-    4: "thursday",
-    5: "friday",
-    6: "saturday",
-  };
-
-  return dayMap[index] || "";
-};
-
-const normalizeAvailabilityRules = (payload: unknown): WeeklyRule[] => {
-  const items = extractArray(payload);
-  return items
-    .map((item): WeeklyRule | null => {
-      if (!item || typeof item !== "object") return null;
-      const record = item as Record<string, unknown>;
-      const dayValue = record.day || record.weekDay || record.weekday || record.dayOfWeek || record.day_of_week;
-      const day = normalizeWeekDayFromIndex(dayValue);
-      if (!day) return null;
-
-      const enabled =
-        typeof record.enabled === "boolean"
-          ? record.enabled
-          : typeof record.available === "boolean"
-            ? record.available
-            : typeof record.isWorking === "boolean"
-              ? record.isWorking
-              : typeof record.active === "boolean"
-                ? record.active
-                : typeof record.isActive === "boolean"
-                  ? record.isActive
-                  : true;
-
-      const startRaw = normalizeText(record.start || record.from || record.begin || record.startTime);
-      const endRaw = normalizeText(record.end || record.to || record.finish || record.endTime);
-
-      return {
-        day,
-        enabled,
-        start: startRaw.slice(0, 5) || "08:00",
-        end: endRaw.slice(0, 5) || "16:00",
-      };
-    })
-    .filter((item): item is WeeklyRule => item !== null);
-};
-
-const getWeekdayKeyInTimeZone = (dateKey: string, timeZone: string) => {
-  const { year, month, day } = parseDateKeyParts(dateKey);
-  const ref = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-  const weekday = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    weekday: "long",
-  })
-    .format(ref)
-    .toLowerCase();
-
-  const aliases: Record<string, string> = {
-    monday: "monday",
-    tuesday: "tuesday",
-    wednesday: "wednesday",
-    thursday: "thursday",
-    friday: "friday",
-    saturday: "saturday",
-    sunday: "sunday",
-  };
-
-  return aliases[weekday] || weekday;
-};
-
-const parseDateKeyParts = (value: string) => {
-  const [year, month, day] = value.split("-").map(Number);
-  return { year, month, day };
-};
-
-const localDateTimeToUtcIso = (dateKey: string, hour: number, minute: number, timeZone: string) => {
-  const { year, month, day } = parseDateKeyParts(dateKey);
-  let utcGuess = Date.UTC(year, month - 1, day, hour, minute, 0);
-
-  for (let i = 0; i < 2; i += 1) {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hourCycle: "h23",
-    }).formatToParts(new Date(utcGuess));
-
-    const getPart = (type: string) => Number(parts.find((part) => part.type === type)?.value || 0);
-    const formattedAsUtc = Date.UTC(
-      getPart("year"),
-      getPart("month") - 1,
-      getPart("day"),
-      getPart("hour"),
-      getPart("minute"),
-      getPart("second"),
-    );
-
-    const delta = formattedAsUtc - utcGuess;
-    if (delta === 0) break;
-    utcGuess -= delta;
-  }
-
-  return new Date(utcGuess).toISOString();
-};
-
-const expandRulesToSlots = (
-  rules: WeeklyRule[],
-  weekDays: Date[],
-  timeZone: string,
-  durationMin: number,
-): AppointmentSlot[] => {
-  const slots: AppointmentSlot[] = [];
-  const slotDuration = Math.max(15, durationMin);
-  const slotDurationMs = slotDuration * 60 * 1000;
-
-  for (const day of weekDays) {
-    const dateKey = formatDateKey(day, timeZone);
-    const weekdayKey = getWeekdayKeyInTimeZone(dateKey, timeZone);
-    const dayRules = rules.filter((rule) => rule.enabled && rule.day === weekdayKey);
-
-    for (const rule of dayRules) {
-      const [startHour, startMinute] = rule.start.split(":").map(Number);
-      const [endHour, endMinute] = rule.end.split(":").map(Number);
-      const startTotalMin = startHour * 60 + startMinute;
-      const endTotalMin = endHour * 60 + endMinute;
-
-      for (let minute = startTotalMin; minute + slotDuration <= endTotalMin; minute += slotDuration) {
-        const hour = Math.floor(minute / 60);
-        const minuteOfHour = minute % 60;
-        const start = localDateTimeToUtcIso(dateKey, hour, minuteOfHour, timeZone);
-        const end = new Date(new Date(start).getTime() + slotDurationMs).toISOString();
-
-        slots.push({
-          start,
-          end,
-          available: true,
-          status: "AVAILABLE",
-          dayKey: dateKey,
-          hour,
-        });
-      }
-    }
-  }
-
-  return slots;
-};
-
 const normalizeSlots = (payload: unknown): AppointmentSlot[] =>
   extractArray(payload)
     .map((item): AppointmentSlot | null => {
@@ -289,6 +103,8 @@ const normalizeSlots = (payload: unknown): AppointmentSlot[] =>
         label: normalizeText(record.label),
         patientName: normalizeText(record.patientName),
         notes: normalizeText(record.notes),
+        dayKey: normalizeText(record.dayKey),
+        hour: typeof record.hour === "number" ? record.hour : undefined,
       };
     })
     .filter((item): item is AppointmentSlot => item !== null);
@@ -322,7 +138,7 @@ const formatDateKey = (date: Date, timeZone?: string) => {
         month: "2-digit",
         day: "2-digit",
       }).format(date);
-    } catch (e) {
+    } catch {
       console.warn("Invalid timezone for formatDateKey", timeZone);
     }
   }
@@ -340,12 +156,14 @@ const formatDayLabel = (date: Date, timeZone?: string) =>
     month: "short",
   }).format(date);
 
-const formatHourLabel = (date: Date, timeZone?: string) =>
-  new Intl.DateTimeFormat("es-CL", {
+const getHourInTimeZone = (date: Date, timeZone: string) => {
+  const hour = new Intl.DateTimeFormat("en-US", {
     timeZone,
     hour: "2-digit",
-    minute: "2-digit",
+    hourCycle: "h23",
   }).format(date);
+  return Number(hour);
+};
 
 const getWeekDays = (anchor: Date) => {
   const monday = startOfWeek(anchor);
@@ -380,15 +198,6 @@ export default function BookingLinkClient({
 
   const calendarId = preview?.calendarId || "";
   const timeZone = preview?.timeZone || preview?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const slotDurationMin = useMemo(() => {
-    const rawDuration = preview?.metadata ? preview.metadata["durationMin"] : undefined;
-    if (typeof rawDuration === "number" || typeof rawDuration === "string") {
-      const nextValue = Number(rawDuration);
-      return Number.isFinite(nextValue) && nextValue > 0 ? nextValue : 30;
-    }
-    return 60;
-  }, [preview]);
-
   const weekDays = useMemo(() => getWeekDays(weekAnchor), [weekAnchor]);
   const weekStart = weekDays[0];
   const weekEnd = weekDays[6];
@@ -457,25 +266,27 @@ export default function BookingLinkClient({
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [nutriId, token]);
 
   const loadSlots = useCallback(async (cancelled = false) => {
     if (!calendarId) return;
     setIsLoadingSlots(true);
     try {
-      console.log("[booking-link] loading slots", {
-        calendarId,
-        timeZone,
-        weekStart: formatDateKey(weekStart, timeZone),
-        weekEnd: formatDateKey(weekEnd, timeZone),
-        slotDurationMin,
+      const from = `${formatDateKey(weekStart, timeZone)}T00:00:00.000Z`;
+      const to = `${formatDateKey(weekEnd, timeZone)}T23:59:59.999Z`;
+      const payload = await fetchAppointmentsJson<unknown>(
+        `/availability/free-slots?calendarId=${calendarId}&from=${from}&to=${to}&durationMin=60`,
+      );
+      const nextSlots = normalizeSlots(payload).map((slot) => {
+        const start = parseDateSafe(slot.start);
+        return start
+          ? {
+              ...slot,
+              dayKey: formatDateKey(start, timeZone),
+              hour: getHourInTimeZone(start, timeZone),
+            }
+          : slot;
       });
-      const payload = await fetchBookingLinkAvailabilityRules(token);
-      console.log("[booking-link] availability rules raw", payload);
-      const rules = normalizeAvailabilityRules(payload);
-      console.log("[booking-link] availability rules normalized", rules);
-      const nextSlots = expandRulesToSlots(rules, weekDays, timeZone, slotDurationMin);
-      console.log("[booking-link] expanded slots", nextSlots);
       if (!cancelled) {
         setSlots(nextSlots);
       }
@@ -489,7 +300,7 @@ export default function BookingLinkClient({
         setIsLoadingSlots(false);
       }
     }
-  }, [calendarId, slotDurationMin, timeZone, weekEnd, weekStart]);
+  }, [calendarId, timeZone, weekEnd, weekStart]);
 
   useEffect(() => {
     let cancelled = false;
@@ -507,7 +318,6 @@ export default function BookingLinkClient({
 
   useEffect(() => {
     if (availableSlots.length === 0) {
-      console.log("[booking-link] no available slots", { slots, rules: preview?.metadata });
       setSelectedSlot(null);
       return;
     }
@@ -677,6 +487,7 @@ export default function BookingLinkClient({
                       {weekDays.map((day, index) => {
                         const dayKey = formatDateKey(day, timeZone);
                             const daySlots = groupedSlots.get(dayKey) || [];
+                            const freeSlots = daySlots.filter((slot) => slot.available !== false);
                             return (
                           <div key={index} className="border-l border-slate-100 px-3 py-3 text-center">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
@@ -689,7 +500,7 @@ export default function BookingLinkClient({
                               })}
                             </p>
                             <p className="mt-1 text-[10px] font-medium text-sky-600">
-                              {daySlots.length} libres
+                              {freeSlots.length} libres
                             </p>
                           </div>
                         );
@@ -716,13 +527,17 @@ export default function BookingLinkClient({
 
                               return (
                                 <div key={day.toISOString()} className="relative h-16 border-l border-slate-100 bg-white p-1 flex items-center justify-center">
-                                  {slot ? (
+                                  {slot && slot.available !== false ? (
                                     <button
                                       onClick={() => setSelectedSlot(slot)}
                                       className="w-full h-full rounded-xl flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all border bg-sky-50 text-sky-800 border-sky-100 hover:bg-sky-600 hover:text-white hover:border-sky-500 shadow-sm"
                                     >
                                       Disponible
                                     </button>
+                                  ) : slot ? (
+                                    <div className="flex h-full w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                      Ocupado
+                                    </div>
                                   ) : (
                                     <div className="h-full w-full rounded-xl bg-slate-50/10" />
                                   )}

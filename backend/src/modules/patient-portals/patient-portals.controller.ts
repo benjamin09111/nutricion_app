@@ -14,6 +14,7 @@ import { CreatePatientPortalEntryDto } from './dto/create-patient-portal-entry.d
 import { CreatePatientPortalQuestionDto } from './dto/create-patient-portal-question.dto';
 import { CreatePatientPortalReplyDto } from './dto/create-patient-portal-reply.dto';
 import { CreatePatientPortalNotificationDto } from './dto/create-patient-portal-notification.dto';
+import { RequestAppointmentDto } from './dto/request-appointment.dto';
 import { PatientPortalAuthGuard } from './guards/patient-portal.guard';
 
 @Controller('patient-portals')
@@ -170,6 +171,18 @@ export class PatientPortalsController {
       req.user.nutritionistId,
       patientId,
       body.status,
+    );
+  }
+
+  @UseGuards(PatientPortalAuthGuard)
+  @Post('me/appointments/request')
+  requestAppointment(
+    @Request() req: any,
+    @Body() dto: RequestAppointmentDto,
+  ) {
+    return this.patientPortalsService.requestAppointment(
+      req.portalSession,
+      dto,
     );
   }
 }

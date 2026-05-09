@@ -3,10 +3,15 @@ import { AppointmentsController } from './appointments.controller';
 import { AppointmentsService } from './appointments.service';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { AppointmentsPublicController } from './appointments.public.controller';
+import { AppointmentsRecordsController } from './appointments.records.controller';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [AppointmentsController, AppointmentsPublicController],
+  controllers: [
+    AppointmentsController,
+    AppointmentsPublicController,
+    AppointmentsRecordsController,
+  ],
   providers: [AppointmentsService],
   exports: [AppointmentsService],
 })

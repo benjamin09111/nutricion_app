@@ -150,6 +150,7 @@ model Patient {
   portalCheckIns    PatientPortalCheckIn[]
   nutritionist     Nutritionist   @relation(fields: [nutritionistId], references: [id])
   projects         Project[]
+  appointments     Appointment[]
 
   @@map("patients")
 }
@@ -768,6 +769,7 @@ model Appointment {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
   calendar    AppointmentCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  patient     Patient? @relation(fields: [patientId], references: [id])
 
   @@index([calendarId, startTime])
   @@index([status])
@@ -810,6 +812,7 @@ model AvailabilityRule {
 }
 
 enum AppointmentStatus {
+  REQUESTED
   SCHEDULED
   CONFIRMED
   COMPLETED

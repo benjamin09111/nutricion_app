@@ -77,6 +77,17 @@ export interface PatientPortalDeliverable {
   updatedAt: string;
 }
 
+export interface PatientPortalAppointment {
+  id: string;
+  title: string;
+  description: string | null;
+  startTime: string;
+  endTime: string;
+  status: string;
+  notes: string | null;
+  meetingUrl: string | null;
+}
+
 export interface PatientPortalProject {
   id: string;
   name: string;
@@ -150,6 +161,7 @@ export interface PatientPortalOverview {
   notifications: PatientPortalEntry[];
   sharedResources: PatientPortalResource[];
   sharedDeliverables: PatientPortalDeliverable[];
+  appointments: PatientPortalAppointment[];
   status: string;
 }
 

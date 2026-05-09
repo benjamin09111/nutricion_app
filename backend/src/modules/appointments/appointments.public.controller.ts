@@ -12,7 +12,8 @@ export class AppointmentsPublicController {
 
   @Get('booking-links/:token/availability/rules')
   async getBookingLinkAvailabilityRules(@Param('token') token: string) {
-    const bookingLink = await this.appointmentsService.getBookingLinkByToken(token);
+    const bookingLink =
+      await this.appointmentsService.getBookingLinkByToken(token);
     return this.appointmentsService.getAvailabilityRules(
       bookingLink.calendarId,
       bookingLink.nutritionistId,

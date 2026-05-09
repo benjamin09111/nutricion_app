@@ -13,7 +13,7 @@ export class ApiKeyGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-    
+
     const apiKey = request.headers['x-api-key'] as string;
     const nutritionistId = request.headers['x-nutritionist-id'] as string;
     const authHeader = request.headers['authorization'] as string;
@@ -25,18 +25,34 @@ export class ApiKeyGuard implements CanActivate {
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       try {
-        const decoded = jwt.verify(token, this.jwtSecret) as any;
+        const decoded = jwt.verify(token, this.jwtSecret) as jwt.JwtPayload & {
+          nutritionistId?: string;
+        };
         if (decoded?.sub || decoded?.nutritionistId) {
-          request.headers['x-nutritionist-id'] = decoded.sub || decoded.nutritionistId;
-          request.headers['x-api-key'] = 'from-jwt';
+          const headers = request.headers as Record<
+            string,
+            string | string[] | undefined
+          >;
+          const nutritionistId =
+            typeof decoded.sub === 'string'
+              ? decoded.sub
+              : decoded.nutritionistId;
+
+          if (typeof nutritionistId !== 'string' || !nutritionistId) {
+            return false;
+          }
+
+          headers['x-nutritionist-id'] = nutritionistId;
+          headers['x-api-key'] = 'from-jwt';
           return true;
         }
-      } catch (e) {
+      } catch {
+        // Invalid JWTs continue to the explicit header check.
       }
     }
 
     throw new UnauthorizedException(
-      'Se requiere X-Api-Key y X-Nutritionist-Id, o un JWT válido en Authorization'
+      'Se requiere X-Api-Key y X-Nutritionist-Id, o un JWT válido en Authorization',
     );
   }
 }
