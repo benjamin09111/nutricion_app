@@ -32,6 +32,7 @@ import { ProjectsModule } from './modules/projects/projects.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { PatientPortalsModule } from './modules/patient-portals/patient-portals.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
+import { PautasModule } from './modules/pautas/pautas.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { AppointmentsModule } from './modules/appointments/appointments.module';
     PermissionsModule,
     PatientPortalsModule,
     AppointmentsModule,
+    PautasModule,
   ],
   controllers: [AppController],
   providers: [AppService],

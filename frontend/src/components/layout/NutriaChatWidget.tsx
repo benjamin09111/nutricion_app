@@ -74,6 +74,12 @@ const NUTRIA_ROUTE_MESSAGES: Array<{
       "Aquí podré orientarte para revisar, personalizar y dejar más pulido el material final que compartes con tu paciente.",
   },
   {
+    pattern: "/dashboard/pautas",
+    moduleLabel: "Pautas de Alimentación",
+    message:
+      "En esta sección crearás guías de alimentación personalizadas para restricciones clínicas específicas.\n\n**¿Cómo funciona?**\n\n1. **Información general**: Define el título y la restricción clínica (ej: Diabetes tipo 2, Hipertensión).\n\n2. **Datos del paciente**: Importa un paciente o ingresa sus datos manualmente.\n\n3. **Recurso educativo**: Añade información educativa automática o escríbela tú mismo.\n\n4. **Párrafos**: Aquí creas las recomendaciones propiamente dichas:\n   - Selecciona una categoría de alimento (ej: Lácteos, Verduras)\n   - Define las porciones recomendadas\n   - Lista los alimentos permitidos\n   - Elige una imagen representativa\n\n**Tips:**\n- Usa \"Generar con IA\" para que te ayude a crear párrafos automáticamente\n- Las categorías se excluyen entre párrafos para evitar duplicados\n- Guarda tus creaciones para reutilizarlas después",
+  },
+  {
     pattern: "/dashboard/alimentos",
     moduleLabel: "Alimentos",
     message:

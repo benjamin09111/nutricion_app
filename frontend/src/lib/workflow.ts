@@ -6,7 +6,8 @@ type WorkflowCreationType =
   | "RECIPE"
   | "SHOPPING_LIST"
   | "DELIVERABLE"
-  | "FAST_DELIVERABLE";
+  | "FAST_DELIVERABLE"
+  | "PAUTAS";
 
 type WorkflowProjectMode = "CLINICAL" | "GENERAL";
 

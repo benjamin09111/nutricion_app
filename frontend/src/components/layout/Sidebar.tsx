@@ -62,6 +62,7 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Principal", isSubHeader: true },
       { name: "Entregable Rápido", href: "/dashboard/rapido", icon: NotebookText },
+      { name: "Pautas de Alimentación", href: "/dashboard/pautas", icon: FileText },
       { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
       { name: "Entregable Personalizado", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
       { name: "Alimentos", isSubHeader: true },
