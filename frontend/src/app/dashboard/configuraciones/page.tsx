@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Lock, Save, Eye, EyeOff, Sun, Moon, Type, FileText } from "lucide-react";
+import { User, Lock, Save, Eye, EyeOff, Sun, Moon, Type, FileText, Globe, MapPin, Phone, Mail, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { authService } from "@/features/auth/services/auth.service";
@@ -14,6 +14,15 @@ interface UserSettings {
   professionalInstagram?: string;
   professionalPhone?: string;
   professionalEmail?: string;
+  publicProfileEnabled?: boolean;
+  publicSlug?: string;
+  headline?: string;
+  bio?: string;
+  consultationMode?: string;
+  location?: string;
+  publicPhone?: string;
+  publicEmail?: string;
+  bookingEnabled?: boolean;
 }
 
 const LEGAL_SECTIONS = [
@@ -106,6 +115,17 @@ export default function SettingsPage() {
   const [professionalEmail, setProfessionalEmail] = useState("");
   const [isSavingProfessionalContact, setIsSavingProfessionalContact] =
     useState(false);
+
+  const [publicProfileEnabled, setPublicProfileEnabled] = useState(false);
+  const [publicSlug, setPublicSlug] = useState("");
+  const [headline, setHeadline] = useState("");
+  const [bio, setBio] = useState("");
+  const [consultationMode, setConsultationMode] = useState("online");
+  const [location, setLocation] = useState("");
+  const [publicPhone, setPublicPhone] = useState("");
+  const [publicEmail, setPublicEmail] = useState("");
+  const [bookingEnabled, setBookingEnabled] = useState(true);
+  const [isSavingPublicProfile, setIsSavingPublicProfile] = useState(false);
   const { theme, setTheme } = useTheme();
   const { fontPreference, setFontPreference } = useFont();
   useEffect(() => {
@@ -122,6 +142,16 @@ export default function SettingsPage() {
         setProfessionalInstagram(settings.professionalInstagram || "");
         setProfessionalPhone(settings.professionalPhone || "");
         setProfessionalEmail(settings.professionalEmail || "");
+
+        setPublicProfileEnabled(settings.publicProfileEnabled || false);
+        setPublicSlug(settings.publicSlug || "");
+        setHeadline(settings.headline || "");
+        setBio(settings.bio || "");
+        setConsultationMode(settings.consultationMode || "online");
+        setLocation(settings.location || "");
+        setPublicPhone(settings.publicPhone || "");
+        setPublicEmail(settings.publicEmail || "");
+        setBookingEnabled(settings.bookingEnabled !== false);
       } catch (e) {
         console.error("Error loading user data", e);
       }
@@ -211,6 +241,64 @@ export default function SettingsPage() {
       toast.error(message || "Hubo un error");
     } finally {
       setIsSavingProfessionalContact(false);
+    }
+  };
+
+  const handleSavePublicProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingPublicProfile(true);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetchApi(`/users/me/settings`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          publicProfileEnabled,
+          publicSlug: publicSlug.trim() || undefined,
+          headline: headline.trim(),
+          bio: bio.trim(),
+          consultationMode,
+          location: location.trim(),
+          publicPhone: publicPhone.trim(),
+          publicEmail: publicEmail.trim(),
+          bookingEnabled,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo guardar el perfil público");
+      }
+
+      toast.success("Perfil público guardado correctamente");
+
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        if (user.nutritionist) {
+          user.nutritionist.settings = {
+            ...user.nutritionist.settings,
+            publicProfileEnabled,
+            publicSlug: publicSlug.trim() || undefined,
+            headline: headline.trim(),
+            bio: bio.trim(),
+            consultationMode,
+            location: location.trim(),
+            publicPhone: publicPhone.trim(),
+            publicEmail: publicEmail.trim(),
+            bookingEnabled,
+          };
+          localStorage.setItem("user", JSON.stringify(user));
+        }
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Hubo un error";
+      toast.error(message || "Hubo un error");
+    } finally {
+      setIsSavingPublicProfile(false);
     }
   };
 
@@ -538,6 +626,199 @@ export default function SettingsPage() {
             </p>
           </div>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm font-medium">
+        <div className="border-b border-slate-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-x-2">
+              <Globe className="h-5 w-5 text-emerald-600" />
+              <h2 className="font-semibold text-slate-900">
+                Perfil Público
+              </h2>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <span className="text-sm font-medium text-slate-600">Activar</span>
+              <div
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  publicProfileEnabled ? "bg-emerald-500" : "bg-slate-200"
+                }`}
+                onClick={() => setPublicProfileEnabled(!publicProfileEnabled)}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                    publicProfileEnabled ? "left-7" : "left-1"
+                  }`}
+                />
+              </div>
+            </label>
+          </div>
+          <p className="mt-2 text-sm text-slate-500">
+            Permite que otros usuarios te encuentren y soliciten citas desde el directorio de nutricionistas.
+          </p>
+        </div>
+
+        {publicProfileEnabled && (
+          <div className="p-6 space-y-6">
+            <form onSubmit={handleSavePublicProfile} className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    URL pública (slug)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-500">nutrinet.cl/nutricionistas/</span>
+                    <Input
+                      type="text"
+                      value={publicSlug}
+                      onChange={(e) => setPublicSlug(e.target.value)}
+                      placeholder="tu-nombre"
+                      className="flex-1"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Deja vacío para generar automáticamente
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Frase corta (headline)
+                  </label>
+                  <Input
+                    type="text"
+                    value={headline}
+                    onChange={(e) => setHeadline(e.target.value)}
+                    placeholder="Nutricionista clínica especializada en..."
+                    maxLength={100}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">
+                  Bio / Descripción
+                </label>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Cuéntales a los pacientes sobre tu enfoque profesional, tu experiencia y cómo les puedes ayudar..."
+                  className="w-full min-h-[120px] rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none"
+                  maxLength={500}
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  {bio.length}/500 caracteres
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Modalidad de atención
+                  </label>
+                  <select
+                    value={consultationMode}
+                    onChange={(e) => setConsultationMode(e.target.value)}
+                    className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                  >
+                    <option value="online">Online</option>
+                    <option value="presencial">Presencial</option>
+                    <option value="both">Online y Presencial</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Ubicación (ciudad/comuna)
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      type="text"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="Santiago, Chile"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-6">
+                <h3 className="text-sm font-bold text-slate-700 mb-4">
+                  Información de contacto pública
+                </h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                      <Phone className="inline h-3 w-3 mr-1" />
+                      Teléfono público
+                    </label>
+                    <Input
+                      type="text"
+                      value={publicPhone}
+                      onChange={(e) => setPublicPhone(e.target.value)}
+                      placeholder="+56 9 1234 5678"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                      <Mail className="inline h-3 w-3 mr-1" />
+                      Email público
+                    </label>
+                    <Input
+                      type="email"
+                      value={publicEmail}
+                      onChange={(e) => setPublicEmail(e.target.value)}
+                      placeholder="contacto@tuemail.cl"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <Calendar className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-900">Permitir solicitar citas</p>
+                      <p className="text-xs text-slate-500">
+                        Los usuarios podrán pedir hora desde tu perfil público
+                      </p>
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <div
+                      className={`relative w-11 h-6 rounded-full transition-colors ${
+                        bookingEnabled ? "bg-emerald-500" : "bg-slate-200"
+                      }`}
+                      onClick={() => setBookingEnabled(!bookingEnabled)}
+                    >
+                      <div
+                        className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                          bookingEnabled ? "left-6" : "left-1"
+                        }`}
+                      />
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button
+                  type="submit"
+                  isLoading={isSavingPublicProfile}
+                  className="flex items-center gap-2 font-bold"
+                >
+                  {!isSavingPublicProfile && <Save className="h-4 w-4" />}
+                  Guardar Perfil Público
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm font-medium">

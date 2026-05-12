@@ -194,4 +194,209 @@ export class UsersService {
       where: { role: 'NUTRITIONIST', status: { not: 'DELETED' as any } },
     });
   }
+
+  /**
+   * List public nutritionists for directory
+   */
+  async listPublicNutritionists(filters: {
+    search?: string;
+    specialty?: string;
+    mode?: string;
+    location?: string;
+  }) {
+    const { search, specialty, mode, location } = filters;
+
+    const where: any = {
+      account: {
+        role: 'NUTRITIONIST',
+        status: 'ACTIVE',
+      },
+    };
+
+    const nutritionists = await this.prisma.nutritionist.findMany({
+      where,
+      select: {
+        id: true,
+        fullName: true,
+        specialty: true,
+        phone: true,
+        avatarUrl: true,
+        settings: true,
+      },
+      orderBy: { fullName: 'asc' },
+    });
+
+    const publicNutritionists = nutritionists
+      .map((n) => this.sanitizePublicProfile(n))
+      .filter((n) => n.isPublic);
+
+    let filtered = publicNutritionists;
+
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filtered = filtered.filter(
+        (n) =>
+          n.fullName.toLowerCase().includes(searchLower) ||
+          (n.specialty?.toLowerCase().includes(searchLower)) ||
+          (n.bio?.toLowerCase().includes(searchLower)),
+      );
+    }
+
+    if (specialty) {
+      filtered = filtered.filter(
+        (n) => n.specialties?.some((s) => s.toLowerCase().includes(specialty.toLowerCase())),
+      );
+    }
+
+    if (mode) {
+      filtered = filtered.filter((n) => n.consultationMode === mode);
+    }
+
+    if (location) {
+      filtered = filtered.filter(
+        (n) => n.location?.toLowerCase().includes(location.toLowerCase()),
+      );
+    }
+
+    return { nutritionists: filtered, total: filtered.length };
+  }
+
+  /**
+   * Get public nutritionist by slug
+   */
+  async getPublicNutritionistBySlug(slug: string) {
+    const nutritionists = await this.prisma.nutritionist.findMany({
+      where: {
+        account: {
+          role: 'NUTRITIONIST',
+          status: 'ACTIVE',
+        },
+      },
+      select: {
+        id: true,
+        fullName: true,
+        specialty: true,
+        phone: true,
+        avatarUrl: true,
+        settings: true,
+      },
+    });
+
+    for (const n of nutritionists) {
+      const publicProfile = this.sanitizePublicProfile(n);
+      if (publicProfile.slug === slug && publicProfile.isPublic) {
+        return publicProfile;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Get nutritionist availability for public booking
+   */
+  async getNutritionistAvailability(nutritionistId: string) {
+    const calendar = await this.prisma.appointmentCalendar.findUnique({
+      where: { nutritionistId },
+      include: {
+        timeSlots: {
+          orderBy: [{ dayOfWeek: 'asc' }, { hour: 'asc' }],
+        },
+      },
+    });
+
+    if (!calendar) {
+      return { hasCalendar: false, slots: [] };
+    }
+
+    const schedule: Record<string, Record<number, { available: boolean }>> = {};
+
+    for (let day = 0; day < 7; day++) {
+      schedule[day] = {};
+      for (let hour = 0; hour < 24; hour++) {
+        schedule[day][hour] = { available: false };
+      }
+    }
+
+    for (const slot of calendar.timeSlots) {
+      schedule[slot.dayOfWeek][slot.hour] = {
+        available: slot.isAvailable,
+      };
+    }
+
+    return {
+      hasCalendar: true,
+      calendarId: calendar.id,
+      timeZone: calendar.timeZone,
+      schedule,
+    };
+  }
+
+  /**
+   * Sanitize and extract public profile data from nutritionist
+   */
+  private sanitizePublicProfile(nutritionist: {
+    id: string;
+    fullName: string;
+    specialty: string | null;
+    phone: string | null;
+    avatarUrl: string | null;
+    settings: any;
+  }) {
+    const settings = (nutritionist.settings as Record<string, any>) || {};
+
+    const slug =
+      settings.publicSlug ||
+      this.generateSlug(nutritionist.fullName, nutritionist.id);
+
+    const isPublic = settings.publicProfileEnabled === true;
+
+    return {
+      id: nutritionist.id,
+      slug,
+      fullName: nutritionist.fullName,
+      specialty: nutritionist.specialty,
+      headline: settings.headline || null,
+      bio: settings.bio || null,
+      specialties: this.parseSpecialties(settings.specialties),
+      consultationMode: settings.consultationMode || 'online',
+      location: settings.location || null,
+      avatarUrl: nutritionist.avatarUrl,
+      isPublic,
+      publicPhone: settings.publicPhone || null,
+      publicEmail: settings.publicEmail || null,
+      instagram: settings.professionalInstagram || null,
+      bookingEnabled: settings.bookingEnabled !== false,
+    };
+  }
+
+  /**
+   * Generate URL-friendly slug from name and id
+   */
+  private generateSlug(fullName: string, id: string): string {
+    const namePart = fullName
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .substring(0, 30);
+    const idPart = id.substring(0, 8);
+    return `${namePart}-${idPart}`;
+  }
+
+  /**
+   * Parse specialties from settings
+   */
+  private parseSpecialties(specialties: any): string[] {
+    if (!specialties) return [];
+    if (Array.isArray(specialties)) return specialties;
+    if (typeof specialties === 'string') {
+      try {
+        return JSON.parse(specialties);
+      } catch {
+        return [specialties];
+      }
+    }
+    return [];
+  }
 }

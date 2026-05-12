@@ -11,6 +11,7 @@ import {
   Menu,
   Moon,
   Sun,
+  Globe,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -231,6 +232,24 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
               ¡Futuras actualizaciones!
             </span>
           </Link>
+
+          <a
+            href="/nutricionistas"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "group hidden items-center gap-2 rounded-xl border px-3 py-1.5 transition-all sm:flex",
+              isDarkMode
+                ? "border-indigo-400/20 bg-indigo-500/10 text-indigo-200 hover:border-indigo-300/40 hover:bg-indigo-500/20"
+                : "border-indigo-100 bg-indigo-50 text-indigo-700 hover:border-indigo-200 hover:bg-indigo-100",
+            )}
+            title="Abrir portal de nutricionistas"
+          >
+            <Globe className="h-3.5 w-3.5 text-indigo-500 transition-transform group-hover:scale-110" />
+            <span className="text-[10px] font-black uppercase tracking-wider">
+              Portal
+            </span>
+          </a>
 
           <div className="relative" ref={notificationRef}>
             <button
