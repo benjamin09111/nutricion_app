@@ -731,6 +731,12 @@ export default function PatientsClient() {
                     </p>
                   </div>
                   <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Edad</p>
+                    <p className="mt-1 font-semibold">
+                      {patientPreview.age ? `${patientPreview.age} años` : "No registrada"}
+                    </p>
+                  </div>
+                  <div>
                     <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Altura</p>
                     <p className="mt-1 font-semibold">{patientPreview.height ? `${patientPreview.height} cm` : "No registrado"}</p>
                   </div>

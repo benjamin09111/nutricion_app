@@ -46,12 +46,9 @@ export class RequestsService {
       data: createDto,
     });
 
-    // 3. Send Notifications
-    await this.mailService.sendAdminNotification(createDto);
-    await this.mailService.sendRegistrationConfirmation(
-      createDto.email,
-      createDto.fullName,
-    );
+    // 3. Notifications DISABLED (SMTP BLOCKED)
+    console.log(`ℹ️ [RequestsService] Notificación de solicitud para ${createDto.email} omitida (SMTP Desactivado).`);
+
 
     return {
       success: true,
@@ -209,12 +206,9 @@ export class RequestsService {
     }
 
     if (status === 'REJECTED') {
-      await this.mailService.sendRejectionEmail(
-        request.email,
-        request.fullName,
-        adminNotes,
-      );
+      console.log(`ℹ️ [RequestsService] Correo de rechazo para ${request.email} omitido (SMTP Desactivado).`);
     }
+
 
     // Standard update for other cases (Rejection or moving back to pending)
     return this.prisma.registrationRequest.update({

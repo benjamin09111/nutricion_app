@@ -41,21 +41,29 @@ export class SupportService {
       },
     });
 
-    // 2. Notify Admins via Email
-    await this.mailService.sendFeedback({
-      type: data.type, // Send the specific type (FEEDBACK, IDEA, etc)
-      subject:
-        data.subject ||
-        (data.message ? data.message.substring(0, 30) + '...' : 'Sin asunto'),
-      message:
-        data.type === 'TESTIMONIO'
-          ? `Testimonio público potencial: ${data.message || 'Sin mensaje'}`
-          : data.message || 'Sin mensaje',
-      fromEmail: data.email,
-    });
+    // 2. Notify Admins via Email (Non-blocking)
+    this.mailService
+      .sendFeedback({
+        type: data.type, // Send the specific type (FEEDBACK, IDEA, etc)
+        subject:
+          data.subject ||
+          (data.message ? data.message.substring(0, 30) + '...' : 'Sin asunto'),
+        message:
+          data.type === 'TESTIMONIO'
+            ? `Testimonio público potencial: ${data.message || 'Sin mensaje'}`
+            : data.message || 'Sin mensaje',
+        fromEmail: data.email,
+      })
+      .catch((err) =>
+        console.error('Error sending support notification:', err),
+      );
 
-    // 3. Send confirmation to user
-    await this.mailService.sendFeedbackConfirmation(data.email);
+    // 3. Send confirmation to user (Non-blocking)
+    this.mailService
+      .sendFeedbackConfirmation(data.email)
+      .catch((err) =>
+        console.error('Error sending feedback confirmation:', err),
+      );
 
     return request;
   }

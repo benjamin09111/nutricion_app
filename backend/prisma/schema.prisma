@@ -128,6 +128,7 @@ model Patient {
   email            String?
   phone            String?
   documentId       String?        @map("document_id")
+  age              Int?           @map("age")
   birthDate        DateTime?      @map("birth_date")
   gender           String?
   height           Float?

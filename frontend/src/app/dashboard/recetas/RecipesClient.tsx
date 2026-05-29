@@ -34,7 +34,6 @@ import {
   Droplet,
   Layers,
   Save,
-  FileCode,
   Library,
   User,
   UserPlus,
@@ -179,7 +178,6 @@ type MealSectionTarget = {
   count: number;
 };
 
-type AiRecipeStyle = "very-simple" | "simple" | "varied";
 type SubstituteMealSection = "desayuno" | "almuerzo";
 
 type SubstituteRecipeItem = {
@@ -187,17 +185,6 @@ type SubstituteRecipeItem = {
   title: string;
   mealSection?: string;
 };
-
-// Meal section options for the generation form
-const MEAL_SECTION_OPTIONS = [
-  { value: "desayuno", label: "Desayuno" },
-  { value: "almuerzo", label: "Almuerzo" },
-  { value: "once", label: "Once" },
-  { value: "cena", label: "Cena" },
-  { value: "colacion", label: "Colación" },
-] as const;
-
-type MealSectionValue = typeof MEAL_SECTION_OPTIONS[number]["value"];
 
 type NutritionGoals = {
   calories: number;
@@ -662,19 +649,6 @@ export default function RecipesClient() {
   const [showAddBlockModal, setShowAddBlockModal] = useState(false);
   const [editingMealBlockId, setEditingMealBlockId] = useState<string | null>(null);
   const [previewRecipeId, setPreviewRecipeId] = useState<string | null>(null);
-  const [showAiFillModal, setShowAiFillModal] = useState(false);
-  const [aiNutritionistNotes, setAiNutritionistNotes] = useState("");
-  const [aiRecipeStyle, setAiRecipeStyle] = useState<AiRecipeStyle>("very-simple");
-  const [aiSpecialConsiderations, setAiSpecialConsiderations] = useState("");
-
-
-
-  // Generation form: targets per meal section
-  const [mealSectionTargets, setMealSectionTargets] = useState<MealSectionTarget[]>([
-    { mealSection: "desayuno", count: 3 },
-    { mealSection: "almuerzo", count: 3 },
-    { mealSection: "cena", count: 3 },
-  ]);
 
   const [adviseMealRepetition, setAdviseMealRepetition] = useState(false);
   const [enableSubstituteRecipes, setEnableSubstituteRecipes] = useState(false);
@@ -793,11 +767,11 @@ export default function RecipesClient() {
         status: getGuideSectionStatus(
           true,
           Boolean(selectedPatient?.fullName) &&
-            selectedPatient?.ageYears !== null &&
-            selectedPatient?.ageYears !== undefined &&
-            Boolean(selectedPatient?.gender) &&
-            (Boolean(selectedPatient?.noDietaryRestrictions) ||
-              Boolean(selectedPatient?.restrictions?.length)),
+          selectedPatient?.ageYears !== null &&
+          selectedPatient?.ageYears !== undefined &&
+          Boolean(selectedPatient?.gender) &&
+          (Boolean(selectedPatient?.noDietaryRestrictions) ||
+            Boolean(selectedPatient?.restrictions?.length)),
         ),
         ref: patientSectionRef,
       },
@@ -1692,11 +1666,24 @@ export default function RecipesClient() {
   const handleQuickGenerateAI = async () => {
     if (!validatePatientContextForAi()) return;
 
-    const totalDishes = mealSectionTargets.reduce((s: number, t: MealSectionTarget) => s + t.count, 0);
-    if (totalDishes === 0) {
-      toast.error("Debes configurar al menos un plato a generar.");
+    const emptySlots = currentSlots.filter(
+      (slot) => !slot.recipe && isStrictMealSection(slot.mealSection || slot.type),
+    );
+    if (emptySlots.length === 0) {
+      toast.info(`No hay espacios vacíos para rellenar en ${currentDay}.`);
       return;
     }
+
+    const validTargets = emptySlots.reduce<MealSectionTarget[]>((acc, slot) => {
+      const mealSection = String(slot.mealSection || slot.type || "").toLowerCase();
+      const existing = acc.find((target) => target.mealSection === mealSection);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        acc.push({ mealSection, count: 1 });
+      }
+      return acc;
+    }, []);
 
     const token = getAuthToken();
     if (!token) {
@@ -1704,18 +1691,18 @@ export default function RecipesClient() {
       return;
     }
 
-    setShowAiFillModal(false);
     setIsGenerating(true);
 
     try {
       const patient = selectedPatient;
       const payload = {
         payload: {
-          notes: aiNutritionistNotes,
-          specialConsiderations: aiSpecialConsiderations,
+          notes: `Rellena automáticamente los espacios vacíos del día ${currentDay} respetando el tipo de comida de cada bloque.`,
+          specialConsiderations:
+            "Puedes crear platos con ingredientes fuera de la dieta base si aportan variedad. Esos ingredientes se agregarán después en el carrito si hace falta.",
           allowedFoodsMain: sourceFoods,
           exchangeGuide: buildExchangeGuideForAi(),
-          mealSectionTargets,
+          mealSectionTargets: validTargets,
           generationMode: "single" as const,
           patient: {
             fullName: patient?.fullName ?? "",
@@ -1764,50 +1751,50 @@ export default function RecipesClient() {
           fats: Number(d.fats) || 0,
           ingredients: Array.isArray(d.ingredients)
             ? d.ingredients.map((ing: any) =>
-                typeof ing === "string"
-                  ? { name: ing, quantity: "" }
-                  : {
-                      name: String(ing?.name || ""),
-                      quantity: String(ing?.quantity || ""),
-                      amount: ing?.amount != null ? String(ing.amount) : undefined,
-                      unit: ing?.unit ? String(ing.unit) : undefined,
-                    },
-              )
+              typeof ing === "string"
+                ? { name: ing, quantity: "" }
+                : {
+                  name: String(ing?.name || ""),
+                  quantity: String(ing?.quantity || ""),
+                  amount: ing?.amount != null ? String(ing.amount) : undefined,
+                  unit: ing?.unit ? String(ing.unit) : undefined,
+                },
+            )
             : [],
           ingredientDetails: Array.isArray(d.ingredients)
             ? d.ingredients
-                .map((ing: any) => {
-                  if (typeof ing === "string") {
-                    const name = ing.trim();
-                    if (!name) return null;
-                    return { name, quantity: "", amount: undefined, unit: undefined };
-                  }
-                  if (!ing || typeof ing !== "object") return null;
-                  const name = String(ing.name || "").trim();
+              .map((ing: any) => {
+                if (typeof ing === "string") {
+                  const name = ing.trim();
                   if (!name) return null;
-                  return {
-                    name,
-                    quantity: String(ing.quantity || ""),
-                    amount: ing.amount != null ? Number(ing.amount) : undefined,
-                    unit: ing.unit ? String(ing.unit) : undefined,
-                  };
-                })
-                .filter((item: RecipeIngredientDetail | null): item is RecipeIngredientDetail => !!item)
+                  return { name, quantity: "", amount: undefined, unit: undefined };
+                }
+                if (!ing || typeof ing !== "object") return null;
+                const name = String(ing.name || "").trim();
+                if (!name) return null;
+                return {
+                  name,
+                  quantity: String(ing.quantity || ""),
+                  amount: ing.amount != null ? Number(ing.amount) : undefined,
+                  unit: ing.unit ? String(ing.unit) : undefined,
+                };
+              })
+              .filter((item: RecipeIngredientDetail | null): item is RecipeIngredientDetail => !!item)
             : [],
         }),
       );
 
-      // Map generated dishes to existing slots for the current day
+      // Map generated dishes to existing empty slots for the current day
       setWeekSlots((prev) => {
         const next = { ...prev };
         const daySlots = [...(next[currentDay] || [])];
-        
+
         dishes.forEach((dish) => {
           // Find first empty slot for this meal section in the current day
           const slotIndex = daySlots.findIndex(
             (s) => s.mealSection?.toLowerCase() === dish.mealSection.toLowerCase() && !s.recipe
           );
-          
+
           if (slotIndex !== -1) {
             daySlots[slotIndex] = {
               ...daySlots[slotIndex],
@@ -1831,18 +1818,16 @@ export default function RecipesClient() {
             };
           }
         });
-        
+
         next[currentDay] = daySlots;
         return next;
       });
 
-      toast.success(`¡IA generó y aplicó ${dishes.length} platos al plan de ${currentDay}!`);
+      toast.success(`Nati rellenó ${dishes.length} espacios en ${currentDay}.`);
     } catch (error: any) {
       const message = String(error?.message || "");
       console.error("[RecipesClient] AI Generation Error:", error);
-      toast.error(message || "Error al generar con IA.", {
-        description: "Verifica los logs de la consola o la cuota de Gemini.",
-      });
+      toast.error(message || "Error al generar con IA.");
     } finally {
       setIsGenerating(false);
     }
@@ -1965,12 +1950,7 @@ export default function RecipesClient() {
     recipe?: Pick<Recipe, "mealSection"> | null,
     slot?: Pick<MealSlot, "mealSection" | "type"> | null,
   ) => {
-    const recipeSection = normalizeAiValue(recipe?.mealSection || "");
-    const slotSection = normalizeAiValue(slot?.mealSection || slot?.type || "");
-
-    if (!recipeSection || !slotSection) return true;
-    if (recipeSection === "almuerzo" && slotSection === "cena") return true;
-    return recipeSection === slotSection;
+    return true;
   };
 
   const assignRecipeToSlot = (
@@ -2081,8 +2061,8 @@ export default function RecipesClient() {
         Object.keys(prev)[0];
       const fallbackTemplate = getStructureTemplate(
         (referenceDay && prev[referenceDay]) ||
-          SLOT_LIBRARY[mealCount] ||
-          SLOT_LIBRARY[DEFAULT_MEAL_COUNT],
+        SLOT_LIBRARY[mealCount] ||
+        SLOT_LIBRARY[DEFAULT_MEAL_COUNT],
       );
       days.forEach((day) => {
         next[day] = prev[day]
@@ -2143,7 +2123,6 @@ export default function RecipesClient() {
       return;
     }
 
-    setShowAiFillModal(false);
     toast.success(`Se rellenaron ${filledCount} bloques con tus platos creados.`);
   };
 
@@ -2393,7 +2372,7 @@ export default function RecipesClient() {
   const isRecipeCompatibleForSubstitute = (
     recipe: Pick<Recipe, "mealSection">,
     section: SubstituteMealSection,
-  ) => normalizeAiValue(recipe.mealSection || "") === section;
+  ) => true;
 
   const getSubstituteSectionForRecipe = (
     recipe: Pick<Recipe, "mealSection">,
@@ -2535,8 +2514,8 @@ export default function RecipesClient() {
 
     setTargetCalories(patientNutritionGoals.calories);
     setTargetProtein(patientNutritionGoals.protein);
-    
-    
+
+
   }, [
     selectedPatient,
     patientNutritionGoals?.calories,
@@ -2738,24 +2717,6 @@ export default function RecipesClient() {
     setWeekSlots((prev) => applyStructureToWeek(nextStructure, prev));
   };
 
-  const printJson = () => {
-    const storedDraft = readWorkflowDraft();
-    const workflowJson = {
-      patientMeta:
-        storedDraft.patientMeta || buildPatientMeta(selectedPatient) || null,
-      modules: {
-        diet: storedDraft.diet || null,
-        recipes: buildRecipesModule(),
-        cart: storedDraft.cart || null,
-        deliverable: storedDraft.deliverable || null,
-      },
-    };
-
-    console.group("PROJECT WORKFLOW JSON");
-    console.log(workflowJson);
-    console.groupEnd();
-    toast.info("JSON acumulado del proyecto impreso en consola.");
-  };
 
   const resetRecipes = () => {
     const initial: Record<string, MealSlot[]> = {};
@@ -2833,8 +2794,8 @@ export default function RecipesClient() {
           fats: slot.recipe!.fats,
           ingredients: Array.isArray(slot.recipe!.ingredients)
             ? slot.recipe!.ingredients.map((ingredient) => ({
-                name: ingredient,
-              }))
+              name: ingredient,
+            }))
             : [],
         })),
     );
@@ -2846,11 +2807,11 @@ export default function RecipesClient() {
       specialConsiderations:
         selectedPatient
           ? [
-              selectedPatient.nutritionalFocus ? `Foco: ${selectedPatient.nutritionalFocus}` : "",
-              selectedPatient.fitnessGoals ? `Fitness: ${selectedPatient.fitnessGoals}` : "",
-            ]
-              .filter(Boolean)
-              .join(" · ")
+            selectedPatient.nutritionalFocus ? `Foco: ${selectedPatient.nutritionalFocus}` : "",
+            selectedPatient.fitnessGoals ? `Fitness: ${selectedPatient.fitnessGoals}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · ")
           : undefined,
       restrictedFoods: selectedPatient?.restrictions?.length
         ? selectedPatient.restrictions
@@ -2937,14 +2898,6 @@ export default function RecipesClient() {
         },
       },
       {
-        id: "export-json",
-        icon: FileCode,
-        label: "Imprimir JSON",
-        variant: "slate",
-        onClick: printJson,
-        disabled: isRecipesLocked,
-      },
-      {
         id: "export-pdf",
         icon: Download,
         label: "Exportar PDF",
@@ -2961,7 +2914,7 @@ export default function RecipesClient() {
         disabled: isRecipesLocked,
       },
     ].filter(Boolean) as ActionDockItem[],
-    [isExportingPdf, isRecipesLocked, printJson, resetRecipes, selectedPatient, showOnlyMyRecipes, sleepTime, targetCalories, targetCarbs, targetFats, targetProtein, wakeUpTime, weekSlots],
+    [isExportingPdf, isRecipesLocked, resetRecipes, selectedPatient, showOnlyMyRecipes, sleepTime, targetCalories, targetCarbs, targetFats, targetProtein, wakeUpTime, weekSlots],
   );
 
   const assignedSourceSummary = useMemo(() => {
@@ -3053,6 +3006,30 @@ export default function RecipesClient() {
 
   return (
     <>
+      {isGenerating ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 backdrop-blur-sm">
+          <div className="mx-4 flex max-w-sm flex-col items-center rounded-[2rem] bg-white px-8 py-7 text-center shadow-2xl">
+            <img
+              src="/nutria.webp"
+              alt="Nati está cocinando"
+              className="h-28 w-28 animate-pulse object-contain"
+            />
+            <p className="mt-4 text-[11px] font-black uppercase tracking-[0.28em] text-emerald-600">
+              Nati está cocinando
+            </p>
+            <h3 className="mt-2 text-2xl font-black text-slate-900">
+              Rellenando platos vacíos
+            </h3>
+            <p className="mt-2 text-sm font-medium text-slate-500">
+              Estamos completando automáticamente los bloques pendientes de {currentDay}.
+            </p>
+            <div className="mt-5 flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Generando con IA
+            </div>
+          </div>
+        </div>
+      ) : null}
       <ImportCreationModal
         isOpen={isImportCreationModalOpen}
         onClose={() => setIsImportCreationModalOpen(false)}
@@ -3067,21 +3044,6 @@ export default function RecipesClient() {
         onKeep={handleKeepDraft}
         onDiscard={handleDiscardDraft}
       />
-      {isGenerating ? (
-        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/55 backdrop-blur-sm">
-          <div className="flex flex-col items-center rounded-3xl border border-amber-200 bg-white px-10 py-8 shadow-2xl">
-            <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-amber-50">
-              <ChefHat className="h-10 w-10 animate-pulse text-amber-600" />
-            </div>
-            <p className="mt-5 text-lg font-black text-slate-900">
-              La IA está cocinando...
-            </p>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Preparando tus platos y porciones.
-            </p>
-          </div>
-        </div>
-      ) : null}
       <ModuleLayout
         title="Cuantificación: Recetas y Porciones"
         description={
@@ -3179,19 +3141,6 @@ export default function RecipesClient() {
           </ModuleFooter>
         }
       >
-        {isSidebarCollapsed && (
-          <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
-            <SectionProgressNav
-              items={recipesGuideSections.map((section) => ({
-                id: section.id,
-                label: section.label,
-                status: section.status,
-                active: activeGuideSection === section.id,
-                onClick: () => scrollToGuideSection(section.id),
-              }))}
-            />
-          </div>
-        )}
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}
@@ -3594,7 +3543,7 @@ export default function RecipesClient() {
 
                   <Button
                     variant="outline"
-                    onClick={() => setShowAiFillModal(true)}
+                    onClick={() => void handleQuickGenerateAI()}
                     disabled={isGenerating}
                     className="rounded-2xl font-bold flex items-center gap-2 border-slate-200"
                   >
@@ -4184,7 +4133,7 @@ export default function RecipesClient() {
                     <div className="flex justify-end">
                       <Button
                         variant="outline"
-                        onClick={() => setShowAiFillModal(true)}
+                        onClick={() => void handleQuickGenerateAI()}
                         disabled={isGenerating}
                         className="rounded-2xl font-bold flex items-center gap-2 border-slate-200"
                       >
@@ -4416,7 +4365,7 @@ export default function RecipesClient() {
                                           e.target.value,
                                         )
                                       }
-                placeholder="Porción (opcional)"
+                                      placeholder="Porción (opcional)"
                                       className="h-9 rounded-xl border-slate-200 bg-white text-xs"
                                     />
                                   </div>
@@ -4582,7 +4531,7 @@ export default function RecipesClient() {
                                           handleSlotPortionChange(day, slot.id, e.target.value)
                                         }
                                         onClick={(e) => e.stopPropagation()}
-                placeholder="Porción (opcional)"
+                                        placeholder="Porción (opcional)"
                                         className="mt-2 h-8 rounded-xl border-slate-200 bg-white text-xs"
                                       />
                                     ) : null}
@@ -4758,7 +4707,7 @@ export default function RecipesClient() {
                                   placeholder="prot"
                                   className="h-9 rounded-xl border-slate-200 text-xs font-bold"
                                 />
-                                
+
                               </div>
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
@@ -4772,8 +4721,8 @@ export default function RecipesClient() {
                                 <span className={dayTotalsWithSupplement.protein >= patientNutritionGoals.protein ? "text-emerald-600" : "text-slate-500"}>
                                   prot {Math.round(dayTotalsWithSupplement.protein)}/{patientNutritionGoals.protein}
                                 </span>
-                                
-                                
+
+
                               </div>
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
@@ -4787,8 +4736,8 @@ export default function RecipesClient() {
                                 <span className={weekTotalsWithSupplement.protein >= patientNutritionGoals.protein * 7 ? "text-emerald-600" : "text-slate-500"}>
                                   prot {Math.round(weekTotalsWithSupplement.protein)}/{patientNutritionGoals.protein * 7}
                                 </span>
-                                
-                                
+
+
                               </div>
                             </div>
                             {recommendedProteinRange ? (
@@ -5138,24 +5087,6 @@ export default function RecipesClient() {
               Completa lo mínimo para asignar una comida al bloque actual.
             </div>
 
-            {isGenerating ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm">
-                    <ChefHat className="h-5 w-5 animate-pulse text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-black text-amber-800">
-                      La IA está cocinando tus platos...
-                    </p>
-                    <p className="text-xs font-medium text-amber-700">
-                      Esto puede tardar unos segundos según la cantidad de bloques.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
             <div className="space-y-2">
               <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
                 Nombre *
@@ -5269,136 +5200,6 @@ export default function RecipesClient() {
             </div>
           </div>
         </Modal>
-
-        <Modal
-          isOpen={showAiFillModal}
-          onClose={() => {
-            if (isGenerating) return;
-            setShowAiFillModal(false);
-          }}
-          title="Generar platos con IA"
-        >
-          <div className="space-y-5">
-            {/* Context summary */}
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-slate-700">
-              <p className="font-black text-slate-900">Configuración de generación</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Alimentos base detectados: <strong>{sourceFoods.length}</strong> · Paciente: <strong>{selectedPatient?.fullName || "—"}</strong>
-              </p>
-            </div>
-
-            {/* Mandatory: patient context reminder */}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-1">
-              <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                Campos obligatorios <span className="text-rose-500">*</span>
-              </p>
-              <p className="text-xs text-slate-500">
-                Nombre, edad, sexo y restricciones del paciente deben estar completados en el panel izquierdo antes de generar.
-              </p>
-            </div>
-
-            {/* Dishes per meal section */}
-            <div className="space-y-3">
-              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                Platos a generar por tipo de comida
-              </label>
-              <div className="space-y-2">
-                {MEAL_SECTION_OPTIONS.map((section) => {
-                  const target = mealSectionTargets.find((t) => t.mealSection === section.value);
-                  const count = target?.count ?? 0;
-                  return (
-                    <div key={section.value} className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
-                      <span className="text-sm font-bold text-slate-700">{section.label}</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMealSectionTargets((prev) => {
-                              const exists = prev.find((t) => t.mealSection === section.value);
-                              if (exists) {
-                                return prev.map((t) =>
-                                  t.mealSection === section.value
-                                    ? { ...t, count: Math.max(0, t.count - 1) }
-                                    : t,
-                                );
-                              }
-                              return prev;
-                            });
-                          }}
-                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 cursor-pointer font-bold"
-                        >
-                          −
-                        </button>
-                        <span className="w-6 text-center text-sm font-black text-slate-900">{count}</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMealSectionTargets((prev) => {
-                              const exists = prev.find((t) => t.mealSection === section.value);
-                              if (exists) {
-                                return prev.map((t) =>
-                                  t.mealSection === section.value
-                                    ? { ...t, count: Math.min(14, t.count + 1) }
-                                    : t,
-                                );
-                              }
-                              return [...prev, { mealSection: section.value, count: 1 }];
-                            });
-                          }}
-                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer font-bold"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-slate-400">
-                Total: <strong>{mealSectionTargets.reduce((s, t) => s + t.count, 0)} platos</strong>
-              </p>
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-2">
-              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                Indicaciones adicionales (opcional)
-              </label>
-              <Textarea
-                value={aiNutritionistNotes}
-                onChange={(e) => setAiNutritionistNotes(e.target.value)}
-                placeholder="Ej: más desayunos salados, evitar huevo de noche, preferir preparaciones rápidas..."
-                className="min-h-[80px] rounded-2xl border-slate-200"
-              />
-            </div>
-
-            <div className="flex justify-end gap-3 pt-1">
-              <Button
-                variant="ghost"
-                className="rounded-2xl font-bold"
-                onClick={() => setShowAiFillModal(false)}
-                disabled={isGenerating}
-              >
-                Cancelar
-              </Button>
-              <Button
-                className="rounded-2xl bg-emerald-600 hover:bg-emerald-700"
-                onClick={() => void handleQuickGenerateAI()}
-                disabled={isGenerating || mealSectionTargets.reduce((s, t) => s + t.count, 0) === 0}
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generando platos...
-                  </>
-                ) : (
-                  "Generar con IA"
-                )}
-              </Button>
-            </div>
-          </div>
-        </Modal>
-
 
         <Modal
           isOpen={showAddBlockModal}

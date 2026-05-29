@@ -464,6 +464,25 @@ export class RecipesService {
     );
   }
 
+  private sanitizeQuickExistingDishes(value: unknown) {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const title =
+          typeof item.title === 'string' ? item.title.trim().slice(0, 120) : '';
+        const mealSection =
+          typeof item.mealSection === 'string'
+            ? item.mealSection.trim().slice(0, 40)
+            : '';
+
+        if (!title || !mealSection) return null;
+        return { title, mealSection };
+      })
+      .filter(Boolean)
+      .slice(0, 24);
+  }
+
   private parseQuickAiResponse(rawContent: string): any {
     const jsonContent = this.extractJsonFromResponse(rawContent);
     try {
@@ -516,14 +535,15 @@ export class RecipesService {
     const mealSection =
       typeof dish?.mealSection === 'string' ? dish.mealSection.trim() : '';
     const recommendedPortion =
-      typeof dish?.recommendedPortion === 'string'
+      typeof dish?.recommendedPortion === 'string' &&
+      dish.recommendedPortion.trim()
         ? dish.recommendedPortion.trim()
-        : '';
+        : '1 porcion individual';
     const portions = Number.isFinite(Number(dish?.portions))
       ? Math.max(1, Math.round(Number(dish.portions)))
       : 1;
 
-    if (!title || !mealSection || !recommendedPortion) {
+    if (!title || !mealSection) {
       throw new BadRequestException(
         'La IA devolvió un plato incompleto en recetas rápidas.',
       );
@@ -586,37 +606,49 @@ export class RecipesService {
     const safePayload = {
       dietName: payload.dietName || '',
       notes: payload.notes || '',
-      allowedFoodsMain: this.sanitizeStringList(payload.allowedFoodsMain),
-      restrictedFoods: this.sanitizeStringList(payload.restrictedFoods),
-      exchangeGuide: this.sanitizeStringList(payload.exchangeGuide),
+      allowedFoodsMain: this.sanitizeStringList(payload.allowedFoodsMain).slice(
+        0,
+        40,
+      ),
+      restrictedFoods: this.sanitizeStringList(payload.restrictedFoods).slice(
+        0,
+        20,
+      ),
+      exchangeGuide: this.sanitizeStringList(payload.exchangeGuide).slice(
+        0,
+        18,
+      ),
       specialConsiderations: payload.specialConsiderations || '',
-      referenceDishes: this.sanitizeStringList(payload.referenceDishes),
-      resources: this.sanitizeStringList(payload.resources),
+      referenceDishes: this.sanitizeStringList(payload.referenceDishes).slice(
+        0,
+        12,
+      ),
+      resources: this.sanitizeStringList(payload.resources).slice(0, 12),
       patient: this.aiService.formatPatientContext(payload.patient),
-      existingDishes: Array.isArray(payload.existingDishes)
-        ? payload.existingDishes
-        : [],
+      nutritionalTargets: payload.nutritionalTargets || null,
+      existingDishes: this.sanitizeQuickExistingDishes(payload.existingDishes),
       desiredDishCount,
       generationMode: (payload as any).generationMode || 'single',
       mealSectionTargets,
     };
 
     return [
-      'Objetivo: generar platos para el modulo rapido de recetas.',
-      'Respeta SIEMPRE las restricciones alimentarias y evita ingredientes prohibidos.',
-      'Debes ser creativo para que el paciente no se aburra, sin perder simplicidad ni realismo.',
-      'Prioriza alimentos permitidos principales, y considera gustos/restricciones del paciente si vienen informados.',
-      'Devuelve la cantidad exacta pedida en desiredDishCount (minimo 2, maximo 60).',
-      'Si mealSectionTargets viene informado, respeta exactamente la cantidad solicitada por cada mealSection.',
-      'Si generationMode es weekly, prioriza variedad semanal evitando repetir platos muy similares.',
-      'Cada plato debe incluir portions como numero entero de porciones que rinde la receta.',
-      'Los campos amount y unit de cada ingrediente deben representar la cantidad TOTAL del ingrediente para la receta completa, no por porcion.',
-      'recommendedPortion debe escribirse en formato clinico util para el nutricionista: intercambios principales + medida casera o gramos. Ejemplo: "1 intercambio de cereal + 1 intercambio de proteina magra (3/4 taza arroz cocido + 90 g pollo)".',
-      'Si se incluye exchangeGuide, usalo como referencia central para mantener consistencia entre recetas, porciones y entregables.',
-      'Estructura exacta de salida JSON:',
+      'Objetivo: generar platos realistas para el modulo rapido de recetas.',
+      'Responde solo JSON valido, sin markdown, sin texto extra y sin bloques vacios.',
+      'Respeta siempre las restricciones y evita ingredientes prohibidos.',
+      'Prioriza allowedFoodsMain, gustos del paciente y platos simples de cocina chilena/latam.',
+      'Si nutritionalTargets viene informado, ajusta las porciones y la densidad calórica para respetar esas metas.',
+      'Si el paciente trae IMC o clasificación nutricional, úsalo como referencia para la lógica clínica de las recetas.',
+      'Devuelve exactamente la cantidad pedida en desiredDishCount.',
+      'Si mealSectionTargets viene informado, respeta exactamente el count de cada mealSection y usa ese mismo texto en mealSection.',
+      'Si generationMode es weekly, evita repetir platos muy parecidos dentro de esta respuesta.',
+      'Cada plato debe traer title, mealSection, description, preparation, recommendedPortion, portions, protein, calories, carbs, fats, ingredients.',
+      'Los campos amount y unit deben representar la cantidad total para toda la receta cuando sea posible.',
+      'No dejes recommendedPortion vacio. Si no sabes el dato exacto, entrega una porcion clinica breve y util.',
+      'Usa 3 a 6 ingredientes principales por plato. description debe ser una frase corta y preparation debe ser breve, clara y de 2 a 4 pasos.',
+      'Salida exacta:',
       '{"dishes":[{"title":"string","mealSection":"string","description":"string","preparation":"string","recommendedPortion":"string","portions":1,"protein":0,"calories":0,"carbs":0,"fats":0,"ingredients":[{"name":"string","quantity":"string","amount":0,"unit":"g"}]}],"meta":{"note":"string"}}',
-      'Secciones sugeridas para mealSection: Desayuno, Colacion AM, Almuerzo, Colacion PM, Once, Cena, Post entreno.',
-      'Si falta informacion, asume criterios nutricionales generales y recetas realistas de cocina chilena/latam.',
+      'Si no sabes macros exactos, entrega una estimacion entera razonable.',
       'No incluyas texto fuera del JSON.',
       `CONTEXTO: ${JSON.stringify(safePayload)}`,
     ].join('\n');

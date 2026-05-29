@@ -30,11 +30,13 @@ export class NutritionistsController {
     @Body()
     body: { email: string; bookingUrl: string; nutritionistName: string },
   ) {
-    await this.mailService.sendBookingLinkEmail({
-      email: body.email,
-      nutritionistName: body.nutritionistName,
-      bookingUrl: body.bookingUrl,
-    });
+    this.mailService
+      .sendBookingLinkEmail({
+        email: body.email,
+        nutritionistName: body.nutritionistName,
+        bookingUrl: body.bookingUrl,
+      })
+      .catch((err) => console.error('Error sending booking link email:', err));
     return { success: true };
   }
 }

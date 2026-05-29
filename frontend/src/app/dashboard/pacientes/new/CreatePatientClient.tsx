@@ -110,6 +110,7 @@ export default function CreatePatientClient() {
         likes: draft.likes || undefined,
         customVariables: draft.customVariables || [],
         activityLevel: selectedActivityLevel,
+        age: draft.age ? Number(draft.age) : undefined,
       };
 
       const response = await fetchApi(url, {
@@ -272,6 +273,19 @@ export default function CreatePatientClient() {
                       className="h-10 pl-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
                       value={draft.email}
                       onChange={(e) => updateDraft({ email: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">Edad (Opcional)</label>
+                  <div className="relative">
+                    <Activity className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                    <Input
+                      type="number"
+                      placeholder="Ej: 28 años"
+                      className="h-10 pl-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                      value={draft.age || ""}
+                      onChange={(e) => updateDraft({ age: e.target.value ? parseInt(e.target.value) : undefined })}
                     />
                   </div>
                 </div>

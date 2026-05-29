@@ -256,14 +256,16 @@ export class PatientPortalsService {
     const recipientEmail = dto.email?.trim() || patient.email || '';
 
     if (recipientEmail) {
-      await this.mailService.sendPatientPortalInvitationEmail({
-        email: recipientEmail,
-        patientName: patient.fullName,
-        nutritionistName: patient.nutritionist.fullName,
-        shareUrl,
-        expiresAt,
-        accessCode,
-      });
+      this.mailService
+        .sendPatientPortalInvitationEmail({
+          email: recipientEmail,
+          patientName: patient.fullName,
+          nutritionistName: patient.nutritionist.fullName,
+          shareUrl,
+          expiresAt,
+          accessCode,
+        })
+        .catch((err) => console.error('Error sending portal invitation:', err));
     }
 
     return {
@@ -679,13 +681,17 @@ export class PatientPortalsService {
 
     const recipientEmail = invitation?.email || patient.email || null;
     if (dto.sendEmail !== false && recipientEmail) {
-      await this.mailService.sendPatientPortalNotificationEmail({
-        email: recipientEmail,
-        patientName: patient.fullName,
-        nutritionistName: patient.nutritionist.fullName,
-        title,
-        message,
-      });
+      this.mailService
+        .sendPatientPortalNotificationEmail({
+          email: recipientEmail,
+          patientName: patient.fullName,
+          nutritionistName: patient.nutritionist.fullName,
+          title,
+          message,
+        })
+        .catch((err) =>
+          console.error('Error sending portal notification email:', err),
+        );
     }
 
     return {
@@ -1115,7 +1121,7 @@ export class PatientPortalsService {
         : null,
     ].filter(Boolean) as string[];
 
-    return pieces.join(' Â· ');
+    return pieces.join(' ? ');
   }
 
   private normalizeDiaryDate(value?: string) {

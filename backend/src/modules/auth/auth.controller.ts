@@ -82,4 +82,11 @@ export class AuthController {
   ) {
     return this.authService.updatePassword(req.user.id, updatePasswordDto);
   }
+
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  register(@Body() registerDto: any) {
+    return this.authService.register(registerDto);
+  }
 }
+

@@ -40,7 +40,6 @@ import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
-import { SectionProgressNav } from "@/components/shared/SectionProgressNav";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { PremiumGuard } from "@/components/common/PremiumGuard";
@@ -947,19 +946,19 @@ export default function DeliverableClient() {
     if (section.id === "shoppingList") {
       if (!hasCart) {
         disabled = true;
-        finalDescription = "âš ï¸ Requiere carrito cargado o paciente asociado.";
+        finalDescription = "?? Requiere carrito cargado o paciente asociado.";
       }
     }
     if (section.id === "recipes") {
       if (!hasRecipes) {
         disabled = true;
-        finalDescription = "âš ï¸ Requiere recetario cargado o paciente asociado.";
+        finalDescription = "?? Requiere recetario cargado o paciente asociado.";
       }
     }
     if (section.id === "patientInfo") {
       if (!hasPatientAssigned) {
         disabled = true;
-        finalDescription = "âš ï¸ Requiere asignar paciente o cargar métricas.";
+        finalDescription = "?? Requiere asignar paciente o cargar m?tricas.";
       }
     }
 
@@ -1556,7 +1555,7 @@ export default function DeliverableClient() {
       const data = await response.json();
       const page: ResolvedResourcePage = {
         resourceId: resource.id,
-        title: resourceModalMode === "cover" ? `Portada · ${resource.title}` : resource.title,
+        title: resourceModalMode === "cover" ? `Portada ? ${resource.title}` : resource.title,
         content: data.resolvedContent || resource.content,
         variables: resourceVariables,
       };
@@ -1654,7 +1653,7 @@ export default function DeliverableClient() {
 
   const printJson = () => {
     const storedDraft = localStorage.getItem("nutri_active_draft");
-    console.group("ðŸ“Š PROJECT DRAFT JSON (STAGE 1-4)");
+    console.group("📊 PROJECT DRAFT JSON (STAGE 1-4)");
     console.log(storedDraft ? JSON.parse(storedDraft) : "No draft found");
     console.groupEnd();
     toast.info("JSON completo del proyecto impreso en consola.");
@@ -2394,19 +2393,6 @@ export default function DeliverableClient() {
           patientName={selectedPatient?.fullName || null}
           moduleLabel="Entregable"
         />
-        {isSidebarCollapsed && (
-          <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
-            <SectionProgressNav
-              title="Etapas del Plan"
-              items={[
-                { id: "dieta", label: "1. Estrategia", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/dieta", currentProjectId || null)) },
-                { id: "recetas", label: "2. Cuantificación", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/recetas", currentProjectId || null)) },
-                { id: "carrito", label: "3. Logística", status: "complete", active: false, onClick: () => router.push(buildProjectAwarePath("/dashboard/carrito", currentProjectId || null)) },
-                { id: "entregable", label: "4. Entregable", status: "complete", active: true, onClick: () => { } },
-              ]}
-            />
-          </div>
-        )}
         <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
@@ -2764,7 +2750,7 @@ export default function DeliverableClient() {
                 </p>
                 <p className="text-xs font-medium text-slate-700">
                   {previousStagesSummary.diet.hasData
-                    ? `${previousStagesSummary.diet.foodCount} alimento(s) · ${previousStagesSummary.diet.restrictions.length} restricción(es)`
+                    ? `${previousStagesSummary.diet.foodCount} alimento(s) ? ${previousStagesSummary.diet.restrictions.length} restricci?n(es)`
                     : "Sin datos cargados"}
                 </p>
               </div>
@@ -3239,7 +3225,7 @@ export default function DeliverableClient() {
                         {patient.fullName}
                       </h3>
                       <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
-                        {patient.email || "Sin email"} •{" "}
+                        {patient.email || "Sin email"} ?{" "}
                         {patient.weight
                           ? `${patient.weight}kg`
                           : "Peso no reg."}
