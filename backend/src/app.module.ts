@@ -59,10 +59,17 @@ import { PautasModule } from './modules/pautas/pautas.module';
       useFactory: async () => {
         const redisUrl = process.env.REDIS_URL;
         if (redisUrl) {
-          return {
-            store: await redisStore({ url: redisUrl }),
-            ttl: 300_000, // cache-manager-redis-yet uses milliseconds
-          };
+          try {
+            return {
+              store: await redisStore({ url: redisUrl }),
+              ttl: 300_000, // cache-manager-redis-yet uses milliseconds
+            };
+          } catch (error) {
+            console.warn(
+              '[Cache] Redis unavailable, falling back to in-memory cache:',
+              error instanceof Error ? error.message : error,
+            );
+          }
         }
         // Fallback to in-memory store when Redis is not configured
         return { ttl: 300 };

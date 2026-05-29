@@ -77,6 +77,14 @@ export class PatientsController {
     );
   }
 
+  @Post(':id/automatic-calculations')
+  recalculateAutomaticNutrition(@Request() req: any, @Param('id') id: string) {
+    return this.patientsService.recalculateAutomaticNutrition(
+      req.user.nutritionistId,
+      id,
+    );
+  }
+
   @Delete(':id')
   remove(@Request() req: any, @Param('id') id: string) {
     return this.patientsService.remove(req.user.nutritionistId, id);

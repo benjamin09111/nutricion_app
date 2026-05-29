@@ -238,6 +238,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Patient>>({});
   const [recalcKey, setRecalcKey] = useState(0);
+  const [isAutomaticNutritionLoading, setIsAutomaticNutritionLoading] = useState(false);
+  const [showRecalculateSaveConfirm, setShowRecalculateSaveConfirm] = useState(false);
   const [selectedConsultation, setSelectedConsultation] =
     useState<Consultation | null>(null);
   const [isMetricModalOpen, setIsMetricModalOpen] = useState(false);
@@ -647,6 +649,12 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       fetchPortalOverview();
     }
   }, [id]);
+
+  const automaticNutritionCalculations = useMemo(() => {
+    const variables = Array.isArray(patient?.customVariables) ? patient.customVariables as any[] : [];
+    const stored = variables.find((item) => item?.key === "automaticNutritionCalculations")?.value;
+    return stored && typeof stored === "object" && !Array.isArray(stored) ? stored : null;
+  }, [patient?.customVariables]);
 
   const handleEdit = () => {
     if (!patient) return;
@@ -1628,7 +1636,26 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     }
   };
 
-  const handleSave = async () => {
+  const hasNutritionInputsChanged = () => {
+    if (!patient) return false;
+    return ["weight", "height", "birthDate", "gender", "activityLevel", "nutritionalFocus"].some(
+      (field) => (editForm as any)[field] !== undefined && (editForm as any)[field] !== (patient as any)[field],
+    );
+  };
+
+  const handleSaveClick = () => {
+    if (editForm.documentId && !validateRut(editForm.documentId)) {
+      toast.error("El RUT ingresado no es válido.");
+      return;
+    }
+    if (hasNutritionInputsChanged()) {
+      setShowRecalculateSaveConfirm(true);
+      return;
+    }
+    void handleSave(false);
+  };
+
+  const handleSave = async (recalculateNutrition = false) => {
     if (!patient || !editForm) return;
 
     try {
@@ -1648,10 +1675,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         fitnessGoals: editForm.fitnessGoals || undefined,
         likes: editForm.likes || undefined,
         activityLevel: editForm.activityLevel || "sedentario",
-        age: editForm.age ? Number(editForm.age) : undefined,
         customVariables: Array.isArray(editForm.customVariables)
           ? editForm.customVariables.filter((item: any) => item?.key !== "activityLevel")
           : undefined,
+        recalculateNutrition,
       };
 
       const response = await fetchApi(`/patients/${id}`, {
@@ -1673,6 +1700,26 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       }
     } catch (error) {
       toast.error("Error de conexión");
+    }
+  };
+
+  const handleAutomaticNutritionRecalculation = async () => {
+    if (!patient) return;
+    setIsAutomaticNutritionLoading(true);
+    try {
+      const response = await fetchApi(`/patients/${patient.id}/automatic-calculations`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("No se pudieron recalcular los valores");
+      const updated = await response.json();
+      setPatient(updated);
+      setRecalcKey((key) => key + 1);
+      toast.success("Cálculos automáticos actualizados. Revisa los valores antes de usarlos clínicamente.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al recalcular");
+    } finally {
+      setIsAutomaticNutritionLoading(false);
     }
   };
 
@@ -1822,13 +1869,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   if (!patient) return null;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-10 pb-24 animate-in fade-in duration-700 relative">
+<div className="max-w-7xl mx-auto space-y-5 pb-24 animate-in fade-in duration-700 relative">
       {/* Sticky Right Sidebar Actions */}
       <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 hidden xl:flex flex-col gap-4 animate-in slide-in-from-right-8 duration-500">
         <div className="bg-white/80 backdrop-blur-xl p-3 rounded-[32px] border border-slate-200 shadow-2xl shadow-slate-200/50 flex flex-col gap-3">
           {isEditing ? (
             <>
-              <button onClick={() => { handleSave(); }} className="group relative p-4 bg-emerald-600 text-white rounded-[24px] hover:bg-emerald-700 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-emerald-200 cursor-pointer" title="Guardar Cambios">
+              <button onClick={handleSaveClick} className="group relative p-4 bg-emerald-600 text-white rounded-[24px] hover:bg-emerald-700 transition-all hover:scale-110 active:scale-95 shadow-lg shadow-emerald-200 cursor-pointer" title="Guardar Cambios">
                 <CheckCircle2 className="w-6 h-6" />
                 <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">Guardar cambios</span>
               </button>
@@ -1861,28 +1908,28 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         </div>
       </div>
       {/* Header & Back Button */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1 lg:px-0">
-        <div className="flex items-center gap-4 lg:gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-1 lg:px-0">
+        <div className="flex items-center gap-3 lg:gap-4">
           <button
             onClick={() => router.push("/dashboard/pacientes")}
-            className="group p-3 lg:p-4 hover:bg-white rounded-2xl transition-all text-slate-400 hover:text-slate-900 border border-transparent hover:border-slate-100 hover:shadow-xl hover:shadow-slate-200/50 cursor-pointer shrink-0"
+            className="group p-2.5 hover:bg-white rounded-2xl transition-all text-slate-400 hover:text-slate-900 border border-transparent hover:border-slate-100 hover:shadow-xl hover:shadow-slate-200/50 cursor-pointer shrink-0"
           >
-            <ArrowLeft className="w-5 h-5 lg:w-6 lg:h-6" />
+            <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
             {patient.status === "Inactive" && (
-              <div className="flex items-center gap-2 mb-2 px-3 py-1 bg-slate-100 text-slate-500 rounded-lg w-fit border border-slate-200 animate-in slide-in-from-left duration-300">
+              <div className="flex items-center gap-2 mb-1.5 px-3 py-0.5 bg-slate-100 text-slate-500 rounded-lg w-fit border border-slate-200 animate-in slide-in-from-left duration-300">
                 <AlertCircle className="w-3 h-3" />
                 <span className="text-[10px] font-black uppercase tracking-widest leading-none">
                   Paciente Inactivo
                 </span>
               </div>
             )}
-            <div className="flex items-center gap-3 mb-1">
+            <div className="flex items-center gap-2 mb-0.5">
               <div
                 onClick={toggleStatus}
                 className={cn(
-                  "w-3.5 h-3.5 rounded-full cursor-pointer transition-all hover:scale-125 border-2",
+                  "w-3 h-3 rounded-full cursor-pointer transition-all hover:scale-125 border-2",
                   patient.status !== "Inactive"
                     ? "bg-emerald-500 border-emerald-100 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
                     : "bg-slate-300 border-slate-100"
@@ -1891,7 +1938,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               />
               <h1
                 className={cn(
-                  "text-2xl font-semibold transition-all",
+                  "text-xl font-bold transition-all",
                   patient.status === "Inactive"
                     ? "text-slate-400"
                     : "text-slate-900",
@@ -1901,47 +1948,55 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   <Input
                     value={editForm.fullName || ""}
                     onChange={(e) => updateField("fullName", e.target.value)}
-                    className="bg-slate-50 border-none font-semibold text-2xl h-12 p-0 focus:bg-transparent"
+                    className="bg-slate-50 border-none font-bold text-xl h-10 p-0 focus:bg-transparent"
                   />
                 ) : (
                   patient.fullName
                 )}
               </h1>
             </div>
-            <p className="text-slate-400 font-bold text-xs flex items-center gap-2">
+            <p className="text-slate-400 font-bold text-[10px] flex items-center gap-1.5">
               EXPEDIENTE INTEGRADO <ChevronRight className="w-3 h-3" />{" "}
               {patient.documentId || "SIN ID"}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 sm:gap-4 w-full lg:w-auto">
+        <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto">
           {isEditing ? (
             <>
               <Button
                 onClick={() => setIsEditing(false)}
                 variant="ghost"
-                className="flex-1 sm:flex-none rounded-2xl h-11 lg:h-10 px-4 text-slate-400 font-semibold text-xs"
+                className="flex-1 sm:flex-none rounded-2xl h-10 px-4 text-slate-400 font-semibold text-xs"
               >
-                <CloseIcon className="w-5 h-5 mr-2" />
+                <CloseIcon className="w-4 h-4 mr-2" />
                 Cancelar
               </Button>
               <Button
-                onClick={() => {
-                  if (editForm.documentId && !validateRut(editForm.documentId)) {
-                    toast.error("El RUT ingresado no es válido.");
-                    return;
-                  }
-                  handleSave();
-                }}
-                className="flex-2 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-11 lg:h-10 px-6 rounded-2xl shadow-sm transition-all active:scale-95"
+                onClick={handleSaveClick}
+                className="flex-2 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-10 px-6 rounded-2xl shadow-sm transition-all active:scale-95"
               >
-                <Save className="w-5 h-5 mr-2" />
+                <Save className="w-4 h-4 mr-2" />
                 GUARDAR
               </Button>
             </>
           ) : (
-            <div className="flex items-center gap-2 lg:gap-3">
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleAutomaticNutritionRecalculation}
+                disabled={isAutomaticNutritionLoading}
+                variant="outline"
+                className="h-9 px-4 rounded-2xl border-amber-100 text-amber-700 bg-amber-50/70 hover:bg-amber-50 font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5"
+              >
+                {isAutomaticNutritionLoading ? (
+                  <span className="h-3.5 w-3.5 rounded-full border-2 border-amber-600/20 border-t-amber-600 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5" />
+                )}
+                Cálculos automáticos
+              </Button>
+
               <Button
                 onClick={() => {
                   setGeneratedPortalLink("");
@@ -1950,34 +2005,34 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 }}
                 variant="outline"
                 data-tutorial-id="patient-portal-button"
-                className="h-10 px-6 rounded-2xl border-emerald-100 text-emerald-700 bg-emerald-50/70 hover:bg-emerald-50 font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
+                className="h-9 px-4 rounded-2xl border-emerald-100 text-emerald-700 bg-emerald-50/70 hover:bg-emerald-50 font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5"
               >
-                <Link2 className="w-4 h-4" />
+                <Link2 className="w-3.5 h-3.5" />
                 Portal paciente
               </Button>
 
               {/* Visible on Mobile/Tablet only, hidden on XL where sidebar exists */}
-              <div className="xl:hidden flex items-center gap-2">
+              <div className="xl:hidden flex items-center gap-1.5">
                 <Button
                   onClick={() => router.push("/dashboard/consultas/nueva?patientId=" + patient.id)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-10 px-4 rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-9 px-3 rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-1.5 text-xs"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3.5 h-3.5" />
                   CONSULTA
                 </Button>
                 <Button
                   onClick={() => setIsPortalNotificationModalOpen(true)}
                   variant="outline"
-                  className="h-10 px-4 rounded-2xl border-indigo-100 text-indigo-700 bg-[#fffeec]/80 hover:bg-[#fffeec] font-semibold transition-all active:scale-95"
+                  className="h-9 px-3 rounded-2xl border-indigo-100 text-indigo-700 bg-[#fffeec]/80 hover:bg-[#fffeec] font-semibold transition-all active:scale-95 text-xs"
                 >
-                  <Bell className="w-4 h-4" />
+                  <Bell className="w-3.5 h-3.5" />
                 </Button>
                 <Button
                   onClick={handleEdit}
                   variant="outline"
-                  className="h-10 px-4 rounded-2xl border-slate-200 text-slate-600 bg-white hover:bg-slate-50 font-semibold transition-all active:scale-95"
+                  className="h-9 px-3 rounded-2xl border-slate-200 text-slate-600 bg-white hover:bg-slate-50 font-semibold transition-all active:scale-95 text-xs"
                 >
-                  <Edit2 className="w-4 h-4" />
+                  <Edit2 className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>
@@ -1986,120 +2041,58 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       </div>
 
       {/* Quick Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {[
-          {
-            label: "Peso Actual",
-            value: patient.weight,
-            unit: "kg",
-            icon: Weight,
-            color: "text-indigo-600",
-            bg: "bg-indigo-50",
-            field: "weight",
-          },
-          {
-            label: "Altura",
-            value: patient.height,
-            unit: "cm",
-            icon: Ruler,
-            color: "text-emerald-600",
-            bg: "bg-emerald-50",
-            field: "height",
-          },
-          {
-            label: "Edad",
-            value: patient.age,
-            unit: "años",
-            icon: Activity,
-            color: "text-indigo-600",
-            bg: "bg-indigo-50",
-            field: "age",
-          },
-          {
-            label: "Género",
-            value: patient.gender,
-            icon: User,
-            color: "text-emerald-600",
-            bg: "bg-emerald-50",
-            field: "gender",
-          },
-          {
-            label: "Identificador",
-            value: patient.documentId || "---",
-            icon: ClipboardList,
-            color: "text-slate-700",
-            bg: "bg-[#fffeec]",
-            field: "documentId",
-          },
+          { label: "Peso", value: patient.weight, unit: "kg", field: "weight" },
+          { label: "Altura", value: patient.height, unit: "cm", field: "height" },
+          { label: "Edad", value: patient.birthDate ? calculateAge(patient.birthDate) : "—", unit: "años", field: "age" },
+          { label: "Sexo", value: patient.gender, field: "gender" },
+          { label: "RUT", value: patient.documentId || "—", field: "documentId" },
         ].map((stat, i) => (
           <div
             key={i}
-            className="bg-white p-6 lg:p-8 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4 group hover:scale-[1.02] transition-all"
+            className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-1.5 group hover:border-slate-200 transition-all"
           >
-            <div
-              className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform",
-                stat.bg,
-              )}
-            >
-              <stat.icon className={cn("w-6 h-6", stat.color)} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1">
-                {stat.label}
-              </p>
-              <div className="text-2xl font-semibold text-slate-900 flex items-baseline gap-1">
-                {isEditing && stat.field ? (
-                  stat.field === "gender" ? (
-                    <select
-                      value={editForm.gender || ""}
-                      onChange={(e) => updateField("gender", e.target.value)}
-                      className="w-full h-8 border-none bg-slate-50 font-semibold p-1 text-base rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:outline-none cursor-pointer"
-                    >
-                      <option value="">Sexo...</option>
-                      <option value="Masculino">Masculino</option>
-                      <option value="Femenino">Femenino</option>
-                      <option value="Otro">Otro</option>
-                    </select>
-                  ) : (
-                    <Input
-                      type={
-                        stat.field === "weight" || stat.field === "height"
-                          ? "number"
-                          : "text"
-                      }
-                      step="any"
-                      value={
-                        (editForm[stat.field as keyof Patient] as
-                          | string
-                          | number) || ""
-                      }
-                      onChange={(e) => {
-                        let val = e.target.value;
-                        if (stat.field === "documentId") {
-                          val = formatRut(val);
-                        }
-                        updateField(stat.field as keyof Patient, val);
-                      }}
-                      className="h-8 border-none bg-slate-50 font-semibold p-1 text-xl"
-                    />
-                  )
+            <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{stat.label}</p>
+            <div className="text-base font-bold text-slate-900 flex items-baseline gap-0.5">
+              {isEditing && stat.field ? (
+                stat.field === "gender" ? (
+                  <select
+                    value={editForm.gender || ""}
+                    onChange={(e) => updateField("gender", e.target.value)}
+                    className="w-full h-8 text-xs border-none bg-slate-50 font-semibold p-1 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:outline-none cursor-pointer"
+                  >
+                    <option value="">—</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Femenino">Femenino</option>
+                    <option value="Otro">Otro</option>
+                  </select>
                 ) : (
-                  <>
-                    {stat.value}
-                    <span className="text-xs text-slate-400 font-bold">
-                      {stat.unit}
-                    </span>
-                  </>
-                )}
-              </div>
+                  <Input
+                    type={stat.field === "weight" || stat.field === "height" ? "number" : "text"}
+                    step="any"
+                    value={(editForm[stat.field as keyof Patient] as string | number) || ""}
+                    onChange={(e) => {
+                      let val = e.target.value;
+                      if (stat.field === "documentId") val = formatRut(val);
+                      updateField(stat.field as keyof Patient, val);
+                    }}
+                    className="h-8 border-none bg-slate-50 font-semibold p-1 text-sm"
+                  />
+                )
+              ) : (
+                <>
+                  {stat.value}
+                  {stat.unit && <span className="text-[10px] text-slate-400 font-bold ml-0.5">{stat.unit}</span>}
+                </>
+              )}
             </div>
           </div>
         ))}
       </div>
 
       {/* Panel de Cálculo Nutricional Automático */}
-      <div key={recalcKey} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-5">
+      <div key={recalcKey} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {(() => {
           void recalcKey;
           const w = isEditing ? (Number(editForm.weight) || patient.weight) : patient.weight;
@@ -2122,46 +2115,45 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
           return (
             <>
-              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center">
                     <span className="text-xs font-bold text-blue-600">IMC</span>
                   </div>
-                  <p className="text-sm font-semibold text-slate-700">Índice de Masa Corporal</p>
+                  <p className="text-xs font-semibold text-slate-600">Índice de Masa Corporal</p>
                 </div>
                 {bmi ? (
                   <div>
-                    <p className="text-2xl font-bold text-slate-900">{bmi.bmi} <span className="text-sm font-normal text-slate-400">kg/m²</span></p>
-                    <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: bmi.color }}>
+                    <p className="text-xl font-bold text-slate-900">{bmi.bmi} <span className="text-xs font-normal text-slate-400">kg/m²</span></p>
+                    <span className="inline-block mt-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white" style={{ backgroundColor: bmi.color }}>
                       {bmi.classification}
                     </span>
                     {idealWeight && (
-                      <p className="mt-2 text-xs text-slate-400">
+                      <p className="mt-2 text-[11px] text-slate-400">
                         Rango ideal: {idealWeight.min} – {idealWeight.max} kg
                       </p>
                     )}
                     {isKid && (
-                      <p className="mt-1 text-xs text-amber-600 font-medium">
+                      <p className="mt-1 text-[11px] text-amber-600 font-medium">
                         Pediátrico — usar curvas OMS
                       </p>
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-400">Ingresa peso y talla del paciente.</p>
+                  <p className="text-xs text-slate-400">Ingresa peso y talla del paciente.</p>
                 )}
               </div>
-              <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm sm:col-span-2 lg:col-span-3">
-                <div className="flex items-center gap-2 mb-3">
+              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm sm:col-span-2 lg:col-span-3">
+                <div className="flex items-center gap-2 mb-2.5">
                   <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center">
                     <span className="text-xs font-bold text-emerald-600">GET</span>
                   </div>
-                  <p className="text-sm font-semibold text-slate-700">Gasto Energético Total</p>
+                  <p className="text-xs font-semibold text-slate-600">Gasto Energético Total</p>
                   {isEditing && (
                     <button
                       type="button"
                       onClick={() => setRecalcKey((k) => k + 1)}
-                      className="ml-auto text-[10px] font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-lg cursor-pointer transition-colors"
-                      title="Refrescar cálculos con los datos actuales del formulario"
+                      className="ml-auto text-[10px] font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-lg cursor-pointer transition-colors"
                     >
                       Recalcular
                     </button>
@@ -2174,25 +2166,25 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="bg-slate-50 rounded-xl p-3 text-center">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">TMB</p>
-                      <p className="text-lg font-bold text-slate-900">{get.tmb} <span className="text-xs font-normal text-slate-400">kcal</span></p>
+                      <p className="text-base font-bold text-slate-900">{get.tmb} <span className="text-[10px] font-normal text-slate-400">kcal</span></p>
                     </div>
                     <div className="bg-emerald-50 rounded-xl p-3 text-center">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 mb-1">GET</p>
-                      <p className="text-lg font-bold text-emerald-700">{get.get} <span className="text-xs font-normal text-emerald-500">kcal</span></p>
+                      <p className="text-base font-bold text-emerald-700">{get.get} <span className="text-[10px] font-normal text-emerald-500">kcal</span></p>
                     </div>
                     <div className="bg-blue-50 rounded-xl p-3 text-center">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-500 mb-1">Proteínas</p>
-                      <p className="text-lg font-bold text-blue-700">{get.macros.protein} <span className="text-xs font-normal text-blue-400">g</span></p>
-                      <p className="text-[10px] text-blue-400">{get.macros.proteinPercent}%</p>
+                      <p className="text-base font-bold text-blue-700">{get.macros.protein} <span className="text-[10px] font-normal text-blue-400">g</span></p>
+                      <p className="text-[9px] text-blue-400">{get.macros.proteinPercent}%</p>
                     </div>
                     <div className="bg-amber-50 rounded-xl p-3 text-center">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 mb-1">Carbohidratos</p>
-                      <p className="text-lg font-bold text-amber-700">{get.macros.carbs} <span className="text-xs font-normal text-amber-500">g</span></p>
-                      <p className="text-[10px] text-amber-400">{get.macros.carbsPercent}%</p>
+                      <p className="text-base font-bold text-amber-700">{get.macros.carbs} <span className="text-[10px] font-normal text-amber-500">g</span></p>
+                      <p className="text-[9px] text-amber-400">{get.macros.carbsPercent}%</p>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-400">Completa los datos del paciente para calcular automáticamente.</p>
+                  <p className="text-xs text-slate-400">Completa los datos del paciente para calcular automáticamente.</p>
                 )}
                 <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2">
                   <p className="text-[10px] text-slate-400">
@@ -2209,6 +2201,51 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           );
         })()}
       </div>
+
+      {automaticNutritionCalculations && (
+        <section className="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-4 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-sm font-black text-slate-900">Cálculos automáticos guardados</h2>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700 ring-1 ring-amber-100">
+                    Revisión profesional requerida
+                  </span>
+                </div>
+                <p className="mt-0.5 max-w-3xl text-[11px] font-medium leading-relaxed text-slate-500">
+                  Basado en IMC OMS, Mifflin-St Jeor y factores de actividad estándar. Es una sugerencia de apoyo clínico, no reemplaza el criterio del nutricionista.
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4 lg:min-w-[480px]">
+              <div className="rounded-xl bg-white/80 p-3 ring-1 ring-slate-100">
+                <p className="text-[10px] font-black uppercase text-slate-400">IMC</p>
+                <p className="text-base font-black text-slate-900">{automaticNutritionCalculations.bmi?.value ?? "-"}</p>
+                <p className="text-[10px] font-bold text-slate-500">{automaticNutritionCalculations.bmi?.classification ?? "Sin clasificar"}</p>
+              </div>
+              <div className="rounded-xl bg-white/80 p-3 ring-1 ring-slate-100">
+                <p className="text-[10px] font-black uppercase text-slate-400">GET</p>
+                <p className="text-base font-black text-emerald-700">{automaticNutritionCalculations.energy?.get ?? "-"}</p>
+                <p className="text-[10px] font-bold text-emerald-500">kcal/día</p>
+              </div>
+              <div className="rounded-xl bg-white/80 p-3 ring-1 ring-slate-100">
+                <p className="text-[10px] font-black uppercase text-slate-400">Proteína</p>
+                <p className="text-base font-black text-blue-700">{automaticNutritionCalculations.macros?.protein ?? "-"}</p>
+                <p className="text-[10px] font-bold text-blue-500">g/día</p>
+              </div>
+              <div className="rounded-xl bg-white/80 p-3 ring-1 ring-slate-100">
+                <p className="text-[10px] font-black uppercase text-slate-400">Porciones</p>
+                <p className="text-xs font-black text-amber-700">{automaticNutritionCalculations.portionProfile?.label ?? "Pendiente"}</p>
+                <p className="text-[10px] font-bold text-amber-500">perfil sugerido</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Tabs Navigation */}
       <div className="flex p-1 bg-slate-100/50 rounded-2xl w-full lg:w-fit border border-slate-200 backdrop-blur-sm overflow-x-auto no-scrollbar scroll-smooth">
@@ -2655,128 +2692,108 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       {/* Main Content Area */}
       {activeTab === "General" && (
         <div
-          className="space-y-8 animate-in fade-in duration-500"
+          className="space-y-4 animate-in fade-in duration-500"
           data-tutorial-id="patient-overview-section"
         >
           {/* 3-Column Layout for Primary Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
 
             {/* Column 1: Identity & Contact */}
             <div className="flex flex-col">
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
-                  <div className="p-2 bg-emerald-50 rounded-xl">
-                    <User className="w-5 h-5 text-emerald-600" />
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4 flex-1 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 border-b border-slate-50 pb-3">
+                  <div className="p-1.5 bg-emerald-50 rounded-lg">
+                    <User className="w-4 h-4 text-emerald-600" />
                   </div>
-                  <h2 className="text-lg font-bold text-slate-800">Identidad</h2>
+                  <h2 className="text-base font-bold text-slate-800">Identidad</h2>
                 </div>
 
-                <div className="space-y-5">
-                  <div className="space-y-2">
+                <div className="space-y-3">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Email</label>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                       {isEditing ? (
                         <Input
                           placeholder="valen@email.com"
-                          className="h-12 pl-11 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
+                          className="h-10 pl-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
                           value={editForm.email || ""}
                           onChange={(e) => updateField("email", e.target.value)}
                         />
                       ) : (
-                        <div className="h-12 pl-11 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 break-all px-4">
+                        <div className="h-10 pl-10 flex items-center bg-slate-50/50 rounded-xl text-sm font-bold text-slate-700 break-all px-3">
                           {patient.email || "Sin email"}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Edad</label>
-                    <div className="relative">
-                      <Activity className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      {isEditing ? (
-                        <Input
-                          type="number"
-                          placeholder="Ej: 28"
-                          className="h-12 pl-11 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white transition-all px-4"
-                          value={editForm.age || ""}
-                          onChange={(e) => updateField("age", e.target.value ? parseInt(e.target.value) : undefined)}
-                        />
-                      ) : (
-                        <div className="h-12 pl-11 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
-                          {patient.age || "---"}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Teléfono</label>
                     <div className="relative">
-                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                       {isEditing ? (
                         <Input
                           placeholder="+56 9 1234 5678"
-                          className="h-12 pl-11 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
+                          className="h-10 pl-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
                           value={editForm.phone || ""}
                           onChange={handlePhoneChange}
                         />
                       ) : (
-                        <div className="h-12 pl-11 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                        <div className="h-10 pl-10 flex items-center bg-slate-50/50 rounded-xl text-sm font-bold text-slate-700 px-3">
                           {patient.phone || "No registrado"}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">RUT / Identificador</label>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">RUT</label>
                     {isEditing ? (
                       <Input
                         placeholder="12.345.678-9"
-                        className="h-12 rounded-2xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
+                        className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 transition-all"
                         value={editForm.documentId || ""}
                         onChange={(e) => updateField("documentId", formatRut(e.target.value))}
                       />
                     ) : (
-                      <div className="h-12 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                      <div className="h-10 flex items-center bg-slate-50/50 rounded-xl text-sm font-bold text-slate-700 px-3">
                         {patient.documentId || "Sin identificador"}
                       </div>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Sexo</label>
                       {isEditing ? (
                         <select
                           value={editForm.gender || ""}
                           onChange={(e) => updateField("gender", e.target.value)}
-                          className="w-full h-12 rounded-2xl bg-slate-50 border-transparent px-4 text-sm font-semibold text-slate-700 focus:bg-white focus:border-emerald-500/20 transition-all cursor-pointer appearance-none"
+                          className="w-full h-10 rounded-xl bg-slate-50 border-transparent px-3 text-sm font-semibold text-slate-700 focus:bg-white focus:border-emerald-500/20 transition-all cursor-pointer appearance-none"
                         >
-                          <option value="">Seleccionar...</option>
+                          <option value="">—</option>
                           <option value="Masculino">Masculino</option>
                           <option value="Femenino">Femenino</option>
                           <option value="Otro">Otro</option>
                         </select>
                       ) : (
-                        <div className="h-12 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                        <div className="h-10 flex items-center bg-slate-50/50 rounded-xl text-sm font-bold text-slate-700 px-3">
                           {patient.gender || "No def."}
                         </div>
                       )}
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Nacimiento</label>
                       {isEditing ? (
                         <Input
                           type="date"
-                          className="h-12 rounded-2xl bg-slate-50 border-transparent text-xs font-semibold focus:bg-white transition-all px-3"
+                          className="h-10 rounded-xl bg-slate-50 border-transparent text-xs font-semibold focus:bg-white transition-all px-3"
                           value={toDateOnly(editForm.birthDate)}
                           onChange={(e) => updateField("birthDate", e.target.value)}
                         />
                       ) : (
-                        <div className="h-12 flex items-center bg-slate-50/50 rounded-2xl text-sm font-bold text-slate-700 px-4">
+                        <div className="h-10 flex items-center bg-slate-50/50 rounded-xl text-sm font-bold text-slate-700 px-3">
                           {patient.birthDate ? formatDateOnlyForLocale(patient.birthDate, { year: 'numeric', month: 'short', day: 'numeric' }) : "---"}
                         </div>
                       )}
@@ -2787,40 +2804,35 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           </div>
 
           {/* Column 2: Antropometría & Metas nutricionales */}
-          <div className="space-y-6 flex flex-col">
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
-                <div className="p-2 bg-indigo-50 rounded-xl">
-                  <Ruler className="w-5 h-5 text-indigo-600" />
+          <div className="space-y-4 flex flex-col">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-2 border-b border-slate-50 pb-3">
+                <div className="p-1.5 bg-indigo-50 rounded-lg">
+                  <Ruler className="w-4 h-4 text-indigo-600" />
                 </div>
-                <h2 className="text-lg font-bold text-slate-800">Antropometría</h2>
+                <h2 className="text-base font-bold text-slate-800">Antropometría</h2>
               </div>
-              <p className="text-xs font-medium text-slate-400 -mt-2">
-                Peso y altura se actualizan solo desde el historial de métricas.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Último peso (kg)</label>
-                  <div className="h-12 flex items-center justify-center bg-[#fffeec]/70 rounded-2xl text-lg font-black text-indigo-700 px-4 border border-[#cbd83b]/20">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Peso (kg)</label>
+                  <div className="h-10 flex items-center justify-center bg-slate-50 rounded-xl text-sm font-black text-indigo-700 px-3 border border-indigo-100">
                     {patient.weight ?? "---"}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Última altura (cm)</label>
-                  <div className="h-12 flex items-center justify-center bg-slate-50/50 rounded-2xl text-lg font-black text-emerald-600 px-4 border border-emerald-100">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Altura (cm)</label>
+                  <div className="h-10 flex items-center justify-center bg-slate-50 rounded-xl text-sm font-black text-emerald-600 px-3 border border-emerald-100">
                     {patient.height ?? "---"}
                   </div>
                 </div>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-500" />
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                    Nivel de actividad
-                  </label>
+                  <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Actividad</label>
                 </div>
                 {isEditing ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                     {ACTIVITY_LEVEL_OPTIONS.map((item) => {
                       const Icon = item.icon;
                       const isSelected = getCurrentActivityLevel() === item.key;
@@ -2830,37 +2842,31 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                           type="button"
                           onClick={() => updateActivityLevel(item.key)}
                           className={cn(
-                            "min-h-14 rounded-2xl border px-3 py-2 text-left transition-all cursor-pointer",
+                            "min-h-10 rounded-xl border px-2 py-1.5 text-left transition-all cursor-pointer",
                             isSelected
-                              ? "border-emerald-500 bg-emerald-600 text-white shadow-lg shadow-emerald-100"
+                              ? "border-emerald-500 bg-emerald-600 text-white"
                               : "border-transparent bg-slate-50 text-slate-600 hover:bg-slate-100",
                           )}
                         >
-                          <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider">
-                            <Icon className="h-4 w-4" />
+                          <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider">
+                            <Icon className="h-3.5 w-3.5" />
                             {item.label}
-                          </span>
-                          <span className={cn("mt-1 block text-[10px] font-semibold", isSelected ? "text-emerald-50" : "text-slate-400")}>
-                            {item.description}
                           </span>
                         </button>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3">
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2">
                     {(() => {
                       const current = ACTIVITY_LEVEL_OPTIONS.find((item) => item.key === getCurrentActivityLevel()) || ACTIVITY_LEVEL_OPTIONS[0];
                       const Icon = current.icon;
                       return (
-                        <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-xl bg-white text-emerald-600 flex items-center justify-center">
-                            <Icon className="h-4 w-4" />
+                        <div className="flex items-center gap-2">
+                          <div className="h-7 w-7 rounded-lg bg-white text-emerald-600 flex items-center justify-center">
+                            <Icon className="h-3.5 w-3.5" />
                           </div>
-                          <div>
-                            <p className="text-sm font-black text-slate-800">{current.label}</p>
-                            <p className="text-xs font-medium text-slate-500">{current.description}</p>
-                          </div>
+                          <p className="text-xs font-bold text-slate-800">{current.label}</p>
                         </div>
                       );
                     })()}
@@ -2869,13 +2875,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex-1 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between border-b border-slate-50 pb-4">
-                <h2 className="text-lg font-bold text-slate-800">Metas nutricionales</h2>
-                <Target className="w-5 h-5 text-emerald-500" />
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4 flex-1 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between border-b border-slate-50 pb-3">
+                <h2 className="text-base font-bold text-slate-800">Metas nutricionales</h2>
+                <Target className="w-4 h-4 text-emerald-500" />
               </div>
 
-              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-5">
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-3">
                 {(() => {
                   const dataSource = isEditing ? editForm.customVariables : patient.customVariables;
                   const vars = Array.isArray(dataSource) ? dataSource as any[] : [];
@@ -2890,23 +2896,23 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   };
 
                   return (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-2">
                       {[
                         { id: "Calories", label: "Calorías", unit: "kcal", color: "text-indigo-600", bg: "bg-indigo-50" },
                         { id: "Protein", label: "Proteína", unit: "g", color: "text-emerald-600", bg: "bg-emerald-50" }
                       ].map((f) => (
-                        <div key={f.id} className="space-y-1.5">
-                          <label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">{f.label}</label>
+                        <div key={f.id} className="space-y-1">
+                          <label className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">{f.label}</label>
                           {isEditing ? (
                             <Input
                               type="number"
                               value={getCV(`target${f.id}`)}
                               onChange={e => updateCV(`target${f.id}`, `${f.label} Meta`, e.target.value, f.unit)}
-                              className={cn("h-10 font-bold bg-white rounded-xl text-sm border-transparent focus:ring-2 focus:ring-slate-200 transition-all", f.color)}
+                              className={cn("h-9 font-bold bg-white rounded-lg text-xs border-transparent focus:ring-2 focus:ring-slate-200 transition-all", f.color)}
                               placeholder="0"
                             />
                           ) : (
-                            <div className={cn("h-10 flex items-center justify-center rounded-xl font-bold text-sm border border-transparent", f.bg, f.color)}>
+                            <div className={cn("h-9 flex items-center justify-center rounded-lg font-bold text-xs border border-transparent", f.bg, f.color)}>
                               {getCV(`target${f.id}`) || "---"}
                               <span className="text-[8px] ml-1 opacity-60">{f.unit}</span>
                             </div>
@@ -2924,54 +2930,50 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           <div className="flex flex-col">
             <div
               className={cn(
-                "bg-white rounded-3xl p-6 border transition-all duration-500 hover:shadow-md",
+                "bg-white rounded-2xl p-4 border transition-all duration-500 hover:shadow-md",
                 patient.status === "Inactive"
                   ? "border-slate-200 bg-slate-50/50"
                   : "border-slate-100",
               )}
             >
-              <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center gap-2 mb-3">
                 <div
                   className={cn(
-                    "p-2 rounded-xl",
+                    "p-1.5 rounded-lg",
                     patient.status === "Inactive"
                       ? "bg-slate-200 text-slate-500"
                       : "bg-emerald-100 text-emerald-600",
                   )}
                 >
-                  <Target className="w-5 h-5" />
+                  <Target className="w-4 h-4" />
                 </div>
                 <div>
                   <h4 className="text-xs font-black uppercase tracking-widest text-slate-900">
-                    Estado del Paciente
+                    Estado
                   </h4>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">
-                    {patient.status === "Active"
-                      ? "Actualmente en tratamiento"
-                      : "Tratamiento pausado"}
+                  <p className="text-[9px] font-bold text-slate-400 uppercase">
+                    {patient.status === "Active" ? "En tratamiento" : "Pausado"}
                   </p>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              <div className="space-y-3">
+                <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
                   {patient.status === "Active"
-                    ? "El paciente está activo y siguiendo sus planes. Puedes pausar su seguimiento si ha terminado su tratamiento o está fuera por un tiempo."
-                    : "El paciente está inactivo. Sus planes no aparecerán en las listas por defecto, pero su historial clínico se mantiene intacto."}
+                    ? "Paciente activo. Puedes pausar su seguimiento si terminó tratamiento."
+                    : "Paciente inactivo. Su historial clínico se mantiene intacto."}
                 </p>
                 <Button
                   onClick={toggleStatus}
                   variant="outline"
                   className={cn(
-                    "w-full h-12 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all",
+                    "w-full h-9 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all",
                     patient.status === "Active"
-                      ? "border-slate-200 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100"
+                      ? "border-slate-200 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600"
                       : "border-emerald-200 text-emerald-600 hover:bg-emerald-600 hover:text-white",
                   )}
                 >
-                  {patient.status === "Active"
-                    ? "Marcar como Inactivo"
-                    : "Reactivar Paciente"}
+                  {patient.status === "Active" ? "Marcar Inactivo" : "Reactivar"}
                 </Button>
               </div>
             </div>
@@ -4157,11 +4159,28 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       />
 
       <ConfirmationModal
+        isOpen={showRecalculateSaveConfirm}
+        onClose={() => {
+          setShowRecalculateSaveConfirm(false);
+          void handleSave(false);
+        }}
+        onConfirm={() => {
+          setShowRecalculateSaveConfirm(false);
+          void handleSave(true);
+        }}
+        title="¿Recalcular valores automáticamente?"
+        description="Cambiaste datos usados por IMC, TMB, GET, macros o perfil de porciones. Puedes recalcularlos al guardar o conservar los valores anteriores para revisión manual."
+        confirmText="Guardar y recalcular"
+        cancelText="Guardar sin recalcular"
+        variant="primary"
+      />
+
+      <ConfirmationModal
         isOpen={isDeletePatientConfirmOpen}
         onClose={() => setIsDeletePatientConfirmOpen(false)}
         onConfirm={handleDelete}
         title="¿Eliminar paciente?"
-        description="¿Estás seguro de que deseas eliminar este paciente? Esta acción es irreversible."
+        description="¿Estás seguro de que deseas eliminar este paciente? Se eliminarán también todas sus consultas y no podrás recuperar esta información. Te recomendamos guardar la ficha clínica del paciente antes de eliminarlo."
         confirmText="Sí, eliminar"
         variant="destructive"
       />

@@ -11,7 +11,6 @@ import {
   FileText,
   NotebookText,
   MessageCircle,
-  ClipboardCheck,
   Calculator,
   BookOpen,
   MessageSquare,
@@ -23,6 +22,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  Dumbbell,
+  Pill,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -54,6 +55,7 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Pacientes", href: "/dashboard/pacientes", icon: Users, tutorialPath: "/dashboard/pacientes" },
       { name: "Consultas", href: "/dashboard/consultas", icon: CalendarDays, tutorialPath: "/dashboard/consultas" },
+      { name: "Fichas clínicas", href: "/dashboard/fichas-clinicas", icon: FileText },
       { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, tutorialPath: "/dashboard/citas" },
     ],
   },
@@ -78,6 +80,13 @@ const groups: SidebarGroup[] = [
       { name: "Recursos", href: "/dashboard/recursos", icon: FileText, tutorialPath: "/dashboard/recursos" },
       { name: "Calculadora", href: "/dashboard/herramientas/calculos", icon: Calculator, tutorialPath: "/dashboard/herramientas/calculos" },
       { name: "Configuración Clínica", href: "/dashboard/detalles", icon: Settings, tutorialPath: "/dashboard/detalles" },
+    ],
+  },
+  {
+    title: "Ejercicio y Deporte",
+    items: [
+      { name: "Rutinas de ejercicios", href: "/dashboard/ejercicio/rutinas", icon: Dumbbell, locked: true },
+      { name: "Suplementos", href: "/dashboard/ejercicio/suplementos", icon: Pill, locked: true },
     ],
   },
   {
@@ -117,8 +126,9 @@ export function Sidebar() {
   const getGroupPriority = (group: SidebarGroup) => {
     if (group.title === "Administración") return 0;
     if (group.title === "Nutrición y Dietética") return 1;
-    if (group.title === "Herramientas") return 2;
-    if (group.title === "Agentes & IA") return 3;
+    if (group.title === "Ejercicio y Deporte") return 2;
+    if (group.title === "Herramientas") return 3;
+    if (group.title === "Agentes & IA") return 4;
     return 10;
   };
 

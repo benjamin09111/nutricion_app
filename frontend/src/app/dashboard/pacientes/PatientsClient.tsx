@@ -662,7 +662,7 @@ export default function PatientsClient() {
         }}
         onConfirm={handleDeleteConfirmed}
         title="¿Eliminar paciente?"
-        description="¿Estás seguro de que deseas eliminar este paciente? Todo su historial clínico será borrado."
+        description="¿Estás seguro de que deseas eliminar este paciente? Se eliminarán también todas sus consultas y no podrás recuperar esta información. Te recomendamos guardar la ficha clínica del paciente antes de eliminarlo."
         confirmText="Eliminar permanentemente"
         variant="destructive"
       />
