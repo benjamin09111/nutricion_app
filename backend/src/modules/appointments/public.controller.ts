@@ -22,7 +22,8 @@ export class PublicAppointmentsController {
 
   @Get('nutritionists/:slug/availability')
   async getPublicAvailability(@Param('slug') slug: string) {
-    const nutritionist = await this.usersService.getPublicNutritionistBySlug(slug);
+    const nutritionist =
+      await this.usersService.getPublicNutritionistBySlug(slug);
     if (!nutritionist) {
       throw new NotFoundException('Nutricionista no encontrado');
     }
@@ -43,13 +44,16 @@ export class PublicAppointmentsController {
       endAt: string;
     },
   ) {
-    const nutritionist = await this.usersService.getPublicNutritionistBySlug(slug);
+    const nutritionist =
+      await this.usersService.getPublicNutritionistBySlug(slug);
     if (!nutritionist) {
       throw new NotFoundException('Nutricionista no encontrado');
     }
 
     if (!nutritionist.bookingEnabled) {
-      throw new BadRequestException('Este nutricionista no permite reservar citas en línea');
+      throw new BadRequestException(
+        'Este nutricionista no permite reservar citas en línea',
+      );
     }
 
     const calendar = await this.prisma.appointmentCalendar.findUnique({
@@ -57,7 +61,9 @@ export class PublicAppointmentsController {
     });
 
     if (!calendar) {
-      throw new BadRequestException('El nutricionista no tiene agenda configurada');
+      throw new BadRequestException(
+        'El nutricionista no tiene agenda configurada',
+      );
     }
 
     const start = new Date(body.startAt);
@@ -102,7 +108,8 @@ export class PublicAppointmentsController {
     return {
       id: appointment.id,
       status: appointment.status,
-      message: 'Tu solicitud de cita ha sido enviada. El nutritionist la revisará pronto.',
+      message:
+        'Tu solicitud de cita ha sido enviada. El nutritionist la revisará pronto.',
     };
   }
 

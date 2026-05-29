@@ -210,6 +210,9 @@ export class AppointmentsController {
       request,
       this.prisma,
     );
-    return this.appointmentsService.rejectAppointment(nutritionistId, appointmentId);
+    return this.appointmentsService.rejectAppointment(
+      nutritionistId,
+      appointmentId,
+    );
   }
 }

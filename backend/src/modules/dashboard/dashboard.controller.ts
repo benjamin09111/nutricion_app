@@ -5,13 +5,13 @@ import {
   Request,
   UseInterceptors,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 import { DashboardService } from './dashboard.service';
 import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
 import { CacheTTL } from '@nestjs/cache-manager';
 
 @Controller('dashboard')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard)
 @UseInterceptors(HttpCacheInterceptor)
 @CacheTTL(600000) // 10 minutes for dashboard stats
 export class DashboardController {

@@ -8,7 +8,11 @@ import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [PrismaModule, MailModule],
-  controllers: [UsersController, NutritionistsController, PublicNutritionistsController],
+  controllers: [
+    UsersController,
+    NutritionistsController,
+    PublicNutritionistsController,
+  ],
   providers: [UsersService],
   exports: [UsersService],
 })

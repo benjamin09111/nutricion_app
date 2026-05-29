@@ -9,14 +9,14 @@ import {
 } from '@nestjs/common';
 import { AnnouncementsService } from './announcements.service';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('announcements')
 export class AnnouncementsController {
   constructor(private readonly announcementsService: AnnouncementsService) {}
 
   @Post()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   create(
     @Request() req: any,
     @Body() createAnnouncementDto: CreateAnnouncementDto,
@@ -30,7 +30,7 @@ export class AnnouncementsController {
   }
 
   @Get()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   findAll() {
     return this.announcementsService.findAll();
   }

@@ -1,4 +1,10 @@
-import { Controller, Get, Param, Query, NotFoundException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  NotFoundException,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 
 @Controller('public/nutritionists')
@@ -22,7 +28,8 @@ export class PublicNutritionistsController {
 
   @Get(':slug')
   async getPublicNutritionist(@Param('slug') slug: string) {
-    const nutritionist = await this.usersService.getPublicNutritionistBySlug(slug);
+    const nutritionist =
+      await this.usersService.getPublicNutritionistBySlug(slug);
     if (!nutritionist) {
       throw new NotFoundException('Nutricionista no encontrado');
     }
@@ -31,7 +38,8 @@ export class PublicNutritionistsController {
 
   @Get(':slug/availability')
   async getNutritionistAvailability(@Param('slug') slug: string) {
-    const nutritionist = await this.usersService.getPublicNutritionistBySlug(slug);
+    const nutritionist =
+      await this.usersService.getPublicNutritionistBySlug(slug);
     if (!nutritionist) {
       throw new NotFoundException('Nutricionista no encontrado');
     }

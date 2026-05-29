@@ -23,6 +23,13 @@ frontend/.env.*
 # prisma generated
 backend/prisma/generated/
 
+# prisma compiled scripts (seed scripts transpiled artifacts)
+backend/prisma/*.js
+backend/prisma/*.js.map
+
+# root lockfile (no package.json in root — accidental installs)
+/package-lock.json
+
 # backups
 backend/backups/
 

@@ -237,14 +237,16 @@ export class UsersService {
       filtered = filtered.filter(
         (n) =>
           n.fullName.toLowerCase().includes(searchLower) ||
-          (n.specialty?.toLowerCase().includes(searchLower)) ||
-          (n.bio?.toLowerCase().includes(searchLower)),
+          n.specialty?.toLowerCase().includes(searchLower) ||
+          n.bio?.toLowerCase().includes(searchLower),
       );
     }
 
     if (specialty) {
-      filtered = filtered.filter(
-        (n) => n.specialties?.some((s) => s.toLowerCase().includes(specialty.toLowerCase())),
+      filtered = filtered.filter((n) =>
+        n.specialties?.some((s) =>
+          s.toLowerCase().includes(specialty.toLowerCase()),
+        ),
       );
     }
 
@@ -253,8 +255,8 @@ export class UsersService {
     }
 
     if (location) {
-      filtered = filtered.filter(
-        (n) => n.location?.toLowerCase().includes(location.toLowerCase()),
+      filtered = filtered.filter((n) =>
+        n.location?.toLowerCase().includes(location.toLowerCase()),
       );
     }
 

@@ -158,11 +158,21 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    // Update status to ACTIVE and set last login timestamp
+    // Block suspended or deleted accounts from logging in
+    if (account.status === 'SUSPENDED') {
+      throw new UnauthorizedException(
+        'Tu cuenta ha sido suspendida. Contacta al administrador.',
+      );
+    }
+    if (account.status === 'DELETED') {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    // Activate account ONLY on first login (PENDING → ACTIVE), update last login timestamp
     await this.prisma.account.update({
       where: { id: account.id },
       data: {
-        status: 'ACTIVE' as any,
+        ...(account.status === 'PENDING' ? { status: 'ACTIVE' as any } : {}),
         lastLoginAt: new Date(),
       },
     });

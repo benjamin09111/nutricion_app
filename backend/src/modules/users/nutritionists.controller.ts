@@ -6,12 +6,12 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 import { UsersService } from './users.service';
 import { MailService } from '../mail/mail.service';
 
 @Controller('nutritionists')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard)
 export class NutritionistsController {
   constructor(
     private readonly usersService: UsersService,

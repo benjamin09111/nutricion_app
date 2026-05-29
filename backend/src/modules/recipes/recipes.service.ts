@@ -125,7 +125,14 @@ export class RecipesService {
         ? RECIPES_AI_PROMPTS.week
         : RECIPES_AI_PROMPTS.day;
 
-    return [scopePrompt, JSON.stringify(payload)].join('\n');
+    const optimizedPayload = {
+      ...payload,
+      patientProfile: this.aiService.formatPatientContext(
+        payload.patientProfile,
+      ),
+    };
+
+    return [scopePrompt, JSON.stringify(optimizedPayload)].join('\n');
   }
 
   private mapAiErrorMessage(upstreamMessage: string): string {
@@ -190,7 +197,7 @@ export class RecipesService {
   }
 
   private extractFirstJsonValue(content: string): string | null {
-    const start = content.search(/[\{\[]/);
+    const start = content.search(/[{[]/);
     if (start === -1) return null;
 
     const open = content[start];
@@ -585,7 +592,7 @@ export class RecipesService {
       specialConsiderations: payload.specialConsiderations || '',
       referenceDishes: this.sanitizeStringList(payload.referenceDishes),
       resources: this.sanitizeStringList(payload.resources),
-      patient: payload.patient || null,
+      patient: this.aiService.formatPatientContext(payload.patient),
       existingDishes: Array.isArray(payload.existingDishes)
         ? payload.existingDishes
         : [],

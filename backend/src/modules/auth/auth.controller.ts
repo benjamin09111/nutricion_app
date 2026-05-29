@@ -12,7 +12,7 @@ import {
 import { AuthService } from './auth.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { LoginDto } from './dto/login.dto';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from './guards/auth.guard';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @Controller('auth')
@@ -25,7 +25,7 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post('create-account')
   @HttpCode(HttpStatus.CREATED)
   createAccount(
@@ -73,7 +73,7 @@ export class AuthController {
     }
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post('update-password')
   @HttpCode(HttpStatus.OK)
   updatePassword(

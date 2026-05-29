@@ -41,28 +41,34 @@ export const PAUTAS_AI_PROMPTS = {
     categories: string[],
     allowedFoods: string[],
     restrictedFoods: string[],
-    patient: { fullName?: string; ageYears?: number; weight?: number; height?: number },
+    patientContext?: string | null,
   ) => {
     const parts: string[] = [];
 
     parts.push(`RESTRICCIÓN CLÍNICA: ${restriction}`);
 
-    if (patient.fullName) {
-      parts.push(`PACIENTE: ${patient.fullName}${patient.ageYears ? ` (${patient.ageYears} años)` : ''}${patient.weight ? `, ${patient.weight}kg` : ''}${patient.height ? `, ${patient.height}cm` : ''}`);
+    if (patientContext) {
+      parts.push(`PACIENTE: ${patientContext}`);
     }
 
     parts.push(`CATEGORÍAS A GENERAR: ${categories.join(', ')}`);
 
     if (allowedFoods.length > 0) {
-      parts.push(`ALIMENTOS PERMITIDOS (priorizar): ${allowedFoods.join(', ')}`);
+      parts.push(
+        `ALIMENTOS PERMITIDOS (priorizar): ${allowedFoods.join(', ')}`,
+      );
     }
 
     if (restrictedFoods.length > 0) {
-      parts.push(`ALIMENTOS NO PERMITIDOS (evitar): ${restrictedFoods.join(', ')}`);
+      parts.push(
+        `ALIMENTOS NO PERMITIDOS (evitar): ${restrictedFoods.join(', ')}`,
+      );
     }
 
     parts.push('');
-    parts.push('Genera los párrafos de pautas de alimentación en el formato JSON especificado.');
+    parts.push(
+      'Genera los párrafos de pautas de alimentación en el formato JSON especificado.',
+    );
 
     return parts.join('\n');
   },

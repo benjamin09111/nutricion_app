@@ -54,9 +54,19 @@ import { PautasModule } from './modules/pautas/pautas.module';
     IngredientGroupsModule,
     RecipesModule,
     ScheduleModule.forRoot(),
-    CacheModule.register({
+    CacheModule.registerAsync({
       isGlobal: true,
-      ttl: 300, // 5 minutes
+      useFactory: async () => {
+        const redisUrl = process.env.REDIS_URL;
+        if (redisUrl) {
+          return {
+            store: await redisStore({ url: redisUrl }),
+            ttl: 300_000, // cache-manager-redis-yet uses milliseconds
+          };
+        }
+        // Fallback to in-memory store when Redis is not configured
+        return { ttl: 300 };
+      },
     }),
     DashboardModule,
     CreationsModule,

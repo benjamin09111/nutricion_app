@@ -722,7 +722,10 @@ export class PatientPortalsService {
     };
   }
 
-  async requestAppointment(session: PortalSessionPayload, dto: RequestAppointmentDto) {
+  async requestAppointment(
+    session: PortalSessionPayload,
+    dto: RequestAppointmentDto,
+  ) {
     const { patientId, nutritionistId } = session;
 
     const calendar = await this.prisma.appointmentCalendar.findFirst({
@@ -730,7 +733,9 @@ export class PatientPortalsService {
     });
 
     if (!calendar) {
-      throw new BadRequestException('El nutricionista no tiene agenda configurada');
+      throw new BadRequestException(
+        'El nutricionista no tiene agenda configurada',
+      );
     }
 
     const patient = await this.prisma.patient.findFirst({
@@ -753,7 +758,9 @@ export class PatientPortalsService {
         title,
         description,
         startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000),
+        endTime: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000,
+        ),
         status: 'REQUESTED' as const,
       },
     });
@@ -870,79 +877,84 @@ export class PatientPortalsService {
     const latestInvitation = invitations[0] || null;
     const sharingInvitation = activeInvitation || latestInvitation;
 
-    const [sharedResources, sharedDeliverables, appointments] = await Promise.all([
-      sharingInvitation?.resourceIds?.length
-        ? this.prisma.resource.findMany({
-            where: {
-              id: { in: sharingInvitation.resourceIds },
-              OR: [
-                { nutritionistId },
-                { isPublic: true },
-                { nutritionistId: null },
+    const [sharedResources, sharedDeliverables, appointments] =
+      await Promise.all([
+        sharingInvitation?.resourceIds?.length
+          ? this.prisma.resource.findMany({
+              where: {
+                id: { in: sharingInvitation.resourceIds },
+                OR: [
+                  { nutritionistId },
+                  { isPublic: true },
+                  { nutritionistId: null },
+                ],
+              },
+              orderBy: { updatedAt: 'desc' },
+              select: {
+                id: true,
+                title: true,
+                content: true,
+                category: true,
+                tags: true,
+                isPublic: true,
+                format: true,
+                fileUrl: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            })
+          : Promise.resolve([] as PortalResource[]),
+        sharingInvitation?.deliverableCreationIds?.length
+          ? this.prisma.creation.findMany({
+              where: {
+                id: { in: sharingInvitation.deliverableCreationIds },
+                nutritionistId,
+                type: {
+                  in: ['DIET', 'SHOPPING_LIST', 'RECIPE', 'FAST_DELIVERABLE'],
+                },
+              },
+              orderBy: { updatedAt: 'desc' },
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                format: true,
+                content: true,
+                metadata: true,
+                tags: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            })
+          : Promise.resolve([] as PortalDeliverable[]),
+        this.prisma.appointment.findMany({
+          where: {
+            patientId,
+            status: {
+              in: [
+                'REQUESTED' as const,
+                'SCHEDULED' as const,
+                'CONFIRMED' as const,
               ],
             },
-            orderBy: { updatedAt: 'desc' },
-            select: {
-              id: true,
-              title: true,
-              content: true,
-              category: true,
-              tags: true,
-              isPublic: true,
-              format: true,
-              fileUrl: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-          })
-        : Promise.resolve([] as PortalResource[]),
-      sharingInvitation?.deliverableCreationIds?.length
-        ? this.prisma.creation.findMany({
-            where: {
-              id: { in: sharingInvitation.deliverableCreationIds },
-              nutritionistId,
-              type: {
-                in: ['DIET', 'SHOPPING_LIST', 'RECIPE', 'FAST_DELIVERABLE'],
-              },
-            },
-            orderBy: { updatedAt: 'desc' },
-            select: {
-              id: true,
-              name: true,
-              type: true,
-              format: true,
-              content: true,
-              metadata: true,
-              tags: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-          })
-        : Promise.resolve([] as PortalDeliverable[]),
-      this.prisma.appointment.findMany({
-        where: {
-          patientId,
-          status: {
-            in: ['REQUESTED' as const, 'SCHEDULED' as const, 'CONFIRMED' as const],
+            OR: [
+              { status: 'REQUESTED' as const },
+              { startTime: { gte: new Date() } },
+            ],
           },
-          OR: [
-            { status: 'REQUESTED' as const },
-            { startTime: { gte: new Date() } },
-          ],
-        },
-        orderBy: { startTime: 'asc' },
-        take: 10,
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          startTime: true,
-          endTime: true,
-          status: true,
-          notes: true,
-        },
-      }),
-    ]);
+          orderBy: { startTime: 'asc' },
+          take: 10,
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            startTime: true,
+            endTime: true,
+            status: true,
+            notes: true,
+          },
+        }),
+      ]);
 
     const normalizedEntries = entries.map((entry) =>
       this.normalizeEntry(entry),

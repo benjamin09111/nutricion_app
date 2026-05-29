@@ -21,19 +21,39 @@ export class PautasService {
   constructor(private readonly aiService: AiService) {}
 
   async generateWithAi(dto: AiGeneratePautasDto): Promise<PautaAiResponse> {
-    const { restriction, categories, allowedFoods = [], restrictedFoods = [], patient } = dto;
+    const {
+      restriction,
+      categories,
+      allowedFoods = [],
+      restrictedFoods = [],
+      patient,
+    } = dto;
 
     if (!restriction || !categories || categories.length === 0) {
-      throw new BadRequestException('Se requiere una restricción clínica y al menos una categoría.');
+      throw new BadRequestException(
+        'Se requiere una restricción clínica y al menos una categoría.',
+      );
     }
 
     const systemInstruction = PAUTAS_AI_PROMPTS.system;
-    const userPrompt = PAUTAS_AI_PROMPTS.userPrompt(restriction, categories, allowedFoods, restrictedFoods, patient || {});
+    const patientContext = this.aiService.formatPatientContext(patient);
+    const userPrompt = PAUTAS_AI_PROMPTS.userPrompt(
+      restriction,
+      categories,
+      allowedFoods,
+      restrictedFoods,
+      patientContext,
+    );
 
-    this.logger.log(`[AI] Generating pautas for restriction: ${restriction}, categories: ${categories.join(', ')}`);
+    this.logger.log(
+      `[AI] Generating pautas for restriction: ${restriction}, categories: ${categories.join(', ')}`,
+    );
 
     try {
-      const rawResponse = await this.aiService.callJson(systemInstruction, userPrompt);
+      const rawResponse = await this.aiService.callJson(
+        systemInstruction,
+        userPrompt,
+      );
       const parsed = this.parseAiResponse(rawResponse);
       return parsed;
     } catch (error) {
@@ -68,7 +88,9 @@ export class PautasService {
       const parsed = JSON.parse(jsonStr);
 
       if (!parsed.paragraphs || !Array.isArray(parsed.paragraphs)) {
-        this.logger.warn('[AI] Response missing paragraphs array, wrapping in default structure');
+        this.logger.warn(
+          '[AI] Response missing paragraphs array, wrapping in default structure',
+        );
         return { paragraphs: [] };
       }
 
@@ -81,7 +103,9 @@ export class PautasService {
 
       return { paragraphs: validParagraphs as PautaParagraph[] };
     } catch {
-      throw new BadRequestException('No se pudo parsear la respuesta de la IA como JSON.');
+      throw new BadRequestException(
+        'No se pudo parsear la respuesta de la IA como JSON.',
+      );
     }
   }
 

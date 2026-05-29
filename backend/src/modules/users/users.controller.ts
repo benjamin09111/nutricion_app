@@ -11,10 +11,10 @@ import {
   Post,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('users')
-// @UseGuards(AuthGuard('jwt')) -> Moved to individual methods to allow public access to count
+// @UseGuards(AuthGuard) -> Moved to individual methods to allow public access to count
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -25,19 +25,19 @@ export class UsersController {
   }
 
   @Get()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   findAll(@Query('role') role?: any, @Query('search') search?: string) {
     return this.usersService.findAll(role, search);
   }
 
   @Patch('me/settings')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   async updateMySettings(@Request() req: any, @Body() body: any) {
     return this.usersService.updateMySettings(req.user.id, body);
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   async update(
     @Param('id') id: string,
     @Body() body: any,
@@ -79,7 +79,7 @@ export class UsersController {
   }
 
   @Patch(':id/plan')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   updatePlan(
     @Param('id') id: string,
     @Body() body: { plan: string; days?: number },
@@ -94,7 +94,7 @@ export class UsersController {
   }
 
   @Post('reset-unpaid-plans')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   resetUnpaidPlans(@Request() req: any) {
     if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
       throw new UnauthorizedException(
@@ -105,7 +105,7 @@ export class UsersController {
   }
 
   @Patch(':id/delete')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   async softDelete(@Param('id') id: string, @Request() req: any) {
     // Permissions check: must be at least some kind of admin
     const requesterRole = req.user.role;

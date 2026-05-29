@@ -11,18 +11,36 @@ function normalizeIngredientKey(name: string) {
 async function main() {
   console.log('Starting seed process...');
 
-  // 1. Categories
-  const categoriesPath = path.join(__dirname, '..', '..', 'categories.txt');
-  const categoriesRaw = fs.readFileSync(categoriesPath, 'utf8');
-  const categoryNames = categoriesRaw
+  // 1. Load ingredients file first
+  const ingredientsPath = path.join(
+    __dirname,
+    '..',
+    '..',
+    'data',
+    'ingredients.txt',
+  );
+  const ingredientsRaw = fs.readFileSync(ingredientsPath, 'utf8');
+  const lines = ingredientsRaw
     .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+    .filter((line) => line.trim().length > 0);
 
-  console.log(`Found ${categoryNames.length} categories.`);
+  console.log(`Found ${lines.length} ingredients.`);
+
+  // 2. Extract unique categories dynamically
+  const uniqueCategoryNames = new Set<string>();
+  for (const line of lines) {
+    const parts = line.split(',');
+    if (parts.length >= 2) {
+      const categoryName = parts[1].trim();
+      if (categoryName) {
+        uniqueCategoryNames.add(categoryName);
+      }
+    }
+  }
+  const categoryNames = Array.from(uniqueCategoryNames);
+  console.log(`Extracted ${categoryNames.length} unique categories.`);
 
   const categoryMap = new Map<string, string>();
-
   for (const name of categoryNames) {
     const category = await prisma.ingredientCategory.upsert({
       where: { name },
@@ -31,15 +49,6 @@ async function main() {
     });
     categoryMap.set(name, category.id);
   }
-
-  // 2. Ingredients
-  const ingredientsPath = path.join(__dirname, '..', '..', 'ingredients.txt');
-  const ingredientsRaw = fs.readFileSync(ingredientsPath, 'utf8');
-  const lines = ingredientsRaw
-    .split('\n')
-    .filter((line) => line.trim().length > 0);
-
-  console.log(`Found ${lines.length} ingredients.`);
 
   // Optional: Clear existing public ingredients if resetting
   await prisma.ingredient.deleteMany({

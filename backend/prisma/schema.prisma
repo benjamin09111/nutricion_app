@@ -152,6 +152,7 @@ model Patient {
   projects         Project[]
   appointments     Appointment[]
 
+  @@index([nutritionistId])
   @@map("patients")
 }
 
@@ -300,6 +301,7 @@ model Ingredient {
 
   @@index([name])
   @@index([isPublic, verified])
+  @@index([nutritionistId])
   @@map("ingredients")
 }
 
@@ -568,6 +570,7 @@ model Recipe {
   savedBy        RecipeLibrary[]
   nutritionist   Nutritionist?      @relation(fields: [nutritionistId], references: [id])
 
+  @@index([nutritionistId])
   @@map("recipes")
 }
 

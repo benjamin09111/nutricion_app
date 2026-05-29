@@ -1,4 +1,10 @@
-import { IsString, IsArray, IsOptional, IsNumber, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsArray,
+  IsOptional,
+  IsNumber,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class PautaPatientDto {

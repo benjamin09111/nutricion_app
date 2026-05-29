@@ -11,10 +11,10 @@ import {
   Request,
 } from '@nestjs/common';
 import { MetricsService } from './metrics.service';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('metrics')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard)
 export class MetricsController {
   constructor(private readonly metricsService: MetricsService) {}
 

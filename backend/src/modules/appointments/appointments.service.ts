@@ -742,7 +742,12 @@ export class AppointmentsService {
     return appointments;
   }
 
-  async approveAppointment(nutritionistId: string, appointmentId: string, startTime?: string, endTime?: string) {
+  async approveAppointment(
+    nutritionistId: string,
+    appointmentId: string,
+    startTime?: string,
+    endTime?: string,
+  ) {
     const calendar = await this.prisma.appointmentCalendar.findFirst({
       where: { nutritionistId },
       select: { id: true },
@@ -753,7 +758,11 @@ export class AppointmentsService {
     }
 
     const appointment = await this.prisma.appointment.findFirst({
-      where: { id: appointmentId, calendarId: calendar.id, status: 'REQUESTED' as any },
+      where: {
+        id: appointmentId,
+        calendarId: calendar.id,
+        status: 'REQUESTED' as any,
+      },
     });
 
     if (!appointment) {
@@ -786,7 +795,11 @@ export class AppointmentsService {
     }
 
     const appointment = await this.prisma.appointment.findFirst({
-      where: { id: appointmentId, calendarId: calendar.id, status: 'REQUESTED' as any },
+      where: {
+        id: appointmentId,
+        calendarId: calendar.id,
+        status: 'REQUESTED' as any,
+      },
     });
 
     if (!appointment) {

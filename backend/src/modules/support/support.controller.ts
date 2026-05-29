@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { SupportService } from './support.service';
 import { CreateSupportRequestDto } from './dto/create-support-request.dto';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('support')
 export class SupportController {
@@ -24,7 +24,7 @@ export class SupportController {
   }
 
   // Authenticated Feedback (uses JWT email)
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post('feedback')
   createFeedback(
     @Request() req: any,
@@ -37,7 +37,7 @@ export class SupportController {
   }
 
   // Secure Subscription Request
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post('secure-subscription')
   secureSubscription(@Request() req: any) {
     return this.supportService.create({
@@ -49,21 +49,21 @@ export class SupportController {
   }
 
   // Admin Only: List requests
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Get()
   findAll() {
     return this.supportService.findAll();
   }
 
   // Admin Only: Mark as resolved
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Patch(':id/resolve')
   resolve(@Param('id') id: string) {
     return this.supportService.resolve(id);
   }
 
   // Admin Only: Delete request
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.supportService.remove(id);

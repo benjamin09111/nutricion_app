@@ -14,24 +14,32 @@ function normalizeIngredientKey(name: string) {
 async function main() {
     console.log('Start seeding ingredients and categories (without deletion)...');
 
-    const categoriesPath = path.resolve(__dirname, '../../categories.txt');
-    const ingredientsPath = path.resolve(__dirname, '../../ingredients.txt');
-
-    if (!fs.existsSync(categoriesPath)) {
-        throw new Error(`Categories file not found at ${categoriesPath}`);
-    }
+    const ingredientsPath = path.resolve(__dirname, '../../data/ingredients.txt');
 
     if (!fs.existsSync(ingredientsPath)) {
         throw new Error(`Ingredients file not found at ${ingredientsPath}`);
     }
 
-    console.log('Seeding categories...');
-    const categoryNames = fs
-        .readFileSync(categoriesPath, 'utf-8')
+    console.log('Reading ingredients file to extract categories dynamically...');
+    const lines = fs
+        .readFileSync(ingredientsPath, 'utf-8')
         .split('\n')
         .map((line) => line.trim())
         .filter(Boolean);
 
+    const uniqueCategoryNames = new Set<string>();
+    for (const line of lines) {
+        const cols = line.split(',');
+        if (cols.length >= 2) {
+            const categoryName = cols[1].trim();
+            if (categoryName) {
+                uniqueCategoryNames.add(categoryName);
+            }
+        }
+    }
+    const categoryNames = Array.from(uniqueCategoryNames);
+
+    console.log('Seeding categories...');
     for (const name of categoryNames) {
         await prisma.ingredientCategory.upsert({
             where: { name },
@@ -44,13 +52,6 @@ async function main() {
     const categoryMap = new Map(categories.map((category) => [category.name, category.id]));
 
     console.log(`Categories ready: ${categories.length}`);
-
-    const lines = fs
-        .readFileSync(ingredientsPath, 'utf-8')
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean);
-
     console.log(`Ingredient rows found: ${lines.length}`);
 
     const parsedIngredients: Array<{

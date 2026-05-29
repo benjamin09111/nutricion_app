@@ -9,10 +9,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('payments')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard)
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 

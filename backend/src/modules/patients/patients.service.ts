@@ -203,8 +203,8 @@ export class PatientsService {
     id: string,
     updatePatientDto: UpdatePatientDto,
   ) {
-    // Run check ownership first
-    await this.findOne(nutritionistId, id);
+    // Lightweight ownership check — does NOT load consultations, exams, or projects
+    await this.assertOwnership(nutritionistId, id);
 
     const patient = await this.prisma.patient.update({
       where: { id },
@@ -223,8 +223,8 @@ export class PatientsService {
   }
 
   async remove(nutritionistId: string, id: string) {
-    // Run check ownership first
-    await this.findOne(nutritionistId, id);
+    // Lightweight ownership check
+    await this.assertOwnership(nutritionistId, id);
 
     const deleted = await this.prisma.patient.delete({
       where: { id },
@@ -242,8 +242,8 @@ export class PatientsService {
   }
 
   async addExam(nutritionistId: string, patientId: string, dto: CreateExamDto) {
-    // Run check ownership first
-    await this.findOne(nutritionistId, patientId);
+    // Lightweight ownership check
+    await this.assertOwnership(nutritionistId, patientId);
 
     const exam = await this.prisma.patientExam.create({
       data: {
@@ -259,5 +259,29 @@ export class PatientsService {
       'patients',
     );
     return exam;
+  }
+
+  /**
+   * Lightweight ownership validation. Only loads the nutritionistId field.
+   * Use instead of findOne() when the full patient object is not needed.
+   */
+  private async assertOwnership(
+    nutritionistId: string,
+    patientId: string,
+  ): Promise<void> {
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+      select: { nutritionistId: true },
+    });
+
+    if (!patient) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
+
+    if (patient.nutritionistId !== nutritionistId) {
+      throw new ForbiddenException(
+        'No tienes permiso para acceder a este paciente',
+      );
+    }
   }
 }

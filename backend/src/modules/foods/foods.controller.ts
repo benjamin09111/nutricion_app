@@ -11,7 +11,7 @@ import {
   Request,
   UseInterceptors,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 import { FoodsService } from './foods.service';
 import { CreateFoodDto } from './dto/create-food.dto';
 import { UpdateFoodDto } from './dto/update-food.dto';
@@ -25,13 +25,13 @@ export class FoodsController {
   constructor(private readonly foodsService: FoodsService) {}
 
   @Post()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   create(@Body() createFoodDto: CreateFoodDto, @Request() req: any) {
     return this.foodsService.create(createFoodDto, req.user.id);
   }
 
   @Get()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   findAll(
     @Request() req: any,
     @Query('search') search?: string,
@@ -53,7 +53,7 @@ export class FoodsController {
   }
 
   @Patch(':id/preferences')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   updatePreferences(
     @Param('id') id: string,
     @Request() req: any,
@@ -74,13 +74,13 @@ export class FoodsController {
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   findOne(@Param('id') id: string, @Request() req: any) {
     return this.foodsService.findOne(id, req.user.id);
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   update(
     @Param('id') id: string,
     @Body() updateFoodDto: UpdateFoodDto,
@@ -90,7 +90,7 @@ export class FoodsController {
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   remove(@Param('id') id: string, @Request() req: any) {
     return this.foodsService.remove(id, req.user.id);
   }

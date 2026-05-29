@@ -7,7 +7,7 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 import { PatientPortalsService } from './patient-portals.service';
 import { CreatePatientPortalInvitationDto } from './dto/create-patient-portal-invitation.dto';
 import { CreatePatientPortalEntryDto } from './dto/create-patient-portal-entry.dto';
@@ -21,7 +21,7 @@ import { PatientPortalAuthGuard } from './guards/patient-portal.guard';
 export class PatientPortalsController {
   constructor(private readonly patientPortalsService: PatientPortalsService) {}
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post('patients/:patientId/invitations')
   createInvitation(
     @Request() req: any,
@@ -35,7 +35,7 @@ export class PatientPortalsController {
     );
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Get('patients/:patientId/overview')
   getPatientOverview(
     @Request() req: any,
@@ -118,7 +118,7 @@ export class PatientPortalsController {
     );
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post('patients/:patientId/replies')
   createReply(
     @Request() req: any,
@@ -132,7 +132,7 @@ export class PatientPortalsController {
     );
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post('patients/:patientId/notifications')
   createNotification(
     @Request() req: any,
@@ -146,7 +146,7 @@ export class PatientPortalsController {
     );
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post('patients/:patientId/messages')
   createMessage(
     @Request() req: any,
@@ -160,7 +160,7 @@ export class PatientPortalsController {
     );
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post('patients/:patientId/access-status')
   setAccessStatus(
     @Request() req: any,
@@ -176,10 +176,7 @@ export class PatientPortalsController {
 
   @UseGuards(PatientPortalAuthGuard)
   @Post('me/appointments/request')
-  requestAppointment(
-    @Request() req: any,
-    @Body() dto: RequestAppointmentDto,
-  ) {
+  requestAppointment(@Request() req: any, @Body() dto: RequestAppointmentDto) {
     return this.patientPortalsService.requestAppointment(
       req.portalSession,
       dto,
