@@ -23,6 +23,9 @@ interface UserSettings {
   publicPhone?: string;
   publicEmail?: string;
   bookingEnabled?: boolean;
+  showPublicPhone?: boolean;
+  showPublicEmail?: boolean;
+  showInstagram?: boolean;
 }
 
 const LEGAL_SECTIONS = [
@@ -125,7 +128,11 @@ export default function SettingsPage() {
   const [publicPhone, setPublicPhone] = useState("");
   const [publicEmail, setPublicEmail] = useState("");
   const [bookingEnabled, setBookingEnabled] = useState(true);
+  const [showPublicPhone, setShowPublicPhone] = useState(false);
+  const [showPublicEmail, setShowPublicEmail] = useState(false);
+  const [showInstagram, setShowInstagram] = useState(false);
   const [isSavingPublicProfile, setIsSavingPublicProfile] = useState(false);
+  const [highlightProfile, setHighlightProfile] = useState(false);
   const { theme, setTheme } = useTheme();
   const { fontPreference, setFontPreference } = useFont();
   useEffect(() => {
@@ -152,10 +159,32 @@ export default function SettingsPage() {
         setPublicPhone(settings.publicPhone || "");
         setPublicEmail(settings.publicEmail || "");
         setBookingEnabled(settings.bookingEnabled !== false);
+        setShowPublicPhone(settings.showPublicPhone === true);
+        setShowPublicEmail(settings.showPublicEmail === true);
+        setShowInstagram(settings.showInstagram === true);
       } catch (e) {
         console.error("Error loading user data", e);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    const scrollToProfile = () => {
+      if (window.location.hash !== "#public-profile-section") return;
+      const el = document.getElementById("public-profile-section");
+      if (!el) return;
+      window.scrollTo({ top: 0, behavior: "instant" });
+      requestAnimationFrame(() => {
+        const rect = el.getBoundingClientRect();
+        const offset = rect.top + window.scrollY - 100;
+        window.scrollTo({ top: offset, behavior: "smooth" });
+        setHighlightProfile(true);
+        setTimeout(() => setHighlightProfile(false), 2500);
+      });
+    };
+    scrollToProfile();
+    window.addEventListener("hashchange", scrollToProfile);
+    return () => window.removeEventListener("hashchange", scrollToProfile);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -265,6 +294,10 @@ export default function SettingsPage() {
           publicPhone: publicPhone.trim(),
           publicEmail: publicEmail.trim(),
           bookingEnabled,
+          showPublicPhone,
+          showPublicEmail,
+          showInstagram,
+          professionalInstagram: professionalInstagram.trim(),
         }),
       });
 
@@ -289,6 +322,10 @@ export default function SettingsPage() {
             publicPhone: publicPhone.trim(),
             publicEmail: publicEmail.trim(),
             bookingEnabled,
+            showPublicPhone,
+            showPublicEmail,
+            showInstagram,
+            professionalInstagram: professionalInstagram.trim(),
           };
           localStorage.setItem("user", JSON.stringify(user));
         }
@@ -628,7 +665,14 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm font-medium">
+      <div
+        className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium transition-all duration-700 ${
+          highlightProfile
+            ? "ring-4 ring-emerald-400/50 ring-offset-4 ring-offset-white shadow-xl shadow-emerald-200/60 scale-[1.02]"
+            : ""
+        }`}
+        id="public-profile-section"
+      >
         <div className="border-b border-slate-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-x-2">
@@ -748,30 +792,80 @@ export default function SettingsPage() {
                 <h3 className="text-sm font-bold text-slate-700 mb-4">
                   Información de contacto pública
                 </h3>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-1">
-                      <Phone className="inline h-3 w-3 mr-1" />
-                      Teléfono público
-                    </label>
-                    <Input
-                      type="text"
-                      value={publicPhone}
-                      onChange={(e) => setPublicPhone(e.target.value)}
-                      placeholder="+56 9 1234 5678"
-                    />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <Phone className="h-4 w-4 text-slate-500" />
+                      <span className="text-sm font-medium text-slate-700">Teléfono</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="text"
+                        value={publicPhone}
+                        onChange={(e) => setPublicPhone(e.target.value)}
+                        placeholder="+56 9 1234 5678"
+                        className="h-8 w-40 text-xs"
+                      />
+                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
+                        <div
+                          className={`relative w-9 h-5 rounded-full transition-colors ${showPublicPhone ? "bg-emerald-500" : "bg-slate-300"}`}
+                          onClick={() => setShowPublicPhone(!showPublicPhone)}
+                        >
+                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showPublicPhone ? "left-4.5" : "left-0.5"}`} />
+                        </div>
+                      </label>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-1">
-                      <Mail className="inline h-3 w-3 mr-1" />
-                      Email público
-                    </label>
-                    <Input
-                      type="email"
-                      value={publicEmail}
-                      onChange={(e) => setPublicEmail(e.target.value)}
-                      placeholder="contacto@tuemail.cl"
-                    />
+
+                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <Mail className="h-4 w-4 text-slate-500" />
+                      <span className="text-sm font-medium text-slate-700">Email</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="email"
+                        value={publicEmail}
+                        onChange={(e) => setPublicEmail(e.target.value)}
+                        placeholder="contacto@tuemail.cl"
+                        className="h-8 w-40 text-xs"
+                      />
+                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
+                        <div
+                          className={`relative w-9 h-5 rounded-full transition-colors ${showPublicEmail ? "bg-emerald-500" : "bg-slate-300"}`}
+                          onClick={() => setShowPublicEmail(!showPublicEmail)}
+                        >
+                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showPublicEmail ? "left-4.5" : "left-0.5"}`} />
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-base">📷</span>
+                      <span className="text-sm font-medium text-slate-700">Instagram</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="text"
+                        value={professionalInstagram}
+                        onChange={(e) => setProfessionalInstagram(e.target.value)}
+                        placeholder="@tuusuario"
+                        className="h-8 w-40 text-xs"
+                      />
+                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
+                        <div
+                          className={`relative w-9 h-5 rounded-full transition-colors ${showInstagram ? "bg-emerald-500" : "bg-slate-300"}`}
+                          onClick={() => setShowInstagram(!showInstagram)}
+                        >
+                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showInstagram ? "left-4.5" : "left-0.5"}`} />
+                        </div>
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -785,7 +879,9 @@ export default function SettingsPage() {
                     <div>
                       <p className="font-bold text-slate-900">Permitir solicitar citas</p>
                       <p className="text-xs text-slate-500">
-                        Los usuarios podrán pedir hora desde tu perfil público
+                        {bookingEnabled
+                          ? "Los usuarios podrán pedir hora desde tu perfil público"
+                          : "Los usuarios podrán enviarte un mensaje directo y lo verás en tu módulo de citas"}
                       </p>
                     </div>
                   </div>

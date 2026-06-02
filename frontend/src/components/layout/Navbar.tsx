@@ -70,6 +70,7 @@ function SubscriptionSwitcher() {
 export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isPortalMenuOpen, setIsPortalMenuOpen] = useState(false);
   const [userEmail] = useState<string>(() => {
     if (typeof window === "undefined") {
       return "usuario@demo.com";
@@ -90,6 +91,26 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const portalMenuRef = useRef<HTMLDivElement>(null);
+
+  const checkProfilePublic = () => {
+    if (typeof window === "undefined") return false;
+    try {
+      const stored = window.localStorage.getItem("user");
+      if (!stored) return false;
+      const user = JSON.parse(stored);
+      return user?.nutritionist?.settings?.publicProfileEnabled === true;
+    } catch {
+      return false;
+    }
+  };
+
+  const [isProfilePublic, setIsProfilePublic] = useState(false);
+
+  const handlePortalMenuToggle = () => {
+    setIsProfilePublic(checkProfilePublic());
+    setIsPortalMenuOpen(!isPortalMenuOpen);
+  };
   const { isAdmin, isAdminView } = useAdmin();
   const { planName } = useSubscription();
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
@@ -129,6 +150,12 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
         !notificationRef.current.contains(event.target as Node)
       ) {
         setIsNotificationsOpen(false);
+      }
+      if (
+        portalMenuRef.current &&
+        !portalMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsPortalMenuOpen(false);
       }
     }
 
@@ -233,23 +260,65 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
             </span>
           </Link>
 
-          <a
-            href="/nutricionistas"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              "group hidden items-center gap-2 rounded-xl border px-3 py-1.5 transition-all sm:flex",
-              isDarkMode
-                ? "border-indigo-400/20 bg-indigo-500/10 text-indigo-200 hover:border-indigo-300/40 hover:bg-indigo-500/20"
-                : "border-indigo-100 bg-indigo-50 text-indigo-700 hover:border-indigo-200 hover:bg-indigo-100",
+          <div className="relative" ref={portalMenuRef}>
+            <button
+              onClick={handlePortalMenuToggle}
+              className={cn(
+                "group hidden items-center gap-2 rounded-xl border px-3 py-1.5 transition-all sm:flex",
+                isDarkMode
+                  ? "border-indigo-400/20 bg-indigo-500/10 text-indigo-200 hover:border-indigo-300/40 hover:bg-indigo-500/20"
+                  : "border-indigo-100 bg-indigo-50 text-indigo-700 hover:border-indigo-200 hover:bg-indigo-100",
+              )}
+              title="Portal de nutricionistas"
+            >
+              <Globe className="h-3.5 w-3.5 text-indigo-500 transition-transform group-hover:scale-110" />
+              <span className="text-[10px] font-black uppercase tracking-wider">
+                Portal
+              </span>
+            </button>
+
+            {isPortalMenuOpen && (
+              <div
+                className={cn(
+                  "absolute right-0 z-20 mt-2.5 w-52 origin-top-right overflow-hidden rounded-xl border shadow-xl ring-1 animate-in fade-in zoom-in-95 duration-100",
+                  isDarkMode
+                    ? "border-slate-700 bg-slate-900/98 ring-slate-800"
+                    : "border-slate-100 bg-white ring-slate-900/5",
+                )}
+              >
+                <div className="py-1">
+                  <a
+                    href="/nutricionistas"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setIsPortalMenuOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer",
+                      isDarkMode
+                        ? "text-slate-200 hover:bg-slate-800 hover:text-white"
+                        : "text-slate-700 hover:bg-slate-50 hover:text-indigo-600",
+                    )}
+                  >
+                    <Globe className="h-4 w-4" />
+                    Visitar portal
+                  </a>
+                  <Link
+                    href={isProfilePublic ? "/dashboard/configuraciones" : "/dashboard/configuraciones#public-profile-section"}
+                    onClick={() => setIsPortalMenuOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer",
+                      isDarkMode
+                        ? "text-slate-200 hover:bg-slate-800 hover:text-white"
+                        : "text-slate-700 hover:bg-slate-50 hover:text-emerald-600",
+                    )}
+                  >
+                    <Settings className="h-4 w-4" />
+                    Mi perfil {isProfilePublic ? "(público)" : "(no publicado)"}
+                  </Link>
+                </div>
+              </div>
             )}
-            title="Abrir portal de nutricionistas"
-          >
-            <Globe className="h-3.5 w-3.5 text-indigo-500 transition-transform group-hover:scale-110" />
-            <span className="text-[10px] font-black uppercase tracking-wider">
-              Portal
-            </span>
-          </a>
+          </div>
 
           <div className="relative" ref={notificationRef}>
             <button

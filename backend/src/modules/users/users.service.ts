@@ -365,9 +365,9 @@ export class UsersService {
       location: settings.location || null,
       avatarUrl: nutritionist.avatarUrl,
       isPublic,
-      publicPhone: settings.publicPhone || null,
-      publicEmail: settings.publicEmail || null,
-      instagram: settings.professionalInstagram || null,
+      publicPhone: settings.showPublicPhone ? (settings.publicPhone || null) : null,
+      publicEmail: settings.showPublicEmail ? (settings.publicEmail || null) : null,
+      instagram: settings.showInstagram ? (settings.professionalInstagram || null) : null,
       bookingEnabled: settings.bookingEnabled !== false,
     };
   }
