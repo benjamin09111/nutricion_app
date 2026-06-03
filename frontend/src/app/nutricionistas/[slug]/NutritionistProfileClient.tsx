@@ -7,50 +7,11 @@ import { Search, MapPin, Calendar, Video, Users, ArrowLeft, Loader2, Mail, Phone
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
-import { fetchApi } from "@/lib/api-base";
 import { toast } from "sonner";
-
-interface Nutritionist {
-  id: string;
-  slug: string;
-  fullName: string;
-  specialty: string | null;
-  headline: string | null;
-  bio: string | null;
-  specialties: string[];
-  consultationMode: string;
-  location: string | null;
-  avatarUrl: string | null;
-  bookingEnabled: boolean;
-  publicPhone: string | null;
-  publicEmail: string | null;
-  instagram: string | null;
-}
-
-interface Availability {
-  hasCalendar: boolean;
-  calendarId?: string;
-  timeZone?: string;
-  schedule?: Record<string, Record<number, { available: boolean }>>;
-}
-
-interface Slot {
-  start: string;
-  end: string;
-  available: boolean;
-}
-
-interface FreeSlotResponse {
-  slots: Slot[];
-}
+import { usePublicNutritionistProfile, type Slot } from "./hooks/usePublicNutritionistProfile";
 
 export default function NutritionistProfileClient({ slugPromise }: { slugPromise: Promise<{ slug: string }> }) {
   const [slug, setSlug] = useState<string>("");
-  const [nutritionist, setNutritionist] = useState<Nutritionist | null>(null);
-  const [availability, setAvailability] = useState<Availability | null>(null);
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
@@ -74,73 +35,17 @@ export default function NutritionistProfileClient({ slugPromise }: { slugPromise
   useEffect(() => {
     slugPromise.then((params) => {
       setSlug(params.slug);
-      loadNutritionist(params.slug);
     });
   }, [slugPromise]);
 
-  const loadNutritionist = async (nutriSlug: string) => {
-    setIsLoading(true);
-    try {
-      const response = await fetchApi(`/public/nutritionists/${nutriSlug}`);
-      if (response.ok) {
-        const data = await response.json();
-        setNutritionist(data);
-        
-        if (data.bookingEnabled) {
-          loadAvailability(data.id);
-        }
-      } else {
-        toast.error("Nutricionista no encontrado");
-      }
-    } catch (error) {
-      console.error("Error loading nutritionist", error);
-      toast.error("Error al cargar el perfil");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { nutritionistQuery, availabilityQuery, slotsQuery, requestAppointment } =
+    usePublicNutritionistProfile(slug, currentWeekStart);
 
-  const loadAvailability = async (nutriId: string) => {
-    try {
-      const response = await fetchApi(`/public/nutritionists/${slug}/availability`);
-      if (response.ok) {
-        const data = await response.json();
-        setAvailability(data);
-      }
-    } catch (error) {
-      console.error("Error loading availability", error);
-    }
-  };
-
-  const loadSlots = async () => {
-    if (!availability?.calendarId) return;
-    
-    setIsLoadingSlots(true);
-    const from = currentWeekStart.toISOString();
-    const nextWeek = new Date(currentWeekStart);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    const to = nextWeek.toISOString();
-
-    try {
-      const response = await fetchApi(
-        `/availability/free-slots?calendarId=${availability.calendarId}&from=${from}&to=${to}&durationMin=60`
-      );
-      if (response.ok) {
-        const data: FreeSlotResponse = await response.json();
-        setSlots(data.slots || []);
-      }
-    } catch (error) {
-      console.error("Error loading slots", error);
-    } finally {
-      setIsLoadingSlots(false);
-    }
-  };
-
-  useEffect(() => {
-    if (availability?.calendarId) {
-      loadSlots();
-    }
-  }, [availability?.calendarId, currentWeekStart]);
+  const nutritionist = nutritionistQuery.data ?? null;
+  const availability = availabilityQuery.data ?? null;
+  const slots = slotsQuery.data?.slots ?? [];
+  const isLoading = nutritionistQuery.isLoading || nutritionistQuery.isFetching;
+  const isLoadingSlots = slotsQuery.isLoading || slotsQuery.isFetching;
 
   const weekDays = useMemo(() => {
     const days = [];
@@ -182,25 +87,16 @@ export default function NutritionistProfileClient({ slugPromise }: { slugPromise
 
     setIsSubmitting(true);
     try {
-      const response = await fetchApi(`/public/nutritionists/${slug}/appointments/request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          guestName: formData.guestName.trim(),
-          guestEmail: formData.guestEmail.trim(),
-          guestPhone: formData.guestPhone.trim() || undefined,
-          message: formData.message.trim(),
-          startAt: selectedSlot.start,
-          endAt: selectedSlot.end,
-        }),
+      await requestAppointment.mutateAsync({
+        slug,
+        guestName: formData.guestName.trim(),
+        guestEmail: formData.guestEmail.trim(),
+        guestPhone: formData.guestPhone.trim() || undefined,
+        message: formData.message.trim(),
+        startAt: selectedSlot.start,
+        endAt: selectedSlot.end,
       });
-
-      if (response.ok) {
-        setSubmitSuccess(true);
-      } else {
-        const data = await response.json();
-        throw new Error(data.message || "Error al solicitar cita");
-      }
+      setSubmitSuccess(true);
     } catch (error) {
       console.error("Error submitting request", error);
       toast.error(error instanceof Error ? error.message : "Error al solicitar cita");
@@ -224,7 +120,7 @@ export default function NutritionistProfileClient({ slugPromise }: { slugPromise
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-[#a88aed]" />
       </div>
     );
@@ -232,7 +128,7 @@ export default function NutritionistProfileClient({ slugPromise }: { slugPromise
 
   if (!nutritionist) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-slate-900 mb-2">Nutricionista no encontrado</h2>
           <p className="text-slate-500 mb-4">El perfil que buscas no existe o fue removido.</p>
@@ -246,8 +142,8 @@ export default function NutritionistProfileClient({ slugPromise }: { slugPromise
 
   if (submitSuccess) {
     return (
-      <div className="min-h-screen bg-white">
-        <header className="border-b">
+      <div className="min-h-screen bg-white dark:bg-slate-950">
+        <header className="border-b dark:border-slate-800">
           <div className="max-w-5xl mx-auto px-6 h-16 flex items-center">
             <Link href="/nutricionistas" className="flex items-center gap-2 text-slate-600 hover:text-[#a88aed] cursor-pointer">
               <ArrowLeft className="h-4 w-4" />
@@ -281,9 +177,9 @@ export default function NutritionistProfileClient({ slugPromise }: { slugPromise
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Header */}
-      <header className="border-b">
+      <header className="border-b dark:border-slate-800">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center">
           <Link href="/nutricionistas" className="flex items-center gap-2 text-slate-600 hover:text-[#a88aed] cursor-pointer">
             <ArrowLeft className="h-4 w-4" />

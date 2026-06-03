@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Search,
   User,
@@ -23,17 +23,17 @@ import {
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Patient, PatientsResponse } from "@/features/patients";
+import { Patient } from "@/features/patients";
 import { TagInput } from "@/components/ui/TagInput";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import Cookies from "js-cookie";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
-import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { formatRut } from "@/lib/rut-utils";
+import { getApiUrl } from "@/lib/api-base";
+import { PatientTab, usePatients } from "@/features/patients/hooks/usePatients";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -49,24 +49,14 @@ function formatRestrictions(restrictions?: string[]) {
     .filter(Boolean);
 }
 
-type PatientTab = "Todos" | "Activos" | "Inactivos";
-
 export default function PatientsClient() {
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [documentIdFilter, setDocumentIdFilter] = useState("");
   const [classificationTags, setClassificationTags] = useState<string[]>([]);
   const [startDateFilter, setStartDateFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [meta, setMeta] = useState({
-    total: 0,
-    filteredTotal: 0,
-    activeCount: 0,
-    inactiveCount: 0,
-    lastPage: 1,
-  });
   const [activeTab, setActiveTab] = useState<PatientTab>("Activos");
   const router = useRouter();
 
@@ -74,104 +64,54 @@ export default function PatientsClient() {
   const [patientToDelete, setPatientToDelete] = useState<string | null>(null);
   const [patientPreview, setPatientPreview] = useState<Patient | null>(null);
 
+  useEffect(() => {
+    const timer = setTimeout(
+      () => {
+        setDebouncedSearchTerm(searchTerm);
+      },
+      searchTerm ? 400 : 0,
+    );
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const {
+    patients,
+    meta,
+    isLoading,
+    deletePatient,
+    togglePatientStatus,
+  } = usePatients({
+    page,
+    searchTerm: debouncedSearchTerm,
+    activeTab,
+    documentIdFilter,
+    classificationTags,
+    startDateFilter,
+  });
+
   const handleDeleteConfirmed = async () => {
     if (!patientToDelete) return;
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi(`/patients/${patientToDelete}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        toast.success("Paciente eliminado");
-        fetchPatients(0);
-      } else {
-        toast.error("Error al eliminar");
-      }
+      await deletePatient(patientToDelete);
+      toast.success("Paciente eliminado");
     } catch (error) {
-      toast.error("Error de de red");
+      toast.error("Error al eliminar");
     } finally {
       setIsDeleteConfirmOpen(false);
       setPatientToDelete(null);
     }
   };
 
-  const togglePatientStatus = async (patient: Patient) => {
+  const handleTogglePatientStatus = async (patient: Patient) => {
     const newStatus = patient.status === "Active" ? "Inactive" : "Active";
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi(`/patients/${patient.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (response.ok) {
-        toast.success(`Estado actualizado a ${newStatus === "Active" ? "Activo" : "Inactivo"}`);
-        fetchPatients(0);
-      }
+      await togglePatientStatus(patient.id, newStatus);
+      toast.success(`Estado actualizado a ${newStatus === "Active" ? "Activo" : "Inactivo"}`);
     } catch (e) {
       toast.error("Error al actualizar estado");
     }
   };
-
-  const fetchPatients = async (retries = 3) => {
-    setIsLoading(true);
-    try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
-
-      const queryParams = new URLSearchParams({
-        page: page.toString(),
-        limit: "10",
-        ...(searchTerm && { search: searchTerm }),
-        ...(activeTab !== "Todos" && { status: activeTab }),
-        ...(documentIdFilter && { documentId: documentIdFilter }),
-        ...(classificationTags.length > 0 && {
-          tags: classificationTags.join(","),
-        }),
-        ...(startDateFilter && { startDate: startDateFilter }),
-      });
-
-      const response = await fetchApi(`/patients?${queryParams}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const result: PatientsResponse = await response.json();
-        setPatients(result.data);
-        setMeta(result.meta);
-      }
-    } catch (e) {
-      if (retries > 0) {
-        setTimeout(() => fetchPatients(retries - 1), 2000);
-      } else {
-        console.warn("Backend no disponible para cargar pacientes.");
-        toast.error("Error al conectar con el servidor");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(
-      () => {
-        fetchPatients();
-      },
-      searchTerm ? 400 : 0,
-    );
-    return () => clearTimeout(timer);
-  }, [
-    searchTerm,
-    documentIdFilter,
-    classificationTags,
-    startDateFilter,
-    page,
-    activeTab,
-  ]);
 
   const printJson = () => {
     console.group("📊 PATIENTS DATA");
@@ -186,6 +126,7 @@ export default function PatientsClient() {
 
   const resetPatients = () => {
     setSearchTerm("");
+    setDebouncedSearchTerm("");
     setShowFilters(false);
     setDocumentIdFilter("");
     setClassificationTags([]);
@@ -467,7 +408,7 @@ export default function PatientsClient() {
                           <div className="flex items-center justify-center gap-2">
                             <button
                               type="button"
-                              onClick={() => togglePatientStatus(patient)}
+                              onClick={() => handleTogglePatientStatus(patient)}
                               className={cn(
                                 "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
                                 patient.status !== "Inactive" ? "bg-indigo-500" : "bg-slate-300"
@@ -494,7 +435,7 @@ export default function PatientsClient() {
                               <Eye className="w-4.5 h-4.5" />
                             </button>
                             <button
-                              onClick={() => togglePatientStatus(patient)}
+                              onClick={() => handleTogglePatientStatus(patient)}
                               className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
                             >
                               {patient.status === "Active" ? (
@@ -613,7 +554,7 @@ export default function PatientsClient() {
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => togglePatientStatus(patient)}
+                        onClick={() => handleTogglePatientStatus(patient)}
                         className="p-2 bg-slate-50 rounded-lg"
                         title={patient.status === "Active" ? "Inhabilitar" : "Habilitar"}
                       >

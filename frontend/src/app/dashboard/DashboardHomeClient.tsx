@@ -23,10 +23,10 @@ import {
   buildProjectAwarePath,
   createProject,
   fetchProject,
-  getWorkflowApiUrl,
   getWorkflowAuthHeaders,
   WorkflowProject,
 } from "@/lib/workflow";
+import { fetchApi } from "@/lib/api-base";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -57,10 +57,10 @@ export default function DashboardHomeClient() {
     setIsLoading(true);
     try {
       const [projectsResponse, patientsResponse] = await Promise.all([
-        fetch(`${getWorkflowApiUrl()}/projects`, {
+        fetchApi(`/projects`, {
           headers: getWorkflowAuthHeaders(),
         }),
-        fetch(`${getWorkflowApiUrl()}/patients?limit=50`, {
+        fetchApi(`/patients?limit=50`, {
           headers: getWorkflowAuthHeaders(),
         }),
       ]);

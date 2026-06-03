@@ -5,13 +5,24 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { LoginDto } from './dto/login.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { MailService } from '../mail/mail.service';
 
 import { UserRole, SubscriptionPlan } from '@prisma/client';
+
+const buildPublicSlug = (fullName: string, id: string) => {
+  const namePart = fullName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .substring(0, 30);
+  const idPart = id.substring(0, 8);
+  return `${namePart}-${idPart}`;
+};
 
 @Injectable()
 export class AuthService {
@@ -87,11 +98,16 @@ export class AuthService {
         });
 
         if (role === 'NUTRITIONIST') {
-          await tx.nutritionist.create({
+          const nutritionist = await tx.nutritionist.create({
             data: {
               accountId: newAccount.id,
               fullName: fullName,
             },
+          });
+
+          await tx.nutritionist.update({
+            where: { id: nutritionist.id },
+            data: { publicSlug: buildPublicSlug(fullName, nutritionist.id) },
           });
         }
 
@@ -163,11 +179,16 @@ export class AuthService {
         });
 
         // 3. Create Nutritionist Profile
-        await tx.nutritionist.create({
+        const nutritionist = await tx.nutritionist.create({
           data: {
             accountId: newAccount.id,
             fullName: fullName,
           },
+        });
+
+        await tx.nutritionist.update({
+          where: { id: nutritionist.id },
+          data: { publicSlug: buildPublicSlug(fullName, nutritionist.id) },
         });
 
         // 4. Create Subscription

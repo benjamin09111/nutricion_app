@@ -1,4 +1,4 @@
-﻿-- CreateIndex
+-- CreateIndex
 CREATE INDEX "ingredients_nutritionist_id_idx" ON "ingredients"("nutritionist_id");
 
 -- CreateIndex

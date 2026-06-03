@@ -81,9 +81,9 @@ export default function NutritionistsClient() {
   const hasActiveFilters = search || modeFilter || locationFilter;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-white/95 backdrop-blur-sm">
+      <header className="sticky top-0 z-50 border-b bg-white/95 backdrop-blur-sm dark:bg-slate-950/90 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Image
@@ -111,7 +111,7 @@ export default function NutritionistsClient() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative py-16 lg:py-24 bg-gradient-to-b from-slate-50 to-white">
+      <section className="relative py-16 lg:py-24 bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
         <div className="max-w-5xl mx-auto px-6 text-center">
           <h1 className="text-4xl lg:text-5xl font-black tracking-tight text-slate-900 mb-4">
             Encuentra a tu{" "}
@@ -222,7 +222,7 @@ export default function NutritionistsClient() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 py-12">
+      <footer className="bg-slate-900 py-12 dark:bg-slate-950">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <p className="text-slate-400 text-sm">
             © 2024 NutriNet. Todos los derechos reservados.

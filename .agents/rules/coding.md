@@ -14,3 +14,10 @@
 - **Simple & Direct**: Prefer professional industry patterns over custom complexity.
 - **Maintainability**: Clean code. Clear English comments.
 - **Integrity**: NO unsolicited renames/moves. Preserve UTF-8 Spanish text.
+
+## File Boundaries
+- **Single Responsibility**: One file should solve one cohesive concern.
+- **Size Budget**: If a file starts getting large or mixing data fetching, state, UI, and business rules, split it.
+- **Extraction Rule**: Pull repeated logic into helpers/hooks/services instead of growing a single component or service.
+- **Review Trigger**: Treat files approaching a few hundred lines as a signal to refactor, not as a target to keep extending.
+- **Preferred Outcome**: Smaller files that are easy for another agent or person to read, test, and change quickly.

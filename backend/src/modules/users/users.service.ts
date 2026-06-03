@@ -113,10 +113,36 @@ export class UsersService {
     const currentSettings =
       (nutritionist.settings as Record<string, any>) || {};
     const newSettings = { ...currentSettings, ...settingsData };
+    const publicProfileEnabled = settingsData.publicProfileEnabled === true;
+    const publicSlug =
+      typeof settingsData.publicSlug === 'string' && settingsData.publicSlug.trim()
+        ? settingsData.publicSlug.trim()
+        : (nutritionist.publicSlug || this.generateSlug(nutritionist.fullName, nutritionist.id));
 
     return this.prisma.nutritionist.update({
       where: { accountId },
-      data: { settings: newSettings },
+      data: {
+        settings: newSettings,
+        publicSlug,
+        publicProfileEnabled,
+        headline:
+          typeof settingsData.headline === 'string'
+            ? settingsData.headline.trim() || null
+            : nutritionist.headline,
+        bio:
+          typeof settingsData.bio === 'string'
+            ? settingsData.bio.trim() || null
+            : nutritionist.bio,
+        consultationMode:
+          typeof settingsData.consultationMode === 'string' &&
+          settingsData.consultationMode.trim()
+            ? settingsData.consultationMode.trim()
+            : nutritionist.consultationMode || 'online',
+        location:
+          typeof settingsData.location === 'string'
+            ? settingsData.location.trim() || null
+            : nutritionist.location,
+      },
     });
   }
 
@@ -203,95 +229,116 @@ export class UsersService {
     specialty?: string;
     mode?: string;
     location?: string;
+    page?: number;
+    limit?: number;
   }) {
     const { search, specialty, mode, location } = filters;
+    const page = Math.max(1, Math.trunc(filters.page || 1));
+    const limit = Math.min(24, Math.max(1, Math.trunc(filters.limit || 12)));
+    const skip = (page - 1) * limit;
 
     const where: any = {
       account: {
         role: 'NUTRITIONIST',
         status: 'ACTIVE',
       },
+      publicProfileEnabled: true,
     };
+
+    if (search) {
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { specialty: { contains: search, mode: 'insensitive' } },
+        { headline: { contains: search, mode: 'insensitive' } },
+        { bio: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (specialty) {
+      where.specialty = { contains: specialty, mode: 'insensitive' };
+    }
+
+    if (mode) {
+      where.consultationMode = mode;
+    }
+
+    if (location) {
+      where.location = { contains: location, mode: 'insensitive' };
+    }
 
     const nutritionists = await this.prisma.nutritionist.findMany({
       where,
       select: {
         id: true,
+        publicSlug: true,
         fullName: true,
         specialty: true,
         phone: true,
         avatarUrl: true,
+        headline: true,
+        bio: true,
+        consultationMode: true,
+        location: true,
+        publicProfileEnabled: true,
         settings: true,
       },
       orderBy: { fullName: 'asc' },
+      skip,
+      take: limit,
     });
 
-    const publicNutritionists = nutritionists
-      .map((n) => this.sanitizePublicProfile(n))
-      .filter((n) => n.isPublic);
+    const total = await this.prisma.nutritionist.count({ where });
 
-    let filtered = publicNutritionists;
-
-    if (search) {
-      const searchLower = search.toLowerCase();
-      filtered = filtered.filter(
-        (n) =>
-          n.fullName.toLowerCase().includes(searchLower) ||
-          n.specialty?.toLowerCase().includes(searchLower) ||
-          n.bio?.toLowerCase().includes(searchLower),
-      );
-    }
-
-    if (specialty) {
-      filtered = filtered.filter((n) =>
-        n.specialties?.some((s) =>
-          s.toLowerCase().includes(specialty.toLowerCase()),
-        ),
-      );
-    }
-
-    if (mode) {
-      filtered = filtered.filter((n) => n.consultationMode === mode);
-    }
-
-    if (location) {
-      filtered = filtered.filter((n) =>
-        n.location?.toLowerCase().includes(location.toLowerCase()),
-      );
-    }
-
-    return { nutritionists: filtered, total: filtered.length };
+    return {
+      nutritionists: nutritionists.map((n) => this.sanitizePublicProfile(n)),
+      total,
+      page,
+      limit,
+      lastPage: Math.max(1, Math.ceil(total / limit)),
+    };
   }
 
   /**
    * Get public nutritionist by slug
    */
   async getPublicNutritionistBySlug(slug: string) {
-    const nutritionists = await this.prisma.nutritionist.findMany({
-      where: {
-        account: {
-          role: 'NUTRITIONIST',
-          status: 'ACTIVE',
-        },
-      },
+    const nutritionist = await this.prisma.nutritionist.findUnique({
+      where: { publicSlug: slug },
       select: {
         id: true,
+        publicSlug: true,
         fullName: true,
         specialty: true,
         phone: true,
         avatarUrl: true,
+        headline: true,
+        bio: true,
+        consultationMode: true,
+        location: true,
+        publicProfileEnabled: true,
         settings: true,
+        account: {
+          select: {
+            role: true,
+            status: true,
+          },
+        },
       },
     });
 
-    for (const n of nutritionists) {
-      const publicProfile = this.sanitizePublicProfile(n);
-      if (publicProfile.slug === slug && publicProfile.isPublic) {
-        return publicProfile;
-      }
+    if (!nutritionist) {
+      return null;
     }
 
-    return null;
+    if (
+      nutritionist.account.role !== 'NUTRITIONIST' ||
+      nutritionist.account.status !== 'ACTIVE'
+    ) {
+      return null;
+    }
+
+    const publicProfile = this.sanitizePublicProfile(nutritionist);
+    return publicProfile.isPublic ? publicProfile : null;
   }
 
   /**
@@ -340,29 +387,39 @@ export class UsersService {
   private sanitizePublicProfile(nutritionist: {
     id: string;
     fullName: string;
+    publicSlug?: string | null;
+    publicProfileEnabled?: boolean;
     specialty: string | null;
     phone: string | null;
     avatarUrl: string | null;
+    headline?: string | null;
+    bio?: string | null;
+    consultationMode?: string | null;
+    location?: string | null;
     settings: any;
   }) {
     const settings = (nutritionist.settings as Record<string, any>) || {};
 
     const slug =
+      nutritionist.publicSlug ||
       settings.publicSlug ||
       this.generateSlug(nutritionist.fullName, nutritionist.id);
 
-    const isPublic = settings.publicProfileEnabled === true;
+    const isPublic =
+      nutritionist.publicProfileEnabled ??
+      settings.publicProfileEnabled === true;
 
     return {
       id: nutritionist.id,
       slug,
       fullName: nutritionist.fullName,
       specialty: nutritionist.specialty,
-      headline: settings.headline || null,
-      bio: settings.bio || null,
+      headline: nutritionist.headline ?? settings.headline ?? null,
+      bio: nutritionist.bio ?? settings.bio ?? null,
       specialties: this.parseSpecialties(settings.specialties),
-      consultationMode: settings.consultationMode || 'online',
-      location: settings.location || null,
+      consultationMode:
+        nutritionist.consultationMode || settings.consultationMode || 'online',
+      location: nutritionist.location ?? settings.location ?? null,
       avatarUrl: nutritionist.avatarUrl,
       isPublic,
       publicPhone: settings.showPublicPhone ? (settings.publicPhone || null) : null,

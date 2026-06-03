@@ -37,13 +37,16 @@ export const useAvailabilityRules = (calendarId?: string) => {
   return useQuery({
     queryKey: ["appointments", "calendars", calendarId, "rules"],
     queryFn: async () => {
-      if (!calendarId) return [];
+      if (!calendarId) return { rules: [], source: "default" as const };
       try {
         const data = await fetchAppointmentsJson(`/calendars/${calendarId}/availability/rules`);
-        return parseWeekRulesPayload(data);
+        return {
+          rules: parseWeekRulesPayload(data),
+          source: "service" as const,
+        };
       } catch (error) {
         console.error("Failed to fetch availability rules:", error);
-        return [];
+        return { rules: [], source: "default" as const };
       }
     },
     enabled: !!calendarId,

@@ -24,8 +24,7 @@ import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
 import { QRCodeSVG } from "qrcode.react";
-import { type Patient, type PatientsResponse } from "@/features/patients";
-import { type PatientPortalOverview } from "@/features/patient-portal/types";
+import { type Patient } from "@/features/patients";
 import {
   AppointmentCalendar,
   AppointmentEvent,
@@ -33,9 +32,24 @@ import {
   AppointmentRequest,
   AppointmentSlot,
   fetchAppointmentsApi,
-  fetchAppointmentsJson,
 } from "@/lib/appointments";
 import { getAuthToken } from "@/lib/auth-token";
+import {
+  useAppointmentPatients,
+  useAppointmentPatientPortalStatus,
+  usePendingAppointments,
+} from "./hooks/useAppointmentsPeople";
+import {
+  useCalendarMe,
+  useAvailabilityRules,
+  useWeekView,
+  useCalendarRequests,
+} from "./hooks/useAppointmentsData";
+import {
+  approveAppointment,
+  createAppointment,
+  rejectAppointment,
+} from "./hooks/useAppointmentActions";
 
 type WeekRule = {
   day: string;
@@ -603,10 +617,8 @@ export default function AppointmentsClient() {
   const [calendar, setCalendar] = useState<AppointmentCalendar | null>(null);
   const [weekAnchor, setWeekAnchor] = useState(new Date());
   const [events, setEvents] = useState<AppointmentEvent[]>([]);
-  const [, setSlots] = useState<AppointmentSlot[]>([]);
-  const [, setRequests] = useState<AppointmentRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [slots, setSlots] = useState<AppointmentSlot[]>([]);
+  const [requests, setRequests] = useState<AppointmentRequest[]>([]);
   const [activeTab, setActiveTab] = useState<ScheduleTabKey>("schedule");
   const [activeCitasTab, setActiveCitasTab] = useState<CitasTabKey>("accepted");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -615,8 +627,6 @@ export default function AppointmentsClient() {
   const [isShareLinkOpen, setIsShareLinkOpen] = useState(false);
   const [shareMode, setShareMode] = useState<"manual" | "patient">("manual");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [selectedPatientPortalStatus, setSelectedPatientPortalStatus] = useState<string | null>(null);
-  const [isLoadingPatientPortalStatus, setIsLoadingPatientPortalStatus] = useState(false);
   const [isSavingHours, setIsSavingHours] = useState(false);
   const [isCreatingShareLink, setIsCreatingShareLink] = useState(false);
   const [createDraft, setCreateDraft] = useState(createAppointmentDraft());
@@ -625,27 +635,18 @@ export default function AppointmentsClient() {
   const [, setAvailabilitySource] = useState<"service" | "default">("default");
   const [shareLinkUrl, setShareLinkUrl] = useState("");
   const [shareLinkNutritionistName, setShareLinkNutritionistName] = useState("");
-  const [patientCandidates, setPatientCandidates] = useState<Patient[]>([]);
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
-  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
-  const [, setIsScheduleActive] = useState(false);
   const [shareEmail, setShareEmail] = useState("");
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [now, setNow] = useState(() => new Date());
 const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent | null>(null);
   const [isAppointmentDetailOpen, setIsAppointmentDetailOpen] = useState(false);
   const [mobileDayOffset, setMobileDayOffset] = useState(0);
-  const [pendingAppointments, setPendingAppointments] = useState<any[]>([]);
-  const [isLoadingPending, setIsLoadingPending] = useState(false);
+  const [debouncedPatientSearchQuery, setDebouncedPatientSearchQuery] = useState("");
   const calendarSectionRef = useRef<HTMLDivElement | null>(null);
-
-  const calendarId = calendar?.id || null;
-  const calendarTimeZone =
-    calendar?.timeZone || calendar?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const weekDays = useMemo(() => getWeekDays(weekAnchor), [weekAnchor]);
   const currentWeekStart = weekDays[0];
-  const currentWeekEnd = weekDays[6];
 
   const upcomingEvents = useMemo(
     () =>
@@ -656,6 +657,73 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
     [events],
   );
 
+  const calendarQuery = useCalendarMe();
+  const calendarId = calendarQuery.data?.id ?? calendar?.id ?? null;
+  const calendarTimeZone =
+    calendarQuery.data?.timeZone ||
+    calendarQuery.data?.timezone ||
+    calendar?.timeZone ||
+    calendar?.timezone ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const availabilityRulesQuery = useAvailabilityRules(calendarId ?? undefined);
+  const weekViewQuery = useWeekView(calendarId ?? undefined, currentWeekStart);
+  const calendarRequestsQuery = useCalendarRequests(calendarId ?? undefined);
+
+  const patientCandidatesQuery = useAppointmentPatients(
+    debouncedPatientSearchQuery,
+    isPatientPickerOpen || shareMode === "patient",
+  );
+  const patientCandidates = patientCandidatesQuery.data ?? [];
+  const isLoadingPatients = patientCandidatesQuery.isFetching;
+
+  const selectedPatientPortalStatusQuery = useAppointmentPatientPortalStatus(
+    selectedPatient?.id ?? null,
+    Boolean(selectedPatient?.id),
+  );
+  const selectedPatientPortalStatus = selectedPatientPortalStatusQuery.data ?? null;
+  const isLoadingPatientPortalStatus = selectedPatientPortalStatusQuery.isFetching;
+
+  const pendingAppointmentsQuery = usePendingAppointments(
+    calendarId,
+    activeTab === "citas" && activeCitasTab === "pending",
+  );
+  const pendingAppointments = pendingAppointmentsQuery.data ?? [];
+  const isLoadingPending = pendingAppointmentsQuery.isFetching;
+
+  const isLoading =
+    calendarQuery.isLoading ||
+    availabilityRulesQuery.isLoading ||
+    weekViewQuery.isLoading ||
+    calendarRequestsQuery.isLoading;
+  const isRefreshing =
+    calendarQuery.isFetching ||
+    availabilityRulesQuery.isFetching ||
+    weekViewQuery.isFetching ||
+    calendarRequestsQuery.isFetching ||
+    patientCandidatesQuery.isFetching ||
+    pendingAppointmentsQuery.isFetching;
+
+  useEffect(() => {
+    setCalendar(calendarQuery.data ?? null);
+  }, [calendarQuery.data]);
+
+  useEffect(() => {
+    const rules = availabilityRulesQuery.data?.rules ?? [];
+    setWorkHoursDraft(rules);
+    setWorkHoursGridDraft(createWorkHoursGridFromRules(rules));
+    setAvailabilitySource(availabilityRulesQuery.data?.source ?? "default");
+  }, [availabilityRulesQuery.data]);
+
+  useEffect(() => {
+    setEvents(weekViewQuery.data?.events ?? []);
+    setSlots(weekViewQuery.data?.slots ?? []);
+  }, [weekViewQuery.data]);
+
+  useEffect(() => {
+    setRequests(calendarRequestsQuery.data ?? []);
+  }, [calendarRequestsQuery.data]);
+
   const patientCandidateOptions = useMemo(
     () =>
       patientCandidates.map((patient) => ({
@@ -665,174 +733,7 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
     [patientCandidates],
   );
 
-  const loadPatientCandidates = async (query = "") => {
-    setIsLoadingPatients(true);
-    try {
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error("Tu sesión expiró. Por favor inicia sesión nuevamente.");
-      }
-
-      const searchParams = new URLSearchParams({
-        page: "1",
-        limit: "20",
-        ...(query.trim() ? { search: query.trim() } : {}),
-      });
-      const response = await fetchApi(`/patients?${searchParams}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        throw new Error("No se pudieron cargar los pacientes.");
-      }
-
-      const payload = (await response.json()) as PatientsResponse | { data?: Patient[] };
-      const list = Array.isArray(payload?.data) ? payload.data : [];
-      setPatientCandidates(list);
-    } catch (error) {
-      console.error("Error loading patients for appointments", error);
-      toast.error(error instanceof Error ? error.message : "No se pudieron cargar los pacientes.");
-    } finally {
-      setIsLoadingPatients(false);
-    }
-  };
-
-  const loadPatientPortalStatus = async (patientId: string) => {
-    setIsLoadingPatientPortalStatus(true);
-    try {
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error("Tu sesión expiró. Por favor inicia sesión nuevamente.");
-      }
-
-      const response = await fetchApi(`/patient-portals/patients/${patientId}/overview`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        setSelectedPatientPortalStatus(null);
-        return;
-      }
-
-      const payload = (await response.json().catch(() => ({}))) as Partial<PatientPortalOverview> & {
-        status?: string;
-      };
-
-      setSelectedPatientPortalStatus(typeof payload.status === "string" ? payload.status : null);
-    } catch (error) {
-      console.warn("Error loading patient portal status", error);
-      setSelectedPatientPortalStatus(null);
-    } finally {
-      setIsLoadingPatientPortalStatus(false);
-    }
-  };
-
-  const loadData = async () => {
-    setIsLoading(true);
-    try {
-      const calendarPayload = await fetchAppointmentsJson<unknown>("/calendars/me");
-      const nextCalendar = normalizeCalendar(calendarPayload);
-      setCalendar(nextCalendar);
-
-      if (!nextCalendar?.id) {
-        setEvents([]);
-        setSlots([]);
-        setRequests([]);
-        setWorkHoursDraft([]);
-        setWorkHoursGridDraft(createEmptyWorkHoursGrid());
-        setAvailabilitySource("default");
-        setIsEditingWorkHours(false);
-        return;
-      }
-
-      const weekStart = formatDateKey(currentWeekStart);
-      const weekEnd = formatDateKey(currentWeekEnd);
-      const from = `${weekStart}T00:00:00.000Z`;
-      const to = `${weekEnd}T23:59:59.999Z`;
-      const appointmentsTo = `${formatDateKey(addDays(currentWeekEnd, 30))}T23:59:59.999Z`;
-
-      try {
-        const rulesResponse = await fetchAppointmentsApi(`/calendars/${nextCalendar.id}/availability/rules`);
-        const rulesPayload = await rulesResponse.json().catch(() => ({}));
-
-        if (rulesResponse.ok) {
-          const normalizedRules = parseWeekRulesPayload(rulesPayload);
-          setWorkHoursDraft(normalizedRules);
-          setWorkHoursGridDraft(createWorkHoursGridFromRules(normalizedRules));
-          setAvailabilitySource("service");
-        } else if (rulesResponse.status === 404 || rulesResponse.status === 405) {
-          setWorkHoursDraft([]);
-          setWorkHoursGridDraft(createEmptyWorkHoursGrid());
-          setAvailabilitySource("default");
-        } else {
-          const message =
-            typeof rulesPayload?.message === "string"
-              ? rulesPayload.message
-              : "No pudimos cargar tus horarios laborales.";
-          console.warn("Availability rules could not be loaded", message);
-          setWorkHoursDraft([]);
-          setWorkHoursGridDraft(createEmptyWorkHoursGrid());
-          setAvailabilitySource("default");
-        }
-      } catch (rulesError) {
-        console.warn("Availability rules fetch failed", rulesError);
-        setWorkHoursDraft([]);
-        setWorkHoursGridDraft(createEmptyWorkHoursGrid());
-        setAvailabilitySource("default");
-      }
-
-      let weekPayload: unknown = [];
-      let slotPayload: unknown = [];
-      let requestPayload: unknown = [];
-
-      try {
-        weekPayload = await fetchPathWithFallback([
-          `/calendars/${nextCalendar.id}/view/week?weekStart=${weekStart}`,
-          `/calendars/${nextCalendar.id}/appointments?from=${from}&to=${appointmentsTo}`,
-          `/appointments?calendarId=${nextCalendar.id}&from=${from}&to=${appointmentsTo}`,
-        ]);
-      } catch (error) {
-        console.warn("Weekly calendar could not be loaded", error);
-      }
-
-      try {
-        slotPayload = await fetchPathWithFallback([
-          `/availability/free-slots?calendarId=${nextCalendar.id}&from=${from}&to=${to}`,
-          `/calendars/${nextCalendar.id}/availability/free-slots?from=${from}&to=${to}&durationMin=30`,
-          `/calendars/${nextCalendar.id}/slots?from=${from}&to=${to}&durationMin=30`,
-        ]);
-      } catch (error) {
-        console.warn("Free slots could not be loaded", error);
-        slotPayload = [];
-      }
-
-      try {
-        requestPayload = await fetchPathWithFallback([
-          `/calendars/${nextCalendar.id}/requests?status=REQUESTED`,
-          `/appointments?calendarId=${nextCalendar.id}&status=REQUESTED`,
-        ]);
-      } catch (error) {
-        console.warn("Appointment requests could not be loaded", error);
-        requestPayload = [];
-      }
-
-      setEvents(normalizeEvents(weekPayload));
-      setSlots(normalizeSlots(slotPayload));
-      setRequests(normalizeRequests(requestPayload));
-      setIsEditingWorkHours(false);
-    } catch (error) {
-      console.error("Error loading appointments dashboard", error);
-      toast.error(error instanceof Error ? error.message : "No se pudo cargar el calendario.");
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  };
-
   useEffect(() => {
-    void loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWeekStart.getTime()]);
-
-useEffect(() => {
     const timer = window.setInterval(() => {
       setNow(new Date());
     }, 60_000);
@@ -841,58 +742,27 @@ useEffect(() => {
   }, []);
 
   useEffect(() => {
-    if (activeTab === "citas" && activeCitasTab === "pending") {
-      void loadPendingAppointments();
+    if (!isPatientPickerOpen && shareMode !== "patient") {
+      setDebouncedPatientSearchQuery("");
+      return;
     }
-  }, [activeTab, activeCitasTab]);
-
-  useEffect(() => {
-    if (!isPatientPickerOpen) return;
 
     const timer = window.setTimeout(() => {
-      void loadPatientCandidates(patientSearchQuery);
+      setDebouncedPatientSearchQuery(patientSearchQuery.trim());
     }, 200);
 
     return () => window.clearTimeout(timer);
-  }, [isPatientPickerOpen, patientSearchQuery]);
-
-  const fetchPathWithFallback = async (paths: string[]) => {
-    let lastError: unknown = null;
-
-    for (const path of paths) {
-      try {
-        const response = await fetchAppointmentsApi(path);
-        const payload = await response.json().catch(() => ({}));
-
-        if (response.ok) {
-          return payload;
-        }
-
-        if (response.status === 404 || response.status === 405) {
-          lastError = new Error(`Not found for ${path}`);
-          continue;
-        }
-
-        const message =
-          typeof payload?.message === "string"
-            ? payload.message
-            : "No se pudo completar la consulta.";
-        throw new Error(message);
-      } catch (error) {
-        lastError = error;
-      }
-    }
-
-    if (lastError instanceof Error) {
-      throw lastError;
-    }
-
-    throw new Error("No se pudo conectar con el servicio de citas.");
-  };
+  }, [isPatientPickerOpen, patientSearchQuery, shareMode]);
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await loadData();
+    await Promise.all([
+      calendarQuery.refetch(),
+      availabilityRulesQuery.refetch(),
+      weekViewQuery.refetch(),
+      calendarRequestsQuery.refetch(),
+      patientCandidatesQuery.refetch(),
+      pendingAppointmentsQuery.refetch(),
+    ]);
   };
 
   const handleImportPatient = (patientId: string) => {
@@ -915,7 +785,6 @@ useEffect(() => {
       patientEmail,
     }));
     setSelectedPatient(patient);
-    void loadPatientPortalStatus(patient.id);
     setIsPatientPickerOpen(false);
     toast.success("Paciente importado.");
   };
@@ -929,9 +798,6 @@ useEffect(() => {
       date: formatDateKey(nextDate),
       time: formatTimeInput(nextDate),
     }));
-    if (selectedPatient?.id) {
-      void loadPatientPortalStatus(selectedPatient.id);
-    }
     setIsCreateOpen(true);
   };
 
@@ -1014,7 +880,6 @@ useEffect(() => {
         if (response.ok) {
           const data = await response.json();
           const settings = data.settings || {};
-          setIsScheduleActive(!!settings.isScheduleActive);
           if (settings.bookingUrl && !shareLinkUrl) {
             setShareLinkUrl(settings.bookingUrl);
           }
@@ -1026,35 +891,6 @@ useEffect(() => {
     void loadSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Search patients for sharing
-  useEffect(() => {
-    if (shareMode !== "patient" || !patientSearchQuery.trim()) {
-      setPatientCandidates([]);
-      return;
-    }
-
-    const searchPatients = async () => {
-      setIsLoadingPatients(true);
-      try {
-        const token = getAuthToken();
-        const response = await fetchApi(`/patients?search=${encodeURIComponent(patientSearchQuery)}&limit=5`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setPatientCandidates(data.data || []);
-        }
-      } catch (error) {
-        console.error("Error searching patients:", error);
-      } finally {
-        setIsLoadingPatients(false);
-      }
-    };
-
-    const timer = setTimeout(searchPatients, 400);
-    return () => clearTimeout(timer);
-  }, [patientSearchQuery, shareMode]);
 
   const handleSendEmail = async () => {
     if (!shareEmail.trim() || !shareEmail.includes("@")) {
@@ -1141,7 +977,7 @@ useEffect(() => {
         setWorkHoursGridDraft(createWorkHoursGridFromRules(nextRules));
         setAvailabilitySource("service");
         setIsEditingWorkHours(false);
-        await loadData();
+        await handleRefresh();
         return;
       }
 
@@ -1201,109 +1037,52 @@ useEffect(() => {
     endDate.setMinutes(endDate.getMinutes() + durationMin);
 
     try {
-      const appointmentPayload = {
-        patientId,
-        patientName,
-        patientEmail,
-        start: startDate.toISOString(),
-        end: endDate.toISOString(),
-        durationMin,
-        title: description,
-        description,
-        notes: description || undefined,
-        status: "scheduled",
-        timeZone: calendarTimeZone,
-        notifyPatientByEmail: true,
-      };
-
-      const response = await fetchAppointmentsApi(`/calendars/${calendarId}/appointments`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      await createAppointment({
+        calendarId,
+        payload: {
+          patientId,
+          patientName,
+          patientEmail,
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+          durationMin,
+          title: description,
+          description,
+          notes: description || undefined,
+          status: "scheduled",
+          timeZone: calendarTimeZone,
+          notifyPatientByEmail: true,
         },
-        body: JSON.stringify(appointmentPayload),
       });
-
-      const fallbackResponse = response.status === 404
-        ? await fetchAppointmentsApi("/appointments", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ calendarId, ...appointmentPayload }),
-          })
-        : response;
-
-      if (!fallbackResponse.ok) {
-        const payload = await fallbackResponse.json().catch(() => ({}));
-        const message =
-          typeof payload?.message === "string"
-            ? payload.message
-            : "No se pudo crear la cita en /appointments.";
-        throw new Error(message);
-      }
 
       toast.success("Cita creada correctamente.");
       setIsCreateOpen(false);
       setCreateDraft(createAppointmentDraft());
       setSelectedPatient(null);
-      setSelectedPatientPortalStatus(null);
-      await loadData();
+      await handleRefresh();
     } catch (error) {
       console.error("Error creating appointment", error);
       toast.error(error instanceof Error ? error.message : "No se pudo crear la cita.");
     }
   };
 
-  const loadPendingAppointments = async () => {
-    setIsLoadingPending(true);
-    try {
-      const response = await fetchAppointmentsApi("/appointments/pending");
-      if (response.ok) {
-        const data = await response.json();
-        setPendingAppointments(Array.isArray(data) ? data : []);
-      }
-    } catch (error) {
-      console.error("Error loading pending appointments", error);
-    } finally {
-      setIsLoadingPending(false);
-    }
-  };
-
   const handleAcceptAppointment = async (appointmentId: string) => {
     try {
-      const response = await fetchAppointmentsApi(`/appointments/${appointmentId}/approve`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (response.ok) {
-        toast.success("Cita aceptada");
-        await loadPendingAppointments();
-        await loadData();
-      } else {
-        const err = await response.json().catch(() => ({}));
-        toast.error(err.message || "No se pudo aceptar la cita");
-      }
+      await approveAppointment(appointmentId);
+      toast.success("Cita aceptada");
+      await handleRefresh();
     } catch (error) {
-      toast.error("Error al aceptar la cita");
+      toast.error(error instanceof Error ? error.message : "Error al aceptar la cita");
     }
   };
 
   const handleRejectAppointment = async (appointmentId: string) => {
     try {
-      const response = await fetchAppointmentsApi(`/appointments/${appointmentId}/reject`, {
-        method: "POST",
-      });
-      if (response.ok) {
-        toast.success("Cita rechazada");
-        await loadPendingAppointments();
-      } else {
-        const err = await response.json().catch(() => ({}));
-        toast.error(err.message || "No se pudo rechazar la cita");
-      }
+      await rejectAppointment(appointmentId);
+      toast.success("Cita rechazada");
+      await handleRefresh();
     } catch (error) {
-      toast.error("Error al rechazar la cita");
+      toast.error(error instanceof Error ? error.message : "Error al rechazar la cita");
     }
   };
 
@@ -2011,7 +1790,6 @@ useEffect(() => {
                 type="button"
                 onClick={() => {
                   setSelectedPatient(null);
-                  setSelectedPatientPortalStatus(null);
                   setCreateDraft((current) => ({ ...current, patientId: "", patientName: "", patientEmail: "" }));
                 }}
                 className="p-2 text-slate-400 hover:text-rose-500 hover:bg-white rounded-xl transition-all"

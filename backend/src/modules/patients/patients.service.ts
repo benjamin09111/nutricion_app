@@ -128,23 +128,30 @@ export class PatientsService {
       }
     }
 
-    const [filteredTotal, total, activeCount, inactiveCount, data] =
-      await Promise.all([
-        this.prisma.patient.count({ where }),
-        this.prisma.patient.count({ where: { nutritionistId } }),
-        this.prisma.patient.count({
-          where: { nutritionistId, status: 'Active' },
-        }),
-        this.prisma.patient.count({
-          where: { nutritionistId, status: 'Inactive' },
-        }),
-        this.prisma.patient.findMany({
-          where,
-          skip,
-          take: limit,
-          orderBy: { updatedAt: 'desc' },
-        }),
-      ]);
+    const [filteredTotal, statusCounts, data] = await Promise.all([
+      this.prisma.patient.count({ where }),
+      this.prisma.patient.groupBy({
+        by: ['status'],
+        where: { nutritionistId },
+        _count: { status: true },
+      }),
+      this.prisma.patient.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+      }),
+    ]);
+
+    const total = statusCounts.reduce(
+      (sum, item) => sum + item._count.status,
+      0,
+    );
+    const activeCount =
+      statusCounts.find((item) => item.status === 'Active')?._count.status ?? 0;
+    const inactiveCount =
+      statusCounts.find((item) => item.status === 'Inactive')?._count.status ??
+      0;
 
     return {
       data,

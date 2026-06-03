@@ -24,12 +24,16 @@ export class PublicNutritionistsController {
     @Query('specialty') specialty?: string,
     @Query('mode') mode?: string,
     @Query('location') location?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     return this.usersService.listPublicNutritionists({
       search,
       specialty,
       mode,
       location,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
     });
   }
 
