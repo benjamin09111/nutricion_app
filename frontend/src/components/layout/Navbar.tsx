@@ -93,22 +93,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const notificationRef = useRef<HTMLDivElement>(null);
   const portalMenuRef = useRef<HTMLDivElement>(null);
 
-  const checkProfilePublic = () => {
-    if (typeof window === "undefined") return false;
-    try {
-      const stored = window.localStorage.getItem("user");
-      if (!stored) return false;
-      const user = JSON.parse(stored);
-      return user?.nutritionist?.settings?.publicProfileEnabled === true;
-    } catch {
-      return false;
-    }
-  };
-
-  const [isProfilePublic, setIsProfilePublic] = useState(false);
-
   const handlePortalMenuToggle = () => {
-    setIsProfilePublic(checkProfilePublic());
     setIsPortalMenuOpen(!isPortalMenuOpen);
   };
   const { isAdmin, isAdminView } = useAdmin();
@@ -302,19 +287,6 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                     <Globe className="h-4 w-4" />
                     Visitar portal
                   </a>
-                  <Link
-                    href={isProfilePublic ? "/dashboard/configuraciones" : "/dashboard/configuraciones#public-profile-section"}
-                    onClick={() => setIsPortalMenuOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer",
-                      isDarkMode
-                        ? "text-slate-200 hover:bg-slate-800 hover:text-white"
-                        : "text-slate-700 hover:bg-slate-50 hover:text-emerald-600",
-                    )}
-                  >
-                    <Settings className="h-4 w-4" />
-                    Mi perfil {isProfilePublic ? "(público)" : "(no publicado)"}
-                  </Link>
                 </div>
               </div>
             )}

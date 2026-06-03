@@ -8,23 +8,8 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { fetchApi } from "@/lib/api-base";
 import { toast } from "sonner";
-
-interface Nutritionist {
-  id: string;
-  slug: string;
-  fullName: string;
-  specialty: string | null;
-  headline: string | null;
-  bio: string | null;
-  specialties: string[];
-  consultationMode: string;
-  location: string | null;
-  avatarUrl: string | null;
-  bookingEnabled: boolean;
-  publicPhone: string | null;
-  publicEmail: string | null;
-  instagram: string | null;
-}
+import type { PublicNutritionistsResponse, PublicNutritionist } from "@/lib/public-nutritionists";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 const MODES = [
   { value: "", label: "Todas las modalidades" },
@@ -33,17 +18,18 @@ const MODES = [
   { value: "both", label: "Online y Presencial", icon: Users },
 ];
 
-export default function NutritionistsClient() {
-  const [nutritionists, setNutritionists] = useState<Nutritionist[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export default function NutritionistsClient({
+  initialData,
+}: {
+  initialData: PublicNutritionistsResponse;
+}) {
+  const [nutritionists, setNutritionists] = useState<PublicNutritionist[]>(initialData.nutritionists);
+  const [total, setTotal] = useState(initialData.total);
+  const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [modeFilter, setModeFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-
-  useEffect(() => {
-    loadNutritionists();
-  }, []);
 
   const loadNutritionists = async () => {
     setIsLoading(true);
@@ -57,6 +43,7 @@ export default function NutritionistsClient() {
       if (response.ok) {
         const data = await response.json();
         setNutritionists(data.nutritionists || []);
+        setTotal(data.total || 0);
       }
     } catch (error) {
       console.error("Error loading nutritionists", error);
@@ -82,6 +69,21 @@ export default function NutritionistsClient() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "Directorio de nutricionistas en Chile",
+          url: "https://nutrinet.cl/nutricionistas",
+          numberOfItems: total,
+          itemListElement: nutritionists.map((nutritionist, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            url: `https://nutrinet.cl/nutricionistas/${nutritionist.slug}`,
+            name: nutritionist.fullName,
+          })),
+        }}
+      />
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-white/95 backdrop-blur-sm dark:bg-slate-950/90 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -118,8 +120,10 @@ export default function NutritionistsClient() {
             <span className="text-[#a88aed]">nutricionista</span>
           </h1>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">
-            Explora nuestro directorio de profesionales de la nutrición. 
-            Compara perfiles, especialidades y agenda tu cita directamente.
+            Explora nutricionistas en Chile, compara perfiles, especialidades y agenda tu cita online o presencial.
+          </p>
+          <p className="text-sm text-slate-500 max-w-3xl mx-auto mb-8">
+            NutriNet reúne perfiles públicos de nutricionistas con foco en atención clínica, deportiva, digestiva y control de peso.
           </p>
 
           {/* Search Bar */}
@@ -175,6 +179,16 @@ export default function NutritionistsClient() {
         </div>
       </section>
 
+      <section className="py-10 bg-white">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="grid gap-4 md:grid-cols-3 text-sm text-slate-600">
+            <div className="rounded-2xl border border-slate-200 p-4">Nutricionistas online en Chile</div>
+            <div className="rounded-2xl border border-slate-200 p-4">Consulta nutricional presencial</div>
+            <div className="rounded-2xl border border-slate-200 p-4">Especialistas en nutrición clínica y deportiva</div>
+          </div>
+        </div>
+      </section>
+
       {/* Results Section */}
       <section className="py-12 lg:py-16">
         <div className="max-w-7xl mx-auto px-6">
@@ -209,7 +223,7 @@ export default function NutritionistsClient() {
           ) : (
             <>
               <p className="text-sm text-slate-500 mb-6">
-                {nutritionists.length} profesional{nutritionists.length !== 1 ? "es" : ""} encontrado{nutritionists.length !== 1 ? "s" : ""}
+                {total} profesional{total !== 1 ? "es" : ""} encontrado{total !== 1 ? "s" : ""}
               </p>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {nutritionists.map((nutri) => (
@@ -218,6 +232,27 @@ export default function NutritionistsClient() {
               </div>
             </>
           )}
+        </div>
+      </section>
+
+      <section className="py-16 bg-slate-50">
+        <div className="max-w-5xl mx-auto px-6 space-y-6">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 mb-3">¿Qué nutricionista estás buscando?</h2>
+            <p className="text-slate-600 max-w-3xl">
+              Usa el directorio para encontrar nutricionistas en Chile por modalidad, ubicación o especialidad. Es ideal si buscas atención online, control de peso, nutrición deportiva o acompañamiento clínico.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h3 className="font-bold text-slate-900 mb-2">Para pacientes</h3>
+              <p className="text-sm text-slate-600">Encuentra un nutricionista cerca de ti o agenda una consulta online según tu necesidad.</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h3 className="font-bold text-slate-900 mb-2">Para nutricionistas</h3>
+              <p className="text-sm text-slate-600">Publica tu perfil profesional y gana visibilidad en búsquedas relacionadas con nutrición en Chile.</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -233,7 +268,7 @@ export default function NutritionistsClient() {
   );
 }
 
-function NutritionistCard({ nutritionist }: { nutritionist: Nutritionist }) {
+function NutritionistCard({ nutritionist }: { nutritionist: PublicNutritionist }) {
   const modeLabels: Record<string, string> = {
     online: "Online",
     presencial: "Presencial",
@@ -272,17 +307,27 @@ function NutritionistCard({ nutritionist }: { nutritionist: Nutritionist }) {
         </p>
       )}
 
-      <div className="flex flex-wrap gap-2 mb-4">
-        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-xs font-medium text-slate-600">
-          {modeLabels[nutritionist.consultationMode] || nutritionist.consultationMode}
-        </span>
-        {nutritionist.location && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-xs font-medium text-slate-600">
+            {modeLabels[nutritionist.consultationMode] || nutritionist.consultationMode}
+          </span>
+          {nutritionist.location && (
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-xs font-medium text-slate-600">
             <MapPin className="h-3 w-3" />
             {nutritionist.location}
           </span>
         )}
-      </div>
+        </div>
+
+        {nutritionist.specialties.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {nutritionist.specialties.slice(0, 4).map((specialty) => (
+              <span key={specialty} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-50 text-xs font-medium text-emerald-700">
+                {specialty}
+              </span>
+            ))}
+          </div>
+        )}
 
       <Link href={`/nutricionistas/${nutritionist.slug}`}>
         <Button className="w-full rounded-2xl bg-slate-900 hover:bg-slate-800 font-medium group-hover:bg-[#a88aed] group-hover:hover:bg-[#8f70d8] transition-all cursor-pointer">

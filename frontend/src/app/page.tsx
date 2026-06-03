@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
 import { cn } from "@/lib/utils";
 import { useInView } from "@/hooks/useInView";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export default function LandingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -121,6 +122,38 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
+      <JsonLd
+        data={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "NutriNet",
+            url: "https://nutrinet.cl",
+            potentialAction: {
+              "@type": "SearchAction",
+              target: "https://nutrinet.cl/nutricionistas?search={search_term_string}",
+              "query-input": "required name=search_term_string",
+            },
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "NutriNet",
+            url: "https://nutrinet.cl",
+            logo: "https://nutrinet.cl/logo_2.webp",
+            areaServed: "CL",
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            name: "NutriNet",
+            applicationCategory: "BusinessApplication",
+            operatingSystem: "Web",
+            description: "Software para nutricionistas en Chile para gestionar pacientes, dietas y consultas.",
+            url: "https://nutrinet.cl",
+          },
+        ]}
+      />
       {/* Header / Nav */}
       <header className="fixed top-0 z-50 w-full border-b backdrop-blur-md bg-white/80 border-indigo-100">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">

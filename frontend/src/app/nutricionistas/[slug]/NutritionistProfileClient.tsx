@@ -8,10 +8,17 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { toast } from "sonner";
+import type { PublicNutritionist } from "@/lib/public-nutritionists";
 import { usePublicNutritionistProfile, type Slot } from "./hooks/usePublicNutritionistProfile";
+import { JsonLd } from "@/components/seo/JsonLd";
 
-export default function NutritionistProfileClient({ slugPromise }: { slugPromise: Promise<{ slug: string }> }) {
-  const [slug, setSlug] = useState<string>("");
+export default function NutritionistProfileClient({
+  slug,
+  initialNutritionist,
+}: {
+  slug: string;
+  initialNutritionist: PublicNutritionist;
+}) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
@@ -32,19 +39,13 @@ export default function NutritionistProfileClient({ slugPromise }: { slugPromise
     return new Date(now.setDate(diff));
   });
 
-  useEffect(() => {
-    slugPromise.then((params) => {
-      setSlug(params.slug);
-    });
-  }, [slugPromise]);
-
   const { nutritionistQuery, availabilityQuery, slotsQuery, requestAppointment } =
     usePublicNutritionistProfile(slug, currentWeekStart);
 
-  const nutritionist = nutritionistQuery.data ?? null;
+  const nutritionist = nutritionistQuery.data ?? initialNutritionist;
   const availability = availabilityQuery.data ?? null;
   const slots = slotsQuery.data?.slots ?? [];
-  const isLoading = nutritionistQuery.isLoading || nutritionistQuery.isFetching;
+  const isLoading = !nutritionist && (nutritionistQuery.isLoading || nutritionistQuery.isFetching);
   const isLoadingSlots = slotsQuery.isLoading || slotsQuery.isFetching;
 
   const weekDays = useMemo(() => {
@@ -178,6 +179,46 @@ export default function NutritionistProfileClient({ slugPromise }: { slugPromise
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
+      <JsonLd
+        data={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Person",
+            name: nutritionist.fullName,
+            jobTitle: nutritionist.specialty || "Nutricionista",
+            description: nutritionist.headline || nutritionist.bio || undefined,
+            image: nutritionist.avatarUrl || "https://nutrinet.cl/logo_2.webp",
+            url: `https://nutrinet.cl/nutricionistas/${slug}`,
+            sameAs: nutritionist.instagram
+              ? [`https://instagram.com/${nutritionist.instagram.replace("@", "")}`]
+              : undefined,
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              {
+                "@type": "ListItem",
+                position: 1,
+                name: "Inicio",
+                item: "https://nutrinet.cl/",
+              },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: "Nutricionistas",
+                item: "https://nutrinet.cl/nutricionistas",
+              },
+              {
+                "@type": "ListItem",
+                position: 3,
+                name: nutritionist.fullName,
+                item: `https://nutrinet.cl/nutricionistas/${slug}`,
+              },
+            ],
+          },
+        ]}
+      />
       {/* Header */}
       <header className="border-b dark:border-slate-800">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center">
@@ -201,7 +242,7 @@ export default function NutritionistProfileClient({ slugPromise }: { slugPromise
             </div>
           </div>
           <div className="flex-1">
-            <h1 className="text-3xl font-black text-slate-900 mb-2">
+          <h1 className="text-3xl font-black text-slate-900 mb-2">
               {nutritionist.fullName}
             </h1>
             {nutritionist.specialty && (
@@ -230,6 +271,19 @@ export default function NutritionistProfileClient({ slugPromise }: { slugPromise
             <h2 className="text-lg font-bold text-slate-900 mb-4">Sobre mí</h2>
             <div className="prose prose-slate max-w-none">
               <p className="text-slate-600 whitespace-pre-wrap">{nutritionist.bio}</p>
+            </div>
+          </div>
+        )}
+
+        {nutritionist.specialties.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Especialidades</h2>
+            <div className="flex flex-wrap gap-2">
+              {nutritionist.specialties.map((specialty) => (
+                <span key={specialty} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-50 text-sm font-medium text-emerald-700">
+                  {specialty}
+                </span>
+              ))}
             </div>
           </div>
         )}

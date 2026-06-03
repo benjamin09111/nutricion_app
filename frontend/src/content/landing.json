@@ -1,9 +1,9 @@
 {
   "hero": {
-    "badge": "Diseñada para nutricionistas",
-    "titleLine1": "AHORRA TIEMPO",
-    "titleLine2": "Atiende más pacientes.",
-    "description": "Sistema para nutricionistas que buscan la eficiencia y la excelencia: gestiona pacientes, automatiza procesos y optimiza tu consulta desde un solo lugar.",
+    "badge": "Software para nutricionistas en Chile",
+    "titleLine1": "GESTIONA",
+    "titleLine2": "Tu consulta nutricional.",
+    "description": "Plataforma para nutricionistas en Chile: gestiona pacientes, automatiza dietas y organiza tu consulta profesional desde un solo lugar.",
     "ctaButton": "Únete a la beta"
   },
   "features": {
@@ -29,8 +29,8 @@
     ]
   },
   "pricing": {
-    "titleLine1": "PLANES",
-    "titleLine2": "Pensados para tu CRECIMIENTO",
+    "titleLine1": "PLATAFORMA",
+    "titleLine2": "Pensada para tu crecimiento",
     "paragraph1": "Pronto podrás elegir el plan que mejor se adapte a tu forma de trabajar y volumen de pacientes.",
     "paragraph2": "Actualmente, estamos en fase beta, por lo que puedes acceder a la plataforma de forma gratuita mientras la seguimos construyendo junto a nutricionistas."
   },
@@ -51,7 +51,7 @@
 
   "footer": {
     "brand": "nutrinet",
-    "line1": "Diseñado en Chile para nutricionistas.",
+    "line1": "Plataforma creada en Chile para nutricionistas.",
     "line2": "Construyendo el futuro de la consulta nutricional.",
     "copyright": "2026 NUTRINET. Todos los derechos reservados."
   }

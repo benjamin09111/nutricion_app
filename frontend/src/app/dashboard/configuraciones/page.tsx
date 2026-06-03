@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { User, Lock, Save, Eye, EyeOff, Sun, Moon, Type, FileText, Globe, MapPin, Phone, Mail, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -99,6 +100,7 @@ const LEGAL_SECTIONS = [
 
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"profile" | "account">("profile");
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -132,6 +134,7 @@ export default function SettingsPage() {
   const [showPublicEmail, setShowPublicEmail] = useState(false);
   const [showInstagram, setShowInstagram] = useState(false);
   const [isSavingPublicProfile, setIsSavingPublicProfile] = useState(false);
+  const [publishedPublicSlug, setPublishedPublicSlug] = useState("");
   const [highlightProfile, setHighlightProfile] = useState(false);
   const { theme, setTheme } = useTheme();
   const { fontPreference, setFontPreference } = useFont();
@@ -152,6 +155,7 @@ export default function SettingsPage() {
 
         setPublicProfileEnabled(settings.publicProfileEnabled || false);
         setPublicSlug(settings.publicSlug || "");
+        setPublishedPublicSlug(settings.publicSlug || "");
         setHeadline(settings.headline || "");
         setBio(settings.bio || "");
         setConsultationMode(settings.consultationMode || "online");
@@ -171,6 +175,7 @@ export default function SettingsPage() {
   useEffect(() => {
     const scrollToProfile = () => {
       if (window.location.hash !== "#public-profile-section") return;
+      setActiveTab("profile");
       const el = document.getElementById("public-profile-section");
       if (!el) return;
       window.scrollTo({ top: 0, behavior: "instant" });
@@ -305,6 +310,16 @@ export default function SettingsPage() {
         throw new Error("No se pudo guardar el perfil público");
       }
 
+      const updatedNutritionist = await response.json().catch(() => null);
+
+      const resolvedSlug =
+        (updatedNutritionist?.publicSlug as string | undefined)?.trim() ||
+        publicSlug.trim() ||
+        "";
+
+      setPublicProfileEnabled(Boolean(updatedNutritionist?.publicProfileEnabled ?? publicProfileEnabled));
+      setPublishedPublicSlug(resolvedSlug);
+
       toast.success("Perfil público guardado correctamente");
 
       const storedUser = localStorage.getItem("user");
@@ -313,8 +328,8 @@ export default function SettingsPage() {
         if (user.nutritionist) {
           user.nutritionist.settings = {
             ...user.nutritionist.settings,
-            publicProfileEnabled,
-            publicSlug: publicSlug.trim() || undefined,
+            publicProfileEnabled: Boolean(updatedNutritionist?.publicProfileEnabled ?? publicProfileEnabled),
+            publicSlug: resolvedSlug || undefined,
             headline: headline.trim(),
             bio: bio.trim(),
             consultationMode,
@@ -350,9 +365,34 @@ export default function SettingsPage() {
         </p>
       </div>
 
+      <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setActiveTab("profile")}
+          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+            activeTab === "profile"
+              ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200"
+              : "text-slate-500 hover:text-slate-900"
+          }`}
+        >
+          Mi perfil
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("account")}
+          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+            activeTab === "account"
+              ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200"
+              : "text-slate-500 hover:text-slate-900"
+          }`}
+        >
+          Configuración de mi cuenta
+        </button>
+      </div>
+
       <div className="grid gap-6 md:grid-cols-2">
         {/* Profile Information */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm font-medium">
+        <div className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "profile" ? "" : "hidden"}`}>
           <div className="border-b border-slate-200 px-6 py-4">
             <div className="flex items-center gap-x-2">
               <User className="h-5 w-5 text-emerald-600" />
@@ -463,7 +503,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Security Settings */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm font-medium">
+        <div className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "account" ? "" : "hidden"}`}>
           <div className="border-b border-slate-200 px-6 py-4">
             <div className="flex items-center gap-x-2">
               <Lock className="h-5 w-5 text-emerald-600" />
@@ -570,7 +610,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm font-medium">
+      <div className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "account" ? "" : "hidden"}`}>
         <div className="border-b border-slate-200 px-6 py-4">
           <div className="flex items-center gap-x-2">
             <Type className="h-5 w-5 text-emerald-600" />
@@ -666,7 +706,7 @@ export default function SettingsPage() {
       </div>
 
       <div
-        className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium transition-all duration-700 ${
+        className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium transition-all duration-700 ${activeTab === "profile" ? "" : "hidden"} ${
           highlightProfile
             ? "ring-4 ring-emerald-400/50 ring-offset-4 ring-offset-white shadow-xl shadow-emerald-200/60 scale-[1.02]"
             : ""
@@ -681,30 +721,53 @@ export default function SettingsPage() {
                 Perfil Público
               </h2>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <span className="text-sm font-medium text-slate-600">Activar</span>
-              <div
-                className={`relative w-12 h-6 rounded-full transition-colors ${
-                  publicProfileEnabled ? "bg-emerald-500" : "bg-slate-200"
-                }`}
-                onClick={() => setPublicProfileEnabled(!publicProfileEnabled)}
-              >
-                <div
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                    publicProfileEnabled ? "left-7" : "left-1"
-                  }`}
-                />
-              </div>
-            </label>
           </div>
           <p className="mt-2 text-sm text-slate-500">
             Permite que otros usuarios te encuentren y soliciten citas desde el directorio de nutricionistas.
           </p>
         </div>
 
-        {publicProfileEnabled && (
-          <div className="p-6 space-y-6">
-            <form onSubmit={handleSavePublicProfile} className="space-y-6">
+        <div className="p-6 space-y-6">
+          <div className={`rounded-2xl border p-5 ${publicProfileEnabled ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-slate-50"}`}>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-900">
+                  {publicProfileEnabled ? "Tu perfil ya es público" : "Activa tu perfil público"}
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {publicProfileEnabled
+                    ? "Ya apareces en el directorio y puedes recibir solicitudes."
+                    : "Haz visible tu perfil para que te encuentren desde Google y el directorio."}
+                </p>
+                {isSavingPublicProfile && (
+                  <p className="mt-2 text-sm font-semibold text-emerald-700">Publicando perfil...</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPublicProfileEnabled(!publicProfileEnabled)}
+                className={`inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-bold transition-all ${
+                  publicProfileEnabled
+                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                    : "bg-indigo-600 text-white hover:bg-indigo-700"
+                }`}
+              >
+                {publicProfileEnabled ? "Perfil público activo" : "Hacer perfil público"}
+              </button>
+            </div>
+            {publicProfileEnabled && publishedPublicSlug && !isSavingPublicProfile && (
+              <div className="mt-4">
+                <Link
+                  href={`/nutricionistas/${publishedPublicSlug}`}
+                  className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-white px-5 py-3 text-sm font-bold text-emerald-700 transition-colors hover:bg-emerald-50"
+                >
+                  Visitar mi perfil público
+                </Link>
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={handleSavePublicProfile} className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">
@@ -914,10 +977,9 @@ export default function SettingsPage() {
               </div>
             </form>
           </div>
-        )}
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm font-medium">
+      <div className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "account" ? "" : "hidden"}`}>
         <div className="border-b border-slate-200 px-6 py-4">
           <div className="flex items-center gap-x-2">
             <FileText className="h-5 w-5 text-emerald-600" />
