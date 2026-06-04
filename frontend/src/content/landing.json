@@ -28,11 +28,9 @@
       }
     ]
   },
-  "pricing": {
+"pricing": {
     "titleLine1": "PLATAFORMA",
-    "titleLine2": "Pensada para tu crecimiento",
-    "paragraph1": "Pronto podrás elegir el plan que mejor se adapte a tu forma de trabajar y volumen de pacientes.",
-    "paragraph2": "Actualmente, estamos en fase beta, por lo que puedes acceder a la plataforma de forma gratuita mientras la seguimos construyendo junto a nutricionistas."
+    "titleLine2": "Pensada para tu crecimiento"
   },
   "registration": {
     "titleLine1": "¿ERES NUTRICIONISTA?",

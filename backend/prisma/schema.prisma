@@ -23,6 +23,7 @@ model Account {
   nutritionist       Nutritionist?
   payments           Payment[]
   subscription       Subscription?
+  notifications      Notification[]
 
   @@index([role, createdAt])
   @@map("accounts")
@@ -631,6 +632,24 @@ model Announcement {
   updatedAt   DateTime @updatedAt@map("updated_at")
 
   @@map("announcements")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  accountId String   @map("account_id")
+  title     String
+  message   String
+  type      String   @default("info")
+  link      String?
+  readAt    DateTime? @map("read_at")
+  metadata  Json?    @default("{}")
+  createdAt DateTime  @map("created_at") @default(now())
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, createdAt])
+  @@index([accountId, readAt])
+  @@map("notifications")
 }
 
 model Resource {

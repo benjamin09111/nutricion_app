@@ -68,6 +68,12 @@ export class UsersService {
               ? 'Admin General'
               : acc.email.split('@')[0]),
       patientCount: acc.nutritionist?._count?.patients || 0,
+      publicSlug: acc.nutritionist?.publicSlug || null,
+      publicProfileEnabled: acc.nutritionist?.publicProfileEnabled ?? false,
+      specialty: acc.nutritionist?.specialty || null,
+      consultationMode: acc.nutritionist?.consultationMode || null,
+      location: acc.nutritionist?.location || null,
+      avatarUrl: acc.nutritionist?.avatarUrl || null,
     }));
   }
 
@@ -144,6 +150,73 @@ export class UsersService {
             : nutritionist.location,
       },
     });
+  }
+
+  async updatePublicProfileVisibility(accountId: string, enabled: boolean) {
+    const nutritionist = await this.prisma.nutritionist.findUnique({
+      where: { accountId },
+      select: {
+        accountId: true,
+        settings: true,
+        publicSlug: true,
+        fullName: true,
+        account: {
+          select: {
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!nutritionist) {
+      throw new Error('Perfil de nutricionista no encontrado');
+    }
+
+    const currentSettings =
+      (nutritionist.settings as Record<string, any>) || {};
+
+    const updatedNutritionist = await this.prisma.nutritionist.update({
+      where: { accountId },
+      data: {
+        publicProfileEnabled: enabled,
+        settings: {
+          ...currentSettings,
+          publicProfileEnabled: enabled,
+        },
+      },
+      select: {
+        id: true,
+        accountId: true,
+        publicSlug: true,
+        publicProfileEnabled: true,
+      },
+    });
+
+    const title = enabled
+      ? 'Tu perfil público volvió a estar visible'
+      : 'Tu perfil público fue ocultado';
+    const message = enabled
+      ? 'Tu perfil ya aparece nuevamente en el portal público de NutriNet.'
+      : 'Un administrador ocultó tu perfil del portal público. Tu acceso privado sigue activo.';
+
+    await this.prisma.notification.create({
+      data: {
+        accountId,
+        title,
+        message,
+        type: enabled ? 'success' : 'warning',
+        link: enabled
+          ? `/nutricionistas/${nutritionist.publicSlug || this.generateSlug(nutritionist.fullName, accountId)}`
+          : '/dashboard/configuraciones',
+        metadata: {
+          source: 'admin-portal',
+          event: enabled ? 'public-profile-enabled' : 'public-profile-disabled',
+          email: nutritionist.account.email,
+        },
+      },
+    });
+
+    return updatedNutritionist;
   }
 
   /**

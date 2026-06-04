@@ -39,6 +39,14 @@ export default function LandingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [plans, setPlans] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchApi(`/memberships/active`)
+      .then((res) => res.json())
+      .then((data) => setPlans(data))
+      .catch(() => {});
+  }, []);
 
   const {
     register: registerField,
@@ -343,25 +351,80 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Pricing Section */}
+{/* Pricing Section */}
         <section id="planes" ref={pricingInView.ref} className={cn("py-16 transition-all duration-700 lg:py-24", pricingInView.isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8")}>
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className={cn("rounded-[2rem] border-2 p-8 text-center transition-all duration-500 hover:shadow-xl sm:p-12 lg:p-16", "bg-white border-[#a88aed]/30 hover:border-[#a88aed]/50 hover:shadow-[#a88aed]/10")}>
-              <div className="space-y-2 mb-8">
-                <span className="block text-4xl font-black tracking-tight sm:text-5xl lg:text-7xl" style={{ WebkitTextStroke: "3px #a6c261", color: "transparent", fontWeight: 900 }}>
-                  {content.pricing.titleLine1}
-                </span>
-                <span className="block text-2xl font-bold text-[#a88aed] sm:text-3xl lg:text-4xl">
-                  {content.pricing.titleLine2} 🌱
-                </span>
-              </div>
-              <p className="mx-auto mb-6 max-w-2xl text-base italic text-[#a88aed] sm:text-lg lg:text-xl">
-                {content.pricing.paragraph1}
-              </p>
-              <p className="mx-auto max-w-2xl text-base italic text-[#a88aed] sm:text-lg lg:text-xl">
-                {content.pricing.paragraph2}
-              </p>
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="space-y-8 mb-12 text-center">
+              <span className="block text-4xl font-black tracking-tight sm:text-5xl lg:text-7xl" style={{ WebkitTextStroke: "3px #a6c261", color: "transparent", fontWeight: 900 }}>
+                {content.pricing.titleLine1}
+              </span>
+              <span className="block text-2xl font-bold text-[#a88aed] sm:text-3xl lg:text-4xl">
+                {content.pricing.titleLine2} 🌱
+              </span>
             </div>
+            <div className="grid gap-6 lg:grid-cols-3 xl:gap-8">
+              {plans.filter(p => p.isActive).map((plan, index) => {
+                const isPopular = plan.isPopular;
+                return (
+                  <div
+                    key={plan.id}
+                    className={cn(
+                      "relative flex flex-col rounded-3xl bg-white text-center transition-all duration-500",
+                      isPopular
+                        ? "border-2 border-[#a88aed] shadow-[0_20px_60px_rgba(168,138,237,0.25)] lg:scale-105 z-10"
+                        : "border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1"
+                    )}
+                  >
+                    {isPopular && (
+                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-6 py-2 rounded-full shadow-lg">
+                        ⭐ Recomendado
+                      </div>
+                    )}
+                    <div className={cn("flex flex-col flex-1 p-6 sm:p-8", isPopular ? "pt-10" : "pt-6")}>
+                      <div className="mb-6">
+                        <h3 className={cn("text-xl font-bold mb-2", isPopular ? "text-indigo-700" : "text-slate-900")}>
+                          {plan.name}
+                        </h3>
+                        <div className="flex items-baseline justify-center gap-1">
+                          <span className="text-5xl font-black tracking-tight text-slate-900">
+                            ${Number(plan.price).toLocaleString("es-CL")}
+                          </span>
+                          <span className="text-slate-500 text-sm">/mes</span>
+                        </div>
+                        {plan.description && (
+                          <p className="mt-3 text-sm text-slate-500">{plan.description}</p>
+                        )}
+                      </div>
+
+                      <ul className="mb-8 space-y-3 text-left flex-1">
+                        {(Array.isArray(plan.features) ? plan.features : JSON.parse(plan.features || "[]")).map((feature: string, idx: number) => (
+                          <li key={idx} className="flex items-start gap-3">
+                            <div className={cn("mt-0.5 rounded-full p-0.5", isPopular ? "bg-indigo-100" : "bg-slate-100")}>
+                              <Check className={cn("h-3.5 w-3.5", isPopular ? "text-indigo-600" : "text-slate-500")} />
+                            </div>
+                            <span className="text-sm text-slate-700">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      <Button
+                        className={cn(
+                          "w-full cursor-pointer text-base font-semibold py-3 rounded-2xl transition-all duration-300",
+                          isPopular
+                            ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                            : "bg-slate-100 hover:bg-slate-200 text-slate-800 hover:text-slate-900"
+                        )}
+                      >
+                        {isPopular ? "Elegir Plan Pro" : `Elegir ${plan.name}`}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-center text-sm text-slate-500 mt-8">
+              Sin compromiso. Cancela cuando quieras. Facturación segura.
+            </p>
           </div>
         </section>
 

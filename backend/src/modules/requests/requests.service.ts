@@ -46,8 +46,24 @@ export class RequestsService {
       data: createDto,
     });
 
-    // 3. Notifications DISABLED (SMTP BLOCKED)
-    console.log(`ℹ️ [RequestsService] Notificación de solicitud para ${createDto.email} omitida (SMTP Desactivado).`);
+    // 3. Notify admin and confirm receipt to the requester
+    this.mailService
+      .sendAdminNotification({
+        fullName: createDto.fullName,
+        email: createDto.email,
+        phone: createDto.phone,
+        specialty: createDto.specialty,
+        message: createDto.message,
+      })
+      .catch((err) =>
+        console.error('Error sending registration admin notification:', err),
+      );
+
+    this.mailService
+      .sendRegistrationConfirmation(createDto.email, createDto.fullName)
+      .catch((err) =>
+        console.error('Error sending registration confirmation:', err),
+      );
 
 
     return {
@@ -206,7 +222,9 @@ export class RequestsService {
     }
 
     if (status === 'REJECTED') {
-      console.log(`ℹ️ [RequestsService] Correo de rechazo para ${request.email} omitido (SMTP Desactivado).`);
+      this.mailService
+        .sendRejectionEmail(request.email, request.fullName, adminNotes)
+        .catch((err) => console.error('Error sending rejection email:', err));
     }
 
 

@@ -7,6 +7,7 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
+import { cn } from "@/lib/utils";
 
 interface MembershipPlan {
   id: string;
@@ -211,12 +212,22 @@ export default function MembershipsPage() {
                     : "border-slate-200"
                   }`}
               >
-                {/* Popular Badge */}
-                {plan.isPopular && (
-                  <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-center py-1.5 text-xs font-semibold">
-                    ⭐ Más Popular
-                  </div>
-                )}
+{/* Popular Badge */}
+                  {plan.isPopular && (
+                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-center py-1.5 text-xs font-semibold">
+                      ⭐ Más Popular
+                    </div>
+                  )}
+
+                  {/* Active Badge */}
+                  {!isEditing && (
+                    <div className="flex items-center justify-center gap-1.5">
+                      <div className={cn("w-2 h-2 rounded-full", plan.isActive ? "bg-green-500" : "bg-slate-300")} />
+                      <span className={cn("text-xs font-medium", plan.isActive ? "text-green-600" : "text-slate-400")}>
+                        {plan.isActive ? "Visible" : "Oculto"}
+                      </span>
+                    </div>
+                  )}
 
                 {/* Card Content */}
                 <div className="p-4 space-y-3">
@@ -346,7 +357,7 @@ export default function MembershipsPage() {
 
                   {/* Popular Toggle (Only in Edit Mode) */}
                   {isEditing && (
-                    <div className="pt-3 border-t border-slate-100">
+                    <div className="pt-3 border-t border-slate-100 space-y-3">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
@@ -364,9 +375,22 @@ export default function MembershipsPage() {
                         </span>
                         <Star className="h-4 w-4 text-amber-500" />
                       </label>
-                      <p className="text-xs text-slate-500 ml-6 mt-1">
-                        Se mostrará con un badge destacado en la landing page
-                      </p>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={currentData.isActive ?? true}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              isActive: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                        />
+                        <span className="text-sm text-slate-700 font-medium">
+                          Visible en landing
+                        </span>
+                      </label>
                     </div>
                   )}
                 </div>

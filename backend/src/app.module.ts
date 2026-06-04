@@ -33,6 +33,7 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
 import { PatientPortalsModule } from './modules/patient-portals/patient-portals.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { PautasModule } from './modules/pautas/pautas.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { PautasModule } from './modules/pautas/pautas.module';
     PatientPortalsModule,
     AppointmentsModule,
     PautasModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

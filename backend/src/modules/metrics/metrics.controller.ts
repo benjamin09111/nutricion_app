@@ -7,7 +7,6 @@ import {
   UseGuards,
   Delete,
   Param,
-  UseInterceptors,
   Request,
 } from '@nestjs/common';
 import { MetricsService } from './metrics.service';
@@ -47,5 +46,15 @@ export class MetricsController {
     const nutritionistId = req.user.nutritionistId;
     const role = req.user.role;
     return this.metricsService.remove(id, nutritionistId, role);
+  }
+
+  @Get('admin/dashboard')
+  async getAdminDashboard(@Request() req: any) {
+    return this.metricsService.getAdminDashboard(req.user.role);
+  }
+
+  @Post('force-calculate')
+  async forceCalculate(@Request() req: any) {
+    return this.metricsService.forceCalculateAdminMetrics(req.user.role);
   }
 }

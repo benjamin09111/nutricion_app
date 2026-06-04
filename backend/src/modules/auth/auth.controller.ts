@@ -10,14 +10,19 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { MailService } from '../mail/mail.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthGuard } from './guards/auth.guard';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import { RegisterDto } from './dto/register.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly mailService: MailService,
+  ) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -85,8 +90,18 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  register(@Body() registerDto: any) {
+  register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
+  }
+
+  @Post('request-access')
+  @HttpCode(HttpStatus.OK)
+  async requestAccess(@Body() body: { name: string; email: string; message?: string }) {
+    if (!body.name || !body.email) {
+      throw new BadRequestException('Nombre y correo son requeridos');
+    }
+    await this.mailService.sendRegistrationAlert(body.name, body.email, body.message);
+    return { success: true };
   }
 }
 

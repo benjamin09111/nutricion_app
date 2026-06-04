@@ -93,6 +93,25 @@ export class UsersController {
     return this.usersService.updatePlan(id, body.plan as any, body.days);
   }
 
+  @Patch(':id/public-profile')
+  @UseGuards(AuthGuard)
+  updatePublicProfileVisibility(
+    @Param('id') id: string,
+    @Body() body: { publicProfileEnabled: boolean },
+    @Request() req: any,
+  ) {
+    if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
+      throw new UnauthorizedException(
+        'Solo el administrador puede gestionar el portal público',
+      );
+    }
+
+    return this.usersService.updatePublicProfileVisibility(
+      id,
+      body.publicProfileEnabled === true,
+    );
+  }
+
   @Post('reset-unpaid-plans')
   @UseGuards(AuthGuard)
   resetUnpaidPlans(@Request() req: any) {

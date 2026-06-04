@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   UnauthorizedException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -10,6 +11,7 @@ import * as crypto from 'crypto';
 import { LoginDto } from './dto/login.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { MailService } from '../mail/mail.service';
+import { RegisterDto } from './dto/register.dto';
 
 import { UserRole, SubscriptionPlan } from '@prisma/client';
 
@@ -125,6 +127,28 @@ export class AuthService {
         }
       });
 
+      const isAdminRole = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(
+        role,
+      );
+
+      if (!isAdminRole) {
+        try {
+          await this.mailService.sendWelcomeEmail(
+            normalizedEmail,
+            fullName,
+            password,
+            adminMessage,
+          );
+        } catch (mailError) {
+          console.error('Error sending welcome email:', mailError);
+        }
+      }
+
+      return {
+        success: true,
+        message: 'Cuenta creada correctamente.',
+      };
+
     } catch (error) {
       console.error('CRITICAL ERROR creating account:', error);
       if (error instanceof BadRequestException) {
@@ -136,13 +160,8 @@ export class AuthService {
     }
   }
 
-  async register(data: {
-    email: string;
-    password?: string;
-    fullName: string;
-    metadata?: any;
-  }) {
-    const { email, password, fullName } = data;
+  async register(data: RegisterDto) {
+    const { email, password, fullName, message } = data;
     const normalizedEmail = email.toLowerCase().trim();
 
     const existingAccount = await this.prisma.account.findUnique({
@@ -205,12 +224,36 @@ export class AuthService {
         }
 
         console.log(`✅ [AuthService] Usuario registrado con éxito: ${normalizedEmail}`);
-        
-        return {
-          success: true,
-          message: 'Registro completado con éxito.',
-        };
       });
+
+      await Promise.allSettled([
+        this.mailService.sendWelcomeEmail(
+          normalizedEmail,
+          fullName,
+          password,
+        ),
+        this.mailService.sendRegistrationAlert(
+          fullName,
+          normalizedEmail,
+          message,
+        ),
+      ]).then((results) => {
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            console.error(
+              index === 0
+                ? 'Error sending welcome email:'
+                : 'Error sending registration alert:',
+              result.reason,
+            );
+          }
+        });
+      });
+
+      return {
+        success: true,
+        message: 'Registro completado con éxito. Revisa tu correo.',
+      };
     } catch (error: any) {
       console.error('Error en register:', error);
       throw new BadRequestException('No se pudo completar el registro: ' + error.message);
@@ -219,99 +262,110 @@ export class AuthService {
 
 
   async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
-    const normalizedEmail = email.toLowerCase().trim();
-    const account = await this.prisma.account.findUnique({
-      where: { email: normalizedEmail },
-      include: {
-        nutritionist: true,
-        subscription: {
-          include: {
-            plan: true,
+    try {
+      const { email, password } = loginDto;
+      const normalizedEmail = email.toLowerCase().trim();
+      const account = await this.prisma.account.findUnique({
+        where: { email: normalizedEmail },
+        include: {
+          nutritionist: true,
+          subscription: {
+            include: {
+              plan: true,
+            },
           },
         },
-      },
-    });
-
-    if (!account || !account.password) {
-      throw new UnauthorizedException('Credenciales inválidas');
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, account.password);
-
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Credenciales inválidas');
-    }
-
-    // Block suspended or deleted accounts from logging in
-    if (account.status === 'SUSPENDED') {
-      throw new UnauthorizedException(
-        'Tu cuenta ha sido suspendida. Contacta al administrador.',
-      );
-    }
-    if (account.status === 'DELETED') {
-      throw new UnauthorizedException('Credenciales inválidas');
-    }
-
-    // Activate account ONLY on first login (PENDING → ACTIVE), update last login timestamp
-    await this.prisma.account.update({
-      where: { id: account.id },
-      data: {
-        ...(account.status === 'PENDING' ? { status: 'ACTIVE' as any } : {}),
-        lastLoginAt: new Date(),
-      },
-    });
-
-    if (!account.nutritionist) {
-      console.warn(
-        `[AuthService] Warning: Account ${account.email} has no Nutritionist record. Role: ${account.role}`,
-      );
-    }
-
-    const payload = {
-      email: account.email,
-      sub: account.id,
-      role: account.role,
-      nutritionistId: account.nutritionist?.id,
-    };
-
-    const signOptions: any = {
-      expiresIn: loginDto.rememberMe ? '30d' : '24h',
-    };
-
-    let planName = account.subscription?.plan?.name;
-
-    // If no subscription record found specifically for this account, default to the first active plan if they are a nutritionist
-    if (!planName && account.role === 'NUTRITIONIST') {
-      const defaultPlan = await this.prisma.membershipPlan.findFirst({
-        where: { isActive: true },
-        orderBy: { displayOrder: 'asc' },
       });
-      if (defaultPlan) {
-        planName = defaultPlan.name;
+
+      if (!account || !account.password) {
+        throw new UnauthorizedException('Credenciales inválidas');
       }
-    }
 
-    // Final fallbacks
-    if (!planName) {
-      planName = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(
-        account.role,
-      )
-        ? 'Full Access'
-        : 'Plan Gratuito';
-    }
+      const isPasswordValid = await bcrypt.compare(password, account.password);
 
-    return {
-      access_token: this.jwtService.sign(payload, signOptions),
-      user: {
-        id: account.id,
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Credenciales inválidas');
+      }
+
+      // Block suspended or deleted accounts from logging in
+      if (account.status === 'SUSPENDED') {
+        throw new UnauthorizedException(
+          'Tu cuenta ha sido suspendida. Contacta al administrador.',
+        );
+      }
+      if (account.status === 'DELETED') {
+        throw new UnauthorizedException('Credenciales inválidas');
+      }
+
+      // Activate account ONLY on first login (PENDING → ACTIVE), update last login timestamp
+      await this.prisma.account.update({
+        where: { id: account.id },
+        data: {
+          ...(account.status === 'PENDING' ? { status: 'ACTIVE' as any } : {}),
+          lastLoginAt: new Date(),
+        },
+      });
+
+      if (account.role === 'NUTRITIONIST' && !account.nutritionist) {
+        console.warn(
+          `[AuthService] Warning: Account ${account.email} has no Nutritionist record. Role: ${account.role}`,
+        );
+      }
+
+      const payload = {
         email: account.email,
+        sub: account.id,
         role: account.role,
-        plan: account.plan,
-        planName,
-        nutritionist: account.nutritionist,
-      },
-    };
+        nutritionistId: account.nutritionist?.id,
+      };
+
+      const signOptions: any = {
+        expiresIn: loginDto.rememberMe ? '30d' : '24h',
+      };
+
+      let planName = account.subscription?.plan?.name;
+
+      // If no subscription record found specifically for this account, default to the first active plan if they are a nutritionist
+      if (!planName && account.role === 'NUTRITIONIST') {
+        const defaultPlan = await this.prisma.membershipPlan.findFirst({
+          where: { isActive: true },
+          orderBy: { displayOrder: 'asc' },
+        });
+        if (defaultPlan) {
+          planName = defaultPlan.name;
+        }
+      }
+
+      // Final fallbacks
+      if (!planName) {
+        planName = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(
+          account.role,
+        )
+          ? 'Full Access'
+          : 'Plan Gratuito';
+      }
+
+      return {
+        access_token: this.jwtService.sign(payload, signOptions),
+        user: {
+          id: account.id,
+          email: account.email,
+          role: account.role,
+          plan: account.plan,
+          planName,
+          nutritionist: account.nutritionist,
+        },
+      };
+    } catch (error: any) {
+      if (error?.code === 'P2022') {
+        console.error('[AuthService] Prisma schema mismatch on login:', error);
+        throw new ServiceUnavailableException(
+          'Tenemos un problema temporal con la base de datos. El equipo ya fue notificado.',
+        );
+      }
+
+      throw error;
+    }
   }
 
   async validateUser(payload: any) {
@@ -364,15 +418,20 @@ export class AuthService {
         `[AuthService] Password updated in DB for ${normalizedEmail}. New temporary pass: ${password}`,
       );
 
-      // EMAIL DISABLED (SMTP BLOCKED)
-      console.log(
-        `⚠️ [AuthService] MailService.sendPasswordResetEmail skipped for ${email} (SMTP Disabled).`,
-      );
+      try {
+        await this.mailService.sendPasswordResetEmail(
+          normalizedEmail,
+          greetingName,
+          password,
+        );
+      } catch (mailError) {
+        console.error('Error sending password reset email:', mailError);
+      }
 
       return {
         success: true,
-        message:
-          `Contraseña restablecida temporalmente a: ${password}. (Anótala, ya que el servicio de correo está desactivado).`,
+        message: 'Contraseña restablecida y enviada por correo.',
+        temporaryPassword: password,
       };
 
     } catch (error) {
