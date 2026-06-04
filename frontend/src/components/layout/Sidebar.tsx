@@ -68,7 +68,7 @@ const groups: SidebarGroup[] = [
       { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
       { name: "Entregable Personalizado", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
       { name: "Alimentos", isSubHeader: true },
-      { name: "Ingredientes", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
+      { name: "Composición de alimentos", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
       { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos", hidden: true },
       { name: "Grupos", href: "/dashboard/alimentos/grupos", icon: FolderPlus },
     ],

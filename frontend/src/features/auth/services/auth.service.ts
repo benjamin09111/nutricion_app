@@ -11,10 +11,16 @@ export const authService = {
       body: JSON.stringify(credentials),
     });
 
-    const data = await response.json();
+    const contentType = response.headers.get("content-type") || "";
+    const data = contentType.includes("application/json")
+      ? await response.json()
+      : { message: await response.text() };
 
     if (!response.ok) {
-      throw new Error(data.message || "Error al iniciar sesión");
+      const message = Array.isArray(data.message)
+        ? data.message.join(" ")
+        : data.message || data.error || "Error al iniciar sesión";
+      throw new Error(message);
     }
 
     if (data.access_token) {

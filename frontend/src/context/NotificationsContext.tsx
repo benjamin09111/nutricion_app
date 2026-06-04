@@ -1,7 +1,9 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import Cookies from "js-cookie";
 import { toast } from "sonner";
+import { fetchApi } from "@/lib/api-base";
 
 export type NotificationType =
   | "info"
@@ -37,6 +39,17 @@ const NotificationsContext = createContext<
 
 const MAX_STORAGE = 50;
 const MAX_UNREAD_DISPLAY = 10;
+const STORAGE_KEY = "NutriNet_notifications";
+
+type ServerNotification = {
+  id: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  link?: string | null;
+  date: string | Date;
+  read: boolean;
+};
 
 export function NotificationsProvider({
   children,
@@ -45,17 +58,34 @@ export function NotificationsProvider({
 }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // 1. Load from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem("NutriNet_notifications");
-    if (stored) {
-      try {
-        setNotifications(JSON.parse(stored));
-      } catch (e) {
-        console.error("Error loading notifications", e);
+  const getToken = () => {
+    return Cookies.get("auth_token") || localStorage.getItem("auth_token");
+  };
+
+  const persistNotifications = (value: Notification[]) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+  };
+
+  const normalizeServerNotifications = (items: ServerNotification[]) =>
+    items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      message: item.message,
+      type: item.type,
+      date: new Date(item.date).toISOString(),
+      read: item.read,
+      link: item.link || undefined,
+    }));
+
+  const loadFromStorage = (seedIfEmpty = false) => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) {
+      if (!seedIfEmpty) {
+        setNotifications([]);
+        persistNotifications([]);
+        return;
       }
-    } else {
-      // Initial seed data for demo
+
       const initialData: Notification[] = [
         {
           id: "1",
@@ -67,22 +97,68 @@ export function NotificationsProvider({
         },
       ];
       setNotifications(initialData);
-      localStorage.setItem(
-        "NutriNet_notifications",
-        JSON.stringify(initialData),
-      );
+      persistNotifications(initialData);
+      return;
     }
+
+    try {
+      setNotifications(JSON.parse(stored));
+    } catch (e) {
+      console.error("Error loading notifications", e);
+    }
+  };
+
+  const loadFromServer = async () => {
+    const token = getToken();
+    if (!token) {
+      loadFromStorage(true);
+      return;
+    }
+
+    try {
+      const response = await fetchApi("/notifications/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        loadFromStorage(false);
+        return;
+      }
+
+      const data: { notifications?: ServerNotification[] } = await response.json();
+      const serverNotifications = normalizeServerNotifications(data.notifications || []);
+
+      setNotifications(serverNotifications);
+      persistNotifications(serverNotifications);
+    } catch (error) {
+      console.error("Error loading notifications", error);
+      loadFromStorage(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadFromServer();
   }, []);
 
-  // 2. Persist to localStorage on change
   useEffect(() => {
-    if (notifications.length > 0) {
-      localStorage.setItem(
-        "NutriNet_notifications",
-        JSON.stringify(notifications),
-      );
-    }
+    persistNotifications(notifications);
   }, [notifications]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      void loadFromServer();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    const interval = window.setInterval(() => {
+      void loadFromServer();
+    }, 30000);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.clearInterval(interval);
+    };
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -119,17 +195,51 @@ export function NotificationsProvider({
   };
 
   const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-    );
+    setNotifications((prev) => {
+      const updated = prev.map((n) => (n.id === id ? { ...n, read: true } : n));
+      persistNotifications(updated);
+      return updated;
+    });
+
+    const token = getToken();
+    if (token) {
+      void fetchApi(`/notifications/${id}/read`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch((error) => console.error("Error marking notification read", error));
+    }
   };
 
   const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setNotifications((prev) => {
+      const updated = prev.map((n) => ({ ...n, read: true }));
+      persistNotifications(updated);
+      return updated;
+    });
+
+    const token = getToken();
+    if (token) {
+      void fetchApi(`/notifications/read-all`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch((error) => console.error("Error marking notifications read", error));
+    }
   };
 
   const deleteNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    setNotifications((prev) => {
+      const updated = prev.filter((n) => n.id !== id);
+      persistNotifications(updated);
+      return updated;
+    });
+
+    const token = getToken();
+    if (token) {
+      void fetchApi(`/notifications/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch((error) => console.error("Error deleting notification", error));
+    }
   };
 
   return (

@@ -15,6 +15,7 @@ import {
   Building2,
   Inbox,
   MessageSquare,
+  Globe2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
@@ -53,6 +54,11 @@ const groups: SidebarGroup[] = [
         name: "Clientes",
         href: "/dashboard/admin/nutricionistas",
         icon: Users,
+      },
+      {
+        name: "Portal",
+        href: "/dashboard/admin/portal",
+        icon: Globe2,
       },
       { name: "Cuentas", href: "/dashboard/admin/usuarios", icon: Shield },
       {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { User, Lock, Save, Eye, EyeOff, Sun, Moon, Type, FileText, Globe, MapPin, Phone, Mail, Calendar } from "lucide-react";
+import { User, Lock, Save, Eye, EyeOff, Sun, Moon, Type, FileText, Globe, MapPin, Phone, Mail, Calendar, Check } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { authService } from "@/features/auth/services/auth.service";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
 import { useTheme } from "@/context/ThemeContext";
 import { useFont } from "@/context/FontContext";
+import { getPasswordRequirements, getPasswordStrength } from "@/lib/password-policy";
 
 interface UserSettings {
   professionalInstagram?: string;
@@ -108,6 +109,8 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const passwordStrength = getPasswordStrength(newPassword);
+  const passwordRequirements = getPasswordRequirements(newPassword);
 
   const [userData, setUserData] = useState<{
     email: string;
@@ -201,8 +204,9 @@ export default function SettingsPage() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      toast.error("La nueva contraseña debe tener al menos 6 caracteres");
+    const unmetRequirements = passwordRequirements.filter((rule) => !rule.met);
+    if (unmetRequirements.length > 0) {
+      toast.error(unmetRequirements[0]?.label || "La nueva contraseña no cumple la política de seguridad");
       return;
     }
 
@@ -521,7 +525,7 @@ export default function SettingsPage() {
                 <div className="relative">
                   <Input
                     type={showCurrentPassword ? "text" : "password"}
-                    className="pr-10"
+                    className="pr-11"
                     placeholder="••••••••"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
@@ -530,7 +534,8 @@ export default function SettingsPage() {
               <button
                     type="button"
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-400 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
+                    aria-label={showCurrentPassword ? "Ocultar contraseña actual" : "Ver contraseña actual"}
                   >
                     {showCurrentPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -548,8 +553,8 @@ export default function SettingsPage() {
                 <div className="relative">
                   <Input
                     type={showNewPassword ? "text" : "password"}
-                    className="pr-10"
-                    placeholder="Mínimo 6 caracteres"
+                    className="pr-11"
+                    placeholder="Mínimo 8 caracteres"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
@@ -557,7 +562,8 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-400 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
+                    aria-label={showNewPassword ? "Ocultar nueva contraseña" : "Ver nueva contraseña"}
                   >
                     {showNewPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -566,6 +572,61 @@ export default function SettingsPage() {
                     )}
                   </button>
                 </div>
+                {newPassword.length > 0 && (
+                <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                      Seguridad
+                    </span>
+                    <span
+                      className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${
+                        passwordStrength.tone === "emerald"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : passwordStrength.tone === "indigo"
+                            ? "bg-indigo-100 text-indigo-700"
+                            : passwordStrength.tone === "amber"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-rose-100 text-rose-700"
+                      }`}
+                    >
+                      {passwordStrength.label}
+                    </span>
+                  </div>
+                  <div className="mb-4 h-2 overflow-hidden rounded-full bg-white">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        passwordStrength.tone === "emerald"
+                          ? "bg-emerald-500"
+                          : passwordStrength.tone === "indigo"
+                            ? "bg-indigo-500"
+                            : passwordStrength.tone === "amber"
+                              ? "bg-amber-500"
+                              : "bg-rose-500"
+                      }`}
+                      style={{
+                        width: `${Math.min(100, (passwordStrength.score / 6) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {passwordRequirements.map((rule) => (
+                      <div
+                        key={rule.key}
+                        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium ${
+                          rule.met
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 bg-white text-slate-500"
+                        }`}
+                      >
+                        <Check
+                          className={`h-3.5 w-3.5 ${rule.met ? "opacity-100" : "opacity-25"}`}
+                        />
+                        {rule.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                )}
               </div>
 
               <div>
@@ -575,7 +636,7 @@ export default function SettingsPage() {
                 <div className="relative">
                   <Input
                     type={showConfirmPassword ? "text" : "password"}
-                    className="pr-10"
+                    className="pr-11"
                     placeholder="Repite tu nueva contraseña"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -584,7 +645,8 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-400 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
+                    aria-label={showConfirmPassword ? "Ocultar confirmación" : "Ver confirmación"}
                   >
                     {showConfirmPassword ? (
                       <EyeOff className="h-4 w-4" />

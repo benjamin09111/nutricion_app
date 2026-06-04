@@ -1898,6 +1898,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 <FileText className="w-6 h-6" />
                 <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">Subir examen</span>
               </button>
+              <button onClick={() => {
+                // TODO: Implementar descarga real de ficha clínica
+                toast.info("Ficha clínica - Próximamente disponible");
+              }} className="group relative p-4 bg-indigo-50 text-indigo-500 rounded-[24px] hover:bg-indigo-100 transition-all hover:scale-110 active:scale-95 shadow-sm cursor-pointer" title="Descargar Ficha Clínica">
+                <FileText className="w-6 h-6" />
+                <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">Ficha clínica</span>
+              </button>
               <div className="h-px bg-slate-100 mx-2 my-1" />
               <button onClick={handleEdit} className="group relative p-4 bg-white text-slate-600 rounded-[24px] border border-slate-200 hover:bg-slate-50 transition-all hover:scale-110 active:scale-95 shadow-sm cursor-pointer" title="Editar Perfil">
                 <Edit2 className="w-6 h-6" />
@@ -2009,6 +2016,18 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               >
                 <Link2 className="w-3.5 h-3.5" />
                 Portal paciente
+              </Button>
+
+              <Button
+                onClick={() => {
+                  // TODO: Implementar descarga real de ficha clínica
+                  toast.info("Ficha clínica - Próximamente disponible");
+                }}
+                variant="outline"
+                className="h-9 px-4 rounded-2xl border-indigo-100 text-indigo-700 bg-indigo-50/70 hover:bg-indigo-50 font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Ficha clínica
               </Button>
 
               {/* Visible on Mobile/Tablet only, hidden on XL where sidebar exists */}

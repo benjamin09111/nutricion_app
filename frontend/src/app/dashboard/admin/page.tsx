@@ -8,11 +8,11 @@ import {
   Activity,
   DollarSign,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import Cookies from "js-cookie";
-import { useEffect } from "react";
 import { fetchApi } from "@/lib/api-base";
 
 // API Fetcher
@@ -99,29 +99,16 @@ function StatCard({ title, value, change, trend, icon: Icon, isLoading }: any) {
 
 export default function AdminDashboardPage() {
   // React Query for Caching & State Management
-  const { data, isLoading, isError, refetch } = useQuery({
+const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["adminDashboardStats"],
     queryFn: fetchStats,
     refetchOnWindowFocus: false,
-    staleTime: 60000 * 5, // 5 minutes cache (Client Side) matches Server Side
+    staleTime: Infinity,
+    enabled: true,
   });
 
-  useEffect(() => {
-    refetch();
-  }, [refetch]);
-
-  const triggerCalculation = async () => {
-    try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      await fetchApi(`/metrics/force-calculate`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      refetch();
-    } catch (error) {
-      console.error(error);
-    }
+  const handleRefresh = async () => {
+    await refetch();
   };
 
   if (isError) {
@@ -147,17 +134,16 @@ export default function AdminDashboardPage() {
             Admin Dashboard
           </h1>
           <p className="text-slate-500">
-            Resumen en tiempo real (Cacheado 5min).
+            Datos cargados. Actualiza manualmente cuando necesites.
           </p>
         </div>
-        {/* DEV ONLY BUTTON */}
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          onClick={triggerCalculation}
-          className="text-xs text-indigo-300"
+          onClick={handleRefresh}
+          className="gap-2"
         >
-          <Loader2 className="h-3 w-3 mr-1" /> Actualizar (Force)
+          <RefreshCw className="h-3 w-3" /> Actualizar
         </Button>
       </div>
 

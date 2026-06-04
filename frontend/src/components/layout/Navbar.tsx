@@ -96,7 +96,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const handlePortalMenuToggle = () => {
     setIsPortalMenuOpen(!isPortalMenuOpen);
   };
-  const { isAdmin, isAdminView } = useAdmin();
+  const { isAdmin, isAdminView, role } = useAdmin();
   const { planName } = useSubscription();
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
     useNotifications();
@@ -153,8 +153,17 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
     router.replace("/login");
   };
 
+  const adminRoleLabel =
+    role === "ADMIN_MASTER"
+      ? "Admin Master"
+      : role === "ADMIN_GENERAL"
+        ? "Admin General"
+        : role === "ADMIN"
+          ? "Admin"
+          : null;
+
   return (
-    <div
+<div
       className={cn(
         "dashboard-nav-bg sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b px-4 backdrop-blur-xl sm:gap-x-6 sm:px-6 lg:px-8 transition-colors",
         isAdminView && !isDarkMode && "bg-indigo-50/50 border-indigo-100",
@@ -180,117 +189,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
       </button>
 
       <div className="flex flex-1 items-center gap-x-4 lg:gap-x-6">
-        <div className="flex flex-1 items-center justify-start gap-6 lg:gap-8">
-
-          {!isAdmin && (
-            <div
-              className={cn(
-                "hidden items-center gap-3 rounded-full border px-3 py-1.5 shadow-xs transition-colors md:flex",
-                isDarkMode
-                  ? "border-emerald-400/12 bg-linear-to-r from-emerald-500/8 to-slate-950/10"
-                  : "border-slate-100 bg-linear-to-r from-slate-50 to-white",
-              )}
-            >
-            <div className="flex items-center gap-1.5 line-clamp-1">
-              <span
-                className={cn(
-                    "whitespace-nowrap text-[10px] font-black uppercase tracking-widest",
-                    isDarkMode ? "text-emerald-100/70" : "text-slate-400",
-                )}
-              >
-                  Plan Activo:
-                </span>
-                <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-widest text-emerald-600">
-                  {planName.toUpperCase()}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {isAdmin && <SubscriptionSwitcher />}
-
-          {!isAdmin && !isAdminView && (
-            <button
-              onClick={() => setIsSecureSubModalOpen(true)}
-              className={cn(
-                "shiny-button group hidden items-center gap-2 rounded-full border px-4 py-1.5 transition-all md:flex",
-                isDarkMode
-                  ? "border-amber-400/30 bg-amber-500/15 text-amber-50 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-                  : "border-amber-200 bg-amber-50 text-amber-700 shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:bg-amber-100",
-              )}
-            >
-              <Sparkles className="h-3.5 w-3.5 text-amber-500 transition-transform group-hover:scale-110" />
-              <span className="text-[11px] font-black uppercase tracking-wider">
-                Asegurar mi suscripción
-              </span>
-            </button>
-          )}
-
-        </div>
-
-        <div className="flex flex-1 justify-end gap-x-6 self-stretch lg:gap-x-12">
-          <div className="flex items-center gap-x-6 lg:gap-x-8">
-          <Link
-            href="/dashboard/actualizaciones"
-            className={cn(
-              "group hidden items-center gap-2 rounded-xl border px-3 py-1.5 transition-all sm:flex",
-              isDarkMode
-                ? "border-emerald-400/16 bg-emerald-500/10 text-emerald-100 hover:border-emerald-300/30 hover:bg-emerald-500/16"
-                : "border-emerald-100 bg-emerald-50 text-emerald-700 hover:border-emerald-200 hover:bg-emerald-100",
-            )}
-          >
-            <Sparkles className="h-3.5 w-3.5 text-emerald-500 transition-transform group-hover:scale-110" />
-            <span className="text-[10px] font-black uppercase tracking-wider">
-              ¡Futuras actualizaciones!
-            </span>
-          </Link>
-
-          <div className="relative" ref={portalMenuRef}>
-            <button
-              onClick={handlePortalMenuToggle}
-              className={cn(
-                "group hidden items-center gap-2 rounded-xl border px-3 py-1.5 transition-all sm:flex",
-                isDarkMode
-                  ? "border-indigo-400/20 bg-indigo-500/10 text-indigo-200 hover:border-indigo-300/40 hover:bg-indigo-500/20"
-                  : "border-indigo-100 bg-indigo-50 text-indigo-700 hover:border-indigo-200 hover:bg-indigo-100",
-              )}
-              title="Portal de nutricionistas"
-            >
-              <Globe className="h-3.5 w-3.5 text-indigo-500 transition-transform group-hover:scale-110" />
-              <span className="text-[10px] font-black uppercase tracking-wider">
-                Portal
-              </span>
-            </button>
-
-            {isPortalMenuOpen && (
-              <div
-                className={cn(
-                  "absolute right-0 z-20 mt-2.5 w-52 origin-top-right overflow-hidden rounded-xl border shadow-xl ring-1 animate-in fade-in zoom-in-95 duration-100",
-                  isDarkMode
-                    ? "border-slate-700 bg-slate-900/98 ring-slate-800"
-                    : "border-slate-100 bg-white ring-slate-900/5",
-                )}
-              >
-                <div className="py-1">
-                  <a
-                    href="/nutricionistas"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setIsPortalMenuOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-colors cursor-pointer",
-                      isDarkMode
-                        ? "text-slate-200 hover:bg-slate-800 hover:text-white"
-                        : "text-slate-700 hover:bg-slate-50 hover:text-indigo-600",
-                    )}
-                  >
-                    <Globe className="h-4 w-4" />
-                    Visitar portal
-                  </a>
-                </div>
-              </div>
-            )}
-          </div>
+        <div className="flex flex-1 items-center justify-end gap-x-6 lg:gap-x-8">
 
           <div className="relative" ref={notificationRef}>
             <button
@@ -374,9 +273,16 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                             !notification.read &&
                               (isDarkMode ? "bg-emerald-500/8" : "bg-emerald-50/30"),
                           )}
-                          onClick={() =>
-                            !notification.read && markAsRead(notification.id)
-                          }
+                          onClick={() => {
+                            if (!notification.read) {
+                              markAsRead(notification.id);
+                            }
+
+                            if (notification.link) {
+                              setIsNotificationsOpen(false);
+                              router.push(notification.link);
+                            }
+                          }}
                         >
                           <div
                             className={cn(
@@ -473,13 +379,13 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
               >
                 {isAdminView ? "A" : <User className="h-4.5 w-4.5" />}
               </div>
-                <span className="hidden lg:flex lg:items-center whitespace-nowrap">
-                  <span
-                    className={cn(
-                    "ml-1 text-sm font-brand font-bold leading-6",
-                    isDarkMode ? "text-emerald-50" : "text-slate-900",
-                  )}
-                  aria-hidden="true"
+              <span className="hidden lg:flex lg:items-center whitespace-nowrap">
+                <span
+                  className={cn(
+                  "ml-1 text-sm font-brand font-bold leading-6",
+                  isDarkMode ? "text-emerald-50" : "text-slate-900",
+                )}
+                aria-hidden="true"
                 >
                   Perfil y Configuración
                 </span>
@@ -661,7 +567,6 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                 </button>
               </div>
             )}
-          </div>
           </div>
         </div>
       </div>

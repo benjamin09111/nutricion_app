@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, KeyRound, MessageCircle, X } from "lucide-react";
+import { Eye, EyeOff, KeyRound, MessageCircle, X, ArrowRight, AlertCircle } from "lucide-react";
 import { loginSchema, type LoginFormData } from "@/lib/schemas/auth";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { authService } from "@/features/auth/services/auth.service";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
+import { cn } from "@/lib/utils";
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error) {
@@ -31,6 +32,7 @@ export default function LoginForm() {
   const [modalEmail, setModalEmail] = useState("");
   const [modalMessage, setModalMessage] = useState("");
   const [isModalSubmitting, setIsModalSubmitting] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   const {
     register,
@@ -70,9 +72,24 @@ export default function LoginForm() {
     }
   };
 
+  const validateEmail = (email: string) => /^\S+@\S+\.\S+$/.test(email.trim());
+
   const handleSupportRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsModalSubmitting(true);
+    setModalError(null);
+
+    if (!validateEmail(modalEmail)) {
+      setModalError("Ingresa un correo válido.");
+      setIsModalSubmitting(false);
+      return;
+    }
+
+    if (activeModal === "contact" && !modalMessage.trim()) {
+      setModalError("Escribe un mensaje para continuar.");
+      setIsModalSubmitting(false);
+      return;
+    }
 
     // If it's a password reset, call the direct AUTH endpoint instead of SUPPORT
     if (activeModal === "reset") {
@@ -92,6 +109,7 @@ export default function LoginForm() {
         toast.success(data.message || "Nueva contraseña enviada por correo.");
         setActiveModal(null);
         setModalEmail("");
+        setModalError(null);
       } catch (error: unknown) {
         console.error("Reset password error:", error);
         toast.error(
@@ -123,6 +141,7 @@ export default function LoginForm() {
       setActiveModal(null);
       setModalEmail("");
       setModalMessage("");
+      setModalError(null);
     } catch (error: unknown) {
       console.error("Support request error:", error);
       toast.error("Hubo un error al enviar tu solicitud.");
@@ -137,7 +156,7 @@ export default function LoginForm() {
         <div>
           <label
             htmlFor="email"
-            className="block text-base font-semibold leading-5 text-slate-700 mb-2"
+            className="mb-2 block text-sm font-black uppercase tracking-[0.18em] text-slate-500"
           >
             Correo electrónico
           </label>
@@ -147,23 +166,29 @@ export default function LoginForm() {
             autoComplete="email"
             placeholder="ejemplo@nutricion.com"
             error={errors.email?.message}
-            className="h-12 text-base"
+            className="h-12 rounded-2xl border-slate-200 bg-white px-4 text-base shadow-sm"
             {...register("email")}
           />
+          {errors.email?.message && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-rose-600">
+              <AlertCircle className="h-3.5 w-3.5" />
+              {errors.email.message}
+            </p>
+          )}
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-2">
             <label
               htmlFor="password"
-              className="block text-base font-semibold leading-5 text-slate-700"
+              className="block text-sm font-black uppercase tracking-[0.18em] text-slate-500"
             >
               Contraseña
             </label>
             <button
               type="button"
               onClick={() => setActiveModal("reset")}
-              className="text-sm font-medium text-emerald-600 hover:text-emerald-500 cursor-pointer transition-colors"
+              className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-600 transition-colors hover:text-emerald-500 cursor-pointer"
             >
               ¿Olvidaste tu contraseña?
             </button>
@@ -174,13 +199,14 @@ export default function LoginForm() {
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               error={errors.password?.message}
-              className="pr-10 h-12 text-base"
+              className="h-12 rounded-2xl border-slate-200 bg-white pr-11 text-base shadow-sm"
               {...register("password")}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+              className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-400 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
+              aria-label={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
             >
               {showPassword ? (
                 <EyeOff className="h-5 w-5" />
@@ -189,26 +215,39 @@ export default function LoginForm() {
               )}
             </button>
           </div>
+          <p className="mt-2 text-xs text-slate-500">
+            Usa tu correo profesional y una contraseña segura.
+          </p>
         </div>
 
-        <div className="flex items-center">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="flex items-center">
           <input
             id="rememberMe"
             type="checkbox"
-            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 cursor-pointer"
+              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 cursor-pointer"
             {...register("rememberMe")}
           />
           <label
             htmlFor="rememberMe"
-            className="ml-2.5 block text-sm font-medium leading-5 text-slate-600 cursor-pointer select-none"
+              className="ml-2.5 block text-sm font-medium leading-5 text-slate-600 cursor-pointer select-none"
           >
             Mantener sesión iniciada
           </label>
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+            Seguro
+          </span>
         </div>
 
         <div>
-          <Button type="submit" className="w-full" isLoading={isSubmitting}>
+          <Button
+            type="submit"
+            className="h-12 w-full rounded-2xl bg-emerald-600 text-base font-bold shadow-sm transition hover:bg-emerald-700"
+            isLoading={isSubmitting}
+          >
             {isSubmitting ? "Ingresando..." : "Iniciar Sesión"}
+            {!isSubmitting && <ArrowRight className="ml-2 h-4 w-4" />}
           </Button>
         </div>
 
@@ -216,7 +255,7 @@ export default function LoginForm() {
           <button
             type="button"
             onClick={() => setActiveModal("contact")}
-            className="text-sm text-slate-500 hover:text-emerald-600 transition-colors flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
+            className="mx-auto flex items-center justify-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-emerald-600 cursor-pointer"
           >
             <MessageCircle className="h-3.5 w-3.5" />
             Contactar a un supervisor
@@ -227,18 +266,18 @@ export default function LoginForm() {
       {/* Support Modals */}
       {activeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden p-8 relative animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-md overflow-hidden rounded-[2rem] bg-white p-6 shadow-xl animate-in zoom-in-95 duration-200 sm:p-8">
             <button
               onClick={() => setActiveModal(null)}
-              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              className="absolute right-4 top-4 rounded-full border border-slate-200 bg-white p-2 text-slate-400 shadow-sm transition hover:bg-slate-50 hover:text-slate-600 cursor-pointer"
               aria-label="Cerrar"
             >
               <X className="h-5 w-5" />
             </button>
 
-            <div className="mb-6">
+            <div className="mb-6 pr-10">
               <div
-                className={`h-12 w-12 rounded-xl flex items-center justify-center mb-4 ${
+                className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl ${
                   activeModal === "reset"
                     ? "bg-amber-100 text-amber-600"
                     : "bg-blue-100 text-blue-600"
@@ -255,12 +294,19 @@ export default function LoginForm() {
                   ? "Recuperar Acceso"
                   : "Contactar Soporte"}
               </h3>
-              <p className="text-sm text-slate-500 leading-relaxed">
+              <p className="text-sm leading-relaxed text-slate-500">
                 {activeModal === "reset"
                   ? "Ingresa tu correo. Te enviaremos nuevas credenciales de acceso de forma automática."
                   : "Envía un mensaje al equipo de administración."}
               </p>
             </div>
+
+            {modalError && (
+              <div className="mb-4 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{modalError}</span>
+              </div>
+            )}
 
             <form onSubmit={handleSupportRequest} className="space-y-4">
               <div>
@@ -273,6 +319,7 @@ export default function LoginForm() {
                   value={modalEmail}
                   onChange={(e) => setModalEmail(e.target.value)}
                   placeholder="correo@ejemplo.com"
+                  className="h-12 rounded-2xl border-slate-200 bg-white shadow-sm"
                 />
               </div>
 
@@ -282,7 +329,7 @@ export default function LoginForm() {
                     Mensaje
                   </label>
                   <textarea
-                    className="w-full min-h-[100px] rounded-lg border border-slate-200 text-sm p-3 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-colors resize-none"
+                    className="w-full min-h-[110px] rounded-2xl border border-slate-200 p-3 text-sm outline-none transition-colors resize-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                     placeholder="Describe tu problema o consulta..."
                     required
                     value={modalMessage}
@@ -291,18 +338,23 @@ export default function LoginForm() {
                 </div>
               )}
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row">
                 <Button
                   type="button"
                   variant="ghost"
-                  className="flex-1"
+                  className="h-11 flex-1 rounded-2xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                   onClick={() => setActiveModal(null)}
                 >
                   Cancelar
                 </Button>
                 <Button
                   type="submit"
-                  className={`flex-1 ${activeModal === "reset" ? "bg-amber-600 hover:bg-amber-700" : "bg-blue-600 hover:bg-blue-700"}`}
+                  className={cn(
+                    "h-11 flex-1 rounded-2xl text-white shadow-sm",
+                    activeModal === "reset"
+                      ? "bg-amber-600 hover:bg-amber-700"
+                      : "bg-blue-600 hover:bg-blue-700",
+                  )}
                   isLoading={isModalSubmitting}
                 >
                   Enviar Solicitud

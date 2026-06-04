@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useNotifications, Notification } from "@/context/NotificationsContext";
 import { Button } from "@/components/ui/Button";
 import {
@@ -16,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const {
     notifications,
     markAsRead,
@@ -104,7 +106,10 @@ export default function NotificationsPage() {
                   ? "bg-white border-slate-100 opacity-80 hover:opacity-100"
                   : "bg-white border-slate-200 shadow-sm shadow-slate-200/40 ring-1 ring-indigo-500/10",
               )}
-              onClick={() => markAsRead(notification.id)}
+              onClick={() => {
+                markAsRead(notification.id);
+                if (notification.link) router.push(notification.link);
+              }}
             >
               {!notification.read && (
                 <span className="absolute top-6 right-6 w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-indigo-200 shadow-sm animate-pulse" />
