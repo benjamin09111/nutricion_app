@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
+import { MembershipGate } from "@/components/memberships/MembershipGate";
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { isAdminView, isLoading } = useAdmin();
@@ -42,15 +43,12 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="dashboard-shell-bg relative h-full">
-      {/* Mobile Sidebar (Drawer) */}
       <div className={`fixed inset-0 z-9999 lg:hidden ${sidebarOpen ? "block" : "hidden"}`}>
-        {/* Backdrop */}
-        <div 
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300" 
+        <div
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300"
           onClick={() => setSidebarOpen(false)}
         />
-        
-        {/* Content */}
+
         <div className={`dashboard-sidebar-bg fixed inset-y-0 left-0 w-72 shadow-2xl transition-transform duration-300 transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
           <div className="absolute top-4 right-4 animate-in fade-in duration-500">
             <button
@@ -66,14 +64,13 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
               <X className="h-6 w-6" />
             </button>
           </div>
-          
+
           <div className="h-full overflow-y-auto pt-10">
              {isAdminView ? <AdminSidebar /> : <Sidebar />}
           </div>
         </div>
       </div>
 
-      {/* Desktop Sidebar */}
       <div
         className={`hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300 ${
           isSidebarCollapsed ? "lg:w-20" : "lg:w-72"
@@ -101,7 +98,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                 : "max-w-7xl px-4 sm:px-6 lg:px-8"
             }`}
           >
-            {children}
+            {isAdminView ? children : <MembershipGate>{children}</MembershipGate>}
           </div>
         </main>
       </div>

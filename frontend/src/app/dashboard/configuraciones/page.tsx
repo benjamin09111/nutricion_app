@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { User, Lock, Save, Eye, EyeOff, Sun, Moon, Type, FileText, Globe, MapPin, Phone, Mail, Calendar, Check } from "lucide-react";
+import { User, Lock, Save, Eye, EyeOff, Sun, Moon, Type, FileText, Globe, MapPin, Phone, Mail, Calendar, Check, Crown, Clock, AlertCircle, BadgeCheck, TestTube, ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
@@ -11,6 +11,11 @@ import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
 import { useTheme } from "@/context/ThemeContext";
 import { useFont } from "@/context/FontContext";
+import { useSubscription } from "@/context/SubscriptionContext";
+import { membershipService } from "@/features/memberships/services/membership.service";
+import { usePaymentMode } from "@/hooks/usePaymentMode";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { cn } from "@/lib/utils";
 import { getPasswordRequirements, getPasswordStrength } from "@/lib/password-policy";
 
 interface UserSettings {
@@ -112,7 +117,7 @@ const LEGAL_SECTIONS = [
 
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"profile" | "account">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "account" | "membership">("profile");
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -162,6 +167,23 @@ const [showPublicPhone, setShowPublicPhone] = useState(false);
   const [highlightProfile, setHighlightProfile] = useState(false);
   const { theme, setTheme } = useTheme();
   const { fontPreference, setFontPreference } = useFont();
+  const {
+    planName,
+    currentPlan,
+    subscriptionEndsAt,
+    daysRemaining,
+    cancelAtPeriodEnd,
+    status: subscriptionStatus,
+    refreshSubscription,
+  } = useSubscription();
+  const { mode, toggle: togglePaymentMode } = usePaymentMode();
+  const [isCanceling, setIsCanceling] = useState(false);
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+  const [isResuming, setIsResuming] = useState(false);
+  const [isChangingPlan, setIsChangingPlan] = useState(false);
+  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(false);
+  const [upgradingPlanId, setUpgradingPlanId] = useState<string | null>(null);
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -429,7 +451,18 @@ bio: bio.trim(),
               : "text-slate-500 hover:text-slate-900"
           }`}
         >
-          Configuración de mi cuenta
+          Cuenta
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("membership")}
+          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+            activeTab === "membership"
+              ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200"
+              : "text-slate-500 hover:text-slate-900"
+          }`}
+        >
+          Membresía
         </button>
       </div>
 
@@ -1239,6 +1272,275 @@ bio: bio.trim(),
           ))}
         </div>
       </div>
+
+      {/* Membresía Tab */}
+      <div className={`space-y-6 ${activeTab === "membership" ? "" : "hidden"}`}>
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+          <div className="flex items-center gap-x-2 mb-6">
+            <Crown className="h-5 w-5 text-indigo-600" />
+            <h2 className="font-semibold text-slate-900">Membresía y Planes</h2>
+          </div>
+
+          {currentPlan ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-indigo-100 flex items-center justify-center">
+                    <BadgeCheck className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-lg font-bold text-slate-900">
+                        {currentPlan.name}
+                      </p>
+                      {subscriptionStatus === "ACTIVE" && !cancelAtPeriodEnd && (
+                        <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                          Activo
+                        </span>
+                      )}
+                      {cancelAtPeriodEnd && (
+                        <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-200">
+                          Cancela al vencer
+                        </span>
+                      )}
+                      {subscriptionStatus === "PAST_DUE" && (
+                        <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[10px] font-bold text-rose-700 ring-1 ring-rose-200">
+                          Expirado
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-500 mt-0.5">
+                      ${currentPlan.price.toLocaleString("es-CL")}/mes
+                    </p>
+                  </div>
+                </div>
+                {currentPlan.price > 0 && daysRemaining !== null && daysRemaining > 0 && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="h-4 w-4 text-slate-400" />
+                    <span className="text-slate-600 font-medium">
+                      {daysRemaining} días restantes
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {subscriptionEndsAt && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                      Fecha de activación
+                    </p>
+                    <p className="text-sm font-bold text-slate-900 mt-1">
+                      {subscriptionEndsAt.toLocaleDateString("es-CL", {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Mode Toggle */}
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">Modo de pago</p>
+                    <p className="text-xs text-slate-500">
+                      {mode === "mock"
+                        ? "Prueba: los pagos se aprueban automáticamente"
+                        : "Real: pagos procesados por Mercado Pago"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={togglePaymentMode}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 cursor-pointer",
+                      mode === "real"
+                        ? "bg-emerald-600"
+                        : "bg-slate-300",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200",
+                        mode === "real" ? "translate-x-5" : "translate-x-0",
+                      )}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3 pt-2">
+                {!cancelAtPeriodEnd && currentPlan.price > 0 && (
+                  <button
+                    onClick={() => setIsCancelConfirmOpen(true)}
+                    className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    Cancelar al vencimiento
+                  </button>
+                )}
+                {cancelAtPeriodEnd && (
+                  <button
+                    onClick={async () => {
+                      setIsResuming(true);
+                      try {
+                        await membershipService.resumeSubscription();
+                        toast.success("Plan reanudado correctamente");
+                        await refreshSubscription();
+                      } catch (e: any) {
+                        toast.error(e?.message || "Error al reanudar plan");
+                      } finally {
+                        setIsResuming(false);
+                      }
+                    }}
+                    disabled={isResuming}
+                    className="rounded-xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors cursor-pointer"
+                  >
+                    {isResuming ? "Reanudando..." : "Reanudar plan"}
+                  </button>
+                )}
+                <button
+                  onClick={async () => {
+                    setIsChangingPlan(true);
+                    setIsLoadingPlans(true);
+                    try {
+                      const plans = await membershipService.getActivePlans();
+                      setAvailablePlans(plans.filter((p) => p.id !== currentPlan?.id));
+                    } catch {
+                      toast.error("No se pudieron cargar los planes");
+                    } finally {
+                      setIsLoadingPlans(false);
+                    }
+                  }}
+                  className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  Cambiar plan
+                </button>
+              </div>
+
+              {isChangingPlan && (
+                <div className="mt-6 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <h4 className="text-sm font-bold text-slate-900 mb-2">
+                    Planes disponibles
+                  </h4>
+                  {currentPlan && Number(currentPlan.price) > 0 && daysRemaining && daysRemaining > 0 && (
+                    <div className="mb-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-sm text-emerald-800">
+                      Tienes {daysRemaining} días restantes de tu plan actual (
+                      {currentPlan.name}). Al cambiar, se te descontará
+                      aproximadamente $
+                      {Math.round(
+                        (Number(currentPlan.price) / 30) * daysRemaining
+                      ).toLocaleString("es-CL")}{" "}
+                      del precio del nuevo plan.
+                    </div>
+                  )}
+                  {isLoadingPlans ? (
+                    <p className="text-sm text-slate-500">Cargando planes...</p>
+                  ) : availablePlans.length === 0 ? (
+                    <p className="text-sm text-slate-500">
+                      No hay otros planes disponibles.
+                    </p>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {availablePlans.map((plan) => (
+                        <div
+                          key={plan.id}
+                          className="p-4 bg-white rounded-xl border border-slate-200 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm font-bold text-slate-900">
+                              {plan.name}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              ${Number(plan.price).toLocaleString("es-CL")}/mes
+                            </p>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              setUpgradingPlanId(plan.id);
+                              try {
+                                if (Number(plan.price) === 0) {
+                                  await membershipService.selectFreePlan(plan.id);
+                                  toast.success(`Cambiado a ${plan.name}`);
+                                } else if (mode === "real") {
+                                  const result = await membershipService.createPreference(plan.id);
+                                  if (result.init_point) {
+                                    window.location.href = result.init_point;
+                                    return;
+                                  }
+                                  throw new Error("No se obtuvo link de pago");
+                                } else {
+                                  const result = await membershipService.checkout(plan.id);
+                                  if (result.proratedCredit && result.proratedCredit > 0) {
+                                    toast.success(
+                                      `Plan ${plan.name} activado. Se descontaron $${result.proratedCredit.toLocaleString("es-CL")} por los días no usados de tu plan anterior.`,
+                                      { duration: 6000 }
+                                    );
+                                  } else {
+                                    toast.success(`Plan ${plan.name} activado`);
+                                  }
+                                }
+                                await refreshSubscription();
+                                setIsChangingPlan(false);
+                              } catch (e: any) {
+                                toast.error(e?.message || "Error al cambiar plan");
+                              } finally {
+                                setUpgradingPlanId(null);
+                              }
+                            }}
+                            disabled={upgradingPlanId === plan.id}
+                            className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {upgradingPlanId === plan.id
+                              ? "..."
+                              : Number(plan.price) === 0
+                                ? "Gratis"
+                                : "Elegir"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <AlertCircle className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-500 font-medium">
+                No tienes un plan activo.
+              </p>
+              <p className="text-sm text-slate-400 mt-1">
+                Selecciona un plan para comenzar.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <ConfirmationModal
+        isOpen={isCancelConfirmOpen}
+        onClose={() => setIsCancelConfirmOpen(false)}
+        onConfirm={async () => {
+          setIsCanceling(true);
+          try {
+            await membershipService.cancelSubscription();
+            toast.success("Tu plan se cancelará al final del período actual");
+            await refreshSubscription();
+          } catch (e: any) {
+            toast.error(e?.message || "Error al cancelar");
+          } finally {
+            setIsCanceling(false);
+            setIsCancelConfirmOpen(false);
+          }
+        }}
+        title="Cancelar plan"
+        description="Tu plan se cancelará al final del período actual. Seguirás teniendo acceso hasta esa fecha. Puedes reanudar tu plan en cualquier momento antes de que termine."
+        confirmText="Sí, cancelar al vencimiento"
+        cancelText="Volver"
+        isLoading={isCanceling}
+      />
 
     </div>
   );

@@ -16,8 +16,6 @@ import {
   CheckCircle2,
   Bell,
   Sparkles,
-  AlertTriangle,
-  XCircle,
   Info,
   Cpu,
   Zap,
@@ -66,7 +64,6 @@ export default function MessagesPage() {
 
   const targetMode = watch("targetMode");
   const commType = watch("commType");
-  const announcementType = watch("announcementType");
   const formSubject = watch("subject");
   const formContent = watch("content");
 
@@ -78,7 +75,7 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Pre-defined templates for "Mis Mensajes"
-  const [templates, setTemplates] = useState<MessageTemplate[]>([
+  const templates: MessageTemplate[] = [
     {
       id: 1,
       title: "Bienvenida Estándar",
@@ -95,7 +92,7 @@ export default function MessagesPage() {
         "Realizaremos mejoras técnicas este domingo. El sistema podría presentar intermitencias por 1 hora.",
       lastUsed: new Date(Date.now() - 172800000).toISOString(),
     },
-  ]);
+  ];
 
   useEffect(() => {
     const fetchNutris = async () => {
@@ -117,8 +114,12 @@ export default function MessagesPage() {
         );
 
         if (res.ok) {
-          const data = await res.json();
-          const options = data.map((u: any) => ({
+          const data = (await res.json()) as Array<{
+            id: string;
+            fullName: string;
+            email: string;
+          }>;
+          const options = data.map((u) => ({
             value: u.id,
             label: `${u.fullName} (${u.email})`,
           }));
@@ -159,36 +160,68 @@ export default function MessagesPage() {
   const onSubmit = async (data: MessageForm) => {
     setIsSending(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      const recipientType: RecipientType =
-        activeTab === "admin" ? "admin" : "nutri";
-      let recipientCount = 0;
-      if (data.targetMode === "all")
-        recipientCount = recipientType === "admin" ? 3 : 100;
-      if (data.targetMode === "specific") recipientCount = 1;
-      if (data.targetMode === "list") {
-        recipientCount =
-          data.emailList?.split("\n").filter((e) => e.trim()).length || 0;
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      if (!token) {
+        toast.error("Sesión no válida");
+        return;
       }
 
-      const newHistoryItem = {
-        id: Date.now(),
-        subject: data.subject,
-        sentAt: new Date().toISOString(),
-        recipientCount,
-        status: "completed",
-        type: data.commType,
-        target: recipientType,
-      };
+      const recipientType: RecipientType = activeTab === "admin" ? "admin" : "nutri";
+      const targetRoles =
+        recipientType === "admin"
+          ? ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"]
+          : ["NUTRITIONIST"];
 
-      setHistory([newHistoryItem, ...history]);
+      const res = await fetchApi("/announcements", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: data.subject,
+          message: data.content,
+          type: data.announcementType,
+          link: data.announcementLink || undefined,
+          targetRoles,
+          targetMode: data.targetMode,
+          specificUserId: data.specificUserId || undefined,
+          emailList: data.emailList || undefined,
+          commType: data.commType,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("No se pudo enviar el anuncio");
+      }
+
+      const recipientCount =
+        data.targetMode === "all"
+          ? recipientType === "admin"
+            ? 3
+            : 100
+          : data.targetMode === "specific"
+            ? 1
+            : data.emailList?.split("\n").filter((e) => e.trim()).length || 0;
+
+      setHistory([
+        {
+          id: Date.now(),
+          subject: data.subject,
+          sentAt: new Date().toISOString(),
+          recipientCount,
+          status: "completed",
+          type: data.commType,
+          target: recipientType,
+        },
+        ...history,
+      ]);
       toast.success(
         `Mensaje enviado correctamente a ${recipientType === "admin" ? "Administradores" : "Nutricionistas"}.`,
       );
       reset();
       setActiveTab("history");
-    } catch (error) {
+    } catch {
       toast.error("Error al enviar el mensaje.");
     } finally {
       setIsSending(false);
@@ -297,7 +330,7 @@ export default function MessagesPage() {
                     </p>
                   </div>
                   <p className="text-sm text-slate-600 line-clamp-3 font-medium leading-relaxed italic">
-                    "{template.content}"
+                    &quot;{template.content}&quot;
                   </p>
                 </div>
                 <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
@@ -490,7 +523,7 @@ export default function MessagesPage() {
                     <Info className="h-4 w-4 text-amber-600 shrink-0" />
                     <p className="text-[10px] text-amber-700 font-medium leading-tight">
                       Se añadirá automáticamente el saludo{" "}
-                      <strong>"{commonGreeting}"</strong> al inicio y la firma
+                      <strong>&quot;{commonGreeting}&quot;</strong> al inicio y la firma
                       de <strong>{appConfig.appName}</strong> al final.
                     </p>
                   </div>
@@ -739,7 +772,7 @@ export default function MessagesPage() {
                 <History className="h-6 w-6" />
               </div>
               <div>
-                <h4 className="font-bold text-slate-900">Usa "Mis Mensajes"</h4>
+                <h4 className="font-bold text-slate-900">Usa &quot;Mis Mensajes&quot;</h4>
                 <p className="text-xs text-slate-500 mt-1">
                   Conecta tus plantillas redactadas con disparadores automáticos
                   para una comunicación coherente y profesional.
@@ -765,8 +798,4 @@ export default function MessagesPage() {
       )}
     </div>
   );
-}
-
-function Crown({ className }: { className?: string }) {
-  return <Sparkles className={className} />;
 }

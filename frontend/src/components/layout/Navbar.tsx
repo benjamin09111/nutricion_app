@@ -30,39 +30,30 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 
-function SubscriptionSwitcher() {
-  const { plan, forceUpdatePlan } = useSubscription();
+function PlanBadge() {
+  const { planName, cancelAtPeriodEnd, currentPlan } =
+    useSubscription();
   const { isDarkMode } = useTheme();
-  const plans: SubscriptionPlan[] = ["free", "trial", "pro"];
+
+  if (!currentPlan) return null;
 
   return (
     <div
       className={cn(
-        "ml-2 flex items-center gap-1 rounded-full border p-0.5",
-        isDarkMode
-          ? "border-emerald-400/14 bg-emerald-950/40"
-          : "border-slate-200 bg-slate-100",
+        "ml-2 flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold",
+        cancelAtPeriodEnd
+          ? isDarkMode
+            ? "border-amber-400/20 bg-amber-500/10 text-amber-300"
+            : "border-amber-200 bg-amber-50 text-amber-700"
+          : isDarkMode
+            ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
+            : "border-emerald-200 bg-emerald-50 text-emerald-700",
       )}
     >
-      {plans.map((p) => (
-        <button
-          key={p}
-          onClick={() => forceUpdatePlan(p)}
-          className={cn(
-            "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase transition-all",
-            plan === p
-              ? isDarkMode
-                ? "border border-emerald-300/20 bg-emerald-500/15 text-emerald-50 shadow-sm"
-                : "border border-emerald-100 bg-white text-emerald-700 shadow-sm"
-              : isDarkMode
-                ? "text-emerald-100/65 hover:bg-emerald-500/10 hover:text-emerald-50"
-                : "text-slate-400 hover:bg-slate-200/50 hover:text-slate-600",
-          )}
-          title={`Simular Plan: ${p.toUpperCase()}`}
-        >
-          {p}
-        </button>
-      ))}
+      <span className="capitalize">{currentPlan.name}</span>
+      {cancelAtPeriodEnd && (
+        <span className="opacity-75">· cancelado</span>
+      )}
     </div>
   );
 }
@@ -190,6 +181,8 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
       <div className="flex flex-1 items-center gap-x-4 lg:gap-x-6">
         <div className="flex flex-1 items-center justify-end gap-x-6 lg:gap-x-8">
+
+          {!isAdminView && <PlanBadge />}
 
           <div className="relative" ref={notificationRef}>
             <button

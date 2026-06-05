@@ -27,16 +27,20 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       : "online";
   const specialtyText = nutritionist.specialty ? `especialista en ${nutritionist.specialty}` : "nutricionista";
 
+  const profileKeywords = [
+    nutritionist.fullName,
+    nutritionist.specialty || "nutricionista",
+    "nutricionista Chile",
+    "nutricionista" + (nutritionist.location ? ` ${nutritionist.location}` : ""),
+    "consulta nutricional",
+    "agenda nutricionista",
+    ...(nutritionist.specialties || []),
+  ].filter(Boolean);
+
   return {
     title: `${nutritionist.fullName} | Nutricionista${locationText} | NutriNet`,
-    description: `Agenda una consulta con ${nutritionist.fullName}, ${specialtyText}. Atención ${modeText}${locationText}, Chile.`,
-    keywords: [
-      nutritionist.fullName,
-      nutritionist.specialty || "nutricionista",
-      "nutricionista en Chile",
-      "consulta nutricional",
-      nutritionist.location || "",
-    ].filter(Boolean),
+    description: `Agenda una consulta con ${nutritionist.fullName}, ${specialtyText}. Atención ${modeText}${locationText}, Chile. Perfil verificado en NutriNet.`,
+    keywords: profileKeywords,
     alternates: {
       canonical: `/nutricionistas/${slug}`,
     },
@@ -50,17 +54,19 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     },
     openGraph: {
       title: `${nutritionist.fullName} | Nutricionista${locationText} | NutriNet`,
-      description: `Perfil profesional de ${nutritionist.fullName}. Atención ${modeText}${locationText}.`,
+      description: `Perfil profesional de ${nutritionist.fullName}. Atención ${modeText}${locationText}. Agenda tu cita online o presencial.`,
       type: "profile",
       url: `/nutricionistas/${slug}`,
+      siteName: "NutriNet",
       images: nutritionist.avatarUrl
         ? [{ url: nutritionist.avatarUrl, width: 1200, height: 630, alt: nutritionist.fullName }]
-        : [{ url: "/logo_2.webp", width: 1200, height: 630, alt: "NutriNet" }],
+        : [{ url: "/logo_2.webp", width: 1200, height: 630, alt: `${nutritionist.fullName} - NutriNet` }],
+      locale: "es_CL",
     },
     twitter: {
       card: "summary_large_image",
       title: `${nutritionist.fullName} | Nutricionista | NutriNet`,
-      description: `Perfil profesional de ${nutritionist.fullName} en NutriNet.`,
+      description: `Perfil profesional de ${nutritionist.fullName}. Atención ${modeText}${locationText}.`,
       images: [nutritionist.avatarUrl || "/logo_2.webp"],
     },
   };

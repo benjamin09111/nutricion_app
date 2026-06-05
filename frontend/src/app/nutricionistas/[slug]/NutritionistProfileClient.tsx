@@ -217,10 +217,54 @@ if (!formData.guestName.trim() || !formData.guestEmail.trim() || !selectedSlot) 
             "@context": "https://schema.org",
             "@type": "Person",
             name: nutritionist.fullName,
-            jobTitle: nutritionist.specialty || "Nutricionista",
+            jobTitle: "Nutricionista",
             description: nutritionist.headline || nutritionist.bio || undefined,
             image: nutritionist.avatarUrl || "https://nutrinet.cl/logo_2.webp",
             url: `https://nutrinet.cl/nutricionistas/${slug}`,
+            ...(nutritionist.location && {
+              address: {
+                "@type": "PostalAddress",
+                addressLocality: nutritionist.location,
+                addressCountry: "CL",
+              },
+            }),
+            ...(nutritionist.publicPhone && {
+              telephone: nutritionist.publicPhone,
+            }),
+            ...(nutritionist.publicEmail && {
+              email: nutritionist.publicEmail,
+            }),
+            ...(nutritionist.consultationMode && {
+              availableService: {
+                "@type": "Service",
+                serviceType: nutritionist.consultationMode === "online" ? "Online Consultation" :
+                             nutritionist.consultationMode === "presencial" ? "In-Person Consultation" : "Online and In-Person Consultation",
+              },
+            }),
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              {
+                "@type": "ListItem",
+                position: 1,
+                name: "Inicio",
+                item: "https://nutrinet.cl",
+              },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: "Nutricionistas",
+                item: "https://nutrinet.cl/nutricionistas",
+              },
+              {
+                "@type": "ListItem",
+                position: 3,
+                name: nutritionist.fullName,
+                item: `https://nutrinet.cl/nutricionistas/${slug}`,
+              },
+            ],
           },
         ]}
       />

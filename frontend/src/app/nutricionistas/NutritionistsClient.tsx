@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Search, MapPin, Calendar, Video, Users, ArrowRight, Loader2, X } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import NutritionistCTAButton from "@/components/landing/NutritionistCTAButton";
 import { fetchApi } from "@/lib/api-base";
 import { toast } from "sonner";
 import type { PublicNutritionistsResponse, PublicNutritionist } from "@/lib/public-nutritionists";
@@ -73,22 +74,82 @@ const { search: s, modeFilter: m, locationFilter: l } = filtersRef.current;
 
   const hasActiveFilters = search || modeFilter || locationFilter;
 
-  return (
+return (
     <div className="min-h-screen bg-white">
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "ItemList",
-          name: "Directorio de nutricionistas en Chile",
-          url: "https://nutrinet.cl/nutricionistas",
-          numberOfItems: total,
-          itemListElement: nutritionists.map((nutritionist, index) => ({
-            "@type": "ListItem",
-            position: index + 1,
-            url: `https://nutrinet.cl/nutricionistas/${nutritionist.slug}`,
-            name: nutritionist.fullName,
-          })),
-        }}
+        data={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "NutriNet - Directorio de Nutricionistas",
+            description: "Directorio completo de nutricionistas en Chile. Busca, compara y agenda tu consulta online o presencial.",
+            url: "https://nutrinet.cl",
+            potentialAction: {
+              "@type": "SearchAction",
+              target: {
+                "@type": "EntryPoint",
+                urlTemplate: "https://nutrinet.cl/nutricionistas?search={search_term_string}",
+              },
+              "query-input": "required name=search_term_string",
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "NutriNet",
+              url: "https://nutrinet.cl",
+              logo: "https://nutrinet.cl/logo_2.webp",
+            },
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              {
+                "@type": "ListItem",
+                position: 1,
+                name: "Inicio",
+                item: "https://nutrinet.cl",
+              },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: "Nutricionistas",
+                item: "https://nutrinet.cl/nutricionistas",
+              },
+            ],
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            name: "Directorio de Nutricionistas en Chile",
+            description: "Encuentra nutricionistas en Chile con perfiles verificados, especialidades diversas y opción de agenda online.",
+            url: "https://nutrinet.cl/nutricionistas",
+            isPartOf: {
+              "@type": "WebSite",
+              name: "NutriNet",
+              url: "https://nutrinet.cl",
+            },
+            about: {
+              "@type": "Service",
+              serviceType: "Directorio de Nutricionistas",
+              areaServed: {
+                "@type": "Country",
+                name: "Chile",
+              },
+            },
+            mainEntity: {
+              "@type": "ItemList",
+              name: "Nutricionistas en Chile",
+              numberOfItems: total,
+              itemListElement: nutritionists.slice(0, 10).map((nutritionist, index) => ({
+                "@type": "ListItem",
+                position: index + 1,
+                url: `https://nutrinet.cl/nutricionistas/${nutritionist.slug}`,
+                name: nutritionist.fullName,
+                description: nutritionist.headline || nutritionist.specialty || undefined,
+              })),
+            },
+          },
+        ]}
       />
 {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-white/95 backdrop-blur-sm">
@@ -111,9 +172,10 @@ const { search: s, modeFilter: m, locationFilter: l } = filtersRef.current;
             </Link>
             <Link href="/login">
               <Button className="rounded-full h-8 sm:h-9 px-3 sm:px-5 text-xs sm:text-xs font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8]">
-                Nutricionistas
+                Iniciar sesión
               </Button>
             </Link>
+            <NutritionistCTAButton />
           </nav>
         </div>
       </header>
