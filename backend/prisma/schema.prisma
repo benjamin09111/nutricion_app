@@ -72,6 +72,16 @@ model Nutritionist {
   @@map("nutritionists")
 }
 
+model NutritionistInterest {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("nutritionist_interests")
+}
+
 model Substitute {
   id             String       @id @default(uuid())
   nutritionistId String       @map("nutritionist_id")

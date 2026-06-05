@@ -3,8 +3,8 @@
     "badge": "Software para nutricionistas en Chile",
     "titleLine1": "GESTIONA",
     "titleLine2": "Tu consulta nutricional.",
-    "description": "Plataforma para nutricionistas en Chile: gestiona pacientes, automatiza dietas y organiza tu consulta profesional desde un solo lugar.",
-    "ctaButton": "Únete a la beta"
+    "description": "NutriNet es la plataforma todo-en-uno para nutricionistas en Chile: gestiona pacientes, automatiza dietas y organiza tu consulta profesional.",
+    "ctaButton": "Empieza Gratis"
   },
   "features": {
     "cards": [
@@ -29,16 +29,16 @@
     ]
   },
 "pricing": {
-    "titleLine1": "PLATAFORMA",
-    "titleLine2": "Pensada para tu crecimiento"
+    "titleLine1": "PLANES",
+    "titleLine2": "Pensados para tu crecimiento"
   },
   "registration": {
     "titleLine1": "¿ERES NUTRICIONISTA?",
     "titleLine2": "Crea tu cuenta ahora.",
     "subtitle": "Empieza a trabajar de forma más eficiente",
-    "paragraph1": "Únete a la plataforma que automatiza tus procesos, organiza toda tu información y optimiza tu tiempo profesional.",
-    "paragraph2": "Regístrate hoy para acceder a la versión beta de forma gratuita y comienza a gestionar tus pacientes de manera profesional.",
-    "paragraph3": "Configura tu perfil en segundos y empieza a usar todas las herramientas de NutriNet de inmediato.",
+    "paragraph1": "Únete a NutriNet, la plataforma que automatiza tus procesos, organiza toda tu información y optimiza tu tiempo profesional.",
+    "paragraph2": "Regístrate hoy para acceder a todas las funcionalidades de forma gratuita y comienza a gestionar tus pacientes de manera profesional.",
+    "paragraph3": "Configura tu perfil profesional en segundos y empieza a usar todas las herramientas de NutriNet de inmediato.",
     "formTitle": "NOMBRE COMPLETO:",
     "formEmail": "CORREO PROFESIONAL:",
     "formPassword": "CONTRASEÑA DE ACCESO:",

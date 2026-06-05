@@ -394,6 +394,7 @@ export class UsersService {
           select: {
             role: true,
             status: true,
+            email: true,
           },
         },
       },
@@ -463,6 +464,7 @@ export class UsersService {
     publicSlug?: string | null;
     publicProfileEnabled?: boolean;
     specialty: string | null;
+    professionalId?: string | null;
     phone: string | null;
     avatarUrl: string | null;
     headline?: string | null;
@@ -487,6 +489,7 @@ export class UsersService {
       slug,
       fullName: nutritionist.fullName,
       specialty: nutritionist.specialty,
+      professionalId: nutritionist.professionalId,
       headline: nutritionist.headline ?? settings.headline ?? null,
       bio: nutritionist.bio ?? settings.bio ?? null,
       specialties: this.parseSpecialties(settings.specialties),
@@ -495,10 +498,19 @@ export class UsersService {
       location: nutritionist.location ?? settings.location ?? null,
       avatarUrl: nutritionist.avatarUrl,
       isPublic,
+      showSchedule: settings.showSchedule !== false,
       publicPhone: settings.showPublicPhone ? (settings.publicPhone || null) : null,
-      publicEmail: settings.showPublicEmail ? (settings.publicEmail || null) : null,
+      publicEmail: settings.publicEmail || null,
       instagram: settings.showInstagram ? (settings.professionalInstagram || null) : null,
+      linkedin: settings.showLinkedin ? (settings.linkedin || null) : null,
       bookingEnabled: settings.bookingEnabled !== false,
+      conditionsTreated: settings.conditionsTreated || null,
+      patientTypes: settings.patientTypes || null,
+      prices: settings.prices || null,
+      officeAddress: settings.officeAddress || null,
+      paymentMethods: settings.paymentMethods || null,
+      acceptedInsurance: settings.acceptedInsurance || null,
+      country: settings.country || null,
     };
   }
 

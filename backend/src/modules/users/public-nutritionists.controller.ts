@@ -10,12 +10,64 @@ import {
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
+
+@Controller('public')
+export class PublicController {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
+
+  @Post('nutritionist-interest')
+  async nutritionistInterest(
+    @Body()
+    body: {
+      name: string;
+      email: string;
+    },
+  ) {
+    const { name, email } = body;
+
+    if (!name?.trim() || !email?.trim()) {
+      throw new BadRequestException('Nombre y email son requeridos');
+    }
+
+    if (!email.includes('@')) {
+      throw new BadRequestException('Email inválido');
+    }
+
+    const existing = await this.prisma.nutritionistInterest.findFirst({
+      where: { email: email.toLowerCase() },
+    });
+
+    if (existing) {
+      return {
+        success: true,
+        message: 'Ya tenemos tu interés registrado. Te contactaremos pronto.',
+      };
+    }
+
+    await this.prisma.nutritionistInterest.create({
+      data: {
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Tu información ha sido recibida. Te contactaremos pronto.',
+    };
+  }
+}
 
 @Controller('public/nutritionists')
 export class PublicNutritionistsController {
   constructor(
     private readonly usersService: UsersService,
     private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
   ) {}
 
   @Get()
@@ -120,6 +172,24 @@ export class PublicNutritionistsController {
         }),
       },
     });
+
+    const accountEmail =
+      await this.prisma.account.findFirst({
+        where: { nutritionist: { id: nutritionist.id } },
+        select: { email: true },
+      });
+
+    if (accountEmail?.email) {
+      await this.mailService.sendAppointmentRequestEmail({
+        nutritionistEmail: accountEmail.email,
+        nutritionistName: nutritionist.fullName,
+        guestName: body.guestName,
+        guestEmail: body.guestEmail,
+        guestPhone: body.guestPhone,
+        message: body.message,
+        appointmentDate: start,
+      });
+    }
 
     return {
       id: appointment.id,

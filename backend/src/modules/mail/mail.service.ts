@@ -302,12 +302,36 @@ export class MailService {
       `<p>Hola,</p><p>${this.escapeHtml(data.nutritionistName)} te compartió este enlace para agendar:</p><p><a href="${this.escapeHtml(data.bookingUrl)}" style="color:#4f46e5;font-weight:700;word-break:break-all">${this.escapeHtml(data.bookingUrl)}</a></p>`,
     );
 
-    await this.sendEmail({
+await this.sendEmail({
       to: data.email,
       subject: `Enlace de agenda de ${data.nutritionistName}`,
       html,
       text: `Enlace para agendar: ${data.bookingUrl}`,
       channel: 'noReply',
+    });
+  }
+
+  async sendAppointmentRequestEmail(data: {
+    nutritionistEmail: string;
+    nutritionistName: string;
+    guestName: string;
+    guestEmail: string;
+    guestPhone?: string;
+    message?: string;
+    appointmentDate: Date;
+  }) {
+    const html = this.wrapHtml(
+      'Nueva solicitud de cita',
+      `<p>Hola <strong>${this.escapeHtml(data.nutritionistName)}</strong>,</p><p>Recibiste una nueva solicitud de cita.</p><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:16px 18px;margin:20px 0"><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><div style="font-size:11px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em">Nombre</div><div style="font-weight:600">${this.escapeHtml(data.guestName)}</div></div><div><div style="font-size:11px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em">Correo</div><div style="font-weight:600">${this.escapeHtml(data.guestEmail)}</div></div>${data.guestPhone ? `<div><div style="font-size:11px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em">Teléfono</div><div style="font-weight:600">${this.escapeHtml(data.guestPhone)}</div></div>` : ''}<div><div style="font-size:11px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em">Fecha solicitada</div><div style="font-weight:600">${data.appointmentDate.toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div></div></div></div>${data.message ? `<p><strong>Mensaje del paciente:</strong><br>${this.escapeHtml(data.message).replace(/\n/g, '<br>')}</p>` : ''}`,
+    );
+
+    await this.sendEmail({
+      to: data.nutritionistEmail,
+      subject: `Nueva solicitud de cita - ${data.guestName}`,
+      html,
+      text: `Nueva solicitud de cita de ${data.guestName} (${data.guestEmail})${data.guestPhone ? ` - ${data.guestPhone}` : ''} para el ${data.appointmentDate.toLocaleDateString('es-CL')}.${data.message ? ` Mensaje: ${data.message}` : ''}`,
+      replyTo: data.guestEmail,
+      channel: 'notifications',
     });
   }
 }

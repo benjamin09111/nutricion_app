@@ -5,6 +5,7 @@ import Link from "next/link";
 import { User, Lock, Save, Eye, EyeOff, Sun, Moon, Type, FileText, Globe, MapPin, Phone, Mail, Calendar, Check } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Textarea } from "@/components/ui/Textarea";
 import { authService } from "@/features/auth/services/auth.service";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
@@ -28,6 +29,16 @@ interface UserSettings {
   showPublicPhone?: boolean;
   showPublicEmail?: boolean;
   showInstagram?: boolean;
+  showLinkedin?: boolean;
+  showSchedule?: boolean;
+  conditionsTreated?: string;
+  patientTypes?: string;
+  prices?: string;
+  officeAddress?: string;
+  paymentMethods?: string;
+  acceptedInsurance?: string;
+  linkedin?: string;
+  country?: string;
 }
 
 const LEGAL_SECTIONS = [
@@ -133,9 +144,19 @@ export default function SettingsPage() {
   const [publicPhone, setPublicPhone] = useState("");
   const [publicEmail, setPublicEmail] = useState("");
   const [bookingEnabled, setBookingEnabled] = useState(true);
-  const [showPublicPhone, setShowPublicPhone] = useState(false);
-  const [showPublicEmail, setShowPublicEmail] = useState(false);
+const [showPublicPhone, setShowPublicPhone] = useState(false);
+  const [showPublicEmail, setShowPublicEmail] = useState(true);
   const [showInstagram, setShowInstagram] = useState(false);
+  const [showLinkedin, setShowLinkedin] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(true);
+  const [conditionsTreated, setConditionsTreated] = useState("");
+  const [patientTypes, setPatientTypes] = useState("");
+  const [prices, setPrices] = useState("");
+  const [officeAddress, setOfficeAddress] = useState("");
+  const [paymentMethods, setPaymentMethods] = useState("");
+  const [acceptedInsurance, setAcceptedInsurance] = useState("");
+  const [linkedin, setLinkedin] = useState("");
+  const [country, setCountry] = useState("Chile");
   const [isSavingPublicProfile, setIsSavingPublicProfile] = useState(false);
   const [publishedPublicSlug, setPublishedPublicSlug] = useState("");
   const [highlightProfile, setHighlightProfile] = useState(false);
@@ -167,8 +188,18 @@ export default function SettingsPage() {
         setPublicEmail(settings.publicEmail || "");
         setBookingEnabled(settings.bookingEnabled !== false);
         setShowPublicPhone(settings.showPublicPhone === true);
-        setShowPublicEmail(settings.showPublicEmail === true);
+        setShowPublicEmail(settings.showPublicEmail !== false);
         setShowInstagram(settings.showInstagram === true);
+        setShowLinkedin(settings.showLinkedin === true);
+        setShowSchedule(settings.showSchedule !== false);
+        setConditionsTreated(settings.conditionsTreated || "");
+        setPatientTypes(settings.patientTypes || "");
+        setPrices(settings.prices || "");
+        setOfficeAddress(settings.officeAddress || "");
+        setPaymentMethods(settings.paymentMethods || "");
+        setAcceptedInsurance(settings.acceptedInsurance || "");
+        setLinkedin(settings.linkedin || "");
+        setCountry(settings.country || "Chile");
       } catch (e) {
         console.error("Error loading user data", e);
       }
@@ -297,7 +328,7 @@ export default function SettingsPage() {
           publicProfileEnabled,
           publicSlug: publicSlug.trim() || undefined,
           headline: headline.trim(),
-          bio: bio.trim(),
+bio: bio.trim(),
           consultationMode,
           location: location.trim(),
           publicPhone: publicPhone.trim(),
@@ -306,7 +337,15 @@ export default function SettingsPage() {
           showPublicPhone,
           showPublicEmail,
           showInstagram,
-          professionalInstagram: professionalInstagram.trim(),
+          showSchedule,
+          conditionsTreated: conditionsTreated.trim(),
+          patientTypes: patientTypes.trim(),
+          prices: prices.trim(),
+          officeAddress: officeAddress.trim(),
+          paymentMethods: paymentMethods.trim(),
+          acceptedInsurance: acceptedInsurance.trim(),
+          linkedin: linkedin.trim(),
+          country: country.trim(),
         }),
       });
 
@@ -992,10 +1031,130 @@ export default function SettingsPage() {
                       </label>
                     </div>
                   </div>
+
+                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-base">💼</span>
+                      <span className="text-sm font-medium text-slate-700">LinkedIn</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="text"
+                        value={linkedin}
+                        onChange={(e) => setLinkedin(e.target.value)}
+                        placeholder="linkedin.com/in/tu-perfil"
+                        className="h-8 w-40 text-xs"
+                      />
+                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
+                        <div
+                          className={`relative w-9 h-5 rounded-full transition-colors ${showLinkedin ? "bg-emerald-500" : "bg-slate-300"}`}
+                          onClick={() => setShowLinkedin(!showLinkedin)}
+                        >
+                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showLinkedin ? "left-4.5" : "left-0.5"}`} />
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-4 w-4 text-slate-500" />
+                      <span className="text-sm font-medium text-slate-700">Horario en portal</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
+                        <div
+                          className={`relative w-9 h-5 rounded-full transition-colors ${showSchedule ? "bg-emerald-500" : "bg-slate-300"}`}
+                          onClick={() => setShowSchedule(!showSchedule)}
+                        >
+                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showSchedule ? "left-4.5" : "left-0.5"}`} />
+                        </div>
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div className="border-t border-slate-100 pt-6">
+                <h3 className="text-sm font-bold text-slate-700 mb-4">
+                  Información adicional del perfil público
+                </h3>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Enfermedades o temas tratados</label>
+                    <Input
+                      value={conditionsTreated}
+                      onChange={(e) => setConditionsTreated(e.target.value)}
+                      placeholder="Ej: Obesidad, diabetes, estrés, nutrición deportiva"
+                      className="h-10"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Tipos de pacientes</label>
+                    <Input
+                      value={patientTypes}
+                      onChange={(e) => setPatientTypes(e.target.value)}
+                      placeholder="Ej: Adultos, niños, athletes, embarazadas"
+                      className="h-10"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Precios y servicios</label>
+                    <Textarea
+                      value={prices}
+                      onChange={(e) => setPrices(e.target.value)}
+                      placeholder="Ej: Consulta online $40.000 | Primera consulta $60.000"
+                      rows={2}
+                      className="text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Dirección de consultorio</label>
+                    <Input
+                      value={officeAddress}
+                      onChange={(e) => setOfficeAddress(e.target.value)}
+                      placeholder="Ej: Av. Providencia 1234, oficina 502, Providencia, Santiago"
+                      className="h-10"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Formas de pago</label>
+                    <Input
+                      value={paymentMethods}
+                      onChange={(e) => setPaymentMethods(e.target.value)}
+                      placeholder="Ej: Efectivo, transferencia, debitocrédito"
+                      className="h-10"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Seguros aceptados</label>
+                    <Input
+                      value={acceptedInsurance}
+                      onChange={(e) => setAcceptedInsurance(e.target.value)}
+                      placeholder="Ej: Consalud, Banmédica,此地"
+                      className="h-10"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">País</label>
+                    <Input
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      placeholder="Ej: Chile"
+                      className="h-10"
+                    />
+                  </div>
+                </div>
+              </div>
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
@@ -1018,16 +1177,15 @@ export default function SettingsPage() {
                       onClick={() => setBookingEnabled(!bookingEnabled)}
                     >
                       <div
-                        className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                          bookingEnabled ? "left-6" : "left-1"
+                        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          bookingEnabled ? "left-6" : "left-0.5"
                         }`}
                       />
                     </div>
                   </label>
                 </div>
-              </div>
 
-              <div className="flex justify-end pt-2">
+                <div className="flex justify-end pt-2">
                 <Button
                   type="submit"
                   isLoading={isSavingPublicProfile}

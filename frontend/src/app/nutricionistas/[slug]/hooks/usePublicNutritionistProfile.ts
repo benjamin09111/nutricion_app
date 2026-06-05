@@ -5,6 +5,7 @@ export interface Nutritionist {
   id: string;
   slug: string;
   fullName: string;
+  professionalId: string | null;
   specialty: string | null;
   headline: string | null;
   bio: string | null;
@@ -13,9 +14,19 @@ export interface Nutritionist {
   location: string | null;
   avatarUrl: string | null;
   bookingEnabled: boolean;
+  showSchedule: boolean;
   publicPhone: string | null;
   publicEmail: string | null;
   instagram: string | null;
+  linkedin: string | null;
+  isPublic?: boolean;
+  conditionsTreated: string | null;
+  patientTypes: string | null;
+  prices: string | null;
+  officeAddress: string | null;
+  paymentMethods: string | null;
+  acceptedInsurance: string | null;
+  country: string | null;
 }
 
 export interface Availability {
