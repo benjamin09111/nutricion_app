@@ -3,12 +3,14 @@ import { api } from "@/lib/api";
 export interface MembershipStatus {
   requiresPlanSelection: boolean;
   accountPlan: string;
+  entitlements: Record<string, boolean | number>;
   currentPlan: {
     id: string;
     name: string;
     slug: string;
     price: number;
     features: string[];
+    entitlements?: Record<string, boolean | number>;
   } | null;
   subscription: {
     status: string | null;
@@ -29,6 +31,7 @@ export interface MembershipPlan {
   currency: string;
   billingPeriod: string;
   features: string[];
+  entitlements?: Record<string, boolean | number>;
   isPopular: boolean;
   isActive: boolean;
 }
@@ -60,6 +63,11 @@ export const membershipService = {
 
   async checkout(planId: string): Promise<CheckoutResult> {
     const res = await api.post("/payments/membership-checkout", { planId });
+    return res.json();
+  },
+
+  async devChangePlan(planId: string): Promise<{ success: boolean; plan: { id: string; name: string; slug: string } }> {
+    const res = await api.post("/payments/dev/change-plan", { planId });
     return res.json();
   },
 

@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AccountStatus, SubscriptionPlan, UserRole } from '@prisma/client';
 
+const NUTRITIONIST_ROLES = ['NUTRITIONIST', 'NUTRITIONIST_DEVELOPER'] as const;
+
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
@@ -15,13 +17,27 @@ export class UsersService {
       status: { not: 'DELETED' as any },
     };
 
-    if (role) {
-      if (Array.isArray(role)) {
-        where.role = { in: role };
-      } else if (role === 'ALL_ADMINS') {
+    const normalizedRole =
+      typeof role === 'string' && role.includes(',')
+        ? role
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean)
+        : role;
+
+    if (normalizedRole) {
+      if (Array.isArray(normalizedRole)) {
+        where.role = { in: normalizedRole };
+      } else if (normalizedRole === 'ALL_ADMINS') {
         where.role = { in: ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'] };
+      } else if (normalizedRole === 'ALL_ADMIN_ACCOUNTS') {
+        where.role = {
+          in: ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL', 'NUTRITIONIST_DEVELOPER'],
+        };
+      } else if (normalizedRole === 'ALL_NUTRITIONISTS') {
+        where.role = { in: [...NUTRITIONIST_ROLES] };
       } else {
-        where.role = role;
+        where.role = normalizedRole;
       }
     }
 
@@ -66,6 +82,8 @@ export class UsersService {
             ? 'Admin General'
             : acc.role === 'ADMIN'
               ? 'Admin General'
+              : acc.role === 'NUTRITIONIST_DEVELOPER'
+                ? 'Nutricionista Developer'
               : acc.email.split('@')[0]),
       patientCount: acc.nutritionist?._count?.patients || 0,
       publicSlug: acc.nutritionist?.publicSlug || null,
@@ -246,7 +264,7 @@ export class UsersService {
 
     const result = await this.prisma.account.updateMany({
       where: {
-        role: 'NUTRITIONIST',
+        role: { in: [...NUTRITIONIST_ROLES] },
         plan: { not: 'FREE' },
         OR: [{ subscriptionEndsAt: null }, { subscriptionEndsAt: { lt: now } }],
       },
@@ -290,7 +308,10 @@ export class UsersService {
    */
   async countNutritionists() {
     return this.prisma.account.count({
-      where: { role: 'NUTRITIONIST', status: { not: 'DELETED' as any } },
+      where: {
+        role: { in: [...NUTRITIONIST_ROLES] },
+        status: { not: 'DELETED' as any },
+      },
     });
   }
 
@@ -312,7 +333,7 @@ export class UsersService {
 
     const where: any = {
       account: {
-        role: 'NUTRITIONIST',
+        role: { in: [...NUTRITIONIST_ROLES] },
         status: 'ACTIVE',
       },
       publicProfileEnabled: true,
@@ -405,7 +426,7 @@ export class UsersService {
     }
 
     if (
-      nutritionist.account.role !== 'NUTRITIONIST' ||
+      !NUTRITIONIST_ROLES.includes(nutritionist.account.role as any) ||
       nutritionist.account.status !== 'ACTIVE'
     ) {
       return null;

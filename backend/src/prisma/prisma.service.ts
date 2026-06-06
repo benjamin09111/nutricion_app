@@ -10,8 +10,7 @@ export class PrismaService
 
   async onModuleInit() {
     this.validateDatabaseUrl();
-    await this.$connect();
-    this.logger.log('Prisma connected successfully');
+    this.logger.log('Prisma initialized (lazy connection)');
   }
 
   async onModuleDestroy() {

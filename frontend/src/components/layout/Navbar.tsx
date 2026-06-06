@@ -29,6 +29,7 @@ import { useTutorials } from "@/context/TutorialContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { DeveloperPlanSwitcher } from "@/components/layout/DeveloperPlanSwitcher";
 
 function PlanBadge() {
   const { planName, cancelAtPeriodEnd, currentPlan } =
@@ -183,6 +184,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
         <div className="flex flex-1 items-center justify-end gap-x-6 lg:gap-x-8">
 
           {!isAdminView && <PlanBadge />}
+          <DeveloperPlanSwitcher />
 
           <div className="relative" ref={notificationRef}>
             <button

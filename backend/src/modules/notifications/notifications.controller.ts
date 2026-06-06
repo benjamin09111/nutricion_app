@@ -1,9 +1,13 @@
 import { Body, Controller, Delete, Get, Param, Patch, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { NotificationsService } from './notifications.service';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 
 @Controller('notifications')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermissionsGuard)
+@RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 

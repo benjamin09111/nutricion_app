@@ -41,7 +41,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     return <div className="min-h-screen bg-white" />;
   }
 
-  return (
+  const dashboardShell = (
     <div className="dashboard-shell-bg relative h-full">
       <div className={`fixed inset-0 z-9999 lg:hidden ${sidebarOpen ? "block" : "hidden"}`}>
         <div
@@ -98,7 +98,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                 : "max-w-7xl px-4 sm:px-6 lg:px-8"
             }`}
           >
-            {isAdminView ? children : <MembershipGate>{children}</MembershipGate>}
+            {children}
           </div>
         </main>
       </div>
@@ -106,6 +106,12 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       <NutriaChatWidget />
     </div>
   );
+
+  if (isAdminView) {
+    return dashboardShell;
+  }
+
+  return <MembershipGate>{dashboardShell}</MembershipGate>;
 }
 
 export default function DashboardLayout({

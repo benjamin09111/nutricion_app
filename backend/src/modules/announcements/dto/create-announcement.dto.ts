@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, IsArray, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsArray,
+  IsOptional,
+  IsIn,
+} from 'class-validator';
 
 export class CreateAnnouncementDto {
   @IsString()
@@ -21,4 +27,22 @@ export class CreateAnnouncementDto {
   @IsOptional()
   @IsString({ each: true })
   targetRoles?: string[];
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['all', 'specific', 'list'])
+  targetMode?: 'all' | 'specific' | 'list';
+
+  @IsString()
+  @IsOptional()
+  specificUserId?: string;
+
+  @IsString()
+  @IsOptional()
+  emailList?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['email', 'announcement'])
+  commType?: 'email' | 'announcement';
 }

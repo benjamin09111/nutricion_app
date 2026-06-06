@@ -107,7 +107,7 @@ export default function AdminPaymentsPage() {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const headers = { Authorization: `Bearer ${token}` };
       const [uRes, pRes] = await Promise.all([
-        fetchApi("/users?role=NUTRITIONIST", { headers }),
+        fetchApi("/users?role=NUTRITIONIST,NUTRITIONIST_DEVELOPER", { headers }),
         fetchApi("/memberships", { headers }),
       ]);
       if (uRes.ok) setUsers(await uRes.json());

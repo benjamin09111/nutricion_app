@@ -12,8 +12,8 @@ import {
   WebhookSignatureValidator,
 } from 'mercadopago';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PaymentsService } from './payments.service';
 import { PaymentStatus, PaymentMethod } from '@prisma/client';
-import type { CreatePreferenceDto } from './dto/create-preference.dto';
 
 @Injectable()
 export class MercadoPagoService {
@@ -23,6 +23,7 @@ export class MercadoPagoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly paymentsService: PaymentsService,
   ) {
     const accessToken = this.configService.get<string>('MP_ACCESS_TOKEN');
     if (!accessToken) {
@@ -33,13 +34,17 @@ export class MercadoPagoService {
     this.client = new MercadoPagoConfig({ accessToken: accessToken ?? '' });
   }
 
+  private isMockMode(): boolean {
+    return this.configService.get<string>('MOCK_PAYMENTS') === 'true';
+  }
+
   async createPreference(
-    dto: CreatePreferenceDto,
+    planId: string,
     accountId: string,
     payerEmail: string,
   ) {
     const plan = await this.prisma.membershipPlan.findUnique({
-      where: { id: dto.planId },
+      where: { id: planId },
     });
 
     if (!plan) {
@@ -47,6 +52,25 @@ export class MercadoPagoService {
     }
 
     const amount = Number(plan.price);
+
+    // Create pending payment first to get the internal ID
+    const pendingPayment = await this.prisma.payment.create({
+      data: {
+        accountId,
+        amount,
+        currency: plan.currency,
+        status: PaymentStatus.PENDING,
+        method: PaymentMethod.MERCADOPAGO,
+        metadata: {
+          type: 'MEMBERSHIP_PLAN',
+          provider: 'MERCADOPAGO',
+          mock: false,
+          planId: plan.id,
+          planName: plan.name,
+          planSlug: plan.slug,
+        },
+      },
+    });
 
     const preference = await new Preference(this.client).create({
       body: {
@@ -67,150 +91,71 @@ export class MercadoPagoService {
           plan_id: plan.id,
           plan_slug: plan.slug,
           account_id: accountId,
+          payment_id: pendingPayment.id,
         },
+        external_reference: pendingPayment.id,
         back_urls: {
-          success: `${this.configService.get('FRONTEND_URL')}/dashboard/ajustes?payment=success`,
-          failure: `${this.configService.get('FRONTEND_URL')}/dashboard/ajustes?payment=failure`,
-          pending: `${this.configService.get('FRONTEND_URL')}/dashboard/ajustes?payment=pending`,
+          success: `${this.configService.get('FRONTEND_URL')}/dashboard?payment=success`,
+          failure: `${this.configService.get('FRONTEND_URL')}/dashboard?payment=failure`,
+          pending: `${this.configService.get('FRONTEND_URL')}/dashboard?payment=pending`,
         },
         auto_return: 'approved',
       },
     });
 
-    try {
-      await this.prisma.payment.create({
-        data: {
-          accountId,
-          amount,
-          currency: plan.currency,
-          status: PaymentStatus.PENDING,
-          method: PaymentMethod.MERCADOPAGO,
-          transactionId: preference.id!,
-          metadata: {
-            planId: plan.id,
-            planSlug: plan.slug,
-            planName: plan.name,
-          },
+    // Update payment with preference ID in metadata
+    await this.prisma.payment.update({
+      where: { id: pendingPayment.id },
+      data: {
+        metadata: {
+          ...((pendingPayment.metadata as any) || {}),
+          preferenceId: preference.id,
         },
-      });
-    } catch (error) {
-      this.logger.error('Failed to persist pending payment', error);
-      throw new BadRequestException(
-        'No se pudo registrar la intención de pago',
-      );
-    }
+        idempotencyKey: `membership:${accountId}:${planId}:${pendingPayment.id}`,
+      },
+    });
 
     return {
       init_point: preference.init_point!,
       sandbox_init_point: preference.sandbox_init_point,
       preference_id: preference.id,
+      payment_id: pendingPayment.id,
     };
   }
 
-  async handleWebhook(paymentId: string) {
-    const payment = await new Payment(this.client).get({ id: paymentId });
+  async handleWebhook(mpPaymentId: string) {
+    const payment = await new Payment(this.client).get({ id: mpPaymentId });
 
     if (!payment || payment.status !== 'approved') {
-      this.logger.log(`Payment ${paymentId} not approved, skipping`);
+      this.logger.log(`MP payment ${mpPaymentId} not approved, skipping`);
       return { processed: false, reason: 'not_approved' };
     }
 
-    const existing = await this.prisma.payment.findFirst({
-      where: { transactionId: paymentId },
+    // Find internal payment by external_reference (which is our Payment.id)
+    const internalPaymentId = payment.external_reference;
+    if (!internalPaymentId) {
+      this.logger.error('No external_reference in MP payment');
+      throw new BadRequestException('Referencia externa no encontrada en el pago');
+    }
+
+    const existing = await this.prisma.payment.findUnique({
+      where: { id: internalPaymentId },
     });
 
-    if (existing && existing.status === PaymentStatus.COMPLETED) {
-      this.logger.log(`Payment ${paymentId} already completed, skipping`);
+    if (!existing) {
+      this.logger.error(`Internal payment ${internalPaymentId} not found`);
+      throw new NotFoundException('Pago interno no encontrado');
+    }
+
+    if (existing.status === PaymentStatus.COMPLETED) {
+      this.logger.log(`Payment ${internalPaymentId} already completed`);
       return { processed: false, reason: 'already_completed' };
     }
 
-    const metadata = payment.metadata as any;
-    const planId = metadata?.plan_id;
-    const accountId = metadata?.account_id;
-
-    if (!planId || !accountId) {
-      this.logger.error('Missing plan_id or account_id in payment metadata');
-      throw new BadRequestException('Metadata incompleto en el pago');
-    }
-
-    const plan = await this.prisma.membershipPlan.findUnique({
-      where: { id: planId },
-    });
-
-    if (!plan) {
-      this.logger.error(`Plan ${planId} not found`);
-      throw new NotFoundException('Plan no encontrado');
-    }
-
-    const startDate = new Date();
-    const endDate = new Date();
-    if (plan.billingPeriod === 'yearly') {
-      endDate.setFullYear(endDate.getFullYear() + 1);
-    } else {
-      endDate.setMonth(endDate.getMonth() + 1);
-    }
-
-    return this.prisma.$transaction(async (tx) => {
-      if (existing) {
-        await tx.payment.update({
-          where: { id: existing.id },
-          data: {
-            status: PaymentStatus.COMPLETED,
-            paidAt: startDate,
-          },
-        });
-      } else {
-        await tx.payment.create({
-          data: {
-            accountId,
-            amount: payment.transaction_amount ?? Number(plan.price),
-            currency: plan.currency,
-            status: PaymentStatus.COMPLETED,
-            method: PaymentMethod.MERCADOPAGO,
-            transactionId: paymentId,
-            paidAt: startDate,
-            metadata: {
-              planId: plan.id,
-              planSlug: plan.slug,
-              planName: plan.name,
-            },
-          },
-        });
-      }
-
-      await tx.subscription.upsert({
-        where: { accountId },
-        update: {
-          planId: plan.id,
-          status: 'ACTIVE',
-          startDate,
-          endDate,
-          cancelAtPeriodEnd: false,
-          updatedAt: startDate,
-        },
-        create: {
-          accountId,
-          planId: plan.id,
-          status: 'ACTIVE',
-          startDate,
-          endDate,
-        },
-      });
-
-      let accountPlan: 'FREE' | 'PRO' | 'ENTERPRISE' = 'PRO';
-      if (plan.slug.includes('free')) accountPlan = 'FREE';
-      if (plan.slug.includes('enterprise')) accountPlan = 'ENTERPRISE';
-
-      await tx.account.update({
-        where: { id: accountId },
-        data: {
-          plan: accountPlan,
-          subscriptionEndsAt: endDate,
-        },
-      });
-
-      return { processed: true, status: 'COMPLETED' };
-    });
+    return this.paymentsService.activateMembershipFromPayment(
+      internalPaymentId,
+      mpPaymentId,
+    );
   }
 
   async getPaymentById(paymentId: string) {
@@ -218,9 +163,7 @@ export class MercadoPagoService {
   }
 
   verifyWebhookSignature(headers: Record<string, string>, body: any): boolean {
-    const secret = this.configService.get<string>(
-      'MP_WEBHOOK_SECRET',
-    );
+    const secret = this.configService.get<string>('MP_WEBHOOK_SECRET');
 
     if (!secret) {
       this.logger.warn(

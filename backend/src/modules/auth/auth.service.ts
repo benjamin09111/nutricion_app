@@ -12,6 +12,7 @@ import { LoginDto } from './dto/login.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { MailService } from '../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
+import { PermissionsService } from '../permissions/permissions.service';
 
 import { UserRole, SubscriptionPlan } from '@prisma/client';
 
@@ -32,7 +33,22 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private mailService: MailService,
+    private permissionsService: PermissionsService,
   ) {}
+
+  private mapMembershipPlanToAccountPlan(slug?: string | null): SubscriptionPlan {
+    const normalized = (slug || '').toLowerCase();
+
+    if (normalized.includes('free')) {
+      return SubscriptionPlan.FREE;
+    }
+
+    if (normalized.includes('enterprise')) {
+      return SubscriptionPlan.ENTERPRISE;
+    }
+
+    return SubscriptionPlan.PRO;
+  }
 
   async createAccount(
     email: string,
@@ -56,34 +72,57 @@ export class AuthService {
     try {
       await this.prisma.$transaction(async (tx) => {
         // Determine the high-level plan enum
-        let subscriptionPlan: any = 'FREE';
+        let subscriptionPlan: any = role === 'NUTRITIONIST_DEVELOPER' ? 'ENTERPRISE' : 'FREE';
         let targetPlanId = planId;
 
         const isNutritionist = [
           'NUTRITIONIST',
+          'NUTRITIONIST_DEVELOPER',
           'ORGANIZATION',
           'SUPPLEMENT_STORE',
           'SUPERMARKET',
         ].includes(role);
+        const isDeveloperNutritionist = role === 'NUTRITIONIST_DEVELOPER';
 
         if (isNutritionist) {
           // Find the membership plan details
           let membershipPlan;
+
+          if (!targetPlanId && isDeveloperNutritionist) {
+            const enterprisePlan = await tx.membershipPlan.findFirst({
+              where: {
+                isActive: true,
+                slug: { contains: 'enterprise', mode: 'insensitive' },
+              },
+              orderBy: { price: 'desc' },
+            });
+
+            targetPlanId = enterprisePlan?.id || targetPlanId;
+          }
+
           if (targetPlanId) {
             membershipPlan = await tx.membershipPlan.findUnique({
               where: { id: targetPlanId },
             });
-          } else {
-            // Default to the first active membership plan
+          }
+
+          if (!membershipPlan && isDeveloperNutritionist) {
             membershipPlan = await tx.membershipPlan.findFirst({
               where: { isActive: true },
-              orderBy: { displayOrder: 'asc' },
+              orderBy: [{ price: 'desc' }, { displayOrder: 'asc' }],
             });
-            targetPlanId = membershipPlan?.id;
+
+            targetPlanId = membershipPlan?.id || targetPlanId;
+          }
+
+          if (targetPlanId && !membershipPlan) {
+            throw new BadRequestException('Plan no encontrado o inactivo');
           }
 
           if (membershipPlan) {
-            subscriptionPlan = membershipPlan.slug.toUpperCase();
+            subscriptionPlan = this.mapMembershipPlanToAccountPlan(
+              membershipPlan.slug,
+            );
           }
         }
 
@@ -99,7 +138,7 @@ export class AuthService {
           },
         });
 
-        if (role === 'NUTRITIONIST') {
+        if (role === 'NUTRITIONIST' || role === 'NUTRITIONIST_DEVELOPER') {
           const nutritionist = await tx.nutritionist.create({
             data: {
               accountId: newAccount.id,
@@ -113,7 +152,7 @@ export class AuthService {
           });
         }
 
-        // If it's a role that requires a subscription (Nutritionist, Org, etc.)
+        // Only create a subscription when an explicit plan was provided.
         if (isNutritionist && targetPlanId) {
           await tx.subscription.create({
             data: {
@@ -178,26 +217,18 @@ export class AuthService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        // 1. Get default plan
-        const membershipPlan = await tx.membershipPlan.findFirst({
-          where: { isActive: true },
-          orderBy: { displayOrder: 'asc' },
-        });
-
-        const subscriptionPlan = membershipPlan?.slug.toUpperCase() || 'FREE';
-
-        // 2. Create Account
+        // 1. Create Account (FREE by default, user selects plan after login)
         const newAccount = await tx.account.create({
           data: {
             email: normalizedEmail,
             password: hashedPassword,
             role: 'NUTRITIONIST',
-            plan: subscriptionPlan as SubscriptionPlan,
+            plan: 'FREE',
             status: 'ACTIVE',
           },
         });
 
-        // 3. Create Nutritionist Profile
+        // 2. Create Nutritionist Profile
         const nutritionist = await tx.nutritionist.create({
           data: {
             accountId: newAccount.id,
@@ -209,19 +240,6 @@ export class AuthService {
           where: { id: nutritionist.id },
           data: { publicSlug: buildPublicSlug(fullName, nutritionist.id) },
         });
-
-        // 4. Create Subscription
-        if (membershipPlan) {
-          await tx.subscription.create({
-            data: {
-              accountId: newAccount.id,
-              planId: membershipPlan.id,
-              status: 'ACTIVE',
-              startDate: new Date(),
-              endDate: new Date(new Date().setDate(new Date().getDate() + 30)),
-            },
-          });
-        }
 
         console.log(`✅ [AuthService] Usuario registrado con éxito: ${normalizedEmail}`);
       });
@@ -306,11 +324,15 @@ export class AuthService {
         },
       });
 
-      if (account.role === 'NUTRITIONIST' && !account.nutritionist) {
-        console.warn(
-          `[AuthService] Warning: Account ${account.email} has no Nutritionist record. Role: ${account.role}`,
-        );
-      }
+        if (
+          (account.role === 'NUTRITIONIST' ||
+            account.role === 'NUTRITIONIST_DEVELOPER') &&
+          !account.nutritionist
+        ) {
+          console.warn(
+            `[AuthService] Warning: Account ${account.email} has no Nutritionist record. Role: ${account.role}`,
+          );
+        }
 
       const payload = {
         email: account.email,
@@ -323,27 +345,26 @@ export class AuthService {
         expiresIn: loginDto.rememberMe ? '30d' : '24h',
       };
 
-      let planName = account.subscription?.plan?.name;
+      let planName = account.subscription?.plan?.name || 'Plan Gratuito';
+      const accessSnapshot = await this.permissionsService.getAccessSnapshot(
+        account.id,
+      );
 
-      // If no subscription record found specifically for this account, default to the first active plan if they are a nutritionist
-      if (!planName && account.role === 'NUTRITIONIST') {
-        const defaultPlan = await this.prisma.membershipPlan.findFirst({
-          where: { isActive: true },
-          orderBy: { displayOrder: 'asc' },
-        });
-        if (defaultPlan) {
-          planName = defaultPlan.name;
-        }
-      }
-
-      // Final fallbacks
-      if (!planName) {
-        planName = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(
-          account.role,
-        )
-          ? 'Full Access'
-          : 'Plan Gratuito';
-      }
+      const subscriptionInfo = account.subscription
+        ? {
+            status: account.subscription.status,
+            startDate: account.subscription.startDate,
+            endDate: account.subscription.endDate,
+            cancelAtPeriodEnd: account.subscription.cancelAtPeriodEnd,
+            canceledAt: account.subscription.canceledAt,
+            planId: account.subscription.planId,
+            planName: account.subscription.plan?.name || null,
+            planSlug: account.subscription.plan?.slug || null,
+            planPrice: account.subscription.plan
+              ? Number(account.subscription.plan.price)
+              : null,
+          }
+        : null;
 
       return {
         access_token: this.jwtService.sign(payload, signOptions),
@@ -353,6 +374,10 @@ export class AuthService {
           role: account.role,
           plan: account.plan,
           planName,
+          requiresPlanSelection:
+            accessSnapshot?.requiresPlanSelection ?? true,
+          entitlements: accessSnapshot?.entitlements ?? {},
+          subscription: subscriptionInfo,
           nutritionist: account.nutritionist,
         },
       };
@@ -412,6 +437,8 @@ export class AuthService {
         greetingName = 'Admin Master';
       } else if (['ADMIN', 'ADMIN_GENERAL'].includes(account.role)) {
         greetingName = 'Admin General';
+      } else if (account.role === 'NUTRITIONIST_DEVELOPER') {
+        greetingName = 'Nutricionista Developer';
       }
 
       console.log(

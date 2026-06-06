@@ -12,6 +12,9 @@ import {
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 
 @Controller('users')
 // @UseGuards(AuthGuard) -> Moved to individual methods to allow public access to count
@@ -25,7 +28,8 @@ export class UsersController {
   }
 
   @Get()
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   findAll(@Query('role') role?: any, @Query('search') search?: string) {
     return this.usersService.findAll(role, search);
   }
@@ -37,7 +41,8 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   async update(
     @Param('id') id: string,
     @Body() body: any,
@@ -79,7 +84,8 @@ export class UsersController {
   }
 
   @Patch(':id/plan')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   updatePlan(
     @Param('id') id: string,
     @Body() body: { plan: string; days?: number },
@@ -94,7 +100,8 @@ export class UsersController {
   }
 
   @Patch(':id/public-profile')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   updatePublicProfileVisibility(
     @Param('id') id: string,
     @Body() body: { publicProfileEnabled: boolean },
@@ -113,7 +120,8 @@ export class UsersController {
   }
 
   @Post('reset-unpaid-plans')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   resetUnpaidPlans(@Request() req: any) {
     if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
       throw new UnauthorizedException(
@@ -124,7 +132,8 @@ export class UsersController {
   }
 
   @Patch(':id/delete')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   async softDelete(@Param('id') id: string, @Request() req: any) {
     // Permissions check: must be at least some kind of admin
     const requesterRole = req.user.role;

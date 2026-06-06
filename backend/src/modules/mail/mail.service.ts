@@ -135,7 +135,7 @@ export class MailService {
     });
   }
 
-  async sendRegistrationAlert(
+async sendRegistrationAlert(
     fullName: string,
     email: string,
     message?: string,
@@ -156,6 +156,25 @@ export class MailService {
     });
   }
 
+  async sendNutritionistInterestNotification(
+    name: string,
+    email: string,
+  ): Promise<void> {
+    const html = this.wrapHtml(
+      'Nuevo interés de nutricionista',
+      `<p>Un nutricionista ha manifiesto interés en NutriNet.</p><ul style="line-height:1.9;padding-left:18px"><li><strong>Nombre:</strong> ${this.escapeHtml(name)}</li><li><strong>Correo:</strong> ${this.escapeHtml(email)}</li></ul><p>Este nutricionista se unió al directorio público.</p>`,
+    );
+
+    await this.sendEmail({
+      to: 'contacto@nutrinet.cl',
+      subject: 'Nuevo interés de nutricionista en NutriNet',
+      html,
+      text: `Nuevo interés de nutricionista. Nombre: ${name}. Email: ${email}.`,
+      replyTo: email,
+      channel: 'notifications',
+    });
+  }
+
   async sendAdminNotification(
     requestData: SupportEmailRequestData,
   ): Promise<void> {
@@ -171,6 +190,27 @@ export class MailService {
       text: `Nueva solicitud. Correo: ${requestData.email || 'N/D'}. Mensaje: ${requestData.message || 'Sin mensaje'}`,
       replyTo: requestData.email || this.replyTo,
       channel: 'support',
+    });
+  }
+
+  async sendAnnouncementEmail(data: {
+    email: string;
+    name?: string;
+    title: string;
+    message: string;
+    link?: string;
+  }): Promise<void> {
+    const html = this.wrapHtml(
+      data.title,
+      `<p>Hola${data.name ? ` <strong>${this.escapeHtml(data.name)}</strong>` : ''},</p><p>${this.escapeHtml(data.message).replace(/\n/g, '<br>')}</p>${data.link ? `<p><a href="${this.escapeHtml(data.link)}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 18px;border-radius:999px;font-weight:700">Ver detalle</a></p>` : ''}`,
+    );
+
+    await this.sendEmail({
+      to: data.email,
+      subject: `NutriNet: ${data.title}`,
+      html,
+      text: `${data.title}\n\n${data.message}${data.link ? `\n${data.link}` : ''}`,
+      channel: 'notifications',
     });
   }
 

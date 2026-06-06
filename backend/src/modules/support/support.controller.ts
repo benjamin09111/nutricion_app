@@ -13,6 +13,9 @@ import type { Request as ExpressRequest } from 'express';
 import { SupportService } from './support.service';
 import { CreateSupportRequestDto } from './dto/create-support-request.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 
 type JwtRequest = ExpressRequest & {
   user: {
@@ -35,7 +38,8 @@ export class SupportController {
   }
 
   // Authenticated Feedback (uses JWT email)
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   @Post('feedback')
   createFeedback(
     @Request() req: JwtRequest,
@@ -48,7 +52,8 @@ export class SupportController {
   }
 
   // Secure Subscription Request
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   @Post('secure-subscription')
   secureSubscription(@Request() req: JwtRequest) {
     return this.supportService.create({
@@ -60,21 +65,24 @@ export class SupportController {
   }
 
   // Admin Only: List requests
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   @Get()
   findAll() {
     return this.supportService.findAll();
   }
 
   // Admin Only: Mark as resolved
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   @Patch(':id/resolve')
   resolve(@Param('id') id: string) {
     return this.supportService.resolve(id);
   }
 
   // Admin Only: Delete request
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.supportService.remove(id);

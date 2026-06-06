@@ -11,9 +11,13 @@ import {
 } from '@nestjs/common';
 import { MetricsService } from './metrics.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 
 @Controller('metrics')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermissionsGuard)
+@RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 export class MetricsController {
   constructor(private readonly metricsService: MetricsService) {}
 

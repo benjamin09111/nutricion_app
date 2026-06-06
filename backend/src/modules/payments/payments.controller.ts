@@ -11,7 +11,6 @@ import {
 import { PaymentsService } from './payments.service';
 import { MercadoPagoService } from './mercadopago.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
-import { CreatePreferenceDto } from './dto/create-preference.dto';
 
 @Controller('payments')
 @UseGuards(AuthGuard)
@@ -36,9 +35,77 @@ export class PaymentsController {
     return this.paymentsService.getRevenueStats();
   }
 
+  // ─── Membership Status ─────────────────────────────────────────────
+
+  @Get('membership-status')
+  async getMembershipStatus(@Request() req: any) {
+    const accountId = req.user?.id;
+    if (!accountId) {
+      throw new UnauthorizedException('Usuario no identificado');
+    }
+    return this.paymentsService.getMembershipStatus(accountId);
+  }
+
+  // ─── Select Free Plan ──────────────────────────────────────────────
+
+  @Post('select-free-plan')
+  async selectFreePlan(
+    @Body() body: { planId: string },
+    @Request() req: any,
+  ) {
+    const accountId = req.user?.id;
+    if (!accountId) {
+      throw new UnauthorizedException('Usuario no identificado');
+    }
+    return this.paymentsService.selectFreePlan(accountId, body.planId);
+  }
+
+  // ─── Membership Checkout ───────────────────────────────────────────
+
+  @Post('membership-checkout')
+  async membershipCheckout(
+    @Body() body: { planId: string },
+    @Request() req: any,
+  ) {
+    const accountId = req.user?.id;
+    const payerEmail = req.user?.email;
+
+    if (!accountId) {
+      throw new UnauthorizedException('Usuario no identificado');
+    }
+
+    return this.paymentsService.membershipCheckout(
+      accountId,
+      body.planId,
+      payerEmail,
+    );
+  }
+
+  // ─── Cancel / Resume ───────────────────────────────────────────────
+
+  @Post('membership/cancel')
+  async cancelMembership(@Request() req: any) {
+    const accountId = req.user?.id;
+    if (!accountId) {
+      throw new UnauthorizedException('Usuario no identificado');
+    }
+    return this.paymentsService.cancelSubscription(accountId);
+  }
+
+  @Post('membership/resume')
+  async resumeMembership(@Request() req: any) {
+    const accountId = req.user?.id;
+    if (!accountId) {
+      throw new UnauthorizedException('Usuario no identificado');
+    }
+    return this.paymentsService.resumeSubscription(accountId);
+  }
+
+  // ─── Create Preference (Mercado Pago direct) ───────────────────────
+
   @Post('create-preference')
   async createPreference(
-    @Body() dto: CreatePreferenceDto,
+    @Body() body: { planId: string },
     @Request() req: any,
   ) {
     const accountId = req.user?.id;
@@ -49,11 +116,27 @@ export class PaymentsController {
     }
 
     return this.mercadopagoService.createPreference(
-      dto,
+      body.planId,
       accountId,
       payerEmail,
     );
   }
+
+  @Post('dev/change-plan')
+  async devChangePlan(
+    @Body() body: { planId: string },
+    @Request() req: any,
+  ) {
+    const accountId = req.user?.id;
+
+    if (!accountId) {
+      throw new UnauthorizedException('Usuario no identificado');
+    }
+
+    return this.paymentsService.devSwitchPlan(accountId, body.planId);
+  }
+
+  // ─── Simulate Payment (Admin Only) ─────────────────────────────────
 
   @Post('simulate')
   async simulate(

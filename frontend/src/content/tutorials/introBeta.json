@@ -12,16 +12,16 @@
     },
     {
       "id": "intro-welcome",
-      "title": "Bienvenido a la beta de NutriNet",
-      "body": "Yo te estaré acompañando en este proceso.\n\n**Agradecemos tu participación**, y esperamos que te encante esta aplicación diseñada para potenciar tu trabajo.\n\nTen en cuenta que **NutriNet está en fase beta**, por lo que podrías encontrar detalles en revisión o ajustes en los cálculos.\n\n**Exportaciones PDF**: Los documentos descargables ya pueden generarse, pero su diseño visual aún no es el definitivo. El objetivo es que explores las funcionalidades y nos ayudes a mejorar la herramienta con tu experiencia.",
+      "title": "Bienvenido a NutriNet",
+      "body": "Yo te estaré acompañando en este proceso.\n\n**Agradecemos tu participación**, y esperamos que te encante esta aplicación diseñada para potenciar tu trabajo como nutricionista.\n\nEsta es la **primera versión** de NutriNet. La aplicación irá mejorando y creciendo con el tiempo, y **tus comentarios pueden ayudar** a dar un mejor servicio a toda la comunidad de nutricionistas.",
       "nextLabel": "Continuar",
       "hideSkip": true
     },
     {
       "id": "intro-terms",
-      "title": "Aviso de uso beta",
-      "body": "NutriNet se encuentra en una **versión beta de prueba**.\n\nLa plataforma aún está en desarrollo y puede contener errores, omisiones, cálculos incompletos, fallas de funcionamiento o cambios sin previo aviso.\n\nEl contenido mostrado en esta beta tiene fines de prueba, revisión y mejora del producto, por lo que **no debe considerarse definitivo**.\n\nAl continuar, el usuario declara que entiende que:\n\n- esta es una versión no terminada;\n- algunas funciones pueden no operar correctamente;\n- la información generada debe ser revisada antes de ser utilizada;\n- el uso de la plataforma en esta etapa es bajo su propia responsabilidad.",
-      "checkboxLabel": "Entiendo que estoy usando una **versión beta de prueba** de NutriNet y acepto continuar bajo estas condiciones.",
+      "title": "Versión en desarrollo",
+      "body": "NutriNet se encuentra en su **primera versión**.\n\nLa plataforma está en continuo desarrollo y puede recibir actualizaciones, mejoras y ajustes basados en el feedback de los usuarios.\n\nAl continuar, el usuario declara que:\n\n- entiende que es una versión en mejora continua;\n- la información generada debe ser revisada antes de ser utilizada;\n- acepta acompañarnos en este proceso de crecimiento.",
+      "checkboxLabel": "Entiendo que estoy usando una **versión en desarrollo** de NutriNet y acepto continuar.",
       "requireCheckbox": true,
       "nextLabel": "Continuar",
       "hideSkip": true
@@ -42,9 +42,9 @@
     },
     {
       "id": "intro-enter",
-      "title": "Asegura tu lugar",
-      "body": "Si te gusta la aplicación y quieres seguir utilizándola cuando termine la beta, **asegura tu suscripción** apretando el botón que verás en la barra superior una vez dentro de la página.\n\n¡Ya está todo listo para entrar a **NutriNet**!",
-      "nextLabel": "Entrar a NutriNet",
+      "title": "Elige tu plan",
+      "body": "Para comenzar a usar NutriNet necesitas **elegir un plan**.\n\n- **Plan Gratis**: Puedes partir aquí, es gratuito pero tiene limitaciones.\n- **Plan Starter**: Te da más libertad y funcionalidades para trabajar.\n- **Plan Pro**: Es el **plan recomendado** una vez te decidas por utilizar NutriNet.\n\nNo te preocupes, puedes cambiar de plan cuando quieras. ¡Vamos a elegir mi plan!",
+      "nextLabel": "Elegir mi plan",
       "hideSkip": true
     }
   ]

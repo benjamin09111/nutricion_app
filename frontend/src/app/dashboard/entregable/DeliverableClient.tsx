@@ -41,6 +41,7 @@ import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { useDashboardShell } from "@/context/DashboardShellContext";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { PremiumGuard } from "@/components/common/PremiumGuard";
 import { useAdmin } from "@/context/AdminContext";
@@ -520,6 +521,7 @@ export default function DeliverableClient() {
   const searchParams = useSearchParams();
   const projectIdFromUrl = searchParams.get("project");
   const { role } = useAdmin();
+  const { features } = useSubscription();
   const [selectedSections, setSelectedSections] = useState<string[]>(
     sanitizeSectionIds(
       DELIVERABLE_SECTIONS.filter((s) => s.defaultSelected).map((s) => s.id),
@@ -1284,6 +1286,18 @@ export default function DeliverableClient() {
   };
 
   const openExportWizard = () => {
+    if (!features.canExportPDF) {
+      toast.info("La exportación PDF requiere un plan con acceso completo.", {
+        description: "Ve a Configuraciones > Membresía para mejorar tu plan.",
+        action: {
+          label: "Ir a membresía",
+          onClick: () => router.push("/dashboard/configuraciones#membership"),
+        },
+      });
+      router.push("/dashboard/configuraciones#membership");
+      return;
+    }
+
     // Inicializar paquetes avanzados por defecto
     const coreSections = selectedSections.filter(id => DELIVERABLE_SECTIONS.find(s => s.id === id)?.category === "core");
     const infoSections = selectedSections.filter(id => DELIVERABLE_SECTIONS.find(s => s.id === id)?.category === "info");
@@ -1774,7 +1788,7 @@ export default function DeliverableClient() {
     {
       id: "export-pdf",
       icon: Download,
-      label: "Descargar PDF",
+      label: features.canExportPDF ? "Descargar PDF" : "PDF Pro",
       variant: "slate",
       onClick: openExportWizard,
     },

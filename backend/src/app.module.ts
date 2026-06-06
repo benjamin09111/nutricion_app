@@ -34,6 +34,7 @@ import { PatientPortalsModule } from './modules/patient-portals/patient-portals.
 import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { PautasModule } from './modules/pautas/pautas.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AnnouncementsModule } from './modules/announcements/announcements.module';
 
 @Module({
   imports: [
@@ -90,6 +91,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     AppointmentsModule,
     PautasModule,
     NotificationsModule,
+    AnnouncementsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -55,6 +55,8 @@ export class PublicController {
       },
     });
 
+    await this.mailService.sendNutritionistInterestNotification(name, email);
+
     return {
       success: true,
       message: 'Tu información ha sido recibida. Te contactaremos pronto.',

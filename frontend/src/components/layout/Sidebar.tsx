@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { useTheme } from "@/context/ThemeContext";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { useState } from "react";
 
 interface SidebarItem {
@@ -110,6 +111,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
+  const { planName, plan, features, limit } = useSubscription();
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     "Nutrición y Dietética": true,
@@ -139,6 +141,11 @@ export function Sidebar() {
       items: group.items.filter((item) => !item.hidden),
     }))
     .filter((group) => group.items.length > 0);
+
+  const planLabel =
+    plan === "free" ? "Plan gratuito" : plan === "trial" ? "Prueba activa" : planName;
+
+  const upgradeHref = "/dashboard/configuraciones#membership";
 
   return (
     <div
@@ -185,6 +192,75 @@ export function Sidebar() {
           {isSidebarCollapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
         </button>
       </div>
+
+      {!isSidebarCollapsed && (
+        <div
+          className={cn(
+            "rounded-3xl border p-4 shadow-sm transition-colors",
+            isDarkMode
+              ? "border-emerald-400/10 bg-emerald-500/5"
+              : "border-indigo-100 bg-indigo-50/60",
+          )}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p
+                className={cn(
+                  "text-[10px] font-black uppercase tracking-[0.2em]",
+                  isDarkMode ? "text-emerald-100/45" : "text-indigo-500",
+                )}
+              >
+                Acceso actual
+              </p>
+              <p
+                className={cn(
+                  "mt-1 text-sm font-black",
+                  isDarkMode ? "text-emerald-50" : "text-slate-900",
+                )}
+              >
+                {planLabel}
+              </p>
+              <p
+                className={cn(
+                  "mt-1 text-xs font-medium",
+                  isDarkMode ? "text-emerald-100/65" : "text-slate-500",
+                )}
+              >
+                {features.canExportPDF
+                  ? `Exportación habilitada · Pacientes incluidos: ${limit("patientLimit")}`
+                  : "Exportación bloqueada · mejora tu plan para desbloquear PDF y más pacientes"}
+              </p>
+            </div>
+            <div
+              className={cn(
+                "rounded-2xl px-2.5 py-1 text-[10px] font-black uppercase tracking-widest",
+                features.canExportPDF
+                  ? isDarkMode
+                    ? "bg-emerald-500/10 text-emerald-200"
+                    : "bg-emerald-100 text-emerald-700"
+                  : isDarkMode
+                    ? "bg-amber-500/10 text-amber-200"
+                    : "bg-amber-100 text-amber-700",
+              )}
+            >
+              {features.canExportPDF ? "Activo" : "Limitado"}
+            </div>
+          </div>
+          {!features.canExportPDF && (
+            <Link
+              href={upgradeHref}
+              className={cn(
+                "mt-3 inline-flex w-full items-center justify-center rounded-2xl px-3 py-2 text-xs font-black uppercase tracking-widest transition-colors cursor-pointer",
+                isDarkMode
+                  ? "bg-amber-500/15 text-amber-200 hover:bg-amber-500/20"
+                  : "bg-white text-amber-700 hover:bg-amber-50",
+              )}
+            >
+              Mejorar plan
+            </Link>
+          )}
+        </div>
+      )}
 
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-2">

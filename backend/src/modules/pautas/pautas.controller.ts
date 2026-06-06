@@ -2,9 +2,13 @@ import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { PautasService } from './pautas.service';
 import { AiGeneratePautasDto } from './dto/ai-generate-pautas.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 
 @Controller('pautas')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermissionsGuard)
+@RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 export class PautasController {
   constructor(private readonly pautasService: PautasService) {}
 

@@ -9,9 +9,13 @@ import {
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { UsersService } from './users.service';
 import { MailService } from '../mail/mail.service';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 
 @Controller('nutritionists')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermissionsGuard)
+@RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 export class NutritionistsController {
   constructor(
     private readonly usersService: UsersService,

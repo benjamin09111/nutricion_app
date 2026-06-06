@@ -34,6 +34,7 @@ interface UserData {
     | "ADMIN_MASTER"
     | "ADMIN_GENERAL"
     | "NUTRITIONIST"
+    | "NUTRITIONIST_DEVELOPER"
     | "ORGANIZATION"
     | "SUPPLEMENT_STORE"
     | "SUPERMARKET";
@@ -48,6 +49,7 @@ const roleLabels: Record<string, string> = {
   ADMIN_MASTER: "Admin Master",
   ADMIN_GENERAL: "Admin General",
   NUTRITIONIST: "Nutricionista",
+  NUTRITIONIST_DEVELOPER: "Nutricionista Developer",
   ORGANIZATION: "Organización",
   SUPPLEMENT_STORE: "Tienda de Suplementos",
   SUPERMARKET: "Supermercado",
@@ -57,6 +59,9 @@ export default function AdminUsersPage() {
   const [activeTab, setActiveTab] = useState<"create" | "reset" | "admins">(
     "admins",
   );
+  const [accountFilter, setAccountFilter] = useState<
+    "all" | "admins" | "developer"
+  >("all");
   const [currentAdminRole, setCurrentAdminRole] = useState<string | null>(null);
 
   // State for Users List
@@ -78,6 +83,7 @@ export default function AdminUsersPage() {
     | "ADMIN_MASTER"
     | "ADMIN_GENERAL"
     | "NUTRITIONIST"
+    | "NUTRITIONIST_DEVELOPER"
     | "ORGANIZATION"
     | "SUPPLEMENT_STORE"
     | "SUPERMARKET"
@@ -110,7 +116,7 @@ export default function AdminUsersPage() {
     if (activeTab === "admins") {
       fetchUsers();
     }
-  }, [activeTab]);
+  }, [activeTab, accountFilter]);
 
   const fetchMembershipPlans = async () => {
     try {
@@ -131,7 +137,14 @@ export default function AdminUsersPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi(`/users?role=ALL_ADMINS`, {
+      const roleFilter =
+        accountFilter === "admins"
+          ? "ALL_ADMINS"
+          : accountFilter === "developer"
+            ? "NUTRITIONIST_DEVELOPER"
+            : "ALL_ADMIN_ACCOUNTS";
+
+      const response = await fetchApi(`/users?role=${roleFilter}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Error al cargar usuarios");
@@ -297,10 +310,10 @@ export default function AdminUsersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-indigo-900">
-          Gestión de Accesos
+          Cuentas
         </h1>
         <p className="text-slate-500">
-          Administración de rol, suscripciones y estados de cuenta.
+          Administración de administradores y cuentas developer.
         </p>
       </div>
 
@@ -343,6 +356,41 @@ export default function AdminUsersPage() {
 
       {activeTab === "admins" && (
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex items-center gap-2 border-b border-slate-100 px-6 py-4">
+            <button
+              type="button"
+              onClick={() => setAccountFilter("all")}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors cursor-pointer ${
+                accountFilter === "all"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              onClick={() => setAccountFilter("admins")}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors cursor-pointer ${
+                accountFilter === "admins"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Admins
+            </button>
+            <button
+              type="button"
+              onClick={() => setAccountFilter("developer")}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors cursor-pointer ${
+                accountFilter === "developer"
+                  ? "bg-amber-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Nutri Dev
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
@@ -513,6 +561,9 @@ export default function AdminUsersPage() {
                         className="block w-full rounded-md border-0 py-2.5 pl-10 pr-4 text-slate-900 ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                       >
                         <option value="NUTRITIONIST">Nutricionista</option>
+                        <option value="NUTRITIONIST_DEVELOPER">
+                          Nutricionista Developer
+                        </option>
                         {isMaster && (
                           <>
                             <option value="ADMIN_MASTER">
@@ -561,6 +612,13 @@ export default function AdminUsersPage() {
                         * Se creará una suscripción activa de 30 días para este
                         plan.
                       </p>
+                    </div>
+                  )}
+
+                  {creationRole === "NUTRITIONIST_DEVELOPER" && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 animate-in fade-in duration-300">
+                      Se creará con el mayor plan activo y acceso al selector de
+                      planes en el navbar para QA.
                     </div>
                   )}
 

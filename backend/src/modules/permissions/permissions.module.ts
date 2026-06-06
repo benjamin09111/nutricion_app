@@ -1,10 +1,12 @@
 import { Module, Global } from '@nestjs/common';
 import { PermissionsService } from './permissions.service';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PermissionsGuard } from './permissions.guard';
+import { PrismaModule } from '../../prisma/prisma.module';
 
 @Global()
 @Module({
-  providers: [PermissionsService, PrismaService],
-  exports: [PermissionsService],
+  imports: [PrismaModule],
+  providers: [PermissionsService, PermissionsGuard],
+  exports: [PermissionsService, PermissionsGuard],
 })
 export class PermissionsModule {}

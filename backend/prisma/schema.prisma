@@ -489,6 +489,7 @@ model MembershipPlan {
   currency              String              @default("CLP")
   billingPeriod         String              @default("monthly")
   features              Json
+  entitlements          Json                @default("{}")
   maxPatients           Int?
   maxStorage            Int?
   isPopular             Boolean             @default(false)
@@ -701,6 +702,7 @@ model ResourceSection {
 enum UserRole {
   ADMIN
   NUTRITIONIST
+  NUTRITIONIST_DEVELOPER
   ORGANIZATION
   SUPPLEMENT_STORE
   SUPERMARKET
