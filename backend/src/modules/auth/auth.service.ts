@@ -211,13 +211,11 @@ export class AuthService {
       throw new BadRequestException('Este correo ya está registrado.');
     }
 
-    // Default password if none provided (shouldn't happen with new form)
     const finalPassword = password || crypto.randomBytes(8).toString('hex');
     const hashedPassword = await bcrypt.hash(finalPassword, 10);
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        // 1. Create Account (FREE by default, user selects plan after login)
+      await this.prisma.$transaction(async (tx) => {
         const newAccount = await tx.account.create({
           data: {
             email: normalizedEmail,
@@ -228,7 +226,6 @@ export class AuthService {
           },
         });
 
-        // 2. Create Nutritionist Profile
         const nutritionist = await tx.nutritionist.create({
           data: {
             accountId: newAccount.id,
@@ -248,34 +245,38 @@ export class AuthService {
         this.mailService.sendWelcomeEmail(
           normalizedEmail,
           fullName,
-          password,
+          finalPassword,
+          message,
         ),
         this.mailService.sendRegistrationAlert(
           fullName,
           normalizedEmail,
           message,
         ),
-      ]).then((results) => {
-        results.forEach((result, index) => {
-          if (result.status === 'rejected') {
-            console.error(
-              index === 0
-                ? 'Error sending welcome email:'
-                : 'Error sending registration alert:',
-              result.reason,
-            );
-          }
-        });
-      });
+      ]);
 
       return {
         success: true,
-        message: 'Registro completado con éxito. Revisa tu correo.',
+        message: 'Registro completado. Revisa tu correo para acceder.',
       };
     } catch (error: any) {
       console.error('Error en register:', error);
       throw new BadRequestException('No se pudo completar el registro: ' + error.message);
     }
+  }
+
+  async verifyEmail(token: string) {
+    return {
+      success: true,
+      message: 'El flujo de verificación ya no está activo. Usa el acceso directo del correo.',
+    };
+  }
+
+  async resendVerificationEmail(email: string) {
+    return {
+      success: true,
+      message: 'El flujo de verificación no está activo en esta versión.',
+    };
   }
 
 
@@ -305,7 +306,7 @@ export class AuthService {
         throw new UnauthorizedException('Credenciales inválidas');
       }
 
-      // Block suspended or deleted accounts from logging in
+// Block suspended or deleted accounts from logging in
       if (account.status === 'SUSPENDED') {
         throw new UnauthorizedException(
           'Tu cuenta ha sido suspendida. Contacta al administrador.',
@@ -315,13 +316,13 @@ export class AuthService {
         throw new UnauthorizedException('Credenciales inválidas');
       }
 
-      // Activate account ONLY on first login (PENDING → ACTIVE), update last login timestamp
+      const updateData: any = { lastLoginAt: new Date() };
+      if (account.status === 'PENDING') {
+        updateData.status = 'ACTIVE';
+      }
       await this.prisma.account.update({
         where: { id: account.id },
-        data: {
-          ...(account.status === 'PENDING' ? { status: 'ACTIVE' as any } : {}),
-          lastLoginAt: new Date(),
-        },
+        data: updateData,
       });
 
         if (

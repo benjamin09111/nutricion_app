@@ -428,7 +428,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                       isAdminView ? "text-indigo-600" : "text-emerald-600",
                     )}
                   >
-                    {isAdminView ? "Admin" : planName}
+                    {isAdminView ? "Admin" : `Plan ${planName}`}
                   </p>
                 </div>
 

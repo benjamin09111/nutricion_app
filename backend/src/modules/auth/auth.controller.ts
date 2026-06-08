@@ -1,7 +1,10 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
+  Param,
+  Query,
   HttpCode,
   HttpStatus,
   UseGuards,
@@ -102,6 +105,24 @@ export class AuthController {
     }
     await this.mailService.sendRegistrationAlert(body.name, body.email, body.message);
     return { success: true };
+  }
+
+  @Get('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Query('token') token: string) {
+    if (!token) {
+      throw new BadRequestException('Token de verificación es requerido');
+    }
+    return this.authService.verifyEmail(token);
+  }
+
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  async resendVerification(@Body() body: { email: string }) {
+    if (!body.email) {
+      throw new BadRequestException('El correo es requerido');
+    }
+    return this.authService.resendVerificationEmail(body.email);
   }
 }
 

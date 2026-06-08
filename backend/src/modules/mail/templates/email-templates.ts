@@ -68,3 +68,25 @@ export function buildRegistrationConfirmationEmailTemplate(params: {
     text: `Hola ${params.fullName}. Recibimos tu solicitud de registro en NutriNet y te contactaremos por correo.`,
   };
 }
+
+export function buildEmailVerificationTemplate(params: {
+  fullName: string;
+  verifyUrl: string;
+}) {
+  const html = wrapEmail({
+    title: 'Confirma tu correo',
+    body: `<p>Hola <strong>${escapeHtml(params.fullName)}</strong>,</p><p>Gracias por registrarte en NutriNet. Para activar tu cuenta, haz clic en el botón de abajo:</p>`,
+    ctaLabel: 'Verificar mi correo',
+    ctaUrl: params.verifyUrl,
+  });
+
+  const text = [
+    `Hola ${params.fullName}`,
+    `Gracias por registrarte en NutriNet.`,
+    `Para activar tu cuenta, visita el siguiente enlace:`,
+    params.verifyUrl,
+    `Este enlace expira en 24 horas.`,
+  ].join('\n');
+
+  return { html, text };
+}
