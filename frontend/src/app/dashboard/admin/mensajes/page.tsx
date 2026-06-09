@@ -31,6 +31,7 @@ import { fetchApi } from "@/lib/api-base";
 import {
   AVAILABLE_SENDER_EMAILS,
   DEFAULT_SENDER_EMAIL,
+  type SenderEmail,
 } from "@/lib/email-identities";
 
 type Tab = "templates" | "create" | "admin" | "history" | "automation";
@@ -54,7 +55,7 @@ interface MessageTemplate {
   title: string;
   subject: string;
   content: string;
-  fromEmail: string;
+  fromEmail: SenderEmail;
   createdAt?: string;
   updatedAt?: string;
   lastUsed?: string;
@@ -117,7 +118,7 @@ export default function MessagesPage() {
 
   useEffect(() => {
     const fetchNutris = async () => {
-      const role = activeTab === "admin" ? "ADMIN_GENERAL" : "NUTRITIONIST";
+      const role = activeTab === "admin" ? "ADMIN_GENERAL" : "ALL_NUTRITIONISTS";
       if (targetMode !== "specific" || !searchQuery.trim()) {
         setNutriOptions([]);
         return;
@@ -1054,7 +1055,9 @@ export default function MessagesPage() {
             </label>
             <select
               value={templateFromEmail}
-              onChange={(event) => setTemplateFromEmail(event.target.value)}
+              onChange={(event) =>
+                setTemplateFromEmail(event.target.value as SenderEmail)
+              }
               className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none"
             >
               {AVAILABLE_SENDER_EMAILS.map((email) => (

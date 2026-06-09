@@ -39,7 +39,6 @@ export const registerSchema = z.object({
     .string()
     .min(1, { message: "El correo electrónico es obligatorio" })
     .email({ message: "Ingresa un correo electrónico válido" }),
-  description: z.string().optional(),
 });
 
 export type RegisterFormData = z.infer<typeof registerSchema>;

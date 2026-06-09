@@ -7,7 +7,6 @@ import { ArrowLeft } from "lucide-react";
 import { registerSchema, type RegisterFormData } from "@/lib/schemas/auth";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Textarea } from "@/components/ui/Textarea";
 import { sendRegistrationRequest } from "@/app/actions/auth";
 
 interface RegisterFormProps {
@@ -25,11 +24,10 @@ export default function RegisterForm({ onBack }: RegisterFormProps) {
     formState: { errors },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      description: "",
-    },
+      defaultValues: {
+        name: "",
+        email: "",
+      },
   });
 
   const onSubmit = async (data: RegisterFormData) => {
@@ -99,8 +97,7 @@ export default function RegisterForm({ onBack }: RegisterFormProps) {
 
       <p className="text-base text-slate-500 mb-8 leading-relaxed">
         Esta solicitud enviará tus datos a nuestro equipo. Te contactaremos vía
-        correo electrónico para habilitar tu cuenta y explicarte el proceso de
-        alta en el servicio.
+        correo electrónico para habilitar tu cuenta.
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -134,22 +131,6 @@ export default function RegisterForm({ onBack }: RegisterFormProps) {
             className="h-12 text-base"
             {...register("email")}
             error={errors.email?.message}
-          />
-        </div>
-
-        <div>
-          <label
-            htmlFor="description"
-            className="block text-base font-semibold leading-5 text-slate-700 mb-2"
-          >
-            Mensaje (Opcional)
-          </label>
-          <Textarea
-            id="description"
-            placeholder="Cuéntanos brevemente sobre tu consulta o requerimientos..."
-            className="text-base"
-            {...register("description")}
-            error={errors.description?.message}
           />
         </div>
 

@@ -77,7 +77,7 @@ export default function AdminUsersPage() {
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
-    type: "STATUS" | "ROLE";
+    type: "STATUS" | "ROLE" | "DELETE";
     targetValue: string;
   } | null>(null);
 
@@ -196,6 +196,17 @@ export default function AdminUsersPage() {
     setIsConfirmModalOpen(true);
   };
 
+  const handleDeleteRequest = (user: UserData) => {
+    if (!canModifyAdmins(user)) {
+      toast.error("Solo un Admin Master puede eliminar cuentas administrativas");
+      return;
+    }
+
+    setSelectedUser(user);
+    setConfirmAction({ type: "DELETE", targetValue: "DELETE" });
+    setIsConfirmModalOpen(true);
+  };
+
   const executeConfirmAction = async () => {
     if (!selectedUser || !confirmAction) return;
 
@@ -203,26 +214,36 @@ export default function AdminUsersPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const payload =
-        confirmAction.type === "STATUS"
-          ? { status: confirmAction.targetValue }
-          : { role: confirmAction.targetValue };
-
-      const response = await fetchApi(`/users/${selectedUser.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      const response =
+        confirmAction.type === "DELETE"
+          ? await fetchApi(`/users/${selectedUser.id}`, {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            })
+          : await fetchApi(`/users/${selectedUser.id}`, {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body:
+                confirmAction.type === "STATUS"
+                  ? JSON.stringify({ status: confirmAction.targetValue })
+                  : JSON.stringify({ role: confirmAction.targetValue }),
+            });
 
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.message || "Error en la actualización");
       }
 
-      toast.success(`Usuario actualizado correctamente`);
+      toast.success(
+        confirmAction.type === "DELETE"
+          ? "Usuario eliminado permanentemente"
+          : "Usuario actualizado correctamente",
+      );
       setIsConfirmModalOpen(false);
       fetchUsers();
     } catch (error: any) {
@@ -480,28 +501,39 @@ export default function AdminUsersPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <Button
-                          variant="ghost"
-                          disabled={!canModifyAdmins(user)}
-                          onClick={() => handleStatusToggle(user)}
-                          className={`h-8 px-3 ${!canModifyAdmins(user) ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${
-                            user.status === "ACTIVE"
-                              ? "text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                              : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                          }`}
-                        >
-                          {user.status === "ACTIVE" ? (
-                            <>
-                              <UserX className="h-4 w-4 mr-2" /> Desactivar
-                              Account
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 mr-2" /> Activar
-                              Account
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            disabled={!canModifyAdmins(user)}
+                            onClick={() => handleStatusToggle(user)}
+                            className={`h-8 px-3 ${!canModifyAdmins(user) ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${
+                              user.status === "ACTIVE"
+                                ? "text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                            }`}
+                          >
+                            {user.status === "ACTIVE" ? (
+                              <>
+                                <UserX className="h-4 w-4 mr-2" />
+                                Desactivar
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                Activar
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            disabled={!canModifyAdmins(user)}
+                            onClick={() => handleDeleteRequest(user)}
+                            className={`h-8 px-3 ${!canModifyAdmins(user) ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} text-slate-600 hover:text-rose-700 hover:bg-rose-50`}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Eliminar
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -709,11 +741,17 @@ export default function AdminUsersPage() {
         title={
           confirmAction?.type === "STATUS"
             ? "Cambiar Estado de Cuenta"
-            : "Cambiar Rol de Usuario"
+            : confirmAction?.type === "ROLE"
+              ? "Cambiar Rol de Usuario"
+              : "Eliminar Cuenta"
         }
-        message={`¿Estás seguro de que deseas cambiar el ${confirmAction?.type === "STATUS" ? "estado" : "rol"} de ${selectedUser?.email} a ${confirmAction?.type === "ROLE" ? roleLabels[confirmAction.targetValue] : confirmAction?.targetValue === "ACTIVE" ? "Activo" : "Inactivo"}? Esta acción tendrá efecto inmediato.`}
-        variant={confirmAction?.type === "STATUS" ? "danger" : "warning"}
-        confirmText="Sí, actualizar"
+        message={
+          confirmAction?.type === "DELETE"
+            ? `¿Estás seguro de que deseas eliminar permanentemente la cuenta de ${selectedUser?.email}? Esta acción borrará la cuenta de la base de datos y no se puede deshacer.`
+            : `¿Estás seguro de que deseas cambiar el ${confirmAction?.type === "STATUS" ? "estado" : "rol"} de ${selectedUser?.email} a ${confirmAction?.type === "ROLE" ? roleLabels[confirmAction.targetValue] : confirmAction?.targetValue === "ACTIVE" ? "Activo" : "Inactivo"}? Esta acción tendrá efecto inmediato.`
+        }
+        variant={confirmAction?.type === "DELETE" ? "danger" : confirmAction?.type === "STATUS" ? "danger" : "warning"}
+        confirmText={confirmAction?.type === "DELETE" ? "Sí, eliminar" : "Sí, actualizar"}
         cancelText="Cancelar"
       />
     </div>

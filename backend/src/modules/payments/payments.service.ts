@@ -208,9 +208,14 @@ export class PaymentsService {
       );
       await this.upsertDailyMetric(tx, 0, startDate);
 
+      const membershipStatus = await this.permissionsService.getAccessSnapshot(
+        accountId,
+      );
+
       return {
         payment,
         plan: { id: plan.id, name: plan.name, slug: plan.slug },
+        membershipStatus,
       };
     });
   }
@@ -656,7 +661,6 @@ export class PaymentsService {
         paymentId: paymentId || undefined,
         newPlanId: planId,
         metadata: { source: 'payments-service', eventType },
-        createdAt: new Date(),
       },
     });
   }

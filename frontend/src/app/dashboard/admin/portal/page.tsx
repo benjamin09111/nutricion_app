@@ -69,7 +69,7 @@ export default function AdminPortalPage() {
 
   const getAuthHeaders = () => {
     const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    return token ? { Authorization: `Bearer ${token}` } : ({} as Record<string, string>);
   };
 
   const loadNutritionists = async (

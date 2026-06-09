@@ -72,6 +72,34 @@ export function SubscriptionProvider({
   const planFeatures = PLAN_FEATURES[plan] || PLAN_FEATURES.free;
   const isDeveloper = role === "NUTRITIONIST_DEVELOPER";
 
+  const applyStoredUserSnapshot = useCallback(() => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) return;
+
+    try {
+      const user = JSON.parse(storedUser);
+      setRole(typeof user?.role === "string" ? user.role : null);
+      if (user.plan) {
+        const backendPlan = String(user.plan).toLowerCase();
+        if (backendPlan === "free") setPlan("free");
+        else if (backendPlan === "pro" || backendPlan === "enterprise") setPlan("pro");
+      }
+      if (user.planName) setPlanName(user.planName);
+      if (user.subscription?.endDate) {
+        setSubscriptionEndsAt(new Date(user.subscription.endDate));
+        const endDate = new Date(user.subscription.endDate);
+        const days = Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        setDaysRemaining(days > 0 ? days : null);
+      }
+      if (user.subscription?.cancelAtPeriodEnd) {
+        setCancelAtPeriodEnd(true);
+      }
+      if (user.membershipSelected === true || user.requiresPlanSelection === false) {
+        setRequiresPlanSelection(false);
+      }
+    } catch {}
+  }, []);
+
   const computePlan = useCallback(
     (planData: MembershipState["currentPlan"], accPlan: string) => {
       const slug = (planData?.slug || accPlan || "").toLowerCase();
@@ -125,27 +153,13 @@ export function SubscriptionProvider({
       }
     } catch {
       // Fallback to localStorage
-      setRequiresPlanSelection(true);
       setEntitlements({});
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        try {
-          const user = JSON.parse(storedUser);
-          setRole(typeof user?.role === "string" ? user.role : null);
-          if (user.plan) {
-            const backendPlan = user.plan.toLowerCase();
-            setPlan(backendPlan === "enterprise" ? "pro" : backendPlan === "free" ? "free" : "pro");
-          }
-          if (user.planName) setPlanName(user.planName);
-          if (user.subscription?.endDate) {
-            setSubscriptionEndsAt(new Date(user.subscription.endDate));
-          }
-        } catch {}
-      }
+      setRequiresPlanSelection(true);
+      applyStoredUserSnapshot();
     } finally {
       setIsLoading(false);
     }
-  }, [computePlan]);
+  }, [applyStoredUserSnapshot, computePlan]);
 
   const can = useCallback(
     (featureKey: string) => {
@@ -208,21 +222,8 @@ export function SubscriptionProvider({
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser);
-        setRole(typeof user?.role === "string" ? user.role : null);
-        if (user.plan) {
-          const backendPlan = user.plan.toLowerCase();
-          if (backendPlan === "free") setPlan("free");
-          else if (backendPlan === "pro" || backendPlan === "enterprise") setPlan("pro");
-        }
-        if (user.planName) setPlanName(user.planName);
-        if (user.subscription?.endDate) {
-          setSubscriptionEndsAt(new Date(user.subscription.endDate));
-          const endDate = new Date(user.subscription.endDate);
-          const days = Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-          setDaysRemaining(days > 0 ? days : null);
-        }
-        if (user.subscription?.cancelAtPeriodEnd) {
-          setCancelAtPeriodEnd(true);
+        if (user.membershipSelected === true || user.requiresPlanSelection === false) {
+          setRequiresPlanSelection(false);
         }
       } catch {}
     }

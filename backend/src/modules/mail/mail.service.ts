@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   buildRegistrationAlertEmailTemplate,
   buildRegistrationConfirmationEmailTemplate,
+  buildEmailVerificationTemplate,
   buildWelcomeEmailTemplate,
 } from './templates/email-templates';
 import {
@@ -25,12 +26,15 @@ type SupportEmailRequestData = {
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly apiKey = process.env.RESEND_API_KEY?.trim() || '';
+  private readonly isProduction = process.env.NODE_ENV === 'production';
   private readonly replyTo =
     DEFAULT_REPLY_TO ||
     process.env.ADMIN_EMAIL?.trim() ||
     'contacto@nutrinet.cl';
   private readonly frontendUrl = (
-    process.env.FRONTEND_URL || 'https://nutrinet.cl'
+    this.isProduction
+      ? process.env.FRONTEND_URL || 'https://nutrinet.cl'
+      : 'http://localhost:3000'
   ).replace(/\/$/, '');
   private readonly adminEmail =
     process.env.ADMIN_EMAIL?.trim() || this.replyTo || 'contacto@nutrinet.cl';
@@ -148,6 +152,25 @@ export class MailService {
     await this.sendEmail({
       to: email,
       subject: 'Hemos recibido tu solicitud en NutriNet',
+      html,
+      text,
+      channel: 'noReply',
+    });
+  }
+
+  async sendVerificationEmail(
+    email: string,
+    fullName: string,
+    verifyUrl: string,
+  ): Promise<void> {
+    const { html, text } = buildEmailVerificationTemplate({
+      fullName,
+      verifyUrl,
+    });
+
+    await this.sendEmail({
+      to: email,
+      subject: 'Confirma tu correo en NutriNet',
       html,
       text,
       channel: 'noReply',

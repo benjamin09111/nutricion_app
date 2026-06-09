@@ -10,13 +10,13 @@ export async function sendRegistrationRequest(data: RegisterFormData) {
     return { success: false, error: "Datos inválidos" };
   }
 
-  const { name, email, description } = result.data;
+  const { name, email } = result.data;
 
   try {
     const response = await fetch(`${BACKEND_URL}/auth/request-access`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, message: description }),
+      body: JSON.stringify({ name, email }),
     });
 
     if (!response.ok) {

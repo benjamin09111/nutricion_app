@@ -23,6 +23,9 @@ export class UsersService {
     role?: any,
     search?: string,
     visibility?: 'all' | 'public' | 'hidden',
+    plan?: string,
+    status?: string,
+    payment?: string,
     page?: number,
     limit?: number,
   ) {
@@ -75,6 +78,68 @@ export class UsersService {
       };
     }
 
+    if (plan && plan !== 'all') {
+      const normalizedPlan = plan.trim().toLowerCase();
+      if (['free', 'pro', 'enterprise'].includes(normalizedPlan)) {
+        where.plan = normalizedPlan.toUpperCase() as SubscriptionPlan;
+      } else {
+        where.AND = [
+          ...(where.AND || []),
+          {
+            subscription: {
+              is: {
+                plan: {
+                  is: {
+                    slug: normalizedPlan,
+                  },
+                },
+              },
+            },
+          },
+        ];
+      }
+    }
+
+    if (status && status !== 'all') {
+      where.status = status;
+    }
+
+    if (payment && payment !== 'all') {
+      if (payment === 'free') {
+        where.plan = 'FREE';
+      } else if (payment === 'paid') {
+        where.AND = [
+          ...(where.AND || []),
+          {
+            subscription: {
+              is: {
+                status: { in: ['ACTIVE', 'TRIALING'] },
+                endDate: { gt: new Date() },
+              },
+            },
+          },
+        ];
+      } else if (payment === 'expired') {
+        where.AND = [
+          ...(where.AND || []),
+          {
+            subscription: {
+              is: {
+                endDate: { lte: new Date() },
+              },
+            },
+          },
+        ];
+      } else if (payment === 'none') {
+        where.AND = [
+          ...(where.AND || []),
+          {
+            subscription: { is: null },
+          },
+        ];
+      }
+    }
+
     const normalizedPage = Math.max(1, Math.trunc(page || 1));
     const normalizedLimit = Math.min(50, Math.max(1, Math.trunc(limit || 10)));
     const hasPagination = page !== undefined || limit !== undefined;
@@ -96,8 +161,16 @@ export class UsersService {
               },
             },
           },
+          subscription: {
+            include: {
+              plan: true,
+            },
+          },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+          { lastLoginAt: { sort: 'desc', nulls: 'last' } },
+          { createdAt: 'desc' },
+        ],
         skip,
         take: normalizedLimit,
       });
@@ -113,25 +186,41 @@ export class UsersService {
       };
     }
 
-    const accounts = await this.prisma.account.findMany({
-      where,
-      include: {
-        nutritionist: {
-          include: {
+      const accounts = await this.prisma.account.findMany({
+        where,
+        include: {
+          nutritionist: {
+            include: {
             _count: {
               select: { patients: true },
             },
+            },
+          },
+          subscription: {
+            include: {
+              plan: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: [
+          { lastLoginAt: { sort: 'desc', nulls: 'last' } },
+          { createdAt: 'desc' },
+        ],
+      });
 
     // Backend optimizes the data structure before sending to frontend
     return accounts.map((acc) => this.mapAccount(acc));
   }
 
   private mapAccount(acc: any) {
+    const subscriptionPlan = acc.subscription?.plan || null;
+    const subscriptionEndsAt = acc.subscription?.endDate || acc.subscriptionEndsAt;
+    const paymentState = this.resolvePaymentState(
+      acc.plan,
+      subscriptionPlan?.price,
+      subscriptionEndsAt,
+    );
+
     return {
       id: acc.id,
       email: acc.email,
@@ -141,6 +230,17 @@ export class UsersService {
       subscriptionEndsAt: acc.subscriptionEndsAt,
       createdAt: acc.createdAt,
       lastLogin: acc.lastLoginAt || acc.updatedAt,
+      paymentState,
+      membershipPlan: subscriptionPlan
+        ? {
+            id: subscriptionPlan.id,
+            name: subscriptionPlan.name,
+            slug: subscriptionPlan.slug,
+            price: Number(subscriptionPlan.price),
+            billingPeriod: subscriptionPlan.billingPeriod,
+            isActive: subscriptionPlan.isActive,
+          }
+        : null,
       fullName:
         acc.nutritionist?.fullName ||
         (acc.role === 'ADMIN_MASTER'
@@ -160,6 +260,26 @@ export class UsersService {
       location: acc.nutritionist?.location || null,
       avatarUrl: acc.nutritionist?.avatarUrl || null,
     };
+  }
+
+  private resolvePaymentState(
+    accountPlan: SubscriptionPlan,
+    planPrice?: unknown,
+    subscriptionEndsAt?: Date | null,
+  ): 'free' | 'paid' | 'expired' | 'none' {
+    const price = typeof planPrice === 'number' ? planPrice : Number(planPrice || 0);
+
+    if (accountPlan === 'FREE' || price === 0) {
+      return 'free';
+    }
+
+    if (!subscriptionEndsAt) {
+      return 'none';
+    }
+
+    return new Date(subscriptionEndsAt).getTime() > Date.now()
+      ? 'paid'
+      : 'expired';
   }
 
   async findOne(id: string) {
@@ -368,26 +488,59 @@ export class UsersService {
     };
   }
   /**
-   * Delete account (Soft Delete)
-   * Professional pattern: Rename email to free it up for reuse
+   * Delete account permanently.
+   * Removes dependent payment/subscription records first, then the account.
    */
-  async softDelete(id: string) {
+  async hardDelete(id: string) {
     const account = await this.prisma.account.findUnique({
       where: { id },
-      select: { email: true },
+      select: { id: true },
     });
 
     if (!account) return;
 
-    // Append timestamp to avoid collisions if they delete multiple accounts with same email over time
-    const deletedEmail = `${account.email}.deleted.${Date.now()}`;
+    const [payments, subscription] = await Promise.all([
+      this.prisma.payment.findMany({
+        where: { accountId: id },
+        select: { id: true },
+      }),
+      this.prisma.subscription.findUnique({
+        where: { accountId: id },
+        select: { id: true },
+      }),
+    ]);
 
-    return this.prisma.account.update({
-      where: { id },
-      data: {
-        status: 'DELETED' as any,
-        email: deletedEmail,
-      },
+    const paymentIds = payments.map((payment) => payment.id);
+    const subscriptionId = subscription?.id;
+
+    return this.prisma.$transaction(async (tx) => {
+      if (subscriptionId) {
+        await tx.subscriptionEvent.deleteMany({
+          where: { subscriptionId },
+        });
+      }
+
+      if (paymentIds.length > 0) {
+        await tx.subscriptionEvent.deleteMany({
+          where: { paymentId: { in: paymentIds } },
+        });
+
+        await tx.payment.deleteMany({
+          where: { accountId: id },
+        });
+      }
+
+      if (subscriptionId) {
+        await tx.subscription.deleteMany({
+          where: { accountId: id },
+        });
+      }
+
+      await tx.account.delete({
+        where: { id },
+      });
+
+      return { success: true, message: 'Cuenta eliminada permanentemente' };
     });
   }
 

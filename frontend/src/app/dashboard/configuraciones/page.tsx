@@ -13,6 +13,8 @@ import { useTheme } from "@/context/ThemeContext";
 import { useFont } from "@/context/FontContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { membershipService } from "@/features/memberships/services/membership.service";
+import { goToDashboard } from "@/lib/membership-navigation";
+import { syncMembershipToStoredUser } from "@/lib/membership-session";
 import { usePaymentMode } from "@/hooks/usePaymentMode";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { cn } from "@/lib/utils";
@@ -1461,8 +1463,13 @@ bio: bio.trim(),
                               setUpgradingPlanId(plan.id);
                               try {
                                 if (Number(plan.price) === 0) {
-                                  await membershipService.selectFreePlan(plan.id);
+                                  const result = await membershipService.selectFreePlan(plan.id);
+                                  syncMembershipToStoredUser(result.membershipStatus, plan);
                                   toast.success(`Cambiado a ${plan.name}`);
+                                  await refreshSubscription();
+                                  setIsChangingPlan(false);
+                                  goToDashboard();
+                                  return;
                                 } else if (mode === "real") {
                                   const result = await membershipService.createPreference(plan.id);
                                   if (result.init_point) {

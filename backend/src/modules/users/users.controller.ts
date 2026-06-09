@@ -3,6 +3,7 @@ import {
   Get,
   Body,
   Patch,
+  Delete,
   Param,
   UseGuards,
   Query,
@@ -34,6 +35,9 @@ export class UsersController {
     @Query('role') role?: any,
     @Query('search') search?: string,
     @Query('visibility') visibility?: 'all' | 'public' | 'hidden',
+    @Query('plan') plan?: string,
+    @Query('status') status?: string,
+    @Query('payment') payment?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -41,6 +45,9 @@ export class UsersController {
       role,
       search,
       visibility,
+      plan,
+      status,
+      payment,
       page ? Number(page) : undefined,
       limit ? Number(limit) : undefined,
     );
@@ -167,6 +174,32 @@ export class UsersController {
       );
     }
 
-    return this.usersService.softDelete(id);
+    return this.usersService.hardDelete(id);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
+  async hardDelete(@Param('id') id: string, @Request() req: any) {
+    const requesterRole = req.user.role;
+    if (!isAdminRole(requesterRole)) {
+      throw new UnauthorizedException(
+        'Solo personal autorizado puede realizar esta acción',
+      );
+    }
+
+    const targetUser = await this.usersService.findOne(id);
+    if (!targetUser) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    const isTargetAdmin = isAdminRole(targetUser.role);
+    if (isTargetAdmin && requesterRole !== 'ADMIN_MASTER') {
+      throw new UnauthorizedException(
+        'Solo un Admin Master puede eliminar a otros administradores',
+      );
+    }
+
+    return this.usersService.hardDelete(id);
   }
 }

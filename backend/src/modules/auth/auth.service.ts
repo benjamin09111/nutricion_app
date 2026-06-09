@@ -28,6 +28,15 @@ const buildPublicSlug = (fullName: string, id: string) => {
   return `${namePart}-${idPart}`;
 };
 
+const buildVerificationToken = () => crypto.randomBytes(32).toString('hex');
+
+const getFrontendUrl = () =>
+  (
+    process.env.NODE_ENV === 'production'
+      ? process.env.FRONTEND_URL || 'https://nutrinet.cl'
+      : 'http://localhost:3000'
+  ).replace(/\/$/, '');
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -139,6 +148,10 @@ export class AuthService {
               role === 'NUTRITIONIST' || isNutritionist
                 ? subscriptionPlan
                 : 'ENTERPRISE', // Admins get full access
+            status: 'ACTIVE',
+            emailVerifiedAt: new Date(),
+            emailVerificationToken: null,
+            emailVerificationSentAt: null,
           },
         });
 
@@ -203,6 +216,7 @@ export class AuthService {
   async register(data: RegisterDto) {
     const { email, password, fullName, message } = data;
     const normalizedEmail = email.toLowerCase().trim();
+    const frontendUrl = getFrontendUrl();
 
     const existingAccount = await this.prisma.account.findUnique({
       where: { email: normalizedEmail },
@@ -214,6 +228,7 @@ export class AuthService {
 
     const finalPassword = password || crypto.randomBytes(8).toString('hex');
     const hashedPassword = await bcrypt.hash(finalPassword, 10);
+    const verificationToken = buildVerificationToken();
 
     try {
       await this.prisma.$transaction(async (tx) => {
@@ -223,7 +238,10 @@ export class AuthService {
             password: hashedPassword,
             role: 'NUTRITIONIST',
             plan: 'FREE',
-            status: 'ACTIVE',
+            status: 'PENDING',
+            emailVerificationToken: verificationToken,
+            emailVerificationSentAt: new Date(),
+            emailVerifiedAt: null,
           },
         });
 
@@ -245,11 +263,10 @@ export class AuthService {
       });
 
       await Promise.allSettled([
-        this.mailService.sendWelcomeEmail(
+        this.mailService.sendVerificationEmail(
           normalizedEmail,
           fullName,
-          finalPassword,
-          message,
+          `${frontendUrl}/verify-email?token=${verificationToken}`,
         ),
         this.mailService.sendRegistrationAlert(
           fullName,
@@ -260,7 +277,7 @@ export class AuthService {
 
       return {
         success: true,
-        message: 'Registro completado. Revisa tu correo para acceder.',
+        message: 'Registro completado. Revisa tu correo para confirmar tu cuenta.',
       };
     } catch (error: any) {
       console.error('Error en register:', error);
@@ -271,17 +288,78 @@ export class AuthService {
   }
 
   async verifyEmail(token: string) {
+    const normalizedToken = token.trim();
+
+    const account = await this.prisma.account.findUnique({
+      where: { emailVerificationToken: normalizedToken },
+      include: { nutritionist: true },
+    });
+
+    if (!account) {
+      throw new BadRequestException('Token de verificación inválido o expirado');
+    }
+
+    if (account.status === 'ACTIVE') {
+      return {
+        success: true,
+        message: 'Tu correo ya está verificado.',
+      };
+    }
+
+    await this.prisma.account.update({
+      where: { id: account.id },
+      data: {
+        status: 'ACTIVE',
+        emailVerifiedAt: new Date(),
+        emailVerificationToken: null,
+        emailVerificationSentAt: null,
+      },
+    });
+
     return {
       success: true,
-      message:
-        'El flujo de verificación ya no está activo. Usa el acceso directo del correo.',
+      message: 'Correo confirmado correctamente. Ya puedes iniciar sesión.',
     };
   }
 
   async resendVerificationEmail(email: string) {
+    const normalizedEmail = email.toLowerCase().trim();
+    const account = await this.prisma.account.findUnique({
+      where: { email: normalizedEmail },
+      include: { nutritionist: true },
+    });
+
+    if (!account) {
+      throw new BadRequestException('No encontramos una cuenta con ese correo');
+    }
+
+    if (account.status === 'ACTIVE') {
+      return {
+        success: true,
+        message: 'Tu correo ya fue confirmado.',
+      };
+    }
+
+    const verificationToken = account.emailVerificationToken || buildVerificationToken();
+    const frontendUrl = getFrontendUrl();
+
+    await this.prisma.account.update({
+      where: { id: account.id },
+      data: {
+        emailVerificationToken: verificationToken,
+        emailVerificationSentAt: new Date(),
+      },
+    });
+
+    await this.mailService.sendVerificationEmail(
+      normalizedEmail,
+      account.nutritionist?.fullName || 'Usuario',
+      `${frontendUrl}/verify-email?token=${verificationToken}`,
+    );
+
     return {
       success: true,
-      message: 'El flujo de verificación no está activo en esta versión.',
+      message: 'Te enviamos un nuevo correo de confirmación.',
     };
   }
 
@@ -311,6 +389,12 @@ export class AuthService {
         throw new UnauthorizedException('Credenciales inválidas');
       }
 
+      if (account.status === 'PENDING') {
+        throw new UnauthorizedException(
+          'Debes confirmar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada.',
+        );
+      }
+
       // Block suspended or deleted accounts from logging in
       if (account.status === 'SUSPENDED') {
         throw new UnauthorizedException(
@@ -322,9 +406,6 @@ export class AuthService {
       }
 
       const updateData: any = { lastLoginAt: new Date() };
-      if (account.status === 'PENDING') {
-        updateData.status = 'ACTIVE';
-      }
       await this.prisma.account.update({
         where: { id: account.id },
         data: updateData,

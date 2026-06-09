@@ -46,6 +46,21 @@ export interface CheckoutResult {
   chargedAmount?: number;
 }
 
+export interface MembershipActivationSnapshot {
+  accountPlan: string;
+  role: string;
+  requiresPlanSelection: boolean;
+  currentPlan: MembershipStatus["currentPlan"];
+  entitlements: Record<string, boolean | number>;
+  subscription: MembershipStatus["subscription"];
+}
+
+export interface FreePlanSelectionResult {
+  payment: unknown;
+  plan: { id: string; name: string; slug: string };
+  membershipStatus: MembershipActivationSnapshot | null;
+}
+
 export const membershipService = {
   async getStatus(): Promise<MembershipStatus> {
     const res = await api.get("/payments/membership-status");
@@ -57,7 +72,7 @@ export const membershipService = {
     return res.json();
   },
 
-  async selectFreePlan(planId: string): Promise<unknown> {
+  async selectFreePlan(planId: string): Promise<FreePlanSelectionResult> {
     const res = await api.post("/payments/select-free-plan", { planId });
     return res.json();
   },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Check,
   Zap,
@@ -21,12 +22,15 @@ import { getMembershipFeatureDisplay } from "@/features/memberships/utils/featur
 import { useSubscription } from "@/context/SubscriptionContext";
 import { usePaymentMode } from "@/hooks/usePaymentMode";
 import { cn } from "@/lib/utils";
+import { goToDashboard } from "@/lib/membership-navigation";
+import { syncMembershipToStoredUser } from "@/lib/membership-session";
 
 export function PlanSelector() {
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const { refreshSubscription } = useSubscription();
+  const router = useRouter();
   const { mode, toggle: toggleMode } = usePaymentMode();
 
   useEffect(() => {
@@ -40,9 +44,12 @@ export function PlanSelector() {
   const handleSelectFree = async (plan: MembershipPlan) => {
     setSubmittingId(plan.id);
     try {
-      await membershipService.selectFreePlan(plan.id);
+      const result = await membershipService.selectFreePlan(plan.id);
+      syncMembershipToStoredUser(result.membershipStatus, plan);
       toast.success(`Plan ${plan.name} activado correctamente`);
       await refreshSubscription();
+      router.refresh();
+      goToDashboard();
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Error al activar plan");
     } finally {

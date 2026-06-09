@@ -147,7 +147,7 @@ export default function LandingPage() {
       }
 
       toast.success(
-        "¡Cuenta creada con éxito! Revisa tu correo para continuar.",
+        "¡Cuenta creada! Confirma tu correo para activar el acceso.",
         {
           duration: 5000,
         }

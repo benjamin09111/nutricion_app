@@ -83,7 +83,7 @@ export function buildEmailVerificationTemplate(params: {
 }) {
   const html = wrapEmail({
     title: 'Confirma tu correo',
-    body: `<p>Hola <strong>${escapeHtml(params.fullName)}</strong>,</p><p>Gracias por registrarte en NutriNet. Para activar tu cuenta, haz clic en el botón de abajo:</p>`,
+    body: `<p>Hola <strong>${escapeHtml(params.fullName)}</strong>,</p><p>Gracias por registrarte en NutriNet. Para activar tu cuenta, haz clic en el botón de abajo:</p><p style="color:#64748b;font-size:14px">Si no solicitaste esta cuenta, puedes ignorar este mensaje.</p>`,
     ctaLabel: 'Verificar mi correo',
     ctaUrl: params.verifyUrl,
   });
@@ -93,7 +93,6 @@ export function buildEmailVerificationTemplate(params: {
     `Gracias por registrarte en NutriNet.`,
     `Para activar tu cuenta, visita el siguiente enlace:`,
     params.verifyUrl,
-    `Este enlace expira en 24 horas.`,
   ].join('\n');
 
   return { html, text };
