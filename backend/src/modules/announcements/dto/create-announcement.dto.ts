@@ -45,4 +45,17 @@ export class CreateAnnouncementDto {
   @IsOptional()
   @IsIn(['email', 'announcement'])
   commType?: 'email' | 'announcement';
+
+  @IsString()
+  @IsOptional()
+  @IsIn([
+    'notificaciones@nutrinet.cl',
+    'soporte@nutrinet.cl',
+    'pagos@nutrinet.cl',
+    'info@nutrinet.cl',
+    'seguridad@nutrinet.cl',
+    'marketing@nutrinet.cl',
+    'rrhh@nutrinet.cl',
+  ])
+  fromEmail?: string;
 }

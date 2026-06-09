@@ -19,6 +19,7 @@ import { LoginDto } from './dto/login.dto';
 import { AuthGuard } from './guards/auth.guard';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { RegisterDto } from './dto/register.dto';
+import { isAdminRole } from '../permissions/permissions.constants';
 
 @Controller('auth')
 export class AuthController {
@@ -44,14 +45,12 @@ export class AuthController {
     const targetRole = createAccountDto.role || 'NUTRITIONIST';
 
     // 1. Basic check: must be at least an Admin to create accounts here
-    if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(requesterRole)) {
+    if (!isAdminRole(requesterRole)) {
       throw new UnauthorizedException('No tienes permisos para crear cuentas');
     }
 
     // 2. SECURE RULE: Only ADMIN_MASTER can create other Admins (Master or General)
-    const isTargetAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(
-      targetRole,
-    );
+    const isTargetAdmin = isAdminRole(targetRole);
     if (isTargetAdmin && requesterRole !== 'ADMIN_MASTER') {
       throw new UnauthorizedException(
         'Solo un Admin Master puede crear otras cuentas administrativas',
@@ -99,11 +98,17 @@ export class AuthController {
 
   @Post('request-access')
   @HttpCode(HttpStatus.OK)
-  async requestAccess(@Body() body: { name: string; email: string; message?: string }) {
+  async requestAccess(
+    @Body() body: { name: string; email: string; message?: string },
+  ) {
     if (!body.name || !body.email) {
       throw new BadRequestException('Nombre y correo son requeridos');
     }
-    await this.mailService.sendRegistrationAlert(body.name, body.email, body.message);
+    await this.mailService.sendRegistrationAlert(
+      body.name,
+      body.email,
+      body.message,
+    );
     return { success: true };
   }
 
@@ -125,4 +130,3 @@ export class AuthController {
     return this.authService.resendVerificationEmail(body.email);
   }
 }
-

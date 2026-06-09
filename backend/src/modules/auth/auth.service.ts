@@ -13,6 +13,7 @@ import { UpdatePasswordDto } from './dto/update-password.dto';
 import { MailService } from '../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
 import { PermissionsService } from '../permissions/permissions.service';
+import { isAdminRole } from '../permissions/permissions.constants';
 
 import { UserRole, SubscriptionPlan } from '@prisma/client';
 
@@ -36,7 +37,9 @@ export class AuthService {
     private permissionsService: PermissionsService,
   ) {}
 
-  private mapMembershipPlanToAccountPlan(slug?: string | null): SubscriptionPlan {
+  private mapMembershipPlanToAccountPlan(
+    slug?: string | null,
+  ): SubscriptionPlan {
     const normalized = (slug || '').toLowerCase();
 
     if (normalized.includes('free')) {
@@ -72,7 +75,8 @@ export class AuthService {
     try {
       await this.prisma.$transaction(async (tx) => {
         // Determine the high-level plan enum
-        let subscriptionPlan: any = role === 'NUTRITIONIST_DEVELOPER' ? 'ENTERPRISE' : 'FREE';
+        let subscriptionPlan: any =
+          role === 'NUTRITIONIST_DEVELOPER' ? 'ENTERPRISE' : 'FREE';
         let targetPlanId = planId;
 
         const isNutritionist = [
@@ -166,11 +170,9 @@ export class AuthService {
         }
       });
 
-      const isAdminRole = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(
-        role,
-      );
+      const isAdmin = isAdminRole(role);
 
-      if (!isAdminRole) {
+      if (!isAdmin) {
         try {
           await this.mailService.sendWelcomeEmail(
             normalizedEmail,
@@ -187,7 +189,6 @@ export class AuthService {
         success: true,
         message: 'Cuenta creada correctamente.',
       };
-
     } catch (error) {
       console.error('CRITICAL ERROR creating account:', error);
       if (error instanceof BadRequestException) {
@@ -238,7 +239,9 @@ export class AuthService {
           data: { publicSlug: buildPublicSlug(fullName, nutritionist.id) },
         });
 
-        console.log(`✅ [AuthService] Usuario registrado con éxito: ${normalizedEmail}`);
+        console.log(
+          `✅ [AuthService] Usuario registrado con éxito: ${normalizedEmail}`,
+        );
       });
 
       await Promise.allSettled([
@@ -261,14 +264,17 @@ export class AuthService {
       };
     } catch (error: any) {
       console.error('Error en register:', error);
-      throw new BadRequestException('No se pudo completar el registro: ' + error.message);
+      throw new BadRequestException(
+        'No se pudo completar el registro: ' + error.message,
+      );
     }
   }
 
   async verifyEmail(token: string) {
     return {
       success: true,
-      message: 'El flujo de verificación ya no está activo. Usa el acceso directo del correo.',
+      message:
+        'El flujo de verificación ya no está activo. Usa el acceso directo del correo.',
     };
   }
 
@@ -278,7 +284,6 @@ export class AuthService {
       message: 'El flujo de verificación no está activo en esta versión.',
     };
   }
-
 
   async login(loginDto: LoginDto) {
     try {
@@ -306,7 +311,7 @@ export class AuthService {
         throw new UnauthorizedException('Credenciales inválidas');
       }
 
-// Block suspended or deleted accounts from logging in
+      // Block suspended or deleted accounts from logging in
       if (account.status === 'SUSPENDED') {
         throw new UnauthorizedException(
           'Tu cuenta ha sido suspendida. Contacta al administrador.',
@@ -325,15 +330,15 @@ export class AuthService {
         data: updateData,
       });
 
-        if (
-          (account.role === 'NUTRITIONIST' ||
-            account.role === 'NUTRITIONIST_DEVELOPER') &&
-          !account.nutritionist
-        ) {
-          console.warn(
-            `[AuthService] Warning: Account ${account.email} has no Nutritionist record. Role: ${account.role}`,
-          );
-        }
+      if (
+        (account.role === 'NUTRITIONIST' ||
+          account.role === 'NUTRITIONIST_DEVELOPER') &&
+        !account.nutritionist
+      ) {
+        console.warn(
+          `[AuthService] Warning: Account ${account.email} has no Nutritionist record. Role: ${account.role}`,
+        );
+      }
 
       const payload = {
         email: account.email,
@@ -346,7 +351,7 @@ export class AuthService {
         expiresIn: loginDto.rememberMe ? '30d' : '24h',
       };
 
-      let planName = account.subscription?.plan?.name || 'Plan Gratuito';
+      const planName = account.subscription?.plan?.name || 'Plan Gratuito';
       const accessSnapshot = await this.permissionsService.getAccessSnapshot(
         account.id,
       );
@@ -375,8 +380,7 @@ export class AuthService {
           role: account.role,
           plan: account.plan,
           planName,
-          requiresPlanSelection:
-            accessSnapshot?.requiresPlanSelection ?? true,
+          requiresPlanSelection: accessSnapshot?.requiresPlanSelection ?? true,
           entitlements: accessSnapshot?.entitlements ?? {},
           subscription: subscriptionInfo,
           nutritionist: account.nutritionist,
@@ -461,7 +465,6 @@ export class AuthService {
         message: 'Contraseña restablecida y enviada por correo.',
         temporaryPassword: password,
       };
-
     } catch (error) {
       console.error('Error resetting password:', error);
       throw new BadRequestException('Error al restablecer la contraseña.');

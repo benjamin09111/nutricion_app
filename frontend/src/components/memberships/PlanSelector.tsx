@@ -9,6 +9,7 @@ import {
   ArrowRight,
   ShieldCheck,
   TestTube,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
@@ -16,6 +17,7 @@ import {
   membershipService,
   type MembershipPlan,
 } from "@/features/memberships/services/membership.service";
+import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { usePaymentMode } from "@/hooks/usePaymentMode";
 import { cn } from "@/lib/utils";
@@ -41,8 +43,8 @@ export function PlanSelector() {
       await membershipService.selectFreePlan(plan.id);
       toast.success(`Plan ${plan.name} activado correctamente`);
       await refreshSubscription();
-    } catch (error: any) {
-      toast.error(error?.message || "Error al activar plan");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Error al activar plan");
     } finally {
       setSubmittingId(null);
     }
@@ -71,8 +73,8 @@ export function PlanSelector() {
         toast.success(`Plan ${plan.name} activado correctamente`);
       }
       await refreshSubscription();
-    } catch (error: any) {
-      toast.error(error?.message || "Error al procesar el pago");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Error al procesar el pago");
     } finally {
       setSubmittingId(null);
     }
@@ -196,7 +198,7 @@ export function PlanSelector() {
                   {isPopular && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-5 py-1.5 rounded-full shadow-lg flex items-center gap-1">
                       <Crown className="h-3 w-3" />
-                      Recomendado
+                      Más Popular
                     </div>
                   )}
                   <div
@@ -226,26 +228,38 @@ export function PlanSelector() {
                     </div>
 
                     <ul className="mb-8 space-y-3 text-left flex-1">
-                      {features.map((feature: string, idx: number) => (
-                        <li key={idx} className="flex items-start gap-3">
-                          <div
-                            className={`mt-0.5 rounded-full p-0.5 ${
-                              isPopular ? "bg-indigo-100" : "bg-slate-100"
-                            }`}
-                          >
-                            <Check
-                              className={`h-3.5 w-3.5 ${
-                                isPopular
-                                  ? "text-indigo-600"
-                                  : "text-slate-500"
+                      {features.map((feature: string, idx: number) => {
+                        const featureDisplay = getMembershipFeatureDisplay(feature);
+
+                        return (
+                          <li key={idx} className="flex items-start gap-3">
+                            <div
+                              className={`mt-0.5 rounded-full p-0.5 ${
+                                featureDisplay.isExcluded
+                                  ? "bg-red-100"
+                                  : isPopular
+                                    ? "bg-indigo-100"
+                                    : "bg-slate-100"
                               }`}
-                            />
-                          </div>
-                          <span className="text-sm text-slate-700">
-                            {feature}
-                          </span>
-                        </li>
-                      ))}
+                            >
+                              {featureDisplay.isExcluded ? (
+                                <X className="h-3.5 w-3.5 text-red-500" />
+                              ) : (
+                                <Check
+                                  className={`h-3.5 w-3.5 ${
+                                    isPopular
+                                      ? "text-indigo-600"
+                                      : "text-slate-500"
+                                  }`}
+                                />
+                              )}
+                            </div>
+                            <span className="text-sm text-slate-700">
+                              {featureDisplay.label}
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
 
                     <Button

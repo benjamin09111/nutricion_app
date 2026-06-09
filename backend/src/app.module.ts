@@ -35,6 +35,7 @@ import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { PautasModule } from './modules/pautas/pautas.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
+import { MessageTemplatesModule } from './modules/message-templates/message-templates.module';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { AnnouncementsModule } from './modules/announcements/announcements.modul
     PautasModule,
     NotificationsModule,
     AnnouncementsModule,
+    MessageTemplatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

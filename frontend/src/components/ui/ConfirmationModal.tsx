@@ -1,5 +1,6 @@
+import { ReactNode } from "react";
 import { Button } from "./Button";
-import { AlertCircle, CheckCircle2, HelpCircle, X } from "lucide-react";
+import { AlertCircle, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { createPortal } from "react-dom";
@@ -15,6 +16,8 @@ interface ConfirmationModalProps {
   cancelText?: string;
   variant?: "primary" | "destructive" | "warning";
   isLoading?: boolean;
+  children?: ReactNode;
+  size?: "sm" | "md" | "lg" | "xl";
 }
 
 export function ConfirmationModal({
@@ -27,6 +30,8 @@ export function ConfirmationModal({
   cancelText = "Cancelar",
   variant = "primary",
   isLoading = false,
+  children,
+  size = "md",
 }: ConfirmationModalProps) {
   useScrollLock(isOpen);
   const { isDarkMode } = useTheme();
@@ -69,33 +74,66 @@ export function ConfirmationModal({
     }
   };
 
+  const getMaxWidthClass = () => {
+    switch (size) {
+      case "sm":
+        return "max-w-sm";
+      case "lg":
+        return "max-w-2xl";
+      case "xl":
+        return "max-w-3xl";
+      case "md":
+      default:
+        return "max-w-md";
+    }
+  };
+
   const content = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300 min-h-screen">
       <div className="fixed inset-0" />
       <div
         className={cn(
-          "relative w-full max-w-md overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300",
+          "relative w-full overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300",
+          getMaxWidthClass(),
           isDarkMode && "dashboard-surface-strong",
         )}
       >
-        <div className="p-8 text-center space-y-6">
+        <div
+          className={cn(
+            "p-8 space-y-6",
+            children ? "text-left" : "text-center",
+          )}
+        >
           <div
             className={cn(
               "mx-auto h-16 w-16 rounded-2xl flex items-center justify-center border-2",
+              children && "mx-0",
               getIconBg(),
             )}
           >
             {getIcon()}
           </div>
 
-          <div className="space-y-2">
-            <h3 className={cn("text-xl font-black leading-tight", isDarkMode ? "text-emerald-50" : "text-slate-900")}>
+          <div className={cn("space-y-2", children && "max-w-2xl")}>
+            <h3
+              className={cn(
+                "text-xl font-black leading-tight",
+                isDarkMode ? "text-emerald-50" : "text-slate-900",
+              )}
+            >
               {title}
             </h3>
-            <p className={cn("text-sm font-medium", isDarkMode ? "text-emerald-100/65" : "text-slate-500")}>
+            <p
+              className={cn(
+                "text-sm font-medium",
+                isDarkMode ? "text-emerald-100/65" : "text-slate-500",
+              )}
+            >
               {description}
             </p>
           </div>
+
+          {children && <div className="space-y-4">{children}</div>}
 
           <div className="flex gap-3 pt-2">
             <Button

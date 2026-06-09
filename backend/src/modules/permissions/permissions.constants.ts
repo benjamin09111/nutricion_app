@@ -17,13 +17,12 @@ export const normalizeEntitlementMap = (value: unknown): EntitlementMap => {
     return {};
   }
 
-  return Object.entries(value as Record<string, unknown>).reduce<EntitlementMap>(
-    (acc, [key, raw]) => {
-      if (typeof raw === 'boolean' || typeof raw === 'number') {
-        acc[key] = raw;
-      }
-      return acc;
-    },
-    {},
-  );
+  return Object.entries(
+    value as Record<string, unknown>,
+  ).reduce<EntitlementMap>((acc, [key, raw]) => {
+    if (typeof raw === 'boolean' || typeof raw === 'number') {
+      acc[key] = raw;
+    }
+    return acc;
+  }, {});
 };

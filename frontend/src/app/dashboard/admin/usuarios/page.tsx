@@ -44,12 +44,17 @@ interface UserData {
   createdAt: string;
 }
 
+const ADMIN_ROLES = ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"] as const;
+const isAdminRole = (role: string) =>
+  (ADMIN_ROLES as readonly string[]).includes(role);
+const isDeveloperRole = (role: string) => role === "NUTRITIONIST_DEVELOPER";
+
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrador",
   ADMIN_MASTER: "Admin Master",
   ADMIN_GENERAL: "Admin General",
   NUTRITIONIST: "Nutricionista",
-  NUTRITIONIST_DEVELOPER: "Nutricionista Developer",
+  NUTRITIONIST_DEVELOPER: "Nutri Dev QA",
   ORGANIZATION: "Organización",
   SUPPLEMENT_STORE: "Tienda de Suplementos",
   SUPERMARKET: "Supermercado",
@@ -142,7 +147,7 @@ export default function AdminUsersPage() {
           ? "ALL_ADMINS"
           : accountFilter === "developer"
             ? "NUTRITIONIST_DEVELOPER"
-            : "ALL_ADMIN_ACCOUNTS";
+            : "ALL_MANAGEMENT_ACCOUNTS";
 
       const response = await fetchApi(`/users?role=${roleFilter}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -162,9 +167,7 @@ export default function AdminUsersPage() {
   const isMaster = currentAdminRole === "ADMIN_MASTER";
 
   const canModifyAdmins = (targetUser: UserData) => {
-    const isTargetAdmin = ["ADMIN_MASTER", "ADMIN_GENERAL", "ADMIN"].includes(
-      targetUser.role,
-    );
+    const isTargetAdmin = isAdminRole(targetUser.role);
     // Only Master can touch other admins
     return isMaster || !isTargetAdmin;
   };
@@ -235,9 +238,7 @@ export default function AdminUsersPage() {
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const isTargetAdmin = ["ADMIN_MASTER", "ADMIN_GENERAL", "ADMIN"].includes(
-      creationRole,
-    );
+    const isTargetAdmin = isAdminRole(creationRole);
     if (isTargetAdmin && !isMaster) {
       toast.error(
         "Solo un Admin Master puede crear otras cuentas administrativas",
@@ -313,7 +314,7 @@ export default function AdminUsersPage() {
           Cuentas
         </h1>
         <p className="text-slate-500">
-          Administración de administradores y cuentas developer.
+          Administración de administradores y nutricionistas developer.
         </p>
       </div>
 
@@ -435,22 +436,37 @@ export default function AdminUsersPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <select
-                          value={user.role}
-                          disabled={!isMaster}
-                          onChange={(e) =>
-                            handleRoleChangeRequest(user, e.target.value)
-                          }
-                          className={`text-xs font-bold text-slate-900 rounded-md bg-white border-slate-200 focus:ring-indigo-500 py-1 transition-all shadow-sm ${!isMaster ? "opacity-70 cursor-not-allowed bg-slate-50" : "cursor-pointer"}`}
-                        >
-                          {user.role === "ADMIN" && (
-                            <option value="ADMIN">
-                              Administrador (Legado)
-                            </option>
-                          )}
-                          <option value="ADMIN_MASTER">Admin Master</option>
-                          <option value="ADMIN_GENERAL">Admin General</option>
-                        </select>
+                        {isAdminRole(user.role) ? (
+                          <select
+                            value={user.role}
+                            disabled={!isMaster}
+                            onChange={(e) =>
+                              handleRoleChangeRequest(user, e.target.value)
+                            }
+                            className={`text-xs font-bold text-slate-900 rounded-md bg-white border-slate-200 focus:ring-indigo-500 py-1 transition-all shadow-sm ${!isMaster ? "opacity-70 cursor-not-allowed bg-slate-50" : "cursor-pointer"}`}
+                          >
+                            {user.role === "ADMIN" && (
+                              <option value="ADMIN">
+                                Administrador (Legado)
+                              </option>
+                            )}
+                            <option value="ADMIN_MASTER">Admin Master</option>
+                            <option value="ADMIN_GENERAL">Admin General</option>
+                          </select>
+                        ) : isDeveloperRole(user.role) ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="inline-flex w-fit items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                              Nutri Dev QA
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                              Nutricionista con extras para pruebas y cambios de plan.
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs font-medium text-slate-600">
+                            {roleLabels[user.role] || user.role}
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span
@@ -562,7 +578,7 @@ export default function AdminUsersPage() {
                       >
                         <option value="NUTRITIONIST">Nutricionista</option>
                         <option value="NUTRITIONIST_DEVELOPER">
-                          Nutricionista Developer
+                          Nutri Dev QA
                         </option>
                         {isMaster && (
                           <>
@@ -615,12 +631,12 @@ export default function AdminUsersPage() {
                     </div>
                   )}
 
-                  {creationRole === "NUTRITIONIST_DEVELOPER" && (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 animate-in fade-in duration-300">
-                      Se creará con el mayor plan activo y acceso al selector de
-                      planes en el navbar para QA.
-                    </div>
-                  )}
+                    {creationRole === "NUTRITIONIST_DEVELOPER" && (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 animate-in fade-in duration-300">
+                        Se creará con el mayor plan activo y acceso al selector de
+                        planes en el navbar para QA.
+                      </div>
+                    )}
 
                   <div className="pt-2">
                     <Button

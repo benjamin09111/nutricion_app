@@ -1,18 +1,31 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AccountStatus, SubscriptionPlan, UserRole } from '@prisma/client';
+import { MailService } from '../mail/mail.service';
+import { ADMIN_ROLES } from '../permissions/permissions.constants';
 
 const NUTRITIONIST_ROLES = ['NUTRITIONIST', 'NUTRITIONIST_DEVELOPER'] as const;
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(UsersService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
 
   /**
    * RULE: The backend must handle all heavy logic, filtering, and calculations.
    * The frontend should only receive prepared data and display it immediately.
    */
-  async findAll(role?: any, search?: string) {
+  async findAll(
+    role?: any,
+    search?: string,
+    visibility?: 'all' | 'public' | 'hidden',
+    page?: number,
+    limit?: number,
+  ) {
     const where: any = {
       status: { not: 'DELETED' as any },
     };
@@ -29,11 +42,11 @@ export class UsersService {
       if (Array.isArray(normalizedRole)) {
         where.role = { in: normalizedRole };
       } else if (normalizedRole === 'ALL_ADMINS') {
-        where.role = { in: ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'] };
+        where.role = { in: [...ADMIN_ROLES] };
       } else if (normalizedRole === 'ALL_ADMIN_ACCOUNTS') {
-        where.role = {
-          in: ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL', 'NUTRITIONIST_DEVELOPER'],
-        };
+        where.role = { in: [...ADMIN_ROLES] };
+      } else if (normalizedRole === 'ALL_MANAGEMENT_ACCOUNTS') {
+        where.role = { in: [...ADMIN_ROLES, 'NUTRITIONIST_DEVELOPER'] };
       } else if (normalizedRole === 'ALL_NUTRITIONISTS') {
         where.role = { in: [...NUTRITIONIST_ROLES] };
       } else {
@@ -48,6 +61,56 @@ export class UsersService {
           nutritionist: { fullName: { contains: search, mode: 'insensitive' } },
         },
       ];
+    }
+
+    if (visibility === 'public') {
+      where.nutritionist = {
+        ...(where.nutritionist || {}),
+        publicProfileEnabled: true,
+      };
+    } else if (visibility === 'hidden') {
+      where.nutritionist = {
+        ...(where.nutritionist || {}),
+        publicProfileEnabled: false,
+      };
+    }
+
+    const normalizedPage = Math.max(1, Math.trunc(page || 1));
+    const normalizedLimit = Math.min(50, Math.max(1, Math.trunc(limit || 10)));
+    const hasPagination = page !== undefined || limit !== undefined;
+
+    if (hasPagination) {
+      const total = await this.prisma.account.count({ where });
+
+      const totalPages = Math.max(1, Math.ceil(total / normalizedLimit));
+      const effectivePage = Math.min(normalizedPage, totalPages);
+      const skip = (effectivePage - 1) * normalizedLimit;
+
+      const accounts = await this.prisma.account.findMany({
+        where,
+        include: {
+          nutritionist: {
+            include: {
+              _count: {
+                select: { patients: true },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: normalizedLimit,
+      });
+
+      const items = accounts.map((acc) => this.mapAccount(acc));
+
+      return {
+        items,
+        page: effectivePage,
+        limit: normalizedLimit,
+        total,
+        totalPages,
+      };
     }
 
     const accounts = await this.prisma.account.findMany({
@@ -65,7 +128,11 @@ export class UsersService {
     });
 
     // Backend optimizes the data structure before sending to frontend
-    return accounts.map((acc) => ({
+    return accounts.map((acc) => this.mapAccount(acc));
+  }
+
+  private mapAccount(acc: any) {
+    return {
       id: acc.id,
       email: acc.email,
       role: acc.role,
@@ -76,15 +143,15 @@ export class UsersService {
       lastLogin: acc.lastLoginAt || acc.updatedAt,
       fullName:
         acc.nutritionist?.fullName ||
-        ((acc.role as any) === 'ADMIN_MASTER'
+        (acc.role === 'ADMIN_MASTER'
           ? 'Admin Master'
-          : (acc.role as any) === 'ADMIN_GENERAL'
+          : acc.role === 'ADMIN_GENERAL'
             ? 'Admin General'
             : acc.role === 'ADMIN'
-              ? 'Admin General'
+              ? 'Administrador (Legado)'
               : acc.role === 'NUTRITIONIST_DEVELOPER'
                 ? 'Nutricionista Developer'
-              : acc.email.split('@')[0]),
+                : acc.email.split('@')[0]),
       patientCount: acc.nutritionist?._count?.patients || 0,
       publicSlug: acc.nutritionist?.publicSlug || null,
       publicProfileEnabled: acc.nutritionist?.publicProfileEnabled ?? false,
@@ -92,7 +159,7 @@ export class UsersService {
       consultationMode: acc.nutritionist?.consultationMode || null,
       location: acc.nutritionist?.location || null,
       avatarUrl: acc.nutritionist?.avatarUrl || null,
-    }));
+    };
   }
 
   async findOne(id: string) {
@@ -139,9 +206,11 @@ export class UsersService {
     const newSettings = { ...currentSettings, ...settingsData };
     const publicProfileEnabled = settingsData.publicProfileEnabled === true;
     const publicSlug =
-      typeof settingsData.publicSlug === 'string' && settingsData.publicSlug.trim()
+      typeof settingsData.publicSlug === 'string' &&
+      settingsData.publicSlug.trim()
         ? settingsData.publicSlug.trim()
-        : (nutritionist.publicSlug || this.generateSlug(nutritionist.fullName, nutritionist.id));
+        : nutritionist.publicSlug ||
+          this.generateSlug(nutritionist.fullName, nutritionist.id);
 
     return this.prisma.nutritionist.update({
       where: { accountId },
@@ -233,6 +302,25 @@ export class UsersService {
         },
       },
     });
+
+    const frontendUrl = (
+      process.env.FRONTEND_URL || 'https://nutrinet.cl'
+    ).replace(/\/$/, '');
+    const publicUrl = `${frontendUrl}/nutricionistas/${nutritionist.publicSlug || this.generateSlug(nutritionist.fullName, accountId)}`;
+
+    this.mailService
+      .sendPublicProfileVisibilityEmail({
+        email: nutritionist.account.email,
+        fullName: nutritionist.fullName,
+        enabled,
+        publicUrl: enabled ? publicUrl : undefined,
+      })
+      .catch((error) => {
+        this.logger.error(
+          `No se pudo enviar el correo de visibilidad pública para ${nutritionist.account.email}`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      });
 
     return updatedNutritionist;
   }
@@ -395,7 +483,7 @@ export class UsersService {
   /**
    * Get public nutritionist by slug
    */
-  async getPublicNutritionistBySlug(slug: string) {
+  async resolvePublicNutritionistBySlug(slug: string) {
     const nutritionist = await this.prisma.nutritionist.findUnique({
       where: { publicSlug: slug },
       select: {
@@ -403,6 +491,7 @@ export class UsersService {
         publicSlug: true,
         fullName: true,
         specialty: true,
+        professionalId: true,
         phone: true,
         avatarUrl: true,
         headline: true,
@@ -422,18 +511,28 @@ export class UsersService {
     });
 
     if (!nutritionist) {
-      return null;
+      return { status: 'missing' as const, profile: null };
     }
 
     if (
       !NUTRITIONIST_ROLES.includes(nutritionist.account.role as any) ||
       nutritionist.account.status !== 'ACTIVE'
     ) {
-      return null;
+      return { status: 'missing' as const, profile: null };
     }
 
     const publicProfile = this.sanitizePublicProfile(nutritionist);
-    return publicProfile.isPublic ? publicProfile : null;
+
+    if (!publicProfile.isPublic) {
+      return { status: 'gone' as const, profile: null };
+    }
+
+    return { status: 'ok' as const, profile: publicProfile };
+  }
+
+  async getPublicNutritionistBySlug(slug: string) {
+    const result = await this.resolvePublicNutritionistBySlug(slug);
+    return result.profile;
   }
 
   /**
@@ -520,10 +619,14 @@ export class UsersService {
       avatarUrl: nutritionist.avatarUrl,
       isPublic,
       showSchedule: settings.showSchedule !== false,
-      publicPhone: settings.showPublicPhone ? (settings.publicPhone || null) : null,
+      publicPhone: settings.showPublicPhone
+        ? settings.publicPhone || null
+        : null,
       publicEmail: settings.publicEmail || null,
-      instagram: settings.showInstagram ? (settings.professionalInstagram || null) : null,
-      linkedin: settings.showLinkedin ? (settings.linkedin || null) : null,
+      instagram: settings.showInstagram
+        ? settings.professionalInstagram || null
+        : null,
+      linkedin: settings.showLinkedin ? settings.linkedin || null : null,
       bookingEnabled: settings.bookingEnabled !== false,
       conditionsTreated: settings.conditionsTreated || null,
       patientTypes: settings.patientTypes || null,

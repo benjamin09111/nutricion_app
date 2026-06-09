@@ -4,7 +4,13 @@ import {
   buildRegistrationConfirmationEmailTemplate,
   buildWelcomeEmailTemplate,
 } from './templates/email-templates';
-import { DEFAULT_REPLY_TO, EMAIL_IDENTITIES, type EmailChannel } from './email-identities';
+import {
+  DEFAULT_REPLY_TO,
+  ANNOUNCEMENT_FROM_IDENTITIES,
+  EMAIL_IDENTITIES,
+  type AnnouncementSenderEmail,
+  type EmailChannel,
+} from './email-identities';
 
 type SupportEmailRequestData = {
   fullName?: string;
@@ -20,7 +26,9 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly apiKey = process.env.RESEND_API_KEY?.trim() || '';
   private readonly replyTo =
-    DEFAULT_REPLY_TO || process.env.ADMIN_EMAIL?.trim() || 'contacto@nutrinet.cl';
+    DEFAULT_REPLY_TO ||
+    process.env.ADMIN_EMAIL?.trim() ||
+    'contacto@nutrinet.cl';
   private readonly frontendUrl = (
     process.env.FRONTEND_URL || 'https://nutrinet.cl'
   ).replace(/\/$/, '');
@@ -42,6 +50,17 @@ export class MailService {
 
   private resolveFrom(channel: EmailChannel) {
     return EMAIL_IDENTITIES[channel];
+  }
+
+  private resolveAnnouncementFrom(fromEmail?: string) {
+    if (!fromEmail) {
+      return ANNOUNCEMENT_FROM_IDENTITIES['notificaciones@nutrinet.cl'];
+    }
+
+    return (
+      ANNOUNCEMENT_FROM_IDENTITIES[fromEmail as AnnouncementSenderEmail] ||
+      ANNOUNCEMENT_FROM_IDENTITIES['notificaciones@nutrinet.cl']
+    );
   }
 
   private async sendEmail(params: {
@@ -135,7 +154,7 @@ export class MailService {
     });
   }
 
-async sendRegistrationAlert(
+  async sendRegistrationAlert(
     fullName: string,
     email: string,
     message?: string,
@@ -199,6 +218,7 @@ async sendRegistrationAlert(
     title: string;
     message: string;
     link?: string;
+    fromEmail?: string;
   }): Promise<void> {
     const html = this.wrapHtml(
       data.title,
@@ -210,6 +230,7 @@ async sendRegistrationAlert(
       subject: `NutriNet: ${data.title}`,
       html,
       text: `${data.title}\n\n${data.message}${data.link ? `\n${data.link}` : ''}`,
+      from: this.resolveAnnouncementFrom(data.fromEmail),
       channel: 'notifications',
     });
   }
@@ -247,6 +268,80 @@ async sendRegistrationAlert(
       html,
       text: 'Gracias por escribirnos. Hemos recibido tu mensaje y lo revisaremos pronto.',
       channel: 'noReply',
+    });
+  }
+
+  async sendFeedbackResolutionEmail(data: {
+    email: string;
+    type?: string;
+    message?: string;
+    adminMessage?: string;
+  }): Promise<void> {
+    const originalBlock =
+      data.type || data.message
+        ? `<div style="margin:20px 0;padding:16px 18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px"><div style="font-size:12px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em">Feedback original</div>${data.type ? `<div style="margin-top:8px"><strong>Tipo:</strong> ${this.escapeHtml(data.type)}</div>` : ''}${data.message ? `<div style="margin-top:8px"><strong>Mensaje:</strong><br>${this.escapeHtml(data.message).replace(/\n/g, '<br>')}</div>` : ''}</div>`
+        : '';
+
+    const adminBlock = data.adminMessage
+      ? `<div style="margin:20px 0;padding:16px 18px;background:#ecfdf5;border:1px solid #a7f3d0;border-left:4px solid #10b981;border-radius:16px"><div style="font-size:12px;text-transform:uppercase;color:#047857;font-weight:700;letter-spacing:.08em">Mensaje adicional</div><div style="margin-top:8px;white-space:pre-line">${this.escapeHtml(data.adminMessage)}</div></div>`
+      : '';
+
+    const html = this.wrapHtml(
+      'Tu feedback fue revisado',
+      `<p>Hola,</p><p>Gracias por compartir tu comentario con NutriNet. Lo hemos revisado y lo tendremos en cuenta para seguir mejorando la plataforma.</p><p>Valoramos mucho este tipo de observaciones porque nos ayudan a pulir la experiencia de uso.</p>${originalBlock}${adminBlock}<p style="color:#64748b;font-size:14px">Saludos,<br><strong>Equipo de soporte de NutriNet</strong></p>`,
+    );
+
+    const text = [
+      'Tu feedback fue revisado en NutriNet.',
+      'Gracias por compartir tu comentario. Lo hemos tenido en cuenta para seguir mejorando la plataforma.',
+      data.type ? `Tipo original: ${data.type}` : null,
+      data.message ? `Mensaje original: ${data.message}` : null,
+      data.adminMessage ? `Mensaje adicional: ${data.adminMessage}` : null,
+      'Saludos, Equipo de soporte de NutriNet',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
+    await this.sendEmail({
+      to: data.email,
+      subject: 'Gracias por tu feedback en NutriNet',
+      html,
+      text,
+      channel: 'support',
+    });
+  }
+
+  async sendPublicProfileVisibilityEmail(data: {
+    email: string;
+    fullName: string;
+    enabled: boolean;
+    publicUrl?: string;
+  }): Promise<void> {
+    const title = data.enabled
+      ? 'Tu perfil volvió a ser público'
+      : 'Tu perfil fue ocultado del portal público';
+    const subject = data.enabled
+      ? 'Tu perfil público fue publicado en NutriNet'
+      : 'Tu perfil público fue ocultado en NutriNet';
+    const actionText = data.enabled
+      ? 'Tu perfil ya está visible nuevamente en el portal público de NutriNet.'
+      : 'Un administrador ocultó tu perfil del portal público. Tu acceso privado sigue activo.';
+    const linkHtml =
+      data.enabled && data.publicUrl
+        ? `<p><a href="${this.escapeHtml(data.publicUrl)}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 18px;border-radius:999px;font-weight:700">Ver perfil público</a></p>`
+        : '';
+
+    const html = this.wrapHtml(
+      title,
+      `<p>Hola <strong>${this.escapeHtml(data.fullName)}</strong>,</p><p>${this.escapeHtml(actionText)}</p>${linkHtml}`,
+    );
+
+    await this.sendEmail({
+      to: data.email,
+      subject,
+      html,
+      text: `${title}. ${actionText}${data.enabled && data.publicUrl ? ` Perfil: ${data.publicUrl}` : ''}`,
+      channel: 'notifications',
     });
   }
 
@@ -342,7 +437,7 @@ async sendRegistrationAlert(
       `<p>Hola,</p><p>${this.escapeHtml(data.nutritionistName)} te compartió este enlace para agendar:</p><p><a href="${this.escapeHtml(data.bookingUrl)}" style="color:#4f46e5;font-weight:700;word-break:break-all">${this.escapeHtml(data.bookingUrl)}</a></p>`,
     );
 
-await this.sendEmail({
+    await this.sendEmail({
       to: data.email,
       subject: `Enlace de agenda de ${data.nutritionistName}`,
       html,

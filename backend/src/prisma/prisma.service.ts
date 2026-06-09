@@ -1,4 +1,10 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
@@ -20,7 +26,7 @@ export class PrismaService
 
   private validateDatabaseUrl(): void {
     const dbUrl = process.env.DATABASE_URL;
-    
+
     if (!dbUrl) {
       throw new InternalServerErrorException(
         'DATABASE_URL environment variable is not set. Check your .env file.',

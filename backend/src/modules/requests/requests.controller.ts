@@ -14,6 +14,7 @@ import {
 import { RequestsService } from './requests.service';
 import { CreateRegistrationRequestDto } from './dto/create-registration-request.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { isAdminRole } from '../permissions/permissions.constants';
 
 @Controller('requests')
 export class RequestsController {
@@ -34,7 +35,7 @@ export class RequestsController {
     status?: 'PENDING' | 'ACCEPTED' | 'APPROVED' | 'REJECTED' | 'ALL_ACCEPTED',
     @Query('search') search?: string,
   ) {
-    if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
+    if (!isAdminRole(req.user.role)) {
       throw new UnauthorizedException(
         'Solo el administrador puede ver las peticiones',
       );
@@ -50,7 +51,7 @@ export class RequestsController {
   @UseGuards(AuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string, @Request() req: any) {
-    if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
+    if (!isAdminRole(req.user.role)) {
       throw new UnauthorizedException(
         'Solo el administrador puede eliminar peticiones',
       );
@@ -61,7 +62,7 @@ export class RequestsController {
   @UseGuards(AuthGuard)
   @Get('count/pending')
   getPendingCount(@Request() req: any) {
-    if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
+    if (!isAdminRole(req.user.role)) {
       throw new UnauthorizedException(
         'Solo el administrador puede ver las peticiones',
       );
@@ -80,7 +81,7 @@ export class RequestsController {
     },
     @Request() req: any,
   ) {
-    if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
+    if (!isAdminRole(req.user.role)) {
       throw new UnauthorizedException(
         'Solo el administrador puede gestionar peticiones',
       );

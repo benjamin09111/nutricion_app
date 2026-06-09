@@ -76,8 +76,19 @@ export class SupportController {
   @UseGuards(AuthGuard, PermissionsGuard)
   @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   @Patch(':id/resolve')
-  resolve(@Param('id') id: string) {
-    return this.supportService.resolve(id);
+  resolve(
+    @Param('id') id: string,
+    @Body() body: { adminMessage?: string } | undefined,
+  ) {
+    return this.supportService.resolve(id, body?.adminMessage);
+  }
+
+  // Admin Only: Delete all resolved requests
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
+  @Delete('resolved')
+  removeResolved() {
+    return this.supportService.removeResolved();
   }
 
   // Admin Only: Delete request

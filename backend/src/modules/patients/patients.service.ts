@@ -30,7 +30,8 @@ export class PatientsService {
   ) {}
 
   async create(nutritionistId: string, createPatientDto: CreatePatientDto) {
-    const { recalculateNutrition, age, ...patientData } = createPatientDto as any;
+    const { recalculateNutrition, age, ...patientData } =
+      createPatientDto as any;
     const customVariables = this.withAutomaticNutritionCalculations(
       patientData.customVariables,
       patientData,
@@ -234,7 +235,8 @@ export class PatientsService {
     await this.assertOwnership(nutritionistId, id);
 
     const current = await this.prisma.patient.findUnique({ where: { id } });
-    const { recalculateNutrition, age, ...patientData } = updatePatientDto as any;
+    const { recalculateNutrition, age, ...patientData } =
+      updatePatientDto as any;
     const mergedForCalculation = { ...(current || {}), ...patientData };
     const customVariables = this.withAutomaticNutritionCalculations(
       patientData.customVariables ?? current?.customVariables,
@@ -385,7 +387,9 @@ export class PatientsService {
     ] as any;
   }
 
-  private buildAutomaticNutritionCalculations(patient: NutritionCalculationInput) {
+  private buildAutomaticNutritionCalculations(
+    patient: NutritionCalculationInput,
+  ) {
     const weight = this.toPositiveNumber(patient.weight);
     const height = this.toPositiveNumber(patient.height);
     const age = this.calculateAge(patient.birthDate);
@@ -424,8 +428,7 @@ export class PatientsService {
       calculatedAt: new Date().toISOString(),
       source: 'OMS IMC + Mifflin-St Jeor + factores de actividad estándar',
       status: 'SUGGESTED_REVIEW_REQUIRED',
-      note:
-        'Valores orientativos para apoyo clínico. Deben ser revisados y ajustados por el nutricionista tratante.',
+      note: 'Valores orientativos para apoyo clínico. Deben ser revisados y ajustados por el nutricionista tratante.',
       inputs: { weight, height, age, gender, activityLevel: activity },
       bmi: { value: bmi, classification },
       idealWeight: this.getIdealWeightRange(height),
@@ -449,7 +452,10 @@ export class PatientsService {
     const today = new Date();
     let age = today.getFullYear() - date.getFullYear();
     const monthDiff = today.getMonth() - date.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < date.getDate())
+    ) {
       age -= 1;
     }
     return age >= 0 ? age : null;
@@ -505,7 +511,9 @@ export class PatientsService {
   }) {
     const focus = String(input.nutritionalFocus || '').toLowerCase();
     const isWeightLoss =
-      focus.includes('bajar') || focus.includes('perdida') || focus.includes('pérdida');
+      focus.includes('bajar') ||
+      focus.includes('perdida') ||
+      focus.includes('pérdida');
     const isWeightGain = focus.includes('subir') || focus.includes('ganancia');
     const active = ['activo', 'muy_activo'].includes(input.activityLevel);
 
@@ -554,9 +562,13 @@ export class PatientsService {
 
   private normalizeActivityLevel(value?: string | null) {
     const normalized = String(value || '').toLowerCase();
-    return ['sedentario', 'ligero', 'moderado', 'activo', 'muy_activo'].includes(
-      normalized,
-    )
+    return [
+      'sedentario',
+      'ligero',
+      'moderado',
+      'activo',
+      'muy_activo',
+    ].includes(normalized)
       ? normalized
       : 'sedentario';
   }
@@ -588,10 +600,21 @@ export class PatientsService {
     const fitness = String(input.fitnessGoals || '').toLowerCase();
     const isWeightLoss = focus.includes('bajar') || focus.includes('perdida');
     const isWeightGain = focus.includes('subir') || focus.includes('ganancia');
-    const isMuscle = fitness.includes('muscular') || fitness.includes('ganancia') || focus.includes('muscular');
-    const isPerformance = fitness.includes('rendimiento') || fitness.includes('deportivo');
-    const isRehab = fitness.includes('rehabilitación') || fitness.includes('rehabilitacion') || fitness.includes('movilidad');
-    const isMetabolic = focus.includes('metabólico') || focus.includes('metabolico') || focus.includes('patología') || focus.includes('patologia');
+    const isMuscle =
+      fitness.includes('muscular') ||
+      fitness.includes('ganancia') ||
+      focus.includes('muscular');
+    const isPerformance =
+      fitness.includes('rendimiento') || fitness.includes('deportivo');
+    const isRehab =
+      fitness.includes('rehabilitación') ||
+      fitness.includes('rehabilitacion') ||
+      fitness.includes('movilidad');
+    const isMetabolic =
+      focus.includes('metabólico') ||
+      focus.includes('metabolico') ||
+      focus.includes('patología') ||
+      focus.includes('patologia');
     const isActive = ['activo', 'muy_activo'].includes(input.activityLevel);
     const isBajoPeso = input.bmi < 18.5 || input.classification === 'Bajo peso';
     const isObeso = input.bmi >= 30;
@@ -600,7 +623,8 @@ export class PatientsService {
       return {
         id: 'clinical_review_required',
         label: 'Requiere revisión clínica previa',
-        strategy: 'Derivar a evaluación profesional antes de asignar objetivos automáticos.',
+        strategy:
+          'Derivar a evaluación profesional antes de asignar objetivos automáticos.',
       };
     }
 
@@ -608,7 +632,8 @@ export class PatientsService {
       return {
         id: 'metabolic_care',
         label: 'Cuidado metabólico',
-        strategy: 'Objetivos orientados a estabilidad glucémica, perfil lipídico y control de comorbilidades.',
+        strategy:
+          'Objetivos orientados a estabilidad glucémica, perfil lipídico y control de comorbilidades.',
       };
     }
 
@@ -616,7 +641,8 @@ export class PatientsService {
       return {
         id: 'weight_loss_controlled',
         label: 'Baja de peso controlada',
-        strategy: 'Déficit calórico moderado (~20 %), proteína suficiente para preservar masa magra y control de carbohidratos concentrados.',
+        strategy:
+          'Déficit calórico moderado (~20 %), proteína suficiente para preservar masa magra y control de carbohidratos concentrados.',
       };
     }
 
@@ -624,7 +650,8 @@ export class PatientsService {
       return {
         id: 'weight_loss_moderate',
         label: 'Baja de peso moderada',
-        strategy: 'Déficit calórico leve (~10-15 %), priorizando proteína y fibra para saciedad.',
+        strategy:
+          'Déficit calórico leve (~10-15 %), priorizando proteína y fibra para saciedad.',
       };
     }
 
@@ -632,7 +659,8 @@ export class PatientsService {
       return {
         id: 'muscle_gain',
         label: 'Ganancia muscular',
-        strategy: 'Superávit calórico leve (~10 %), proteína alta y distribución en 4-5 comidas.',
+        strategy:
+          'Superávit calórico leve (~10 %), proteína alta y distribución en 4-5 comidas.',
       };
     }
 
@@ -640,7 +668,8 @@ export class PatientsService {
       return {
         id: 'high_energy_active',
         label: 'Alta demanda energética',
-        strategy: 'Aporte energético suficiente, carbohidratos para rendimiento y proteína para recuperación.',
+        strategy:
+          'Aporte energético suficiente, carbohidratos para rendimiento y proteína para recuperación.',
       };
     }
 
@@ -648,7 +677,8 @@ export class PatientsService {
       return {
         id: 'weight_gain_supervised',
         label: 'Aumento de peso supervisado',
-        strategy: 'Superávit calórico progresivo, alimentos densos en nutrientes y monitoreo frecuente.',
+        strategy:
+          'Superávit calórico progresivo, alimentos densos en nutrientes y monitoreo frecuente.',
       };
     }
 
@@ -656,14 +686,16 @@ export class PatientsService {
       return {
         id: 'rehabilitation',
         label: 'Rehabilitación / movilidad',
-        strategy: 'Enfoque en antiinflamatorios naturales, proteína para reparación tisular y energía suficiente para terapia.',
+        strategy:
+          'Enfoque en antiinflamatorios naturales, proteína para reparación tisular y energía suficiente para terapia.',
       };
     }
 
     return {
       id: 'standard_maintenance',
       label: 'Mantenimiento estándar',
-      strategy: 'Distribución balanceada según AMDR, ajustable según evolución clínica.',
+      strategy:
+        'Distribución balanceada según AMDR, ajustable según evolución clínica.',
     };
   }
 
@@ -687,7 +719,15 @@ export class PatientsService {
 
   private buildSuggestedDailyTargets(input: {
     get: number;
-    macros: { calories: number; protein: number; carbs: number; fats: number; carbsPercent: number; proteinPercent: number; fatsPercent: number };
+    macros: {
+      calories: number;
+      protein: number;
+      carbs: number;
+      fats: number;
+      carbsPercent: number;
+      proteinPercent: number;
+      fatsPercent: number;
+    };
     category: { id: string; label: string; strategy: string };
     proteinGramsPerKg: number;
   }) {
@@ -718,10 +758,7 @@ export class PatientsService {
     };
   }
 
-  private resolveTargetCalories(
-    get: number,
-    category: { id: string },
-  ) {
+  private resolveTargetCalories(get: number, category: { id: string }) {
     if (category.id === 'weight_loss_controlled') return Math.round(get * 0.8);
     if (category.id === 'weight_loss_moderate') return Math.round(get * 0.88);
     if (category.id === 'muscle_gain') return Math.round(get * 1.1);

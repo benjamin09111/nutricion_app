@@ -135,7 +135,9 @@ export class MercadoPagoService {
     const internalPaymentId = payment.external_reference;
     if (!internalPaymentId) {
       this.logger.error('No external_reference in MP payment');
-      throw new BadRequestException('Referencia externa no encontrada en el pago');
+      throw new BadRequestException(
+        'Referencia externa no encontrada en el pago',
+      );
     }
 
     const existing = await this.prisma.payment.findUnique({

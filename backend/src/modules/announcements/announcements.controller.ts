@@ -12,7 +12,7 @@ import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
-import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
+import { SPECIAL_FEATURES, isAdminRole } from '../permissions/permissions.constants';
 
 @Controller('announcements')
 export class AnnouncementsController {
@@ -27,7 +27,7 @@ export class AnnouncementsController {
   ) {
     const user = req.user;
     // Allow any admin role
-    if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(user.role)) {
+    if (!isAdminRole(user.role)) {
       throw new UnauthorizedException('No tienes permisos para crear anuncios');
     }
     return this.announcementsService.create(createAnnouncementDto);

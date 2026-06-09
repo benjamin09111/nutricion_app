@@ -1,32 +1,23 @@
-export type EmailChannel =
-  | "noReply"
-  | "support"
-  | "notifications"
-  | "contact";
+export type SenderEmail =
+  | "notificaciones@nutrinet.cl"
+  | "soporte@nutrinet.cl"
+  | "pagos@nutrinet.cl"
+  | "info@nutrinet.cl"
+  | "seguridad@nutrinet.cl"
+  | "marketing@nutrinet.cl"
+  | "rrhh@nutrinet.cl";
 
-const fallback = (
-  value: string | undefined,
-  defaultValue: string | undefined,
-): string => value?.trim() || defaultValue || "";
+export const AVAILABLE_SENDER_EMAILS: Array<{
+  value: SenderEmail;
+  label: string;
+}> = [
+  { value: "notificaciones@nutrinet.cl", label: "NutriNet Notificaciones" },
+  { value: "soporte@nutrinet.cl", label: "NutriNet Soporte" },
+  { value: "pagos@nutrinet.cl", label: "NutriNet Pagos" },
+  { value: "info@nutrinet.cl", label: "NutriNet Info" },
+  { value: "seguridad@nutrinet.cl", label: "NutriNet Seguridad" },
+  { value: "marketing@nutrinet.cl", label: "NutriNet Marketing" },
+  { value: "rrhh@nutrinet.cl", label: "NutriNet RRHH" },
+];
 
-export const EMAIL_IDENTITIES: Record<EmailChannel, string> = {
-  noReply: fallback(
-    process.env.RESEND_FROM_NO_REPLY,
-    process.env.RESEND_FROM,
-  ) || "NutriNet <no-reply@nutrinet.cl>",
-  support: fallback(
-    process.env.RESEND_FROM_SUPPORT,
-    "NutriNet Soporte <soporte@nutrinet.cl>",
-  ),
-  notifications: fallback(
-    process.env.RESEND_FROM_NOTIFICATIONS,
-    "NutriNet Notificaciones <notificaciones@nutrinet.cl>",
-  ),
-  contact: fallback(
-    process.env.RESEND_FROM_CONTACT,
-    "NutriNet Contacto <contacto@nutrinet.cl>",
-  ),
-};
-
-export const DEFAULT_REPLY_TO =
-  process.env.RESEND_REPLY_TO?.trim() || "contacto@nutrinet.cl";
+export const DEFAULT_SENDER_EMAIL: SenderEmail = "notificaciones@nutrinet.cl";

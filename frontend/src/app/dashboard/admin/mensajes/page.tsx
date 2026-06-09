@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
+import { Modal } from "@/components/ui/Modal";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
 import {
@@ -27,6 +28,10 @@ import {
 import Cookies from "js-cookie";
 import appConfig from "@/content/config.json";
 import { fetchApi } from "@/lib/api-base";
+import {
+  AVAILABLE_SENDER_EMAILS,
+  DEFAULT_SENDER_EMAIL,
+} from "@/lib/email-identities";
 
 type Tab = "templates" | "create" | "admin" | "history" | "automation";
 type CommunicationType = "email" | "announcement";
@@ -39,17 +44,42 @@ interface MessageForm {
   specificUserId?: string;
   emailList?: string;
   commType: CommunicationType;
+  fromEmail: string;
   announcementType: "info" | "success" | "warning" | "error" | "promo";
   announcementLink?: string;
 }
 
 interface MessageTemplate {
-  id: number;
+  id: string;
   title: string;
   subject: string;
   content: string;
+  fromEmail: string;
+  createdAt?: string;
+  updatedAt?: string;
   lastUsed?: string;
 }
+
+const DEFAULT_MESSAGE_TEMPLATES: MessageTemplate[] = [
+  {
+    id: "template-welcome",
+    title: "Bienvenida Estándar",
+    subject: "¡Bienvenido(a) a la familia NutriNet!",
+    content:
+      "Estamos muy felices de tenerte con nosotros. Tu cuenta ya está activa y puedes empezar a gestionar tus pacientes de inmediato.",
+    fromEmail: "notificaciones@nutrinet.cl",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "template-maintenance",
+    title: "Aviso de Mantenimiento",
+    subject: "Aviso Importante: Mantenimiento Programado",
+    content:
+      "Realizaremos mejoras técnicas este domingo. El sistema podría presentar intermitencias por 1 hora.",
+    fromEmail: "info@nutrinet.cl",
+    createdAt: new Date(Date.now() - 172800000).toISOString(),
+  },
+];
 
 export default function MessagesPage() {
   const [activeTab, setActiveTab] = useState<Tab>("templates");
@@ -58,6 +88,7 @@ export default function MessagesPage() {
       defaultValues: {
         targetMode: "all",
         commType: "email",
+        fromEmail: DEFAULT_SENDER_EMAIL,
         announcementType: "info",
       },
     });
@@ -74,25 +105,15 @@ export default function MessagesPage() {
   const [isLoadingNutris, setIsLoadingNutris] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Pre-defined templates for "Mis Mensajes"
-  const templates: MessageTemplate[] = [
-    {
-      id: 1,
-      title: "Bienvenida Estándar",
-      subject: "¡Bienvenido(a) a la familia NutriNet!",
-      content:
-        "Estamos muy felices de tenerte con nosotros. Tu cuenta ya está activa y puedes empezar a gestionar tus pacientes de inmediato.",
-      lastUsed: new Date().toISOString(),
-    },
-    {
-      id: 2,
-      title: "Aviso de Mantenimiento",
-      subject: "Aviso Importante: Mantenimiento Programado",
-      content:
-        "Realizaremos mejoras técnicas este domingo. El sistema podría presentar intermitencias por 1 hora.",
-      lastUsed: new Date(Date.now() - 172800000).toISOString(),
-    },
-  ];
+  const [templates, setTemplates] = useState<MessageTemplate[]>(DEFAULT_MESSAGE_TEMPLATES);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [templateTitle, setTemplateTitle] = useState("");
+  const [templateSubject, setTemplateSubject] = useState("");
+  const [templateContent, setTemplateContent] = useState("");
+  const [templateFromEmail, setTemplateFromEmail] = useState(DEFAULT_SENDER_EMAIL);
 
   useEffect(() => {
     const fetchNutris = async () => {
@@ -135,6 +156,32 @@ export default function MessagesPage() {
     const timer = setTimeout(fetchNutris, 300);
     return () => clearTimeout(timer);
   }, [searchQuery, targetMode, activeTab]);
+
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      if (activeTab !== "templates") return;
+
+      try {
+        const token =
+          Cookies.get("auth_token") || localStorage.getItem("auth_token");
+        const res = await fetchApi("/message-templates", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          return;
+        }
+
+        const data = (await res.json()) as MessageTemplate[];
+        setTemplates(data.length > 0 ? data : DEFAULT_MESSAGE_TEMPLATES);
+      } catch (error) {
+        console.error("Error fetching templates:", error);
+        setTemplates(DEFAULT_MESSAGE_TEMPLATES);
+      }
+    };
+
+    fetchTemplates();
+  }, [activeTab]);
 
   const [history, setHistory] = useState([
     {
@@ -185,11 +232,12 @@ export default function MessagesPage() {
           link: data.announcementLink || undefined,
           targetRoles,
           targetMode: data.targetMode,
-          specificUserId: data.specificUserId || undefined,
-          emailList: data.emailList || undefined,
-          commType: data.commType,
-        }),
-      });
+            specificUserId: data.specificUserId || undefined,
+            emailList: data.emailList || undefined,
+            commType: data.commType,
+            fromEmail: data.fromEmail || undefined,
+          }),
+        });
 
       if (!res.ok) {
         throw new Error("No se pudo enviar el anuncio");
@@ -219,7 +267,13 @@ export default function MessagesPage() {
       toast.success(
         `Mensaje enviado correctamente a ${recipientType === "admin" ? "Administradores" : "Nutricionistas"}.`,
       );
-      reset();
+      reset({
+        targetMode: "all",
+        commType: "email",
+        fromEmail: DEFAULT_SENDER_EMAIL,
+        announcementType: "info",
+      });
+      setSelectedTemplateId("");
       setActiveTab("history");
     } catch {
       toast.error("Error al enviar el mensaje.");
@@ -228,11 +282,96 @@ export default function MessagesPage() {
     }
   };
 
-  const handleSelectTemplate = (template: MessageTemplate) => {
+  const fillFormFromTemplate = (template: MessageTemplate) => {
     setValue("subject", template.subject);
     setValue("content", template.content);
+    setValue("commType", "email");
+    setValue("fromEmail", template.fromEmail);
+    setSelectedTemplateId(template.id);
+  };
+
+  const handleSelectTemplate = (template: MessageTemplate) => {
+    fillFormFromTemplate(template);
     setActiveTab("create");
     toast.info(`Cargada plantilla: ${template.title}`);
+  };
+
+  const openCreateTemplateModal = () => {
+    setEditingTemplateId(null);
+    setTemplateTitle("");
+    setTemplateSubject("");
+    setTemplateContent("");
+    setTemplateFromEmail(DEFAULT_SENDER_EMAIL);
+    setIsTemplateModalOpen(true);
+  };
+
+  const resetMessageForm = () => {
+    setSelectedTemplateId("");
+    setValue("subject", "");
+    setValue("content", "");
+    setValue("commType", "email");
+    setValue("fromEmail", DEFAULT_SENDER_EMAIL);
+  };
+
+  const openEditTemplateModal = (template: MessageTemplate) => {
+    setEditingTemplateId(template.id);
+    setTemplateTitle(template.title);
+    setTemplateSubject(template.subject);
+    setTemplateContent(template.content);
+    setTemplateFromEmail(template.fromEmail);
+    setIsTemplateModalOpen(true);
+  };
+
+  const saveTemplate = async () => {
+    const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+    if (!token) {
+      toast.error("Sesión no válida");
+      return;
+    }
+
+    if (!templateTitle.trim() || !templateSubject.trim() || !templateContent.trim()) {
+      toast.error("Completa título, asunto y contenido.");
+      return;
+    }
+
+    setIsSavingTemplate(true);
+    try {
+      const payload = {
+        title: templateTitle.trim(),
+        subject: templateSubject.trim(),
+        content: templateContent.trim(),
+        fromEmail: templateFromEmail,
+      };
+
+      const res = await fetchApi(
+        editingTemplateId ? `/message-templates/${editingTemplateId}` : "/message-templates",
+        {
+          method: editingTemplateId ? "PATCH" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (!res.ok) {
+        throw new Error("No se pudo guardar la plantilla");
+      }
+
+      const saved = (await res.json()) as MessageTemplate;
+      setTemplates((current) => {
+        const next = current.filter((item) => item.id !== saved.id);
+        return [saved, ...next];
+      });
+      setIsTemplateModalOpen(false);
+      toast.success(editingTemplateId ? "Plantilla actualizada." : "Plantilla creada.");
+    } catch (error) {
+      console.error("Error saving template:", error);
+      toast.error("No se pudo guardar la plantilla.");
+    } finally {
+      setIsSavingTemplate(false);
+    }
   };
 
   const commonGreeting = "Estimado [Nombre]";
@@ -299,7 +438,11 @@ export default function MessagesPage() {
                 Reutiliza tus mejores redacciones para ahorrar tiempo.
               </p>
             </div>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-indigo-200">
+            <Button
+              type="button"
+              onClick={openCreateTemplateModal}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-indigo-200"
+            >
               <PlusCircle className="h-5 w-5 mr-2" />
               Crear Nuevo
             </Button>
@@ -328,22 +471,42 @@ export default function MessagesPage() {
                     <p className="text-xs text-slate-500 font-bold mt-1 line-clamp-1">
                       {template.subject}
                     </p>
+                    <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mt-2">
+                      Remitente: {template.fromEmail}
+                    </p>
                   </div>
                   <p className="text-sm text-slate-600 line-clamp-3 font-medium leading-relaxed italic">
                     &quot;{template.content}&quot;
                   </p>
                 </div>
-                <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
+                <div className="mt-6 pt-4 border-t border-slate-50 flex flex-wrap items-center justify-between gap-3">
                   <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1 uppercase tracking-tighter">
                     <Clock className="h-3 w-3" />
                     Usado:{" "}
                     {new Intl.DateTimeFormat("es-CL").format(
-                      new Date(template.lastUsed || ""),
+                      new Date(
+                        template.lastUsed ||
+                          template.updatedAt ||
+                          template.createdAt ||
+                          Date.now(),
+                      ),
                     )}
                   </span>
-                  <span className="text-indigo-600 font-black text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 translate-x-1 group-hover:translate-x-0 transition-all">
-                    Usar ahora →
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openEditTemplateModal(template);
+                      }}
+                      className="text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      Editar
+                    </button>
+                    <span className="text-indigo-600 font-black text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 translate-x-1 group-hover:translate-x-0 transition-all">
+                      Usar ahora →
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -390,6 +553,66 @@ export default function MessagesPage() {
                           <Bell className="h-4 w-4" /> Notificación App
                         </button>
                       </div>
+                      {commType === "email" && (
+                        <div className="mt-4 space-y-3">
+                          <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-3 uppercase tracking-wider text-[11px]">
+                              Plantilla base o desde cero
+                            </label>
+                            <select
+                              value={selectedTemplateId}
+                              onChange={(event) => {
+                                const templateId = event.target.value;
+                                setSelectedTemplateId(templateId);
+
+                                if (!templateId) {
+                                  resetMessageForm();
+                                  return;
+                                }
+
+                                const template = templates.find(
+                                  (item) => item.id === templateId,
+                                );
+
+                                if (template) {
+                                  fillFormFromTemplate(template);
+                                }
+                              }}
+                              className="w-full h-11 px-3 rounded-lg border-2 border-slate-200 bg-white text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                            >
+                              <option value="">Desde cero</option>
+                              {templates.map((template) => (
+                                <option key={template.id} value={template.id}>
+                                  {template.title}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-medium italic">
+                            Si eliges una plantilla, se completan asunto, contenido y remitente automáticamente.
+                          </p>
+                        </div>
+                      )}
+                      {commType === "email" && (
+                        <div className="mt-4">
+                          <label className="block text-sm font-bold text-slate-700 mb-3 uppercase tracking-wider text-[11px]">
+                            Correo Remitente
+                          </label>
+                          <select
+                            {...register("fromEmail", { required: true })}
+                            className="w-full h-11 px-3 rounded-lg border-2 border-slate-200 bg-white text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                          >
+                            {AVAILABLE_SENDER_EMAILS.map((email) => (
+                              <option key={email.value} value={email.value}>
+                                {email.label} ({email.value})
+                              </option>
+                            ))}
+                          </select>
+                          <p className="mt-2 text-[10px] text-slate-500 font-medium italic">
+                            Este remitente también queda asociado a las plantillas de correo.
+                          </p>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -796,6 +1019,85 @@ export default function MessagesPage() {
           </div>
         </div>
       )}
+
+      <Modal
+        isOpen={isTemplateModalOpen}
+        onClose={() => setIsTemplateModalOpen(false)}
+        title={editingTemplateId ? "Editar plantilla" : "Nueva plantilla"}
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="block text-xs font-black uppercase tracking-wider text-slate-600">
+              Nombre de la plantilla
+            </label>
+            <Input
+              value={templateTitle}
+              onChange={(event) => setTemplateTitle(event.target.value)}
+              placeholder="Ej: Seguimiento semanal"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-black uppercase tracking-wider text-slate-600">
+              Asunto
+            </label>
+            <Input
+              value={templateSubject}
+              onChange={(event) => setTemplateSubject(event.target.value)}
+              placeholder="Ej: Avance de tu plan nutricional"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-black uppercase tracking-wider text-slate-600">
+              Correo remitente
+            </label>
+            <select
+              value={templateFromEmail}
+              onChange={(event) => setTemplateFromEmail(event.target.value)}
+              className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500/20 outline-none"
+            >
+              {AVAILABLE_SENDER_EMAILS.map((email) => (
+                <option key={email.value} value={email.value}>
+                  {email.label} ({email.value})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-black uppercase tracking-wider text-slate-600">
+              Contenido
+            </label>
+            <Textarea
+              value={templateContent}
+              onChange={(event) => setTemplateContent(event.target.value)}
+              className="min-h-[180px]"
+              placeholder="Escribe el cuerpo reutilizable del mensaje..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsTemplateModalOpen(false)}
+              className="border-slate-200 text-slate-600"
+              disabled={isSavingTemplate}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={saveTemplate}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              isLoading={isSavingTemplate}
+            >
+              {editingTemplateId ? "Guardar cambios" : "Crear plantilla"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

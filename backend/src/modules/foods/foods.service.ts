@@ -614,10 +614,7 @@ export class FoodsService {
         await (this.prisma as any).nutritionist.update({
           where: { id: nutritionist.id },
           data: {
-            publicSlug: buildPublicSlug(
-              nutritionist.fullName,
-              nutritionist.id,
-            ),
+            publicSlug: buildPublicSlug(nutritionist.fullName, nutritionist.id),
           },
         });
         this.logger.warn(

@@ -34,13 +34,15 @@ import {
   getPasswordRequirements,
   getPasswordStrength,
 } from "@/lib/password-policy";
+import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
+import { type MembershipPlan } from "@/features/memberships/services/membership.service";
 
 
 export default function LandingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [plans, setPlans] = useState<any[]>([]);
+  const [plans, setPlans] = useState<MembershipPlan[]>([]);
 
   useEffect(() => {
     fetchApi(`/memberships/active`)
@@ -74,6 +76,21 @@ export default function LandingPage() {
   const featuresInView = useInView({ threshold: 0.15 });
   const pricingInView = useInView({ threshold: 0.15 });
   const registrationInView = useInView({ threshold: 0.1 });
+  const visiblePlans = plans.filter((plan) => plan.isActive);
+  const sortedPlans = [...visiblePlans].sort((a, b) => {
+    const aFree = Number(a.price) === 0;
+    const bFree = Number(b.price) === 0;
+
+    if (aFree !== bFree) {
+      return aFree ? -1 : 1;
+    }
+
+    if (a.isPopular !== b.isPopular) {
+      return a.isPopular ? -1 : 1;
+    }
+
+    return (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
+  });
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -364,7 +381,7 @@ export default function LandingPage() {
               </span>
             </div>
             <div className="grid gap-6 lg:grid-cols-3 xl:gap-8">
-              {plans.filter(p => p.isActive).map((plan, index) => {
+              {sortedPlans.map((plan) => {
                 const isPopular = plan.isPopular;
                 return (
                   <div
@@ -378,7 +395,7 @@ export default function LandingPage() {
                   >
                     {isPopular && (
                       <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-6 py-2 rounded-full shadow-lg">
-                        ⭐ Recomendado
+                        ⭐ Más Popular
                       </div>
                     )}
                     <div className={cn("flex flex-col flex-1 p-6 sm:p-8", isPopular ? "pt-10" : "pt-6")}>
@@ -398,30 +415,38 @@ export default function LandingPage() {
                       </div>
 
                       <ul className="mb-8 space-y-3 text-left flex-1">
-                        {(Array.isArray(plan.features) ? plan.features : JSON.parse(plan.features || "[]")).map((feature: string, idx: number) => (
-                          <li key={idx} className="flex items-start gap-3">
-                            <div className={cn("mt-0.5 rounded-full p-0.5", isPopular ? "bg-indigo-100" : "bg-slate-100")}>
-                              <Check className={cn("h-3.5 w-3.5", isPopular ? "text-indigo-600" : "text-slate-500")} />
-                            </div>
-                            <span className="text-sm text-slate-700">{feature}</span>
-                          </li>
-                        ))}
+                        {(Array.isArray(plan.features) ? plan.features : JSON.parse(plan.features || "[]")).map((feature: string, idx: number) => {
+                          const featureDisplay = getMembershipFeatureDisplay(feature);
+
+                          return (
+                            <li key={idx} className="flex items-start gap-3">
+                              <div className={cn("mt-0.5 rounded-full p-0.5", featureDisplay.isExcluded ? "bg-red-100" : isPopular ? "bg-indigo-100" : "bg-slate-100")}>
+                                {featureDisplay.isExcluded ? (
+                                  <X className="h-3.5 w-3.5 text-red-500" />
+                                ) : (
+                                  <Check className={cn("h-3.5 w-3.5", isPopular ? "text-indigo-600" : "text-slate-500")} />
+                                )}
+                              </div>
+                              <span className="text-sm text-slate-700">{featureDisplay.label}</span>
+                            </li>
+                          );
+                        })}
                       </ul>
 
-                      <Button
-                        className={cn(
-                          "w-full cursor-pointer text-base font-semibold py-3 rounded-2xl transition-all duration-300",
-                          isPopular
-                            ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl hover:scale-[1.02]"
-                            : "bg-slate-100 hover:bg-slate-200 text-slate-800 hover:text-slate-900"
-                        )}
-                      >
-                        {isPopular ? "Elegir Plan Pro" : `Elegir ${plan.name}`}
-                      </Button>
                     </div>
                   </div>
                 );
               })}
+            </div>
+            <div className="mt-10 flex flex-col items-center gap-4 text-center">
+              <p className="text-sm font-medium text-slate-600">
+                Elige al crear tu cuenta
+              </p>
+              <a href="#registro">
+                <Button className="rounded-full bg-[#a88aed] px-8 py-3 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#8f70d8] cursor-pointer">
+                  Crear mi cuenta
+                </Button>
+              </a>
             </div>
             <p className="text-center text-sm text-slate-500 mt-8">
               Sin compromiso. Cancela cuando quieras. Facturación segura.

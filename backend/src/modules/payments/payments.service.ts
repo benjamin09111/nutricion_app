@@ -43,7 +43,10 @@ export class PaymentsService {
               select: { fullName: true },
             },
             subscription: {
-              select: { plan: { select: { name: true, slug: true } }, status: true },
+              select: {
+                plan: { select: { name: true, slug: true } },
+                status: true,
+              },
             },
           },
         },
@@ -74,22 +77,34 @@ export class PaymentsService {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [totalRevenue, mrr, pendingCount, completedCount, activeSubscriptions] =
-      await Promise.all([
-        this.prisma.payment.aggregate({
-          where: { status: PaymentStatus.COMPLETED },
-          _sum: { amount: true },
-        }),
-        this.prisma.payment.aggregate({
-          where: { status: PaymentStatus.COMPLETED, paidAt: { gte: startOfMonth } },
-          _sum: { amount: true },
-        }),
-        this.prisma.payment.count({ where: { status: PaymentStatus.PENDING } }),
-        this.prisma.payment.count({ where: { status: PaymentStatus.COMPLETED } }),
-        this.prisma.subscription.count({
-          where: { status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] } },
-        }),
-      ]);
+    const [
+      totalRevenue,
+      mrr,
+      pendingCount,
+      completedCount,
+      activeSubscriptions,
+    ] = await Promise.all([
+      this.prisma.payment.aggregate({
+        where: { status: PaymentStatus.COMPLETED },
+        _sum: { amount: true },
+      }),
+      this.prisma.payment.aggregate({
+        where: {
+          status: PaymentStatus.COMPLETED,
+          paidAt: { gte: startOfMonth },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.payment.count({ where: { status: PaymentStatus.PENDING } }),
+      this.prisma.payment.count({ where: { status: PaymentStatus.COMPLETED } }),
+      this.prisma.subscription.count({
+        where: {
+          status: {
+            in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING],
+          },
+        },
+      }),
+    ]);
 
     return {
       totalLifetime: Number(totalRevenue._sum.amount || 0),
@@ -184,10 +199,19 @@ export class PaymentsService {
 
       await this.upsertSubscription(tx, accountId, plan, startDate, endDate);
       await this.updateAccountPlan(tx, accountId, plan, endDate);
-      await this.createSubscriptionEvent(tx, accountId, payment.id, 'ACTIVATED', plan.id);
+      await this.createSubscriptionEvent(
+        tx,
+        accountId,
+        payment.id,
+        'ACTIVATED',
+        plan.id,
+      );
       await this.upsertDailyMetric(tx, 0, startDate);
 
-      return { payment, plan: { id: plan.id, name: plan.name, slug: plan.slug } };
+      return {
+        payment,
+        plan: { id: plan.id, name: plan.name, slug: plan.slug },
+      };
     });
   }
 
@@ -223,7 +247,14 @@ export class PaymentsService {
     const chargeAmount = Math.max(0, price - credit);
 
     if (this.isMockMode()) {
-      return this.mockCheckout(accountId, plan, startDate, endDate, chargeAmount, credit);
+      return this.mockCheckout(
+        accountId,
+        plan,
+        startDate,
+        endDate,
+        chargeAmount,
+        credit,
+      );
     }
 
     // Real Mercado Pago flow
@@ -295,7 +326,13 @@ export class PaymentsService {
 
       await this.upsertSubscription(tx, accountId, plan, startDate, endDate);
       await this.updateAccountPlan(tx, accountId, plan, endDate);
-      await this.createSubscriptionEvent(tx, accountId, payment.id, 'UPGRADED', plan.id);
+      await this.createSubscriptionEvent(
+        tx,
+        accountId,
+        payment.id,
+        'UPGRADED',
+        plan.id,
+      );
       await this.upsertDailyMetric(tx, amount, startDate);
 
       return {
@@ -311,10 +348,7 @@ export class PaymentsService {
 
   // ─── Activate Membership from Payment (shared by mock/webhook/simulate) ──
 
-  async activateMembershipFromPayment(
-    paymentId: string,
-    mpPaymentId?: string,
-  ) {
+  async activateMembershipFromPayment(paymentId: string, mpPaymentId?: string) {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
     });
@@ -357,7 +391,13 @@ export class PaymentsService {
 
       await this.upsertSubscription(tx, accountId, plan, startDate, endDate);
       await this.updateAccountPlan(tx, accountId, plan, endDate);
-      await this.createSubscriptionEvent(tx, accountId, paymentId, 'ACTIVATED', plan.id);
+      await this.createSubscriptionEvent(
+        tx,
+        accountId,
+        paymentId,
+        'ACTIVATED',
+        plan.id,
+      );
       await this.upsertDailyMetric(tx, Number(payment.amount), startDate);
 
       return { processed: true, status: 'COMPLETED' };
@@ -434,10 +474,14 @@ export class PaymentsService {
   }) {
     const { userId, planId, method } = data;
 
-    const user = await this.prisma.account.findUnique({ where: { id: userId } });
+    const user = await this.prisma.account.findUnique({
+      where: { id: userId },
+    });
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
-    const plan = await this.prisma.membershipPlan.findUnique({ where: { id: planId } });
+    const plan = await this.prisma.membershipPlan.findUnique({
+      where: { id: planId },
+    });
     if (!plan) throw new NotFoundException('Plan no encontrado');
 
     const amount = data.amount ?? Number(plan.price);
@@ -469,7 +513,13 @@ export class PaymentsService {
 
       await this.upsertSubscription(tx, userId, plan, startDate, endDate);
       await this.updateAccountPlan(tx, userId, plan, endDate);
-      await this.createSubscriptionEvent(tx, userId, payment.id, 'ACTIVATED', plan.id);
+      await this.createSubscriptionEvent(
+        tx,
+        userId,
+        payment.id,
+        'ACTIVATED',
+        plan.id,
+      );
       await this.upsertDailyMetric(tx, amount, startDate);
 
       return { payment, subscription: true };
@@ -483,7 +533,9 @@ export class PaymentsService {
     });
 
     if (account?.role !== 'NUTRITIONIST_DEVELOPER') {
-      throw new UnauthorizedException('Solo el modo developer puede cambiar planes así');
+      throw new UnauthorizedException(
+        'Solo el modo developer puede cambiar planes así',
+      );
     }
 
     const plan = await this.prisma.membershipPlan.findFirst({
@@ -561,7 +613,8 @@ export class PaymentsService {
     endDate: Date,
   ) {
     let accountPlan: SubscriptionPlan = SubscriptionPlan.PRO;
-    if (plan.slug.toLowerCase().includes('free')) accountPlan = SubscriptionPlan.FREE;
+    if (plan.slug.toLowerCase().includes('free'))
+      accountPlan = SubscriptionPlan.FREE;
     if (plan.slug.toLowerCase().includes('enterprise'))
       accountPlan = SubscriptionPlan.ENTERPRISE;
 
@@ -608,11 +661,7 @@ export class PaymentsService {
     });
   }
 
-  private async upsertDailyMetric(
-    tx: any,
-    amount: number,
-    startDate: Date,
-  ) {
+  private async upsertDailyMetric(tx: any, amount: number, startDate: Date) {
     const today = new Date(startDate);
     today.setHours(0, 0, 0, 0);
 

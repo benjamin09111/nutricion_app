@@ -11,6 +11,7 @@ import {
 import { PaymentsService } from './payments.service';
 import { MercadoPagoService } from './mercadopago.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { isAdminRole } from '../permissions/permissions.constants';
 
 @Controller('payments')
 @UseGuards(AuthGuard)
@@ -49,10 +50,7 @@ export class PaymentsController {
   // ─── Select Free Plan ──────────────────────────────────────────────
 
   @Post('select-free-plan')
-  async selectFreePlan(
-    @Body() body: { planId: string },
-    @Request() req: any,
-  ) {
+  async selectFreePlan(@Body() body: { planId: string }, @Request() req: any) {
     const accountId = req.user?.id;
     if (!accountId) {
       throw new UnauthorizedException('Usuario no identificado');
@@ -123,10 +121,7 @@ export class PaymentsController {
   }
 
   @Post('dev/change-plan')
-  async devChangePlan(
-    @Body() body: { planId: string },
-    @Request() req: any,
-  ) {
+  async devChangePlan(@Body() body: { planId: string }, @Request() req: any) {
     const accountId = req.user?.id;
 
     if (!accountId) {
@@ -144,7 +139,7 @@ export class PaymentsController {
     body: { userId: string; planId: string; amount?: number; method: string },
     @Request() req: any,
   ) {
-    if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
+    if (!isAdminRole(req.user.role)) {
       throw new UnauthorizedException(
         'Solo administradores pueden simular pagos',
       );

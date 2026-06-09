@@ -34,6 +34,7 @@ export interface MembershipPlan {
   entitlements?: Record<string, boolean | number>;
   isPopular: boolean;
   isActive: boolean;
+  displayOrder?: number;
 }
 
 export interface CheckoutResult {
@@ -56,7 +57,7 @@ export const membershipService = {
     return res.json();
   },
 
-  async selectFreePlan(planId: string): Promise<any> {
+  async selectFreePlan(planId: string): Promise<unknown> {
     const res = await api.post("/payments/select-free-plan", { planId });
     return res.json();
   },
@@ -76,12 +77,12 @@ export const membershipService = {
     return res.json();
   },
 
-  async cancelSubscription(): Promise<any> {
+  async cancelSubscription(): Promise<unknown> {
     const res = await api.post("/payments/membership/cancel");
     return res.json();
   },
 
-  async resumeSubscription(): Promise<any> {
+  async resumeSubscription(): Promise<unknown> {
     const res = await api.post("/payments/membership/resume");
     return res.json();
   },

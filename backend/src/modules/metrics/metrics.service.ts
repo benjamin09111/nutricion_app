@@ -1,9 +1,16 @@
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../../common/services/cache.service';
-import { AccountStatus, PaymentStatus, SubscriptionStatus } from '@prisma/client';
-
-const ADMIN_ROLES = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'] as const;
+import {
+  AccountStatus,
+  PaymentStatus,
+  SubscriptionStatus,
+} from '@prisma/client';
+import { ADMIN_ROLES } from '../permissions/permissions.constants';
 
 @Injectable()
 export class MetricsService {
@@ -104,7 +111,9 @@ export class MetricsService {
 
   private ensureAdmin(role?: string) {
     if (!role || !ADMIN_ROLES.includes(role as any)) {
-      throw new ForbiddenException('No tienes permisos para acceder a esta sección');
+      throw new ForbiddenException(
+        'No tienes permisos para acceder a esta sección',
+      );
     }
   }
 
@@ -118,13 +127,37 @@ export class MetricsService {
     const startOfYesterday = new Date(startOfToday);
     startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
-    const [totalUsers, newUsers, totalRevenueAgg, todayMetric, yesterdayMetric, activeSubscriptions, recentUsers] = await Promise.all([
-      this.prisma.account.count({ where: { status: { not: AccountStatus.DELETED } } }),
-      this.prisma.account.count({ where: { createdAt: { gte: startOfToday }, status: { not: AccountStatus.DELETED } } }),
-      this.prisma.payment.aggregate({ where: { status: PaymentStatus.COMPLETED }, _sum: { amount: true } }),
+    const [
+      totalUsers,
+      newUsers,
+      totalRevenueAgg,
+      todayMetric,
+      yesterdayMetric,
+      activeSubscriptions,
+      recentUsers,
+    ] = await Promise.all([
+      this.prisma.account.count({
+        where: { status: { not: AccountStatus.DELETED } },
+      }),
+      this.prisma.account.count({
+        where: {
+          createdAt: { gte: startOfToday },
+          status: { not: AccountStatus.DELETED },
+        },
+      }),
+      this.prisma.payment.aggregate({
+        where: { status: PaymentStatus.COMPLETED },
+        _sum: { amount: true },
+      }),
       this.prisma.dailyMetric.findUnique({ where: { date: startOfToday } }),
       this.prisma.dailyMetric.findUnique({ where: { date: startOfYesterday } }),
-      this.prisma.subscription.count({ where: { status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] } } }),
+      this.prisma.subscription.count({
+        where: {
+          status: {
+            in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING],
+          },
+        },
+      }),
       this.prisma.account.findMany({
         where: { status: { not: AccountStatus.DELETED } },
         orderBy: { createdAt: 'desc' },
@@ -159,7 +192,9 @@ export class MetricsService {
             : acc.role === 'ADMIN_GENERAL'
               ? 'Admin General'
               : acc.role === 'ADMIN'
-                ? 'Admin'
+                ? 'Administrador (Legado)'
+                : acc.role === 'NUTRITIONIST_DEVELOPER'
+                  ? 'Nutricionista Developer'
                 : acc.email.split('@')[0]),
         email: acc.email,
         role: acc.role,
@@ -178,18 +213,30 @@ export class MetricsService {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    const [totalUsers, activeSubscriptions, revenueToday, revenueYesterday] = await Promise.all([
-      this.prisma.account.count({ where: { status: { not: AccountStatus.DELETED } } }),
-      this.prisma.subscription.count({ where: { status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] } } }),
-      this.prisma.payment.aggregate({
-        where: { status: PaymentStatus.COMPLETED, paidAt: { gte: today } },
-        _sum: { amount: true },
-      }),
-      this.prisma.payment.aggregate({
-        where: { status: PaymentStatus.COMPLETED, paidAt: { gte: yesterday, lt: today } },
-        _sum: { amount: true },
-      }),
-    ]);
+    const [totalUsers, activeSubscriptions, revenueToday, revenueYesterday] =
+      await Promise.all([
+        this.prisma.account.count({
+          where: { status: { not: AccountStatus.DELETED } },
+        }),
+        this.prisma.subscription.count({
+          where: {
+            status: {
+              in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING],
+            },
+          },
+        }),
+        this.prisma.payment.aggregate({
+          where: { status: PaymentStatus.COMPLETED, paidAt: { gte: today } },
+          _sum: { amount: true },
+        }),
+        this.prisma.payment.aggregate({
+          where: {
+            status: PaymentStatus.COMPLETED,
+            paidAt: { gte: yesterday, lt: today },
+          },
+          _sum: { amount: true },
+        }),
+      ]);
 
     const totalRevenue = Number(revenueToday._sum.amount || 0);
     const yesterdayRevenue = Number(revenueYesterday._sum.amount || 0);
@@ -208,7 +255,10 @@ export class MetricsService {
         totalUsers,
         activeSubscriptions,
         newUsers: await this.prisma.account.count({
-          where: { createdAt: { gte: today }, status: { not: AccountStatus.DELETED } },
+          where: {
+            createdAt: { gte: today },
+            status: { not: AccountStatus.DELETED },
+          },
         }),
       },
       create: {
@@ -218,7 +268,10 @@ export class MetricsService {
         totalUsers,
         activeUsers: totalUsers,
         newUsers: await this.prisma.account.count({
-          where: { createdAt: { gte: today }, status: { not: AccountStatus.DELETED } },
+          where: {
+            createdAt: { gte: today },
+            status: { not: AccountStatus.DELETED },
+          },
         }),
         activeSubscriptions,
       },

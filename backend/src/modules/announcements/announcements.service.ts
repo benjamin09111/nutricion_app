@@ -44,7 +44,12 @@ export class AnnouncementsService {
     const recipientRoles: UserRole[] = isAll
       ? []
       : targetRoles.flatMap((role) => {
-          if (role === 'ADMIN') return [UserRole.ADMIN, UserRole.ADMIN_MASTER, UserRole.ADMIN_GENERAL];
+          if (role === 'ADMIN')
+            return [
+              UserRole.ADMIN,
+              UserRole.ADMIN_MASTER,
+              UserRole.ADMIN_GENERAL,
+            ];
           if (role === 'NUTRITIONIST') return NUTRITIONIST_ROLES;
           return [];
         });
@@ -80,10 +85,16 @@ export class AnnouncementsService {
       targetMode === 'list' ? this.normalizeEmails(data.emailList) : [];
     const mailRecipients =
       targetMode === 'list'
-        ? Array.from(new Set([...directEmails, ...recipients.map((r) => r.email)]))
+        ? Array.from(
+            new Set([...directEmails, ...recipients.map((r) => r.email)]),
+          )
         : recipients.map((r) => r.email);
 
-    if (targetMode !== 'all' && recipients.length === 0 && mailRecipients.length === 0) {
+    if (
+      targetMode !== 'all' &&
+      recipients.length === 0 &&
+      mailRecipients.length === 0
+    ) {
       throw new Error('No se encontraron destinatarios válidos');
     }
 
@@ -132,6 +143,7 @@ export class AnnouncementsService {
               title: data.title,
               message: data.message,
               link: data.link,
+              fromEmail: data.fromEmail,
             }),
           ),
         );

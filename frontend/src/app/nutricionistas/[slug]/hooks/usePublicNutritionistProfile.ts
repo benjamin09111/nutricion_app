@@ -1,5 +1,13 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api-base";
+
+export const PUBLIC_PROFILE_UNAVAILABLE_MESSAGE =
+  "Este perfil ya no es público";
 
 export interface Nutritionist {
   id: string;
@@ -53,6 +61,9 @@ export function usePublicNutritionistProfile(slug: string, weekStart: Date) {
     queryKey: ["public-nutritionists", slug],
     queryFn: async (): Promise<Nutritionist> => {
       const response = await fetchApi(`/public/nutritionists/${slug}`);
+      if (response.status === 410) {
+        throw new Error(PUBLIC_PROFILE_UNAVAILABLE_MESSAGE);
+      }
       if (!response.ok) {
         throw new Error("Nutricionista no encontrado");
       }
@@ -64,7 +75,9 @@ export function usePublicNutritionistProfile(slug: string, weekStart: Date) {
   const availabilityQuery = useQuery({
     queryKey: ["public-nutritionists", slug, "availability"],
     queryFn: async (): Promise<Availability> => {
-      const response = await fetchApi(`/public/nutritionists/${slug}/availability`);
+      const response = await fetchApi(
+        `/public/nutritionists/${slug}/availability`,
+      );
       if (!response.ok) {
         throw new Error("No se pudo cargar la disponibilidad");
       }
@@ -114,28 +127,36 @@ export function usePublicNutritionistProfile(slug: string, weekStart: Date) {
       endAt: string;
       slug: string;
     }) => {
-      const response = await fetchApi(`/public/nutritionists/${payload.slug}/appointments/request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          guestName: payload.guestName,
-          guestEmail: payload.guestEmail,
-          guestPhone: payload.guestPhone,
-          message: payload.message,
-          startAt: payload.startAt,
-          endAt: payload.endAt,
-        }),
-      });
+      const response = await fetchApi(
+        `/public/nutritionists/${payload.slug}/appointments/request`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            guestName: payload.guestName,
+            guestEmail: payload.guestEmail,
+            guestPhone: payload.guestPhone,
+            message: payload.message,
+            startAt: payload.startAt,
+            endAt: payload.endAt,
+          }),
+        },
+      );
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
+        if (response.status === 410) {
+          throw new Error(PUBLIC_PROFILE_UNAVAILABLE_MESSAGE);
+        }
         throw new Error(data.message || "Error al solicitar cita");
       }
 
       return response.json();
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["public-nutritionists", slug] });
+      await queryClient.invalidateQueries({
+        queryKey: ["public-nutritionists", slug],
+      });
     },
   });
 

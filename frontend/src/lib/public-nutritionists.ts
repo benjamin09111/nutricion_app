@@ -36,16 +36,23 @@ export interface PublicNutritionistsResponse {
   lastPage: number;
 }
 
+export type PublicNutritionistLookupResult =
+  | { status: "ok"; nutritionist: PublicNutritionist }
+  | { status: "gone"; nutritionist: null }
+  | { status: "missing"; nutritionist: null };
+
 const DEFAULT_LIMIT = 12;
 
-export async function getPublicNutritionists(params: {
-  search?: string;
-  specialty?: string;
-  mode?: string;
-  location?: string;
-  page?: number;
-  limit?: number;
-} = {}): Promise<PublicNutritionistsResponse> {
+export async function getPublicNutritionists(
+  params: {
+    search?: string;
+    specialty?: string;
+    mode?: string;
+    location?: string;
+    page?: number;
+    limit?: number;
+  } = {},
+): Promise<PublicNutritionistsResponse> {
   const query = new URLSearchParams();
 
   query.set("page", String(params.page || 1));
@@ -57,9 +64,12 @@ export async function getPublicNutritionists(params: {
   if (params.location) query.set("location", params.location);
 
   try {
-    const response = await fetchApi(`/public/nutritionists?${query.toString()}`, {
-      next: { revalidate: 300 },
-    });
+    const response = await fetchApi(
+      `/public/nutritionists?${query.toString()}`,
+      {
+        cache: "no-store",
+      },
+    );
 
     if (!response.ok) {
       throw new Error("No se pudo cargar el directorio público");
@@ -77,19 +87,28 @@ export async function getPublicNutritionists(params: {
   }
 }
 
-export async function getPublicNutritionistBySlug(slug: string) {
+export async function getPublicNutritionistBySlug(
+  slug: string,
+): Promise<PublicNutritionistLookupResult> {
   try {
     const response = await fetchApi(`/public/nutritionists/${slug}`, {
-      next: { revalidate: 300 },
+      cache: "no-store",
     });
 
-    if (!response.ok) {
-      return null;
+    if (response.status === 410) {
+      return { status: "gone", nutritionist: null };
     }
 
-    return response.json() as Promise<PublicNutritionist>;
+    if (!response.ok) {
+      return { status: "missing", nutritionist: null };
+    }
+
+    return {
+      status: "ok",
+      nutritionist: (await response.json()) as PublicNutritionist,
+    };
   } catch {
-    return null;
+    return { status: "missing", nutritionist: null };
   }
 }
 
@@ -101,7 +120,9 @@ export async function getAllPublicNutritionistSlugs() {
 
   do {
     const result = await getPublicNutritionists({ page, limit: pageSize });
-    slugs.push(...result.nutritionists.map((nutritionist) => nutritionist.slug));
+    slugs.push(
+      ...result.nutritionists.map((nutritionist) => nutritionist.slug),
+    );
     lastPage = result.lastPage;
     page += 1;
   } while (page <= lastPage);

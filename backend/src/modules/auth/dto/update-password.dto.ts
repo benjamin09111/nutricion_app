@@ -1,9 +1,4 @@
-import {
-  IsNotEmpty,
-  IsString,
-  MinLength,
-  Matches,
-} from 'class-validator';
+import { IsNotEmpty, IsString, MinLength, Matches } from 'class-validator';
 import { PASSWORD_MIN_LENGTH, PASSWORD_REGEX } from '../password-policy';
 
 export class UpdatePasswordDto {

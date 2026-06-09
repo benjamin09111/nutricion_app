@@ -12,7 +12,9 @@ export class NotificationsService {
       take: 50,
     });
 
-    const unreadCount = notifications.filter((notification) => !notification.readAt).length;
+    const unreadCount = notifications.filter(
+      (notification) => !notification.readAt,
+    ).length;
 
     return {
       notifications: notifications.map((notification) => ({

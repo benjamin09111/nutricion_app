@@ -17,6 +17,7 @@ import {
 import { CacheService } from '../../common/services/cache.service';
 import { AiService } from '../../common/services/ai.service';
 import { RECIPES_AI_PROMPTS } from './recipes-ai-prompts';
+import { isAdminRole } from '../permissions/permissions.constants';
 
 type AiRecipeOutput = {
   slotId: string;
@@ -1024,8 +1025,7 @@ export class RecipesService {
     const nutritionistId = await this.getNutritionistId(userId);
     const recipe = await this.findOne(id, userId);
 
-    const isAdmin =
-      userRole && ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(userRole);
+    const isAdmin = isAdminRole(userRole);
     if (!isAdmin && recipe.nutritionistId !== nutritionistId) {
       throw new ForbiddenException('Cannot edit public or others recipes');
     }
@@ -1146,8 +1146,7 @@ export class RecipesService {
     const nutritionistId = await this.getNutritionistId(userId);
     const recipe = await this.findOne(id, userId);
 
-    const isAdmin =
-      userRole && ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(userRole);
+    const isAdmin = isAdminRole(userRole);
     if (!isAdmin && recipe.nutritionistId !== nutritionistId) {
       throw new ForbiddenException('Cannot delete public or others recipes');
     }

@@ -13,7 +13,7 @@ import { ResourcesService } from './resources.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
-import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
+import { SPECIAL_FEATURES, isAdminRole } from '../permissions/permissions.constants';
 
 @Controller('resources')
 @UseGuards(AuthGuard, PermissionsGuard)
@@ -24,9 +24,7 @@ export class ResourcesController {
   @Get()
   findAll(@Request() req: any) {
     const nutritionistId = req.user.nutritionistId;
-    const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(
-      req.user.role,
-    );
+    const isAdmin = isAdminRole(req.user.role);
     return this.resourcesService.findAll(nutritionistId, isAdmin);
   }
 
@@ -37,9 +35,7 @@ export class ResourcesController {
 
   @Post('sections')
   createSection(@Request() req: any, @Body() data: any) {
-    const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(
-      req.user.role,
-    );
+    const isAdmin = isAdminRole(req.user.role);
     const nutritionistId = isAdmin
       ? data.isGlobal
         ? null
@@ -55,9 +51,7 @@ export class ResourcesController {
 
   @Post()
   create(@Request() req: any, @Body() data: any) {
-    const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(
-      req.user.role,
-    );
+    const isAdmin = isAdminRole(req.user.role);
     const nutritionistId = isAdmin
       ? data.isGlobal
         ? null
@@ -82,9 +76,7 @@ export class ResourcesController {
   @Patch(':id')
   update(@Param('id') id: string, @Request() req: any, @Body() data: any) {
     const nutritionistId = req.user.nutritionistId;
-    const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(
-      req.user.role,
-    );
+    const isAdmin = isAdminRole(req.user.role);
     const { isGlobal, ...restData } = data;
     return this.resourcesService.update(id, nutritionistId, isAdmin, restData);
   }
@@ -92,9 +84,7 @@ export class ResourcesController {
   @Delete(':id')
   remove(@Param('id') id: string, @Request() req: any) {
     const nutritionistId = req.user.nutritionistId;
-    const isAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(
-      req.user.role,
-    );
+    const isAdmin = isAdminRole(req.user.role);
     return this.resourcesService.remove(id, nutritionistId, isAdmin);
   }
 

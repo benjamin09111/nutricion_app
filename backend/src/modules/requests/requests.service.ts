@@ -65,7 +65,6 @@ export class RequestsService {
         console.error('Error sending registration confirmation:', err),
       );
 
-
     return {
       success: true,
       message:
@@ -226,7 +225,6 @@ export class RequestsService {
         .sendRejectionEmail(request.email, request.fullName, adminNotes)
         .catch((err) => console.error('Error sending rejection email:', err));
     }
-
 
     // Standard update for other cases (Rejection or moving back to pending)
     return this.prisma.registrationRequest.update({

@@ -7,6 +7,7 @@ import {
   Query,
   BadRequestException,
   NotFoundException,
+  GoneException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -93,12 +94,17 @@ export class PublicNutritionistsController {
 
   @Get(':slug/availability')
   async getNutritionistAvailability(@Param('slug') slug: string) {
-    const nutritionist =
-      await this.usersService.getPublicNutritionistBySlug(slug);
-    if (!nutritionist) {
+    const result =
+      await this.usersService.resolvePublicNutritionistBySlug(slug);
+    if (result.status === 'gone') {
+      throw new GoneException('Este perfil ya no es público');
+    }
+
+    if (!result.profile) {
       throw new NotFoundException('Nutricionista no encontrado');
     }
-    return this.usersService.getNutritionistAvailability(nutritionist.id);
+
+    return this.usersService.getNutritionistAvailability(result.profile.id);
   }
 
   @Post(':slug/appointments/request')
@@ -114,20 +120,24 @@ export class PublicNutritionistsController {
       endAt: string;
     },
   ) {
-    const nutritionist =
-      await this.usersService.getPublicNutritionistBySlug(slug);
-    if (!nutritionist) {
+    const result =
+      await this.usersService.resolvePublicNutritionistBySlug(slug);
+    if (result.status === 'gone') {
+      throw new GoneException('Este perfil ya no es público');
+    }
+
+    if (!result.profile) {
       throw new NotFoundException('Nutricionista no encontrado');
     }
 
-    if (!nutritionist.bookingEnabled) {
+    if (!result.profile.bookingEnabled) {
       throw new BadRequestException(
         'Este nutricionista no permite reservar citas en línea',
       );
     }
 
     const calendar = await this.prisma.appointmentCalendar.findUnique({
-      where: { nutritionistId: nutritionist.id },
+      where: { nutritionistId: result.profile.id },
     });
 
     if (!calendar) {
@@ -175,16 +185,15 @@ export class PublicNutritionistsController {
       },
     });
 
-    const accountEmail =
-      await this.prisma.account.findFirst({
-        where: { nutritionist: { id: nutritionist.id } },
-        select: { email: true },
-      });
+    const accountEmail = await this.prisma.account.findFirst({
+      where: { nutritionist: { id: result.profile.id } },
+      select: { email: true },
+    });
 
     if (accountEmail?.email) {
       await this.mailService.sendAppointmentRequestEmail({
         nutritionistEmail: accountEmail.email,
-        nutritionistName: nutritionist.fullName,
+        nutritionistName: result.profile.fullName,
         guestName: body.guestName,
         guestEmail: body.guestEmail,
         guestPhone: body.guestPhone,
@@ -203,11 +212,15 @@ export class PublicNutritionistsController {
 
   @Get(':slug')
   async getPublicNutritionist(@Param('slug') slug: string) {
-    const nutritionist =
-      await this.usersService.getPublicNutritionistBySlug(slug);
-    if (!nutritionist) {
+    const result =
+      await this.usersService.resolvePublicNutritionistBySlug(slug);
+    if (result.status === 'gone') {
+      throw new GoneException('Este perfil ya no es público');
+    }
+
+    if (!result.profile) {
       throw new NotFoundException('Nutricionista no encontrado');
     }
-    return nutritionist;
+    return result.profile;
   }
 }

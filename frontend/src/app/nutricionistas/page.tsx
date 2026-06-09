@@ -67,7 +67,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export default async function NutritionistsPage() {
   const initialData = await getPublicNutritionists({ page: 1, limit: 12 });
