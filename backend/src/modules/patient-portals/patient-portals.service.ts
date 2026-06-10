@@ -118,15 +118,25 @@ type PortalDeliverable = {
   updatedAt: Date;
 };
 
-type PortalAppointment = {
+type PortalFollowUpPatient = {
   id: string;
-  title: string;
-  description: string | null;
-  startTime: Date;
-  endTime: Date;
-  status: string;
-  notes: string | null;
-  meetingUrl: string | null;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  documentId: string | null;
+  status: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type PortalFollowUpEntry = {
+  id: string;
+  patientId: string;
+  kind: PortalEntryKind;
+  body: string | null;
+  replyToId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 type TrackingSections = {
@@ -465,6 +475,164 @@ export class PatientPortalsService {
     return this.buildOverview(nutritionistId, patientId);
   }
 
+  async getFollowUps(
+    nutritionistId: string,
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: string;
+      documentId?: string;
+      tags?: string;
+      pendingOnly?: boolean;
+    },
+  ) {
+    const page = Math.max(1, Number(params.page || 1));
+    const limit = Math.max(1, Math.min(50, Number(params.limit || 10)));
+
+    const where: any = {
+      nutritionistId,
+    };
+
+    if (params.status && params.status !== 'Todos') {
+      where.status = params.status === 'Activos' ? 'Active' : 'Inactive';
+    }
+
+    if (params.search?.trim()) {
+      const search = params.search.trim();
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { documentId: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (params.documentId?.trim()) {
+      where.documentId = {
+        contains: params.documentId.trim(),
+        mode: 'insensitive',
+      };
+    }
+
+    const parsedTags = params.tags
+      ?.split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+
+    if (parsedTags && parsedTags.length > 0) {
+      where.tags = { hasSome: parsedTags };
+    }
+
+    const patients = (await this.prisma.patient.findMany({
+      where,
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        documentId: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    })) as PortalFollowUpPatient[];
+
+    const patientIds = patients.map((patient) => patient.id);
+    const entries = patientIds.length
+      ? ((await this.prisma.patientPortalEntry.findMany({
+          where: {
+            nutritionistId,
+            patientId: { in: patientIds },
+          },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            patientId: true,
+            kind: true,
+            body: true,
+            replyToId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        })) as PortalFollowUpEntry[])
+      : [];
+
+    const entriesByPatient = new Map<string, PortalFollowUpEntry[]>();
+    const repliedQuestionIds = new Set<string>();
+
+    entries.forEach((entry) => {
+      const currentEntries = entriesByPatient.get(entry.patientId) || [];
+      currentEntries.push(entry);
+      entriesByPatient.set(entry.patientId, currentEntries);
+
+      if (entry.kind === 'REPLY' && entry.replyToId) {
+        repliedQuestionIds.add(entry.replyToId);
+      }
+    });
+
+    const followUps = patients.map((patient) => {
+      const patientEntries = entriesByPatient.get(patient.id) || [];
+      const questionEntries = patientEntries.filter(
+        (entry) => entry.kind === 'QUESTION',
+      );
+      const pendingQuestions = questionEntries.filter(
+        (entry) => !repliedQuestionIds.has(entry.id),
+      ).length;
+      const latestEntry = patientEntries[0] || null;
+      const latestQuestion = questionEntries[0] || null;
+
+      return {
+        patient,
+        pendingQuestions,
+        latestEntryAt: latestEntry?.createdAt || null,
+        latestEntryKind: (latestEntry?.kind || null) as PortalEntryKind | null,
+        latestEntryBody: latestEntry?.body || null,
+        latestQuestionAt: latestQuestion?.createdAt || null,
+        latestQuestionBody: latestQuestion?.body || null,
+        latestQuestionId: latestQuestion?.id || null,
+        hasAttention: pendingQuestions > 0,
+        attentionAt:
+          (pendingQuestions > 0
+            ? latestQuestion?.createdAt ||
+              latestEntry?.createdAt ||
+              patient.updatedAt
+            : latestEntry?.createdAt || patient.updatedAt) || patient.updatedAt,
+      };
+    });
+
+    const pendingCount = followUps.filter((item) => item.hasAttention).length;
+    const filtered = followUps.filter((item) =>
+      params.pendingOnly ? item.hasAttention : true,
+    );
+    const sorted = filtered.sort((a, b) => {
+      if (b.pendingQuestions !== a.pendingQuestions) {
+        return b.pendingQuestions - a.pendingQuestions;
+      }
+
+      const attentionDiff =
+        new Date(b.attentionAt).getTime() - new Date(a.attentionAt).getTime();
+      if (attentionDiff !== 0) return attentionDiff;
+
+      return b.patient.updatedAt.getTime() - a.patient.updatedAt.getTime();
+    });
+
+    const filteredTotal = sorted.length;
+    const lastPage = Math.max(1, Math.ceil(filteredTotal / limit));
+    const safePage = Math.min(page, lastPage);
+    const start = (safePage - 1) * limit;
+
+    return {
+      data: sorted.slice(start, start + limit),
+      meta: {
+        total: followUps.length,
+        filteredTotal,
+        pendingCount,
+        page: safePage,
+        lastPage,
+      },
+    };
+  }
+
   async setAccessStatus(
     nutritionistId: string,
     patientId: string,
@@ -580,18 +748,37 @@ export class PatientPortalsService {
     patientId: string,
     dto: CreatePatientPortalReplyDto,
   ) {
-    const question = await this.prisma.patientPortalEntry.findFirst({
-      where: {
-        id: dto.questionId,
-        patientId,
-        nutritionistId,
-        kind: 'QUESTION',
-      },
-      select: ENTRY_SELECT,
-    });
+    const [question, patient] = await Promise.all([
+      this.prisma.patientPortalEntry.findFirst({
+        where: {
+          id: dto.questionId,
+          patientId,
+          nutritionistId,
+          kind: 'QUESTION',
+        },
+        select: ENTRY_SELECT,
+      }),
+      this.prisma.patient.findFirst({
+        where: { id: patientId, nutritionistId },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          nutritionist: {
+            select: {
+              fullName: true,
+            },
+          },
+        },
+      }),
+    ]);
 
     if (!question) {
       throw new NotFoundException('No encontramos esa pregunta');
+    }
+
+    if (!patient) {
+      throw new NotFoundException('No encontramos ese paciente');
     }
 
     const body = dto.message.trim();
@@ -612,6 +799,35 @@ export class PatientPortalsService {
       },
       select: ENTRY_SELECT,
     });
+
+    const invitation = await this.prisma.patientPortalInvitation.findFirst({
+      where: {
+        patientId,
+        nutritionistId,
+        status: 'ACTIVE',
+        revokedAt: null,
+        blockedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        email: true,
+      },
+    });
+
+    const recipientEmail = invitation?.email || patient.email || null;
+    if (recipientEmail) {
+      this.mailService
+        .sendPatientPortalReplyEmail({
+          email: recipientEmail,
+          patientName: patient.fullName,
+          nutritionistName: patient.nutritionist.fullName,
+          question: question.body,
+          reply: body,
+        })
+        .catch((err) =>
+          console.error('Error sending portal reply email:', err),
+        );
+    }
 
     return {
       entry,
@@ -721,6 +937,50 @@ export class PatientPortalsService {
       },
       select: ENTRY_SELECT,
     });
+
+    const patient = await this.prisma.patient.findFirst({
+      where: { id: patientId, nutritionistId },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        nutritionist: {
+          select: {
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    if (patient) {
+      const invitation = await this.prisma.patientPortalInvitation.findFirst({
+        where: {
+          patientId,
+          nutritionistId,
+          status: 'ACTIVE',
+          revokedAt: null,
+          blockedAt: null,
+        },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          email: true,
+        },
+      });
+
+      const recipientEmail = invitation?.email || patient.email || null;
+      if (recipientEmail) {
+        this.mailService
+          .sendPatientPortalMessageEmail({
+            email: recipientEmail,
+            patientName: patient.fullName,
+            nutritionistName: patient.nutritionist.fullName,
+            message: body.trim(),
+          })
+          .catch((err) =>
+            console.error('Error sending portal message email:', err),
+          );
+      }
+    }
 
     return {
       entry,

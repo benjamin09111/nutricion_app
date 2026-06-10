@@ -47,6 +47,29 @@ export class PatientPortalsController {
     );
   }
 
+  @UseGuards(AuthGuard)
+  @Get('follow-ups')
+  getFollowUps(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('documentId') documentId?: string,
+    @Query('tags') tags?: string,
+    @Query('pendingOnly') pendingOnly?: string,
+  ) {
+    return this.patientPortalsService.getFollowUps(req.user.nutritionistId, {
+      page: page ? +page : 1,
+      limit: limit ? +limit : 10,
+      search,
+      status,
+      documentId,
+      tags,
+      pendingOnly: pendingOnly === 'true',
+    });
+  }
+
   @Get('invitations/:token/preview')
   previewInvitation(@Param('token') token: string) {
     return this.patientPortalsService.previewInvitation(token);

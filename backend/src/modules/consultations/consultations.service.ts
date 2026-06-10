@@ -8,6 +8,7 @@ import { CreateConsultationDto } from './dto/create-consultation.dto';
 import { UpdateConsultationDto } from './dto/update-consultation.dto';
 
 import { CacheService } from '../../common/services/cache.service';
+import { PermissionsService } from '../permissions/permissions.service';
 
 type ConsultationMetric = {
   key?: string;
@@ -45,12 +46,31 @@ export class ConsultationsService {
   constructor(
     private prisma: PrismaService,
     private cacheService: CacheService,
+    private permissionsService: PermissionsService,
   ) {}
 
   async create(
+    accountId: string,
     nutritionistId: string,
     createConsultationDto: CreateConsultationDto,
   ) {
+    const now = new Date();
+    const startOfMonth = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+    const consultationsThisMonth = await this.prisma.consultation.count({
+      where: {
+        nutritionistId,
+        createdAt: { gte: startOfMonth },
+      },
+    });
+
+    await this.permissionsService.ensureWithinLimit(
+      accountId,
+      'consultations.monthly.limit',
+      consultationsThisMonth,
+    );
+
     const consultation = await this.prisma.consultation.create({
       data: {
         ...createConsultationDto,

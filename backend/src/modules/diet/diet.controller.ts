@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { DietService } from './diet.service';
 import { VerifyFoodsDto } from './dto/verify-foods.dto';
@@ -13,7 +13,7 @@ export class DietController {
   constructor(private readonly dietService: DietService) {}
 
   @Post('verify-foods')
-  async verifyFoods(@Body() body: VerifyFoodsDto) {
-    return this.dietService.verifyFoodsAgainstRestrictions(body);
+  async verifyFoods(@Request() req: any, @Body() body: VerifyFoodsDto) {
+    return this.dietService.verifyFoodsAgainstRestrictions(req.user.id, body);
   }
 }

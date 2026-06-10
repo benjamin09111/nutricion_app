@@ -31,10 +31,9 @@ export class MailService {
     DEFAULT_REPLY_TO ||
     process.env.ADMIN_EMAIL?.trim() ||
     'contacto@nutrinet.cl';
-  private readonly frontendUrl = (
-    this.isProduction
-      ? process.env.FRONTEND_URL || 'https://nutrinet.cl'
-      : 'http://localhost:3000'
+  private readonly frontendUrl = (this.isProduction
+    ? process.env.FRONTEND_URL || 'https://nutrinet.cl'
+    : 'http://localhost:3000'
   ).replace(/\/$/, '');
   private readonly adminEmail =
     process.env.ADMIN_EMAIL?.trim() || this.replyTo || 'contacto@nutrinet.cl';
@@ -48,8 +47,13 @@ export class MailService {
       .replace(/'/g, '&#39;');
   }
 
-  private wrapHtml(title: string, body: string) {
-    return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${this.escapeHtml(title)}</title></head><body style="margin:0;background:#f8fafc;font-family:Arial,sans-serif;color:#0f172a"><div style="max-width:600px;margin:0 auto;padding:24px"><div style="background:#fff;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden"><div style="background:linear-gradient(135deg,#4f46e5,#10b981);padding:28px 24px;color:#fff"><div style="font-size:24px;font-weight:800;letter-spacing:.02em">NutriNet</div><div style="opacity:.92;margin-top:6px">${this.escapeHtml(title)}</div></div><div style="padding:28px 24px;line-height:1.6">${body}</div></div><div style="text-align:center;color:#64748b;font-size:12px;padding:16px 0">NutriNet · Chile</div></div></body></html>`;
+  private wrapHtml(
+    title: string,
+    body: string,
+    ctaLabel?: string,
+    ctaUrl?: string,
+  ) {
+    return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${this.escapeHtml(title)}</title></head><body style="margin:0;background:#f8fafc;font-family:Arial,sans-serif;color:#0f172a"><div style="max-width:600px;margin:0 auto;padding:24px"><div style="background:#fff;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden"><div style="background:linear-gradient(135deg,#4f46e5,#10b981);padding:28px 24px;color:#fff"><div style="font-size:24px;font-weight:800;letter-spacing:.02em">NutriNet</div><div style="opacity:.92;margin-top:6px">${this.escapeHtml(title)}</div></div><div style="padding:28px 24px;line-height:1.6">${body}${ctaLabel && ctaUrl ? `<p style="margin-top:28px"><a href="${this.escapeHtml(ctaUrl)}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 18px;border-radius:999px;font-weight:700">${this.escapeHtml(ctaLabel)}</a></p>` : ''}</div></div><div style="text-align:center;color:#64748b;font-size:12px;padding:16px 0">NutriNet · Chile</div></div></body></html>`;
   }
 
   private resolveFrom(channel: EmailChannel) {
@@ -446,6 +450,53 @@ export class MailService {
       subject: `Nuevo mensaje en tu portal de NutriNet`,
       html,
       text: `${data.title}\n\n${data.message}`,
+      channel: 'notifications',
+    });
+  }
+
+  async sendPatientPortalReplyEmail(data: {
+    email: string;
+    patientName: string;
+    nutritionistName: string;
+    question?: string | null;
+    reply: string;
+  }) {
+    const portalUrl = `${this.frontendUrl}/portal/login`;
+    const html = this.wrapHtml(
+      `Tu nutricionista te ha respondido!`,
+      `<p>Hola <strong>${this.escapeHtml(data.patientName)}</strong>,</p><p>Tu nutricionista <strong>${this.escapeHtml(data.nutritionistName)}</strong> te ha respondido en el portal.</p>${data.question ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:16px 18px;margin:20px 0"><div style="font-size:11px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em;margin-bottom:8px">Tu pregunta</div><p style="margin:0">${this.escapeHtml(data.question).replace(/\n/g, '<br>')}</p></div>` : ''}<div style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:16px;padding:16px 18px;margin:20px 0"><div style="font-size:11px;text-transform:uppercase;color:#047857;font-weight:700;letter-spacing:.08em;margin-bottom:8px">Respuesta</div><p style="margin:0">${this.escapeHtml(data.reply).replace(/\n/g, '<br>')}</p></div><p style="color:#64748b;font-size:14px">Revisa su respuesta aquí.</p>`,
+      'Abrir portal',
+      portalUrl,
+    );
+
+    await this.sendEmail({
+      to: data.email,
+      subject: 'Tu nutricionista te ha respondido',
+      html,
+      text: `Tu nutricionista te ha respondido en el portal.\n\n${data.question ? `Tu pregunta: ${data.question}\n\n` : ''}Respuesta: ${data.reply}\n\nRevisa el portal aquí: ${portalUrl}`,
+      channel: 'notifications',
+    });
+  }
+
+  async sendPatientPortalMessageEmail(data: {
+    email: string;
+    patientName: string;
+    nutritionistName: string;
+    message: string;
+  }) {
+    const portalUrl = `${this.frontendUrl}/portal/login`;
+    const html = this.wrapHtml(
+      `Tu nutricionista te ha enviado un mensaje`,
+      `<p>Hola <strong>${this.escapeHtml(data.patientName)}</strong>,</p><p>Tu nutricionista <strong>${this.escapeHtml(data.nutritionistName)}</strong> te ha enviado un mensaje en el portal.</p><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:16px 18px;margin:20px 0"><p style="margin:0">${this.escapeHtml(data.message).replace(/\n/g, '<br>')}</p></div><p style="color:#64748b;font-size:14px">Revisa el mensaje aquí.</p>`,
+      'Abrir portal',
+      portalUrl,
+    );
+
+    await this.sendEmail({
+      to: data.email,
+      subject: 'Tu nutricionista te ha enviado un mensaje',
+      html,
+      text: `Tu nutricionista te ha enviado un mensaje en el portal.\n\n${data.message}\n\nRevisa el portal aquí: ${portalUrl}`,
       channel: 'notifications',
     });
   }

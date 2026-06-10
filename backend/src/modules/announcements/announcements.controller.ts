@@ -12,7 +12,10 @@ import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
-import { SPECIAL_FEATURES, isAdminRole } from '../permissions/permissions.constants';
+import {
+  SPECIAL_FEATURES,
+  isAdminRole,
+} from '../permissions/permissions.constants';
 
 @Controller('announcements')
 export class AnnouncementsController {

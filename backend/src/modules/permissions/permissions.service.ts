@@ -6,6 +6,11 @@ import {
   normalizeEntitlementMap,
   SPECIAL_FEATURES,
 } from './permissions.constants';
+import {
+  getMembershipPlanEntitlementsFromPlan,
+  getMembershipPlanKey,
+  normalizeMembershipPlanKey,
+} from '../memberships/plan-entitlements';
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['ACTIVE', 'TRIALING']);
 
@@ -52,10 +57,12 @@ export class PermissionsService {
           id: account.subscription.plan.id,
           name: account.subscription.plan.name,
           slug: account.subscription.plan.slug,
+          key: getMembershipPlanKey(account.subscription.plan),
           price: Number(account.subscription.plan.price),
           features: account.subscription.plan.features,
           entitlements: normalizeEntitlementMap(
-            (account.subscription.plan as any).entitlements,
+            (account.subscription.plan as any).entitlements ||
+              getMembershipPlanEntitlementsFromPlan(account.subscription.plan),
           ),
         }
       : null;
@@ -83,6 +90,7 @@ export class PermissionsService {
     account: any,
     currentPlan: {
       slug: string;
+      key?: string;
       entitlements: EntitlementMap;
     } | null,
   ): EntitlementMap {
@@ -113,6 +121,7 @@ export class PermissionsService {
     return {
       accountPlan: account.plan,
       role: account.role,
+      currentPlanKey: currentPlan ? currentPlan.key || null : null,
       requiresPlanSelection,
       currentPlan,
       entitlements,
@@ -126,6 +135,13 @@ export class PermissionsService {
             planId: account.subscription.planId,
             planName: account.subscription.plan?.name || null,
             planSlug: account.subscription.plan?.slug || null,
+            planKey: account.subscription.plan
+              ? normalizeMembershipPlanKey(
+                  account.subscription.plan.slug ||
+                    account.subscription.plan.name ||
+                    '',
+                )
+              : null,
             planPrice: account.subscription.plan
               ? Number(account.subscription.plan.price)
               : null,
@@ -167,7 +183,26 @@ export class PermissionsService {
     if (isAdminRole(snapshot.role)) return Infinity;
 
     const value = snapshot.entitlements[limitKey];
-    return typeof value === 'number' ? value : 0;
+    if (typeof value !== 'number') return 0;
+    return value < 0 ? Infinity : value;
+  }
+
+  async ensureWithinLimit(
+    accountId: string,
+    limitKey: string,
+    currentUsage: number,
+  ) {
+    const limit = await this.getFeatureLimit(accountId, limitKey);
+
+    if (limit === Infinity) {
+      return;
+    }
+
+    if (currentUsage >= limit) {
+      throw new ForbiddenException(
+        `Su plan actual alcanzó el límite de ${limitKey}`,
+      );
+    }
   }
 
   async ensureAccess(accountId: string, featureKey: string) {

@@ -24,6 +24,7 @@ import {
   Settings,
   Dumbbell,
   Pill,
+  HelpCircle,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -104,6 +105,12 @@ const groups: SidebarGroup[] = [
       { name: "Feedback & Soporte", href: "/dashboard/feedback", icon: MessageSquare },
     ],
   },
+  {
+    title: "Ayuda",
+    items: [
+      { name: "Preguntas frecuentes", href: "/dashboard/preguntas-frecuentes", icon: HelpCircle },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -129,6 +136,7 @@ export function Sidebar() {
     if (group.title === "Ejercicio y Deporte") return 2;
     if (group.title === "Herramientas") return 3;
     if (group.title === "Agentes & IA") return 4;
+    if (group.title === "Ayuda") return 5;
     return 10;
   };
 

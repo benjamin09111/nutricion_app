@@ -33,6 +33,7 @@ export class PatientsController {
   @Post()
   create(@Request() req: any, @Body() createPatientDto: CreatePatientDto) {
     return this.patientsService.create(
+      req.user.id,
       req.user.nutritionistId,
       createPatientDto,
     );

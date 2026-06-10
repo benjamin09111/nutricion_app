@@ -32,6 +32,7 @@ import { ActionDockItem } from "@/components/ui/ActionDock";
 import Cookies from "js-cookie";
 import { Pagination } from "@/components/ui/Pagination";
 import { fetchApi } from "@/lib/api-base";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -56,6 +57,8 @@ export default function ConsultationsClient() {
   const [consultationToDelete, setConsultationToDelete] = useState<
     string | null
   >(null);
+  const { limit } = useSubscription();
+  const consultationLimit = limit("consultations.monthly.limit");
 
 
   const isAnyModalOpen = !!selectedConsultation || isDeleteModalOpen;
@@ -187,6 +190,9 @@ export default function ConsultationsClient() {
           </div>
 
           <div className="flex gap-2 w-full md:w-auto">
+            <div className="hidden md:flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500">
+              Límite mensual: {Number.isFinite(consultationLimit) ? consultationLimit : "Ilimitado"}
+            </div>
             <button
               onClick={() => router.push("/dashboard/consultas/nueva")}
               className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"

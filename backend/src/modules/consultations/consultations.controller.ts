@@ -35,6 +35,7 @@ export class ConsultationsController {
     @Body() createConsultationDto: CreateConsultationDto,
   ) {
     return this.consultationsService.create(
+      req.user.id,
       req.user.nutritionistId,
       createConsultationDto,
     );

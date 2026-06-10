@@ -34,6 +34,7 @@ import {
   fetchAppointmentsApi,
 } from "@/lib/appointments";
 import { getAuthToken } from "@/lib/auth-token";
+import { FeatureGate } from "@/components/memberships/FeatureGate";
 import {
   useAppointmentPatients,
   useAppointmentPatientPortalStatus,
@@ -1134,6 +1135,10 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
   const todayKey = formatDateKey(now);
 
   return (
+    <FeatureGate
+      feature="appointments.access"
+      message="La gestión de citas está disponible desde Pro."
+    >
     <div className="space-y-6">
       <section className="flex flex-wrap gap-2">
         {SCHEDULE_TABS.map((tab) => (
@@ -2122,6 +2127,7 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
       </Modal>
 
     </div>
+    </FeatureGate>
 
   );
 }

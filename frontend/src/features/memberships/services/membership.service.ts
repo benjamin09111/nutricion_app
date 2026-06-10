@@ -4,10 +4,22 @@ export interface MembershipStatus {
   requiresPlanSelection: boolean;
   accountPlan: string;
   entitlements: Record<string, boolean | number>;
+  usage?: {
+    patientsActive: number;
+    consultationsMonthly: number;
+    pdfMonthly: number;
+    aiMonthly: number;
+  };
+  billing?: {
+    nextPaymentAt: string | null;
+    nextPaymentAmount: number;
+    currency: string;
+  };
   currentPlan: {
     id: string;
     name: string;
     slug: string;
+    key?: string;
     price: number;
     features: string[];
     entitlements?: Record<string, boolean | number>;
@@ -52,6 +64,8 @@ export interface MembershipActivationSnapshot {
   requiresPlanSelection: boolean;
   currentPlan: MembershipStatus["currentPlan"];
   entitlements: Record<string, boolean | number>;
+  usage?: MembershipStatus["usage"];
+  billing?: MembershipStatus["billing"];
   subscription: MembershipStatus["subscription"];
 }
 
@@ -82,7 +96,7 @@ export const membershipService = {
     return res.json();
   },
 
-  async devChangePlan(planId: string): Promise<{ success: boolean; plan: { id: string; name: string; slug: string } }> {
+  async devChangePlan(planId: string): Promise<{ success: boolean; plan: { id: string; name: string; slug: string }; membershipStatus?: MembershipActivationSnapshot | null }> {
     const res = await api.post("/payments/dev/change-plan", { planId });
     return res.json();
   },
@@ -99,6 +113,11 @@ export const membershipService = {
 
   async resumeSubscription(): Promise<unknown> {
     const res = await api.post("/payments/membership/resume");
+    return res.json();
+  },
+
+  async consumeQuota(featureKey: string, amount = 1): Promise<{ usageCount: number | null; limit: number }> {
+    const res = await api.post("/permissions/consume", { featureKey, amount });
     return res.json();
   },
 };

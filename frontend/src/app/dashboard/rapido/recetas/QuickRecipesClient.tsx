@@ -38,6 +38,8 @@ import { fetchApi } from "@/lib/api-base";
 import { fetchCreation, saveCreation } from "@/lib/workflow";
 import { getAuthToken } from "@/lib/auth-token";
 import { useDashboardShell } from "@/context/DashboardShellContext";
+import { FeatureGate } from "@/components/memberships/FeatureGate";
+import { membershipService } from "@/features/memberships/services/membership.service";
 
 type QuickIngredient = {
   id: string;
@@ -1158,6 +1160,7 @@ export default function QuickRecipesClient() {
     }
     setIsExportingPdf(true);
     try {
+      await membershipService.consumeQuota("pdf.monthly.limit");
       const { downloadQuickRecipesPdf } = await import(
         "@/features/pdf/quickRecipesPdfExport"
       );
@@ -1366,6 +1369,10 @@ export default function QuickRecipesClient() {
   }, [quickRecipeSections]);
 
   return (
+    <FeatureGate
+      feature="ai.autofill.access"
+      message="Las recetas rápidas con IA están disponibles desde Pro."
+    >
     <>
       <ModuleLayout
         title="Recetas"
@@ -2084,6 +2091,7 @@ export default function QuickRecipesClient() {
       />
 
     </>
+    </FeatureGate>
   );
 }
 

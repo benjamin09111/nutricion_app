@@ -26,6 +26,7 @@ model Account {
   nutritionist               Nutritionist?
   payments           Payment[]
   subscription       Subscription?
+  planUsageCounters  PlanUsageCounter[]
   notifications      Notification[]
 
   @@index([role, createdAt])
@@ -559,6 +560,21 @@ model SubscriptionEvent {
   subscription   Subscription    @relation(fields: [subscriptionId], references: [id])
 
   @@map("subscription_events")
+}
+
+model PlanUsageCounter {
+  id          String   @id @default(uuid())
+  accountId   String   @map("account_id")
+  featureKey  String   @map("feature_key")
+  periodKey   String   @map("period_key")
+  usageCount  Int      @default(0) @map("usage_count")
+  createdAt   DateTime @map("created_at") @default(now())
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, featureKey, periodKey])
+  @@index([featureKey, periodKey])
+  @@map("plan_usage_counters")
 }
 
 model DailyMetric {

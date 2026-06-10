@@ -95,9 +95,9 @@ export class MercadoPagoService {
         },
         external_reference: pendingPayment.id,
         back_urls: {
-          success: `${this.configService.get('FRONTEND_URL')}/dashboard?payment=success`,
-          failure: `${this.configService.get('FRONTEND_URL')}/dashboard?payment=failure`,
-          pending: `${this.configService.get('FRONTEND_URL')}/dashboard?payment=pending`,
+          success: `${this.configService.get('FRONTEND_URL')}/dashboard/bienvenida?payment=success&plan=${encodeURIComponent(plan.name)}&slug=${encodeURIComponent(plan.slug)}`,
+          failure: `${this.configService.get('FRONTEND_URL')}/dashboard/bienvenida?payment=failure&plan=${encodeURIComponent(plan.name)}&slug=${encodeURIComponent(plan.slug)}`,
+          pending: `${this.configService.get('FRONTEND_URL')}/dashboard/bienvenida?payment=pending&plan=${encodeURIComponent(plan.name)}&slug=${encodeURIComponent(plan.slug)}`,
         },
         auto_return: 'approved',
       },

@@ -8,6 +8,8 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { PermissionsService } from '../permissions/permissions.service';
+import { PlanUsageService } from '../permissions/plan-usage.service';
+import { getMembershipPlanKey } from '../memberships/plan-entitlements';
 import {
   PaymentStatus,
   PaymentMethod,
@@ -23,6 +25,7 @@ export class PaymentsService {
     private prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly permissionsService: PermissionsService,
+    private readonly planUsageService: PlanUsageService,
   ) {}
 
   private isMockMode(): boolean {
@@ -124,12 +127,35 @@ export class PaymentsService {
     if (!snapshot) throw new NotFoundException('Cuenta no encontrada');
 
     const subscription = snapshot.subscription;
+    const now = new Date();
+    const startOfMonth = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+    const [activePatients, monthlyConsultations, pdfUsage, aiUsage] =
+      await Promise.all([
+        this.prisma.patient.count({
+          where: { nutritionist: { accountId }, status: 'Active' },
+        }),
+        this.prisma.consultation.count({
+          where: {
+            nutritionist: { accountId },
+            createdAt: { gte: startOfMonth },
+          },
+        }),
+        this.planUsageService.getUsage(accountId, 'pdf.monthly.limit'),
+        this.planUsageService.getUsage(accountId, 'ai.calls.limit'),
+      ]);
     const daysRemaining = subscription?.endDate
       ? Math.ceil(
           (new Date(subscription.endDate).getTime() - Date.now()) /
             (1000 * 60 * 60 * 24),
         )
       : null;
+
+    const nextPaymentAt =
+      subscription?.endDate && Number(snapshot.currentPlan?.price || 0) > 0
+        ? new Date(subscription.endDate).toISOString()
+        : null;
 
     return {
       requiresPlanSelection: snapshot.requiresPlanSelection,
@@ -139,12 +165,29 @@ export class PaymentsService {
             id: snapshot.currentPlan.id,
             name: snapshot.currentPlan.name,
             slug: snapshot.currentPlan.slug,
+            key:
+              snapshot.currentPlan.key ||
+              getMembershipPlanKey(snapshot.currentPlan),
             price: Number(snapshot.currentPlan.price),
             features: snapshot.currentPlan.features,
             entitlements: snapshot.currentPlan.entitlements,
           }
         : null,
       entitlements: snapshot.entitlements,
+      usage: {
+        patientsActive: activePatients,
+        consultationsMonthly: monthlyConsultations,
+        pdfMonthly: pdfUsage,
+        aiMonthly: aiUsage,
+      },
+      billing: {
+        nextPaymentAt,
+        nextPaymentAmount:
+          subscription && Number(snapshot.currentPlan?.price || 0) > 0
+            ? Number(snapshot.currentPlan?.price || 0)
+            : 0,
+        currency: 'CLP',
+      },
       subscription: subscription
         ? {
             ...subscription,
@@ -208,9 +251,8 @@ export class PaymentsService {
       );
       await this.upsertDailyMetric(tx, 0, startDate);
 
-      const membershipStatus = await this.permissionsService.getAccessSnapshot(
-        accountId,
-      );
+      const membershipStatus =
+        await this.permissionsService.getAccessSnapshot(accountId);
 
       return {
         payment,
@@ -573,10 +615,14 @@ export class PaymentsService {
         plan.id,
       );
 
+      const membershipStatus =
+        await this.permissionsService.getAccessSnapshot(accountId);
+
       return {
         success: true,
         subscription: true,
         plan: { id: plan.id, name: plan.name, slug: plan.slug },
+        membershipStatus,
       };
     });
   }
@@ -617,11 +663,8 @@ export class PaymentsService {
     plan: any,
     endDate: Date,
   ) {
-    let accountPlan: SubscriptionPlan = SubscriptionPlan.PRO;
-    if (plan.slug.toLowerCase().includes('free'))
-      accountPlan = SubscriptionPlan.FREE;
-    if (plan.slug.toLowerCase().includes('enterprise'))
-      accountPlan = SubscriptionPlan.ENTERPRISE;
+    const accountPlan: SubscriptionPlan =
+      Number(plan.price) === 0 ? SubscriptionPlan.FREE : SubscriptionPlan.PRO;
 
     return tx.account.update({
       where: { id: accountId },

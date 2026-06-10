@@ -1,7 +1,13 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { AiService } from '../../common/services/ai.service';
 import { PAUTAS_AI_PROMPTS } from './pautas-ai-prompts';
 import { AiGeneratePautasDto } from './dto/ai-generate-pautas.dto';
+import { PlanUsageService } from '../permissions/plan-usage.service';
 
 type PautaParagraph = {
   category: string;
@@ -18,9 +24,15 @@ type PautaAiResponse = {
 export class PautasService {
   private readonly logger = new Logger(PautasService.name);
 
-  constructor(private readonly aiService: AiService) {}
+  constructor(
+    private readonly aiService: AiService,
+    private readonly planUsageService: PlanUsageService,
+  ) {}
 
-  async generateWithAi(dto: AiGeneratePautasDto): Promise<PautaAiResponse> {
+  async generateWithAi(
+    accountId: string,
+    dto: AiGeneratePautasDto,
+  ): Promise<PautaAiResponse> {
     const {
       restriction,
       categories,
@@ -50,6 +62,11 @@ export class PautasService {
     );
 
     try {
+      await this.planUsageService.consumeMonthlyQuota(
+        accountId,
+        'ai.calls.limit',
+      );
+
       const rawResponse = await this.aiService.callJson(
         systemInstruction,
         userPrompt,
@@ -57,6 +74,9 @@ export class PautasService {
       const parsed = this.parseAiResponse(rawResponse);
       return parsed;
     } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`[AI] Request failed: ${message}`);
       throw new BadRequestException(this.mapAiErrorMessage(message));

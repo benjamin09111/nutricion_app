@@ -186,27 +186,27 @@ export class UsersService {
       };
     }
 
-      const accounts = await this.prisma.account.findMany({
-        where,
-        include: {
-          nutritionist: {
-            include: {
+    const accounts = await this.prisma.account.findMany({
+      where,
+      include: {
+        nutritionist: {
+          include: {
             _count: {
               select: { patients: true },
             },
-            },
-          },
-          subscription: {
-            include: {
-              plan: true,
-            },
           },
         },
-        orderBy: [
-          { lastLoginAt: { sort: 'desc', nulls: 'last' } },
-          { createdAt: 'desc' },
-        ],
-      });
+        subscription: {
+          include: {
+            plan: true,
+          },
+        },
+      },
+      orderBy: [
+        { lastLoginAt: { sort: 'desc', nulls: 'last' } },
+        { createdAt: 'desc' },
+      ],
+    });
 
     // Backend optimizes the data structure before sending to frontend
     return accounts.map((acc) => this.mapAccount(acc));
@@ -214,7 +214,8 @@ export class UsersService {
 
   private mapAccount(acc: any) {
     const subscriptionPlan = acc.subscription?.plan || null;
-    const subscriptionEndsAt = acc.subscription?.endDate || acc.subscriptionEndsAt;
+    const subscriptionEndsAt =
+      acc.subscription?.endDate || acc.subscriptionEndsAt;
     const paymentState = this.resolvePaymentState(
       acc.plan,
       subscriptionPlan?.price,
@@ -267,7 +268,8 @@ export class UsersService {
     planPrice?: unknown,
     subscriptionEndsAt?: Date | null,
   ): 'free' | 'paid' | 'expired' | 'none' {
-    const price = typeof planPrice === 'number' ? planPrice : Number(planPrice || 0);
+    const price =
+      typeof planPrice === 'number' ? planPrice : Number(planPrice || 0);
 
     if (accountPlan === 'FREE' || price === 0) {
       return 'free';

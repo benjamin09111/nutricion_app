@@ -7,7 +7,6 @@ import {
   Loader2,
   Calendar,
   User,
-  ClipboardList,
   Download,
   MessageSquare,
   Bell,
@@ -27,6 +26,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { type PortalVerificationResponse } from "@/features/patient-portal/types";
+import { PortalGuideWidget } from "@/components/patient-portal/PortalGuideWidget";
 
 interface PortalPreview {
   patientName: string;
@@ -46,7 +46,7 @@ const safeLocalStorage = {
     if (typeof window === 'undefined') return null;
     try {
       return localStorage.getItem(key);
-    } catch (e) {
+    } catch {
       return null;
     }
   },
@@ -54,13 +54,13 @@ const safeLocalStorage = {
     if (typeof window === 'undefined') return;
     try {
       localStorage.setItem(key, value);
-    } catch (e) { }
+    } catch { }
   },
   removeItem: (key: string) => {
     if (typeof window === 'undefined') return;
     try {
       localStorage.removeItem(key);
-    } catch (e) { }
+    } catch { }
   }
 };
 
@@ -127,9 +127,9 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
         } else {
           toast.error("El enlace no está disponible o ya expiró.");
         }
-      } catch (err) {
-        toast.error("No pudimos abrir el portal de seguimiento.");
-      } finally {
+    } catch {
+      toast.error("No pudimos abrir el portal de seguimiento.");
+    } finally {
         if (isMounted && !safeLocalStorage.getItem(getPortalStorageKey(token))) {
           setIsLoading(false);
         }
@@ -370,7 +370,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
       } else {
         toast.error("No se pudo publicar el registro");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error de conexión");
     } finally {
       setIsSubmittingEntry(false);
@@ -407,7 +407,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
       } else {
         toast.error("No se pudo enviar la consulta");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error de conexión");
     } finally {
       setIsSubmittingQuestion(false);
@@ -525,8 +525,8 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
   return (
     <div className="min-h-screen bg-[#fafaf9] text-slate-900 font-sans">
       {/* Navbar Superior */}
-      <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 py-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <header className="sticky top-0 z-40 w-full border-b border-slate-100 bg-white/80 px-4 py-3 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-100">
               <ShieldCheck className="h-5 w-5" />
@@ -544,14 +544,14 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
               safeLocalStorage.removeItem(getPortalStorageKey(token));
               window.location.reload();
             }}
-            className="rounded-xl h-9 px-4 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors"
+            className="h-9 rounded-xl px-4 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-50 sm:ml-auto"
           >
             Cerrar Sesión
           </Button>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 p-4 md:p-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 pb-28 sm:p-6 sm:pb-8 lg:flex-row lg:gap-8 lg:p-8">
         {/* Sidebar */}
         <aside className="w-full lg:w-64 shrink-0 space-y-3 lg:space-y-2">
           <div className="hidden lg:block px-2 mb-4">
@@ -561,7 +561,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
             <button
               onClick={() => setActiveTab("diary")}
               className={cn(
-                "shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
+                "shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
                 activeTab === "diary" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               )}
             >
@@ -576,7 +576,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
             <button
               onClick={() => setActiveTab("messages")}
               className={cn(
-                "shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
+                "shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
                 activeTab === "messages" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               )}
             >
@@ -591,7 +591,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
             <button
               onClick={() => setActiveTab("questions")}
               className={cn(
-                "shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
+                "shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
                 activeTab === "questions" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               )}
             >
@@ -606,7 +606,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
             <button
               onClick={() => setActiveTab("plans")}
               className={cn(
-                "shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
+                "shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
                 activeTab === "plans" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               )}
             >
@@ -621,7 +621,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
             <button
               onClick={() => setActiveTab("notifications")}
               className={cn(
-                "shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
+                "shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
                 activeTab === "notifications" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               )}
             >
@@ -639,7 +639,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
             <button
               onClick={() => setActiveTab("appointments")}
               className={cn(
-                "shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
+                "shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
                 activeTab === "appointments" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               )}
             >
@@ -660,7 +660,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                   const url = portalData.patient.nutritionist?.settings?.bookingUrl;
                   if (url) window.open(url, "_blank");
                 }}
-                className="shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-bold text-xs lg:text-sm bg-emerald-600 text-white shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-[0.98] mt-0 lg:mt-4 whitespace-nowrap"
+                className="shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-bold text-xs lg:text-sm bg-emerald-600 text-white shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-[0.98] mt-0 lg:mt-4 whitespace-nowrap"
               >
                 <Calendar className="h-5 w-5" />
                 Agendar Cita
@@ -676,7 +676,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
         </aside>
 
         {/* Contenido Principal con Renderizado Condicional */}
-        <main className="flex-1 space-y-8 min-w-0">
+        <main className="min-w-0 flex-1 space-y-8">
           {/* TAB: DIARIO */}
           {activeTab === "diary" && (
             <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -1149,6 +1149,8 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
           )}
         </main>
       </div>
+
+      <PortalGuideWidget />
     </div>
   );
 }

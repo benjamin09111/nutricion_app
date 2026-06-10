@@ -9,6 +9,7 @@ import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateExamDto } from './dto/create-exam.dto';
 
 import { CacheService } from '../../common/services/cache.service';
+import { PermissionsService } from '../permissions/permissions.service';
 
 const AUTOMATIC_NUTRITION_KEY = 'automaticNutritionCalculations';
 
@@ -27,11 +28,26 @@ export class PatientsService {
   constructor(
     private prisma: PrismaService,
     private cacheService: CacheService,
+    private permissionsService: PermissionsService,
   ) {}
 
-  async create(nutritionistId: string, createPatientDto: CreatePatientDto) {
+  async create(
+    accountId: string,
+    nutritionistId: string,
+    createPatientDto: CreatePatientDto,
+  ) {
     const { recalculateNutrition, age, ...patientData } =
       createPatientDto as any;
+    const activePatients = await this.prisma.patient.count({
+      where: { nutritionistId, status: 'Active' },
+    });
+
+    await this.permissionsService.ensureWithinLimit(
+      accountId,
+      'patients.active.limit',
+      activePatients,
+    );
+
     const customVariables = this.withAutomaticNutritionCalculations(
       patientData.customVariables,
       patientData,

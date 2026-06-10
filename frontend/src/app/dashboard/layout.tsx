@@ -28,6 +28,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const { isIntroTutorialActive } = useTutorials();
   const pathname = usePathname();
   const isRecipesModule = pathname.startsWith("/dashboard/recetas");
+  const isWelcomeRoute = pathname.startsWith("/dashboard/bienvenida");
 
   if (isLoading) {
     return (
@@ -107,7 +108,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     </div>
   );
 
-  if (isAdminView) {
+  if (isAdminView || isWelcomeRoute) {
     return dashboardShell;
   }
 

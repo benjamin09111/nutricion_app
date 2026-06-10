@@ -1,0 +1,120 @@
+{
+  "default": {
+    "moduleLabel": "Dashboard",
+    "message": "Soy Nutria. Te ayudo a ubicarte, abrir el flujo correcto y resolver dudas rápidas sin salir de la pantalla.",
+    "links": [
+      { "label": "Ir al dashboard", "href": "/dashboard" },
+      { "label": "Ver pacientes", "href": "/dashboard/pacientes" }
+    ]
+  },
+  "routes": [
+    {
+      "routePatterns": ["/dashboard/dieta"],
+      "moduleLabel": "Dieta",
+      "message": "Aquí defines la estrategia clínica y las restricciones base para el entregable personalizado.",
+      "links": [
+        { "label": "Abrir recetas", "href": "/dashboard/recetas" },
+        { "label": "Ver pacientes", "href": "/dashboard/pacientes" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/recetas"],
+      "moduleLabel": "Recetas y Porciones",
+      "message": "Completa la cuantificación y el reparto de comidas con el contexto que viene desde Dieta.",
+      "links": [
+        { "label": "Volver a dieta", "href": "/dashboard/dieta" },
+        { "label": "Ir al carrito", "href": "/dashboard/carrito" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/carrito"],
+      "moduleLabel": "Carrito",
+      "message": "Convierte la planificación en una lista de compra clara y lista para usar.",
+      "links": [
+        { "label": "Ir a entregable", "href": "/dashboard/entregable" },
+        { "label": "Revisar recetas", "href": "/dashboard/recetas" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/entregable"],
+      "moduleLabel": "Entregable",
+      "message": "Exporta el plan final con un formato profesional para tu paciente.",
+      "links": [
+        { "label": "Ir a dieta", "href": "/dashboard/dieta" },
+        { "label": "Ir a pacientes", "href": "/dashboard/pacientes" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/pacientes", "/dashboard/pacientes/*"],
+      "moduleLabel": "Pacientes",
+      "message": "Gestiona perfiles, seguimiento y el contexto clínico que alimenta todo el flujo.",
+      "links": [
+        { "label": "Crear paciente", "href": "/dashboard/pacientes/new" },
+        { "label": "Ir a consultas", "href": "/dashboard/consultas" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/consultas", "/dashboard/consultas/*"],
+      "moduleLabel": "Consultas",
+      "message": "Registra sesiones, observaciones y evolución clínica en un solo lugar.",
+      "links": [
+        { "label": "Ver pacientes", "href": "/dashboard/pacientes" },
+        { "label": "Ir a herramientas", "href": "/dashboard/herramientas/calculos" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/alimentos", "/dashboard/alimentos/*"],
+      "moduleLabel": "Alimentos",
+      "message": "Consulta y organiza la base de ingredientes para usarla en cualquier flujo clínico.",
+      "links": [
+        { "label": "Ver grupos", "href": "/dashboard/alimentos/grupos" },
+        { "label": "Ir a sustitutos", "href": "/dashboard/sustitutos" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/platos", "/dashboard/platos/*"],
+      "moduleLabel": "Platos",
+      "message": "Guarda preparaciones reutilizables para acelerar la creación de planes y recetas.",
+      "links": [
+        { "label": "Crear plato", "href": "/dashboard/platos/nuevo" },
+        { "label": "Ver recursos", "href": "/dashboard/recursos" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/recursos", "/dashboard/recursos/*"],
+      "moduleLabel": "Recursos",
+      "message": "Administra PDFs, plantillas y material educativo para tus pacientes.",
+      "links": [
+        { "label": "Nuevo recurso", "href": "/dashboard/recursos/nuevo" },
+        { "label": "Ir a creaciones", "href": "/dashboard/creaciones" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/rapido"],
+      "moduleLabel": "Entregable Rápido",
+      "message": "Usa este flujo cuando necesites un resultado ágil sin recorrer el proceso completo.",
+      "links": [
+        { "label": "Abrir recetas rápidas", "href": "/dashboard/rapido/recetas" },
+        { "label": "Ir a dieta", "href": "/dashboard/dieta" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/rapido/recetas"],
+      "moduleLabel": "Recetas Rápidas",
+      "message": "Genera recetas completas a partir de texto libre y guarda lo que te sirva.",
+      "links": [
+        { "label": "Abrir entregable rápido", "href": "/dashboard/rapido" },
+        { "label": "Ver platos", "href": "/dashboard/platos" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/configuraciones"],
+      "moduleLabel": "Configuraciones",
+      "message": "Ajusta tu perfil, preferencias y plan actual desde un solo lugar.",
+      "links": [
+        { "label": "Ver plan", "href": "/dashboard/configuraciones#membership" },
+        { "label": "Soporte", "href": "/dashboard/feedback" }
+      ]
+    }
+  ]
+}

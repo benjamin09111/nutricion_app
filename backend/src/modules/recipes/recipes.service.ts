@@ -18,6 +18,7 @@ import { CacheService } from '../../common/services/cache.service';
 import { AiService } from '../../common/services/ai.service';
 import { RECIPES_AI_PROMPTS } from './recipes-ai-prompts';
 import { isAdminRole } from '../permissions/permissions.constants';
+import { PlanUsageService } from '../permissions/plan-usage.service';
 
 type AiRecipeOutput = {
   slotId: string;
@@ -88,6 +89,7 @@ export class RecipesService {
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
     private readonly aiService: AiService,
+    private readonly planUsageService: PlanUsageService,
   ) {}
 
   private async getNutritionistId(accountId: string): Promise<string> {
@@ -162,15 +164,24 @@ export class RecipesService {
   }
 
   private async callAiJson(
+    accountId: string,
     systemInstruction: string,
     userPrompt: string,
   ): Promise<string> {
     try {
+      await this.planUsageService.consumeMonthlyQuota(
+        accountId,
+        'ai.calls.limit',
+      );
+
       const text = await this.aiService.callJson(systemInstruction, userPrompt);
       this.logger.log(`[AI] Response ok chars=${text.length}`);
       this.logger.log(`[AI] Raw response:\n${text}`);
       return text;
     } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`[AI] Request failed: ${message}`);
       throw new BadRequestException(this.mapAiErrorMessage(message));
@@ -381,6 +392,7 @@ export class RecipesService {
     );
 
     const content = await this.callAiJson(
+      userId,
       RECIPES_AI_PROMPTS.base,
       this.buildAiPrompt(payload),
     );
@@ -659,6 +671,7 @@ export class RecipesService {
 
     const payload = dto.payload || ({} as QuickAiFillPayload);
     const content = await this.callAiJson(
+      userId,
       'Eres un nutricionista clínico experto. Responde solo JSON válido.',
       this.buildQuickAiPrompt(payload),
     );
@@ -1103,7 +1116,10 @@ export class RecipesService {
     return updated;
   }
 
-  async estimateMacros(dto: EstimateMacrosDto): Promise<{
+  async estimateMacros(
+    userId: string,
+    dto: EstimateMacrosDto,
+  ): Promise<{
     calories: number;
     proteins: number;
     carbs: number;
@@ -1118,6 +1134,7 @@ export class RecipesService {
 
     try {
       const content = await this.callAiJson(
+        userId,
         'Eres un asistente nutricional. Responde solo JSON.',
         prompt,
       );

@@ -13,12 +13,6 @@ import { membershipService } from "@/features/memberships/services/membership.se
 export type SubscriptionPlan = "free" | "trial" | "pro";
 export type SubscriptionStatus = "active" | "expired" | "cancelled";
 
-const PLAN_FEATURES = {
-  free: { canGenerateDiet: false, canExportPDF: false, patientLimit: 1, hasBranding: false },
-  trial: { canGenerateDiet: true, canExportPDF: true, patientLimit: 5, hasBranding: true },
-  pro: { canGenerateDiet: true, canExportPDF: true, patientLimit: 999, hasBranding: true },
-};
-
 export interface MembershipState {
   plan: SubscriptionPlan;
   planName: string;
@@ -33,10 +27,22 @@ export interface MembershipState {
     id: string;
     name: string;
     slug: string;
+    key?: string;
     price: number;
     features: string[];
     entitlements?: Record<string, boolean | number>;
   } | null;
+  usage?: {
+    patientsActive: number;
+    consultationsMonthly: number;
+    pdfMonthly: number;
+    aiMonthly: number;
+  };
+  billing?: {
+    nextPaymentAt: string | null;
+    nextPaymentAmount: number;
+    currency: string;
+  };
 }
 
 interface SubscriptionContextType extends MembershipState {
@@ -68,9 +74,28 @@ export function SubscriptionProvider({
   const [requiresPlanSelection, setRequiresPlanSelection] = useState(false);
   const [entitlements, setEntitlements] = useState<Record<string, boolean | number>>({});
   const [currentPlan, setCurrentPlan] = useState<MembershipState["currentPlan"]>(null);
+  const [usage, setUsage] = useState<MembershipState["usage"]>(undefined);
+  const [billing, setBilling] = useState<MembershipState["billing"]>(undefined);
   const [isLoading, setIsLoading] = useState(true);
-  const planFeatures = PLAN_FEATURES[plan] || PLAN_FEATURES.free;
   const isDeveloper = role === "NUTRITIONIST_DEVELOPER";
+
+  const getLimitValue = useCallback(
+    (limitKey: string) => {
+      const value = entitlements[limitKey];
+      if (typeof value === "number") return value < 0 ? Number.POSITIVE_INFINITY : value;
+      return 0;
+    },
+    [entitlements],
+  );
+
+  const planFeatures = {
+    canGenerateDiet: !requiresPlanSelection,
+    canExportPDF: getLimitValue("pdf.monthly.limit") > 0,
+    patientLimit: Number.isFinite(getLimitValue("patients.active.limit"))
+      ? getLimitValue("patients.active.limit")
+      : 999,
+    hasBranding: (currentPlan?.key || currentPlan?.slug || "").toLowerCase() !== "free",
+  };
 
   const applyStoredUserSnapshot = useCallback(() => {
     const storedUser = localStorage.getItem("user");
@@ -79,12 +104,14 @@ export function SubscriptionProvider({
     try {
       const user = JSON.parse(storedUser);
       setRole(typeof user?.role === "string" ? user.role : null);
-      if (user.plan) {
-        const backendPlan = String(user.plan).toLowerCase();
+      if (user.plan || user.currentPlan?.key || user.currentPlan?.slug) {
+        const backendPlan = String(user.currentPlan?.key || user.currentPlan?.slug || user.plan).toLowerCase();
         if (backendPlan === "free") setPlan("free");
-        else if (backendPlan === "pro" || backendPlan === "enterprise") setPlan("pro");
+        else if (backendPlan === "pro" || backendPlan === "premium" || backendPlan === "enterprise" || backendPlan === "iniciante") setPlan("pro");
       }
       if (user.planName) setPlanName(user.planName);
+      if (user.usage) setUsage(user.usage);
+      if (user.billing) setBilling(user.billing);
       if (user.subscription?.endDate) {
         setSubscriptionEndsAt(new Date(user.subscription.endDate));
         const endDate = new Date(user.subscription.endDate);
@@ -102,7 +129,7 @@ export function SubscriptionProvider({
 
   const computePlan = useCallback(
     (planData: MembershipState["currentPlan"], accPlan: string) => {
-      const slug = (planData?.slug || accPlan || "").toLowerCase();
+      const slug = (planData?.key || planData?.slug || accPlan || "").toLowerCase();
 
       if (slug.includes("trial")) return "trial";
       if (slug.includes("free")) return "free";
@@ -135,6 +162,8 @@ export function SubscriptionProvider({
       setRequiresPlanSelection(data.requiresPlanSelection);
       setEntitlements(data.entitlements || {});
       setCurrentPlan(data.currentPlan);
+      setUsage(data.usage);
+      setBilling(data.billing);
 
       // Sync to localStorage for legacy consumers
       const storedUser = localStorage.getItem("user");
@@ -148,6 +177,8 @@ export function SubscriptionProvider({
           user.currentPlan = data.currentPlan;
           user.subscriptionEndsAt = data.subscription?.endDate || null;
           user.entitlements = data.entitlements || {};
+          user.usage = data.usage || null;
+          user.billing = data.billing || null;
           localStorage.setItem("user", JSON.stringify(user));
         } catch {}
       }
@@ -178,6 +209,34 @@ export function SubscriptionProvider({
         return !requiresPlanSelection;
       }
 
+      if (featureKey === "clinical_calculator.access") {
+        return currentPlan?.key !== "free";
+      }
+
+      if (featureKey === "food_groups.access") {
+        return currentPlan?.key !== "free";
+      }
+
+      if (featureKey === "appointments.access") {
+        return currentPlan?.key === "pro";
+      }
+
+      if (featureKey === "google_calendar.sync") {
+        return currentPlan?.key === "pro";
+      }
+
+      if (featureKey === "ai.autofill.access") {
+        return currentPlan?.key === "pro";
+      }
+
+      if (featureKey === "nutritionist_portal.access") {
+        return currentPlan?.key === "pro";
+      }
+
+      if (featureKey === "sii_invoices.access") {
+        return currentPlan?.key === "pro";
+      }
+
       if (featureKey === "canGenerateDiet") {
         return planFeatures.canGenerateDiet;
       }
@@ -197,14 +256,14 @@ export function SubscriptionProvider({
       const value = entitlements[featureKey];
       return value === true || (typeof value === "number" && value > 0);
     },
-    [entitlements, planFeatures, requiresPlanSelection],
+    [currentPlan, entitlements, planFeatures, requiresPlanSelection],
   );
 
   const limit = useCallback(
     (limitKey: string) => {
       const value = entitlements[limitKey];
       if (typeof value === "number") {
-        return value;
+        return value < 0 ? Number.POSITIVE_INFINITY : value;
       }
 
       if (limitKey === "patientLimit") {
@@ -246,6 +305,8 @@ export function SubscriptionProvider({
     requiresPlanSelection,
     entitlements,
     currentPlan,
+    usage,
+    billing,
     role,
     refreshSubscription,
     forceUpdatePlan,

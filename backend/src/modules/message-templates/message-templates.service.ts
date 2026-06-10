@@ -76,7 +76,9 @@ export class MessageTemplatesService {
           subject: data.subject ?? current?.subject ?? '',
           content: data.content ?? current?.content ?? '',
           fromEmail:
-            data.fromEmail ?? current?.fromEmail ?? 'notificaciones@nutrinet.cl',
+            data.fromEmail ??
+            current?.fromEmail ??
+            'notificaciones@nutrinet.cl',
         },
       },
     });

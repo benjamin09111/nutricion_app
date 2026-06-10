@@ -34,8 +34,12 @@ export const EMAIL_IDENTITIES: Record<EmailChannel, string> = {
 export const DEFAULT_REPLY_TO =
   process.env.RESEND_REPLY_TO?.trim() || 'contacto@nutrinet.cl';
 
-export const ANNOUNCEMENT_FROM_IDENTITIES: Record<AnnouncementSenderEmail, string> = {
-  'notificaciones@nutrinet.cl': 'NutriNet Notificaciones <notificaciones@nutrinet.cl>',
+export const ANNOUNCEMENT_FROM_IDENTITIES: Record<
+  AnnouncementSenderEmail,
+  string
+> = {
+  'notificaciones@nutrinet.cl':
+    'NutriNet Notificaciones <notificaciones@nutrinet.cl>',
   'soporte@nutrinet.cl': 'NutriNet Soporte <soporte@nutrinet.cl>',
   'pagos@nutrinet.cl': 'NutriNet Pagos <pagos@nutrinet.cl>',
   'info@nutrinet.cl': 'NutriNet Info <info@nutrinet.cl>',

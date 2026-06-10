@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import Cookies from "js-cookie";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { calculateBMI, calculateGET, getIdealWeightRange, calculateAge, type ActivityLevel as NutritionActivityLevel, type GetResult } from "@/lib/nutrition-formulas";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 const normalizeActivityLevel = (value?: string | null): Patient["activityLevel"] => {
   const raw = String(value || "").toLowerCase();
@@ -160,6 +161,7 @@ function buildSuggestionTargets(input: {
 export default function CreatePatientClient() {
   const router = useRouter();
   const { draft, updateDraft, clearDraft, isLoaded } = usePatientDraft();
+  const { limit } = useSubscription();
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -167,6 +169,7 @@ export default function CreatePatientClient() {
     (m) => m.key !== "activityLevel" && (typeof m.value !== "object" || m.value === null),
   ) as Array<{ key?: string; label: string; unit?: string; value?: string | number }>;
   const selectedActivityLevel = normalizeActivityLevel(draft.activityLevel);
+  const patientLimit = limit("patients.active.limit");
 
   // Ensure weight is always in customVariables for new/existing patients in this form
   useEffect(() => {
@@ -388,6 +391,9 @@ export default function CreatePatientClient() {
                 </h1>
                 <p className="text-emerald-100/60 text-xs lg:text-sm max-w-xl font-medium">
                   Completa los datos base del paciente. NutriNet clasificará automáticamente el perfil y sugerirá objetivos diarios según IMC, gasto energético y composición. Los valores son editables y deben ser revisados por el nutricionista.
+                </p>
+                <p className="mt-3 inline-flex rounded-full border border-emerald-400/20 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-100">
+                  Límite de pacientes activos: {Number.isFinite(patientLimit) ? patientLimit : "Ilimitado"}
                 </p>
               </div>
             </div>

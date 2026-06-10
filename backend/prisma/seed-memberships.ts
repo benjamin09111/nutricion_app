@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { getMembershipPlanEntitlements } from '../src/modules/memberships/plan-entitlements';
 
 const prisma = new PrismaClient();
 
@@ -24,54 +25,62 @@ async function seedMembershipPlans() {
             maxStorage: 1,
             isPopular: false,
             isActive: true,
-            displayOrder: 1
+            displayOrder: 1,
+            entitlements: getMembershipPlanEntitlements('free'),
         },
         {
-            name: 'Pro',
-            slug: 'pro',
-            description: 'Para nutricionistas profesionales que buscan eficiencia',
-            price: 29990,
+            name: 'Iniciante',
+            slug: 'iniciante',
+            description: 'Para nutricionistas con pocos clientes o para probar funciones extra.',
+            price: 19990,
             currency: 'CLP',
             billingPeriod: 'monthly',
             features: [
-                'Pacientes ilimitados',
-                'IA avanzada para dietas personalizadas',
-                'Listas de compras inteligentes',
-                'Análisis nutricional completo',
-                'Plantillas personalizables',
-                'Soporte prioritario',
-                '50 GB de almacenamiento',
-                'Exportación PDF premium'
-            ],
-            maxPatients: null,
-            maxStorage: 50,
-            isPopular: true,
-            isActive: true,
-            displayOrder: 2
-        },
-        {
-            name: 'Enterprise',
-            slug: 'enterprise',
-            description: 'Para clínicas y organizaciones con múltiples profesionales',
-            price: 99990,
-            currency: 'CLP',
-            billingPeriod: 'monthly',
-            features: [
-                'Todo lo de Pro',
-                'Múltiples usuarios (hasta 10)',
-                'Panel de administración centralizado',
-                'API de integración',
-                'Branding personalizado',
-                'Soporte dedicado 24/7',
-                'Almacenamiento ilimitado',
-                'Reportes avanzados',
-                'Capacitación personalizada'
+                '30 pacientes activos',
+                '60 consultas al mes',
+                '30 PDFs al mes',
+                '2 seguimientos privados activos',
+                'Base de ingredientes',
+                'Calculadora clínica',
+                'Grupos de alimentos',
+                '20 llamadas a IA',
+                'Sin gestión de citas',
+                'Sin Google Calendar',
+                'Sin portal de nutricionista',
+                'Sin boletas SII'
             ],
             maxPatients: null,
             maxStorage: null,
             isPopular: false,
             isActive: true,
-            displayOrder: 3
+            displayOrder: 2,
+            entitlements: getMembershipPlanEntitlements('iniciante'),
+        },
+        {
+            name: 'Pro',
+            slug: 'pro',
+            description: 'Plan profesional completo para automatizar y crecer.',
+            price: 39990,
+            currency: 'CLP',
+            billingPeriod: 'monthly',
+            features: [
+                'Pacientes ilimitados',
+                'Consultas ilimitadas',
+                'PDFs ilimitados',
+                'Seguimientos ilimitados',
+                'IA ilimitada',
+                'Relleno automático de IA',
+                'Gestión de citas y horarios',
+                'Google Calendar',
+                'Portal de nutricionista',
+                'Generación de boletas SII'
+            ],
+            maxPatients: null,
+            maxStorage: null,
+            isPopular: true,
+            isActive: true,
+            displayOrder: 3,
+            entitlements: getMembershipPlanEntitlements('pro'),
         }
     ];
 

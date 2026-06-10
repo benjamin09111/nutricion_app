@@ -14,13 +14,18 @@ import { MessageTemplatesService } from './message-templates.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
-import { SPECIAL_FEATURES, isAdminRole } from '../permissions/permissions.constants';
+import {
+  SPECIAL_FEATURES,
+  isAdminRole,
+} from '../permissions/permissions.constants';
 import { CreateMessageTemplateDto } from './dto/create-message-template.dto';
 import { UpdateMessageTemplateDto } from './dto/update-message-template.dto';
 
 @Controller('message-templates')
 export class MessageTemplatesController {
-  constructor(private readonly messageTemplatesService: MessageTemplatesService) {}
+  constructor(
+    private readonly messageTemplatesService: MessageTemplatesService,
+  ) {}
 
   @UseGuards(AuthGuard, PermissionsGuard)
   @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
@@ -38,7 +43,9 @@ export class MessageTemplatesController {
   @Post()
   create(@Request() req: any, @Body() body: CreateMessageTemplateDto) {
     if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException('No tienes permisos para crear plantillas');
+      throw new UnauthorizedException(
+        'No tienes permisos para crear plantillas',
+      );
     }
 
     return this.messageTemplatesService.create(body);
@@ -53,7 +60,9 @@ export class MessageTemplatesController {
     @Body() body: UpdateMessageTemplateDto,
   ) {
     if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException('No tienes permisos para editar plantillas');
+      throw new UnauthorizedException(
+        'No tienes permisos para editar plantillas',
+      );
     }
 
     return this.messageTemplatesService.update(id, body);
@@ -64,7 +73,9 @@ export class MessageTemplatesController {
   @Delete(':id')
   remove(@Param('id') id: string, @Request() req: any) {
     if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException('No tienes permisos para eliminar plantillas');
+      throw new UnauthorizedException(
+        'No tienes permisos para eliminar plantillas',
+      );
     }
 
     return this.messageTemplatesService.remove(id);

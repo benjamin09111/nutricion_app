@@ -195,7 +195,7 @@ export class MetricsService {
                 ? 'Administrador (Legado)'
                 : acc.role === 'NUTRITIONIST_DEVELOPER'
                   ? 'Nutricionista Developer'
-                : acc.email.split('@')[0]),
+                  : acc.email.split('@')[0]),
         email: acc.email,
         role: acc.role,
         joinedAt: acc.createdAt,

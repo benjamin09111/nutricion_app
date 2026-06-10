@@ -31,10 +31,9 @@ const buildPublicSlug = (fullName: string, id: string) => {
 const buildVerificationToken = () => crypto.randomBytes(32).toString('hex');
 
 const getFrontendUrl = () =>
-  (
-    process.env.NODE_ENV === 'production'
-      ? process.env.FRONTEND_URL || 'https://nutrinet.cl'
-      : 'http://localhost:3000'
+  (process.env.NODE_ENV === 'production'
+    ? process.env.FRONTEND_URL || 'https://nutrinet.cl'
+    : 'http://localhost:3000'
   ).replace(/\/$/, '');
 
 @Injectable()
@@ -277,7 +276,8 @@ export class AuthService {
 
       return {
         success: true,
-        message: 'Registro completado. Revisa tu correo para confirmar tu cuenta.',
+        message:
+          'Registro completado. Revisa tu correo para confirmar tu cuenta.',
       };
     } catch (error: any) {
       console.error('Error en register:', error);
@@ -296,7 +296,9 @@ export class AuthService {
     });
 
     if (!account) {
-      throw new BadRequestException('Token de verificación inválido o expirado');
+      throw new BadRequestException(
+        'Token de verificación inválido o expirado',
+      );
     }
 
     if (account.status === 'ACTIVE') {
@@ -340,7 +342,8 @@ export class AuthService {
       };
     }
 
-    const verificationToken = account.emailVerificationToken || buildVerificationToken();
+    const verificationToken =
+      account.emailVerificationToken || buildVerificationToken();
     const frontendUrl = getFrontendUrl();
 
     await this.prisma.account.update({

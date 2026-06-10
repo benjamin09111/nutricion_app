@@ -15,7 +15,10 @@ import { UsersService } from './users.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
-import { SPECIAL_FEATURES, isAdminRole } from '../permissions/permissions.constants';
+import {
+  SPECIAL_FEATURES,
+  isAdminRole,
+} from '../permissions/permissions.constants';
 
 @Controller('users')
 // @UseGuards(AuthGuard) -> Moved to individual methods to allow public access to count

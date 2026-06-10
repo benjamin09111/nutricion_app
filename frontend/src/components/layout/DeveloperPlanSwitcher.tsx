@@ -4,6 +4,7 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { syncMembershipToStoredUser } from "@/lib/membership-session";
 import {
   membershipService,
   type MembershipPlan,
@@ -43,6 +44,7 @@ export function DeveloperPlanSwitcher() {
     setIsSwitching(true);
     try {
       const result = await membershipService.devChangePlan(planId);
+      syncMembershipToStoredUser(result.membershipStatus || null, result.plan);
       await refreshSubscription();
       const planName = result.plan?.name || "plan";
       toast.success(`QA: ahora estás en ${planName}`);

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { VerifyFoodsDto } from './dto/verify-foods.dto';
 import { AiService } from '../../common/services/ai.service';
+import { PlanUsageService } from '../permissions/plan-usage.service';
 
 type RestrictionConflict = {
   foodId: string;
@@ -26,6 +27,7 @@ export class DietService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
+    private readonly planUsageService: PlanUsageService,
   ) {}
 
   private normalizeText(value: string): string {
@@ -129,6 +131,7 @@ export class DietService {
   }
 
   private async verifyWithAi(
+    accountId: string,
     foods: Array<{ id: string; name: string }>,
     restrictions: string[],
   ): Promise<RestrictionConflict[] | null> {
@@ -142,6 +145,11 @@ export class DietService {
     ].join('\n');
 
     try {
+      await this.planUsageService.consumeMonthlyQuota(
+        accountId,
+        'ai.calls.limit',
+      );
+
       const content = await this.aiService.callJson(
         'Eres un asistente clinico de apoyo para nutricionistas. Evalua incompatibilidades de alimentos.',
         prompt,
@@ -181,6 +189,7 @@ export class DietService {
   }
 
   async verifyFoodsAgainstRestrictions(
+    accountId: string,
     body: VerifyFoodsDto,
   ): Promise<VerifyResponse> {
     const foods = await this.prisma.ingredient.findMany({
@@ -188,7 +197,11 @@ export class DietService {
       select: { id: true, name: true },
     });
 
-    const aiConflicts = await this.verifyWithAi(foods, body.restrictions);
+    const aiConflicts = await this.verifyWithAi(
+      accountId,
+      foods,
+      body.restrictions,
+    ).catch(() => null);
     const conflicts =
       aiConflicts ?? this.heuristicVerify(foods, body.restrictions);
 
