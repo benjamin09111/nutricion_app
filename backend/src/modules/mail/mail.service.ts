@@ -543,4 +543,76 @@ export class MailService {
       channel: 'notifications',
     });
   }
+
+  async sendAppointmentRequestReceivedEmail(data: {
+    recipientEmail: string;
+    recipientName: string;
+    nutritionistName: string;
+    timeZone: string;
+    appointmentDate: Date;
+    startTime: Date;
+    endTime: Date;
+    message?: string | null;
+  }) {
+    const html = this.wrapHtml(
+      'Solicitud de cita recibida',
+      `<p>Hola <strong>${this.escapeHtml(data.recipientName)}</strong>,</p><p>Recibimos tu solicitud de cita con <strong>${this.escapeHtml(data.nutritionistName)}</strong>.</p><p><strong>Fecha:</strong> ${data.appointmentDate.toLocaleDateString('es-CL', { timeZone: data.timeZone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}<br><strong>Horario:</strong> ${data.startTime.toLocaleTimeString('es-CL', { timeZone: data.timeZone, hour: '2-digit', minute: '2-digit', hour12: false })} - ${data.endTime.toLocaleTimeString('es-CL', { timeZone: data.timeZone, hour: '2-digit', minute: '2-digit', hour12: false })}</p>${data.message ? `<p><strong>Mensaje:</strong><br>${this.escapeHtml(data.message).replace(/\n/g, '<br>')}</p>` : ''}<p>Te avisaremos cuando el nutricionista la confirme.</p>`,
+    );
+
+    await this.sendEmail({
+      to: data.recipientEmail,
+      subject: `Solicitud recibida - ${data.nutritionistName}`,
+      html,
+      text: `Recibimos tu solicitud de cita con ${data.nutritionistName}.`,
+      channel: 'notifications',
+    });
+  }
+
+  async sendAppointmentConfirmedEmail(data: {
+    recipientEmail: string;
+    recipientName: string;
+    nutritionistName: string;
+    timeZone: string;
+    appointmentDate: Date;
+    startTime: Date;
+    endTime: Date;
+    message?: string | null;
+  }) {
+    const html = this.wrapHtml(
+      'Cita confirmada',
+      `<p>Hola <strong>${this.escapeHtml(data.recipientName)}</strong>,</p><p>Tu cita con <strong>${this.escapeHtml(data.nutritionistName)}</strong> fue confirmada.</p><p><strong>Fecha:</strong> ${data.appointmentDate.toLocaleDateString('es-CL', { timeZone: data.timeZone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}<br><strong>Horario:</strong> ${data.startTime.toLocaleTimeString('es-CL', { timeZone: data.timeZone, hour: '2-digit', minute: '2-digit', hour12: false })} - ${data.endTime.toLocaleTimeString('es-CL', { timeZone: data.timeZone, hour: '2-digit', minute: '2-digit', hour12: false })}</p>`,
+    );
+
+    await this.sendEmail({
+      to: data.recipientEmail,
+      subject: `Cita confirmada - ${data.nutritionistName}`,
+      html,
+      text: `Tu cita con ${data.nutritionistName} fue confirmada.`,
+      channel: 'notifications',
+    });
+  }
+
+  async sendAppointmentRejectedEmail(data: {
+    recipientEmail: string;
+    recipientName: string;
+    nutritionistName: string;
+    timeZone: string;
+    appointmentDate: Date;
+    startTime: Date;
+    endTime: Date;
+    reason?: string | null;
+  }) {
+    const html = this.wrapHtml(
+      'Solicitud rechazada',
+      `<p>Hola <strong>${this.escapeHtml(data.recipientName)}</strong>,</p><p>Tu solicitud de cita con <strong>${this.escapeHtml(data.nutritionistName)}</strong> fue rechazada.</p><p><strong>Fecha:</strong> ${data.appointmentDate.toLocaleDateString('es-CL', { timeZone: data.timeZone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}<br><strong>Horario:</strong> ${data.startTime.toLocaleTimeString('es-CL', { timeZone: data.timeZone, hour: '2-digit', minute: '2-digit', hour12: false })} - ${data.endTime.toLocaleTimeString('es-CL', { timeZone: data.timeZone, hour: '2-digit', minute: '2-digit', hour12: false })}</p>${data.reason ? `<p><strong>Motivo:</strong><br>${this.escapeHtml(data.reason).replace(/\n/g, '<br>')}</p>` : ''}`,
+    );
+
+    await this.sendEmail({
+      to: data.recipientEmail,
+      subject: `Solicitud rechazada - ${data.nutritionistName}`,
+      html,
+      text: `Tu solicitud de cita con ${data.nutritionistName} fue rechazada.${data.reason ? ` Motivo: ${data.reason}` : ''}`,
+      channel: 'notifications',
+    });
+  }
 }

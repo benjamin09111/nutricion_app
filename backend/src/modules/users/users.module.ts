@@ -8,9 +8,10 @@ import {
 } from './public-nutritionists.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { MailModule } from '../mail/mail.module';
+import { AppointmentsModule } from '../appointments/appointments.module';
 
 @Module({
-  imports: [PrismaModule, MailModule],
+  imports: [PrismaModule, MailModule, AppointmentsModule],
   controllers: [
     UsersController,
     NutritionistsController,

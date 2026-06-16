@@ -841,9 +841,10 @@ model Appointment {
   patientName String?  @map("patient_name")
   title       String
   description String?
+  metadata    Json?    @default("{}")
   startTime   DateTime @map("start_time")
   endTime     DateTime @map("end_time")
-  status      AppointmentStatus @default(SCHEDULED)
+  status      AppointmentStatus @default(REQUESTED)
   notes       String?
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -897,6 +898,7 @@ enum AppointmentStatus {
   REQUESTED
   SCHEDULED
   CONFIRMED
+  REJECTED
   COMPLETED
   CANCELLED
   NO_SHOW

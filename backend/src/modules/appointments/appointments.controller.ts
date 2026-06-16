@@ -205,6 +205,7 @@ export class AppointmentsController {
   async rejectAppointment(
     @Param('appointmentId') appointmentId: string,
     @Request() request: AppointmentRequest,
+    @Body() body: { reason?: string },
   ) {
     const nutritionistId = await resolveNutritionistIdFromRequest(
       request,
@@ -213,6 +214,7 @@ export class AppointmentsController {
     return this.appointmentsService.rejectAppointment(
       nutritionistId,
       appointmentId,
+      body?.reason,
     );
   }
 }

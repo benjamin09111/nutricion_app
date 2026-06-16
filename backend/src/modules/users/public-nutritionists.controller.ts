@@ -12,6 +12,7 @@ import {
 import { UsersService } from './users.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { AppointmentsService } from '../appointments/appointments.service';
 
 @Controller('public')
 export class PublicController {
@@ -71,6 +72,7 @@ export class PublicNutritionistsController {
     private readonly usersService: UsersService,
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
+    private readonly appointmentsService: AppointmentsService,
   ) {}
 
   @Get()
@@ -146,61 +148,20 @@ export class PublicNutritionistsController {
       );
     }
 
-    const start = new Date(body.startAt);
-    const end = new Date(body.endAt);
-
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      throw new BadRequestException('Fechas inválidas');
-    }
-
-    const blockingAppointment = await this.prisma.appointment.findFirst({
-      where: {
+    const appointment = await this.appointmentsService.requestAppointment(
+      result.profile.id,
+      {
         calendarId: calendar.id,
-        status: { not: 'CANCELLED' },
-        startTime: { lte: end },
-        endTime: { gte: start },
-      },
-      select: { id: true },
-    });
-
-    if (blockingAppointment) {
-      throw new BadRequestException('El horario ya no está disponible');
-    }
-
-    const appointment = await this.prisma.appointment.create({
-      data: {
-        calendarId: calendar.id,
-        patientId: null,
-        patientName: body.guestName,
-        title: `Solicitud de cita - ${body.guestName}`,
-        description: body.message || 'Solicitud de cita desde portal público',
-        startTime: start,
-        endTime: end,
-        status: 'REQUESTED' as any,
-        notes: JSON.stringify({
-          guestEmail: body.guestEmail,
-          guestPhone: body.guestPhone || null,
-          source: 'public-portal',
-        }),
-      },
-    });
-
-    const accountEmail = await this.prisma.account.findFirst({
-      where: { nutritionist: { id: result.profile.id } },
-      select: { email: true },
-    });
-
-    if (accountEmail?.email) {
-      await this.mailService.sendAppointmentRequestEmail({
-        nutritionistEmail: accountEmail.email,
-        nutritionistName: result.profile.fullName,
+        nutritionistId: result.profile.id,
+        start: body.startAt,
+        end: body.endAt,
         guestName: body.guestName,
         guestEmail: body.guestEmail,
         guestPhone: body.guestPhone,
         message: body.message,
-        appointmentDate: start,
-      });
-    }
+        source: 'public-profile',
+      },
+    );
 
     return {
       id: appointment.id,

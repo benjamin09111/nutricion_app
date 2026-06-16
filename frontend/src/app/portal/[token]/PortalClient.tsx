@@ -77,6 +77,13 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [portalData, setPortalData] = useState<PortalVerificationResponse | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const nutritionistSettings = portalData?.patient?.nutritionist?.settings as
+    | {
+        isScheduleActive?: boolean;
+        bookingUrl?: string;
+      }
+    | null
+    | undefined;
 
   useEffect(() => {
     setIsMounted(true);
@@ -654,11 +661,13 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
               )}
             </button>
 
-            {portalData.patient?.nutritionist?.settings?.isScheduleActive && (
+            {nutritionistSettings?.isScheduleActive && (
               <button
                 onClick={() => {
-                  const url = portalData.patient.nutritionist?.settings?.bookingUrl;
-                  if (url) window.open(url, "_blank");
+                  const url = nutritionistSettings?.bookingUrl;
+                  if (typeof url === "string" && url.trim()) {
+                    window.open(url, "_blank");
+                  }
                 }}
                 className="shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-bold text-xs lg:text-sm bg-emerald-600 text-white shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-[0.98] mt-0 lg:mt-4 whitespace-nowrap"
               >
@@ -1097,6 +1106,20 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                 <div className="space-y-6">
                   {portalData.appointments.map((apt: any) => (
                     <div key={apt.id} className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all group">
+                      {(() => {
+                        const status = String(apt.status || "").toUpperCase();
+                        const statusLabel =
+                          status === "CONFIRMED" || status === "SCHEDULED"
+                            ? "Confirmada"
+                            : status === "REQUESTED"
+                              ? "Pendiente"
+                              : status === "REJECTED"
+                                ? "Rechazada"
+                                : status === "CANCELLED"
+                                  ? "Cancelada"
+                                  : "Agendada";
+
+                        return (
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-4">
                           <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
@@ -1126,11 +1149,13 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                         </div>
                         <span className={cn(
                           "px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest ring-1",
-                          apt.status === 'CONFIRMED' ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-amber-50 text-amber-700 ring-amber-100"
+                          status === 'CONFIRMED' || status === 'SCHEDULED' ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : status === 'REJECTED' ? "bg-rose-50 text-rose-700 ring-rose-100" : status === 'REQUESTED' ? "bg-amber-50 text-amber-700 ring-amber-100" : "bg-slate-50 text-slate-600 ring-slate-100"
                         )}>
-                          {apt.status === 'CONFIRMED' ? 'Confirmada' : 'Agendada'}
+                          {statusLabel}
                         </span>
                       </div>
+                        )
+                      })()}
                     </div>
                   ))}
                 </div>

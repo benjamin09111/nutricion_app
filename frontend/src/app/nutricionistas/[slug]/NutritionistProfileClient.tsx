@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import type { PublicNutritionist } from "@/lib/public-nutritionists";
 import {
   usePublicNutritionistProfile,
@@ -104,6 +105,31 @@ export default function NutritionistProfileClient({
     () => slots.filter((s) => s.available),
     [slots],
   );
+
+  const calendarTimeZone =
+    availability?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const slotsByDay = useMemo(() => {
+    const map = new Map<string, Slot[]>();
+    weekDays.forEach((day) => map.set(day.fullDate, []));
+
+    for (const slot of availableSlots) {
+      const key = new Intl.DateTimeFormat("en-CA", {
+        timeZone: calendarTimeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date(slot.start));
+      const current = map.get(key);
+      if (current) current.push(slot);
+    }
+
+    for (const value of map.values()) {
+      value.sort((left, right) => new Date(left.start).getTime() - new Date(right.start).getTime());
+    }
+
+    return map;
+  }, [availableSlots, calendarTimeZone, weekDays]);
 
   const handleSlotClick = (slot: Slot) => {
     setSelectedSlot(slot);
@@ -459,6 +485,139 @@ export default function NutritionistProfileClient({
               {hasCalendarToShow ? "Agendar cita" : "Contactar"}
             </button>
           </div>
+        )}
+
+        {showBookingSection && (
+          <section
+            id="booking-section"
+            className="mb-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-indigo-400">
+                  Agenda disponible
+                </p>
+                <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
+                  Solicita tu cita
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  El nutricionista revisará tu solicitud y la confirmará por correo.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" className="h-10 rounded-full border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-[0.16em] text-slate-600 cursor-pointer" onClick={goToPrevWeek}>
+                  Semana anterior
+                </Button>
+                <Button type="button" variant="outline" className="h-10 rounded-full border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-[0.16em] text-slate-600 cursor-pointer" onClick={goToNextWeek}>
+                  Siguiente semana
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-7">
+              {weekDays.map((day) => {
+                const daySlots = slotsByDay.get(day.fullDate) ?? [];
+                return (
+                  <div key={day.fullDate} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
+                    <div className="mb-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                        {day.label}
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {day.day} {day.month}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      {daySlots.length > 0 ? (
+                        daySlots.map((slot) => {
+                          const isSelected = selectedSlot?.start === slot.start;
+                          return (
+                            <button
+                              key={slot.start}
+                              type="button"
+                              onClick={() => handleSlotClick(slot)}
+                              className={cn(
+                                "w-full rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors cursor-pointer",
+                                isSelected
+                                  ? "border-indigo-600 bg-indigo-600 text-white shadow-sm"
+                                  : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:text-indigo-700",
+                              )}
+                            >
+                              {new Date(slot.start).toLocaleTimeString("es-CL", {
+                                timeZone: calendarTimeZone,
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: false,
+                              })}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-4 text-center text-[10px] font-medium text-slate-400">
+                          Sin horarios
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4 rounded-3xl border border-slate-100 bg-slate-50/50 p-4 sm:p-5">
+              <div className="grid gap-3 md:grid-cols-2">
+                <Input
+                  value={formData.guestName}
+                  onChange={(e) => setFormData({ ...formData, guestName: e.target.value })}
+                  placeholder="Tu nombre"
+                  required
+                  className="h-11 rounded-2xl border-slate-200 bg-white text-sm"
+                />
+                <Input
+                  type="email"
+                  value={formData.guestEmail}
+                  onChange={(e) => setFormData({ ...formData, guestEmail: e.target.value })}
+                  placeholder="tu@email.com"
+                  required
+                  className="h-11 rounded-2xl border-slate-200 bg-white text-sm"
+                />
+              </div>
+              <Input
+                value={formData.guestPhone}
+                onChange={(e) => setFormData({ ...formData, guestPhone: e.target.value })}
+                placeholder="Teléfono (opcional)"
+                className="h-11 rounded-2xl border-slate-200 bg-white text-sm"
+              />
+              <Textarea
+                value={formData.message}
+                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                placeholder="Cuéntale al nutricionista por qué deseas la cita"
+                rows={4}
+                className="rounded-2xl border-slate-200 bg-white text-sm"
+              />
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs font-medium text-slate-500">
+                  {selectedSlot
+                    ? `Horario seleccionado: ${new Date(selectedSlot.start).toLocaleString("es-CL", {
+                        timeZone: calendarTimeZone,
+                        weekday: "short",
+                        day: "2-digit",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })}`
+                    : "Selecciona un horario para continuar"}
+                </p>
+                <Button
+                  type="submit"
+                  isLoading={isSubmitting}
+                  className="h-11 rounded-full bg-indigo-600 px-5 text-xs font-black uppercase tracking-[0.18em] text-white cursor-pointer"
+                >
+                  Solicitar cita
+                </Button>
+              </div>
+            </form>
+          </section>
         )}
 
         {/* Section Navbar */}

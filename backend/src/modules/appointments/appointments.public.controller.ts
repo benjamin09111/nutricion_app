@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 
 @Controller()
@@ -8,6 +8,43 @@ export class AppointmentsPublicController {
   @Get('booking-links/:token')
   async getBookingLink(@Param('token') token: string) {
     return this.appointmentsService.getBookingLinkByToken(token);
+  }
+
+  @Post('booking-links/:token/requests')
+  async createBookingLinkRequest(
+    @Param('token') token: string,
+    @Body()
+    body: {
+      guestName: string;
+      guestEmail: string;
+      guestPhone?: string;
+      message?: string;
+      startAt: string;
+      endAt: string;
+    },
+  ) {
+    const bookingLink = await this.appointmentsService.getBookingLinkByToken(token);
+
+    const appointment = await this.appointmentsService.requestAppointment(
+      bookingLink.nutritionistId,
+      {
+        calendarId: bookingLink.calendarId,
+        nutritionistId: bookingLink.nutritionistId,
+        guestName: body.guestName,
+        guestEmail: body.guestEmail,
+        guestPhone: body.guestPhone,
+        message: body.message,
+        start: body.startAt,
+        end: body.endAt,
+        source: 'booking-link',
+      },
+    );
+
+    return {
+      id: appointment.id,
+      status: appointment.status,
+      message: 'Tu solicitud de cita ha sido enviada. El nutricionista la revisará pronto.',
+    };
   }
 
   @Get('booking-links/:token/availability/rules')

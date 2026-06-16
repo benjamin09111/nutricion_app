@@ -653,7 +653,10 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
     () =>
       events.filter((event) => {
         const start = parseDateSafe(event.start);
-        return start ? start.getTime() >= Date.now() && event.status !== "cancelled" : false;
+        return start
+          ? start.getTime() >= Date.now() &&
+              ["confirmed", "CONFIRMED", "scheduled", "SCHEDULED"].includes(event.status)
+          : false;
       }),
     [events],
   );
@@ -1050,7 +1053,7 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
           title: description,
           description,
           notes: description || undefined,
-          status: "scheduled",
+          status: "CONFIRMED",
           timeZone: calendarTimeZone,
           notifyPatientByEmail: true,
         },
@@ -1107,7 +1110,7 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
     const statusClass =
       status === "pending" || status === "requested"
         ? "border-amber-200 bg-amber-100 text-amber-950"
-        : status === "cancelled"
+        : status === "cancelled" || status === "rejected"
           ? "border-rose-200 bg-rose-100 text-rose-950"
           : "border-emerald-200 bg-emerald-100 text-emerald-950";
 
@@ -1515,12 +1518,12 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
                         </tr>
                       </thead>
                       <tbody>
-                        {events.filter(e => e.status !== "cancelled" && e.status !== "requested" && e.status !== "REQUESTED" && parseDateSafe(e.start) && parseDateSafe(e.start)!.getTime() >= Date.now()).length === 0 ? (
+                        {events.filter(e => ["confirmed", "CONFIRMED", "scheduled", "SCHEDULED"].includes(e.status) && parseDateSafe(e.start) && parseDateSafe(e.start)!.getTime() >= Date.now()).length === 0 ? (
                           <tr>
                             <td className="px-4 py-8 text-slate-400 text-center" colSpan={5}>Sin citas aceptadas.</td>
                           </tr>
                         ) : (
-                          events.filter(e => e.status !== "cancelled" && e.status !== "requested" && e.status !== "REQUESTED" && parseDateSafe(e.start) && parseDateSafe(e.start)!.getTime() >= Date.now()).map((event) => {
+                          events.filter(e => ["confirmed", "CONFIRMED", "scheduled", "SCHEDULED"].includes(e.status) && parseDateSafe(e.start) && parseDateSafe(e.start)!.getTime() >= Date.now()).map((event) => {
                             const start = parseDateSafe(event.start);
                             const end = parseDateSafe(event.end || event.start);
                             return (
@@ -1535,7 +1538,7 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
                                 <td className="px-4 py-3 text-slate-600">{event.title}</td>
                                 <td className="px-4 py-3">
                                   <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-700 ring-1 ring-emerald-100">
-                                    {event.status === "confirmed" || event.status === "CONFIRMED" ? "Confirmada" : "Agendada"}
+                                    {["confirmed", "CONFIRMED", "scheduled", "SCHEDULED"].includes(event.status) ? "Confirmada" : "Agendada"}
                                   </span>
                                 </td>
                               </tr>
@@ -1548,13 +1551,13 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
                 </div>
                 {/* Mobile cards */}
                 <div className="block sm:hidden space-y-3">
-                  {events.filter(e => e.status !== "cancelled" && e.status !== "requested" && e.status !== "REQUESTED" && parseDateSafe(e.start) && parseDateSafe(e.start)!.getTime() >= Date.now()).length === 0 ? (
+                  {events.filter(e => ["confirmed", "CONFIRMED", "scheduled", "SCHEDULED"].includes(e.status) && parseDateSafe(e.start) && parseDateSafe(e.start)!.getTime() >= Date.now()).length === 0 ? (
                     <div className="text-center py-10">
                       <CalendarDays className="h-8 w-8 text-slate-200 mx-auto mb-2" />
                       <p className="text-xs text-slate-400 font-medium">Sin citas aceptadas.</p>
                     </div>
                   ) : (
-                    events.filter(e => e.status !== "cancelled" && e.status !== "requested" && e.status !== "REQUESTED" && parseDateSafe(e.start) && parseDateSafe(e.start)!.getTime() >= Date.now()).map((event) => {
+                    events.filter(e => ["confirmed", "CONFIRMED", "scheduled", "SCHEDULED"].includes(e.status) && parseDateSafe(e.start) && parseDateSafe(e.start)!.getTime() >= Date.now()).map((event) => {
                       const start = parseDateSafe(event.start);
                       const end = parseDateSafe(event.end || event.start);
                       return (
@@ -1564,7 +1567,7 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
                               {start ? formatDateInTimeZone(start, calendarTimeZone, { day: "2-digit", month: "short" }) : "--"}
                             </span>
                             <span className="rounded-full bg-amber-50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-amber-700 ring-1 ring-amber-100">
-                              {event.status === "confirmed" || event.status === "CONFIRMED" ? "Confirmada" : "Agendada"}
+                              {["confirmed", "CONFIRMED", "scheduled", "SCHEDULED"].includes(event.status) ? "Confirmada" : "Agendada"}
                             </span>
                           </div>
                           <p className="text-sm font-bold text-slate-900">{event.title}</p>
@@ -1683,12 +1686,12 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
                         </tr>
                       </thead>
                       <tbody>
-                        {events.filter(e => e.status === "cancelled" || e.status === "CANCELLED").length === 0 ? (
+                        {events.filter(e => e.status === "rejected" || e.status === "REJECTED").length === 0 ? (
                           <tr>
                             <td className="px-4 py-8 text-slate-400 text-center" colSpan={4}>Sin citas rechazadas.</td>
                           </tr>
                         ) : (
-                          events.filter(e => e.status === "cancelled" || e.status === "CANCELLED").map((event) => {
+                          events.filter(e => e.status === "rejected" || e.status === "REJECTED").map((event) => {
                             const start = parseDateSafe(event.start);
                             const end = parseDateSafe(event.end || event.start);
                             return (
@@ -1711,13 +1714,13 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
                 </div>
                 {/* Mobile cards */}
                 <div className="block sm:hidden space-y-3">
-                  {events.filter(e => e.status === "cancelled" || e.status === "CANCELLED").length === 0 ? (
+                  {events.filter(e => e.status === "rejected" || e.status === "REJECTED").length === 0 ? (
                     <div className="text-center py-10">
                       <CalendarDays className="h-8 w-8 text-slate-200 mx-auto mb-2" />
                       <p className="text-xs text-slate-400 font-medium">Sin citas rechazadas.</p>
                     </div>
                   ) : (
-                    events.filter(e => e.status === "cancelled" || e.status === "CANCELLED").map((event) => {
+                    events.filter(e => e.status === "rejected" || e.status === "REJECTED").map((event) => {
                       const start = parseDateSafe(event.start);
                       const end = parseDateSafe(event.end || event.start);
                       return (

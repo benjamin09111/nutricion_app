@@ -47,9 +47,11 @@ export async function approveAppointment(appointmentId: string) {
   }
 }
 
-export async function rejectAppointment(appointmentId: string) {
+export async function rejectAppointment(appointmentId: string, reason?: string) {
   const response = await fetchAppointmentsApi(`/appointments/${appointmentId}/reject`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason }),
   });
 
   if (!response.ok) {

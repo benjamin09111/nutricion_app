@@ -6,6 +6,7 @@ import {
 import { randomUUID } from 'crypto';
 import { AppointmentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { UpdateScheduleDto, TimeSlotDto } from './dto/update-schedule.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 
@@ -52,6 +53,31 @@ interface ListAppointmentsQuery {
   status?: string;
 }
 
+interface RequestAppointmentInput {
+  calendarId: string;
+  nutritionistId: string;
+  start: string;
+  end: string;
+  guestName?: string;
+  guestEmail?: string;
+  guestPhone?: string;
+  message?: string;
+  patientId?: string;
+  source: 'public-profile' | 'patient-portal' | 'booking-link' | 'manual';
+}
+
+interface AppointmentNotificationPayload {
+  recipientEmail: string;
+  recipientName: string;
+  nutritionistName: string;
+  timeZone: string;
+  appointmentDate: Date;
+  startTime: Date;
+  endTime: Date;
+  message?: string | null;
+  reason?: string | null;
+}
+
 const WEEKDAY_INDEX_BY_NAME: Record<string, number> = {
   sunday: 0,
   monday: 1,
@@ -62,7 +88,21 @@ const WEEKDAY_INDEX_BY_NAME: Record<string, number> = {
   saturday: 6,
 };
 
+const BLOCKING_APPOINTMENT_STATUSES = new Set<AppointmentStatus>([
+  AppointmentStatus.REQUESTED,
+  AppointmentStatus.SCHEDULED,
+  AppointmentStatus.CONFIRMED,
+]);
+
+const DISPLAY_CONFIRMED_STATUSES = new Set<AppointmentStatus>([
+  AppointmentStatus.SCHEDULED,
+  AppointmentStatus.CONFIRMED,
+]);
+
 const extractDateKey = (value: string) => value.split('T')[0];
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 const parseDateKey = (value: string) => {
   const [year, month, day] = value.split('-').map(Number);
@@ -116,6 +156,19 @@ const getBlockRangeInTimeZone = (date: Date, timeZone: string) => {
   };
 };
 
+const parseAppointmentMetadata = (
+  metadata: Prisma.JsonValue | null | undefined,
+): Record<string, unknown> | null => {
+  if (!isPlainObject(metadata)) {
+    return null;
+  }
+
+  return metadata;
+};
+
+const getAppointmentStatus = (status: string | AppointmentStatus) =>
+  status.toString().toUpperCase() as AppointmentStatus;
+
 const localDateTimeToUtcIso = (
   dateKey: string,
   hour: number,
@@ -158,7 +211,10 @@ const localDateTimeToUtcIso = (
 
 @Injectable()
 export class AppointmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
 
   private normalizeAppointment(appointment: {
     id: string;
@@ -167,6 +223,7 @@ export class AppointmentsService {
     patientName?: string | null;
     title: string | null;
     description: string | null;
+    metadata?: Prisma.JsonValue | null;
     startTime: Date;
     endTime: Date;
     status: AppointmentStatus;
@@ -182,6 +239,7 @@ export class AppointmentsService {
       patientName: appointment.patientName || null,
       title: appointment.title,
       description: appointment.description,
+      metadata: parseAppointmentMetadata(appointment.metadata),
       start: appointment.startTime,
       end: appointment.endTime,
       status: appointment.status,
@@ -192,12 +250,101 @@ export class AppointmentsService {
     };
   }
 
+  private isBlockingStatus(status: AppointmentStatus) {
+    return BLOCKING_APPOINTMENT_STATUSES.has(status);
+  }
+
+  private isConfirmedStatus(status: AppointmentStatus) {
+    return DISPLAY_CONFIRMED_STATUSES.has(status);
+  }
+
+  private buildAppointmentDateLabel(startTime: Date, timeZone: string) {
+    return new Intl.DateTimeFormat('es-CL', {
+      timeZone,
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(startTime);
+  }
+
+  private buildAppointmentTimeLabel(
+    startTime: Date,
+    endTime: Date,
+    timeZone: string,
+  ) {
+    const formatter = new Intl.DateTimeFormat('es-CL', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    });
+
+    return `${formatter.format(startTime)} - ${formatter.format(endTime)}`;
+  }
+
+  private async sendAppointmentRequestEmails(
+    payload: AppointmentNotificationPayload,
+  ) {
+    await this.mailService.sendAppointmentRequestReceivedEmail({
+      recipientEmail: payload.recipientEmail,
+      recipientName: payload.recipientName,
+      nutritionistName: payload.nutritionistName,
+      timeZone: payload.timeZone,
+      appointmentDate: payload.appointmentDate,
+      startTime: payload.startTime,
+      endTime: payload.endTime,
+      message: payload.message,
+    });
+  }
+
+  private async sendAppointmentConfirmedEmail(
+    payload: AppointmentNotificationPayload,
+  ) {
+    await this.mailService.sendAppointmentConfirmedEmail({
+      recipientEmail: payload.recipientEmail,
+      recipientName: payload.recipientName,
+      nutritionistName: payload.nutritionistName,
+      timeZone: payload.timeZone,
+      appointmentDate: payload.appointmentDate,
+      startTime: payload.startTime,
+      endTime: payload.endTime,
+    });
+  }
+
+  private async sendAppointmentRejectedEmail(
+    payload: AppointmentNotificationPayload,
+  ) {
+    await this.mailService.sendAppointmentRejectedEmail({
+      recipientEmail: payload.recipientEmail,
+      recipientName: payload.recipientName,
+      nutritionistName: payload.nutritionistName,
+      timeZone: payload.timeZone,
+      appointmentDate: payload.appointmentDate,
+      startTime: payload.startTime,
+      endTime: payload.endTime,
+      reason: payload.reason,
+    });
+  }
+
+  private async findConflictingAppointment(calendarId: string, start: Date, end: Date) {
+    return this.prisma.appointment.findFirst({
+      where: {
+        calendarId,
+        status: { in: [...BLOCKING_APPOINTMENT_STATUSES] },
+        startTime: { lt: end },
+        endTime: { gt: start },
+      },
+      select: { id: true, status: true },
+    });
+  }
+
   async getOrCreateCalendar(
     nutritionistId: string,
   ): Promise<AppointmentCalendarWithNutritionist> {
     let calendar = await this.prisma.appointmentCalendar.findUnique({
       where: { nutritionistId },
-      include: { nutritionist: true },
+      include: { nutritionist: { include: { account: true } } },
     });
 
     if (!calendar) {
@@ -208,7 +355,7 @@ export class AppointmentsService {
           title: 'Calendario de Citas',
           timeZone: 'America/Santiago',
         },
-        include: { nutritionist: true },
+        include: { nutritionist: { include: { account: true } } },
       });
     }
 
@@ -221,7 +368,7 @@ export class AppointmentsService {
   ): Promise<BookingLinkRecord> {
     const calendar = await this.prisma.appointmentCalendar.findUnique({
       where: { id: calendarId },
-      include: { nutritionist: true },
+      include: { nutritionist: { include: { account: true } } },
     });
 
     if (!calendar) {
@@ -272,7 +419,7 @@ export class AppointmentsService {
       where: { token },
       include: {
         calendar: {
-          include: { nutritionist: true },
+          include: { nutritionist: { include: { account: true } } },
         },
       },
     });
@@ -321,18 +468,12 @@ export class AppointmentsService {
     const blockingAppointments = await this.prisma.appointment.findMany({
       where: {
         calendarId: calendar.id,
-        status: { not: AppointmentStatus.CANCELLED },
-        startTime: { gte: new Date(`${fromKey}T00:00:00.000Z`) },
-        endTime: { lte: new Date(`${toKey}T23:59:59.999Z`) },
+        status: { in: [...BLOCKING_APPOINTMENT_STATUSES] },
+        startTime: { lt: new Date(`${toKey}T23:59:59.999Z`) },
+        endTime: { gt: new Date(`${fromKey}T00:00:00.000Z`) },
       },
-      select: { startTime: true },
+      select: { startTime: true, endTime: true },
     });
-    const occupiedBlocks = new Set(
-      blockingAppointments.map((appointment) =>
-        getBlockKeyInTimeZone(appointment.startTime, timeZone),
-      ),
-    );
-
     const current = new Date(`${fromKey}T12:00:00.000Z`);
     const end = new Date(`${toKey}T12:00:00.000Z`);
 
@@ -358,7 +499,17 @@ export class AppointmentsService {
             new Date(`${fromKey}T00:00:00.000Z`).getTime() &&
           slotEnd.getTime() <= new Date(`${toKey}T23:59:59.999Z`).getTime()
         ) {
-          const isBusy = occupiedBlocks.has(`${dateKey}-${slot.hour}`);
+          const isBusy = blockingAppointments.some((appointment) => {
+            const appointmentStartKey = getBlockKeyInTimeZone(
+              appointment.startTime,
+              timeZone,
+            );
+            return (
+              appointmentStartKey === `${dateKey}-${slot.hour}` ||
+              (slotStart.getTime() < appointment.endTime.getTime() &&
+                slotEnd.getTime() > appointment.startTime.getTime())
+            );
+          });
           slots.push({
             start: slotStart.toISOString(),
             end: slotEnd.toISOString(),
@@ -383,7 +534,7 @@ export class AppointmentsService {
         id: calendarId,
         nutritionistId,
       },
-      include: { nutritionist: true },
+      include: { nutritionist: { include: { account: true } } },
     });
 
     if (!calendar) {
@@ -437,7 +588,11 @@ export class AppointmentsService {
     }
 
     if (query.status) {
-      where.status = query.status.toUpperCase() as AppointmentStatus;
+      const normalizedStatus = getAppointmentStatus(query.status);
+      where.status =
+        normalizedStatus === AppointmentStatus.CONFIRMED
+          ? { in: [AppointmentStatus.CONFIRMED, AppointmentStatus.SCHEDULED] }
+          : normalizedStatus;
     }
 
     const appointments = await this.prisma.appointment.findMany({
@@ -448,6 +603,104 @@ export class AppointmentsService {
     return appointments.map((appointment) =>
       this.normalizeAppointment(appointment),
     );
+  }
+
+  async requestAppointment(nutritionistId: string, dto: RequestAppointmentInput) {
+    const calendar = await this.getCalendarById(dto.calendarId, nutritionistId);
+    const start = new Date(dto.start);
+    const end = new Date(dto.end);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new BadRequestException('Fechas inválidas');
+    }
+
+    if (end.getTime() <= start.getTime()) {
+      throw new BadRequestException('La cita debe terminar después de iniciar');
+    }
+
+    const durationMin = Math.round((end.getTime() - start.getTime()) / 60000);
+    if (durationMin < 5 || durationMin > 60) {
+      throw new BadRequestException('La duración debe estar entre 5 y 60 minutos');
+    }
+
+    if (start.getTime() < Date.now() + 5 * 60 * 1000) {
+      throw new BadRequestException('La cita debe empezar al menos 5 minutos en el futuro');
+    }
+
+    const conflict = await this.findConflictingAppointment(calendar.id, start, end);
+    if (conflict) {
+      throw new BadRequestException('Ese horario ya no está disponible');
+    }
+
+    const patient = dto.patientId
+      ? await this.prisma.patient.findFirst({
+          where: {
+            id: dto.patientId,
+            nutritionistId,
+          },
+        })
+      : null;
+
+    const patientName = patient?.fullName || dto.guestName?.trim();
+    const patientEmail = patient?.email || dto.guestEmail?.trim();
+    const patientPhone = patient?.phone || dto.guestPhone?.trim() || null;
+
+    if (!patientName || !patientEmail) {
+      throw new BadRequestException('Nombre y correo son requeridos para solicitar una cita');
+    }
+
+    const appointment = await this.prisma.appointment.create({
+      data: {
+        calendarId: calendar.id,
+        patientId: patient?.id ?? null,
+        patientName,
+        title: dto.message?.trim() ? `Solicitud de cita - ${patientName}` : 'Solicitud de cita',
+        description: dto.message?.trim() || 'Solicitud de cita pendiente de confirmación',
+        metadata: {
+          source: dto.source,
+          guestEmail: patientEmail,
+          guestPhone: patientPhone,
+          patientId: patient?.id ?? null,
+          nutritionistId,
+        },
+        startTime: start,
+        endTime: end,
+        status: AppointmentStatus.REQUESTED,
+        notes: dto.message?.trim() || null,
+      },
+    });
+
+    const nutritionistName = calendar.nutritionist.fullName || calendar.name;
+    const requestEmails: Promise<unknown>[] = [
+      this.sendAppointmentRequestEmails({
+        recipientEmail: patientEmail,
+        recipientName: patientName,
+        nutritionistName,
+        timeZone: calendar.timeZone,
+        appointmentDate: start,
+        startTime: start,
+        endTime: end,
+        message: dto.message,
+      }),
+    ];
+
+    if (calendar.nutritionist.account?.email) {
+      requestEmails.push(
+        this.mailService.sendAppointmentRequestEmail({
+          nutritionistEmail: calendar.nutritionist.account.email,
+          nutritionistName,
+          guestName: patientName,
+          guestEmail: patientEmail,
+          guestPhone: patientPhone || undefined,
+          message: dto.message,
+          appointmentDate: start,
+        }),
+      );
+    }
+
+    await Promise.allSettled(requestEmails);
+
+    return this.normalizeAppointment(appointment);
   }
 
   async createAppointment(
@@ -496,24 +749,9 @@ export class AppointmentsService {
       );
     }
 
-    const blockRange = getBlockRangeInTimeZone(
-      start,
-      calendar.timeZone || dto.timeZone || 'UTC',
-    );
-    const blockingAppointment = await this.prisma.appointment.findFirst({
-      where: {
-        calendarId: calendar.id,
-        status: { not: AppointmentStatus.CANCELLED },
-        startTime: {
-          gte: blockRange.start,
-          lt: blockRange.end,
-        },
-      },
-      select: { id: true },
-    });
-
-    if (blockingAppointment) {
-      throw new BadRequestException('Ese bloque ya no está disponible');
+    const conflict = await this.findConflictingAppointment(calendar.id, start, end);
+    if (conflict) {
+      throw new BadRequestException('Ese horario ya no está disponible');
     }
 
     const appointment = await this.prisma.appointment.create({
@@ -523,12 +761,30 @@ export class AppointmentsService {
         patientName: patient.fullName,
         title: dto.title?.trim() || description,
         description,
+        metadata: {
+          source: 'manual',
+          nutritionistId,
+          patientId: patient.id,
+        },
         startTime: start,
         endTime: end,
-        status: AppointmentStatus.SCHEDULED,
+        status: AppointmentStatus.CONFIRMED,
         notes: dto.notes?.trim() || description,
       },
     });
+
+    if (patient.email) {
+      await this.sendAppointmentConfirmedEmail({
+        recipientEmail: patient.email,
+        recipientName: patient.fullName,
+        nutritionistName: calendar.nutritionist.fullName || calendar.name,
+        timeZone: calendar.timeZone,
+        appointmentDate: start,
+        startTime: start,
+        endTime: end,
+        message: description,
+      });
+    }
 
     return this.normalizeAppointment(appointment);
   }
@@ -717,7 +973,7 @@ export class AppointmentsService {
     const appointments = await this.prisma.appointment.findMany({
       where: {
         calendarId: calendar.id,
-        status: 'REQUESTED',
+        status: AppointmentStatus.REQUESTED,
       },
       orderBy: { createdAt: 'desc' },
       select: {
@@ -727,6 +983,7 @@ export class AppointmentsService {
         startTime: true,
         endTime: true,
         status: true,
+        metadata: true,
         notes: true,
         createdAt: true,
         patient: {
@@ -750,44 +1007,115 @@ export class AppointmentsService {
   ) {
     const calendar = await this.prisma.appointmentCalendar.findFirst({
       where: { nutritionistId },
-      select: { id: true },
+      include: { nutritionist: { include: { account: true } } },
     });
 
     if (!calendar) {
       throw new NotFoundException('Calendario no encontrado');
     }
 
-    const appointment = await this.prisma.appointment.findFirst({
-      where: {
-        id: appointmentId,
-        calendarId: calendar.id,
-        status: 'REQUESTED' as any,
-      },
-    });
+    const parsedStart = startTime ? new Date(startTime) : null;
+    const parsedEnd = endTime ? new Date(endTime) : null;
 
-    if (!appointment) {
-      throw new NotFoundException('Cita solicitada no encontrada');
+    if (
+      (parsedStart && Number.isNaN(parsedStart.getTime())) ||
+      (parsedEnd && Number.isNaN(parsedEnd.getTime()))
+    ) {
+      throw new BadRequestException('Fechas inválidas');
     }
 
-    const updateData: any = {
-      status: 'SCHEDULED' as const,
-    };
+    const result = await this.prisma.$transaction(async (tx) => {
+      const appointment = await tx.appointment.findFirst({
+        where: {
+          id: appointmentId,
+          calendarId: calendar.id,
+          status: AppointmentStatus.REQUESTED,
+        },
+        select: {
+          id: true,
+          patientName: true,
+          description: true,
+          startTime: true,
+          endTime: true,
+          metadata: true,
+          patient: {
+            select: { id: true, fullName: true, email: true },
+          },
+        },
+      });
 
-    if (startTime && endTime) {
-      updateData.startTime = new Date(startTime);
-      updateData.endTime = new Date(endTime);
+      if (!appointment) {
+        throw new NotFoundException('Cita solicitada no encontrada');
+      }
+
+      const finalStart = parsedStart ?? appointment.startTime;
+      const finalEnd = parsedEnd ?? appointment.endTime;
+
+      if (finalEnd.getTime() <= finalStart.getTime()) {
+        throw new BadRequestException('La cita debe terminar después de iniciar');
+      }
+
+      const conflict = await tx.appointment.findFirst({
+        where: {
+          calendarId: calendar.id,
+          id: { not: appointmentId },
+          status: { in: [...BLOCKING_APPOINTMENT_STATUSES] },
+          startTime: { lt: finalEnd },
+          endTime: { gt: finalStart },
+        },
+        select: { id: true },
+      });
+
+      if (conflict) {
+        throw new BadRequestException('Ese horario ya no está disponible');
+      }
+
+      const nextAppointment = await tx.appointment.update({
+        where: { id: appointmentId },
+        data: {
+          status: AppointmentStatus.CONFIRMED,
+          startTime: finalStart,
+          endTime: finalEnd,
+          metadata: {
+            ...(parseAppointmentMetadata(appointment.metadata) || {}),
+            confirmedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return { appointment, nextAppointment };
+    });
+
+    const recipientEmail =
+      result.appointment.patient?.email ||
+      (parseAppointmentMetadata(result.appointment.metadata)?.guestEmail as string | undefined);
+    const recipientName =
+      result.appointment.patient?.fullName || result.appointment.patientName || 'Paciente';
+
+    if (recipientEmail) {
+      await this.sendAppointmentConfirmedEmail({
+        recipientEmail,
+        recipientName,
+        nutritionistName: calendar.nutritionist.fullName || calendar.name,
+        timeZone: calendar.timeZone,
+        appointmentDate: result.nextAppointment.startTime,
+        startTime: result.nextAppointment.startTime,
+        endTime: result.nextAppointment.endTime,
+        message: result.nextAppointment.description,
+      });
     }
 
-    return this.prisma.appointment.update({
-      where: { id: appointmentId },
-      data: updateData,
-    });
+    return this.normalizeAppointment(result.nextAppointment);
   }
 
-  async rejectAppointment(nutritionistId: string, appointmentId: string) {
+  async rejectAppointment(
+    nutritionistId: string,
+    appointmentId: string,
+    reason?: string,
+  ) {
     const calendar = await this.prisma.appointmentCalendar.findFirst({
       where: { nutritionistId },
-      select: { id: true },
+      include: { nutritionist: { include: { account: true } } },
     });
 
     if (!calendar) {
@@ -798,7 +1126,18 @@ export class AppointmentsService {
       where: {
         id: appointmentId,
         calendarId: calendar.id,
-        status: 'REQUESTED' as any,
+        status: AppointmentStatus.REQUESTED,
+      },
+      select: {
+        id: true,
+        patientName: true,
+        description: true,
+        startTime: true,
+        endTime: true,
+        metadata: true,
+        patient: {
+          select: { id: true, fullName: true, email: true },
+        },
       },
     });
 
@@ -806,9 +1145,37 @@ export class AppointmentsService {
       throw new NotFoundException('Cita solicitada no encontrada');
     }
 
-    return this.prisma.appointment.update({
+    const updated = await this.prisma.appointment.update({
       where: { id: appointmentId },
-      data: { status: 'CANCELLED' as const },
+      data: {
+        status: AppointmentStatus.REJECTED,
+        metadata: {
+          ...(parseAppointmentMetadata(appointment.metadata) || {}),
+          rejectedAt: new Date().toISOString(),
+          rejectionReason: reason || null,
+        },
+      },
     });
+
+    const recipientEmail =
+      appointment.patient?.email ||
+      (parseAppointmentMetadata(appointment.metadata)?.guestEmail as string | undefined);
+    const recipientName = appointment.patient?.fullName || appointment.patientName || 'Paciente';
+
+    if (recipientEmail) {
+      await this.sendAppointmentRejectedEmail({
+        recipientEmail,
+        recipientName,
+        nutritionistName: calendar.nutritionist.fullName || calendar.name,
+        timeZone: calendar.timeZone,
+        appointmentDate: appointment.startTime,
+        startTime: appointment.startTime,
+        endTime: appointment.endTime,
+        message: appointment.description,
+        reason,
+      });
+    }
+
+    return this.normalizeAppointment(updated);
   }
 }

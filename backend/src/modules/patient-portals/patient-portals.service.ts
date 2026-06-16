@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AppointmentsService } from '../appointments/appointments.service';
 import { MailService } from '../mail/mail.service';
 import { CreatePatientPortalInvitationDto } from './dto/create-patient-portal-invitation.dto';
 import { CreatePatientPortalEntryDto } from './dto/create-patient-portal-entry.dto';
@@ -187,6 +188,7 @@ export class PatientPortalsService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly appointmentsService: AppointmentsService,
   ) {}
 
   async createInvitation(
@@ -1006,30 +1008,32 @@ export class PatientPortalsService {
 
     const patient = await this.prisma.patient.findFirst({
       where: { id: patientId, nutritionistId },
-      select: { fullName: true },
+      select: { fullName: true, email: true, phone: true },
     });
 
     if (!patient) {
       throw new NotFoundException('Paciente no encontrado');
     }
 
-    const title = `Solicitud de cita - ${patient.fullName}`;
-    const description = dto.message;
+    if (!dto.startAt || !dto.endAt) {
+      throw new BadRequestException('Debes seleccionar un horario disponible');
+    }
 
-    const appointment = await this.prisma.appointment.create({
-      data: {
+    const appointment = await this.appointmentsService.requestAppointment(
+      nutritionistId,
+      {
         calendarId: calendar.id,
+        nutritionistId,
         patientId,
-        patientName: patient.fullName,
-        title,
-        description,
-        startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        endTime: new Date(
-          Date.now() + 7 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000,
-        ),
-        status: 'REQUESTED' as const,
+        guestName: patient.fullName,
+        guestEmail: patient.email || undefined,
+        guestPhone: patient.phone || undefined,
+        start: dto.startAt,
+        end: dto.endAt,
+        message: dto.message,
+        source: 'patient-portal',
       },
-    });
+    );
 
     return {
       appointment,

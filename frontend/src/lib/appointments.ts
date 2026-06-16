@@ -9,9 +9,12 @@ const getTenantId = () =>
 
 export type AppointmentStatus =
   | "REQUESTED"
+  | "SCHEDULED"
   | "CONFIRMED"
+  | "REJECTED"
   | "CANCELLED"
-  | "COMPLETED";
+  | "COMPLETED"
+  | "NO_SHOW";
 
 export type AppointmentCalendar = {
   id: string;

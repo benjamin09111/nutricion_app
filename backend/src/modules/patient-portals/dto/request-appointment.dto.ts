@@ -1,6 +1,5 @@
 import {
   IsString,
-  IsOptional,
   IsDateString,
   IsNotEmpty,
 } from 'class-validator';
@@ -10,11 +9,9 @@ export class RequestAppointmentDto {
   @IsNotEmpty()
   message: string;
 
-  @IsOptional()
   @IsDateString()
-  preferredDate?: string;
+  startAt?: string;
 
-  @IsOptional()
-  @IsString()
-  preferredTime?: string;
+  @IsDateString()
+  endAt?: string;
 }

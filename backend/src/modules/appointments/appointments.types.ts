@@ -16,7 +16,7 @@ export type NutritionistJwtPayload = jwt.JwtPayload & {
 
 export type AppointmentCalendarWithNutritionist =
   Prisma.AppointmentCalendarGetPayload<{
-    include: { nutritionist: true };
+    include: { nutritionist: { include: { account: true } } };
   }>;
 
 export type AppointmentCalendarWithSchedule =
@@ -31,6 +31,7 @@ export interface AppointmentRecord {
   patientName: string | null;
   title: string | null;
   description: string | null;
+  metadata: Record<string, unknown> | null;
   start: Date;
   end: Date;
   status: AppointmentStatus;
