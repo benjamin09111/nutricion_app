@@ -15,6 +15,7 @@ export class CreateAppointmentDto {
   @IsUUID()
   calendarId: string;
 
+  @IsOptional()
   @IsUUID()
   patientId: string;
 

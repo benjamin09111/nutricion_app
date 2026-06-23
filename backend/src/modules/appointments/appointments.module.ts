@@ -5,9 +5,10 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { MailModule } from '../mail/mail.module';
 import { AppointmentsPublicController } from './appointments.public.controller';
 import { AppointmentsRecordsController } from './appointments.records.controller';
+import { IntegrationsModule } from '../integrations/integrations.module';
 
 @Module({
-  imports: [PrismaModule, MailModule],
+  imports: [PrismaModule, MailModule, IntegrationsModule],
   controllers: [
     AppointmentsController,
     AppointmentsPublicController,

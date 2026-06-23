@@ -110,6 +110,7 @@ export function SubscriptionProvider({
         else if (backendPlan === "pro" || backendPlan === "premium" || backendPlan === "enterprise" || backendPlan === "iniciante") setPlan("pro");
       }
       if (user.planName) setPlanName(user.planName);
+      if (user.currentPlan) setCurrentPlan(user.currentPlan);
       if (user.usage) setUsage(user.usage);
       if (user.billing) setBilling(user.billing);
       if (user.subscription?.endDate) {

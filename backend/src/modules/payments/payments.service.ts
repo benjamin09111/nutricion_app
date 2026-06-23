@@ -139,7 +139,7 @@ export class PaymentsService {
         this.prisma.consultation.count({
           where: {
             nutritionist: { accountId },
-            createdAt: { gte: startOfMonth },
+            date: { gte: startOfMonth },
           },
         }),
         this.planUsageService.getUsage(accountId, 'pdf.monthly.limit'),

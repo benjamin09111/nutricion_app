@@ -29,6 +29,8 @@ import {
   AppointmentCalendar,
   AppointmentEvent,
   createBookingLink,
+  connectGoogleCalendar,
+  resyncGoogleCalendar,
   AppointmentRequest,
   AppointmentSlot,
   fetchAppointmentsApi,
@@ -38,7 +40,6 @@ import { FeatureGate } from "@/components/memberships/FeatureGate";
 import {
   useAppointmentPatients,
   useAppointmentPatientPortalStatus,
-  usePendingAppointments,
 } from "./hooks/useAppointmentsPeople";
 import {
   useCalendarMe,
@@ -49,6 +50,7 @@ import {
 import {
   approveAppointment,
   createAppointment,
+  cancelAppointment,
   rejectAppointment,
 } from "./hooks/useAppointmentActions";
 
@@ -381,6 +383,16 @@ const normalizeCalendar = (payload: unknown): AppointmentCalendar | null => {
           : typeof cal.isGoogleConnected === "boolean"
             ? cal.isGoogleConnected
             : undefined,
+    googleSyncEnabled:
+      typeof cal.googleSyncEnabled === "boolean" ? cal.googleSyncEnabled : undefined,
+    isGoogleConnected:
+      typeof cal.isGoogleConnected === "boolean" ? cal.isGoogleConnected : undefined,
+    googleCalendarEmail:
+      typeof cal.googleCalendarEmail === "string" ? cal.googleCalendarEmail : null,
+    googleCalendarStatus:
+      cal.googleCalendarStatus && typeof cal.googleCalendarStatus === "object" && !Array.isArray(cal.googleCalendarStatus)
+        ? (cal.googleCalendarStatus as Record<string, unknown>)
+        : null,
     metadata:
       cal.metadata && typeof cal.metadata === "object" && !Array.isArray(cal.metadata)
         ? (cal.metadata as Record<string, unknown>)
@@ -594,8 +606,7 @@ const getStoredNutritionistProfile = () => {
     };
 
     const nutritionist = user.nutritionist || null;
-    const nutritionistId =
-      normalizeText(nutritionist?.id) || normalizeText(user.id) || "";
+    const nutritionistId = normalizeText(nutritionist?.id) || "";
     const nutritionistName =
       normalizeText(nutritionist?.fullName) ||
       normalizeText(nutritionist?.name) ||
@@ -634,14 +645,17 @@ export default function AppointmentsClient() {
   const [workHoursDraft, setWorkHoursDraft] = useState<WeekRule[]>(DEFAULT_WEEK_RULES);
   const [workHoursGridDraft, setWorkHoursGridDraft] = useState<WorkHoursGridDraft>(createEmptyWorkHoursGrid());
   const [, setAvailabilitySource] = useState<"service" | "default">("default");
-  const [shareLinkUrl, setShareLinkUrl] = useState("");
+const [shareLinkUrl, setShareLinkUrl] = useState("");
   const [shareLinkNutritionistName, setShareLinkNutritionistName] = useState("");
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
   const [shareEmail, setShareEmail] = useState("");
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [now, setNow] = useState(() => new Date());
-const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent | null>(null);
   const [isAppointmentDetailOpen, setIsAppointmentDetailOpen] = useState(false);
+  const [isCancellingAppointment, setIsCancellingAppointment] = useState(false);
+  const [isGoogleConnecting, setIsGoogleConnecting] = useState(false);
+  const [isGoogleResyncing, setIsGoogleResyncing] = useState(false);
   const [mobileDayOffset, setMobileDayOffset] = useState(0);
   const [debouncedPatientSearchQuery, setDebouncedPatientSearchQuery] = useState("");
   const calendarSectionRef = useRef<HTMLDivElement | null>(null);
@@ -688,12 +702,7 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
   const selectedPatientPortalStatus = selectedPatientPortalStatusQuery.data ?? null;
   const isLoadingPatientPortalStatus = selectedPatientPortalStatusQuery.isFetching;
 
-  const pendingAppointmentsQuery = usePendingAppointments(
-    calendarId,
-    activeTab === "citas" && activeCitasTab === "pending",
-  );
-  const pendingAppointments = pendingAppointmentsQuery.data ?? [];
-  const isLoadingPending = pendingAppointmentsQuery.isFetching;
+  const pendingRequestsCount = requests.length;
 
   const isLoading =
     calendarQuery.isLoading ||
@@ -705,8 +714,7 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
     availabilityRulesQuery.isFetching ||
     weekViewQuery.isFetching ||
     calendarRequestsQuery.isFetching ||
-    patientCandidatesQuery.isFetching ||
-    pendingAppointmentsQuery.isFetching;
+    patientCandidatesQuery.isFetching;
 
   useEffect(() => {
     setCalendar(calendarQuery.data ?? null);
@@ -737,6 +745,18 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
     [patientCandidates],
   );
 
+  const hasWorkingHours = useMemo(
+    () => workHoursDraft.some((rule) => rule.enabled),
+    [workHoursDraft],
+  );
+
+  const showWorkHoursEmptyState = !isEditingWorkHours && !hasWorkingHours;
+
+  const startEditingWorkHours = () => {
+    setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft));
+    setIsEditingWorkHours(true);
+  };
+
   useEffect(() => {
     const timer = window.setInterval(() => {
       setNow(new Date());
@@ -765,8 +785,39 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
       weekViewQuery.refetch(),
       calendarRequestsQuery.refetch(),
       patientCandidatesQuery.refetch(),
-      pendingAppointmentsQuery.refetch(),
     ]);
+  };
+
+  const handleGoogleConnect = async () => {
+    if (!calendarId || isGoogleConnecting) return;
+    setIsGoogleConnecting(true);
+    try {
+      const response = await connectGoogleCalendar(calendarId);
+      const raw = response as Record<string, unknown>;
+      const authUrl = typeof raw.authUrl === "string" ? raw.authUrl : null;
+      if (!authUrl) {
+        throw new Error("No pudimos iniciar la conexión con Google.");
+      }
+      window.location.href = authUrl;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo conectar Google Calendar.");
+    } finally {
+      setIsGoogleConnecting(false);
+    }
+  };
+
+  const handleGoogleResync = async () => {
+    if (!calendarId || isGoogleResyncing) return;
+    setIsGoogleResyncing(true);
+    try {
+      await resyncGoogleCalendar(calendarId);
+      toast.success("Google Calendar sincronizado.");
+      await handleRefresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo re-sincronizar Google Calendar.");
+    } finally {
+      setIsGoogleResyncing(false);
+    }
   };
 
   const handleImportPatient = (patientId: string) => {
@@ -1013,8 +1064,8 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
     const patientName = createDraft.patientName.trim();
     const patientEmail = createDraft.patientEmail.trim();
 
-    if (!patientId || !patientName || !patientEmail) {
-      toast.error("Debes asociar un paciente para crear la cita.");
+    if (!patientName) {
+      toast.error("Debes indicar el nombre del paciente.");
       return;
     }
 
@@ -1044,9 +1095,9 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
       await createAppointment({
         calendarId,
         payload: {
-          patientId,
+          patientId: patientId || undefined,
           patientName,
-          patientEmail,
+          patientEmail: patientEmail || undefined,
           start: startDate.toISOString(),
           end: endDate.toISOString(),
           durationMin,
@@ -1055,7 +1106,7 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
           notes: description || undefined,
           status: "CONFIRMED",
           timeZone: calendarTimeZone,
-          notifyPatientByEmail: true,
+          notifyPatientByEmail: Boolean(patientEmail),
         },
       });
 
@@ -1087,6 +1138,22 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
       await handleRefresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Error al rechazar la cita");
+    }
+  };
+
+  const handleCancelAppointment = async (appointmentId: string) => {
+    if (isCancellingAppointment) return;
+    setIsCancellingAppointment(true);
+    try {
+      await cancelAppointment(appointmentId);
+      toast.success("Cita cancelada");
+      setIsAppointmentDetailOpen(false);
+      setSelectedAppointment(null);
+      await handleRefresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al cancelar la cita");
+    } finally {
+      setIsCancellingAppointment(false);
     }
   };
 
@@ -1157,26 +1224,43 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
             )}
           >
             {tab.label}
+            {tab.key === "citas" && pendingRequestsCount > 0 ? (
+              <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 text-[9px] font-black text-white">
+                {pendingRequestsCount}
+              </span>
+            ) : null}
           </button>
         ))}
       </section>
 
       {activeTab === "schedule" ? (
         <section ref={calendarSectionRef} className="space-y-4">
-<div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" title="Modificar horarios laborales" aria-label="Modificar horarios laborales" className="h-11 w-11 rounded-full border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:bg-slate-50" onClick={() => { setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft)); setIsEditingWorkHours(true); }}>
-                <Settings2 className="h-4 w-4" />
+              <Button
+                type="button"
+                variant="outline"
+                title="Modificar mis horarios laborales"
+                aria-label="Modificar mis horarios laborales"
+                className="h-11 rounded-full border border-indigo-200 bg-indigo-50 px-4 text-xs font-black uppercase tracking-[0.18em] text-indigo-700 shadow-sm hover:bg-indigo-100"
+                onClick={startEditingWorkHours}
+              >
+                <Settings2 className="mr-2 h-4 w-4" />
+                Modificar mis horarios laborales
               </Button>
-              <Button type="button" title="Crear cita" aria-label="Crear cita" className="h-11 w-11 rounded-full bg-indigo-600 p-0 text-white shadow-sm hover:bg-indigo-700" onClick={() => setIsCreateOpen(true)}>
-                <Plus className="h-4 w-4" />
-              </Button>
-              <Button type="button" variant="outline" title="Actualizar" aria-label="Actualizar" className="h-11 w-11 rounded-full border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:bg-slate-50" onClick={() => void handleRefresh()} disabled={isRefreshing}>
-                <RefreshCcw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-              </Button>
-              <Button type="button" variant="outline" title="Compartir horario" aria-label="Compartir horario" className="h-11 w-11 rounded-full border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:bg-slate-50" onClick={() => void handleShareSchedule()} disabled={isCreatingShareLink || isLoading}>
-                <Share2 className="h-4 w-4" />
-              </Button>
+              {(hasWorkingHours || isEditingWorkHours) && (
+                <>
+                  <Button type="button" title="Crear cita" aria-label="Crear cita" className="h-11 w-11 rounded-full bg-indigo-600 p-0 text-white shadow-sm hover:bg-indigo-700" onClick={() => setIsCreateOpen(true)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="outline" title="Actualizar" aria-label="Actualizar" className="h-11 w-11 rounded-full border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:bg-slate-50" onClick={() => void handleRefresh()} disabled={isRefreshing}>
+                    <RefreshCcw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+                  </Button>
+                  <Button type="button" variant="outline" title="Compartir horario" aria-label="Compartir horario" className="h-11 w-11 rounded-full border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:bg-slate-50" onClick={() => void handleShareSchedule()} disabled={isCreatingShareLink || isLoading}>
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -1189,6 +1273,53 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
               <Button type="button" variant="outline" title="Siguiente semana" aria-label="Siguiente semana" className="h-11 w-11 rounded-full border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:bg-slate-50" onClick={() => setWeekAnchor((current) => addDays(current, 7))}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Google Calendar</p>
+                <h3 className="mt-1 text-sm font-bold text-slate-900">
+                  {calendar?.googleCalendarConnected ? "Conectado y sincronizando disponibilidad" : "No conectado"}
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  {calendar?.googleCalendarConnected
+                    ? `Cuenta: ${calendar.googleCalendarEmail || "primary"}`
+                    : "Conéctalo para bloquear horarios ocupados en Google y sincronizar citas automáticamente."}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {calendar?.googleCalendarConnected ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 rounded-full border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-[0.16em] text-slate-600"
+                      onClick={() => void handleGoogleResync()}
+                      disabled={isGoogleResyncing}
+                    >
+                      {isGoogleResyncing ? "Re-sincronizando..." : "Re-sincronizar"}
+                    </Button>
+                    <Button
+                      type="button"
+                      className="h-10 rounded-full bg-emerald-600 px-4 text-xs font-black uppercase tracking-[0.16em] text-white"
+                      onClick={() => void handleRefresh()}
+                    >
+                      Actualizar estado
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    type="button"
+                    className="h-10 rounded-full bg-indigo-600 px-4 text-xs font-black uppercase tracking-[0.16em] text-white"
+                    onClick={() => void handleGoogleConnect()}
+                    disabled={isGoogleConnecting}
+                  >
+                    {isGoogleConnecting ? "Conectando..." : "Conectar Google Calendar"}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1236,8 +1367,22 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
           <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
             {isEditingWorkHours && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 sm:px-5">
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" className="h-10 rounded-full border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-[0.18em] text-slate-600" onClick={() => { setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft)); setIsEditingWorkHours(false); }}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-emerald-200">
+                    Laboral
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 ring-1 ring-slate-200">
+                    No laboral
+                  </span>
+                  <span className="text-xs font-medium text-slate-500">
+                    Toca un bloque para activarlo o desactivarlo.
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 rounded-full border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-[0.18em] text-slate-600"
+                    onClick={() => { setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft)); setIsEditingWorkHours(false); }}
+                  >
                     Cancelar
                   </Button>
                   <Button type="button" className="h-10 rounded-full bg-slate-900 px-4 text-xs font-black uppercase tracking-[0.18em] text-white" onClick={() => void handleSaveWorkHours()} isLoading={isSavingHours}>
@@ -1248,18 +1393,41 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
             )}
 
             {isLoading ? (
-              <div className="flex h-[820px] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-emerald-600" /></div>
-) : (
+              <div className="flex h-[820px] items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+              </div>
+            ) : showWorkHoursEmptyState ? (
+              <div className="flex min-h-[420px] flex-col items-center justify-center px-6 py-16 text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
+                  <Settings2 className="h-7 w-7" />
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+                  Horarios laborales
+                </p>
+                <h3 className="mt-2 text-xl font-bold text-slate-900">
+                  Aún no has configurado tus horarios
+                </h3>
+                <p className="mt-2 max-w-md text-sm text-slate-500">
+                  Antes de mostrar el calendario, define qué bloques de tiempo son laborales.
+                  Puedes comenzar con un horario vacío y activar solo los bloques que quieras.
+                </p>
+                <Button
+                  type="button"
+                  className="mt-6 h-11 rounded-full bg-slate-900 px-5 text-xs font-black uppercase tracking-[0.18em] text-white shadow-sm hover:bg-slate-800"
+                  onClick={startEditingWorkHours}
+                >
+                  Modificar mis horarios laborales
+                </Button>
+              </div>
+            ) : (
               <>
-                {/* Mobile single-day schedule */}
                 <div className="md:hidden">
                   {(() => {
                     const mobileDay = weekDays[mobileDayOffset];
                     const mobileDayKey = WEEK_DAYS[getWeekDayIndex(mobileDay)].key;
                     const mobileIsToday = formatDateKey(mobileDay) === todayKey;
-                    const mobileDayHasWorking = workHoursDraft.some((rule) => rule.day === mobileDayKey && rule.enabled);
                     const mobileDayGrid = workHoursGridDraft[mobileDayKey] || [];
-                    
+
                     return (
                       <div className="divide-y divide-slate-100">
                         <div className={cn("px-4 py-3 flex items-center justify-between", mobileIsToday && "bg-emerald-50/60")}>
@@ -1272,21 +1440,26 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
                             </p>
                           </div>
                           {mobileIsToday && (
-                            <span className="rounded-full bg-emerald-600 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white">Hoy</span>
+                            <span className="rounded-full bg-emerald-600 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white">
+                              Hoy
+                            </span>
                           )}
                         </div>
                         {Array.from({ length: HOUR_END - HOUR_START }, (_, index) => {
                           const hour = HOUR_START + index;
                           const gridIndex = hour - HOUR_START;
                           const isEditableHour = hour < HOUR_END;
-                          const isWorkingHour = isEditingWorkHours 
+                          const isWorkingHour = isEditingWorkHours
                             ? Boolean(mobileDayGrid[gridIndex])
                             : isHourWithinRule(mobileDay, hour, workHoursDraft);
                           const appointment = appointmentBlocks.get(`${formatDateKey(mobileDay)}-${hour}`);
 
                           return (
-                            <div key={hour} className={cn("flex items-center gap-3 px-4 py-3", !isWorkingHour && !appointment && "opacity-40")}>
-                              <span className="w-12 text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
+                            <div
+                              key={hour}
+                              className={cn("flex items-center gap-3 px-4 py-3", !isWorkingHour && !appointment && "opacity-40")}
+                            >
+                              <span className="w-12 shrink-0 text-[10px] font-black uppercase tracking-widest text-slate-400">
                                 {formatHourLabel(hour)}
                               </span>
                               {appointment ? (
@@ -1296,7 +1469,7 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
                                     setSelectedAppointment(appointment);
                                     setIsAppointmentDetailOpen(true);
                                   }}
-                                  className="flex-1 rounded-xl bg-emerald-100 px-3 py-2 text-left text-xs font-bold text-emerald-900 border border-emerald-200"
+                                  className="flex-1 rounded-xl border border-emerald-200 bg-emerald-100 px-3 py-2 text-left text-xs font-bold text-emerald-900"
                                 >
                                   {appointment.title}
                                 </button>
@@ -1304,12 +1477,25 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
                                 <button
                                   type="button"
                                   onClick={() => openCreateFromGrid(mobileDay, hour)}
-                                  className="flex-1 rounded-xl border border-dashed border-slate-200 px-3 py-2 text-left text-[10px] font-medium text-slate-400 hover:border-emerald-300 hover:text-emerald-600"
+                                  className={cn(
+                                    "flex-1 rounded-xl border px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.16em] transition-colors",
+                                    isEditingWorkHours
+                                      ? mobileDayGrid[gridIndex]
+                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                        : "border-slate-200 bg-slate-50 text-slate-500"
+                                      : "border-dashed border-emerald-200 bg-emerald-50/70 text-emerald-700 hover:bg-emerald-100/70",
+                                  )}
                                 >
-                                  {isEditingWorkHours ? (isEditableHour ? "Tocar para cambiar" : "") : "Disponible — tocar para crear cita"}
+                                  {isEditingWorkHours
+                                    ? mobileDayGrid[gridIndex]
+                                      ? "Laboral"
+                                      : "No laboral"
+                                    : "Laboral"}
                                 </button>
                               ) : isEditableHour ? (
-                                <span className="flex-1 text-[10px] font-medium text-slate-300 px-3">No laboral</span>
+                                <span className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                                  No laboral
+                                </span>
                               ) : (
                                 <span className="flex-1" />
                               )}
@@ -1321,101 +1507,146 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
                   })()}
                 </div>
 
-                {/* Desktop full-week schedule */}
-                <div className="hidden md:block overflow-x-auto">
-                <div className="min-w-[1024px]">
-                  <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] border-b border-slate-200 bg-white">
-                    <div className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Hora</div>
-                    {weekDays.map((day) => {
-                      const isToday = formatDateKey(day) === todayKey;
-                      return (
-                        <div key={day.toISOString()} className={cn("border-l border-slate-100 px-3 py-3 transition-colors", isToday && "border-emerald-200 bg-emerald-50/80")}>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{formatDayLabel(day)}</p>
-                          <p className="mt-1 text-xs font-bold text-slate-900">{day.toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}</p>
-                          {isToday && <span className="mt-2 inline-flex rounded-full bg-emerald-600 px-2 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-white">Hoy</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))]">
-                    <div className="relative bg-white">
-                      {Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, index) => {
-                        const hour = HOUR_START + index;
-                        return <div key={hour} className="flex h-16 items-start justify-end border-b border-slate-100 px-2 pt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">{formatHourLabel(hour)}</div>;
+                <div className="hidden overflow-x-auto md:block">
+                  <div className="min-w-[1024px]">
+                    <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] border-b border-slate-200 bg-white">
+                      <div className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Hora</div>
+                      {weekDays.map((day) => {
+                        const isToday = formatDateKey(day) === todayKey;
+                        return (
+                          <div key={day.toISOString()} className={cn("border-l border-slate-100 px-3 py-3 transition-colors", isToday && "border-emerald-200 bg-emerald-50/80")}>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{formatDayLabel(day)}</p>
+                            <p className="mt-1 text-xs font-bold text-slate-900">{day.toLocaleDateString("es-CL", { day: "2-digit", month: "short" })}</p>
+                            {isToday && <span className="mt-2 inline-flex rounded-full bg-emerald-600 px-2 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-white">Hoy</span>}
+                          </div>
+                        );
                       })}
                     </div>
 
-                    {weekDays.map((day) => {
-                      const dayKey = WEEK_DAYS[getWeekDayIndex(day)].key;
-                      const dayHasWorkingWindow = workHoursDraft.some((rule) => rule.day === dayKey && rule.enabled);
-                      const dayGrid = workHoursGridDraft[dayKey] || [];
-                      const isToday = formatDateKey(day) === todayKey;
-                      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-                      const currentLineTop = ((currentMinutes / 60) - HOUR_START) * ROW_HEIGHT;
-                      const showCurrentLine = isToday && currentLineTop >= 0 && currentLineTop <= (HOUR_END - HOUR_START) * ROW_HEIGHT;
-
-                      return (
-                        <div key={day.toISOString()} className={cn("relative min-h-[832px] border-l border-slate-100 bg-white transition-colors", isToday && "bg-emerald-50/30 ring-1 ring-inset ring-emerald-200/70")}>
-                          {Array.from({ length: HOUR_END - HOUR_START }, (_, index) => {
-                            const hour = HOUR_START + index;
-                            const gridIndex = hour - HOUR_START;
-                            const isSelectedHour = Boolean(dayGrid[gridIndex]);
-                            const isWorkingHour = isEditingWorkHours ? isSelectedHour : isHourWithinRule(day, hour, workHoursDraft);
-                            const isEditableHour = hour < HOUR_END;
-                            const appointment = appointmentBlocks.get(`${formatDateKey(day)}-${hour}`);
-
-                            return (
-                              <div key={hour} className="h-16 w-full border-b border-slate-100">
-                                {!isEditingWorkHours && appointment ? (
-                                  renderAppointmentCell(appointment)
-                                ) : (
-                                  <button type="button" onClick={() => {
-                                    if (!isEditableHour) return;
-                                    if (isEditingWorkHours) {
-                                      setWorkHoursGridDraft((current) => {
-                                        if (gridIndex < 0 || gridIndex >= (current[dayKey]?.length || 0)) return current;
-                                        const next = { ...current };
-                                        const nextDay = [...(next[dayKey] || [])];
-                                        nextDay[gridIndex] = !nextDay[gridIndex];
-                                        next[dayKey] = nextDay;
-                                        return next;
-                                      });
-                                      return;
-                                    }
-                                    if (!isWorkingHour) return;
-                                    openCreateFromGrid(day, hour);
-                                  }} title={!isEditableHour ? (isEditingWorkHours ? "Corte horario" : "Bloque horario") : isEditingWorkHours ? `${isSelectedHour ? "Desactivar" : "Activar"} ${formatHourLabel(hour)}` : isWorkingHour ? `Crear cita ${formatHourLabel(hour)} en ${day.toLocaleDateString("es-CL", { weekday: "short", day: "2-digit", month: "short" })}` : `No disponible (${formatHourLabel(hour)})`} className={cn("flex h-full w-full items-center justify-center transition-colors", !isEditableHour ? (isEditingWorkHours ? "cursor-pointer bg-slate-100/70 hover:bg-slate-200" : "cursor-default bg-white") : isEditingWorkHours ? (isSelectedHour ? "cursor-pointer bg-emerald-500/85 hover:bg-emerald-600" : "cursor-pointer bg-slate-100/80 hover:bg-slate-200") : isWorkingHour ? (isToday ? "cursor-pointer bg-emerald-100/70 hover:bg-emerald-200/70" : "cursor-pointer bg-emerald-50/40 hover:bg-emerald-100/60") : isToday ? "cursor-default bg-emerald-50/20" : "cursor-default bg-slate-100/70")}> 
-                                    {!isEditingWorkHours && isWorkingHour && isEditableHour && <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600/60">Disponible</span>}
-                                    {!isEditingWorkHours && !isWorkingHour && isEditableHour && <span className="text-[9px] font-black uppercase tracking-widest text-slate-400/50">No laboral</span>}
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                          {showCurrentLine && !isEditingWorkHours && (
-                            <div
-                              className="pointer-events-none absolute inset-x-0 z-20"
-                              style={{ top: currentLineTop }}
-                            >
-                              <div className="relative h-0">
-                                <div className="absolute left-0 right-0 top-0 border-t-2 border-rose-500" />
-                                <span className="absolute -top-2 left-2 rounded-full bg-rose-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-white shadow-sm">
-                                  Ahora
-                                </span>
-                              </div>
+                    <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))]">
+                      <div className="relative bg-white">
+                        {Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, index) => {
+                          const hour = HOUR_START + index;
+                          return (
+                            <div key={hour} className="flex h-16 items-start justify-end border-b border-slate-100 px-2 pt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                              {formatHourLabel(hour)}
                             </div>
-                          )}
-                          {!isEditingWorkHours && !dayHasWorkingWindow && <div className="pointer-events-none absolute inset-0 bg-slate-100/35" />}
-                        </div>
-                      );
-                    })}
+                          );
+                        })}
+                      </div>
+
+                      {weekDays.map((day) => {
+                        const dayKey = WEEK_DAYS[getWeekDayIndex(day)].key;
+                        const dayHasWorkingWindow = workHoursDraft.some((rule) => rule.day === dayKey && rule.enabled);
+                        const dayGrid = workHoursGridDraft[dayKey] || [];
+                        const isToday = formatDateKey(day) === todayKey;
+                        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                        const currentLineTop = ((currentMinutes / 60) - HOUR_START) * ROW_HEIGHT;
+                        const showCurrentLine = isToday && currentLineTop >= 0 && currentLineTop <= (HOUR_END - HOUR_START) * ROW_HEIGHT;
+
+                        return (
+                          <div key={day.toISOString()} className={cn("relative min-h-[832px] border-l border-slate-100 bg-white transition-colors", isToday && "bg-emerald-50/30 ring-1 ring-inset ring-emerald-200/70")}>
+                            {Array.from({ length: HOUR_END - HOUR_START }, (_, index) => {
+                              const hour = HOUR_START + index;
+                              const gridIndex = hour - HOUR_START;
+                              const isSelectedHour = Boolean(dayGrid[gridIndex]);
+                              const isWorkingHour = isEditingWorkHours ? isSelectedHour : isHourWithinRule(day, hour, workHoursDraft);
+                              const isEditableHour = hour < HOUR_END;
+                              const appointment = appointmentBlocks.get(`${formatDateKey(day)}-${hour}`);
+
+                              return (
+                                <div key={hour} className="h-16 w-full border-b border-slate-100">
+                                  {!isEditingWorkHours && appointment ? (
+                                    renderAppointmentCell(appointment)
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (!isEditableHour) return;
+                                        if (isEditingWorkHours) {
+                                          setWorkHoursGridDraft((current) => {
+                                            if (gridIndex < 0 || gridIndex >= (current[dayKey]?.length || 0)) return current;
+                                            const next = { ...current };
+                                            const nextDay = [...(next[dayKey] || [])];
+                                            nextDay[gridIndex] = !nextDay[gridIndex];
+                                            next[dayKey] = nextDay;
+                                            return next;
+                                          });
+                                          return;
+                                        }
+                                        if (!isWorkingHour) return;
+                                        openCreateFromGrid(day, hour);
+                                      }}
+                                      title={
+                                        !isEditableHour
+                                          ? isEditingWorkHours
+                                            ? "Corte horario"
+                                            : "Bloque horario"
+                                          : isEditingWorkHours
+                                            ? `${isSelectedHour ? "Desactivar" : "Activar"} ${formatHourLabel(hour)}`
+                                            : isWorkingHour
+                                              ? `Crear cita ${formatHourLabel(hour)} en ${day.toLocaleDateString("es-CL", { weekday: "short", day: "2-digit", month: "short" })}`
+                                              : `No disponible (${formatHourLabel(hour)})`
+                                      }
+                                      className={cn(
+                                        "flex h-full w-full items-center justify-center transition-colors",
+                                        !isEditableHour
+                                          ? isEditingWorkHours
+                                            ? "cursor-pointer bg-slate-100/70 hover:bg-slate-200"
+                                            : "cursor-default bg-white"
+                                          : isEditingWorkHours
+                                            ? isSelectedHour
+                                              ? "cursor-pointer bg-emerald-50 hover:bg-emerald-100"
+                                              : "cursor-pointer bg-slate-50/80 hover:bg-slate-100"
+                                            : isWorkingHour
+                                              ? isToday
+                                                ? "cursor-pointer bg-emerald-50/70 hover:bg-emerald-100/70"
+                                                : "cursor-pointer bg-emerald-50/40 hover:bg-emerald-100/60"
+                                              : isToday
+                                                ? "cursor-default bg-slate-50/30"
+                                                : "cursor-default bg-slate-100/70",
+                                      )}
+                                    >
+                                      {!isEditingWorkHours && isWorkingHour && isEditableHour && (
+                                        <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-white">
+                                          Laboral
+                                        </span>
+                                      )}
+                                      {!isEditingWorkHours && !isWorkingHour && isEditableHour && (
+                                        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                          No laboral
+                                        </span>
+                                      )}
+                                      {isEditingWorkHours && isEditableHour && (
+                                        <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest", isSelectedHour ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-500")}>
+                                          {isSelectedHour ? "Laboral" : "No laboral"}
+                                        </span>
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            {showCurrentLine && !isEditingWorkHours && (
+                              <div className="pointer-events-none absolute inset-x-0 z-20" style={{ top: currentLineTop }}>
+                                <div className="relative h-0">
+                                  <div className="absolute left-0 right-0 top-0 border-t-2 border-rose-500" />
+                                  <span className="absolute -top-2 left-2 rounded-full bg-rose-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-white shadow-sm">
+                                    Ahora
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            {!isEditingWorkHours && !dayHasWorkingWindow && <div className="pointer-events-none absolute inset-0 bg-slate-100/35" />}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
               </>
             )}
-          </div>
+            </div>
         </section>
 ) : activeTab === "upcoming" ? (
         <section className="rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
@@ -1497,7 +1728,7 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
         <section className="rounded-[1.5rem] border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-wrap gap-2 border-b border-slate-100 p-3 sm:p-4">
             {CITAS_TABS.map((tab) => (
-              <button key={tab.key} type="button" onClick={() => setActiveCitasTab(tab.key)} className={cn("rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] transition-all", activeCitasTab === tab.key ? "border-slate-900 bg-slate-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700")}>{tab.label}</button>
+              <button key={tab.key} type="button" onClick={() => setActiveCitasTab(tab.key)} className={cn("rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] transition-all", activeCitasTab === tab.key ? "border-slate-900 bg-slate-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700")}>{tab.label}{tab.key === "pending" && pendingRequestsCount > 0 ? <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 text-[9px] font-black text-white">{pendingRequestsCount}</span> : null}</button>
             ))}
           </div>
 
@@ -1586,7 +1817,7 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
 
             {activeCitasTab === "pending" && (
               <>
-                {isLoadingPending ? (
+                {calendarRequestsQuery.isFetching ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-6 w-6 animate-spin text-slate-300" />
                   </div>
@@ -1599,25 +1830,30 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
                           <thead>
                             <tr className="border-b border-slate-200 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">
                               <th className="py-3 px-4">Fecha</th>
+                              <th className="py-3 px-4">Hora</th>
                               <th className="py-3 px-4">Paciente</th>
                               <th className="py-3 px-4">Motivo</th>
                               <th className="py-3 px-4 w-40">Acciones</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {pendingAppointments.length === 0 ? (
+                            {requests.length === 0 ? (
                               <tr>
-                                <td className="px-4 py-8 text-slate-400 text-center" colSpan={4}>No hay citas pendientes.</td>
+                                <td className="px-4 py-8 text-slate-400 text-center" colSpan={5}>No hay citas pendientes.</td>
                               </tr>
                             ) : (
-                              pendingAppointments.map((apt: any) => {
-                                const start = parseDateSafe(apt.startTime);
+                              requests.map((apt: any) => {
+                                const start = parseDateSafe(apt.start);
+                                const end = parseDateSafe(apt.end || apt.start);
                                 return (
                                   <tr key={apt.id} className="border-b border-slate-100 last:border-b-0">
                                     <td className="px-4 py-3 font-medium text-slate-700">
                                       {start ? formatDateInTimeZone(start, calendarTimeZone, { day: "2-digit", month: "short", year: "numeric" }) : "--"}
                                     </td>
-                                    <td className="px-4 py-3 text-slate-600">{apt.patient?.fullName || "--"}</td>
+                                    <td className="px-4 py-3 text-slate-600">
+                                      {start && end ? `${formatTimeInTimeZone(start, calendarTimeZone)} - ${formatTimeInTimeZone(end, calendarTimeZone)}` : "--"}
+                                    </td>
+                                    <td className="px-4 py-3 text-slate-600">{apt.patientName || "--"}</td>
                                     <td className="px-4 py-3 text-slate-600">{apt.description || apt.title}</td>
                                     <td className="px-4 py-3">
                                       <div className="flex gap-2">
@@ -1635,28 +1871,29 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
                     </div>
                     {/* Mobile cards */}
                     <div className="block sm:hidden space-y-3">
-                      {pendingAppointments.length === 0 ? (
+                      {requests.length === 0 ? (
                         <div className="text-center py-10">
                           <CalendarDays className="h-8 w-8 text-slate-200 mx-auto mb-2" />
                           <p className="text-xs text-slate-400 font-medium">No hay citas pendientes.</p>
                         </div>
-                      ) : (
-                        pendingAppointments.map((apt: any) => {
-                          const start = parseDateSafe(apt.startTime);
-                          return (
-                            <div key={apt.id} className="rounded-2xl border border-amber-100 bg-amber-50/30 p-4 shadow-sm">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700">
-                                  Pendiente
-                                </span>
-                                {start && (
-                                  <span className="text-[10px] font-bold text-slate-500">
-                                    {formatDateInTimeZone(start, calendarTimeZone, { day: "2-digit", month: "short" })}
+                        ) : (
+                          requests.map((apt: any) => {
+                            const start = parseDateSafe(apt.start);
+                            const end = parseDateSafe(apt.end || apt.start);
+                            return (
+                              <div key={apt.id} className="rounded-2xl border border-amber-100 bg-amber-50/30 p-4 shadow-sm">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700">
+                                    Pendiente
                                   </span>
-                                )}
-                              </div>
-                              <p className="text-sm font-bold text-slate-900">{apt.description || apt.title}</p>
-                              <p className="text-xs font-medium text-slate-500 mt-1">{apt.patient?.fullName || "Paciente"}</p>
+                                  {start && end ? (
+                                    <span className="text-[10px] font-bold text-slate-500">
+                                      {formatDateInTimeZone(start, calendarTimeZone, { day: "2-digit", month: "short" })} · {formatTimeInTimeZone(start, calendarTimeZone)} - {formatTimeInTimeZone(end, calendarTimeZone)}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <p className="text-sm font-bold text-slate-900">{apt.description || apt.title}</p>
+                                <p className="text-xs font-medium text-slate-500 mt-1">{apt.patientName || "Paciente"}</p>
                               <div className="flex gap-2 mt-3 pt-3 border-t border-amber-100">
                                 <Button size="sm" className="flex-1 h-9 rounded-xl bg-emerald-600 text-[10px] font-black uppercase tracking-widest text-white" onClick={() => handleAcceptAppointment(apt.id)}>Aceptar</Button>
                                 <Button size="sm" variant="outline" className="flex-1 h-9 rounded-xl border-rose-200 text-[10px] font-black uppercase tracking-widest text-rose-600 hover:bg-rose-50" onClick={() => handleRejectAppointment(apt.id)}>Rechazar</Button>
@@ -1774,6 +2011,7 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
           <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
             <div>
               <p className="text-sm font-black text-slate-900">Paciente asociado</p>
+              <p className="text-xs text-slate-500">Opcional. Puedes crear la cita solo con nombre.</p>
             </div>
             <Button
               type="button"
@@ -1806,6 +2044,28 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
               </button>
             </div>
           ) : null}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-500">Nombre del paciente</label>
+              <Input
+                value={createDraft.patientName}
+                onChange={(event) => setCreateDraft((current) => ({ ...current, patientName: event.target.value }))}
+                className="h-12 rounded-xl"
+                placeholder="Nombre y apellido"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-500">Correo (opcional)</label>
+              <Input
+                type="email"
+                value={createDraft.patientEmail}
+                onChange={(event) => setCreateDraft((current) => ({ ...current, patientEmail: event.target.value }))}
+                className="h-12 rounded-xl"
+                placeholder="correo@ejemplo.com"
+              />
+            </div>
+          </div>
 
           {selectedPatientPortalStatus === "ACTIVE" && (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
@@ -1857,14 +2117,15 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
               <label className="flex items-center gap-3 opacity-80">
                 <input
                   type="checkbox"
-                  checked
+                  checked={Boolean(createDraft.patientEmail.trim())}
                   readOnly
-                  disabled
+                  disabled={!createDraft.patientEmail.trim()}
                   className="h-4 w-4 rounded border-slate-300 text-slate-400"
                 />
                 <Lock className="h-4 w-4 text-slate-400" />
                 <span className="text-sm font-black text-slate-900">Notificar por correo al paciente</span>
               </label>
+              <p className="mt-2 text-xs text-slate-500">Si no agregas correo, la cita se crea igual.</p>
             </div>
           </div>
           <div className="flex justify-end gap-3">
@@ -1874,7 +2135,7 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
             <Button
               className="h-11 rounded-xl bg-emerald-600 px-5 font-black text-white"
               onClick={() => void handleCreateAppointment()}
-              disabled={!selectedPatient || isLoadingPatientPortalStatus}
+              disabled={isLoadingPatientPortalStatus || !createDraft.patientName.trim() || !createDraft.description.trim()}
             >
               Crear cita
             </Button>
@@ -2125,6 +2386,23 @@ const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent 
               <p className="text-xs font-black uppercase tracking-widest text-slate-400">Notas</p>
               <p className="mt-1 text-sm text-slate-600">{selectedAppointment.notes || "Sin notas."}</p>
             </div>
+
+            {(["confirmed", "CONFIRMED", "scheduled", "SCHEDULED"].includes(selectedAppointment.status)) ? (
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 rounded-full border-rose-200 px-4 text-xs font-black uppercase tracking-[0.18em] text-rose-600 hover:bg-rose-50"
+                  disabled={isCancellingAppointment}
+                  onClick={() => void handleCancelAppointment(selectedAppointment.id)}
+                >
+                  {isCancellingAppointment ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  {isCancellingAppointment ? "Cancelando..." : "Cancelar cita"}
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </Modal>

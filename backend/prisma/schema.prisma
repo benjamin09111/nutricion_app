@@ -12,6 +12,10 @@ model Account {
   id                         String           @id @default(uuid())
   email                      String           @unique
   password                   String?
+  googleSub                  String?          @unique @map("google_sub")
+  googleEmail                String?          @map("google_email")
+  googleAvatarUrl            String?          @map("google_avatar_url")
+  authProvider               String           @default("credentials") @map("auth_provider")
 
   role                       UserRole         @default(NUTRITIONIST)
   status                     AccountStatus    @default(PENDING)
@@ -28,6 +32,7 @@ model Account {
   subscription       Subscription?
   planUsageCounters  PlanUsageCounter[]
   notifications      Notification[]
+  googleCalendarConnections GoogleCalendarConnection[]
 
   @@index([role, createdAt])
   @@map("accounts")
@@ -846,6 +851,10 @@ model Appointment {
   endTime     DateTime @map("end_time")
   status      AppointmentStatus @default(REQUESTED)
   notes       String?
+  googleCalendarEventId  String?   @map("google_calendar_event_id")
+  googleCalendarHtmlLink String?   @map("google_calendar_html_link")
+  googleCalendarSyncedAt  DateTime? @map("google_calendar_synced_at")
+  googleCalendarSyncError String?   @map("google_calendar_sync_error")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
   calendar    AppointmentCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
@@ -857,6 +866,26 @@ model Appointment {
   @@index([status])
   @@index([patientId, status, startTime])
   @@map("appointments")
+}
+
+model GoogleCalendarConnection {
+  id                    String   @id @default(uuid())
+  accountId             String   @unique @map("account_id")
+  googleEmail           String   @map("google_email")
+  googleSub             String?  @map("google_sub")
+  accessTokenEncrypted  String?  @map("access_token_encrypted")
+  refreshTokenEncrypted String   @map("refresh_token_encrypted")
+  tokenExpiry           DateTime? @map("token_expiry")
+  calendarId            String   @default("primary") @map("calendar_id")
+  scope                 String
+  connectedAt           DateTime @default(now()) @map("connected_at")
+  disconnectedAt        DateTime? @map("disconnected_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@map("google_calendar_connections")
 }
 
 model BookingLink {

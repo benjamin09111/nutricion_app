@@ -17,6 +17,7 @@ const createPrismaMock = () => ({
   appointment: {
     findFirst: jest.fn(),
     findMany: jest.fn(),
+    findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
   },
@@ -33,9 +34,17 @@ const createMailMock = () => ({
   sendAppointmentRejectedEmail: jest.fn(),
 });
 
+const createGoogleIntegrationMock = () => ({
+  getBusyEventsForCalendar: jest.fn().mockResolvedValue([]),
+  syncAppointmentToGoogle: jest.fn().mockResolvedValue({ synced: false }),
+  deleteAppointmentFromGoogle: jest.fn().mockResolvedValue({ deleted: false }),
+  getConnectionStatus: jest.fn().mockResolvedValue({ connected: false, googleEmail: null }),
+});
+
 describe('AppointmentsService', () => {
   let prisma: ReturnType<typeof createPrismaMock>;
   let mail: ReturnType<typeof createMailMock>;
+  let google: ReturnType<typeof createGoogleIntegrationMock>;
   let service: AppointmentsService;
 
   const calendar = {
@@ -56,8 +65,10 @@ describe('AppointmentsService', () => {
 
   beforeEach(() => {
     prisma = createPrismaMock();
+    prisma.$transaction.mockImplementation(async (callback: any) => callback(prisma as any));
     mail = createMailMock();
-    service = new AppointmentsService(prisma as any, mail as any);
+    google = createGoogleIntegrationMock();
+    service = new AppointmentsService(prisma as any, mail as any, google as any);
   });
 
   it('creates a requested appointment and notifies both parties', async () => {

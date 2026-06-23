@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api-base";
+import { addDaysToDateKey } from "../timezone";
 
 export const PUBLIC_PROFILE_UNAVAILABLE_MESSAGE =
   "Este perfil ya no es público";
@@ -54,7 +55,7 @@ export interface FreeSlotResponse {
   slots: Slot[];
 }
 
-export function usePublicNutritionistProfile(slug: string, weekStart: Date) {
+export function usePublicNutritionistProfile(slug: string, weekStartKey: string) {
   const queryClient = useQueryClient();
 
   const nutritionistQuery = useQuery({
@@ -91,17 +92,15 @@ export function usePublicNutritionistProfile(slug: string, weekStart: Date) {
       "public-nutritionists",
       slug,
       "slots",
-      weekStart.toISOString(),
+      weekStartKey,
       availabilityQuery.data?.calendarId || null,
     ],
     queryFn: async (): Promise<FreeSlotResponse> => {
       const calendarId = availabilityQuery.data?.calendarId;
       if (!calendarId) return { slots: [] };
 
-      const from = weekStart.toISOString();
-      const nextWeek = new Date(weekStart);
-      nextWeek.setDate(nextWeek.getDate() + 7);
-      const to = nextWeek.toISOString();
+      const from = `${weekStartKey}T00:00:00.000Z`;
+      const to = `${addDaysToDateKey(weekStartKey, 7)}T00:00:00.000Z`;
 
       const response = await fetchApi(
         `/availability/free-slots?calendarId=${calendarId}&from=${from}&to=${to}&durationMin=60`,

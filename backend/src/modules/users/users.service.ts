@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+const normalizeCalendarTimeZone = (timeZone?: string | null) =>
+  !timeZone || timeZone === 'UTC' ? 'America/Santiago' : timeZone;
 import { AccountStatus, SubscriptionPlan, UserRole } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
 import { ADMIN_ROLES } from '../permissions/permissions.constants';
@@ -725,7 +727,7 @@ export class UsersService {
     return {
       hasCalendar: true,
       calendarId: calendar.id,
-      timeZone: calendar.timeZone,
+      timeZone: normalizeCalendarTimeZone(calendar.timeZone),
       schedule,
     };
   }

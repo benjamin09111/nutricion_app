@@ -37,6 +37,10 @@ export interface AppointmentRecord {
   status: AppointmentStatus;
   notes: string | null;
   meetingUrl: string | null;
+  googleCalendarEventId?: string | null;
+  googleCalendarHtmlLink?: string | null;
+  googleCalendarSyncedAt?: Date | null;
+  googleCalendarSyncError?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

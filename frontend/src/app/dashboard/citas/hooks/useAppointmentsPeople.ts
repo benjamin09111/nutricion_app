@@ -1,9 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api-base";
-import { fetchAppointmentsApi } from "@/lib/appointments";
 import { type Patient } from "@/features/patients";
 import { type PatientPortalOverview } from "@/features/patient-portal/types";
-import { type AppointmentRequest } from "@/lib/appointments";
 import { getAuthToken } from "@/lib/auth-token";
 
 export function useAppointmentPatients(searchQuery: string, enabled: boolean) {
@@ -50,20 +48,5 @@ export function useAppointmentPatientPortalStatus(
       return typeof payload.status === "string" ? payload.status : null;
     },
     enabled,
-  });
-}
-
-export function usePendingAppointments(calendarId: string | null, enabled: boolean) {
-  return useQuery({
-    queryKey: ["appointments", "pending", calendarId],
-    queryFn: async (): Promise<AppointmentRequest[]> => {
-      if (!calendarId) return [];
-      const response = await fetchAppointmentsApi("/appointments/pending");
-      if (!response.ok) return [];
-      const data = await response.json().catch(() => []);
-      return Array.isArray(data) ? data : [];
-    },
-    enabled,
-    refetchInterval: 30000,
   });
 }

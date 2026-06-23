@@ -9,6 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { UpdateScheduleDto, TimeSlotDto } from './dto/update-schedule.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import { GoogleIntegrationService } from '../integrations/google-integration.service';
 
 import {
   AppointmentCalendarWithNutritionist,
@@ -89,7 +90,6 @@ const WEEKDAY_INDEX_BY_NAME: Record<string, number> = {
 };
 
 const BLOCKING_APPOINTMENT_STATUSES = new Set<AppointmentStatus>([
-  AppointmentStatus.REQUESTED,
   AppointmentStatus.SCHEDULED,
   AppointmentStatus.CONFIRMED,
 ]);
@@ -143,6 +143,9 @@ const getDatePartsInTimeZone = (date: Date, timeZone: string) => {
   };
 };
 
+const getDateKeyInTimeZone = (date: Date, timeZone: string) =>
+  getDatePartsInTimeZone(date, timeZone).dateKey;
+
 const getBlockKeyInTimeZone = (date: Date, timeZone: string) => {
   const { dateKey, hour } = getDatePartsInTimeZone(date, timeZone);
   return `${dateKey}-${hour}`;
@@ -169,15 +172,36 @@ const parseAppointmentMetadata = (
 const getAppointmentStatus = (status: string | AppointmentStatus) =>
   status.toString().toUpperCase() as AppointmentStatus;
 
+const normalizeCalendarTimeZone = (timeZone?: string | null) =>
+  !timeZone || timeZone === 'UTC' ? 'America/Santiago' : timeZone;
+
+const mapSerializableTransactionError = (error: unknown) => {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+    return new BadRequestException('Ese horario ya no está disponible');
+  }
+
+  return error;
+};
+
+const assertAtLeastNextDayInTimeZone = (date: Date, timeZone: string) => {
+  const todayKey = getDateKeyInTimeZone(new Date(), timeZone);
+  const targetKey = getDateKeyInTimeZone(date, timeZone);
+
+  if (targetKey <= todayKey) {
+    throw new BadRequestException('Solo puedes solicitar citas desde mañana en adelante');
+  }
+};
+
 const localDateTimeToUtcIso = (
   dateKey: string,
   hour: number,
   timeZone: string,
 ) => {
   const { year, month, day } = parseDateKey(dateKey);
-  let utcGuess = Date.UTC(year, month - 1, day, hour, 0, 0);
+  const desiredLocalUtcMs = Date.UTC(year, month - 1, day, hour, 0, 0);
+  let utcGuess = desiredLocalUtcMs;
 
-  for (let i = 0; i < 2; i += 1) {
+  for (let i = 0; i < 5; i += 1) {
     const parts = new Intl.DateTimeFormat('en-US', {
       timeZone,
       year: 'numeric',
@@ -201,7 +225,7 @@ const localDateTimeToUtcIso = (
       getPart('second'),
     );
 
-    const delta = formattedAsUtc - utcGuess;
+    const delta = formattedAsUtc - desiredLocalUtcMs;
     if (delta === 0) break;
     utcGuess -= delta;
   }
@@ -214,6 +238,7 @@ export class AppointmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
+    private readonly googleIntegrationService: GoogleIntegrationService,
   ) {}
 
   private normalizeAppointment(appointment: {
@@ -229,6 +254,10 @@ export class AppointmentsService {
     status: AppointmentStatus;
     notes: string | null;
     meetingUrl?: string | null;
+    googleCalendarEventId?: string | null;
+    googleCalendarHtmlLink?: string | null;
+    googleCalendarSyncedAt?: Date | null;
+    googleCalendarSyncError?: string | null;
     createdAt: Date;
     updatedAt: Date;
   }): AppointmentRecord {
@@ -245,6 +274,10 @@ export class AppointmentsService {
       status: appointment.status,
       notes: appointment.notes,
       meetingUrl: appointment.meetingUrl || null,
+      googleCalendarEventId: appointment.googleCalendarEventId || null,
+      googleCalendarHtmlLink: appointment.googleCalendarHtmlLink || null,
+      googleCalendarSyncedAt: appointment.googleCalendarSyncedAt || null,
+      googleCalendarSyncError: appointment.googleCalendarSyncError || null,
       createdAt: appointment.createdAt,
       updatedAt: appointment.updatedAt,
     };
@@ -339,9 +372,30 @@ export class AppointmentsService {
     });
   }
 
+  private async runSerializableTransaction<T>(
+    work: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await this.prisma.$transaction(work, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error) {
+      throw mapSerializableTransactionError(error);
+    }
+  }
+
   async getOrCreateCalendar(
     nutritionistId: string,
   ): Promise<AppointmentCalendarWithNutritionist> {
+    const nutritionist = await this.prisma.nutritionist.findUnique({
+      where: { id: nutritionistId },
+      select: { id: true },
+    });
+
+    if (!nutritionist) {
+      throw new NotFoundException('Perfil de nutricionista no encontrado');
+    }
+
     let calendar = await this.prisma.appointmentCalendar.findUnique({
       where: { nutritionistId },
       include: { nutritionist: { include: { account: true } } },
@@ -408,8 +462,8 @@ export class AppointmentsService {
       nutritionistName: calendar.nutritionist?.fullName || calendar.name,
       title: calendar.title,
       description: calendar.description,
-      timeZone: calendar.timeZone,
-      timezone: calendar.timeZone,
+      timeZone: normalizeCalendarTimeZone(calendar.timeZone),
+      timezone: normalizeCalendarTimeZone(calendar.timeZone),
       metadata: bookingLink.metadata as Record<string, unknown> | null,
     };
   }
@@ -437,8 +491,8 @@ export class AppointmentsService {
         bookingLink.calendar.name,
       title: bookingLink.calendar.title,
       description: bookingLink.calendar.description,
-      timeZone: bookingLink.calendar.timeZone,
-      timezone: bookingLink.calendar.timeZone,
+      timeZone: normalizeCalendarTimeZone(bookingLink.calendar.timeZone),
+      timezone: normalizeCalendarTimeZone(bookingLink.calendar.timeZone),
       metadata: bookingLink.metadata as Record<string, unknown> | null,
     };
   }
@@ -448,14 +502,17 @@ export class AppointmentsService {
   ): Promise<{ slots: FreeSlotRecord[] }> {
     const calendar = await this.prisma.appointmentCalendar.findUnique({
       where: { id: query.calendarId },
-      include: { timeSlots: true },
+      include: {
+        timeSlots: true,
+        nutritionist: { include: { account: true } },
+      },
     });
 
     if (!calendar) {
       throw new NotFoundException('Calendario no encontrado');
     }
 
-    const timeZone = calendar.timeZone || 'UTC';
+    const timeZone = normalizeCalendarTimeZone(calendar.timeZone);
     const fromKey = extractDateKey(query.from);
     const toKey = extractDateKey(query.to);
     if (!fromKey || !toKey) {
@@ -474,6 +531,12 @@ export class AppointmentsService {
       },
       select: { startTime: true, endTime: true },
     });
+
+    const googleBusyRanges = await this.googleIntegrationService.getBusyEventsForCalendar(
+      calendar.id,
+      new Date(`${fromKey}T00:00:00.000Z`).toISOString(),
+      new Date(`${toKey}T23:59:59.999Z`).toISOString(),
+    ).catch(() => [] as Array<{ start: Date; end: Date }>);
     const current = new Date(`${fromKey}T12:00:00.000Z`);
     const end = new Date(`${toKey}T12:00:00.000Z`);
 
@@ -509,7 +572,10 @@ export class AppointmentsService {
               (slotStart.getTime() < appointment.endTime.getTime() &&
                 slotEnd.getTime() > appointment.startTime.getTime())
             );
-          });
+          }) || googleBusyRanges.some((busy) => (
+            slotStart.getTime() < busy.end.getTime() &&
+            slotEnd.getTime() > busy.start.getTime()
+          ));
           slots.push({
             start: slotStart.toISOString(),
             end: slotEnd.toISOString(),
@@ -562,10 +628,19 @@ export class AppointmentsService {
       orderBy: [{ dayOfWeek: 'asc' }, { hour: 'asc' }],
     });
 
+    const googleStatus = await this.googleIntegrationService.getConnectionStatus(
+      calendar.nutritionist.account.id,
+    );
+
     return {
       ...calendar,
+      googleCalendarConnected: googleStatus.connected,
+      googleSyncEnabled: googleStatus.connected,
+      isGoogleConnected: googleStatus.connected,
+      googleCalendarEmail: googleStatus.googleEmail,
+      googleCalendarStatus: googleStatus,
       schedule: this.formatSchedule(timeSlots),
-    };
+    } as AppointmentCalendarWithSchedule;
   }
 
   async listAppointments(
@@ -605,8 +680,53 @@ export class AppointmentsService {
     );
   }
 
+  async getWeekView(
+    calendarId: string,
+    nutritionistId: string,
+    weekStart: string,
+  ): Promise<{ events: AppointmentRecord[] }> {
+    await this.getCalendarById(calendarId, nutritionistId);
+
+    const from = new Date(`${weekStart}T00:00:00.000Z`);
+    const to = new Date(from);
+    to.setDate(to.getDate() + 7);
+
+    const events = await this.prisma.appointment.findMany({
+      where: {
+        calendarId,
+        status: { in: [...DISPLAY_CONFIRMED_STATUSES] },
+        startTime: { gte: from, lt: to },
+      },
+      orderBy: { startTime: 'asc' },
+      select: {
+        id: true,
+        calendarId: true,
+        patientId: true,
+        patientName: true,
+        title: true,
+        description: true,
+        metadata: true,
+        startTime: true,
+        endTime: true,
+        status: true,
+        notes: true,
+        googleCalendarEventId: true,
+        googleCalendarHtmlLink: true,
+        googleCalendarSyncedAt: true,
+        googleCalendarSyncError: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      events: events.map((event) => this.normalizeAppointment(event)),
+    };
+  }
+
   async requestAppointment(nutritionistId: string, dto: RequestAppointmentInput) {
     const calendar = await this.getCalendarById(dto.calendarId, nutritionistId);
+    const timeZone = normalizeCalendarTimeZone(calendar.timeZone);
     const start = new Date(dto.start);
     const end = new Date(dto.end);
 
@@ -618,6 +738,8 @@ export class AppointmentsService {
       throw new BadRequestException('La cita debe terminar después de iniciar');
     }
 
+    assertAtLeastNextDayInTimeZone(start, timeZone);
+
     const durationMin = Math.round((end.getTime() - start.getTime()) / 60000);
     if (durationMin < 5 || durationMin > 60) {
       throw new BadRequestException('La duración debe estar entre 5 y 60 minutos');
@@ -627,47 +749,78 @@ export class AppointmentsService {
       throw new BadRequestException('La cita debe empezar al menos 5 minutos en el futuro');
     }
 
-    const conflict = await this.findConflictingAppointment(calendar.id, start, end);
-    if (conflict) {
+    const googleBusyRanges = await this.googleIntegrationService
+      .getBusyEventsForCalendar(calendar.id, start.toISOString(), end.toISOString())
+      .catch(() => [] as Array<{ start: Date; end: Date }>);
+
+    if (googleBusyRanges.some((busy) => start < busy.end && end > busy.start)) {
       throw new BadRequestException('Ese horario ya no está disponible');
     }
 
-    const patient = dto.patientId
-      ? await this.prisma.patient.findFirst({
-          where: {
-            id: dto.patientId,
+    let patientName = dto.guestName?.trim() || '';
+    let patientEmail = dto.guestEmail?.trim() || '';
+    let patientPhone: string | null = dto.guestPhone?.trim() || null;
+
+    const appointment = await this.runSerializableTransaction(async (tx) => {
+      const patient = dto.patientId
+        ? await tx.patient.findFirst({
+            where: {
+              id: dto.patientId,
+              nutritionistId,
+            },
+          })
+        : null;
+
+      patientName = patient?.fullName || dto.guestName?.trim() || '';
+      patientEmail = patient?.email || dto.guestEmail?.trim() || '';
+      patientPhone = patient?.phone || dto.guestPhone?.trim() || null;
+
+      if (!patientName || !patientEmail) {
+        throw new BadRequestException('Nombre y correo son requeridos para solicitar una cita');
+      }
+
+      const conflict = await tx.appointment.findFirst({
+        where: {
+          calendarId: calendar.id,
+          status: { in: [...BLOCKING_APPOINTMENT_STATUSES] },
+          startTime: { lt: end },
+          endTime: { gt: start },
+        },
+        select: { id: true },
+      });
+
+      if (conflict) {
+        throw new BadRequestException('Ese horario ya no está disponible');
+      }
+
+      const googleBusyRanges = await this.googleIntegrationService
+        .getBusyEventsForCalendar(calendar.id, start.toISOString(), end.toISOString())
+        .catch(() => [] as Array<{ start: Date; end: Date }>);
+
+      if (googleBusyRanges.some((busy) => start < busy.end && end > busy.start)) {
+        throw new BadRequestException('Ese horario ya no está disponible');
+      }
+
+      return tx.appointment.create({
+        data: {
+          calendarId: calendar.id,
+          patientId: patient?.id ?? null,
+          patientName,
+          title: dto.message?.trim() ? `Solicitud de cita - ${patientName}` : 'Solicitud de cita',
+          description: dto.message?.trim() || 'Solicitud de cita pendiente de confirmación',
+          metadata: {
+            source: dto.source,
+            guestEmail: patientEmail,
+            guestPhone: patientPhone,
+            patientId: patient?.id ?? null,
             nutritionistId,
           },
-        })
-      : null;
-
-    const patientName = patient?.fullName || dto.guestName?.trim();
-    const patientEmail = patient?.email || dto.guestEmail?.trim();
-    const patientPhone = patient?.phone || dto.guestPhone?.trim() || null;
-
-    if (!patientName || !patientEmail) {
-      throw new BadRequestException('Nombre y correo son requeridos para solicitar una cita');
-    }
-
-    const appointment = await this.prisma.appointment.create({
-      data: {
-        calendarId: calendar.id,
-        patientId: patient?.id ?? null,
-        patientName,
-        title: dto.message?.trim() ? `Solicitud de cita - ${patientName}` : 'Solicitud de cita',
-        description: dto.message?.trim() || 'Solicitud de cita pendiente de confirmación',
-        metadata: {
-          source: dto.source,
-          guestEmail: patientEmail,
-          guestPhone: patientPhone,
-          patientId: patient?.id ?? null,
-          nutritionistId,
+          startTime: start,
+          endTime: end,
+          status: AppointmentStatus.REQUESTED,
+          notes: dto.message?.trim() || null,
         },
-        startTime: start,
-        endTime: end,
-        status: AppointmentStatus.REQUESTED,
-        notes: dto.message?.trim() || null,
-      },
+      });
     });
 
     const nutritionistName = calendar.nutritionist.fullName || calendar.name;
@@ -700,7 +853,19 @@ export class AppointmentsService {
 
     await Promise.allSettled(requestEmails);
 
-    return this.normalizeAppointment(appointment);
+    await this.googleIntegrationService.syncAppointmentToGoogle({
+      calendarId: calendar.id,
+      appointment: appointment as any,
+      inviteEmail: patientEmail,
+      inviteName: patientName,
+      syncGoogleCalendar: true,
+    });
+
+    const refreshed = await this.prisma.appointment.findUnique({
+      where: { id: appointment.id },
+    });
+
+    return this.normalizeAppointment(refreshed || appointment);
   }
 
   async createAppointment(
@@ -708,18 +873,8 @@ export class AppointmentsService {
     dto: CreateAppointmentDto,
   ): Promise<AppointmentRecord> {
     const calendar = await this.getCalendarById(dto.calendarId, nutritionistId);
+    const timeZone = normalizeCalendarTimeZone(calendar.timeZone);
     const description = dto.description.trim();
-
-    const patient = await this.prisma.patient.findFirst({
-      where: {
-        id: dto.patientId,
-        nutritionistId,
-      },
-    });
-
-    if (!patient) {
-      throw new NotFoundException('Paciente no encontrado');
-    }
 
     const start = new Date(dto.start);
     const end = new Date(dto.end);
@@ -749,34 +904,86 @@ export class AppointmentsService {
       );
     }
 
-    const conflict = await this.findConflictingAppointment(calendar.id, start, end);
-    if (conflict) {
+    const googleBusyRanges = await this.googleIntegrationService
+      .getBusyEventsForCalendar(calendar.id, start.toISOString(), end.toISOString())
+      .catch(() => [] as Array<{ start: Date; end: Date }>);
+
+    if (googleBusyRanges.some((busy) => start < busy.end && end > busy.start)) {
       throw new BadRequestException('Ese horario ya no está disponible');
     }
 
-    const appointment = await this.prisma.appointment.create({
-      data: {
-        calendarId: calendar.id,
-        patientId: patient.id,
-        patientName: patient.fullName,
-        title: dto.title?.trim() || description,
-        description,
-        metadata: {
-          source: 'manual',
-          nutritionistId,
-          patientId: patient.id,
+    let patientName = '';
+    let patientEmail: string | null = null;
+
+    const appointment = await this.runSerializableTransaction(async (tx) => {
+      const patient = dto.patientId
+        ? await tx.patient.findFirst({
+            where: {
+              id: dto.patientId,
+              nutritionistId,
+            },
+          })
+        : null;
+
+      if (dto.patientId && !patient) {
+        throw new NotFoundException('Paciente no encontrado');
+      }
+
+      patientName =
+        patient?.fullName || dto.patientName?.trim() || dto.title?.trim() || '';
+      patientEmail = patient?.email || dto.patientEmail?.trim() || null;
+
+      if (!patientName) {
+        throw new BadRequestException('El nombre del paciente es obligatorio');
+      }
+
+      const conflict = await tx.appointment.findFirst({
+        where: {
+          calendarId: calendar.id,
+          status: { in: [...BLOCKING_APPOINTMENT_STATUSES] },
+          startTime: { lt: end },
+          endTime: { gt: start },
         },
-        startTime: start,
-        endTime: end,
-        status: AppointmentStatus.CONFIRMED,
-        notes: dto.notes?.trim() || description,
-      },
+        select: { id: true },
+      });
+
+      if (conflict) {
+        throw new BadRequestException('Ese horario ya no está disponible');
+      }
+
+      const googleBusyRanges = await this.googleIntegrationService
+        .getBusyEventsForCalendar(calendar.id, start.toISOString(), end.toISOString())
+        .catch(() => [] as Array<{ start: Date; end: Date }>);
+
+      if (googleBusyRanges.some((busy) => start < busy.end && end > busy.start)) {
+        throw new BadRequestException('Ese horario ya no está disponible');
+      }
+
+      return tx.appointment.create({
+        data: {
+          calendarId: calendar.id,
+          patientId: patient?.id ?? null,
+          patientName,
+          title: dto.title?.trim() || description,
+          description,
+          metadata: {
+            source: 'manual',
+            nutritionistId,
+            patientId: patient?.id ?? null,
+            patientEmail,
+          },
+          startTime: start,
+          endTime: end,
+          status: AppointmentStatus.CONFIRMED,
+          notes: dto.notes?.trim() || description,
+        },
+      });
     });
 
-    if (patient.email) {
+    if (patientEmail) {
       await this.sendAppointmentConfirmedEmail({
-        recipientEmail: patient.email,
-        recipientName: patient.fullName,
+        recipientEmail: patientEmail,
+        recipientName: patientName,
         nutritionistName: calendar.nutritionist.fullName || calendar.name,
         timeZone: calendar.timeZone,
         appointmentDate: start,
@@ -786,7 +993,19 @@ export class AppointmentsService {
       });
     }
 
-    return this.normalizeAppointment(appointment);
+    await this.googleIntegrationService.syncAppointmentToGoogle({
+      calendarId: calendar.id,
+      appointment: appointment as any,
+      inviteEmail: patientEmail,
+      inviteName: patientName,
+      syncGoogleCalendar: true,
+    });
+
+    const refreshed = await this.prisma.appointment.findUnique({
+      where: { id: appointment.id },
+    });
+
+    return this.normalizeAppointment(refreshed || appointment);
   }
 
   private formatSchedule(
@@ -960,45 +1179,6 @@ export class AppointmentsService {
     return { rules };
   }
 
-  async getPendingAppointments(nutritionistId: string) {
-    const calendar = await this.prisma.appointmentCalendar.findFirst({
-      where: { nutritionistId },
-      select: { id: true },
-    });
-
-    if (!calendar) {
-      return [];
-    }
-
-    const appointments = await this.prisma.appointment.findMany({
-      where: {
-        calendarId: calendar.id,
-        status: AppointmentStatus.REQUESTED,
-      },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        startTime: true,
-        endTime: true,
-        status: true,
-        metadata: true,
-        notes: true,
-        createdAt: true,
-        patient: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    return appointments;
-  }
-
   async approveAppointment(
     nutritionistId: string,
     appointmentId: string,
@@ -1070,6 +1250,22 @@ export class AppointmentsService {
         throw new BadRequestException('Ese horario ya no está disponible');
       }
 
+      const googleBusyRanges = await this.googleIntegrationService
+        .getBusyEventsForCalendar(
+          calendar.id,
+          finalStart.toISOString(),
+          finalEnd.toISOString(),
+        )
+        .catch(() => [] as Array<{ start: Date; end: Date }>);
+
+      if (
+        googleBusyRanges.some(
+          (busy) => finalStart < busy.end && finalEnd > busy.start,
+        )
+      ) {
+        throw new BadRequestException('Ese horario ya no está disponible');
+      }
+
       const nextAppointment = await tx.appointment.update({
         where: { id: appointmentId },
         data: {
@@ -1084,6 +1280,10 @@ export class AppointmentsService {
       });
 
       return { appointment, nextAppointment };
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    }).catch((error) => {
+      throw mapSerializableTransactionError(error);
     });
 
     const recipientEmail =
@@ -1105,7 +1305,80 @@ export class AppointmentsService {
       });
     }
 
-    return this.normalizeAppointment(result.nextAppointment);
+    await this.googleIntegrationService.syncAppointmentToGoogle({
+      calendarId: calendar.id,
+      appointment: result.nextAppointment as any,
+      inviteEmail: recipientEmail || null,
+      inviteName: recipientName,
+      syncGoogleCalendar: true,
+    });
+
+    const refreshed = await this.prisma.appointment.findUnique({
+      where: { id: result.nextAppointment.id },
+    });
+
+    return this.normalizeAppointment(refreshed || result.nextAppointment);
+  }
+
+  async cancelAppointment(nutritionistId: string, appointmentId: string) {
+    const calendar = await this.prisma.appointmentCalendar.findFirst({
+      where: { nutritionistId },
+      include: { nutritionist: { include: { account: true } } },
+    });
+
+    if (!calendar) {
+      throw new NotFoundException('Calendario no encontrado');
+    }
+
+    const appointment = await this.prisma.appointment.findFirst({
+      where: {
+        id: appointmentId,
+        calendarId: calendar.id,
+        status: { in: [AppointmentStatus.CONFIRMED, AppointmentStatus.SCHEDULED] },
+      },
+      select: {
+        id: true,
+        patientName: true,
+        description: true,
+        startTime: true,
+        endTime: true,
+        metadata: true,
+        googleCalendarEventId: true,
+        googleCalendarHtmlLink: true,
+        googleCalendarSyncedAt: true,
+        googleCalendarSyncError: true,
+        patient: {
+          select: { id: true, fullName: true, email: true },
+        },
+      },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Cita no encontrada');
+    }
+
+    const updated = await this.prisma.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        status: AppointmentStatus.CANCELLED,
+        metadata: {
+          ...(parseAppointmentMetadata(appointment.metadata) || {}),
+          cancelledAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    await this.googleIntegrationService.deleteAppointmentFromGoogle({
+      calendarId: calendar.id,
+      appointmentId: updated.id,
+      googleCalendarEventId: appointment.googleCalendarEventId,
+    });
+
+    const refreshed = await this.prisma.appointment.findUnique({
+      where: { id: updated.id },
+    });
+
+    return this.normalizeAppointment(refreshed || updated);
   }
 
   async rejectAppointment(
@@ -1135,6 +1408,10 @@ export class AppointmentsService {
         startTime: true,
         endTime: true,
         metadata: true,
+        googleCalendarEventId: true,
+        googleCalendarHtmlLink: true,
+        googleCalendarSyncedAt: true,
+        googleCalendarSyncError: true,
         patient: {
           select: { id: true, fullName: true, email: true },
         },

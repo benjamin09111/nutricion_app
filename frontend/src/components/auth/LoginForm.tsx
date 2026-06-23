@@ -12,6 +12,7 @@ import { authService } from "@/features/auth/services/auth.service";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
 import { cn } from "@/lib/utils";
+import GoogleButton from "@/components/auth/GoogleButton";
 
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error) {
@@ -24,6 +25,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
 
   // Modal States
   const [activeModal, setActiveModal] = useState<"reset" | "contact" | null>(
@@ -48,6 +50,15 @@ export default function LoginForm() {
   });
 
   const router = useRouter();
+  const handleGoogleLogin = () => {
+    if (isGoogleSigningIn) return;
+    setIsGoogleSigningIn(true);
+    const backendUrl =
+      process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, "") ||
+      "http://localhost:3001";
+    window.location.href = `${backendUrl}/auth/google/start?next=${encodeURIComponent("/dashboard")}`;
+  };
+
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
     try {
@@ -153,6 +164,17 @@ export default function LoginForm() {
   return (
     <>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        <GoogleButton onClick={handleGoogleLogin} isLoading={isGoogleSigningIn} />
+
+        <div className="relative py-1">
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+            <div className="w-full border-t border-slate-200" />
+          </div>
+          <div className="relative flex justify-center text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+            o continúa con tu correo
+          </div>
+        </div>
+
         <div>
           <label
             htmlFor="email"

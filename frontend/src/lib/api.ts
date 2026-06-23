@@ -6,6 +6,7 @@ export const api = {
     const token = typeof window !== 'undefined' ? (Cookies.get("auth_token") || localStorage.getItem("auth_token")) : null;
     const response = await fetchApi(path, {
       ...options,
+      cache: options?.cache ?? "no-store",
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -20,6 +21,7 @@ export const api = {
     const token = typeof window !== 'undefined' ? (Cookies.get("auth_token") || localStorage.getItem("auth_token")) : null;
     const response = await fetchApi(path, {
       ...options,
+      cache: options?.cache ?? "no-store",
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -35,6 +37,7 @@ export const api = {
     const token = typeof window !== 'undefined' ? (Cookies.get("auth_token") || localStorage.getItem("auth_token")) : null;
     const response = await fetchApi(path, {
       ...options,
+      cache: options?.cache ?? "no-store",
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -50,6 +53,7 @@ export const api = {
     const token = typeof window !== 'undefined' ? (Cookies.get("auth_token") || localStorage.getItem("auth_token")) : null;
     const response = await fetchApi(path, {
       ...options,
+      cache: options?.cache ?? "no-store",
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",

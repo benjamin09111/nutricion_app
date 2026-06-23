@@ -48,6 +48,7 @@ export function DeveloperPlanSwitcher() {
       await refreshSubscription();
       const planName = result.plan?.name || "plan";
       toast.success(`QA: ahora estás en ${planName}`);
+      window.location.reload();
     } catch (error) {
       console.error("Error changing developer plan:", error);
       toast.error("No se pudo cambiar el plan de QA");

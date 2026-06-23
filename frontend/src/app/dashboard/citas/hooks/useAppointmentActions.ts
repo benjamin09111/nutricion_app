@@ -36,25 +36,37 @@ export async function createAppointment(input: CreateAppointmentInput) {
 }
 
 export async function approveAppointment(appointmentId: string) {
-  const response = await fetchAppointmentsApi(`/appointments/${appointmentId}/approve`, {
+  const response = await fetchAppointmentsApi(`/calendars/appointments/${appointmentId}/approve`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
   });
 
   if (!response.ok) {
-    throw new Error(parseAppointmentsError(response, `/appointments/${appointmentId}/approve`).message);
+    throw new Error(parseAppointmentsError(response, `/calendars/appointments/${appointmentId}/approve`).message);
   }
 }
 
 export async function rejectAppointment(appointmentId: string, reason?: string) {
-  const response = await fetchAppointmentsApi(`/appointments/${appointmentId}/reject`, {
+  const response = await fetchAppointmentsApi(`/calendars/appointments/${appointmentId}/reject`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ reason }),
   });
 
   if (!response.ok) {
-    throw new Error(parseAppointmentsError(response, `/appointments/${appointmentId}/reject`).message);
+    throw new Error(parseAppointmentsError(response, `/calendars/appointments/${appointmentId}/reject`).message);
+  }
+}
+
+export async function cancelAppointment(appointmentId: string) {
+  const response = await fetchAppointmentsApi(`/calendars/appointments/${appointmentId}/cancel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+
+  if (!response.ok) {
+    throw new Error(parseAppointmentsError(response, `/calendars/appointments/${appointmentId}/cancel`).message);
   }
 }

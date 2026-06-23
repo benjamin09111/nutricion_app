@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   MapPin,
@@ -37,6 +37,14 @@ import {
 } from "./hooks/usePublicNutritionistProfile";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PUBLIC_PROFILE_UNAVAILABLE_MESSAGE } from "./hooks/usePublicNutritionistProfile";
+import {
+  createDateFromDateKey,
+  formatDateKeyInTimeZone,
+  addDaysToDateKey,
+  getTomorrowDateKeyInTimeZone,
+  isDateKeyBefore,
+  normalizePublicCalendarTimeZone,
+} from "./timezone";
 
 interface NutritionistProfileClientProps {
   slug: string;
@@ -59,19 +67,20 @@ export default function NutritionistProfileClient({
   });
 
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
-  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
-    const now = new Date();
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(now.setDate(diff));
-  });
+  const [calendarWeekSynced, setCalendarWeekSynced] = useState(false);
+  const [currentWeekStartKey, setCurrentWeekStartKey] = useState(() =>
+    getTomorrowDateKeyInTimeZone(
+      new Date(),
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+    ),
+  );
 
   const {
     nutritionistQuery,
     availabilityQuery,
     slotsQuery,
     requestAppointment,
-  } = usePublicNutritionistProfile(slug, currentWeekStart);
+  } = usePublicNutritionistProfile(slug, currentWeekStartKey);
 
   const nutritionist = nutritionistQuery.data ?? initialNutritionist;
   const availability = availabilityQuery.data ?? null;
@@ -84,36 +93,65 @@ export default function NutritionistProfileClient({
     nutritionistQuery.error instanceof Error &&
     nutritionistQuery.error.message === PUBLIC_PROFILE_UNAVAILABLE_MESSAGE;
 
+  const availabilityTimeZone = availability?.timeZone ?? null;
+  const calendarTimeZone = normalizePublicCalendarTimeZone(
+    availabilityTimeZone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+  );
+
   const weekDays = useMemo(() => {
     const days = [];
-    const dayNames = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+    const todayKey = formatDateKeyInTimeZone(new Date(), calendarTimeZone);
     for (let i = 0; i < 7; i++) {
-      const day = new Date(currentWeekStart);
-      day.setDate(day.getDate() + i);
+      const fullDate = addDaysToDateKey(currentWeekStartKey, i);
+      const day = createDateFromDateKey(fullDate);
       days.push({
         date: day,
-        label: dayNames[i],
-        day: day.getDate(),
-        month: day.toLocaleDateString("es-CL", { month: "short" }),
-        fullDate: day.toISOString().split("T")[0],
+        label: new Intl.DateTimeFormat("es-CL", {
+          timeZone: calendarTimeZone,
+          weekday: "short",
+        })
+          .format(day)
+          .replace(".", ""),
+        day: Number(
+          new Intl.DateTimeFormat("es-CL", {
+            timeZone: calendarTimeZone,
+            day: "2-digit",
+          }).format(day),
+        ),
+        month: new Intl.DateTimeFormat("es-CL", {
+          timeZone: calendarTimeZone,
+          month: "short",
+        }).format(day),
+        fullDate,
+        isPast: isDateKeyBefore(fullDate, todayKey),
       });
     }
     return days;
-  }, [currentWeekStart]);
+  }, [calendarTimeZone, currentWeekStartKey]);
 
   const availableSlots = useMemo(
     () => slots.filter((s) => s.available),
     [slots],
   );
 
-  const calendarTimeZone =
-    availability?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  useEffect(() => {
+    if (!availabilityTimeZone || calendarWeekSynced) return;
+    setSelectedSlot(null);
+    setCurrentWeekStartKey(
+      getTomorrowDateKeyInTimeZone(new Date(), calendarTimeZone),
+    );
+    setCalendarWeekSynced(true);
+  }, [availabilityTimeZone, calendarTimeZone, calendarWeekSynced]);
 
   const slotsByDay = useMemo(() => {
     const map = new Map<string, Slot[]>();
     weekDays.forEach((day) => map.set(day.fullDate, []));
 
     for (const slot of availableSlots) {
+      const slotDateKey = formatDateKeyInTimeZone(new Date(slot.start), calendarTimeZone);
+      if (isDateKeyBefore(slotDateKey, formatDateKeyInTimeZone(new Date(), calendarTimeZone))) {
+        continue;
+      }
       const key = new Intl.DateTimeFormat("en-CA", {
         timeZone: calendarTimeZone,
         year: "numeric",
@@ -168,16 +206,16 @@ export default function NutritionistProfileClient({
   };
 
   const goToPrevWeek = () => {
-    const prev = new Date(currentWeekStart);
-    prev.setDate(prev.getDate() - 7);
-    if (prev < new Date()) return;
-    setCurrentWeekStart(prev);
+    const prevKey = addDaysToDateKey(currentWeekStartKey, -7);
+    const minimumKey = getTomorrowDateKeyInTimeZone(new Date(), calendarTimeZone);
+    if (prevKey < minimumKey) return;
+    setSelectedSlot(null);
+    setCurrentWeekStartKey(prevKey);
   };
 
   const goToNextWeek = () => {
-    const next = new Date(currentWeekStart);
-    next.setDate(next.getDate() + 7);
-    setCurrentWeekStart(next);
+    setSelectedSlot(null);
+    setCurrentWeekStartKey(addDaysToDateKey(currentWeekStartKey, 7));
   };
 
   const openGoogleMaps = () => {
@@ -528,7 +566,11 @@ export default function NutritionistProfileClient({
                       </p>
                     </div>
                     <div className="space-y-2">
-                      {daySlots.length > 0 ? (
+                      {day.isPast ? (
+                        <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-4 text-center text-[10px] font-medium text-slate-400">
+                          Fecha pasada
+                        </div>
+                      ) : daySlots.length > 0 ? (
                         daySlots.map((slot) => {
                           const isSelected = selectedSlot?.start === slot.start;
                           return (

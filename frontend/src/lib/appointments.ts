@@ -25,6 +25,10 @@ export type AppointmentCalendar = {
   timeZone: string;
   timezone?: string;
   googleCalendarConnected?: boolean;
+  googleSyncEnabled?: boolean;
+  isGoogleConnected?: boolean;
+  googleCalendarEmail?: string | null;
+  googleCalendarStatus?: Record<string, unknown> | null;
   metadata: Record<string, unknown> | null;
 };
 
@@ -130,7 +134,11 @@ const getNutritionistId = (): string | null => {
     const userStr = localStorage.getItem("user");
     if (userStr) {
       const user = JSON.parse(userStr);
-      return user?.id || user?.nutritionistId || null;
+      return (
+        user?.nutritionist?.id ||
+        user?.nutritionistId ||
+        null
+      );
     }
   } catch (e) { }
   return null;

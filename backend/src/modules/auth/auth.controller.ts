@@ -11,6 +11,7 @@ import {
   Request,
   UnauthorizedException,
   BadRequestException,
+  Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { MailService } from '../mail/mail.service';
@@ -20,13 +21,53 @@ import { AuthGuard } from './guards/auth.guard';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { RegisterDto } from './dto/register.dto';
 import { isAdminRole } from '../permissions/permissions.constants';
+import { GoogleIntegrationService } from '../integrations/google-integration.service';
+import type { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly mailService: MailService,
+    private readonly googleIntegrationService: GoogleIntegrationService,
   ) {}
+
+  @Get('google/start')
+  async googleStart(
+    @Query('next') next: string | undefined,
+    @Res() res: Response,
+  ) {
+    const authUrl = await this.googleIntegrationService.buildGoogleLoginUrl(
+      next || '/dashboard',
+    );
+    return res.redirect(authUrl);
+  }
+
+  @Get('google/callback')
+  async googleCallback(
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Res() res: Response,
+  ) {
+    if (!code || !state) {
+      throw new BadRequestException('Callback de Google incompleto');
+    }
+
+    const callback = await this.googleIntegrationService.handleGoogleLoginCallback(
+      code,
+      state,
+    );
+    const result = await this.authService.loginWithGoogle(callback.profile);
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const targetUrl = `${frontendUrl}/auth/callback?token=${encodeURIComponent(result.access_token)}&next=${encodeURIComponent(callback.next || '/dashboard')}`;
+    return res.redirect(targetUrl);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('me')
+  async me(@Request() req: any) {
+    return this.authService.getMe(req.user.id);
+  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)

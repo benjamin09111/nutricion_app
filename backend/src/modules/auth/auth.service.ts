@@ -15,7 +15,7 @@ import { RegisterDto } from './dto/register.dto';
 import { PermissionsService } from '../permissions/permissions.service';
 import { isAdminRole } from '../permissions/permissions.constants';
 
-import { UserRole, SubscriptionPlan } from '@prisma/client';
+import { Prisma, UserRole, SubscriptionPlan } from '@prisma/client';
 
 const buildPublicSlug = (fullName: string, id: string) => {
   const namePart = fullName
@@ -44,6 +44,59 @@ export class AuthService {
     private mailService: MailService,
     private permissionsService: PermissionsService,
   ) {}
+
+  private async buildSessionPayload(account: {
+    id: string;
+    email: string;
+    role: UserRole;
+    plan: SubscriptionPlan;
+    nutritionist?: { id: string; fullName: string } | null;
+    subscription?: {
+      status: string;
+      startDate: Date;
+      endDate: Date;
+      cancelAtPeriodEnd: boolean;
+      canceledAt: Date | null;
+      planId: string;
+      plan?: { name: string | null; slug: string | null; price: Prisma.Decimal | number | string } | null;
+    } | null;
+  }) {
+    const planName = account.subscription?.plan?.name || 'Plan Gratuito';
+    const accessSnapshot = await this.permissionsService.getAccessSnapshot(account.id);
+
+    const subscriptionInfo = account.subscription
+      ? {
+          status: account.subscription.status,
+          startDate: account.subscription.startDate,
+          endDate: account.subscription.endDate,
+          cancelAtPeriodEnd: account.subscription.cancelAtPeriodEnd,
+          canceledAt: account.subscription.canceledAt,
+          planId: account.subscription.planId,
+          planName: account.subscription.plan?.name || null,
+          planSlug: account.subscription.plan?.slug || null,
+          planPrice: account.subscription.plan
+            ? Number(account.subscription.plan.price)
+            : null,
+        }
+      : null;
+
+    return {
+      planName,
+      accessSnapshot,
+      subscriptionInfo,
+      user: {
+        id: account.id,
+        email: account.email,
+        role: account.role,
+        plan: account.plan,
+        planName,
+        requiresPlanSelection: accessSnapshot?.requiresPlanSelection ?? true,
+        entitlements: accessSnapshot?.entitlements ?? {},
+        subscription: subscriptionInfo,
+        nutritionist: account.nutritionist,
+      },
+    };
+  }
 
   private mapMembershipPlanToAccountPlan(
     slug?: string | null,
@@ -480,6 +533,178 @@ export class AuthService {
 
       throw error;
     }
+  }
+
+  async loginWithGoogle(profile: {
+    sub: string;
+    email: string;
+    email_verified: boolean;
+    name?: string;
+    picture?: string;
+  }) {
+    const normalizedEmail = profile.email.toLowerCase().trim();
+
+    const account = await this.prisma.$transaction(async (tx) => {
+      const existingByGoogle = await tx.account.findUnique({
+        where: { googleSub: profile.sub },
+        include: {
+          nutritionist: true,
+          subscription: { include: { plan: true } },
+        },
+      });
+
+      if (existingByGoogle) {
+        return tx.account.update({
+          where: { id: existingByGoogle.id },
+          data: {
+            googleEmail: normalizedEmail,
+            googleAvatarUrl: profile.picture || existingByGoogle.googleAvatarUrl,
+            emailVerifiedAt: existingByGoogle.emailVerifiedAt || new Date(),
+            status: 'ACTIVE',
+            authProvider: 'google',
+          },
+          include: {
+            nutritionist: true,
+            subscription: { include: { plan: true } },
+          },
+        });
+      }
+
+      const existingByEmail = await tx.account.findUnique({
+        where: { email: normalizedEmail },
+        include: {
+          nutritionist: true,
+          subscription: { include: { plan: true } },
+        },
+      });
+
+      if (existingByEmail) {
+        if (
+          ![
+            'NUTRITIONIST',
+            'NUTRITIONIST_DEVELOPER',
+            'ORGANIZATION',
+            'SUPPLEMENT_STORE',
+            'SUPERMARKET',
+          ].includes(existingByEmail.role)
+        ) {
+          throw new BadRequestException('Esta cuenta no puede vincularse con Google');
+        }
+
+        const updated = await tx.account.update({
+          where: { id: existingByEmail.id },
+          data: {
+            googleSub: profile.sub,
+            googleEmail: normalizedEmail,
+            googleAvatarUrl: profile.picture || existingByEmail.googleAvatarUrl,
+            emailVerifiedAt: existingByEmail.emailVerifiedAt || new Date(),
+            status: 'ACTIVE',
+            authProvider: 'google',
+          },
+          include: {
+            nutritionist: true,
+            subscription: { include: { plan: true } },
+          },
+        });
+
+        if (
+          (updated.role === 'NUTRITIONIST' || updated.role === 'NUTRITIONIST_DEVELOPER') &&
+          !updated.nutritionist
+        ) {
+          const nutritionist = await tx.nutritionist.create({
+            data: {
+              accountId: updated.id,
+              fullName: profile.name || 'Usuario',
+            },
+          });
+
+          await tx.nutritionist.update({
+            where: { id: nutritionist.id },
+            data: { publicSlug: buildPublicSlug(profile.name || 'Usuario', nutritionist.id) },
+          });
+
+          return tx.account.findUniqueOrThrow({
+            where: { id: updated.id },
+            include: {
+              nutritionist: true,
+              subscription: { include: { plan: true } },
+            },
+          });
+        }
+
+        return updated;
+      }
+
+      const newAccount = await tx.account.create({
+        data: {
+          email: normalizedEmail,
+          password: null,
+          googleSub: profile.sub,
+          googleEmail: normalizedEmail,
+          googleAvatarUrl: profile.picture || null,
+          authProvider: 'google',
+          role: 'NUTRITIONIST',
+          plan: 'FREE',
+          status: 'ACTIVE',
+          emailVerifiedAt: new Date(),
+          emailVerificationToken: null,
+          emailVerificationSentAt: null,
+        },
+        include: {
+          nutritionist: true,
+          subscription: { include: { plan: true } },
+        },
+      });
+
+      const nutritionist = await tx.nutritionist.create({
+        data: {
+          accountId: newAccount.id,
+          fullName: profile.name || 'Usuario',
+        },
+      });
+
+      await tx.nutritionist.update({
+        where: { id: nutritionist.id },
+        data: { publicSlug: buildPublicSlug(profile.name || 'Usuario', nutritionist.id) },
+      });
+
+      return tx.account.findUniqueOrThrow({
+        where: { id: newAccount.id },
+        include: {
+          nutritionist: true,
+          subscription: { include: { plan: true } },
+        },
+      });
+    });
+
+    const { user } = await this.buildSessionPayload(account as any);
+    const payload = {
+      email: account.email,
+      sub: account.id,
+      role: account.role,
+      nutritionistId: account.nutritionist?.id,
+    };
+
+    return {
+      access_token: this.jwtService.sign(payload, { expiresIn: '30d' }),
+      user,
+    };
+  }
+
+  async getMe(userId: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id: userId },
+      include: {
+        nutritionist: true,
+        subscription: { include: { plan: true } },
+      },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    return this.buildSessionPayload(account as any);
   }
 
   async validateUser(payload: any) {

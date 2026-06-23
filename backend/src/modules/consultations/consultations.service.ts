@@ -41,6 +41,22 @@ const normalizeMetricKey = (label: string = '', key?: string) => {
     .replace(/\s+/g, '_');
 };
 
+const consultationSelect = {
+  id: true,
+  patientId: true,
+  nutritionistId: true,
+  date: true,
+  title: true,
+  description: true,
+  metrics: true,
+  updatedAt: true,
+  patient: {
+    select: {
+      fullName: true,
+    },
+  },
+} as const;
+
 @Injectable()
 export class ConsultationsService {
   constructor(
@@ -61,7 +77,7 @@ export class ConsultationsService {
     const consultationsThisMonth = await this.prisma.consultation.count({
       where: {
         nutritionistId,
-        createdAt: { gte: startOfMonth },
+        date: { gte: startOfMonth },
       },
     });
 
@@ -77,13 +93,7 @@ export class ConsultationsService {
         nutritionistId,
         date: new Date(createConsultationDto.date),
       },
-      include: {
-        patient: {
-          select: {
-            fullName: true,
-          },
-        },
-      },
+      select: consultationSelect,
     });
 
     // Sync patient data if metrics are present
@@ -155,13 +165,7 @@ export class ConsultationsService {
         skip,
         take: limit,
         orderBy: { date: 'desc' },
-        include: {
-          patient: {
-            select: {
-              fullName: true,
-            },
-          },
-        },
+        select: consultationSelect,
       }),
     ]);
 
@@ -181,13 +185,7 @@ export class ConsultationsService {
   async findOne(nutritionistId: string, id: string) {
     const consultation = await this.prisma.consultation.findUnique({
       where: { id },
-      include: {
-        patient: {
-          select: {
-            fullName: true,
-          },
-        },
-      },
+      select: consultationSelect,
     });
 
     if (!consultation) {
@@ -221,13 +219,7 @@ export class ConsultationsService {
     const consultation = await this.prisma.consultation.update({
       where: { id },
       data,
-      include: {
-        patient: {
-          select: {
-            fullName: true,
-          },
-        },
-      },
+      select: consultationSelect,
     });
 
     // Sync patient data if metrics are present

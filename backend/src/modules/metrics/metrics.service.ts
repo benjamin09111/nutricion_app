@@ -19,8 +19,19 @@ export class MetricsService {
     private readonly cacheService: CacheService,
   ) {}
 
+  private readonly metricDefinitionSelect = {
+    id: true,
+    name: true,
+    unit: true,
+    key: true,
+    nutritionistId: true,
+    icon: true,
+    color: true,
+  };
+
   async findAll() {
     return this.prisma.metricDefinition.findMany({
+      select: this.metricDefinitionSelect,
       orderBy: { name: 'asc' },
     });
   }
@@ -44,6 +55,7 @@ export class MetricsService {
           { name: { equals: data.name.trim(), mode: 'insensitive' } },
         ],
       },
+      select: this.metricDefinitionSelect,
     });
 
     if (existingMetric) {
@@ -56,6 +68,7 @@ export class MetricsService {
         key,
         nutritionistId,
       },
+      select: this.metricDefinitionSelect,
     });
 
     await this.cacheService.invalidateGlobalPrefix('metrics');
@@ -70,6 +83,7 @@ export class MetricsService {
           { key: { contains: query, mode: 'insensitive' } },
         ],
       },
+      select: this.metricDefinitionSelect,
       orderBy: { name: 'asc' },
       take: 20,
     });
@@ -78,6 +92,7 @@ export class MetricsService {
   async remove(id: string, nutritionistId: string, role?: string) {
     const metric = await this.prisma.metricDefinition.findUnique({
       where: { id },
+      select: this.metricDefinitionSelect,
     });
     if (!metric) {
       throw new Error(

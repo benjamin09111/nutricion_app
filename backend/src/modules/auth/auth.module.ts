@@ -8,6 +8,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { MailModule } from '../mail/mail.module';
 import { PermissionsModule } from '../permissions/permissions.module';
+import { IntegrationsModule } from '../integrations/integrations.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { PermissionsModule } from '../permissions/permissions.module';
     ConfigModule,
     MailModule,
     PermissionsModule,
+    IntegrationsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
