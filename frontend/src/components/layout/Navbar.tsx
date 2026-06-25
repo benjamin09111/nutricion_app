@@ -460,7 +460,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                   role="menuitem"
                   tabIndex={-1}
                   onClick={() => setIsProfileOpen(false)}
-                >
+                  >
                   <Settings
                     className={cn(
                       "h-4 w-4",
@@ -469,6 +469,52 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                   />
                   Configuraciones
                 </Link>
+
+                <div
+                  className={cn(
+                    "border-t px-4 py-2",
+                    isDarkMode ? "border-emerald-400/10" : "border-slate-100",
+                  )}
+                >
+                  <p
+                    className={cn(
+                      "mb-2 text-[10px] font-semibold uppercase tracking-wider",
+                      isDarkMode ? "text-emerald-100/50" : "text-slate-400",
+                    )}
+                  >
+                    Legal
+                  </p>
+                  <div className="space-y-1">
+                    <Link
+                      href="/terms"
+                      className={cn(
+                        "flex w-full cursor-pointer items-center rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                        isDarkMode
+                          ? "text-emerald-100/80 hover:bg-emerald-500/8"
+                          : "text-slate-700 hover:bg-slate-50",
+                      )}
+                      role="menuitem"
+                      tabIndex={-1}
+                      onClick={() => setIsProfileOpen(false)}
+                    >
+                      Términos de Servicio
+                    </Link>
+                    <Link
+                      href="/privacy-policy"
+                      className={cn(
+                        "flex w-full cursor-pointer items-center rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                        isDarkMode
+                          ? "text-emerald-100/80 hover:bg-emerald-500/8"
+                          : "text-slate-700 hover:bg-slate-50",
+                      )}
+                      role="menuitem"
+                      tabIndex={-1}
+                      onClick={() => setIsProfileOpen(false)}
+                    >
+                      Política de Privacidad
+                    </Link>
+                  </div>
+                </div>
 
                 {isTutorialAvailable && currentTutorial ? (
                   <button

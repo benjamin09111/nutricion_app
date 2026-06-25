@@ -176,7 +176,10 @@ const normalizeCalendarTimeZone = (timeZone?: string | null) =>
   !timeZone || timeZone === 'UTC' ? 'America/Santiago' : timeZone;
 
 const mapSerializableTransactionError = (error: unknown) => {
-  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2034'
+  ) {
     return new BadRequestException('Ese horario ya no está disponible');
   }
 
@@ -188,7 +191,9 @@ const assertAtLeastNextDayInTimeZone = (date: Date, timeZone: string) => {
   const targetKey = getDateKeyInTimeZone(date, timeZone);
 
   if (targetKey <= todayKey) {
-    throw new BadRequestException('Solo puedes solicitar citas desde mañana en adelante');
+    throw new BadRequestException(
+      'Solo puedes solicitar citas desde mañana en adelante',
+    );
   }
 };
 
@@ -360,7 +365,11 @@ export class AppointmentsService {
     });
   }
 
-  private async findConflictingAppointment(calendarId: string, start: Date, end: Date) {
+  private async findConflictingAppointment(
+    calendarId: string,
+    start: Date,
+    end: Date,
+  ) {
     return this.prisma.appointment.findFirst({
       where: {
         calendarId,
@@ -532,11 +541,13 @@ export class AppointmentsService {
       select: { startTime: true, endTime: true },
     });
 
-    const googleBusyRanges = await this.googleIntegrationService.getBusyEventsForCalendar(
-      calendar.id,
-      new Date(`${fromKey}T00:00:00.000Z`).toISOString(),
-      new Date(`${toKey}T23:59:59.999Z`).toISOString(),
-    ).catch(() => [] as Array<{ start: Date; end: Date }>);
+    const googleBusyRanges = await this.googleIntegrationService
+      .getBusyEventsForCalendar(
+        calendar.id,
+        new Date(`${fromKey}T00:00:00.000Z`).toISOString(),
+        new Date(`${toKey}T23:59:59.999Z`).toISOString(),
+      )
+      .catch(() => [] as Array<{ start: Date; end: Date }>);
     const current = new Date(`${fromKey}T12:00:00.000Z`);
     const end = new Date(`${toKey}T12:00:00.000Z`);
 
@@ -562,20 +573,23 @@ export class AppointmentsService {
             new Date(`${fromKey}T00:00:00.000Z`).getTime() &&
           slotEnd.getTime() <= new Date(`${toKey}T23:59:59.999Z`).getTime()
         ) {
-          const isBusy = blockingAppointments.some((appointment) => {
-            const appointmentStartKey = getBlockKeyInTimeZone(
-              appointment.startTime,
-              timeZone,
+          const isBusy =
+            blockingAppointments.some((appointment) => {
+              const appointmentStartKey = getBlockKeyInTimeZone(
+                appointment.startTime,
+                timeZone,
+              );
+              return (
+                appointmentStartKey === `${dateKey}-${slot.hour}` ||
+                (slotStart.getTime() < appointment.endTime.getTime() &&
+                  slotEnd.getTime() > appointment.startTime.getTime())
+              );
+            }) ||
+            googleBusyRanges.some(
+              (busy) =>
+                slotStart.getTime() < busy.end.getTime() &&
+                slotEnd.getTime() > busy.start.getTime(),
             );
-            return (
-              appointmentStartKey === `${dateKey}-${slot.hour}` ||
-              (slotStart.getTime() < appointment.endTime.getTime() &&
-                slotEnd.getTime() > appointment.startTime.getTime())
-            );
-          }) || googleBusyRanges.some((busy) => (
-            slotStart.getTime() < busy.end.getTime() &&
-            slotEnd.getTime() > busy.start.getTime()
-          ));
           slots.push({
             start: slotStart.toISOString(),
             end: slotEnd.toISOString(),
@@ -628,9 +642,10 @@ export class AppointmentsService {
       orderBy: [{ dayOfWeek: 'asc' }, { hour: 'asc' }],
     });
 
-    const googleStatus = await this.googleIntegrationService.getConnectionStatus(
-      calendar.nutritionist.account.id,
-    );
+    const googleStatus =
+      await this.googleIntegrationService.getConnectionStatus(
+        calendar.nutritionist.account.id,
+      );
 
     return {
       ...calendar,
@@ -724,7 +739,10 @@ export class AppointmentsService {
     };
   }
 
-  async requestAppointment(nutritionistId: string, dto: RequestAppointmentInput) {
+  async requestAppointment(
+    nutritionistId: string,
+    dto: RequestAppointmentInput,
+  ) {
     const calendar = await this.getCalendarById(dto.calendarId, nutritionistId);
     const timeZone = normalizeCalendarTimeZone(calendar.timeZone);
     const start = new Date(dto.start);
@@ -742,15 +760,23 @@ export class AppointmentsService {
 
     const durationMin = Math.round((end.getTime() - start.getTime()) / 60000);
     if (durationMin < 5 || durationMin > 60) {
-      throw new BadRequestException('La duración debe estar entre 5 y 60 minutos');
+      throw new BadRequestException(
+        'La duración debe estar entre 5 y 60 minutos',
+      );
     }
 
     if (start.getTime() < Date.now() + 5 * 60 * 1000) {
-      throw new BadRequestException('La cita debe empezar al menos 5 minutos en el futuro');
+      throw new BadRequestException(
+        'La cita debe empezar al menos 5 minutos en el futuro',
+      );
     }
 
     const googleBusyRanges = await this.googleIntegrationService
-      .getBusyEventsForCalendar(calendar.id, start.toISOString(), end.toISOString())
+      .getBusyEventsForCalendar(
+        calendar.id,
+        start.toISOString(),
+        end.toISOString(),
+      )
       .catch(() => [] as Array<{ start: Date; end: Date }>);
 
     if (googleBusyRanges.some((busy) => start < busy.end && end > busy.start)) {
@@ -776,7 +802,9 @@ export class AppointmentsService {
       patientPhone = patient?.phone || dto.guestPhone?.trim() || null;
 
       if (!patientName || !patientEmail) {
-        throw new BadRequestException('Nombre y correo son requeridos para solicitar una cita');
+        throw new BadRequestException(
+          'Nombre y correo son requeridos para solicitar una cita',
+        );
       }
 
       const conflict = await tx.appointment.findFirst({
@@ -794,10 +822,16 @@ export class AppointmentsService {
       }
 
       const googleBusyRanges = await this.googleIntegrationService
-        .getBusyEventsForCalendar(calendar.id, start.toISOString(), end.toISOString())
+        .getBusyEventsForCalendar(
+          calendar.id,
+          start.toISOString(),
+          end.toISOString(),
+        )
         .catch(() => [] as Array<{ start: Date; end: Date }>);
 
-      if (googleBusyRanges.some((busy) => start < busy.end && end > busy.start)) {
+      if (
+        googleBusyRanges.some((busy) => start < busy.end && end > busy.start)
+      ) {
         throw new BadRequestException('Ese horario ya no está disponible');
       }
 
@@ -806,8 +840,12 @@ export class AppointmentsService {
           calendarId: calendar.id,
           patientId: patient?.id ?? null,
           patientName,
-          title: dto.message?.trim() ? `Solicitud de cita - ${patientName}` : 'Solicitud de cita',
-          description: dto.message?.trim() || 'Solicitud de cita pendiente de confirmación',
+          title: dto.message?.trim()
+            ? `Solicitud de cita - ${patientName}`
+            : 'Solicitud de cita',
+          description:
+            dto.message?.trim() ||
+            'Solicitud de cita pendiente de confirmación',
           metadata: {
             source: dto.source,
             guestEmail: patientEmail,
@@ -873,7 +911,6 @@ export class AppointmentsService {
     dto: CreateAppointmentDto,
   ): Promise<AppointmentRecord> {
     const calendar = await this.getCalendarById(dto.calendarId, nutritionistId);
-    const timeZone = normalizeCalendarTimeZone(calendar.timeZone);
     const description = dto.description.trim();
 
     const start = new Date(dto.start);
@@ -898,6 +935,10 @@ export class AppointmentsService {
       );
     }
 
+    const notifyPatientByEmail =
+      dto.notifyPatientByEmail ?? Boolean(dto.patientEmail?.trim());
+    const syncGoogleCalendar = dto.syncGoogleCalendar ?? true;
+
     if (start.getTime() < Date.now() + 5 * 60 * 1000) {
       throw new BadRequestException(
         'La cita debe empezar al menos 5 minutos en el futuro',
@@ -905,7 +946,11 @@ export class AppointmentsService {
     }
 
     const googleBusyRanges = await this.googleIntegrationService
-      .getBusyEventsForCalendar(calendar.id, start.toISOString(), end.toISOString())
+      .getBusyEventsForCalendar(
+        calendar.id,
+        start.toISOString(),
+        end.toISOString(),
+      )
       .catch(() => [] as Array<{ start: Date; end: Date }>);
 
     if (googleBusyRanges.some((busy) => start < busy.end && end > busy.start)) {
@@ -952,10 +997,16 @@ export class AppointmentsService {
       }
 
       const googleBusyRanges = await this.googleIntegrationService
-        .getBusyEventsForCalendar(calendar.id, start.toISOString(), end.toISOString())
+        .getBusyEventsForCalendar(
+          calendar.id,
+          start.toISOString(),
+          end.toISOString(),
+        )
         .catch(() => [] as Array<{ start: Date; end: Date }>);
 
-      if (googleBusyRanges.some((busy) => start < busy.end && end > busy.start)) {
+      if (
+        googleBusyRanges.some((busy) => start < busy.end && end > busy.start)
+      ) {
         throw new BadRequestException('Ese horario ya no está disponible');
       }
 
@@ -981,24 +1032,26 @@ export class AppointmentsService {
     });
 
     if (patientEmail) {
-      await this.sendAppointmentConfirmedEmail({
-        recipientEmail: patientEmail,
-        recipientName: patientName,
-        nutritionistName: calendar.nutritionist.fullName || calendar.name,
-        timeZone: calendar.timeZone,
-        appointmentDate: start,
-        startTime: start,
-        endTime: end,
-        message: description,
-      });
+      if (notifyPatientByEmail) {
+        await this.sendAppointmentConfirmedEmail({
+          recipientEmail: patientEmail,
+          recipientName: patientName,
+          nutritionistName: calendar.nutritionist.fullName || calendar.name,
+          timeZone: calendar.timeZone,
+          appointmentDate: start,
+          startTime: start,
+          endTime: end,
+          message: description,
+        });
+      }
     }
 
     await this.googleIntegrationService.syncAppointmentToGoogle({
       calendarId: calendar.id,
       appointment: appointment as any,
-      inviteEmail: patientEmail,
+      inviteEmail: notifyPatientByEmail ? patientEmail : null,
       inviteName: patientName,
-      syncGoogleCalendar: true,
+      syncGoogleCalendar,
     });
 
     const refreshed = await this.prisma.appointment.findUnique({
@@ -1184,6 +1237,8 @@ export class AppointmentsService {
     appointmentId: string,
     startTime?: string,
     endTime?: string,
+    notifyPatientByEmail?: boolean,
+    syncGoogleCalendar?: boolean,
   ) {
     const calendar = await this.prisma.appointmentCalendar.findFirst({
       where: { nutritionistId },
@@ -1204,95 +1259,106 @@ export class AppointmentsService {
       throw new BadRequestException('Fechas inválidas');
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      const appointment = await tx.appointment.findFirst({
-        where: {
-          id: appointmentId,
-          calendarId: calendar.id,
-          status: AppointmentStatus.REQUESTED,
+    const result = await this.prisma
+      .$transaction(
+        async (tx) => {
+          const appointment = await tx.appointment.findFirst({
+            where: {
+              id: appointmentId,
+              calendarId: calendar.id,
+              status: AppointmentStatus.REQUESTED,
+            },
+            select: {
+              id: true,
+              patientName: true,
+              description: true,
+              startTime: true,
+              endTime: true,
+              metadata: true,
+              patient: {
+                select: { id: true, fullName: true, email: true },
+              },
+            },
+          });
+
+          if (!appointment) {
+            throw new NotFoundException('Cita solicitada no encontrada');
+          }
+
+          const finalStart = parsedStart ?? appointment.startTime;
+          const finalEnd = parsedEnd ?? appointment.endTime;
+
+          if (finalEnd.getTime() <= finalStart.getTime()) {
+            throw new BadRequestException(
+              'La cita debe terminar después de iniciar',
+            );
+          }
+
+          const conflict = await tx.appointment.findFirst({
+            where: {
+              calendarId: calendar.id,
+              id: { not: appointmentId },
+              status: { in: [...BLOCKING_APPOINTMENT_STATUSES] },
+              startTime: { lt: finalEnd },
+              endTime: { gt: finalStart },
+            },
+            select: { id: true },
+          });
+
+          if (conflict) {
+            throw new BadRequestException('Ese horario ya no está disponible');
+          }
+
+          const googleBusyRanges = await this.googleIntegrationService
+            .getBusyEventsForCalendar(
+              calendar.id,
+              finalStart.toISOString(),
+              finalEnd.toISOString(),
+            )
+            .catch(() => [] as Array<{ start: Date; end: Date }>);
+
+          if (
+            googleBusyRanges.some(
+              (busy) => finalStart < busy.end && finalEnd > busy.start,
+            )
+          ) {
+            throw new BadRequestException('Ese horario ya no está disponible');
+          }
+
+          const nextAppointment = await tx.appointment.update({
+            where: { id: appointmentId },
+            data: {
+              status: AppointmentStatus.CONFIRMED,
+              startTime: finalStart,
+              endTime: finalEnd,
+              metadata: {
+                ...(parseAppointmentMetadata(appointment.metadata) || {}),
+                confirmedAt: new Date().toISOString(),
+              },
+            },
+          });
+
+          return { appointment, nextAppointment };
         },
-        select: {
-          id: true,
-          patientName: true,
-          description: true,
-          startTime: true,
-          endTime: true,
-          metadata: true,
-          patient: {
-            select: { id: true, fullName: true, email: true },
-          },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
         },
+      )
+      .catch((error) => {
+        throw mapSerializableTransactionError(error);
       });
-
-      if (!appointment) {
-        throw new NotFoundException('Cita solicitada no encontrada');
-      }
-
-      const finalStart = parsedStart ?? appointment.startTime;
-      const finalEnd = parsedEnd ?? appointment.endTime;
-
-      if (finalEnd.getTime() <= finalStart.getTime()) {
-        throw new BadRequestException('La cita debe terminar después de iniciar');
-      }
-
-      const conflict = await tx.appointment.findFirst({
-        where: {
-          calendarId: calendar.id,
-          id: { not: appointmentId },
-          status: { in: [...BLOCKING_APPOINTMENT_STATUSES] },
-          startTime: { lt: finalEnd },
-          endTime: { gt: finalStart },
-        },
-        select: { id: true },
-      });
-
-      if (conflict) {
-        throw new BadRequestException('Ese horario ya no está disponible');
-      }
-
-      const googleBusyRanges = await this.googleIntegrationService
-        .getBusyEventsForCalendar(
-          calendar.id,
-          finalStart.toISOString(),
-          finalEnd.toISOString(),
-        )
-        .catch(() => [] as Array<{ start: Date; end: Date }>);
-
-      if (
-        googleBusyRanges.some(
-          (busy) => finalStart < busy.end && finalEnd > busy.start,
-        )
-      ) {
-        throw new BadRequestException('Ese horario ya no está disponible');
-      }
-
-      const nextAppointment = await tx.appointment.update({
-        where: { id: appointmentId },
-        data: {
-          status: AppointmentStatus.CONFIRMED,
-          startTime: finalStart,
-          endTime: finalEnd,
-          metadata: {
-            ...(parseAppointmentMetadata(appointment.metadata) || {}),
-            confirmedAt: new Date().toISOString(),
-          },
-        },
-      });
-
-      return { appointment, nextAppointment };
-    }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    }).catch((error) => {
-      throw mapSerializableTransactionError(error);
-    });
 
     const recipientEmail =
       result.appointment.patient?.email ||
-      (parseAppointmentMetadata(result.appointment.metadata)?.guestEmail as string | undefined);
+      (parseAppointmentMetadata(result.appointment.metadata)?.guestEmail as
+        | string
+        | undefined);
     const recipientName =
-      result.appointment.patient?.fullName || result.appointment.patientName || 'Paciente';
+      result.appointment.patient?.fullName ||
+      result.appointment.patientName ||
+      'Paciente';
 
-    if (recipientEmail) {
+    if (recipientEmail && notifyPatientByEmail !== false) {
       await this.sendAppointmentConfirmedEmail({
         recipientEmail,
         recipientName,
@@ -1308,9 +1374,12 @@ export class AppointmentsService {
     await this.googleIntegrationService.syncAppointmentToGoogle({
       calendarId: calendar.id,
       appointment: result.nextAppointment as any,
-      inviteEmail: recipientEmail || null,
+      inviteEmail:
+        recipientEmail && notifyPatientByEmail !== false
+          ? recipientEmail
+          : null,
       inviteName: recipientName,
-      syncGoogleCalendar: true,
+      syncGoogleCalendar: syncGoogleCalendar ?? true,
     });
 
     const refreshed = await this.prisma.appointment.findUnique({
@@ -1334,7 +1403,9 @@ export class AppointmentsService {
       where: {
         id: appointmentId,
         calendarId: calendar.id,
-        status: { in: [AppointmentStatus.CONFIRMED, AppointmentStatus.SCHEDULED] },
+        status: {
+          in: [AppointmentStatus.CONFIRMED, AppointmentStatus.SCHEDULED],
+        },
       },
       select: {
         id: true,
@@ -1436,8 +1507,11 @@ export class AppointmentsService {
 
     const recipientEmail =
       appointment.patient?.email ||
-      (parseAppointmentMetadata(appointment.metadata)?.guestEmail as string | undefined);
-    const recipientName = appointment.patient?.fullName || appointment.patientName || 'Paciente';
+      (parseAppointmentMetadata(appointment.metadata)?.guestEmail as
+        | string
+        | undefined);
+    const recipientName =
+      appointment.patient?.fullName || appointment.patientName || 'Paciente';
 
     if (recipientEmail) {
       await this.sendAppointmentRejectedEmail({

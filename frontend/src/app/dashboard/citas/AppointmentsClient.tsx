@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
   ClipboardCopy,
-  Lock,
   Share2,
   Loader2,
   Plus,
@@ -14,12 +13,16 @@ import {
   Search,
   ChevronRight,
   X,
+  CalendarCheck2,
+  TriangleAlert,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
@@ -30,6 +33,7 @@ import {
   AppointmentEvent,
   createBookingLink,
   connectGoogleCalendar,
+  disconnectGoogleCalendar,
   resyncGoogleCalendar,
   AppointmentRequest,
   AppointmentSlot,
@@ -581,6 +585,26 @@ const createAppointmentDraft = () => ({
   durationMin: 30,
 });
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const isValidEmail = (value: string) => EMAIL_REGEX.test(value.trim().toLowerCase());
+
+type AppointmentConfirmationState = {
+  kind: "create" | "accept";
+  appointmentId?: string;
+  patientName: string;
+  patientEmail: string;
+  description: string;
+  start: string;
+  end: string;
+  durationMin?: number;
+  patientId?: string;
+  notifyPatientByEmail: boolean;
+  syncGoogleCalendar: boolean;
+  canNotifyPatientByEmail: boolean;
+  canSyncGoogleCalendar: boolean;
+};
+
 const formatTimeInput = (date: Date) =>
   `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 
@@ -641,6 +665,7 @@ export default function AppointmentsClient() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [isSavingHours, setIsSavingHours] = useState(false);
   const [isCreatingShareLink, setIsCreatingShareLink] = useState(false);
+  const [showNonWorkingHours, setShowNonWorkingHours] = useState(false);
   const [createDraft, setCreateDraft] = useState(createAppointmentDraft());
   const [workHoursDraft, setWorkHoursDraft] = useState<WeekRule[]>(DEFAULT_WEEK_RULES);
   const [workHoursGridDraft, setWorkHoursGridDraft] = useState<WorkHoursGridDraft>(createEmptyWorkHoursGrid());
@@ -650,12 +675,16 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
   const [patientSearchQuery, setPatientSearchQuery] = useState("");
   const [shareEmail, setShareEmail] = useState("");
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [pendingAppointmentConfirmation, setPendingAppointmentConfirmation] = useState<AppointmentConfirmationState | null>(null);
+  const [isSubmittingAppointmentConfirmation, setIsSubmittingAppointmentConfirmation] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentEvent | null>(null);
   const [isAppointmentDetailOpen, setIsAppointmentDetailOpen] = useState(false);
   const [isCancellingAppointment, setIsCancellingAppointment] = useState(false);
   const [isGoogleConnecting, setIsGoogleConnecting] = useState(false);
   const [isGoogleResyncing, setIsGoogleResyncing] = useState(false);
+  const [isGoogleDisconnecting, setIsGoogleDisconnecting] = useState(false);
+  const [isGoogleDisconnectConfirmOpen, setIsGoogleDisconnectConfirmOpen] = useState(false);
   const [mobileDayOffset, setMobileDayOffset] = useState(0);
   const [debouncedPatientSearchQuery, setDebouncedPatientSearchQuery] = useState("");
   const calendarSectionRef = useRef<HTMLDivElement | null>(null);
@@ -752,6 +781,34 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
 
   const showWorkHoursEmptyState = !isEditingWorkHours && !hasWorkingHours;
 
+  const visibleHours = useMemo(() => {
+    if (showNonWorkingHours) {
+      return Array.from({ length: HOUR_END - HOUR_START }, (_, index) => HOUR_START + index);
+    }
+
+    const hours = new Set<number>();
+
+    for (const rule of workHoursDraft) {
+      if (!rule.enabled) continue;
+
+      const startHour = Math.max(HOUR_START, Number(rule.start.slice(0, 2)) || HOUR_START);
+      const endHour = Math.min(HOUR_END, Number(rule.end.slice(0, 2)) || HOUR_END);
+
+      for (let hour = startHour; hour < endHour; hour += 1) {
+        hours.add(hour);
+      }
+    }
+
+    const sortedHours = Array.from(hours).sort((left, right) => left - right);
+
+    return sortedHours.length > 0
+      ? sortedHours
+      : Array.from({ length: HOUR_END - HOUR_START }, (_, index) => HOUR_START + index);
+  }, [showNonWorkingHours, workHoursDraft]);
+
+  const visibleHourStart = visibleHours[0] ?? HOUR_START;
+  const visibleHoursHeight = visibleHours.length * ROW_HEIGHT;
+
   const startEditingWorkHours = () => {
     setWorkHoursGridDraft(createWorkHoursGridFromRules(workHoursDraft));
     setIsEditingWorkHours(true);
@@ -817,6 +874,21 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
       toast.error(error instanceof Error ? error.message : "No se pudo re-sincronizar Google Calendar.");
     } finally {
       setIsGoogleResyncing(false);
+    }
+  };
+
+  const handleGoogleDisconnect = async () => {
+    if (!calendarId || isGoogleDisconnecting) return;
+    setIsGoogleDisconnecting(true);
+    try {
+      await disconnectGoogleCalendar(calendarId);
+      toast.success("Google Calendar desconectado.");
+      setIsGoogleDisconnectConfirmOpen(false);
+      await handleRefresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo desconectar Google Calendar.");
+    } finally {
+      setIsGoogleDisconnecting(false);
     }
   };
 
@@ -1053,7 +1125,11 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
     }
   };
 
-  const handleCreateAppointment = async () => {
+  const isGoogleCalendarConnected = Boolean(
+    calendar?.googleCalendarConnected ?? calendar?.googleSyncEnabled ?? calendar?.isGoogleConnected,
+  );
+
+  const openCreateAppointmentConfirmation = () => {
     if (!calendarId) {
       toast.error("Primero carga un calendario.");
       return;
@@ -1087,47 +1163,156 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
     }
 
     const durationMin = Math.min(60, Math.max(5, Number(createDraft.durationMin || 30)));
-
     const endDate = new Date(startDate);
     endDate.setMinutes(endDate.getMinutes() + durationMin);
 
-    try {
-      await createAppointment({
-        calendarId,
-        payload: {
-          patientId: patientId || undefined,
-          patientName,
-          patientEmail: patientEmail || undefined,
-          start: startDate.toISOString(),
-          end: endDate.toISOString(),
-          durationMin,
-          title: description,
-          description,
-          notes: description || undefined,
-          status: "CONFIRMED",
-          timeZone: calendarTimeZone,
-          notifyPatientByEmail: Boolean(patientEmail),
-        },
-      });
+    const canNotifyPatientByEmail = Boolean(selectedPatient?.email) || isValidEmail(patientEmail);
 
-      toast.success("Cita creada correctamente.");
-      setIsCreateOpen(false);
-      setCreateDraft(createAppointmentDraft());
-      setSelectedPatient(null);
-      await handleRefresh();
-    } catch (error) {
-      console.error("Error creating appointment", error);
-      toast.error(error instanceof Error ? error.message : "No se pudo crear la cita.");
-    }
+    setPendingAppointmentConfirmation({
+      kind: "create",
+      patientId: patientId || undefined,
+      patientName,
+      patientEmail,
+      description,
+      start: startDate.toISOString(),
+      end: endDate.toISOString(),
+      durationMin,
+      notifyPatientByEmail: canNotifyPatientByEmail,
+      syncGoogleCalendar: isGoogleCalendarConnected,
+      canNotifyPatientByEmail,
+      canSyncGoogleCalendar: isGoogleCalendarConnected,
+    });
+
+    console.log("[appointments][create] confirmation opened", {
+      calendarId,
+      patientId: patientId || null,
+      patientName,
+      patientEmail: patientEmail || null,
+      canNotifyPatientByEmail,
+      canSyncGoogleCalendar: isGoogleCalendarConnected,
+    });
   };
 
-  const handleAcceptAppointment = async (appointmentId: string) => {
+  const openAcceptAppointmentConfirmation = (appointment: AppointmentRequest) => {
+    const patientName = appointment.patientName?.trim() || "Paciente";
+    const patientEmail = appointment.patientEmail?.trim() || "";
+    const canNotifyPatientByEmail = isValidEmail(patientEmail);
+
+    setPendingAppointmentConfirmation({
+      kind: "accept",
+      appointmentId: appointment.id,
+      patientName,
+      patientEmail,
+      description: appointment.notes?.trim() || appointment.title || "Solicitud de cita",
+      start: appointment.start,
+      end: appointment.end,
+      notifyPatientByEmail: canNotifyPatientByEmail,
+      syncGoogleCalendar: isGoogleCalendarConnected,
+      canNotifyPatientByEmail,
+      canSyncGoogleCalendar: isGoogleCalendarConnected,
+    });
+
+    console.log("[appointments][accept] confirmation opened", {
+      appointmentId: appointment.id,
+      patientName,
+      patientEmail: patientEmail || null,
+      canNotifyPatientByEmail,
+      canSyncGoogleCalendar: isGoogleCalendarConnected,
+    });
+  };
+
+  const handleConfirmAppointmentAction = async () => {
+    if (!pendingAppointmentConfirmation || isSubmittingAppointmentConfirmation) {
+      return;
+    }
+
+    setIsSubmittingAppointmentConfirmation(true);
+
     try {
-      await approveAppointment(appointmentId);
-      toast.success("Cita aceptada");
+      if (!calendarId) {
+        throw new Error("Primero carga un calendario.");
+      }
+
+      if (pendingAppointmentConfirmation.kind === "create") {
+        console.log("[appointments][create] submitting", pendingAppointmentConfirmation);
+
+        const createdAppointment = await createAppointment({
+          calendarId,
+          payload: {
+            patientId: pendingAppointmentConfirmation.patientId || undefined,
+            patientName: pendingAppointmentConfirmation.patientName,
+            patientEmail: pendingAppointmentConfirmation.patientEmail || undefined,
+            start: pendingAppointmentConfirmation.start,
+            end: pendingAppointmentConfirmation.end,
+            durationMin: pendingAppointmentConfirmation.durationMin ?? 30,
+            title: pendingAppointmentConfirmation.description,
+            description: pendingAppointmentConfirmation.description,
+            notes: pendingAppointmentConfirmation.description || undefined,
+            status: "CONFIRMED",
+            timeZone: calendarTimeZone,
+            notifyPatientByEmail: pendingAppointmentConfirmation.canNotifyPatientByEmail
+              ? pendingAppointmentConfirmation.notifyPatientByEmail
+              : false,
+            syncGoogleCalendar: pendingAppointmentConfirmation.canSyncGoogleCalendar
+              ? pendingAppointmentConfirmation.syncGoogleCalendar
+              : false,
+          },
+        });
+
+        const createdRecord = createdAppointment as Record<string, unknown>;
+        const googleSyncedAt = normalizeText(createdRecord.googleCalendarSyncedAt);
+        const googleError = normalizeText(createdRecord.googleCalendarSyncError);
+
+        console.log("[appointments][create] completed", {
+          googleSyncedAt: googleSyncedAt || null,
+          googleError: googleError || null,
+        });
+
+        if (googleError) {
+          toast.warning(`Cita creada, pero Google Calendar no la pudo sincronizar: ${googleError}`);
+        } else if (googleSyncedAt) {
+          toast.success("Cita creada y sincronizada con Google Calendar.");
+        } else {
+          toast.success("Cita creada correctamente.");
+        }
+
+        setIsCreateOpen(false);
+        setCreateDraft(createAppointmentDraft());
+        setSelectedPatient(null);
+      } else {
+        console.log("[appointments][accept] submitting", pendingAppointmentConfirmation);
+
+        await approveAppointment(
+          pendingAppointmentConfirmation.appointmentId || "",
+          pendingAppointmentConfirmation.canNotifyPatientByEmail
+            ? pendingAppointmentConfirmation.notifyPatientByEmail
+            : false,
+          pendingAppointmentConfirmation.canSyncGoogleCalendar
+            ? pendingAppointmentConfirmation.syncGoogleCalendar
+            : false,
+        );
+
+        toast.success("Cita aceptada");
+      }
+
+      setPendingAppointmentConfirmation(null);
       await handleRefresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Error al aceptar la cita");
+      console.error(
+        pendingAppointmentConfirmation.kind === "create"
+          ? "Error creating appointment"
+          : "Error accepting appointment",
+        error,
+      );
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : pendingAppointmentConfirmation.kind === "create"
+            ? "No se pudo crear la cita."
+            : "Error al aceptar la cita",
+      );
+    } finally {
+      setIsSubmittingAppointmentConfirmation(false);
     }
   };
 
@@ -1209,6 +1394,17 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
       feature="appointments.access"
       message="La gestión de citas está disponible desde Pro."
     >
+      {isLoading ? (
+        <div className="flex min-h-[60vh] items-center justify-center rounded-3xl border border-slate-200 bg-white px-6 py-12 shadow-sm">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.2em] text-slate-400">Cargando citas</p>
+              <p className="mt-1 text-sm font-medium text-slate-500">Preparando calendario, disponibilidad y solicitudes.</p>
+            </div>
+          </div>
+        </div>
+      ) : (
     <div className="space-y-6">
       <section className="flex flex-wrap gap-2">
         {SCHEDULE_TABS.map((tab) => (
@@ -1263,7 +1459,16 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 shadow-sm">
+                <input
+                  type="checkbox"
+                  checked={showNonWorkingHours}
+                  onChange={(event) => setShowNonWorkingHours(event.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+                />
+                Mostrar horarios no laborales
+              </label>
               <Button type="button" variant="outline" title="Semana anterior" aria-label="Semana anterior" className="h-11 w-11 rounded-full border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:bg-slate-50" onClick={() => setWeekAnchor((current) => addDays(current, -7))}>
                 <ChevronRight className="h-4 w-4 rotate-180" />
               </Button>
@@ -1285,7 +1490,7 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">
                   {calendar?.googleCalendarConnected
-                    ? `Cuenta: ${calendar.googleCalendarEmail || "primary"}`
+                    ? `Cuenta: ${calendar.googleCalendarEmail || "correo no disponible"}`
                     : "Conéctalo para bloquear horarios ocupados en Google y sincronizar citas automáticamente."}
                 </p>
               </div>
@@ -1307,6 +1512,15 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
                       onClick={() => void handleRefresh()}
                     >
                       Actualizar estado
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 rounded-full border-rose-200 bg-rose-50 px-4 text-xs font-black uppercase tracking-[0.16em] text-rose-700 hover:bg-rose-100"
+                      onClick={() => setIsGoogleDisconnectConfirmOpen(true)}
+                      disabled={isGoogleDisconnecting}
+                    >
+                      Desconectar
                     </Button>
                   </>
                 ) : (
@@ -1445,8 +1659,7 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
                             </span>
                           )}
                         </div>
-                        {Array.from({ length: HOUR_END - HOUR_START }, (_, index) => {
-                          const hour = HOUR_START + index;
+                        {visibleHours.map((hour) => {
                           const gridIndex = hour - HOUR_START;
                           const isEditableHour = hour < HOUR_END;
                           const isWorkingHour = isEditingWorkHours
@@ -1525,8 +1738,7 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
 
                     <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))]">
                       <div className="relative bg-white">
-                        {Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, index) => {
-                          const hour = HOUR_START + index;
+                        {visibleHours.map((hour) => {
                           return (
                             <div key={hour} className="flex h-16 items-start justify-end border-b border-slate-100 px-2 pt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
                               {formatHourLabel(hour)}
@@ -1541,13 +1753,12 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
                         const dayGrid = workHoursGridDraft[dayKey] || [];
                         const isToday = formatDateKey(day) === todayKey;
                         const currentMinutes = now.getHours() * 60 + now.getMinutes();
-                        const currentLineTop = ((currentMinutes / 60) - HOUR_START) * ROW_HEIGHT;
-                        const showCurrentLine = isToday && currentLineTop >= 0 && currentLineTop <= (HOUR_END - HOUR_START) * ROW_HEIGHT;
+                        const currentLineTop = ((currentMinutes / 60) - visibleHourStart) * ROW_HEIGHT;
+                        const showCurrentLine = isToday && currentLineTop >= 0 && currentLineTop <= visibleHoursHeight;
 
                         return (
-                          <div key={day.toISOString()} className={cn("relative min-h-[832px] border-l border-slate-100 bg-white transition-colors", isToday && "bg-emerald-50/30 ring-1 ring-inset ring-emerald-200/70")}>
-                            {Array.from({ length: HOUR_END - HOUR_START }, (_, index) => {
-                              const hour = HOUR_START + index;
+                          <div key={day.toISOString()} className={cn("relative border-l border-slate-100 bg-white transition-colors", isToday && "bg-emerald-50/30 ring-1 ring-inset ring-emerald-200/70")} style={{ minHeight: visibleHoursHeight }}>
+                            {visibleHours.map((hour) => {
                               const gridIndex = hour - HOUR_START;
                               const isSelectedHour = Boolean(dayGrid[gridIndex]);
                               const isWorkingHour = isEditingWorkHours ? isSelectedHour : isHourWithinRule(day, hour, workHoursDraft);
@@ -1766,7 +1977,33 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
                                   {start && end ? `${formatTimeInTimeZone(start, calendarTimeZone)} - ${formatTimeInTimeZone(end, calendarTimeZone)}` : "--"}
                                 </td>
                                 <td className="px-4 py-3 text-slate-600">{event.patientName || "--"}</td>
-                                <td className="px-4 py-3 text-slate-600">{event.title}</td>
+                                <td className="px-4 py-3 text-slate-600">
+                                  <div className="flex flex-col gap-2">
+                                    <span>{event.title}</span>
+                                    {event.googleCalendarSyncError ? (
+                                      <span className="inline-flex w-fit items-center gap-1 rounded-full bg-rose-50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-rose-700 ring-1 ring-rose-100">
+                                        <TriangleAlert className="h-3 w-3" />
+                                        Sync falló
+                                      </span>
+                                    ) : event.googleCalendarSyncedAt ? (
+                                      <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-700 ring-1 ring-emerald-100">
+                                        <CalendarCheck2 className="h-3 w-3" />
+                                        En Google Calendar
+                                      </span>
+                                    ) : null}
+                                    {event.googleCalendarHtmlLink ? (
+                                      <a
+                                        href={event.googleCalendarHtmlLink}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex w-fit items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-700"
+                                      >
+                                        Ver evento
+                                        <ExternalLink className="h-3 w-3" />
+                                      </a>
+                                    ) : null}
+                                  </div>
+                                </td>
                                 <td className="px-4 py-3">
                                   <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-700 ring-1 ring-emerald-100">
                                     {["confirmed", "CONFIRMED", "scheduled", "SCHEDULED"].includes(event.status) ? "Confirmada" : "Agendada"}
@@ -1801,7 +2038,31 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
                               {["confirmed", "CONFIRMED", "scheduled", "SCHEDULED"].includes(event.status) ? "Confirmada" : "Agendada"}
                             </span>
                           </div>
-                          <p className="text-sm font-bold text-slate-900">{event.title}</p>
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="text-sm font-bold text-slate-900">{event.title}</p>
+                            {event.googleCalendarSyncError ? (
+                              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-rose-50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-rose-700 ring-1 ring-rose-100">
+                                <TriangleAlert className="h-3 w-3" />
+                                Sync falló
+                              </span>
+                            ) : event.googleCalendarSyncedAt ? (
+                              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-700 ring-1 ring-emerald-100">
+                                <CalendarCheck2 className="h-3 w-3" />
+                                Sincronizada
+                              </span>
+                            ) : null}
+                          </div>
+                          {event.googleCalendarHtmlLink ? (
+                            <a
+                              href={event.googleCalendarHtmlLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                            >
+                              Ver en Google Calendar
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          ) : null}
                           <div className="flex items-center gap-3 mt-2 text-[10px] font-medium text-slate-500">
                             <span>{start && end ? `${formatTimeInTimeZone(start, calendarTimeZone)} - ${formatTimeInTimeZone(end, calendarTimeZone)}` : "--"}</span>
                             <span>·</span>
@@ -1842,7 +2103,7 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
                                 <td className="px-4 py-8 text-slate-400 text-center" colSpan={5}>No hay citas pendientes.</td>
                               </tr>
                             ) : (
-                              requests.map((apt: any) => {
+                              requests.map((apt: AppointmentRequest) => {
                                 const start = parseDateSafe(apt.start);
                                 const end = parseDateSafe(apt.end || apt.start);
                                 return (
@@ -1857,7 +2118,7 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
                                     <td className="px-4 py-3 text-slate-600">{apt.description || apt.title}</td>
                                     <td className="px-4 py-3">
                                       <div className="flex gap-2">
-                                        <Button size="sm" className="h-8 rounded-full bg-emerald-600 px-4 text-[9px] font-black uppercase tracking-widest text-white" onClick={() => handleAcceptAppointment(apt.id)}>Aceptar</Button>
+                                         <Button size="sm" className="h-8 rounded-full bg-emerald-600 px-4 text-[9px] font-black uppercase tracking-widest text-white" onClick={() => openAcceptAppointmentConfirmation(apt)}>Aceptar</Button>
                                         <Button size="sm" variant="outline" className="h-8 rounded-full border-rose-200 px-4 text-[9px] font-black uppercase tracking-widest text-rose-600 hover:bg-rose-50" onClick={() => handleRejectAppointment(apt.id)}>Rechazar</Button>
                                       </div>
                                     </td>
@@ -1877,7 +2138,7 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
                           <p className="text-xs text-slate-400 font-medium">No hay citas pendientes.</p>
                         </div>
                         ) : (
-                          requests.map((apt: any) => {
+                            requests.map((apt: AppointmentRequest) => {
                             const start = parseDateSafe(apt.start);
                             const end = parseDateSafe(apt.end || apt.start);
                             return (
@@ -1895,7 +2156,7 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
                                 <p className="text-sm font-bold text-slate-900">{apt.description || apt.title}</p>
                                 <p className="text-xs font-medium text-slate-500 mt-1">{apt.patientName || "Paciente"}</p>
                               <div className="flex gap-2 mt-3 pt-3 border-t border-amber-100">
-                                <Button size="sm" className="flex-1 h-9 rounded-xl bg-emerald-600 text-[10px] font-black uppercase tracking-widest text-white" onClick={() => handleAcceptAppointment(apt.id)}>Aceptar</Button>
+                                <Button size="sm" className="flex-1 h-9 rounded-xl bg-emerald-600 text-[10px] font-black uppercase tracking-widest text-white" onClick={() => openAcceptAppointmentConfirmation(apt)}>Aceptar</Button>
                                 <Button size="sm" variant="outline" className="flex-1 h-9 rounded-xl border-rose-200 text-[10px] font-black uppercase tracking-widest text-rose-600 hover:bg-rose-50" onClick={() => handleRejectAppointment(apt.id)}>Rechazar</Button>
                               </div>
                             </div>
@@ -2114,18 +2375,18 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
               />
             </div>
             <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <label className="flex items-center gap-3 opacity-80">
-                <input
-                  type="checkbox"
-                  checked={Boolean(createDraft.patientEmail.trim())}
-                  readOnly
-                  disabled={!createDraft.patientEmail.trim()}
-                  className="h-4 w-4 rounded border-slate-300 text-slate-400"
-                />
-                <Lock className="h-4 w-4 text-slate-400" />
-                <span className="text-sm font-black text-slate-900">Notificar por correo al paciente</span>
-              </label>
-              <p className="mt-2 text-xs text-slate-500">Si no agregas correo, la cita se crea igual.</p>
+              <p className="text-sm font-black text-slate-900">Confirmación antes de guardar</p>
+              <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-[0.16em]">
+                <span className={cn("rounded-full px-3 py-1", Boolean(selectedPatient?.email || isValidEmail(createDraft.patientEmail)) ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500")}>
+                  Correo {Boolean(selectedPatient?.email || isValidEmail(createDraft.patientEmail)) ? "disponible" : "no disponible"}
+                </span>
+                <span className={cn("rounded-full px-3 py-1", isGoogleCalendarConnected ? "bg-indigo-100 text-indigo-700" : "bg-slate-200 text-slate-500")}>
+                  Google {isGoogleCalendarConnected ? "conectado" : "no conectado"}
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                Al presionar <span className="font-bold">Crear cita</span> se abrirá una confirmación para decidir si se envía correo y si se sincroniza con Google Calendar.
+              </p>
             </div>
           </div>
           <div className="flex justify-end gap-3">
@@ -2134,7 +2395,7 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
             </Button>
             <Button
               className="h-11 rounded-xl bg-emerald-600 px-5 font-black text-white"
-              onClick={() => void handleCreateAppointment()}
+              onClick={() => openCreateAppointmentConfirmation()}
               disabled={isLoadingPatientPortalStatus || !createDraft.patientName.trim() || !createDraft.description.trim()}
             >
               Crear cita
@@ -2142,6 +2403,123 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
           </div>
         </div>
       </Modal>
+
+      <ConfirmationModal
+        isOpen={Boolean(pendingAppointmentConfirmation)}
+        onClose={() => setPendingAppointmentConfirmation(null)}
+        onConfirm={() => void handleConfirmAppointmentAction()}
+        title={
+          pendingAppointmentConfirmation?.kind === "create"
+            ? "Confirmar cita"
+            : "Aceptar cita pendiente"
+        }
+        description={
+          pendingAppointmentConfirmation?.kind === "create"
+            ? "Revisa si quieres notificar al paciente por correo y sincronizar esta cita con Google Calendar."
+            : "Revisa si quieres notificar al paciente y sincronizar la cita aceptada con Google Calendar."
+        }
+        confirmText={
+          pendingAppointmentConfirmation?.kind === "create"
+            ? "Crear cita"
+            : "Aceptar cita"
+        }
+        isLoading={isSubmittingAppointmentConfirmation}
+        size="lg"
+      >
+        {pendingAppointmentConfirmation ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Resumen</p>
+              <p className="mt-1 text-sm font-black text-slate-900 truncate">
+                {pendingAppointmentConfirmation.patientName}
+              </p>
+              <p className="text-xs font-medium text-slate-500 truncate">
+                {pendingAppointmentConfirmation.description}
+              </p>
+              <p className="mt-2 text-xs font-semibold text-slate-600">
+                {(() => {
+                  const start = parseDateSafe(pendingAppointmentConfirmation.start);
+                  const end = parseDateSafe(pendingAppointmentConfirmation.end);
+                  return start && end
+                    ? `${formatDateInTimeZone(start, calendarTimeZone, {
+                        weekday: "short",
+                        day: "2-digit",
+                        month: "short",
+                      })} · ${formatTimeInTimeZone(start, calendarTimeZone)} - ${formatTimeInTimeZone(end, calendarTimeZone)}`
+                    : "Horario pendiente de validar";
+                })()}
+              </p>
+            </div>
+
+            {pendingAppointmentConfirmation.canNotifyPatientByEmail ? (
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={pendingAppointmentConfirmation.notifyPatientByEmail}
+                  onChange={(event) =>
+                    setPendingAppointmentConfirmation((current) =>
+                      current
+                        ? { ...current, notifyPatientByEmail: event.target.checked }
+                        : current,
+                    )
+                  }
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+                />
+                <div>
+                  <p className="text-sm font-black text-slate-900">Comunicar al paciente por correo</p>
+                  <p className="text-xs font-medium text-slate-500">
+                    {pendingAppointmentConfirmation.patientEmail
+                      ? pendingAppointmentConfirmation.patientEmail
+                      : "Se enviará usando el correo disponible del paciente."}
+                  </p>
+                </div>
+              </label>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-500">
+                No hay un correo válido para notificar al paciente.
+              </div>
+            )}
+
+            {pendingAppointmentConfirmation.canSyncGoogleCalendar ? (
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={pendingAppointmentConfirmation.syncGoogleCalendar}
+                  onChange={(event) =>
+                    setPendingAppointmentConfirmation((current) =>
+                      current
+                        ? { ...current, syncGoogleCalendar: event.target.checked }
+                        : current,
+                    )
+                  }
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+                />
+                <div>
+                  <p className="text-sm font-black text-slate-900">Añadir a mi Google Calendar</p>
+                  <p className="text-xs font-medium text-slate-500">
+                    Solo está disponible porque tu calendario está sincronizado con Google.
+                  </p>
+                </div>
+              </label>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-500">
+                Google Calendar no está sincronizado, así que no se enviará ese evento.
+              </div>
+            )}
+          </div>
+        ) : null}
+      </ConfirmationModal>
+
+      <ConfirmationModal
+        isOpen={isGoogleDisconnectConfirmOpen}
+        onClose={() => setIsGoogleDisconnectConfirmOpen(false)}
+        onConfirm={() => void handleGoogleDisconnect()}
+        title="Desconectar Google Calendar"
+        description="Se detendrá la sincronización con Google Calendar y las citas nuevas ya no se enviarán a esa cuenta hasta que vuelvas a conectar."
+        confirmText="Desconectar"
+        variant="warning"
+        isLoading={isGoogleDisconnecting}
+      />
 
       <Modal 
         isOpen={isShareLinkOpen} 
@@ -2408,6 +2786,7 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
       </Modal>
 
     </div>
+      )}
     </FeatureGate>
 
   );

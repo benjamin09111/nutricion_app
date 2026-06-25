@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, AppointmentStatus } from '@prisma/client';
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
@@ -40,11 +45,18 @@ type GoogleBusyRange = {
 
 const GOOGLE_AUTH_BASE = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const GOOGLE_REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
 const GOOGLE_USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo';
 const GOOGLE_EVENTS_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
+const REQUIRED_GOOGLE_CALENDAR_SCOPES = [
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar.readonly',
+];
 
 @Injectable()
 export class GoogleIntegrationService {
+  private readonly logger = new Logger(GoogleIntegrationService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
@@ -118,6 +130,39 @@ export class GoogleIntegrationService {
       decipher.final(),
     ]);
     return decrypted.toString('utf8');
+  }
+
+  private parseScopes(scope?: string | null) {
+    return new Set(
+      (scope || '')
+        .split(' ')
+        .map((value) => value.trim())
+        .filter(Boolean),
+    );
+  }
+
+  private hasRequiredCalendarScopes(scope?: string | null) {
+    const scopes = this.parseScopes(scope);
+    return REQUIRED_GOOGLE_CALENDAR_SCOPES.every((required) => scopes.has(required));
+  }
+
+  private async invalidateCalendarConnection(accountId: string, reason: string) {
+    this.logger.warn(`Invalidating Google Calendar connection for account ${accountId}: ${reason}`);
+    await this.prisma.googleCalendarConnection.deleteMany({
+      where: { accountId },
+    });
+  }
+
+  private async revokeGoogleToken(token: string) {
+    const response = await fetch(`${GOOGLE_REVOKE_URL}?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+
+    if (!response.ok) {
+      const raw = await response.text().catch(() => '');
+      this.logger.warn(`Google token revocation returned ${response.status}: ${raw || 'no body'}`);
+    }
   }
 
   private signState(state: GoogleState) {
@@ -283,6 +328,12 @@ export class GoogleIntegrationService {
       );
     }
 
+    if (!this.hasRequiredCalendarScopes(input.tokens.scope)) {
+      throw new BadRequestException(
+        'Google no autorizó los permisos de calendario requeridos. Vuelve a conectar y acepta el acceso a Google Calendar.',
+      );
+    }
+
     const tokenExpiry = input.tokens.expires_in
       ? new Date(Date.now() + input.tokens.expires_in * 1000)
       : null;
@@ -297,7 +348,7 @@ export class GoogleIntegrationService {
         refreshTokenEncrypted: this.encrypt(refreshToken),
         tokenExpiry,
         calendarId: 'primary',
-        scope: input.tokens.scope || '',
+        scope: input.tokens.scope || REQUIRED_GOOGLE_CALENDAR_SCOPES.join(' '),
       },
       update: {
         googleEmail: input.profile.email,
@@ -306,7 +357,7 @@ export class GoogleIntegrationService {
         refreshTokenEncrypted: this.encrypt(refreshToken),
         tokenExpiry,
         calendarId: 'primary',
-        scope: input.tokens.scope || existing?.scope || '',
+        scope: input.tokens.scope || REQUIRED_GOOGLE_CALENDAR_SCOPES.join(' '),
         disconnectedAt: null,
       },
     });
@@ -320,23 +371,67 @@ export class GoogleIntegrationService {
 
   async getConnectionStatus(accountId: string) {
     const connection = await this.getCalendarConnectionByAccountId(accountId);
+    const connectionScope = connection?.scope || null;
+
+    if (connection && !connection.disconnectedAt && !this.hasRequiredCalendarScopes(connectionScope)) {
+      await this.invalidateCalendarConnection(
+        accountId,
+        'missing required Google Calendar scopes',
+      );
+      return {
+        connected: false,
+        googleEmail: connection.googleEmail || null,
+        calendarId: connection.calendarId || 'primary',
+        scope: connectionScope,
+        tokenExpiry: connection.tokenExpiry || null,
+        disconnectedAt: new Date(),
+        missingScopes: REQUIRED_GOOGLE_CALENDAR_SCOPES,
+        requiresReconnect: true,
+      };
+    }
+
     return {
       connected: Boolean(connection && !connection.disconnectedAt),
       googleEmail: connection?.googleEmail || null,
       calendarId: connection?.calendarId || 'primary',
-      scope: connection?.scope || null,
+      scope: connectionScope,
       tokenExpiry: connection?.tokenExpiry || null,
       disconnectedAt: connection?.disconnectedAt || null,
+      missingScopes:
+        connection && !this.hasRequiredCalendarScopes(connectionScope)
+          ? REQUIRED_GOOGLE_CALENDAR_SCOPES
+          : [],
+      requiresReconnect:
+        Boolean(connection) &&
+        !connection?.disconnectedAt &&
+        !this.hasRequiredCalendarScopes(connectionScope),
     };
   }
 
   async disconnectCalendarConnection(accountId: string) {
-    await this.prisma.googleCalendarConnection.updateMany({
+    const connection = await this.prisma.googleCalendarConnection.findUnique({
       where: { accountId },
-      data: {
-        disconnectedAt: new Date(),
-      },
     });
+
+    if (connection) {
+      const refreshToken = connection.refreshTokenEncrypted
+        ? this.decrypt(connection.refreshTokenEncrypted)
+        : null;
+      const accessToken = connection.accessTokenEncrypted
+        ? this.decrypt(connection.accessTokenEncrypted)
+        : null;
+
+      const tokenToRevoke = refreshToken || accessToken;
+      if (tokenToRevoke) {
+        await this.revokeGoogleToken(tokenToRevoke).catch((error) => {
+          this.logger.warn(
+            `Google token revocation failed for account ${accountId}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        });
+      }
+    }
+
+    await this.prisma.googleCalendarConnection.deleteMany({ where: { accountId } });
 
     return { success: true };
   }
@@ -423,6 +518,14 @@ export class GoogleIntegrationService {
       return [] as GoogleBusyRange[];
     }
 
+    if (!this.hasRequiredCalendarScopes(connection.scope)) {
+      await this.invalidateCalendarConnection(
+        accountId,
+        'insufficient Google Calendar scopes while reading busy events',
+      );
+      return [] as GoogleBusyRange[];
+    }
+
     const accessToken = await this.getValidAccessToken(connection);
     const params = new URLSearchParams({
       timeMin: from,
@@ -504,6 +607,14 @@ export class GoogleIntegrationService {
       return { synced: false };
     }
 
+    if (!this.hasRequiredCalendarScopes(connection.scope)) {
+      await this.invalidateCalendarConnection(
+        connection.accountId,
+        'insufficient Google Calendar scopes while syncing appointment',
+      );
+      return { synced: false };
+    }
+
     const accessToken = await this.getValidAccessToken(connection);
     const attendees = input.inviteEmail
       ? [
@@ -550,6 +661,18 @@ export class GoogleIntegrationService {
 
     if (!response.ok) {
       const raw = await response.text().catch(() => '');
+      this.logger.error(
+        `Google Calendar sync failed for appointment ${input.appointment.id} (calendar ${input.calendarId}) with status ${response.status}: ${raw || 'No se pudo sincronizar con Google Calendar'}`,
+      );
+      if (
+        response.status === 403 &&
+        /insufficientPermissions|ACCESS_TOKEN_SCOPE_INSUFFICIENT/i.test(raw)
+      ) {
+        await this.invalidateCalendarConnection(
+          calendar.nutritionist.account.id,
+          'Google rejected the token with insufficient permissions',
+        );
+      }
       await this.prisma.appointment.update({
         where: { id: input.appointment.id },
         data: {
@@ -574,6 +697,10 @@ export class GoogleIntegrationService {
       },
     });
 
+    this.logger.log(
+      `Google Calendar sync completed for appointment ${input.appointment.id} (calendar ${input.calendarId}) -> event ${event.id || eventId}`,
+    );
+
     return { synced: true, eventId: event.id || eventId, htmlLink: event.htmlLink || null };
   }
 
@@ -596,6 +723,14 @@ export class GoogleIntegrationService {
     });
 
     if (!connection || connection.disconnectedAt) {
+      return { deleted: false };
+    }
+
+    if (!this.hasRequiredCalendarScopes(connection.scope)) {
+      await this.invalidateCalendarConnection(
+        connection.accountId,
+        'insufficient Google Calendar scopes while deleting appointment',
+      );
       return { deleted: false };
     }
 

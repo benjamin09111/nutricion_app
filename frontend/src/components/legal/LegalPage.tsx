@@ -1,6 +1,8 @@
-import Link from "next/link";
+"use client";
+
 import Image from "next/image";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export type LegalSection = {
@@ -16,14 +18,29 @@ type LegalPageProps = {
 };
 
 export function LegalPage({ title, description, lastUpdated, sections }: LegalPageProps) {
+  const router = useRouter();
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push("/");
+  };
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition-colors hover:text-indigo-600">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600 transition-colors hover:text-indigo-600"
+          >
             <ArrowLeft className="h-4 w-4" />
             Volver a NutriNet
-          </Link>
+          </button>
           <Image
             src="/logo_2.webp"
             alt="NutriNet"

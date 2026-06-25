@@ -324,6 +324,12 @@ export const normalizeCalendar = (payload: unknown): AppointmentCalendar | null 
           : typeof cal.isGoogleConnected === "boolean"
             ? cal.isGoogleConnected
             : undefined,
+    googleCalendarEmail:
+      normalizeText(cal.googleCalendarEmail) || normalizeText(cal.googleEmail),
+    googleCalendarStatus:
+      cal.googleCalendarStatus && typeof cal.googleCalendarStatus === "object" && !Array.isArray(cal.googleCalendarStatus)
+        ? (cal.googleCalendarStatus as Record<string, unknown>)
+        : null,
     metadata:
       cal.metadata && typeof cal.metadata === "object" && !Array.isArray(cal.metadata)
         ? (cal.metadata as Record<string, unknown>)
@@ -360,6 +366,9 @@ export const normalizeEvents = (payload: unknown): AppointmentEvent[] =>
         notes: normalizeText(record.notes),
         color: normalizeText(record.color),
         allDay: typeof record.allDay === "boolean" ? record.allDay : false,
+        googleCalendarHtmlLink: normalizeText(record.googleCalendarHtmlLink),
+        googleCalendarSyncedAt: normalizeText(record.googleCalendarSyncedAt),
+        googleCalendarSyncError: normalizeText(record.googleCalendarSyncError),
       };
     })
     .filter(isDefined);
@@ -381,6 +390,11 @@ export const normalizeRequests = (payload: unknown): AppointmentRequest[] =>
           normalizeText(record.patientName) ||
           normalizeText((record.patient as Record<string, unknown> | undefined)?.fullName) ||
           normalizeText((record.patient as Record<string, unknown> | undefined)?.name),
+        patientEmail:
+          normalizeText(record.patientEmail) ||
+          normalizeText((record.patient as Record<string, unknown> | undefined)?.email) ||
+          normalizeText((record.metadata as Record<string, unknown> | undefined)?.guestEmail) ||
+          normalizeText((record.metadata as Record<string, unknown> | undefined)?.patientEmail),
         start,
         end: normalizeText(record.end || record.endAt),
         requestedAt: normalizeText(record.requestedAt) || start,

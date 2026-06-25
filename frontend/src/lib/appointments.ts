@@ -67,12 +67,16 @@ export type AppointmentEvent = {
   notes?: string;
   color?: string;
   allDay?: boolean;
+  googleCalendarHtmlLink?: string | null;
+  googleCalendarSyncedAt?: string | null;
+  googleCalendarSyncError?: string | null;
 };
 
 export type AppointmentRequest = {
   id: string;
   title: string;
   patientName?: string;
+  patientEmail?: string;
   start: string;
   end: string;
   requestedAt: string;
@@ -283,6 +287,12 @@ export async function getGoogleStatus(calendarId: string) {
 export async function resyncGoogleCalendar(calendarId: string) {
   return fetchAppointmentsJson<unknown>(`/calendars/${calendarId}/google/resync`, {
     method: "POST",
+  });
+}
+
+export async function disconnectGoogleCalendar(calendarId: string) {
+  return fetchAppointmentsJson<unknown>(`/calendars/${calendarId}/google/disconnect`, {
+    method: "DELETE",
   });
 }
 
