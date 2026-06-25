@@ -71,6 +71,7 @@ import { fetchApi } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { buildExchangeGuideForAi } from "@/lib/exchange-portions";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 // -- Types --
 
@@ -569,6 +570,7 @@ export default function RecipesClient() {
   const searchParams = useSearchParams();
   const projectIdFromUrl = searchParams.get("project");
   const { role } = useAdmin();
+  const { can } = useSubscription();
   const { setSidebarCollapsed, flashSidebarToggle, isSidebarCollapsed } =
     useDashboardShell();
   const hasCollapsedSidebarForRecipesRef = useRef(false);
@@ -643,6 +645,7 @@ export default function RecipesClient() {
     enabled: false,
     gramsPerDay: 25,
   });
+  const canUseAiAutofill = can("ai.autofill.access");
 
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showQuickMealModal, setShowQuickMealModal] = useState(false);
@@ -3543,14 +3546,22 @@ export default function RecipesClient() {
 
                   <Button
                     variant="outline"
-                    onClick={() => void handleQuickGenerateAI()}
-                    disabled={isGenerating}
+                    onClick={() => {
+                      if (!canUseAiAutofill) {
+                        toast.info("La generación automática con IA está disponible desde Pro.");
+                        return;
+                      }
+                      void handleQuickGenerateAI();
+                    }}
+                    disabled={isGenerating || !canUseAiAutofill}
                     className="rounded-2xl font-bold flex items-center gap-2 border-slate-200"
                   >
                     <Zap className="h-4 w-4" />
                     {isGenerating
                       ? "Generando..."
-                      : "Generar con IA"}
+                      : canUseAiAutofill
+                        ? "Generar con IA"
+                        : "IA Pro"}
                   </Button>
 
                   <Button
@@ -4133,14 +4144,22 @@ export default function RecipesClient() {
                     <div className="flex justify-end">
                       <Button
                         variant="outline"
-                        onClick={() => void handleQuickGenerateAI()}
-                        disabled={isGenerating}
+                        onClick={() => {
+                          if (!canUseAiAutofill) {
+                            toast.info("La generación automática con IA está disponible desde Pro.");
+                            return;
+                          }
+                          void handleQuickGenerateAI();
+                        }}
+                        disabled={isGenerating || !canUseAiAutofill}
                         className="rounded-2xl font-bold flex items-center gap-2 border-slate-200"
                       >
                         <Zap className="h-4 w-4" />
                         {isGenerating
                           ? "Generando..."
-                          : "Generar platos con IA"}
+                          : canUseAiAutofill
+                            ? "Generar platos con IA"
+                            : "IA Pro"}
                       </Button>
                     </div>
                     <div className="flex items-center gap-2 pl-2">

@@ -11,7 +11,6 @@ import {
   FileText,
   NotebookText,
   MessageCircle,
-  ClipboardCheck,
   Calculator,
   BookOpen,
   MessageSquare,
@@ -23,6 +22,9 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  Dumbbell,
+  Pill,
+  HelpCircle,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -54,7 +56,8 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Pacientes", href: "/dashboard/pacientes", icon: Users, tutorialPath: "/dashboard/pacientes" },
       { name: "Consultas", href: "/dashboard/consultas", icon: CalendarDays, tutorialPath: "/dashboard/consultas" },
-      { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, tutorialPath: "/dashboard/citas", locked: true },
+      { name: "Fichas clínicas", href: "/dashboard/fichas-clinicas", icon: FileText },
+      { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, tutorialPath: "/dashboard/citas" },
     ],
   },
   {
@@ -62,10 +65,11 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Principal", isSubHeader: true },
       { name: "Entregable Rápido", href: "/dashboard/rapido", icon: NotebookText },
+      { name: "Pautas de Alimentación", href: "/dashboard/pautas", icon: FileText },
       { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
       { name: "Entregable Personalizado", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
       { name: "Alimentos", isSubHeader: true },
-      { name: "Ingredientes", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
+      { name: "Composición de alimentos", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
       { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos", hidden: true },
       { name: "Grupos", href: "/dashboard/alimentos/grupos", icon: FolderPlus },
     ],
@@ -77,6 +81,13 @@ const groups: SidebarGroup[] = [
       { name: "Recursos", href: "/dashboard/recursos", icon: FileText, tutorialPath: "/dashboard/recursos" },
       { name: "Calculadora", href: "/dashboard/herramientas/calculos", icon: Calculator, tutorialPath: "/dashboard/herramientas/calculos" },
       { name: "Configuración Clínica", href: "/dashboard/detalles", icon: Settings, tutorialPath: "/dashboard/detalles" },
+    ],
+  },
+  {
+    title: "Ejercicio y Deporte",
+    items: [
+      { name: "Rutinas de ejercicios", href: "/dashboard/ejercicio/rutinas", icon: Dumbbell, locked: true },
+      { name: "Suplementos", href: "/dashboard/ejercicio/suplementos", icon: Pill, locked: true },
     ],
   },
   {
@@ -92,6 +103,12 @@ const groups: SidebarGroup[] = [
       { name: "Información de Cálculos", href: "/dashboard/herramientas/porciones-intercambio", icon: BookOpen },
       { name: "Notificaciones", href: "/dashboard/ajustes/notificaciones", icon: Bell },
       { name: "Feedback & Soporte", href: "/dashboard/feedback", icon: MessageSquare },
+    ],
+  },
+  {
+    title: "Ayuda",
+    items: [
+      { name: "Preguntas frecuentes", href: "/dashboard/preguntas-frecuentes", icon: HelpCircle },
     ],
   },
 ];
@@ -116,8 +133,10 @@ export function Sidebar() {
   const getGroupPriority = (group: SidebarGroup) => {
     if (group.title === "Administración") return 0;
     if (group.title === "Nutrición y Dietética") return 1;
-    if (group.title === "Herramientas") return 2;
-    if (group.title === "Agentes & IA") return 3;
+    if (group.title === "Ejercicio y Deporte") return 2;
+    if (group.title === "Herramientas") return 3;
+    if (group.title === "Agentes & IA") return 4;
+    if (group.title === "Ayuda") return 5;
     return 10;
   };
 

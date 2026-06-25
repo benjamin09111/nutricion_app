@@ -22,6 +22,7 @@ import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import { FeatureGate } from "@/components/memberships/FeatureGate";
 import { toast } from "sonner";
 import { Ingredient } from "@/features/foods";
 
@@ -457,6 +458,10 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
   ];
 
   return (
+    <FeatureGate
+      feature="food_groups.access"
+      message="Los grupos de alimentos están disponibles desde Iniciante."
+    >
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-3">
@@ -952,5 +957,6 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
         variant="destructive"
       />
     </div>
+    </FeatureGate>
   );
 }

@@ -17,6 +17,8 @@ import {
 import { CacheService } from '../../common/services/cache.service';
 import { AiService } from '../../common/services/ai.service';
 import { RECIPES_AI_PROMPTS } from './recipes-ai-prompts';
+import { isAdminRole } from '../permissions/permissions.constants';
+import { PlanUsageService } from '../permissions/plan-usage.service';
 
 type AiRecipeOutput = {
   slotId: string;
@@ -87,6 +89,7 @@ export class RecipesService {
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
     private readonly aiService: AiService,
+    private readonly planUsageService: PlanUsageService,
   ) {}
 
   private async getNutritionistId(accountId: string): Promise<string> {
@@ -125,13 +128,14 @@ export class RecipesService {
         ? RECIPES_AI_PROMPTS.week
         : RECIPES_AI_PROMPTS.day;
 
-    // Sanitize sensitive patient info
-    const sanitizedPayload = JSON.parse(JSON.stringify(payload));
-    if (sanitizedPayload.patientProfile) {
-      delete sanitizedPayload.patientProfile.fullName;
-    }
+    const optimizedPayload = {
+      ...payload,
+      patientProfile: this.aiService.formatPatientContext(
+        payload.patientProfile,
+      ),
+    };
 
-    return [scopePrompt, JSON.stringify(sanitizedPayload)].join('\n');
+    return [scopePrompt, JSON.stringify(optimizedPayload)].join('\n');
   }
 
   private mapAiErrorMessage(upstreamMessage: string): string {
@@ -160,15 +164,24 @@ export class RecipesService {
   }
 
   private async callAiJson(
+    accountId: string,
     systemInstruction: string,
     userPrompt: string,
   ): Promise<string> {
     try {
+      await this.planUsageService.consumeMonthlyQuota(
+        accountId,
+        'ai.calls.limit',
+      );
+
       const text = await this.aiService.callJson(systemInstruction, userPrompt);
       this.logger.log(`[AI] Response ok chars=${text.length}`);
       this.logger.log(`[AI] Raw response:\n${text}`);
       return text;
     } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`[AI] Request failed: ${message}`);
       throw new BadRequestException(this.mapAiErrorMessage(message));
@@ -196,7 +209,7 @@ export class RecipesService {
   }
 
   private extractFirstJsonValue(content: string): string | null {
-    const start = content.search(/[\{\[]/);
+    const start = content.search(/[{[]/);
     if (start === -1) return null;
 
     const open = content[start];
@@ -379,6 +392,7 @@ export class RecipesService {
     );
 
     const content = await this.callAiJson(
+      userId,
       RECIPES_AI_PROMPTS.base,
       this.buildAiPrompt(payload),
     );
@@ -602,16 +616,6 @@ export class RecipesService {
       ),
     );
 
-    const sanitizedPatient = payload.patient
-      ? JSON.parse(JSON.stringify(payload.patient))
-      : null;
-
-    if (sanitizedPatient) {
-      delete sanitizedPatient.fullName;
-      delete sanitizedPatient.birthDate;
-      // We keep ageYears, gender, weight, height, etc.
-    }
-
     const safePayload = {
       dietName: payload.dietName || '',
       notes: payload.notes || '',
@@ -633,7 +637,7 @@ export class RecipesService {
         12,
       ),
       resources: this.sanitizeStringList(payload.resources).slice(0, 12),
-      patient: sanitizedPatient,
+      patient: this.aiService.formatPatientContext(payload.patient),
       nutritionalTargets: payload.nutritionalTargets || null,
       existingDishes: this.sanitizeQuickExistingDishes(payload.existingDishes),
       desiredDishCount,
@@ -667,6 +671,7 @@ export class RecipesService {
 
     const payload = dto.payload || ({} as QuickAiFillPayload);
     const content = await this.callAiJson(
+      userId,
       'Eres un nutricionista clínico experto. Responde solo JSON válido.',
       this.buildQuickAiPrompt(payload),
     );
@@ -1033,8 +1038,7 @@ export class RecipesService {
     const nutritionistId = await this.getNutritionistId(userId);
     const recipe = await this.findOne(id, userId);
 
-    const isAdmin =
-      userRole && ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(userRole);
+    const isAdmin = isAdminRole(userRole);
     if (!isAdmin && recipe.nutritionistId !== nutritionistId) {
       throw new ForbiddenException('Cannot edit public or others recipes');
     }
@@ -1112,7 +1116,10 @@ export class RecipesService {
     return updated;
   }
 
-  async estimateMacros(dto: EstimateMacrosDto): Promise<{
+  async estimateMacros(
+    userId: string,
+    dto: EstimateMacrosDto,
+  ): Promise<{
     calories: number;
     proteins: number;
     carbs: number;
@@ -1127,6 +1134,7 @@ export class RecipesService {
 
     try {
       const content = await this.callAiJson(
+        userId,
         'Eres un asistente nutricional. Responde solo JSON.',
         prompt,
       );
@@ -1155,8 +1163,7 @@ export class RecipesService {
     const nutritionistId = await this.getNutritionistId(userId);
     const recipe = await this.findOne(id, userId);
 
-    const isAdmin =
-      userRole && ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(userRole);
+    const isAdmin = isAdminRole(userRole);
     if (!isAdmin && recipe.nutritionistId !== nutritionistId) {
       throw new ForbiddenException('Cannot delete public or others recipes');
     }

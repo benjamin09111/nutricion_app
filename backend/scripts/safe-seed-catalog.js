@@ -162,14 +162,24 @@ function main() {
   const { env } = loadEnvFile(envFile);
   ensureSafeRemoteFlag(env.DIRECT_URL || env.DATABASE_URL, process.argv.slice(2));
 
-  const categoriesPath = path.resolve(backendRoot, '..', 'categories.txt');
-  const ingredientsPath = path.resolve(backendRoot, '..', 'ingredients.txt');
+  const ingredientsPath = path.resolve(backendRoot, '..', 'data', 'ingredients.txt');
   const generatedDir = path.resolve(backendRoot, 'prisma', 'generated');
   const sqlPath = path.resolve(generatedDir, 'seed_ingredients_from_txt.sql');
 
-  const categories = readLines(categoriesPath);
+  const ingredientLines = readLines(ingredientsPath);
+  const uniqueCategoryNames = new Set();
+  for (const line of ingredientLines) {
+    const cols = line.split(',');
+    if (cols.length >= 2) {
+      const categoryName = cols[1].trim();
+      if (categoryName) {
+        uniqueCategoryNames.add(categoryName);
+      }
+    }
+  }
+  const categories = Array.from(uniqueCategoryNames);
   const validCategories = new Set(categories.map((category) => category.toLowerCase()));
-  const ingredientRows = parseIngredients(readLines(ingredientsPath), validCategories);
+  const ingredientRows = parseIngredients(ingredientLines, validCategories);
   const sql = buildSql(categories, ingredientRows);
 
   fs.mkdirSync(generatedDir, { recursive: true });

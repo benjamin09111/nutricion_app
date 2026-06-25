@@ -14,12 +14,16 @@ import {
 import { ConsultationsService } from './consultations.service';
 import { CreateConsultationDto } from './dto/create-consultation.dto';
 import { UpdateConsultationDto } from './dto/update-consultation.dto';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
 import { CacheTTL } from '@nestjs/cache-manager';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 
 @Controller('consultations')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard, PermissionsGuard)
+@RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 @UseInterceptors(HttpCacheInterceptor)
 @CacheTTL(300000) // 5 minutes
 export class ConsultationsController {
@@ -31,6 +35,7 @@ export class ConsultationsController {
     @Body() createConsultationDto: CreateConsultationDto,
   ) {
     return this.consultationsService.create(
+      req.user.id,
       req.user.nutritionistId,
       createConsultationDto,
     );

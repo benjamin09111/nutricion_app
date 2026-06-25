@@ -14,18 +14,29 @@ import {
   AlertCircle,
   RefreshCw,
   Settings,
+  Mail,
   X,
   Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { Pagination } from "@/components/ui/Pagination";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { fetchApi } from "@/lib/api-base";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+interface MembershipPlan {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  billingPeriod: string;
+  isActive: boolean;
 }
 
 type ClientTab =
@@ -37,9 +48,15 @@ type ClientTab =
 export default function AdminClientsPage() {
   const [activeTab, setActiveTab] = useState<ClientTab>("Nutricionistas");
   const [clients, setClients] = useState<any[]>([]);
-  const [membershipPlans, setMembershipPlans] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [planFilter, setPlanFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState("all");
 
   // Modal states
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -50,10 +67,70 @@ export default function AdminClientsPage() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedPlan, setSelectedPlan] = useState<string>("");
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isResendingVerification, setIsResendingVerification] = useState(false);
+
+  const normalizePlanValue = (plan?: MembershipPlan | null) => {
+    if (!plan) return "FREE";
+    if (plan.price === 0 || plan.slug.toLowerCase().includes("free")) {
+      return "FREE";
+    }
+    return plan.slug.toUpperCase();
+  };
+
+  const getFreePlanValue = (plans: MembershipPlan[]) => {
+    const freePlan = plans.find(
+      (plan) => plan.price === 0 || plan.slug.toLowerCase().includes("free"),
+    );
+    return normalizePlanValue(freePlan || null);
+  };
+
+  const getPlanLabel = (plan: MembershipPlan) => {
+    const price = Number(plan.price);
+    const priceLabel =
+      price === 0
+        ? "Gratis"
+        : new Intl.NumberFormat("es-CL", {
+            style: "currency",
+            currency: "CLP",
+            maximumFractionDigits: 0,
+          }).format(price);
+
+    return `${plan.name} — ${priceLabel}`;
+  };
+
+  const getFilterPlanOptions = () => {
+    const freePlan = membershipPlans.find(
+      (plan) => plan.price === 0 || plan.slug.toLowerCase().includes("free"),
+    );
+
+    return [
+      { value: "all", label: "Todos los planes" },
+      ...(freePlan
+        ? [{ value: freePlan.slug.toLowerCase(), label: "Gratis" }]
+        : [{ value: "free", label: "Gratis" }]),
+      ...membershipPlans
+        .filter((plan) => plan.price > 0)
+        .map((plan) => ({
+          value: plan.slug.toLowerCase(),
+          label: plan.name,
+        })),
+    ];
+  };
+
+  const getSelectedPlanValue = (clientPlan?: string | null) => {
+    if (!clientPlan) return getFreePlanValue(membershipPlans);
+
+    const normalized = clientPlan.toUpperCase();
+    const matchingPlan = membershipPlans.find(
+      (plan) => normalizePlanValue(plan) === normalized,
+    );
+
+    return matchingPlan ? normalizePlanValue(matchingPlan) : getFreePlanValue(membershipPlans);
+  };
 
   useEffect(() => {
     fetchMembershipPlans();
-    fetchClients();
+    fetchClients(1);
   }, [activeTab]);
 
   useEffect(() => {
@@ -80,17 +157,20 @@ export default function AdminClientsPage() {
       if (!response.ok) throw new Error("Error al cargar planes");
       const data = await response.json();
       setMembershipPlans(data);
+
+      const freePlanValue = getFreePlanValue(data);
+      setSelectedPlan((current) => current || freePlanValue);
     } catch (error) {
       console.error("Error fetching membership plans:", error);
     }
   };
 
-  const fetchClients = async () => {
+  const fetchClients = async (pageArg = currentPage) => {
     setIsLoading(true);
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      let role = "NUTRITIONIST";
+      let role = "ALL_NUTRITIONISTS";
 
       switch (activeTab) {
         case "Organizaciones":
@@ -103,24 +183,43 @@ export default function AdminClientsPage() {
           role = "SUPERMARKET";
           break;
         default:
-          role = "NUTRITIONIST";
+          role = "ALL_NUTRITIONISTS";
       }
 
-      const url = searchTerm
-        ? `/users?role=${role}&search=${searchTerm}`
-        : `/users?role=${role}`;
+      const params = new URLSearchParams({
+        role,
+        page: String(pageArg),
+        limit: "10",
+      });
 
-      const response = await fetchApi(url, {
+      if (searchTerm.trim()) params.set("search", searchTerm.trim());
+      if (planFilter !== "all") params.set("plan", planFilter);
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (paymentFilter !== "all") params.set("payment", paymentFilter);
+
+      const response = await fetchApi(`/users?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) throw new Error("Error al cargar clientes");
       const data = await response.json();
-      setClients(data);
+
+      if (Array.isArray(data)) {
+        setClients(data);
+        setTotalItems(data.length);
+        setTotalPages(1);
+      } else {
+        setClients(data.items || []);
+        setTotalItems(data.total || 0);
+        setTotalPages(data.totalPages || 1);
+        setCurrentPage(data.page || pageArg || 1);
+      }
     } catch (error) {
       console.error(error);
       toast.error("No se pudieron cargar los clientes");
       setClients([]);
+      setTotalItems(0);
+      setTotalPages(1);
     } finally {
       setIsLoading(false);
     }
@@ -128,7 +227,47 @@ export default function AdminClientsPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchClients();
+    setCurrentPage(1);
+    void fetchClients(1);
+  };
+
+  const handlePlanFilterChange = (value: string) => {
+    setPlanFilter(value);
+    setCurrentPage(1);
+    void fetchClients(1);
+  };
+
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+    void fetchClients(1);
+  };
+
+  const handlePaymentFilterChange = (value: string) => {
+    setPaymentFilter(value);
+    setCurrentPage(1);
+    void fetchClients(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    void fetchClients(page);
+  };
+
+  const formatPlanName = (planValue?: string | null) => {
+    if (!planValue) return "Gratis";
+
+    const normalized = planValue.toUpperCase();
+    const matchedPlan = membershipPlans.find(
+      (plan) => normalizePlanValue(plan) === normalized,
+    );
+
+    if (matchedPlan) {
+      return matchedPlan.price === 0 ? "Gratis" : matchedPlan.name;
+    }
+
+    if (normalized === "FREE") return "Gratis";
+    return normalized;
   };
 
   const handlePlanChange = (user: any, newPlan: string) => {
@@ -232,6 +371,30 @@ export default function AdminClientsPage() {
   ];
 
   const getPaymentStatus = (client: any) => {
+    if (client.paymentState === "free") {
+      return {
+        label: "Gratis",
+        color: "text-slate-700 bg-slate-100",
+        icon: CheckCircle2,
+      };
+    }
+
+    if (client.paymentState === "paid") {
+      return {
+        label: "Al día",
+        color: "text-green-700 bg-green-50",
+        icon: CheckCircle2,
+      };
+    }
+
+    if (client.paymentState === "expired") {
+      return {
+        label: "Vencido",
+        color: "text-rose-700 bg-rose-50",
+        icon: AlertCircle,
+      };
+    }
+
     if (!client.subscriptionEndsAt)
       return {
         label: "Sin Pago",
@@ -253,6 +416,36 @@ export default function AdminClientsPage() {
         color: "text-rose-700 bg-rose-50",
         icon: AlertCircle,
       };
+    }
+  };
+
+  const handleResendVerificationEmail = async (client: any) => {
+    setIsResendingVerification(true);
+    try {
+      const response = await fetchApi(`/auth/resend-verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: client.email }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudo reenviar el correo");
+      }
+
+      toast.success(
+        data.message || `Correo de confirmación reenviado a ${client.email}`,
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudo reenviar el correo de confirmación",
+      );
+    } finally {
+      setIsResendingVerification(false);
     }
   };
 
@@ -290,7 +483,10 @@ export default function AdminClientsPage() {
             return (
               <button
                 key={tab.label}
-                onClick={() => setActiveTab(tab.label)}
+                onClick={() => {
+                  setCurrentPage(1);
+                  setActiveTab(tab.label);
+                }}
                 className={cn(
                   "group inline-flex items-center gap-2 border-b-2 px-1 py-3 text-sm font-medium transition-colors cursor-pointer",
                   isActive
@@ -328,10 +524,50 @@ export default function AdminClientsPage() {
         <Button
           type="submit"
           className="bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
+          >
+            Buscar
+          </Button>
+        </form>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <select
+          value={planFilter}
+          onChange={(e) => handlePlanFilterChange(e.target.value)}
+          className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/10"
         >
-          Buscar
-        </Button>
-      </form>
+          {getFilterPlanOptions().map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={statusFilter}
+          onChange={(e) => handleStatusFilterChange(e.target.value)}
+          className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/10"
+        >
+          <option value="all">Todos los estados</option>
+          <option value="ACTIVE">Activo</option>
+          <option value="PENDING">Pendiente</option>
+          <option value="SUSPENDED">Suspendido</option>
+        </select>
+
+        <select
+          value={paymentFilter}
+          onChange={(e) => handlePaymentFilterChange(e.target.value)}
+          className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/10"
+        >
+          <option value="all">Todos los pagos</option>
+          <option value="free">Gratis</option>
+          <option value="paid">Al día</option>
+          <option value="expired">Vencido</option>
+          <option value="none">Sin pago</option>
+        </select>
+      </div>
+      <p className="text-xs font-medium text-slate-500">
+        Ordenado del acceso más reciente al más antiguo.
+      </p>
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -411,7 +647,7 @@ export default function AdminClientsPage() {
                       </td>
                       <td className="px-6 py-4">
                         <select
-                          value={client.plan || "FREE"}
+                          value={getSelectedPlanValue(client.plan)}
                           onChange={(e) =>
                             handlePlanChange(client, e.target.value)
                           }
@@ -427,14 +663,14 @@ export default function AdminClientsPage() {
                             membershipPlans.map((plan) => (
                               <option
                                 key={plan.id}
-                                value={plan.slug.toUpperCase()}
+                                value={normalizePlanValue(plan)}
                               >
-                                {plan.slug.toUpperCase()}
+                                {getPlanLabel(plan)}
                               </option>
                             ))
                           ) : (
                             <>
-                              <option value="FREE">FREE</option>
+                              <option value="FREE">Gratis</option>
                               <option value="PRO">PRO</option>
                               <option value="ENTERPRISE">ENTERPRISE</option>
                             </>
@@ -498,10 +734,23 @@ export default function AdminClientsPage() {
                         </button>
                         {openMenuId === client.id && (
                           <div className="absolute right-0 mt-1 w-36 rounded-xl bg-white shadow-xl ring-1 ring-black/5 z-20 p-1.5 border-none animate-in fade-in zoom-in-95 duration-100">
+                            {client.status === "PENDING" && (
+                              <button
+                                onClick={() => {
+                                  void handleResendVerificationEmail(client);
+                                  setOpenMenuId(null);
+                                }}
+                                disabled={isResendingVerification}
+                                className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                <Mail className="h-3.5 w-3.5" />
+                                Reenviar correo
+                              </button>
+                            )}
                             <button
                               onClick={() => {
                                 setSelectedUser(client);
-                                setSelectedPlan(client.plan || "FREE");
+                                setSelectedPlan(getSelectedPlanValue(client.plan));
                                 setDurationDays(30);
                                 setShowConfigModal(true);
                                 setOpenMenuId(null);
@@ -531,6 +780,17 @@ export default function AdminClientsPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-4 md:flex-row md:items-center md:justify-between">
+          <div className="text-sm text-slate-500">
+            Mostrando {clients.length} de {totalItems} resultados
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
         </div>
       </div>
 
@@ -577,10 +837,10 @@ export default function AdminClientsPage() {
                     membershipPlans.map((plan) => (
                       <option
                         key={plan.id}
-                        value={plan.slug.toUpperCase()}
+                        value={normalizePlanValue(plan)}
                         className="text-slate-900 font-bold py-2"
                       >
-                        {plan.slug.toUpperCase()} —{" "}
+                        {getPlanLabel(plan)} —{" "}
                         {plan.billingPeriod === "monthly"
                           ? "Ciclo Mensual"
                           : "Ciclo Anual"}
@@ -589,7 +849,7 @@ export default function AdminClientsPage() {
                   ) : (
                     <>
                       <option value="FREE" className="text-slate-900 font-bold">
-                        FREE (Plan Básico)
+                        Gratis (Plan Básico)
                       </option>
                       <option value="PRO" className="text-slate-900 font-bold">
                         PRO (Plan Premium)

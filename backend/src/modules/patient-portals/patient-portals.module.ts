@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { AppointmentsModule } from '../appointments/appointments.module';
 import { PatientPortalsController } from './patient-portals.controller';
 import { PatientPortalsService } from './patient-portals.service';
 import { PatientPortalAuthGuard } from './guards/patient-portal.guard';
@@ -10,6 +11,7 @@ import { PatientPortalAuthGuard } from './guards/patient-portal.guard';
   imports: [
     PrismaModule,
     ConfigModule,
+    AppointmentsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

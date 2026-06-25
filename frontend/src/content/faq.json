@@ -1,0 +1,138 @@
+[
+  {
+    "id": "que-es-nutrinet",
+    "category": "Primeros pasos",
+    "question": "¿Qué es NutriNet?",
+    "answer": "Soy Nutria y te acompaño en tu consulta para que puedas gestionar pacientes, automatizar cálculos y crear entregables con menos fricción. NutriNet está pensado para nutricionistas que quieren trabajar más rápido sin perder orden ni criterio clínico.",
+    "links": [
+      { "label": "Ir al dashboard", "href": "/dashboard" },
+      { "label": "Ver pacientes", "href": "/dashboard/pacientes" }
+    ]
+  },
+  {
+    "id": "como-empiezo",
+    "category": "Primeros pasos",
+    "question": "¿Cómo empiezo a usar la plataforma?",
+    "answer": "Empieza por crear o abrir un paciente, revisa sus datos clínicos y luego avanza al flujo que necesites. Si quieres una ruta rápida, Nutria recomienda partir por pacientes y después pasar al módulo clínico que te corresponda.",
+    "links": [
+      { "label": "Pacientes", "href": "/dashboard/pacientes" },
+      { "label": "Consultas", "href": "/dashboard/consultas" },
+      { "label": "Configuración clínica", "href": "/dashboard/detalles" }
+    ]
+  },
+  {
+    "id": "necesito-saber-de-tecnologia",
+    "category": "Cuenta y acceso",
+    "question": "¿Necesito saber de tecnología para usar NutriNet?",
+    "answer": "No, para nada. La interfaz está hecha para que sea clara y amable desde el primer día. Si sabes abrir un paciente, seguir una guía visual y guardar cambios, ya estás lista para trabajar conmigo.",
+    "links": [
+      { "label": "Feedback y soporte", "href": "/dashboard/feedback" },
+      { "label": "Actualizaciones", "href": "/dashboard/actualizaciones" }
+    ]
+  },
+  {
+    "id": "diferencia-flujo-clinico",
+    "category": "Módulos clínicos",
+    "question": "¿Cuál es la diferencia entre Dieta, Recetas, Carrito y Entregable?",
+    "answer": "Son las 4 etapas del entregable personalizado. Primero defines la estrategia en Dieta, luego cuantificas en Recetas y Porciones, después generas el Carrito y al final exportas el Entregable. Cada paso se apoya en el anterior para que todo tenga coherencia.",
+    "links": [
+      { "label": "Dieta", "href": "/dashboard/dieta" },
+      { "label": "Recetas", "href": "/dashboard/recetas" },
+      { "label": "Carrito", "href": "/dashboard/carrito" },
+      { "label": "Entregable", "href": "/dashboard/entregable" }
+    ]
+  },
+  {
+    "id": "ia-como-funciona",
+    "category": "IA y automatización",
+    "question": "¿Cómo funciona la IA en NutriNet?",
+    "answer": "La IA me ayuda a completar lo que falta, sugerir contenido y acelerar tareas repetitivas. No trabaja sola: usa el contexto clínico que tú definiste para darte apoyo, no para reemplazar tu criterio profesional.",
+    "links": [
+      { "label": "Recetas Rápido", "href": "/dashboard/rapido/recetas" },
+      { "label": "Entregable Rápido", "href": "/dashboard/rapido" },
+      { "label": "Dieta", "href": "/dashboard/dieta" }
+    ]
+  },
+  {
+    "id": "ia-reemplaza-mi-criterio",
+    "category": "IA y automatización",
+    "question": "¿La IA reemplaza mi criterio clínico?",
+    "answer": "No, mi misión es ayudarte a ahorrar tiempo, no decidir por ti. Tú eliges, corriges y apruebas todo antes de entregar. La IA solo acelera el trabajo y reduce pasos manuales.",
+    "links": [
+      { "label": "Crear entregable rápido", "href": "/dashboard/rapido" },
+      { "label": "Ir al flujo clínico", "href": "/dashboard/dieta" }
+    ]
+  },
+  {
+    "id": "cálculos-automaticos",
+    "category": "IA y automatización",
+    "question": "¿Dónde hago cálculos automáticos?",
+    "answer": "Puedes usar la calculadora clínica para revisar fórmulas y estimaciones sin salir del dashboard. También encontrarás apoyos automáticos en los módulos donde el sistema ya conoce el contexto del paciente.",
+    "links": [
+      { "label": "Calculadora clínica", "href": "/dashboard/herramientas/calculos" },
+      { "label": "Información de cálculos", "href": "/dashboard/herramientas/porciones-intercambio" }
+    ]
+  },
+  {
+    "id": "recetas-rapido",
+    "category": "Módulos clínicos",
+    "question": "¿Cómo genero recetas o platos rápidos?",
+    "answer": "Si quieres crear ideas culinarias desde cero, usa Recetas Rápido. Ahí puedes pedir preparaciones completas con instrucciones simples y guardar lo que te sirva para reutilizarlo después.",
+    "links": [
+      { "label": "Recetas Rápido", "href": "/dashboard/rapido/recetas" },
+      { "label": "Platos", "href": "/dashboard/platos" },
+      { "label": "Recursos", "href": "/dashboard/recursos" }
+    ]
+  },
+  {
+    "id": "entregable-rapido",
+    "category": "Módulos clínicos",
+    "question": "¿Qué hago si quiero un entregable rápido?",
+    "answer": "Usa Entregable Rápido cuando necesites resolver una consulta sin recorrer todo el flujo completo. Es ideal para generar una propuesta clara, simple y presentable en menos tiempo.",
+    "links": [
+      { "label": "Entregable Rápido", "href": "/dashboard/rapido" },
+      { "label": "Entregable personalizado", "href": "/dashboard/dieta" }
+    ]
+  },
+  {
+    "id": "donde-veo-creaciones",
+    "category": "Resultados y exportación",
+    "question": "¿Dónde veo mis creaciones guardadas?",
+    "answer": "Todo lo que guardes como contenido clínico puede organizarse en tu espacio de Creaciones. Así no pierdes recetas, entregables ni materiales que quieras reutilizar más adelante.",
+    "links": [
+      { "label": "Creaciones", "href": "/dashboard/creaciones" },
+      { "label": "Recursos", "href": "/dashboard/recursos" }
+    ]
+  },
+  {
+    "id": "configuracion-y-notificaciones",
+    "category": "Cuenta y acceso",
+    "question": "¿Dónde cambio mis datos o mis notificaciones?",
+    "answer": "Puedes ajustar tu experiencia desde Configuración clínica y desde Notificaciones. Ahí organizas lo que Nutria debe tener en cuenta para trabajar a tu manera.",
+    "links": [
+      { "label": "Configuración clínica", "href": "/dashboard/detalles" },
+      { "label": "Notificaciones", "href": "/dashboard/ajustes/notificaciones" },
+      { "label": "Configuraciones", "href": "/dashboard/configuraciones" }
+    ]
+  },
+  {
+    "id": "soporte-y-feedback",
+    "category": "Soporte",
+    "question": "¿Qué hago si algo no funciona o tengo una duda?",
+    "answer": "Si encuentras algo raro, dímelo en Feedback y Soporte. Así puedo ayudarte a corregir el flujo o dejar constancia para mejorarlo en una futura actualización.",
+    "links": [
+      { "label": "Feedback y soporte", "href": "/dashboard/feedback" },
+      { "label": "Actualizaciones", "href": "/dashboard/actualizaciones" }
+    ]
+  },
+  {
+    "id": "modulos-bloqueados",
+    "category": "Módulos clínicos",
+    "question": "¿Por qué algunos módulos aparecen bloqueados?",
+    "answer": "Algunos módulos están reservados para futuras etapas o para planes que todavía no están activos. Cuando eso pase, verás el acceso disponible directamente en el sidebar.",
+    "links": [
+      { "label": "Actualizar plan", "href": "/dashboard/configuraciones" },
+      { "label": "Ver feedback", "href": "/dashboard/feedback" }
+    ]
+  }
+]

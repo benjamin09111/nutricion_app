@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
@@ -14,9 +14,11 @@ import {
   Pencil,
   Plus,
   Search,
+  Settings,
   Star,
   Trash2,
   User as UserIcon,
+  FileText as DescriptionIcon,
 } from "lucide-react";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
@@ -30,10 +32,11 @@ import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { useAdmin } from "@/context/AdminContext";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
+import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 
 import sectionCoverImages from "./section-cover-images.json";
 
-type MainTab = "library" | "coverIntro" | "mine";
+type MainTab = "library" | "coverIntro" | "mine" | "descriptions";
 type LibrarySource = "system" | "community";
 
 interface Resource {
@@ -116,12 +119,42 @@ export function ResourcesClient() {
   const [mineOnlyFavorites, setMineOnlyFavorites] = useState(false);
   const [resourceToPreview, setResourceToPreview] = useState<Resource | null>(null);
   const [resourceToDelete, setResourceToDelete] = useState<Resource | null>(null);
+  const [descriptions, setDescriptions] = useState<Array<{id: string; restriction: string; content: string; createdAt?: string}>>([]);
+  const [descriptionRestriction, setDescriptionRestriction] = useState("");
+  const [descriptionContent, setDescriptionContent] = useState("");
+  const [editingDescription, setEditingDescription] = useState<{id: string; restriction: string; content: string} | null>(null);
+  const [restrictionSearch, setRestrictionSearch] = useState("");
+  const [showRestrictionDropdown, setShowRestrictionDropdown] = useState(false);
+  const restrictionInputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try { setFavorites(JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]")); } catch { }
+    try { setDescriptions(JSON.parse(localStorage.getItem("nutri_descriptions") || "[]")); } catch { }
     fetchResources();
     fetchTags();
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showRestrictionDropdown && !(e.target as HTMLElement).closest('.restriction-dropdown')) {
+        setShowRestrictionDropdown(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showRestrictionDropdown]);
+
+  const allRestrictions = useMemo(() => {
+    const saved = descriptions.map(d => d.restriction);
+    const defaults = DEFAULT_CONSTRAINTS.map(c => c.label);
+    const combined = [...new Set([...defaults, ...saved])];
+    return combined.sort();
+  }, [descriptions]);
+
+  const filteredRestrictions = useMemo(() => {
+    if (!restrictionSearch.trim()) return allRestrictions;
+    return allRestrictions.filter(r => r.toLowerCase().includes(restrictionSearch.toLowerCase()));
+  }, [allRestrictions, restrictionSearch]);
 
   const myResources = useMemo(() => resources.filter((r) => r.isMine), [resources]);
   const systemResources = useMemo(() => resources.filter((r) => r.nutritionistId === null), [resources]);
@@ -217,6 +250,41 @@ export function ResourcesClient() {
     }
   }
 
+  function saveDescription() {
+    if (!descriptionRestriction.trim() || !descriptionContent.trim()) {
+      toast.error("Completa todos los campos.");
+      return;
+    }
+    const newDesc = {
+      id: editingDescription?.id || `desc_${Date.now()}`,
+      restriction: descriptionRestriction.trim(),
+      content: descriptionContent.trim(),
+      createdAt: editingDescription ? descriptions.find(d => d.id === editingDescription.id)?.createdAt : new Date().toISOString()
+    };
+    const updated = editingDescription 
+      ? descriptions.map(d => d.id === editingDescription.id ? newDesc : d)
+      : [...descriptions, newDesc];
+    setDescriptions(updated);
+    localStorage.setItem("nutri_descriptions", JSON.stringify(updated));
+    setDescriptionRestriction("");
+    setDescriptionContent("");
+    setEditingDescription(null);
+    toast.success(editingDescription ? "Descripción actualizada." : "Descripción guardada.");
+  }
+
+  function deleteDescription(id: string) {
+    const updated = descriptions.filter(d => d.id !== id);
+    setDescriptions(updated);
+    localStorage.setItem("nutri_descriptions", JSON.stringify(updated));
+    toast.success("Descripción eliminada.");
+  }
+
+  function editDescription(desc: {id: string; restriction: string; content: string}) {
+    setDescriptionRestriction(desc.restriction);
+    setDescriptionContent(desc.content);
+    setEditingDescription(desc);
+  }
+
   const Card = ({ resource }: { resource: Resource }) => {
     const cover = coverCfg(resource.category);
     return (
@@ -290,6 +358,7 @@ export function ResourcesClient() {
             {[
               { id: "library", label: "Biblioteca", icon: BookOpen },
               { id: "mine", label: "Mis recursos", icon: UserIcon },
+              { id: "descriptions", label: "Descripciones", icon: DescriptionIcon },
               { id: "coverIntro", label: "Portada e introducción", icon: Lock }
             ].map((tab) => (
               <button
@@ -676,6 +745,119 @@ export function ResourcesClient() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {mainTab === "descriptions" && (
+          <div className="space-y-6">
+            <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm space-y-6">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-indigo-600">
+                    Descripciones educativas
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold text-slate-900">Descripciones asociadas a restricciones</h2>
+                  <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-slate-500">
+                    Crea descripciones breves asociadas a restricciones clínicas. Estas se reutilizan automáticamente en "Pautas de Alimentación".
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Restricción clínica</p>
+                    <a href="/dashboard/detalles" className="text-xs text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1">
+                      <Settings className="h-3 w-3" />
+                      Ir a config
+                    </a>
+                  </div>
+                  <div className="relative restriction-dropdown">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={restrictionSearch || descriptionRestriction}
+                        onChange={(e) => {
+                          setRestrictionSearch(e.target.value);
+                          setDescriptionRestriction(e.target.value);
+                          setShowRestrictionDropdown(true);
+                        }}
+                        onFocus={() => setShowRestrictionDropdown(true)}
+                        placeholder="Buscar o crear restricción..."
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm"
+                      />
+                    </div>
+                    {showRestrictionDropdown && filteredRestrictions.length > 0 && (
+                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto restriction-dropdown">
+                        {filteredRestrictions.map((restriction) => (
+                          <button
+                            key={restriction}
+                            type="button"
+                            onClick={() => {
+                              setDescriptionRestriction(restriction);
+                              setRestrictionSearch(restriction);
+                              setShowRestrictionDropdown(false);
+                            }}
+                            className="w-full text-left px-3 py-2.5 text-sm hover:bg-slate-50"
+                          >
+                            {restriction}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-end">
+                  {editingDescription ? (
+                    <Button onClick={saveDescription} className="rounded-xl h-11">Actualizar</Button>
+                  ) : (
+                    <Button onClick={saveDescription} className="rounded-xl h-11">Guardar descripción</Button>
+                  )}
+                  {editingDescription && (
+                    <Button variant="outline" onClick={() => { setEditingDescription(null); setDescriptionRestriction(""); setDescriptionContent(""); }} className="ml-2 rounded-xl h-11">Cancelar</Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Contenido</p>
+                <textarea
+                  value={descriptionContent}
+                  onChange={(e) => setDescriptionContent(e.target.value)}
+                  placeholder="Escribe la descripción educativa..."
+                  className="min-h-[120px] w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm"
+                />
+              </div>
+            </section>
+
+            <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">Descripciones guardadas ({descriptions.length})</h3>
+              {descriptions.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-8">No hay descripciones guardadas.</p>
+              ) : (
+                <div className="space-y-3">
+                  {descriptions.map((desc) => (
+                    <div key={desc.id} className="flex items-start justify-between gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="flex-1 min-w-0">
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 mb-2">
+                          {desc.restriction}
+                        </span>
+                        <p className="text-sm text-slate-600 line-clamp-2">{desc.content}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => editDescription(desc)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-rose-400 hover:text-rose-600 hover:bg-rose-50" onClick={() => deleteDescription(desc.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
         )}
       </div>

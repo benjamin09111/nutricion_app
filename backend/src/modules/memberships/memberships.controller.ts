@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { MembershipsService } from './memberships.service';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 
 @Controller('memberships')
 export class MembershipsController {
@@ -27,37 +27,37 @@ export class MembershipsController {
   /**
    * Admin endpoints (protected)
    */
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Get()
   findAll() {
     return this.membershipsService.findAll();
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.membershipsService.findOne(id);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post()
   create(@Body() createDto: any) {
     return this.membershipsService.create(createDto);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateDto: any) {
     return this.membershipsService.update(id, updateDto);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Patch(':id/toggle-active')
   toggleActive(@Param('id') id: string) {
     return this.membershipsService.toggleActive(id);
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.membershipsService.remove(id);

@@ -268,7 +268,7 @@ function IntroBetaTutorial({
   const isBlocked = step.requireCheckbox && !accepted;
 
   return (
-    <div className="fixed inset-0 z-[10000] overflow-hidden bg-[#fcfdf8]">
+    <div className="fixed inset-0 z-[10000] overflow-auto bg-[#fcfdf8]">
       <div className="pointer-events-none absolute inset-0">
         <div className="leaf leaf-one" />
         <div className="leaf leaf-two" />
@@ -278,7 +278,7 @@ function IntroBetaTutorial({
         <div className="absolute inset-x-0 bottom-0 h-48 bg-[radial-gradient(circle_at_bottom,rgba(134,239,172,0.14),transparent_65%)]" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen w-full max-w-7xl items-center justify-between gap-8 px-6 py-10 lg:px-12">
+      <div className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col items-center justify-center gap-6 px-4 py-8 sm:px-6 sm:py-10 lg:flex-row lg:gap-8 lg:px-12">
         <div className="relative w-full max-w-2xl">
           <div className="pointer-events-none absolute -right-14 bottom-24 hidden lg:block">
             <div className="relative h-20 w-24">
@@ -286,22 +286,22 @@ function IntroBetaTutorial({
               <div className="absolute right-1 bottom-0 h-12 w-12 rotate-[28deg] rounded-[1rem] border border-slate-200 bg-white shadow-[0_14px_28px_-22px_rgba(15,23,42,0.3)]" />
             </div>
           </div>
-          <div className="relative rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.28)]">
-            <div className="mb-6 flex items-center justify-between gap-4">
+          <div className="relative rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.28)] sm:p-8">
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-600">
                   NutriNet Beta
                 </p>
-                <h2 className="mt-2 text-3xl font-black text-slate-900">
+                <h2 className="mt-2 text-2xl font-black text-slate-900 sm:text-3xl">
                   {step.title}
                 </h2>
               </div>
-              <div className="rounded-full bg-slate-100 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-slate-500">
+              <div className="rounded-full bg-slate-100 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-slate-500 shrink-0">
                 Paso {stepIndex + 1}/{totalSteps}
               </div>
             </div>
 
-            <div className="space-y-4 text-base leading-8 text-slate-600">
+            <div className="space-y-4 text-base leading-7 text-slate-600 sm:leading-8">
               {renderStructuredText(step.body)}
             </div>
 
@@ -311,23 +311,36 @@ function IntroBetaTutorial({
                   type="checkbox"
                   checked={accepted}
                   onChange={(event) => setAccepted(event.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600"
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600"
                 />
                 <span>{renderInlineRichText(step.checkboxLabel)}</span>
               </label>
             ) : null}
 
-            <div className="mt-8 flex items-center justify-end">
+            <div className="mt-8 flex w-full justify-end">
               <button
                 type="button"
                 onClick={onNext}
                 disabled={isBlocked}
-                className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-6 py-3 text-sm font-black uppercase tracking-widest text-white transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-6 py-3 text-sm font-black uppercase tracking-widest text-white transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
               >
                 {step.nextLabel || "Continuar"}
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
+          </div>
+        </div>
+
+        <div className="flex w-full max-w-md items-end justify-end lg:hidden">
+          <div className="relative h-[320px] w-full sm:h-[400px]">
+            <div className="absolute inset-x-10 bottom-6 h-16 rounded-full bg-emerald-100/60 blur-2xl" />
+            <Image
+              src="/nutria.webp"
+              alt="Nutria guía de NutriNet"
+              fill
+              className="object-contain object-right drop-shadow-[0_24px_30px_rgba(15,23,42,0.18)]"
+              priority
+            />
           </div>
         </div>
 

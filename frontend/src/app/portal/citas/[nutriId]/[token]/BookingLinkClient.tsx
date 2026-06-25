@@ -1,21 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Clock3, Loader2, MapPin, Mail, Phone, Sparkles, UserRound } from "lucide-react";
+import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { Textarea } from "@/components/ui/Textarea";
 import {
   AppointmentSlot,
   createBookingLinkRequest,
   fetchAppointmentsJson,
   fetchBookingLink,
 } from "@/lib/appointments";
-import { cn } from "@/lib/utils";
 import { Modal } from "@/components/ui/Modal";
-import { CheckCircle2 } from "lucide-react";
 
 type BookingPreview = {
   token?: string;
@@ -43,7 +40,7 @@ const extractArray = (payload: unknown) => {
   if (Array.isArray(payload)) return payload;
   if (!payload || typeof payload !== "object") return [];
   const record = payload as Record<string, unknown>;
-  const candidates = [record.data, record.items, record.results, record.slots];
+  const candidates = [record.data, record.items, record.results, record.slots, record.rules];
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) return candidate;
   }
@@ -106,6 +103,8 @@ const normalizeSlots = (payload: unknown): AppointmentSlot[] =>
         label: normalizeText(record.label),
         patientName: normalizeText(record.patientName),
         notes: normalizeText(record.notes),
+        dayKey: normalizeText(record.dayKey),
+        hour: typeof record.hour === "number" ? record.hour : undefined,
       };
     })
     .filter((item): item is AppointmentSlot => item !== null);
@@ -139,7 +138,7 @@ const formatDateKey = (date: Date, timeZone?: string) => {
         month: "2-digit",
         day: "2-digit",
       }).format(date);
-    } catch (e) {
+    } catch {
       console.warn("Invalid timezone for formatDateKey", timeZone);
     }
   }
@@ -157,12 +156,14 @@ const formatDayLabel = (date: Date, timeZone?: string) =>
     month: "short",
   }).format(date);
 
-const formatHourLabel = (date: Date, timeZone?: string) =>
-  new Intl.DateTimeFormat("es-CL", {
+const getHourInTimeZone = (date: Date, timeZone: string) => {
+  const hour = new Intl.DateTimeFormat("en-US", {
     timeZone,
     hour: "2-digit",
-    minute: "2-digit",
+    hourCycle: "h23",
   }).format(date);
+  return Number(hour);
+};
 
 const getWeekDays = (anchor: Date) => {
   const monday = startOfWeek(anchor);
@@ -197,15 +198,6 @@ export default function BookingLinkClient({
 
   const calendarId = preview?.calendarId || "";
   const timeZone = preview?.timeZone || preview?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const slotDurationMin = useMemo(() => {
-    const rawDuration = preview?.metadata ? preview.metadata["durationMin"] : undefined;
-    if (typeof rawDuration === "number" || typeof rawDuration === "string") {
-      const nextValue = Number(rawDuration);
-      return Number.isFinite(nextValue) && nextValue > 0 ? nextValue : 30;
-    }
-    return 60;
-  }, [preview]);
-
   const weekDays = useMemo(() => getWeekDays(weekAnchor), [weekAnchor]);
   const weekStart = weekDays[0];
   const weekEnd = weekDays[6];
@@ -215,9 +207,10 @@ export default function BookingLinkClient({
     weekDays.forEach((day) => map.set(formatDateKey(day, timeZone), []));
 
     slots.forEach((slot) => {
-      const start = parseDateSafe(slot.start);
-      if (!start) return;
-      const key = formatDateKey(start, timeZone);
+      const key = slot.dayKey || (() => {
+        const start = parseDateSafe(slot.start);
+        return start ? formatDateKey(start, timeZone) : "";
+      })();
       const current = map.get(key);
       if (current) current.push(slot);
     });
@@ -245,8 +238,11 @@ export default function BookingLinkClient({
       setIsLoading(true);
       setErrorMessage("");
       try {
+        console.log("[booking-link] loading preview", { token, nutriId });
         const payload = await fetchBookingLink(token);
+        console.log("[booking-link] preview raw payload", payload);
         const nextPreview = normalizeBookingPreview(payload);
+        console.log("[booking-link] preview normalized", nextPreview);
         if (!nextPreview?.calendarId) {
           throw new Error("No pudimos encontrar el calendario compartido.");
         }
@@ -270,7 +266,7 @@ export default function BookingLinkClient({
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [nutriId, token]);
 
   const loadSlots = useCallback(async (cancelled = false) => {
     if (!calendarId) return;
@@ -279,9 +275,18 @@ export default function BookingLinkClient({
       const from = `${formatDateKey(weekStart, timeZone)}T00:00:00.000Z`;
       const to = `${formatDateKey(weekEnd, timeZone)}T23:59:59.999Z`;
       const payload = await fetchAppointmentsJson<unknown>(
-        `/availability/free-slots?calendarId=${calendarId}&from=${from}&to=${to}&durationMin=${slotDurationMin}`,
+        `/availability/free-slots?calendarId=${calendarId}&from=${from}&to=${to}&durationMin=60`,
       );
-      const nextSlots = normalizeSlots(payload);
+      const nextSlots = normalizeSlots(payload).map((slot) => {
+        const start = parseDateSafe(slot.start);
+        return start
+          ? {
+              ...slot,
+              dayKey: formatDateKey(start, timeZone),
+              hour: getHourInTimeZone(start, timeZone),
+            }
+          : slot;
+      });
       if (!cancelled) {
         setSlots(nextSlots);
       }
@@ -295,7 +300,7 @@ export default function BookingLinkClient({
         setIsLoadingSlots(false);
       }
     }
-  }, [calendarId, slotDurationMin, timeZone, weekEnd, weekStart]);
+  }, [calendarId, timeZone, weekEnd, weekStart]);
 
   useEffect(() => {
     let cancelled = false;
@@ -481,8 +486,9 @@ export default function BookingLinkClient({
                       </div>
                       {weekDays.map((day, index) => {
                         const dayKey = formatDateKey(day, timeZone);
-                        const daySlots = groupedSlots.get(dayKey) || [];
-                        return (
+                            const daySlots = groupedSlots.get(dayKey) || [];
+                            const freeSlots = daySlots.filter((slot) => slot.available !== false);
+                            return (
                           <div key={index} className="border-l border-slate-100 px-3 py-3 text-center">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                               {formatDayLabel(day, timeZone)}
@@ -494,7 +500,7 @@ export default function BookingLinkClient({
                               })}
                             </p>
                             <p className="mt-1 text-[10px] font-medium text-sky-600">
-                              {daySlots.length} libres
+                              {freeSlots.length} libres
                             </p>
                           </div>
                         );
@@ -516,19 +522,22 @@ export default function BookingLinkClient({
                               const dayKey = formatDateKey(day, timeZone);
                               const daySlots = groupedSlots.get(dayKey) || [];
                               const slot = daySlots.find((s) => {
-                                const d = parseDateSafe(s.start);
-                                return d && d.getHours() === hour && d.getMinutes() === 0;
+                                return s.hour === hour;
                               });
 
                               return (
                                 <div key={day.toISOString()} className="relative h-16 border-l border-slate-100 bg-white p-1 flex items-center justify-center">
-                                  {slot ? (
+                                  {slot && slot.available !== false ? (
                                     <button
                                       onClick={() => setSelectedSlot(slot)}
                                       className="w-full h-full rounded-xl flex items-center justify-center text-[10px] font-black uppercase tracking-widest transition-all border bg-sky-50 text-sky-800 border-sky-100 hover:bg-sky-600 hover:text-white hover:border-sky-500 shadow-sm"
                                     >
                                       Disponible
                                     </button>
+                                  ) : slot ? (
+                                    <div className="flex h-full w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                      Ocupado
+                                    </div>
                                   ) : (
                                     <div className="h-full w-full rounded-xl bg-slate-50/10" />
                                   )}

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { SupportRequestType, SupportRequestStatus } from '@prisma/client';
@@ -74,16 +74,47 @@ export class SupportService {
     });
   }
 
-  async resolve(id: string) {
-    return this.prisma.supportRequest.update({
+  async resolve(id: string, adminMessage?: string) {
+    const request = await this.prisma.supportRequest.findUnique({
+      where: { id },
+    });
+
+    if (!request) {
+      throw new BadRequestException('Solicitud no encontrada');
+    }
+
+    if (request.status === SupportRequestStatus.RESOLVED) {
+      return request;
+    }
+
+    const updatedRequest = await this.prisma.supportRequest.update({
       where: { id },
       data: { status: SupportRequestStatus.RESOLVED },
     });
+
+    this.mailService
+      .sendFeedbackResolutionEmail({
+        email: request.email,
+        message: request.message || undefined,
+        type: request.type,
+        adminMessage,
+      })
+      .catch((err) =>
+        console.error('Error sending feedback resolution email:', err),
+      );
+
+    return updatedRequest;
   }
 
   async remove(id: string) {
     return this.prisma.supportRequest.delete({
       where: { id },
+    });
+  }
+
+  async removeResolved() {
+    return this.prisma.supportRequest.deleteMany({
+      where: { status: SupportRequestStatus.RESOLVED },
     });
   }
 }

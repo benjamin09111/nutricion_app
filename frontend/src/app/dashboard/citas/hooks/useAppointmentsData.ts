@@ -16,6 +16,8 @@ import {
   formatDateKey,
 } from "../utils";
 
+const ACCEPTED_EVENT_STATUSES = new Set(["confirmed", "CONFIRMED", "scheduled", "SCHEDULED"]);
+
 export const useCalendarMe = () => {
   return useQuery({
     queryKey: ["appointments", "calendars", "me"],
@@ -37,13 +39,16 @@ export const useAvailabilityRules = (calendarId?: string) => {
   return useQuery({
     queryKey: ["appointments", "calendars", calendarId, "rules"],
     queryFn: async () => {
-      if (!calendarId) return [];
+      if (!calendarId) return { rules: [], source: "default" as const };
       try {
         const data = await fetchAppointmentsJson(`/calendars/${calendarId}/availability/rules`);
-        return parseWeekRulesPayload(data);
+        return {
+          rules: parseWeekRulesPayload(data),
+          source: "service" as const,
+        };
       } catch (error) {
         console.error("Failed to fetch availability rules:", error);
-        return [];
+        return { rules: [], source: "default" as const };
       }
     },
     enabled: !!calendarId,
@@ -63,7 +68,7 @@ export const useWeekView = (calendarId?: string, anchorDate?: Date) => {
         
         try {
           const weekData = await fetchAppointmentsJson(`/calendars/${calendarId}/view/week?weekStart=${weekStartStr}`);
-          events = normalizeEvents(weekData);
+          events = normalizeEvents(weekData).filter((event) => ACCEPTED_EVENT_STATUSES.has(event.status));
         } catch (e) {
           console.warn("Failed /view/week, falling back to /appointments", e);
           const from = weekStartStr;
@@ -71,7 +76,7 @@ export const useWeekView = (calendarId?: string, anchorDate?: Date) => {
           toDate.setDate(toDate.getDate() + 7);
           const to = formatDateKey(toDate);
           const eventsData = await fetchAppointmentsJson(`/appointments?from=${from}&to=${to}`);
-          events = normalizeEvents(eventsData);
+          events = normalizeEvents(eventsData).filter((event) => ACCEPTED_EVENT_STATUSES.has(event.status));
         }
 
         try {
@@ -121,17 +126,8 @@ export const useCalendarRequests = (calendarId?: string) => {
     queryFn: async () => {
       if (!calendarId) return [];
       try {
-        let requests: AppointmentRequest[] = [];
-        try {
-          const reqsData = await fetchAppointmentsJson(`/calendars/${calendarId}/requests?status=REQUESTED`);
-          requests = normalizeRequests(reqsData);
-        } catch (e) {
-          console.warn("Failed /requests, falling back to /appointments filter", e);
-          const appointmentsData = await fetchAppointmentsJson(`/appointments`);
-          const allReqs = normalizeRequests(appointmentsData);
-          requests = allReqs.filter(r => r.status === "REQUESTED" || r.status === "pending" || r.status === "PENDING");
-        }
-        return requests;
+        const reqsData = await fetchAppointmentsJson(`/calendars/${calendarId}/requests`);
+        return normalizeRequests(reqsData);
       } catch (error) {
         console.error("Failed to fetch requests:", error);
         return [];

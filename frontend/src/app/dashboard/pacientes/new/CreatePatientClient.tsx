@@ -9,14 +9,14 @@ import {
   Save,
   RotateCcw,
   AlertCircle,
-  Plus,
-  Info,
-  ChevronRight,
-  ClipboardList,
   Flame,
   Dumbbell,
   HeartPulse,
   Activity,
+  Calculator,
+  Target,
+  Edit3,
+  Zap,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -25,12 +25,14 @@ import { MetricTagInput } from "@/components/ui/metric-tag-input";
 import { Patient } from "@/features/patients";
 import { usePatientDraft } from "@/features/patients/hooks/usePatientDraft";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { validateRut, formatRut } from "@/lib/rut-utils";
 import { cn } from "@/lib/utils";
 import Cookies from "js-cookie";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
+import { calculateBMI, calculateGET, getIdealWeightRange, calculateAge, type ActivityLevel as NutritionActivityLevel, type GetResult } from "@/lib/nutrition-formulas";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 const normalizeActivityLevel = (value?: string | null): Patient["activityLevel"] => {
   const raw = String(value || "").toLowerCase();
@@ -40,14 +42,134 @@ const normalizeActivityLevel = (value?: string | null): Patient["activityLevel"]
   return raw === "deportista" ? "activo" : "sedentario";
 };
 
+const NUTRITIONAL_FOCUS_OPTIONS = [
+  { value: "", label: "Seleccionar..." },
+  { value: "Mantener peso", label: "Mantener peso" },
+  { value: "Bajar de peso", label: "Bajar de peso" },
+  { value: "Subir de peso", label: "Subir de peso" },
+  { value: "Mejorar composición corporal", label: "Mejorar composición corporal" },
+  { value: "Control metabólico", label: "Control metabólico" },
+  { value: "Alimentación saludable general", label: "Alimentación saludable general" },
+  { value: "Rendimiento deportivo", label: "Rendimiento deportivo" },
+  { value: "Patología/condición clínica", label: "Patología/condición clínica" },
+];
+
+const FITNESS_GOALS_OPTIONS = [
+  { value: "", label: "No aplica" },
+  { value: "Salud general", label: "Salud general" },
+  { value: "Pérdida de grasa", label: "Pérdida de grasa" },
+  { value: "Ganancia muscular", label: "Ganancia muscular" },
+  { value: "Resistencia", label: "Resistencia" },
+  { value: "Fuerza", label: "Fuerza" },
+  { value: "Rendimiento deportivo", label: "Rendimiento deportivo" },
+  { value: "Rehabilitación / movilidad", label: "Rehabilitación / movilidad" },
+];
+
+const GENDER_OPTIONS = [
+  { value: "", label: "Seleccionar..." },
+  { value: "Masculino", label: "Masculino" },
+  { value: "Femenino", label: "Femenino" },
+  { value: "Otro", label: "Otro" },
+];
+
+const validateHeightInput = (value: string): string | null => {
+  if (!value.trim()) return null;
+  const cleaned = value.replace(",", ".").replace(/\s+/g, "");
+  const num = Number(cleaned);
+  if (Number.isNaN(num)) return "Ingresa un número válido en cm (ej: 170)";
+  if (num <= 0 || num > 300) return "La altura debe estar entre 1 y 300 cm";
+  if (cleaned.includes(".") && !cleaned.match(/^\d+\.\d*$/)) return "Usa punto para decimales (ej: 170.5)";
+  return null;
+};
+
+const validateWeightInput = (value: string): string | null => {
+  if (!value.trim()) return null;
+  const cleaned = value.replace(",", ".").replace(/\s+/g, "");
+  const num = Number(cleaned);
+  if (Number.isNaN(num)) return "Ingresa un número válido en kg (ej: 70.5)";
+  if (num <= 0 || num > 700) return "El peso debe estar entre 0 y 700 kg";
+  return null;
+};
+
+type SuggestionCard = {
+  get: GetResult | null;
+  bmi: { bmi: number; classification: string; color: string } | null;
+  idealWeight: { min: number; max: number } | null;
+  age: number | undefined;
+  category: { id: string; label: string; strategy: string } | null;
+  dailyTargets: { calories: number; protein: number; carbs: number; fats: number; description: string } | null;
+};
+
+function resolveSuggestionCategory(input: {
+  bmi: { bmi: number; classification: string; color: string } | null;
+  nf: string | null;
+  fg: string | null;
+  al: string;
+}) {
+  const focus = String(input.nf || "").toLowerCase();
+  const fitness = String(input.fg || "").toLowerCase();
+  const bmiVal = input.bmi?.bmi ?? 22;
+  const classification = input.bmi?.classification ?? "Normal";
+  const isWeightLoss = focus.includes("bajar");
+  const isWeightGain = focus.includes("subir");
+  const isMuscle = fitness.includes("muscular") || focus.includes("muscular");
+  const isPerformance = fitness.includes("rendimiento") || fitness.includes("deportivo");
+  const isRehab = fitness.includes("rehabilitación") || fitness.includes("rehabilitacion") || fitness.includes("movilidad");
+  const isMetabolic = focus.includes("metabólico") || focus.includes("metabolico") || focus.includes("patología") || focus.includes("patologia");
+  const isActive = ["activo", "muy_activo"].includes(input.al);
+  const isBajoPeso = bmiVal < 18.5 || classification === "Bajo peso";
+
+  if (isBajoPeso) return { id: "clinical_review_required", label: "Revisión clínica previa", strategy: "Evaluación profesional requerida antes de asignar objetivos automáticos." };
+  if (isMetabolic) return { id: "metabolic_care", label: "Cuidado metabólico", strategy: "Estabilidad glucémica, perfil lipídico y control de comorbilidades." };
+  if (bmiVal >= 30 && isWeightLoss) return { id: "weight_loss_controlled", label: "Baja de peso controlada", strategy: "Déficit ≈20%, alta proteína, control de CHO concentrados." };
+  if (isWeightLoss) return { id: "weight_loss_moderate", label: "Baja de peso moderada", strategy: "Déficit ≈12%, priorizando proteína y fibra." };
+  if (isMuscle) return { id: "muscle_gain", label: "Ganancia muscular", strategy: "Superávit ≈10%, proteína alta, 4-5 comidas." };
+  if (isPerformance || (isActive && !isWeightLoss && !isWeightGain)) return { id: "high_energy_active", label: "Alta demanda energética", strategy: "CHO para rendimiento, proteína para recuperación." };
+  if (isWeightGain) return { id: "weight_gain_supervised", label: "Aumento de peso supervisado", strategy: "Superávit progresivo, alimentos densos en nutrientes." };
+  if (isRehab) return { id: "rehabilitation", label: "Rehabilitación / movilidad", strategy: "Antiinflamatorios naturales, proteína para reparación tisular." };
+  return { id: "standard_maintenance", label: "Mantenimiento estándar", strategy: "Distribución balanceada AMDR, ajustable según evolución." };
+}
+
+function buildSuggestionTargets(input: {
+  get: GetResult | null;
+  category: { id: string; label: string; strategy: string } | null;
+}) {
+  if (!input.get || !input.category) return null;
+  const get = input.get.get;
+  const cat = input.category;
+
+  let adjustedCalories = get;
+  if (cat.id === "weight_loss_controlled") adjustedCalories = Math.round(get * 0.8);
+  else if (cat.id === "weight_loss_moderate") adjustedCalories = Math.round(get * 0.88);
+  else if (cat.id === "muscle_gain") adjustedCalories = Math.round(get * 1.1);
+  else if (cat.id === "weight_gain_supervised") adjustedCalories = Math.round(get * 1.12);
+
+  const macros = input.get.macros;
+  const protein = Math.round((adjustedCalories * (macros.proteinPercent / 100)) / 4);
+  const carbs = Math.round((adjustedCalories * (macros.carbsPercent / 100)) / 4);
+  const fats = Math.round((adjustedCalories * (macros.fatsPercent / 100)) / 9);
+
+  return {
+    calories: adjustedCalories,
+    protein,
+    carbs,
+    fats,
+    description: cat.strategy,
+  };
+}
+
 export default function CreatePatientClient() {
   const router = useRouter();
   const { draft, updateDraft, clearDraft, isLoaded } = usePatientDraft();
+  const { limit } = useSubscription();
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const selectedMetrics = (draft.customVariables || []).filter(m => m.key !== "activityLevel");
+  const selectedMetrics = (draft.customVariables || []).filter(
+    (m) => m.key !== "activityLevel" && (typeof m.value !== "object" || m.value === null),
+  ) as Array<{ key?: string; label: string; unit?: string; value?: string | number }>;
   const selectedActivityLevel = normalizeActivityLevel(draft.activityLevel);
+  const patientLimit = limit("patients.active.limit");
 
   // Ensure weight is always in customVariables for new/existing patients in this form
   useEffect(() => {
@@ -64,6 +186,33 @@ export default function CreatePatientClient() {
       }
     }
   }, [isLoaded]);
+
+  const heightError = useMemo(() => validateHeightInput(String(draft.height || "")), [draft.height]);
+  const weightError = useMemo(() => validateWeightInput(String(draft.weight || "")), [draft.weight]);
+
+  const suggestionCard: SuggestionCard = useMemo(() => {
+    const w = draft.weight ? Number(String(draft.weight).replace(",", ".")) : null;
+    const h = draft.height ? Number(String(draft.height).replace(",", ".")) : null;
+    const bd = draft.birthDate || null;
+    const g = draft.gender || null;
+    const al = (draft.activityLevel || "sedentario") as NutritionActivityLevel;
+    const nf = draft.nutritionalFocus || null;
+    const fg = draft.fitnessGoals || null;
+
+    if (!w || !h || w <= 0 || h <= 0) return { get: null, bmi: null, idealWeight: null, age: undefined, category: null, dailyTargets: null };
+
+    const bmi = calculateBMI(w, h);
+    const idealWeight = getIdealWeightRange(h);
+    const age = calculateAge(bd);
+    const get = calculateGET(
+      g === "Masculino" || g === "Femenino" ? g : "Femenino",
+      w, h, age || 30, al,
+    );
+    const category = resolveSuggestionCategory({ bmi, nf, fg, al });
+    const dailyTargets = buildSuggestionTargets({ get, category });
+
+    return { get, bmi, idealWeight, age, category, dailyTargets };
+  }, [draft.weight, draft.height, draft.birthDate, draft.gender, draft.activityLevel, draft.nutritionalFocus, draft.fitnessGoals]);
 
   if (!isLoaded) return null;
 
@@ -83,10 +232,16 @@ export default function CreatePatientClient() {
       toast.error("El RUT ingresado no es válido.");
       return;
     }
+    // Al crear un paciente nuevo, siempre recalculamos sin preguntar
+    if (!draft.id) {
+      handleConfirmSave(true);
+      return;
+    }
+    // Al editar, preguntamos si desea recalcular
     setShowSaveConfirm(true);
   };
 
-  const handleConfirmSave = async () => {
+  const handleConfirmSave = async (recalculateNutrition = true) => {
     setIsSaving(true);
     setShowSaveConfirm(false);
     try {
@@ -110,7 +265,7 @@ export default function CreatePatientClient() {
         likes: draft.likes || undefined,
         customVariables: draft.customVariables || [],
         activityLevel: selectedActivityLevel,
-        age: draft.age ? Number(draft.age) : undefined,
+        recalculateNutrition,
       };
 
       const response = await fetchApi(url, {
@@ -235,7 +390,10 @@ export default function CreatePatientClient() {
                   {draft.id ? "Editando Expediente" : "Nueva Ficha Clínica"}
                 </h1>
                 <p className="text-emerald-100/60 text-xs lg:text-sm max-w-xl font-medium">
-                  Información clave para personalizar el seguimiento nutricional.
+                  Completa los datos base del paciente. NutriNet clasificará automáticamente el perfil y sugerirá objetivos diarios según IMC, gasto energético y composición. Los valores son editables y deben ser revisados por el nutricionista.
+                </p>
+                <p className="mt-3 inline-flex rounded-full border border-emerald-400/20 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-100">
+                  Límite de pacientes activos: {Number.isFinite(patientLimit) ? patientLimit : "Ilimitado"}
                 </p>
               </div>
             </div>
@@ -256,72 +414,94 @@ export default function CreatePatientClient() {
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">Nombre Completo (Obligatorio)</label>
+                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">Nombre Completo *</label>
                   <Input
                     placeholder="Valentina Morales Lagos"
-                    className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                    className="h-9 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
                     value={draft.fullName}
                     onChange={(e) => updateDraft({ fullName: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">Email (Obligatorio)</label>
+                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">Email *</label>
                   <div className="relative">
                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                     <Input
                       placeholder="valen@email.com"
-                      className="h-10 pl-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                      className="h-9 pl-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
                       value={draft.email}
                       onChange={(e) => updateDraft({ email: e.target.value })}
                     />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">Edad (Opcional)</label>
+                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">Edad</label>
                   <div className="relative">
                     <Activity className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                     <Input
                       type="number"
                       placeholder="Ej: 28 años"
-                      className="h-10 pl-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                      className="h-9 pl-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
                       value={draft.age || ""}
                       onChange={(e) => updateDraft({ age: e.target.value ? parseInt(e.target.value) : undefined })}
                     />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">Teléfono (Opcional)</label>
+                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">Teléfono</label>
                   <div className="relative">
                     <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                     <Input
                       placeholder="+56 9 1234 5678"
-                      className="h-10 pl-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                      className="h-9 pl-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
                       value={draft.phone}
                       onChange={handlePhoneChange}
                     />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">RUT (Opcional)</label>
+                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">RUT</label>
                   <Input
                     placeholder="12.345.678-9"
-                    className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
+                    className="h-9 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all"
                     value={draft.documentId || ""}
                     onChange={(e) => updateDraft({ documentId: formatRut(e.target.value) })}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">Sexo biológico (Opcional)</label>
+                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">Sexo biológico</label>
                   <select
                     value={draft.gender || ""}
                     onChange={(e) => updateDraft({ gender: e.target.value })}
-                    className="w-full h-10 rounded-xl bg-slate-50 border-transparent px-3 text-sm font-semibold text-slate-700 focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all cursor-pointer appearance-none"
+                    className="w-full h-9 rounded-xl bg-slate-50 border-transparent px-3 text-sm font-semibold text-slate-700 focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all cursor-pointer appearance-none"
                   >
-                    <option value="">Seleccionar...</option>
-                    <option value="Masculino">Masculino</option>
-                    <option value="Femenino">Femenino</option>
-                    <option value="Otro">Otro</option>
+                    {GENDER_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">Gustos / Preferencias</label>
+                      <textarea
+                        className="w-full h-16 rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs font-medium text-slate-700 resize-none focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all placeholder:text-slate-300"
+                        placeholder="Ej: Prefiere comidas calientes, no tolera pescado..."
+                        value={draft.likes || ""}
+                        onChange={(e) => updateDraft({ likes: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-wider">Observaciones clínicas</label>
+                      <textarea
+                        className="w-full h-16 rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs font-medium text-slate-700 resize-none focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all placeholder:text-slate-300"
+                        placeholder="Ej: Ansiedad por dulces, insomnio..."
+                        value={draft.clinicalSummary || ""}
+                        onChange={(e) => updateDraft({ clinicalSummary: e.target.value })}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -333,62 +513,148 @@ export default function CreatePatientClient() {
               <h2 className="text-base font-bold text-slate-800 border-b border-slate-50 pb-3">Antropometría</h2>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase text-slate-400">Peso (kg) (Opcional)</label>
-                  <Input type="number" step="any" className="h-10 rounded-xl bg-slate-50 border-transparent text-center font-bold text-base" value={draft.weight ?? ""} onChange={(e) => updateDraft({ weight: e.target.value ? parseFloat(e.target.value) : undefined })} />
+                  <label className="text-[9px] font-black uppercase text-slate-400">Peso (kg) *</label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    className={cn(
+                      "h-10 rounded-xl bg-slate-50 border-transparent text-center font-bold text-base",
+                      weightError && "border-rose-300 bg-rose-50/50 ring-2 ring-rose-500/10"
+                    )}
+                    value={draft.weight ?? ""}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(",", ".");
+                      updateDraft({ weight: raw ? parseFloat(raw) : undefined });
+                    }}
+                    placeholder="70.5"
+                  />
+                  {weightError && <p className="text-[9px] font-medium text-rose-500">{weightError}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase text-slate-400">Altura (cm) (Opcional)</label>
-                  <Input type="number" step="any" className="h-10 rounded-xl bg-slate-50 border-transparent text-center font-bold text-base" value={draft.height ?? ""} onChange={(e) => updateDraft({ height: e.target.value ? parseFloat(e.target.value) : undefined })} />
+                  <label className="text-[9px] font-black uppercase text-slate-400">Altura (cm) *</label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    className={cn(
+                      "h-10 rounded-xl bg-slate-50 border-transparent text-center font-bold text-base",
+                      heightError && "border-rose-300 bg-rose-50/50 ring-2 ring-rose-500/10"
+                    )}
+                    value={draft.height ?? ""}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(",", ".").replace(/\D\./, "");
+                      updateDraft({ height: raw ? Number(raw) : undefined });
+                    }}
+                    placeholder="170"
+                  />
+                  {heightError && <p className="text-[9px] font-medium text-rose-500">{heightError}</p>}
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Fecha de nacimiento *</label>
+                <Input
+                  type="date"
+                  className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white transition-all"
+                  value={draft.birthDate || ""}
+                  onChange={(e) => updateDraft({ birthDate: e.target.value })}
+                />
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4 flex-1 hover:shadow-md transition-shadow">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex-1 hover:shadow-md transition-all space-y-4">
               <div className="flex items-center justify-between border-b border-slate-50 pb-3">
-                <h2 className="text-base font-bold text-slate-800">Metas nutricionales</h2>
-                <span className="text-[8px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-lg uppercase tracking-widest">Opcional</span>
+                <div className="flex items-center gap-2">
+                  <Calculator className="w-4 h-4 text-amber-500" />
+                  <h2 className="text-base font-bold text-slate-800">Cálculos automáticos</h2>
+                </div>
+                {suggestionCard.dailyTargets ? (
+                  <span className="text-[8px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-lg uppercase tracking-widest">Calculado</span>
+                ) : (
+                  <span className="text-[8px] font-black bg-slate-100 text-slate-400 px-2 py-0.5 rounded-lg uppercase tracking-widest">Faltan datos</span>
+                )}
               </div>
-              <MetricTagInput
-                value={selectedMetrics}
-                mandatoryKeys={["weight"]}
-                onChange={(metrics) => updateDraft({
-                  customVariables: metrics
-                    .filter((m) => typeof m.key === "string" && m.key.trim().length > 0 && m.key !== "activityLevel")
-                    .map((m) => ({ key: String(m.key), label: m.label, unit: m.unit, value: m.value })),
-                })}
-                placeholder="Grasa %, Pliegues..."
-                className="bg-white"
-              />
-              <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-4">
-                <p className="text-[11px] font-medium text-slate-500">
-                  Objetivos por día (Opcional)
-                </p>
-                {(() => {
-                  const vars = Array.isArray(draft.customVariables) ? draft.customVariables as any[] : [];
-                  const getCV = (key: string) => vars.find(v => v.key === key)?.value || "";
-                  const updateCV = (key: string, label: string, value: string, unit: string) => {
-                    const prev = Array.isArray(draft.customVariables) ? [...draft.customVariables as any[]] : [];
-                    const idx = prev.findIndex(v => v.key === key);
-                    if (idx >= 0) prev[idx] = { key, label, value, unit };
-                    else prev.push({ key, label, value, unit });
-                    updateDraft({ customVariables: prev });
-                  };
-                  return (
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { id: "Calories", label: "Calorías", unit: "kcal", color: "text-orange-600" },
-                        { id: "Protein", label: "Proteína", unit: "g", color: "text-rose-600" },
-                        { id: "Carbs", label: "Carbs", unit: "g", color: "text-blue-600" },
-                        { id: "Fats", label: "Grasas", unit: "g", color: "text-purple-600" }
-                      ].map((f) => (
-                        <div key={f.id} className="space-y-1">
-                          <label className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">{f.label}</label>
-                          <Input type="number" value={getCV(`target${f.id}`)} onChange={e => updateCV(`target${f.id}`, `${f.label} Meta`, e.target.value, f.unit)} className={cn("h-9 font-bold bg-white rounded-lg text-xs border-transparent", f.color)} placeholder="0" />
-                        </div>
-                      ))}
+
+              {suggestionCard.category && suggestionCard.bmi ? (
+                <div className="bg-gradient-to-br from-amber-50 to-emerald-50 rounded-xl p-4 border border-amber-100 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                      <Zap className="h-4 w-4 text-amber-600" />
                     </div>
-                  );
-                })()}
+                    <div>
+                      <p className="text-xs font-black text-slate-800">Clasificado como:</p>
+                      <p className="text-sm font-bold text-amber-700">{suggestionCard.category.label}</p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-500 leading-relaxed">{suggestionCard.category.strategy}</p>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="bg-white/80 rounded-lg p-2">
+                      <p className="text-[9px] font-black uppercase text-slate-400">IMC</p>
+                      <p className="text-sm font-black text-slate-900">{suggestionCard.bmi.bmi}</p>
+                      <p className="text-[8px] font-bold" style={{ color: suggestionCard.bmi.color }}>{suggestionCard.bmi.classification}</p>
+                    </div>
+                    {suggestionCard.get && (
+                      <div className="bg-white/80 rounded-lg p-2">
+                        <p className="text-[9px] font-black uppercase text-slate-400">GET</p>
+                        <p className="text-sm font-black text-emerald-700">{suggestionCard.get.get}</p>
+                        <p className="text-[8px] text-emerald-500">kcal/día</p>
+                      </div>
+                    )}
+                    {suggestionCard.idealWeight && (
+                      <div className="bg-white/80 rounded-lg p-2">
+                        <p className="text-[9px] font-black uppercase text-slate-400">Peso ideal</p>
+                        <p className="text-sm font-black text-blue-700">{suggestionCard.idealWeight.min}–{suggestionCard.idealWeight.max}</p>
+                        <p className="text-[8px] text-blue-400">kg</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 border-dashed text-center">
+                  <p className="text-xs text-slate-400 font-medium">
+                    Ingresa peso, altura, fecha de nacimiento y sexo para ver los cálculos automáticos en tiempo real.
+                  </p>
+                </div>
+              )}
+
+              <div className="border-t border-slate-100 pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Target className="w-4 h-4 text-indigo-500" />
+                  <h3 className="text-sm font-bold text-slate-700">Objetivos diarios sugeridos</h3>
+                </div>
+                {suggestionCard.dailyTargets ? (
+                  <div>
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <div className="bg-indigo-50 rounded-xl p-2 text-center">
+                        <p className="text-[9px] font-black uppercase text-indigo-400">Calorías</p>
+                        <p className="text-lg font-black text-indigo-700">{suggestionCard.dailyTargets.calories}</p>
+                        <p className="text-[8px] text-indigo-400">kcal/día</p>
+                      </div>
+                      <div className="bg-emerald-50 rounded-xl p-2 text-center">
+                        <p className="text-[9px] font-black uppercase text-emerald-500">Proteína</p>
+                        <p className="text-lg font-black text-emerald-700">{suggestionCard.dailyTargets.protein}</p>
+                        <p className="text-[8px] text-emerald-500">g/día</p>
+                      </div>
+                      <div className="bg-amber-50 rounded-xl p-2 text-center">
+                        <p className="text-[9px] font-black uppercase text-amber-500">Carbohidratos</p>
+                        <p className="text-lg font-black text-amber-700">{suggestionCard.dailyTargets.carbs}</p>
+                        <p className="text-[8px] text-amber-500">g/día</p>
+                      </div>
+                      <div className="bg-rose-50 rounded-xl p-2 text-center">
+                        <p className="text-[9px] font-black uppercase text-rose-400">Grasas</p>
+                        <p className="text-lg font-black text-rose-700">{suggestionCard.dailyTargets.fats}</p>
+                        <p className="text-[8px] text-rose-400">g/día</p>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 italic">{suggestionCard.dailyTargets.description}</p>
+                    <p className="text-[9px] text-indigo-500 font-medium mt-1 flex items-center gap-1">
+                      <Edit3 className="h-3 w-3" />
+                      Valores sugeridos. Podrás editarlos desde el perfil del paciente tras guardar.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">
+                    Los objetivos diarios aparecerán automáticamente cuando haya datos antropométricos.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -400,7 +666,7 @@ export default function CreatePatientClient() {
                 <div className="p-1.5 bg-rose-50 rounded-lg">
                   <AlertCircle className="w-4 h-4 text-rose-500" />
                 </div>
-                <h2 className="text-base font-bold text-slate-800">Restricciones (Opcional)</h2>
+                <h2 className="text-base font-bold text-slate-800">Restricciones</h2>
               </div>
               <TagInput value={draft.dietRestrictions || []} onChange={(tags) => updateDraft({ dietRestrictions: tags })} fetchSuggestionsUrl={`${getApiUrl()}/tags`} placeholder="Diabetes, Celiaco, Alergias..." className="mt-1" />
             </div>
@@ -410,12 +676,28 @@ export default function CreatePatientClient() {
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Foco Nutricional (Opcional)</label>
-                  <Input placeholder="Ej. Pérdida de grasa corporal" className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white transition-all" value={draft.nutritionalFocus || ""} onChange={(e) => updateDraft({ nutritionalFocus: e.target.value })} />
+                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Foco Nutricional</label>
+                  <select
+                    value={draft.nutritionalFocus || ""}
+                    onChange={(e) => updateDraft({ nutritionalFocus: e.target.value || undefined })}
+                    className="w-full h-10 rounded-xl bg-slate-50 border-transparent px-3 text-sm font-semibold text-slate-700 focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all cursor-pointer appearance-none"
+                  >
+                    {NUTRITIONAL_FOCUS_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Metas Fitness (Opcional)</label>
-                  <Input placeholder="Ej. Maratón en 3 meses" className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold focus:bg-white transition-all" value={draft.fitnessGoals || ""} onChange={(e) => updateDraft({ fitnessGoals: e.target.value })} />
+                  <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Metas Fitness</label>
+                  <select
+                    value={draft.fitnessGoals || ""}
+                    onChange={(e) => updateDraft({ fitnessGoals: e.target.value || undefined })}
+                    className="w-full h-10 rounded-xl bg-slate-50 border-transparent px-3 text-sm font-semibold text-slate-700 focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all cursor-pointer appearance-none"
+                  >
+                    {FITNESS_GOALS_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 ml-1">
@@ -457,57 +739,17 @@ export default function CreatePatientClient() {
             </div>
           </div>
         </div>
-
-        {/* Full Width Gallery-style Extra Info */}
-        <div className="bg-white p-6 lg:p-8 rounded-[1.5rem] border border-slate-200 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-blue-50 rounded-xl">
-              <ClipboardList className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-800">Información Extra</h2>
-              <p className="text-xs text-slate-500 font-medium">Gustos y observaciones clínicas (Opcional).</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="group space-y-3">
-              <div className="flex items-center gap-2 ml-1">
-                <div className="w-1 h-3 bg-emerald-500 rounded-full" />
-                <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Gustos y Preferencias (Opcional)</label>
-              </div>
-              <textarea
-                className="w-full h-32 rounded-2xl bg-slate-50 border border-slate-200 p-4 text-sm font-semibold text-slate-700 resize-none focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all placeholder:text-slate-300"
-                placeholder="Ej: Prefiere comidas calientes..."
-                value={draft.likes || ""}
-                onChange={(e) => updateDraft({ likes: e.target.value })}
-              />
-            </div>
-
-            <div className="group space-y-3">
-              <div className="flex items-center gap-2 ml-1">
-                <div className="w-1 h-3 bg-blue-500 rounded-full" />
-                <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Observaciones Clínicas (Opcional)</label>
-              </div>
-              <textarea
-                className="w-full h-32 rounded-2xl bg-slate-50 border border-slate-200 p-4 text-sm font-semibold text-slate-700 resize-none focus:bg-white focus:border-emerald-500/20 focus:ring-4 focus:ring-emerald-500/5 transition-all placeholder:text-slate-300"
-                placeholder="Ej: Ansiedad por dulces por la tarde..."
-                value={draft.clinicalSummary || ""}
-                onChange={(e) => updateDraft({ clinicalSummary: e.target.value })}
-              />
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Confirmation Modals */}
+        {/* Confirmation Modals */}
       <ConfirmationModal
         isOpen={showSaveConfirm}
-        onClose={() => setShowSaveConfirm(false)}
-        onConfirm={handleConfirmSave}
-        title={draft.id ? "¿Actualizar Expediente?" : "¿Crear Ficha Clínica?"}
-        description={draft.id ? `Se guardarán los cambios permanentes en el expediente de ${draft.fullName}.` : `Estás a punto de registrar a ${draft.fullName}. Esto habilitará la creación de planes nutricionales.`}
-        confirmText="Confirmar"
+        onClose={() => handleConfirmSave(false)}
+        onConfirm={() => handleConfirmSave(true)}
+        title="¿Recalcular valores automáticamente?"
+        description={`Se guardarán los cambios en la ficha de ${draft.fullName}. Como modificaste datos que afectan los cálculos (peso, altura, edad, etc.), puedes recalcular IMC, TMB, GET, macros y perfil de porciones, o conservar los valores anteriores.`}
+        confirmText="Guardar y recalcular"
+        cancelText="Guardar sin recalcular"
         variant="primary"
       />
 

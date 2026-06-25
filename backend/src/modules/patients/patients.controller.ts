@@ -15,12 +15,16 @@ import { PatientsService } from './patients.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateExamDto } from './dto/create-exam.dto';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
 import { CacheTTL } from '@nestjs/cache-manager';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 
 @Controller('patients')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard, PermissionsGuard)
+@RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 @UseInterceptors(HttpCacheInterceptor)
 @CacheTTL(300000) // 5 minutes
 export class PatientsController {
@@ -29,6 +33,7 @@ export class PatientsController {
   @Post()
   create(@Request() req: any, @Body() createPatientDto: CreatePatientDto) {
     return this.patientsService.create(
+      req.user.id,
       req.user.nutritionistId,
       createPatientDto,
     );
@@ -74,6 +79,14 @@ export class PatientsController {
       req.user.nutritionistId,
       id,
       updatePatientDto,
+    );
+  }
+
+  @Post(':id/automatic-calculations')
+  recalculateAutomaticNutrition(@Request() req: any, @Param('id') id: string) {
+    return this.patientsService.recalculateAutomaticNutrition(
+      req.user.nutritionistId,
+      id,
     );
   }
 

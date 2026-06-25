@@ -1,123 +1,298 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { toast } from "sonner";
+import { membershipService } from "@/features/memberships/services/membership.service";
 
 export type SubscriptionPlan = "free" | "trial" | "pro";
 export type SubscriptionStatus = "active" | "expired" | "cancelled";
 
-interface SubscriptionContextType {
+export interface MembershipState {
   plan: SubscriptionPlan;
   planName: string;
-  status: SubscriptionStatus;
-  trialEndsAt: Date | null;
-  features: {
-    canGenerateDiet: boolean;
-    canExportPDF: boolean;
-    patientLimit: number;
-    hasBranding: boolean;
+  role: string | null;
+  status: string | null;
+  subscriptionEndsAt: Date | null;
+  cancelAtPeriodEnd: boolean;
+  daysRemaining: number | null;
+  requiresPlanSelection: boolean;
+  entitlements: Record<string, boolean | number>;
+  currentPlan: {
+    id: string;
+    name: string;
+    slug: string;
+    key?: string;
+    price: number;
+    features: string[];
+    entitlements?: Record<string, boolean | number>;
+  } | null;
+  usage?: {
+    patientsActive: number;
+    consultationsMonthly: number;
+    pdfMonthly: number;
+    aiMonthly: number;
   };
-  redeemCode: (code: string) => Promise<boolean>;
-  // Dev Tool for Admin
+  billing?: {
+    nextPaymentAt: string | null;
+    nextPaymentAmount: number;
+    currency: string;
+  };
+}
+
+interface SubscriptionContextType extends MembershipState {
+  refreshSubscription: () => Promise<void>;
   forceUpdatePlan: (plan: SubscriptionPlan) => void;
+  isLoading: boolean;
+  isDeveloper: boolean;
+  features: { canGenerateDiet: boolean; canExportPDF: boolean; patientLimit: number; hasBranding: boolean };
+  can: (featureKey: string) => boolean;
+  limit: (limitKey: string) => number;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(
   undefined,
 );
 
-// Features Map
-const PLAN_FEATURES = {
-  free: {
-    canGenerateDiet: false,
-    canExportPDF: false,
-    patientLimit: 1,
-    hasBranding: false,
-  },
-  trial: {
-    canGenerateDiet: true,
-    canExportPDF: true,
-    patientLimit: 5,
-    hasBranding: true,
-  },
-  pro: {
-    canGenerateDiet: true,
-    canExportPDF: true,
-    patientLimit: 999,
-    hasBranding: true,
-  },
-};
-
 export function SubscriptionProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Default to 'free' as requested ("si es que no la tenemos")
   const [plan, setPlan] = useState<SubscriptionPlan>("free");
   const [planName, setPlanName] = useState<string>("Plan Gratuito");
-  const [status, setStatus] = useState<SubscriptionStatus>("active");
+  const [role, setRole] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [subscriptionEndsAt, setSubscriptionEndsAt] = useState<Date | null>(null);
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
+  const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
+  const [requiresPlanSelection, setRequiresPlanSelection] = useState(false);
+  const [entitlements, setEntitlements] = useState<Record<string, boolean | number>>({});
+  const [currentPlan, setCurrentPlan] = useState<MembershipState["currentPlan"]>(null);
+  const [usage, setUsage] = useState<MembershipState["usage"]>(undefined);
+  const [billing, setBilling] = useState<MembershipState["billing"]>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
+  const isDeveloper = role === "NUTRITIONIST_DEVELOPER";
 
-  // Default trial logic (only if plan is trial)
-  const [trialEndsAt, setTrialEndsAt] = useState<Date | null>(null);
+  const getLimitValue = useCallback(
+    (limitKey: string) => {
+      const value = entitlements[limitKey];
+      if (typeof value === "number") return value < 0 ? Number.POSITIVE_INFINITY : value;
+      return 0;
+    },
+    [entitlements],
+  );
 
-  // Load from localStorage on mount
+  const planFeatures = {
+    canGenerateDiet: !requiresPlanSelection,
+    canExportPDF: getLimitValue("pdf.monthly.limit") > 0,
+    patientLimit: Number.isFinite(getLimitValue("patients.active.limit"))
+      ? getLimitValue("patients.active.limit")
+      : 999,
+    hasBranding: (currentPlan?.key || currentPlan?.slug || "").toLowerCase() !== "free",
+  };
+
+  const applyStoredUserSnapshot = useCallback(() => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) return;
+
+    try {
+      const user = JSON.parse(storedUser);
+      setRole(typeof user?.role === "string" ? user.role : null);
+      if (user.plan || user.currentPlan?.key || user.currentPlan?.slug) {
+        const backendPlan = String(user.currentPlan?.key || user.currentPlan?.slug || user.plan).toLowerCase();
+        if (backendPlan === "free") setPlan("free");
+        else if (backendPlan === "pro" || backendPlan === "premium" || backendPlan === "enterprise" || backendPlan === "iniciante") setPlan("pro");
+      }
+      if (user.planName) setPlanName(user.planName);
+      if (user.currentPlan) setCurrentPlan(user.currentPlan);
+      if (user.usage) setUsage(user.usage);
+      if (user.billing) setBilling(user.billing);
+      if (user.subscription?.endDate) {
+        setSubscriptionEndsAt(new Date(user.subscription.endDate));
+        const endDate = new Date(user.subscription.endDate);
+        const days = Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        setDaysRemaining(days > 0 ? days : null);
+      }
+      if (user.subscription?.cancelAtPeriodEnd) {
+        setCancelAtPeriodEnd(true);
+      }
+      if (user.membershipSelected === true || user.requiresPlanSelection === false) {
+        setRequiresPlanSelection(false);
+      }
+    } catch {}
+  }, []);
+
+  const computePlan = useCallback(
+    (planData: MembershipState["currentPlan"], accPlan: string) => {
+      const slug = (planData?.key || planData?.slug || accPlan || "").toLowerCase();
+
+      if (slug.includes("trial")) return "trial";
+      if (slug.includes("free")) return "free";
+      if (
+        slug.includes("pro") ||
+        slug.includes("premium") ||
+        slug.includes("starter") ||
+        slug.includes("enterprise")
+      ) {
+        return "pro";
+      }
+
+      return planData ? "pro" : "free";
+    },
+    [],
+  );
+
+  const refreshSubscription = useCallback(async () => {
+    try {
+      const data = await membershipService.getStatus();
+      const key = computePlan(data.currentPlan, data.accountPlan);
+      setPlan(key as SubscriptionPlan);
+      setPlanName(data.currentPlan?.name || "Plan Gratuito");
+      setStatus(data.subscription?.status || null);
+      setSubscriptionEndsAt(
+        data.subscription?.endDate ? new Date(data.subscription.endDate) : null,
+      );
+      setCancelAtPeriodEnd(data.subscription?.cancelAtPeriodEnd || false);
+      setDaysRemaining(data.subscription?.daysRemaining ?? null);
+      setRequiresPlanSelection(data.requiresPlanSelection);
+      setEntitlements(data.entitlements || {});
+      setCurrentPlan(data.currentPlan);
+      setUsage(data.usage);
+      setBilling(data.billing);
+
+      // Sync to localStorage for legacy consumers
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser);
+          setRole(typeof user?.role === "string" ? user.role : null);
+          user.plan = data.accountPlan || key;
+          user.planName = data.currentPlan?.name || "Plan Gratuito";
+          user.subscription = data.subscription;
+          user.currentPlan = data.currentPlan;
+          user.subscriptionEndsAt = data.subscription?.endDate || null;
+          user.entitlements = data.entitlements || {};
+          user.usage = data.usage || null;
+          user.billing = data.billing || null;
+          localStorage.setItem("user", JSON.stringify(user));
+        } catch {}
+      }
+    } catch {
+      // Fallback to localStorage
+      setEntitlements({});
+      setRequiresPlanSelection(true);
+      applyStoredUserSnapshot();
+    } finally {
+      setIsLoading(false);
+    }
+  }, [applyStoredUserSnapshot, computePlan]);
+
+  const can = useCallback(
+    (featureKey: string) => {
+      const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser);
+          const role = String(user?.role || "").toUpperCase();
+          if (role === "ADMIN" || role === "ADMIN_MASTER" || role === "ADMIN_GENERAL") {
+            return true;
+          }
+        } catch {}
+      }
+
+      if (featureKey === "membership.selected") {
+        return !requiresPlanSelection;
+      }
+
+      if (featureKey === "clinical_calculator.access") {
+        return currentPlan?.key !== "free";
+      }
+
+      if (featureKey === "food_groups.access") {
+        return currentPlan?.key !== "free";
+      }
+
+      if (featureKey === "appointments.access") {
+        return currentPlan?.key === "pro";
+      }
+
+      if (featureKey === "google_calendar.sync") {
+        return currentPlan?.key === "pro";
+      }
+
+      if (featureKey === "ai.autofill.access") {
+        return currentPlan?.key === "pro";
+      }
+
+      if (featureKey === "nutritionist_portal.access") {
+        return currentPlan?.key === "pro";
+      }
+
+      if (featureKey === "sii_invoices.access") {
+        return currentPlan?.key === "pro";
+      }
+
+      if (featureKey === "canGenerateDiet") {
+        return planFeatures.canGenerateDiet;
+      }
+
+      if (featureKey === "canExportPDF") {
+        return planFeatures.canExportPDF;
+      }
+
+      if (featureKey === "patientLimit") {
+        return planFeatures.patientLimit > 0;
+      }
+
+      if (featureKey === "hasBranding") {
+        return planFeatures.hasBranding;
+      }
+
+      const value = entitlements[featureKey];
+      return value === true || (typeof value === "number" && value > 0);
+    },
+    [currentPlan, entitlements, planFeatures, requiresPlanSelection],
+  );
+
+  const limit = useCallback(
+    (limitKey: string) => {
+      const value = entitlements[limitKey];
+      if (typeof value === "number") {
+        return value < 0 ? Number.POSITIVE_INFINITY : value;
+      }
+
+      if (limitKey === "patientLimit") {
+        return planFeatures.patientLimit;
+      }
+
+      return 0;
+    },
+    [entitlements, planFeatures.patientLimit],
+  );
+
+  // Load from localStorage immediately on mount, then refresh from backend
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser);
-        if (user) {
-          if (user.plan) {
-            const backendPlan = user.plan.toLowerCase();
-            if (backendPlan === "free") setPlan("free");
-            else if (backendPlan === "pro" || backendPlan === "enterprise")
-              setPlan("pro");
-          }
-          if (user.planName) {
-            setPlanName(user.planName);
-          }
+        if (user.membershipSelected === true || user.requiresPlanSelection === false) {
+          setRequiresPlanSelection(false);
         }
-      } catch (e) {
-        console.error("Error loading plan from storage", e);
-      }
-    }
-  }, []);
-
-  // Effect to set trial date when switching to trial
-  useEffect(() => {
-    if (plan === "trial" && !trialEndsAt) {
-      const date = new Date();
-      date.setDate(date.getDate() + 7);
-      setTrialEndsAt(date);
-    } else if (plan !== "trial") {
-      setTrialEndsAt(null);
-    }
-  }, [plan, trialEndsAt]);
-
-  const redeemCode = async (code: string): Promise<boolean> => {
-    // Mock validation
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Code gives 2 weeks instead of 1
-    if (code.toUpperCase().startsWith("PROMO")) {
-      setPlan("trial");
-      setStatus("active");
-      const newDate = new Date();
-      newDate.setDate(newDate.getDate() + 14); // 2 weeks
-      setTrialEndsAt(newDate);
-      toast.success("¡Código canjeado! Tienes 14 días de prueba completos.");
-      return true;
+      } catch {}
     }
 
-    toast.error("Código inválido o expirado.");
-    return false;
-  };
+    refreshSubscription();
+  }, [refreshSubscription]);
 
-  // Helper for Admins to force state
   const forceUpdatePlan = (newPlan: SubscriptionPlan) => {
     setPlan(newPlan);
-    setStatus("active");
     toast.info(`[DEV] Plan cambiado a: ${newPlan.toUpperCase()}`);
   };
 
@@ -125,10 +300,22 @@ export function SubscriptionProvider({
     plan,
     planName,
     status,
-    trialEndsAt,
-    features: PLAN_FEATURES[plan] || PLAN_FEATURES.free,
-    redeemCode,
+    subscriptionEndsAt,
+    cancelAtPeriodEnd,
+    daysRemaining,
+    requiresPlanSelection,
+    entitlements,
+    currentPlan,
+    usage,
+    billing,
+    role,
+    refreshSubscription,
     forceUpdatePlan,
+    isLoading,
+    features: planFeatures,
+    isDeveloper,
+    can,
+    limit,
   };
 
   return (

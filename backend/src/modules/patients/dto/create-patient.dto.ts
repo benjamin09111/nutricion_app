@@ -7,6 +7,7 @@ import {
   IsDateString,
   IsEnum,
   IsArray,
+  IsBoolean,
 } from 'class-validator';
 
 export class CreatePatientDto {
@@ -25,10 +26,6 @@ export class CreatePatientDto {
   @IsOptional()
   @IsString()
   documentId?: string;
-
-  @IsOptional()
-  @IsNumber({}, { message: 'La edad debe ser un número' })
-  age?: number;
 
   @IsOptional()
   @IsDateString(
@@ -89,4 +86,8 @@ export class CreatePatientDto {
   @IsOptional()
   @IsArray()
   customVariables?: { key: string; label: string; unit: string }[];
+
+  @IsOptional()
+  @IsBoolean()
+  recalculateNutrition?: boolean;
 }

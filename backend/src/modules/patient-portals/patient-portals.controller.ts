@@ -4,23 +4,25 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 import { PatientPortalsService } from './patient-portals.service';
 import { CreatePatientPortalInvitationDto } from './dto/create-patient-portal-invitation.dto';
 import { CreatePatientPortalEntryDto } from './dto/create-patient-portal-entry.dto';
 import { CreatePatientPortalQuestionDto } from './dto/create-patient-portal-question.dto';
 import { CreatePatientPortalReplyDto } from './dto/create-patient-portal-reply.dto';
 import { CreatePatientPortalNotificationDto } from './dto/create-patient-portal-notification.dto';
+import { RequestAppointmentDto } from './dto/request-appointment.dto';
 import { PatientPortalAuthGuard } from './guards/patient-portal.guard';
 
 @Controller('patient-portals')
 export class PatientPortalsController {
   constructor(private readonly patientPortalsService: PatientPortalsService) {}
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post('patients/:patientId/invitations')
   createInvitation(
     @Request() req: any,
@@ -34,7 +36,7 @@ export class PatientPortalsController {
     );
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Get('patients/:patientId/overview')
   getPatientOverview(
     @Request() req: any,
@@ -44,6 +46,29 @@ export class PatientPortalsController {
       req.user.nutritionistId,
       patientId,
     );
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('follow-ups')
+  getFollowUps(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('documentId') documentId?: string,
+    @Query('tags') tags?: string,
+    @Query('pendingOnly') pendingOnly?: string,
+  ) {
+    return this.patientPortalsService.getFollowUps(req.user.nutritionistId, {
+      page: page ? +page : 1,
+      limit: limit ? +limit : 10,
+      search,
+      status,
+      documentId,
+      tags,
+      pendingOnly: pendingOnly === 'true',
+    });
   }
 
   @Get('invitations/:token/preview')
@@ -117,7 +142,7 @@ export class PatientPortalsController {
     );
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post('patients/:patientId/replies')
   createReply(
     @Request() req: any,
@@ -131,7 +156,7 @@ export class PatientPortalsController {
     );
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post('patients/:patientId/notifications')
   createNotification(
     @Request() req: any,
@@ -145,7 +170,7 @@ export class PatientPortalsController {
     );
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post('patients/:patientId/messages')
   createMessage(
     @Request() req: any,
@@ -159,7 +184,7 @@ export class PatientPortalsController {
     );
   }
 
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   @Post('patients/:patientId/access-status')
   setAccessStatus(
     @Request() req: any,
@@ -170,6 +195,15 @@ export class PatientPortalsController {
       req.user.nutritionistId,
       patientId,
       body.status,
+    );
+  }
+
+  @UseGuards(PatientPortalAuthGuard)
+  @Post('me/appointments/request')
+  requestAppointment(@Request() req: any, @Body() dto: RequestAppointmentDto) {
+    return this.patientPortalsService.requestAppointment(
+      req.portalSession,
+      dto,
     );
   }
 }

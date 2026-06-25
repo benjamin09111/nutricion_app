@@ -11,12 +11,15 @@ import {
   Request,
   UseInterceptors,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
 import { FoodsService } from './foods.service';
 import { CreateFoodDto } from './dto/create-food.dto';
 import { UpdateFoodDto } from './dto/update-food.dto';
 import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
 import { CacheTTL } from '@nestjs/cache-manager';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 
 @Controller('foods')
 @UseInterceptors(HttpCacheInterceptor)
@@ -25,13 +28,15 @@ export class FoodsController {
   constructor(private readonly foodsService: FoodsService) {}
 
   @Post()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   create(@Body() createFoodDto: CreateFoodDto, @Request() req: any) {
     return this.foodsService.create(createFoodDto, req.user.id);
   }
 
   @Get()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   findAll(
     @Request() req: any,
     @Query('search') search?: string,
@@ -53,7 +58,8 @@ export class FoodsController {
   }
 
   @Patch(':id/preferences')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   updatePreferences(
     @Param('id') id: string,
     @Request() req: any,
@@ -74,13 +80,15 @@ export class FoodsController {
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   findOne(@Param('id') id: string, @Request() req: any) {
     return this.foodsService.findOne(id, req.user.id);
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   update(
     @Param('id') id: string,
     @Body() updateFoodDto: UpdateFoodDto,
@@ -90,7 +98,8 @@ export class FoodsController {
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   remove(@Param('id') id: string, @Request() req: any) {
     return this.foodsService.remove(id, req.user.id);
   }

@@ -28,7 +28,6 @@ function calculateDV(body: string): string {
   for (let i = body.length - 1; i >= 0; i--) {
     sum += multiplier * parseInt(body[i]);
     multiplier = multiplier === 7 ? 2 : multiplier + 1;
-   body[i];
   }
 
   const res = 11 - (sum % 11);

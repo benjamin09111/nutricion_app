@@ -17,9 +17,14 @@ import { UpdateGroupIngredientsDto } from './dto/update-group-ingredients.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
 import { CacheTTL } from '@nestjs/cache-manager';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 @Controller('ingredient-groups')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermissionsGuard)
+@RequireFeatures(PLAN_ENTITLEMENT_KEYS.FOOD_GROUPS_ACCESS)
 @UseInterceptors(HttpCacheInterceptor)
 @CacheTTL(300000) // 5 minutes
 export class IngredientGroupsController {

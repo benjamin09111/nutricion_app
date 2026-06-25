@@ -3,7 +3,12 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-type UserRole = "ADMIN" | "ADMIN_MASTER" | "ADMIN_GENERAL" | "NUTRITIONIST";
+type UserRole =
+  | "ADMIN"
+  | "ADMIN_MASTER"
+  | "ADMIN_GENERAL"
+  | "NUTRITIONIST"
+  | "NUTRITIONIST_DEVELOPER";
 type ViewMode = "ADMIN" | "NUTRITIONIST";
 
 interface AdminContextType {

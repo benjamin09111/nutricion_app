@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Search,
   User,
@@ -10,6 +10,7 @@ import {
   Plus,
   RotateCcw,
   ArrowRight,
+  MessageSquareWarning,
   Eye,
   Trash2,
   ChevronDown,
@@ -23,17 +24,18 @@ import {
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Patient, PatientsResponse } from "@/features/patients";
+import { Patient } from "@/features/patients";
 import { TagInput } from "@/components/ui/TagInput";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import Cookies from "js-cookie";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
-import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { formatRut } from "@/lib/rut-utils";
+import { getApiUrl } from "@/lib/api-base";
+import { PatientTab, usePatients } from "@/features/patients/hooks/usePatients";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -44,134 +46,70 @@ function formatRestrictions(restrictions?: string[]) {
     return [];
   }
 
-  return restrictions
-    .map((restriction) => restriction.trim())
-    .filter(Boolean);
+  return restrictions.map((restriction) => restriction.trim()).filter(Boolean);
 }
 
-type PatientTab = "Todos" | "Activos" | "Inactivos";
-
 export default function PatientsClient() {
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [documentIdFilter, setDocumentIdFilter] = useState("");
   const [classificationTags, setClassificationTags] = useState<string[]>([]);
   const [startDateFilter, setStartDateFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [meta, setMeta] = useState({
-    total: 0,
-    filteredTotal: 0,
-    activeCount: 0,
-    inactiveCount: 0,
-    lastPage: 1,
-  });
   const [activeTab, setActiveTab] = useState<PatientTab>("Activos");
   const router = useRouter();
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<string | null>(null);
   const [patientPreview, setPatientPreview] = useState<Patient | null>(null);
+  const { limit } = useSubscription();
+
+  useEffect(() => {
+    const timer = setTimeout(
+      () => {
+        setDebouncedSearchTerm(searchTerm);
+      },
+      searchTerm ? 400 : 0,
+    );
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const { patients, meta, isLoading, deletePatient, togglePatientStatus } =
+    usePatients({
+      page,
+      searchTerm: debouncedSearchTerm,
+      activeTab,
+      documentIdFilter,
+      classificationTags,
+      startDateFilter,
+    });
 
   const handleDeleteConfirmed = async () => {
     if (!patientToDelete) return;
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi(`/patients/${patientToDelete}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        toast.success("Paciente eliminado");
-        fetchPatients(0);
-      } else {
-        toast.error("Error al eliminar");
-      }
+      await deletePatient(patientToDelete);
+      toast.success("Paciente eliminado");
     } catch (error) {
-      toast.error("Error de de red");
+      toast.error("Error al eliminar");
     } finally {
       setIsDeleteConfirmOpen(false);
       setPatientToDelete(null);
     }
   };
 
-  const togglePatientStatus = async (patient: Patient) => {
+  const handleTogglePatientStatus = async (patient: Patient) => {
     const newStatus = patient.status === "Active" ? "Inactive" : "Active";
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi(`/patients/${patient.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (response.ok) {
-        toast.success(`Estado actualizado a ${newStatus === "Active" ? "Activo" : "Inactivo"}`);
-        fetchPatients(0);
-      }
+      await togglePatientStatus(patient.id, newStatus);
+      toast.success(
+        `Estado actualizado a ${newStatus === "Active" ? "Activo" : "Inactivo"}`,
+      );
     } catch (e) {
       toast.error("Error al actualizar estado");
     }
   };
-
-  const fetchPatients = async (retries = 3) => {
-    setIsLoading(true);
-    try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
-
-      const queryParams = new URLSearchParams({
-        page: page.toString(),
-        limit: "10",
-        ...(searchTerm && { search: searchTerm }),
-        ...(activeTab !== "Todos" && { status: activeTab }),
-        ...(documentIdFilter && { documentId: documentIdFilter }),
-        ...(classificationTags.length > 0 && {
-          tags: classificationTags.join(","),
-        }),
-        ...(startDateFilter && { startDate: startDateFilter }),
-      });
-
-      const response = await fetchApi(`/patients?${queryParams}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const result: PatientsResponse = await response.json();
-        setPatients(result.data);
-        setMeta(result.meta);
-      }
-    } catch (e) {
-      if (retries > 0) {
-        setTimeout(() => fetchPatients(retries - 1), 2000);
-      } else {
-        console.warn("Backend no disponible para cargar pacientes.");
-        toast.error("Error al conectar con el servidor");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(
-      () => {
-        fetchPatients();
-      },
-      searchTerm ? 400 : 0,
-    );
-    return () => clearTimeout(timer);
-  }, [
-    searchTerm,
-    documentIdFilter,
-    classificationTags,
-    startDateFilter,
-    page,
-    activeTab,
-  ]);
 
   const printJson = () => {
     console.group("📊 PATIENTS DATA");
@@ -181,11 +119,16 @@ export default function PatientsClient() {
   };
 
   const filteredPatients = patients;
+  const activePatientLimit = limit("patients.active.limit");
+  const isPatientLimitReached =
+    Number.isFinite(activePatientLimit) &&
+    meta.activeCount >= activePatientLimit;
 
   const tabs: PatientTab[] = ["Todos", "Activos", "Inactivos"];
 
   const resetPatients = () => {
     setSearchTerm("");
+    setDebouncedSearchTerm("");
     setShowFilters(false);
     setDocumentIdFilter("");
     setClassificationTags([]);
@@ -229,11 +172,36 @@ export default function PatientsClient() {
         </div>
 
         <Button
-          onClick={() => router.push("/dashboard/pacientes/new")}
+          onClick={() => {
+            if (isPatientLimitReached) {
+              toast.error(
+                "Has alcanzado el límite de pacientes activos de tu plan.",
+              );
+              return;
+            }
+            router.push("/dashboard/pacientes/new");
+          }}
+          disabled={isPatientLimitReached}
           className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-12 lg:h-10 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 w-full lg:w-fit group"
         >
-          <Plus className="h-5 w-5 lg:h-4 lg:w-4 group-hover:rotate-90 transition-transform" aria-hidden="true" />
-          <span className="text-sm">Nuevo Paciente</span>
+          <Plus
+            className="h-5 w-5 lg:h-4 lg:w-4 group-hover:rotate-90 transition-transform"
+            aria-hidden="true"
+          />
+          <span className="text-sm">
+            {isPatientLimitReached ? "Límite alcanzado" : "Nuevo Paciente"}
+          </span>
+        </Button>
+
+        <Button
+          variant="outline"
+          onClick={() => router.push("/dashboard/pacientes/seguimientos")}
+          className="h-12 lg:h-10 px-6 rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50 font-medium transition-all flex items-center justify-center gap-2 w-full lg:w-fit group"
+        >
+          <MessageSquareWarning className="h-5 w-5 lg:h-4 lg:w-4 group-hover:scale-110 transition-transform" />
+          <span className="text-sm whitespace-nowrap">
+            Visitar seguimientos de mis pacientes
+          </span>
         </Button>
       </div>
 
@@ -336,31 +304,50 @@ export default function PatientsClient() {
                   <button
                     type="button"
                     onClick={() => {
-                      const newStatus = activeTab === "Inactivos" ? "Activos" : "Inactivos";
+                      const newStatus =
+                        activeTab === "Inactivos" ? "Activos" : "Inactivos";
                       setActiveTab(newStatus);
                       setPage(1);
                     }}
                     className={cn(
                       "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
-                      activeTab === "Inactivos" ? "bg-emerald-500" : "bg-slate-300"
+                      activeTab === "Inactivos"
+                        ? "bg-emerald-500"
+                        : "bg-slate-300",
                     )}
                     role="switch"
                     aria-checked={activeTab === "Inactivos"}
                   >
-                    <span className={cn(
-                      "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
-                      activeTab === "Inactivos" ? "translate-x-5" : "translate-x-0"
-                    )} />
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
+                        activeTab === "Inactivos"
+                          ? "translate-x-5"
+                          : "translate-x-0",
+                      )}
+                    />
                   </button>
-                  <span className={cn("text-xs font-bold", activeTab === "Inactivos" ? "text-emerald-700" : "text-slate-500")}>
-                    {activeTab === "Inactivos" ? "Inhabilitados" : "Solo Habilitados"}
+                  <span
+                    className={cn(
+                      "text-xs font-bold",
+                      activeTab === "Inactivos"
+                        ? "text-emerald-700"
+                        : "text-slate-500",
+                    )}
+                  >
+                    {activeTab === "Inactivos"
+                      ? "Inhabilitados"
+                      : "Solo Habilitados"}
                   </span>
                 </div>
               </div>
             </div>
           )}
 
-          {(searchTerm || documentIdFilter || startDateFilter || classificationTags.length > 0) && (
+          {(searchTerm ||
+            documentIdFilter ||
+            startDateFilter ||
+            classificationTags.length > 0) && (
             <div className="flex justify-end pt-1">
               <Button
                 type="button"
@@ -381,7 +368,9 @@ export default function PatientsClient() {
           <p className="text-xs font-medium text-slate-500 flex items-center gap-2">
             <User className="h-4 w-4" />
             Total:{" "}
-            <span className="text-indigo-600 font-semibold">{meta.total}</span>{" "}
+            <span className="text-indigo-600 font-semibold">
+              {meta.total}
+            </span>{" "}
             pacientes registrados
           </p>
         </div>
@@ -392,34 +381,83 @@ export default function PatientsClient() {
             <table className="min-w-full divide-y divide-slate-100">
               <thead className="bg-slate-50/50">
                 <tr>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Identidad del Paciente</th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Documento / Id</th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Restricciones Médicas</th>
-                  <th scope="col" className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
-                  <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Acciones</th>
+                  <th
+                    scope="col"
+                    className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                  >
+                    Identidad del Paciente
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                  >
+                    Documento / Id
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                  >
+                    Restricciones Médicas
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                  >
+                    Estado
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                  >
+                    Acciones
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 bg-white">
                 {isLoading ? (
                   [1, 2, 3, 4, 5].map((i) => (
-                    <tr key={i} className="animate-pulse border-b border-slate-50 last:border-0">
-                      <td className="px-6 py-6"><div className="flex items-center gap-4"><div className="w-12 h-12 bg-slate-100 rounded-full" /><div className="space-y-2"><div className="h-4 w-32 bg-slate-100 rounded" /><div className="h-3 w-48 bg-slate-50 rounded" /></div></div></td>
-                      <td className="px-6 py-6"><div className="h-4 w-24 bg-slate-100 rounded" /></td>
-                      <td className="px-6 py-6"><div className="h-10 w-44 bg-slate-100 rounded-2xl" /></td>
-                      <td className="px-6 py-6"><div className="h-6 w-20 bg-slate-100 rounded-full mx-auto" /></td>
-                      <td className="px-6 py-6"><div className="h-8 w-8 bg-slate-100 rounded-lg ml-auto" /></td>
+                    <tr
+                      key={i}
+                      className="animate-pulse border-b border-slate-50 last:border-0"
+                    >
+                      <td className="px-6 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-slate-100 rounded-full" />
+                          <div className="space-y-2">
+                            <div className="h-4 w-32 bg-slate-100 rounded" />
+                            <div className="h-3 w-48 bg-slate-50 rounded" />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-6">
+                        <div className="h-4 w-24 bg-slate-100 rounded" />
+                      </td>
+                      <td className="px-6 py-6">
+                        <div className="h-10 w-44 bg-slate-100 rounded-2xl" />
+                      </td>
+                      <td className="px-6 py-6">
+                        <div className="h-6 w-20 bg-slate-100 rounded-full mx-auto" />
+                      </td>
+                      <td className="px-6 py-6">
+                        <div className="h-8 w-8 bg-slate-100 rounded-lg ml-auto" />
+                      </td>
                     </tr>
                   ))
                 ) : filteredPatients.length > 0 ? (
                   filteredPatients.map((patient) => {
-                    const restrictions = formatRestrictions(patient.dietRestrictions);
+                    const restrictions = formatRestrictions(
+                      patient.dietRestrictions,
+                    );
                     const visibleRestrictions = restrictions.slice(0, 2);
-                    const remainingRestrictions = restrictions.length - visibleRestrictions.length;
+                    const remainingRestrictions =
+                      restrictions.length - visibleRestrictions.length;
 
                     return (
                       <tr
                         key={patient.id}
-                        onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
+                        onClick={() =>
+                          router.push(`/dashboard/pacientes/${patient.id}`)
+                        }
                         className="hover:bg-slate-50 transition-colors group cursor-pointer"
                       >
                         <td className="px-6 py-4">
@@ -430,16 +468,22 @@ export default function PatientsClient() {
                               </div>
                             </div>
                             <div className="ml-4 min-w-0">
-                              <div className="text-sm font-semibold text-slate-900 leading-none mb-1 truncate">{patient.fullName}</div>
+                              <div className="text-sm font-semibold text-slate-900 leading-none mb-1 truncate">
+                                {patient.fullName}
+                              </div>
                               <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5 min-w-0">
                                 <Mail className="w-3 h-3 text-slate-400 shrink-0" />
-                                <span className="truncate">{patient.email || "Sin correo"}</span>
+                                <span className="truncate">
+                                  {patient.email || "Sin correo"}
+                                </span>
                               </div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="inline-flex items-center text-sm font-medium text-slate-600">{patient.documentId || "---"}</span>
+                          <span className="inline-flex items-center text-sm font-medium text-slate-600">
+                            {patient.documentId || "---"}
+                          </span>
                         </td>
                         <td className="px-6 py-4">
                           {restrictions.length > 0 ? (
@@ -450,7 +494,9 @@ export default function PatientsClient() {
                                   className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
                                 >
                                   <Heart className="h-3 w-3 text-emerald-600" />
-                                  <span className="truncate max-w-[180px]">{restriction}</span>
+                                  <span className="truncate max-w-[180px]">
+                                    {restriction}
+                                  </span>
                                 </span>
                               ))}
                               {remainingRestrictions > 0 && (
@@ -460,32 +506,55 @@ export default function PatientsClient() {
                               )}
                             </div>
                           ) : (
-                            <span className="text-xs font-medium text-slate-400">Sin restricciones</span>
+                            <span className="text-xs font-medium text-slate-400">
+                              Sin restricciones
+                            </span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="px-6 py-4 text-center"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <div className="flex items-center justify-center gap-2">
                             <button
                               type="button"
-                              onClick={() => togglePatientStatus(patient)}
+                              onClick={() => handleTogglePatientStatus(patient)}
                               className={cn(
                                 "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
-                                patient.status !== "Inactive" ? "bg-indigo-500" : "bg-slate-300"
+                                patient.status !== "Inactive"
+                                  ? "bg-indigo-500"
+                                  : "bg-slate-300",
                               )}
                               role="switch"
                               aria-checked={patient.status !== "Inactive"}
                             >
-                              <span className={cn(
-                                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
-                                patient.status !== "Inactive" ? "translate-x-4" : "translate-x-0"
-                              )} />
+                              <span
+                                className={cn(
+                                  "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
+                                  patient.status !== "Inactive"
+                                    ? "translate-x-4"
+                                    : "translate-x-0",
+                                )}
+                              />
                             </button>
-                            <span className={cn("text-xs font-medium w-12 text-left", patient.status !== "Inactive" ? "text-indigo-700" : "text-slate-500")}>
-                              {patient.status !== "Inactive" ? "Activo" : "Inactivo"}
+                            <span
+                              className={cn(
+                                "text-xs font-medium w-12 text-left",
+                                patient.status !== "Inactive"
+                                  ? "text-indigo-700"
+                                  : "text-slate-500",
+                              )}
+                            >
+                              {patient.status !== "Inactive"
+                                ? "Activo"
+                                : "Inactivo"}
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="px-6 py-4 text-right"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => openPatientPreview(patient)}
@@ -494,7 +563,7 @@ export default function PatientsClient() {
                               <Eye className="w-4.5 h-4.5" />
                             </button>
                             <button
-                              onClick={() => togglePatientStatus(patient)}
+                              onClick={() => handleTogglePatientStatus(patient)}
                               className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
                             >
                               {patient.status === "Active" ? (
@@ -511,7 +580,10 @@ export default function PatientsClient() {
                               <Download className="w-4.5 h-4.5" />
                             </button>
                             <button
-                              onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }}
+                              onClick={() => {
+                                setPatientToDelete(patient.id);
+                                setIsDeleteConfirmOpen(true);
+                              }}
                               className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                             >
                               <Trash2 className="w-4.5 h-4.5" />
@@ -519,10 +591,21 @@ export default function PatientsClient() {
                           </div>
                         </td>
                       </tr>
-                    )
+                    );
                   })
                 ) : (
-                  <tr><td colSpan={5} className="text-center py-20"><div className="flex flex-col items-center gap-4"><div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100"><User className="h-8 w-8 text-slate-300" /></div><p className="text-slate-500 font-medium">Sin pacientes registrados</p></div></td></tr>
+                  <tr>
+                    <td colSpan={5} className="text-center py-20">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100">
+                          <User className="h-8 w-8 text-slate-300" />
+                        </div>
+                        <p className="text-slate-500 font-medium">
+                          Sin pacientes registrados
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -533,7 +616,10 @@ export default function PatientsClient() {
         <div className="lg:hidden space-y-4">
           {isLoading ? (
             [1, 2, 3].map((i) => (
-              <div key={i} className="bg-white p-5 rounded-2xl border border-slate-200 animate-pulse space-y-4">
+              <div
+                key={i}
+                className="bg-white p-5 rounded-2xl border border-slate-200 animate-pulse space-y-4"
+              >
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 bg-slate-100 rounded-xl" />
                   <div className="space-y-2 flex-1">
@@ -547,12 +633,15 @@ export default function PatientsClient() {
             filteredPatients.map((patient) => {
               const restrictions = formatRestrictions(patient.dietRestrictions);
               const visibleRestrictions = restrictions.slice(0, 2);
-              const remainingRestrictions = restrictions.length - visibleRestrictions.length;
+              const remainingRestrictions =
+                restrictions.length - visibleRestrictions.length;
 
               return (
                 <div
                   key={patient.id}
-                  onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
+                  onClick={() =>
+                    router.push(`/dashboard/pacientes/${patient.id}`)
+                  }
                   className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm active:scale-[0.98] transition-all"
                 >
                   <div className="flex items-start justify-between mb-4">
@@ -561,17 +650,23 @@ export default function PatientsClient() {
                         {patient.fullName.charAt(0)}
                       </div>
                       <div className="min-w-0">
-                        <h3 className="font-bold text-slate-900 line-clamp-1">{patient.fullName}</h3>
+                        <h3 className="font-bold text-slate-900 line-clamp-1">
+                          {patient.fullName}
+                        </h3>
                         <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 min-w-0">
                           <Mail className="w-3 h-3 shrink-0" />
-                          <span className="break-all">{patient.email || "Sin correo"}</span>
+                          <span className="break-all">
+                            {patient.email || "Sin correo"}
+                          </span>
                         </p>
                       </div>
                     </div>
                     <div
                       className={cn(
                         "px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider",
-                        patient.status !== "Inactive" ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600"
+                        patient.status !== "Inactive"
+                          ? "bg-indigo-100 text-indigo-700"
+                          : "bg-slate-100 text-slate-600",
                       )}
                     >
                       {patient.status !== "Inactive" ? "Activo" : "Inactivo"}
@@ -600,22 +695,38 @@ export default function PatientsClient() {
                         )}
                       </div>
                     ) : (
-                      <p className="text-xs font-medium text-slate-400">Sin restricciones</p>
+                      <p className="text-xs font-medium text-slate-400">
+                        Sin restricciones
+                      </p>
                     )}
                   </div>
 
                   <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                     <div className="text-xs font-semibold text-slate-400">
-                      ID: <span className="text-slate-600 ml-1">{patient.documentId || "---"}</span>
+                      ID:{" "}
+                      <span className="text-slate-600 ml-1">
+                        {patient.documentId || "---"}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => openPatientPreview(patient)} className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-lg" title="Ver">
+                    <div
+                      className="flex items-center gap-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => openPatientPreview(patient)}
+                        className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-lg"
+                        title="Ver"
+                      >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => togglePatientStatus(patient)}
+                        onClick={() => handleTogglePatientStatus(patient)}
                         className="p-2 bg-slate-50 rounded-lg"
-                        title={patient.status === "Active" ? "Inhabilitar" : "Habilitar"}
+                        title={
+                          patient.status === "Active"
+                            ? "Inhabilitar"
+                            : "Habilitar"
+                        }
                       >
                         {patient.status === "Active" ? (
                           <Ban className="w-4 h-4 text-emerald-600" />
@@ -623,24 +734,43 @@ export default function PatientsClient() {
                           <CheckCircle2 className="w-4 h-4 text-indigo-600" />
                         )}
                       </button>
-                      <button type="button" disabled className="p-2 text-slate-300 bg-slate-50 rounded-lg cursor-not-allowed" title="Descargar ficha">
+                      <button
+                        type="button"
+                        disabled
+                        className="p-2 text-slate-300 bg-slate-50 rounded-lg cursor-not-allowed"
+                        title="Descargar ficha"
+                      >
                         <Download className="w-4 h-4" />
                       </button>
-                      <button onClick={() => { setPatientToDelete(patient.id); setIsDeleteConfirmOpen(true); }} className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-lg" title="Eliminar">
+                      <button
+                        onClick={() => {
+                          setPatientToDelete(patient.id);
+                          setIsDeleteConfirmOpen(true);
+                        }}
+                        className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-lg"
+                        title="Eliminar"
+                      >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                      <button onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)} className="p-2 text-indigo-600 bg-indigo-50 rounded-lg ml-1 font-bold text-[10px] px-3 flex items-center gap-1 shadow-sm border border-indigo-100">
+                      <button
+                        onClick={() =>
+                          router.push(`/dashboard/pacientes/${patient.id}`)
+                        }
+                        className="p-2 text-indigo-600 bg-indigo-50 rounded-lg ml-1 font-bold text-[10px] px-3 flex items-center gap-1 shadow-sm border border-indigo-100"
+                      >
                         VER FICHA <ArrowRight className="w-3 h-3" />
                       </button>
                     </div>
                   </div>
                 </div>
-              )
+              );
             })
           ) : (
             <div className="bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
               <User className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-500 font-medium">No se encontraron pacientes</p>
+              <p className="text-slate-500 font-medium">
+                No se encontraron pacientes
+              </p>
             </div>
           )}
         </div>
@@ -662,7 +792,7 @@ export default function PatientsClient() {
         }}
         onConfirm={handleDeleteConfirmed}
         title="¿Eliminar paciente?"
-        description="¿Estás seguro de que deseas eliminar este paciente? Todo su historial clínico será borrado."
+        description="¿Estás seguro de que deseas eliminar este paciente? Se eliminarán también todas sus consultas y no podrás recuperar esta información. Te recomendamos guardar la ficha clínica del paciente antes de eliminarlo."
         confirmText="Eliminar permanentemente"
         variant="destructive"
       />
@@ -676,15 +806,21 @@ export default function PatientsClient() {
                   {patientPreview.fullName.charAt(0)}
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-slate-900">{patientPreview.fullName}</h3>
+                  <h3 className="text-xl font-semibold text-slate-900">
+                    {patientPreview.fullName}
+                  </h3>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className={cn(
-                      "rounded-full px-2.5 py-1 text-[11px] font-bold",
-                      patientPreview.status === "Active"
-                        ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100"
-                        : "bg-slate-100 text-slate-600 ring-1 ring-slate-200"
-                    )}>
-                      {patientPreview.status === "Active" ? "Activo" : "Inactivo"}
+                    <span
+                      className={cn(
+                        "rounded-full px-2.5 py-1 text-[11px] font-bold",
+                        patientPreview.status === "Active"
+                          ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100"
+                          : "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
+                      )}
+                    >
+                      {patientPreview.status === "Active"
+                        ? "Activo"
+                        : "Inactivo"}
                     </span>
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200">
                       {patientPreview.documentId || "Sin documento"}
@@ -704,11 +840,15 @@ export default function PatientsClient() {
 
             <div className="grid gap-4 p-6 md:grid-cols-2">
               <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Contacto</p>
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  Contacto
+                </p>
                 <div className="mt-3 space-y-3">
                   <div className="flex items-center gap-2 text-sm text-slate-700 min-w-0">
                     <Mail className="h-4 w-4 text-slate-400 shrink-0" />
-                    <span className="break-all">{patientPreview.email || "Sin correo"}</span>
+                    <span className="break-all">
+                      {patientPreview.email || "Sin correo"}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-slate-700">
                     <Phone className="h-4 w-4 text-slate-400" />
@@ -718,50 +858,85 @@ export default function PatientsClient() {
               </div>
 
               <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Perfil</p>
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  Perfil
+                </p>
                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-slate-700">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Género</p>
-                    <p className="mt-1 font-semibold">{patientPreview.gender || "No registrado"}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Nacimiento</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Género
+                    </p>
                     <p className="mt-1 font-semibold">
-                      {patientPreview.birthDate ? new Date(patientPreview.birthDate).toLocaleDateString("es-CL") : "No registrado"}
+                      {patientPreview.gender || "No registrado"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Edad</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Nacimiento
+                    </p>
                     <p className="mt-1 font-semibold">
-                      {patientPreview.age ? `${patientPreview.age} años` : "No registrada"}
+                      {patientPreview.birthDate
+                        ? new Date(patientPreview.birthDate).toLocaleDateString(
+                            "es-CL",
+                          )
+                        : "No registrado"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Altura</p>
-                    <p className="mt-1 font-semibold">{patientPreview.height ? `${patientPreview.height} cm` : "No registrado"}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Edad
+                    </p>
+                    <p className="mt-1 font-semibold">
+                      {patientPreview.age
+                        ? `${patientPreview.age} años`
+                        : "No registrada"}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Peso</p>
-                    <p className="mt-1 font-semibold">{patientPreview.weight ? `${patientPreview.weight} kg` : "No registrado"}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Altura
+                    </p>
+                    <p className="mt-1 font-semibold">
+                      {patientPreview.height
+                        ? `${patientPreview.height} cm`
+                        : "No registrado"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Peso
+                    </p>
+                    <p className="mt-1 font-semibold">
+                      {patientPreview.weight
+                        ? `${patientPreview.weight} kg`
+                        : "No registrado"}
+                    </p>
                   </div>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 md:col-span-2">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Restricciones</p>
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  Restricciones
+                </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {formatRestrictions(patientPreview.dietRestrictions).length > 0 ? (
-                    formatRestrictions(patientPreview.dietRestrictions).map((restriction) => (
-                      <span
-                        key={restriction}
-                        className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
-                      >
-                        <Heart className="h-3 w-3" />
-                        {restriction}
-                      </span>
-                    ))
+                  {formatRestrictions(patientPreview.dietRestrictions).length >
+                  0 ? (
+                    formatRestrictions(patientPreview.dietRestrictions).map(
+                      (restriction) => (
+                        <span
+                          key={restriction}
+                          className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
+                        >
+                          <Heart className="h-3 w-3" />
+                          {restriction}
+                        </span>
+                      ),
+                    )
                   ) : (
-                    <p className="text-sm text-slate-400">Sin restricciones registradas.</p>
+                    <p className="text-sm text-slate-400">
+                      Sin restricciones registradas.
+                    </p>
                   )}
                 </div>
               </div>

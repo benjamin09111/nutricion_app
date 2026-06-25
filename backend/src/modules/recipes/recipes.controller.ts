@@ -20,9 +20,14 @@ import { AuthGuard } from '../auth/guards/auth.guard';
 import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
 import { CacheTTL } from '@nestjs/cache-manager';
 import { RecipeMatchingService } from './recipe-matching.service';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 @Controller('recipes')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermissionsGuard)
+@RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 @UseInterceptors(HttpCacheInterceptor)
 @CacheTTL(300000) // 5 minutes
 export class RecipesController {
@@ -43,8 +48,8 @@ export class RecipesController {
   }
 
   @Post('estimate-macros')
-  estimateMacros(@Body() dto: EstimateMacrosDto) {
-    return this.recipesService.estimateMacros(dto);
+  estimateMacros(@Request() req: any, @Body() dto: EstimateMacrosDto) {
+    return this.recipesService.estimateMacros(req.user.id, dto);
   }
 
   @Post('compatible')
@@ -59,11 +64,13 @@ export class RecipesController {
   }
 
   @Post('ai-fill')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.AI_AUTOFILL_ACCESS)
   fillWithAi(@Request() req: any, @Body() dto: AiFillRecipesDto) {
     return this.recipesService.fillWithAi(req.user.id, dto);
   }
 
   @Post('quick-ai-fill')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.AI_AUTOFILL_ACCESS)
   fillQuickWithAi(@Request() req: any, @Body() dto: QuickAiFillRecipesDto) {
     return this.recipesService.quickFillWithAi(req.user.id, dto);
   }

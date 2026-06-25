@@ -11,6 +11,7 @@ import {
   Menu,
   Moon,
   Sun,
+  Globe,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -28,40 +29,30 @@ import { useTutorials } from "@/context/TutorialContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { DeveloperPlanSwitcher } from "@/components/layout/DeveloperPlanSwitcher";
+import { FollowUpNotificationsMenu } from "@/components/layout/FollowUpNotificationsMenu";
 
-function SubscriptionSwitcher() {
-  const { plan, forceUpdatePlan } = useSubscription();
+function PlanBadge() {
+  const { planName, cancelAtPeriodEnd, currentPlan } = useSubscription();
   const { isDarkMode } = useTheme();
-  const plans: SubscriptionPlan[] = ["free", "trial", "pro"];
+
+  if (!currentPlan) return null;
 
   return (
     <div
       className={cn(
-        "ml-2 flex items-center gap-1 rounded-full border p-0.5",
-        isDarkMode
-          ? "border-emerald-400/14 bg-emerald-950/40"
-          : "border-slate-200 bg-slate-100",
+        "ml-2 flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold",
+        cancelAtPeriodEnd
+          ? isDarkMode
+            ? "border-amber-400/20 bg-amber-500/10 text-amber-300"
+            : "border-amber-200 bg-amber-50 text-amber-700"
+          : isDarkMode
+            ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
+            : "border-emerald-200 bg-emerald-50 text-emerald-700",
       )}
     >
-      {plans.map((p) => (
-        <button
-          key={p}
-          onClick={() => forceUpdatePlan(p)}
-          className={cn(
-            "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase transition-all",
-            plan === p
-              ? isDarkMode
-                ? "border border-emerald-300/20 bg-emerald-500/15 text-emerald-50 shadow-sm"
-                : "border border-emerald-100 bg-white text-emerald-700 shadow-sm"
-              : isDarkMode
-                ? "text-emerald-100/65 hover:bg-emerald-500/10 hover:text-emerald-50"
-                : "text-slate-400 hover:bg-slate-200/50 hover:text-slate-600",
-          )}
-          title={`Simular Plan: ${p.toUpperCase()}`}
-        >
-          {p}
-        </button>
-      ))}
+      <span className="capitalize">{currentPlan.name}</span>
+      {cancelAtPeriodEnd && <span className="opacity-75">· cancelado</span>}
     </div>
   );
 }
@@ -69,6 +60,7 @@ function SubscriptionSwitcher() {
 export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isPortalMenuOpen, setIsPortalMenuOpen] = useState(false);
   const [userEmail] = useState<string>(() => {
     if (typeof window === "undefined") {
       return "usuario@demo.com";
@@ -89,7 +81,12 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
-  const { isAdmin, isAdminView } = useAdmin();
+  const portalMenuRef = useRef<HTMLDivElement>(null);
+
+  const handlePortalMenuToggle = () => {
+    setIsPortalMenuOpen(!isPortalMenuOpen);
+  };
+  const { isAdmin, isAdminView, role } = useAdmin();
   const { planName } = useSubscription();
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
     useNotifications();
@@ -105,11 +102,15 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
     setIsSecuringSub(true);
     try {
       await api.post("/support/secure-subscription");
-      toast.success("¡Excelente! Hemos registrado tu interés. Nos pondremos en contacto contigo pronto.");
+      toast.success(
+        "¡Excelente! Hemos registrado tu interés. Nos pondremos en contacto contigo pronto.",
+      );
       setIsSecureSubModalOpen(false);
     } catch (error) {
       console.error("Error securing subscription:", error);
-      toast.error("Hubo un error al procesar tu solicitud. Por favor intenta más tarde.");
+      toast.error(
+        "Hubo un error al procesar tu solicitud. Por favor intenta más tarde.",
+      );
     } finally {
       setIsSecuringSub(false);
     }
@@ -129,6 +130,12 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
       ) {
         setIsNotificationsOpen(false);
       }
+      if (
+        portalMenuRef.current &&
+        !portalMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsPortalMenuOpen(false);
+      }
     }
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -139,6 +146,15 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
     authService.signOut();
     router.replace("/login");
   };
+
+  const adminRoleLabel =
+    role === "ADMIN_MASTER"
+      ? "Admin Master"
+      : role === "ADMIN_GENERAL"
+        ? "Admin General"
+        : role === "ADMIN"
+          ? "Admin"
+          : null;
 
   return (
     <div
@@ -161,76 +177,19 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
       >
         <span className="sr-only">Abrir menú</span>
         <Menu
-          className={cn("h-6 w-6", isDarkMode ? "text-emerald-100" : "text-slate-600")}
+          className={cn(
+            "h-6 w-6",
+            isDarkMode ? "text-emerald-100" : "text-slate-600",
+          )}
           aria-hidden="true"
         />
       </button>
 
       <div className="flex flex-1 items-center gap-x-4 lg:gap-x-6">
-        <div className="flex flex-1 items-center justify-start gap-6 lg:gap-8">
-
-          {!isAdmin && (
-            <div
-              className={cn(
-                "hidden items-center gap-3 rounded-full border px-3 py-1.5 shadow-xs transition-colors md:flex",
-                isDarkMode
-                  ? "border-emerald-400/12 bg-linear-to-r from-emerald-500/8 to-slate-950/10"
-                  : "border-slate-100 bg-linear-to-r from-slate-50 to-white",
-              )}
-            >
-            <div className="flex items-center gap-1.5 line-clamp-1">
-              <span
-                className={cn(
-                    "whitespace-nowrap text-[10px] font-black uppercase tracking-widest",
-                    isDarkMode ? "text-emerald-100/70" : "text-slate-400",
-                )}
-              >
-                  Plan Activo:
-                </span>
-                <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-widest text-emerald-600">
-                  {planName.toUpperCase()}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {isAdmin && <SubscriptionSwitcher />}
-
-          {!isAdmin && !isAdminView && (
-            <button
-              onClick={() => setIsSecureSubModalOpen(true)}
-              className={cn(
-                "shiny-button group hidden items-center gap-2 rounded-full border px-4 py-1.5 transition-all md:flex",
-                isDarkMode
-                  ? "border-amber-400/30 bg-amber-500/15 text-amber-50 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-                  : "border-amber-200 bg-amber-50 text-amber-700 shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:bg-amber-100",
-              )}
-            >
-              <Sparkles className="h-3.5 w-3.5 text-amber-500 transition-transform group-hover:scale-110" />
-              <span className="text-[11px] font-black uppercase tracking-wider">
-                Asegurar mi suscripción
-              </span>
-            </button>
-          )}
-
-        </div>
-
-        <div className="flex flex-1 justify-end gap-x-6 self-stretch lg:gap-x-12">
-          <div className="flex items-center gap-x-6 lg:gap-x-8">
-          <Link
-            href="/dashboard/actualizaciones"
-            className={cn(
-              "group hidden items-center gap-2 rounded-xl border px-3 py-1.5 transition-all sm:flex",
-              isDarkMode
-                ? "border-emerald-400/16 bg-emerald-500/10 text-emerald-100 hover:border-emerald-300/30 hover:bg-emerald-500/16"
-                : "border-emerald-100 bg-emerald-50 text-emerald-700 hover:border-emerald-200 hover:bg-emerald-100",
-            )}
-          >
-            <Sparkles className="h-3.5 w-3.5 text-emerald-500 transition-transform group-hover:scale-110" />
-            <span className="text-[10px] font-black uppercase tracking-wider">
-              ¡Futuras actualizaciones!
-            </span>
-          </Link>
+        <div className="flex flex-1 items-center justify-end gap-x-6 lg:gap-x-8">
+          {!isAdminView && <PlanBadge />}
+          <DeveloperPlanSwitcher />
+          <FollowUpNotificationsMenu />
 
           <div className="relative" ref={notificationRef}>
             <button
@@ -302,7 +261,9 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                     <div
                       className={cn(
                         "divide-y",
-                        isDarkMode ? "divide-emerald-400/10" : "divide-slate-100",
+                        isDarkMode
+                          ? "divide-emerald-400/10"
+                          : "divide-slate-100",
                       )}
                     >
                       {notifications.slice(0, 3).map((notification) => (
@@ -310,13 +271,24 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                           key={notification.id}
                           className={cn(
                             "group relative flex cursor-pointer gap-3 px-4 py-3 transition-colors",
-                            isDarkMode ? "hover:bg-emerald-500/7" : "hover:bg-slate-50",
+                            isDarkMode
+                              ? "hover:bg-emerald-500/7"
+                              : "hover:bg-slate-50",
                             !notification.read &&
-                              (isDarkMode ? "bg-emerald-500/8" : "bg-emerald-50/30"),
+                              (isDarkMode
+                                ? "bg-emerald-500/8"
+                                : "bg-emerald-50/30"),
                           )}
-                          onClick={() =>
-                            !notification.read && markAsRead(notification.id)
-                          }
+                          onClick={() => {
+                            if (!notification.read) {
+                              markAsRead(notification.id);
+                            }
+
+                            if (notification.link) {
+                              setIsNotificationsOpen(false);
+                              router.push(notification.link);
+                            }
+                          }}
                         >
                           <div
                             className={cn(
@@ -346,7 +318,9 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                             <p
                               className={cn(
                                 "mt-0.5 line-clamp-2 text-xs",
-                                isDarkMode ? "text-emerald-100/65" : "text-slate-500",
+                                isDarkMode
+                                  ? "text-emerald-100/65"
+                                  : "text-slate-500",
                               )}
                             >
                               {notification.message}
@@ -354,7 +328,9 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                             <p
                               className={cn(
                                 "mt-1.5 text-[10px]",
-                                isDarkMode ? "text-emerald-100/45" : "text-slate-400",
+                                isDarkMode
+                                  ? "text-emerald-100/45"
+                                  : "text-slate-400",
                               )}
                             >
                               {new Intl.DateTimeFormat("es-CL", {
@@ -408,14 +384,16 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
               <div
                 className={cn(
                   "flex h-9 w-9 items-center justify-center rounded-full border text-white shadow-sm transition-transform active:scale-95",
-                  isAdminView ? "border-indigo-200 bg-indigo-600" : "border-emerald-300/20 bg-emerald-500",
+                  isAdminView
+                    ? "border-indigo-200 bg-indigo-600"
+                    : "border-emerald-300/20 bg-emerald-500",
                 )}
               >
                 {isAdminView ? "A" : <User className="h-4.5 w-4.5" />}
               </div>
-                <span className="hidden lg:flex lg:items-center whitespace-nowrap">
-                  <span
-                    className={cn(
+              <span className="hidden lg:flex lg:items-center whitespace-nowrap">
+                <span
+                  className={cn(
                     "ml-1 text-sm font-brand font-bold leading-6",
                     isDarkMode ? "text-emerald-50" : "text-slate-900",
                   )}
@@ -467,7 +445,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                       isAdminView ? "text-indigo-600" : "text-emerald-600",
                     )}
                   >
-                    {isAdminView ? "Admin" : planName}
+                    {isAdminView ? "Admin" : `Plan ${planName}`}
                   </p>
                 </div>
 
@@ -531,7 +509,11 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                   role="menuitem"
                   tabIndex={-1}
                 >
-                  {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  {isDarkMode ? (
+                    <Sun className="h-4 w-4" />
+                  ) : (
+                    <Moon className="h-4 w-4" />
+                  )}
                   {isDarkMode ? "Modo claro" : "Modo oscuro"}
                 </button>
 
@@ -602,10 +584,9 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
               </div>
             )}
           </div>
-          </div>
         </div>
       </div>
-      
+
       <ConfirmationModal
         isOpen={isSecureSubModalOpen}
         onClose={() => !isSecuringSub && setIsSecureSubModalOpen(false)}

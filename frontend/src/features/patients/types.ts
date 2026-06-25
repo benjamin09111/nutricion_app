@@ -16,7 +16,7 @@ export interface Patient {
     key: string;
     label: string;
     unit?: string;
-    value?: string | number;
+    value?: string | number | Record<string, unknown>;
   }[];
   exams?: PatientExam[];
   createdAt: string;

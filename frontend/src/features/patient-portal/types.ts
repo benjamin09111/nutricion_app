@@ -1,4 +1,8 @@
-export type PatientPortalEntryKind = "QUESTION" | "TRACKING" | "REPLY" | "NOTIFICATION";
+export type PatientPortalEntryKind =
+  | "QUESTION"
+  | "TRACKING"
+  | "REPLY"
+  | "NOTIFICATION";
 
 export interface PatientPortalTrackingSections {
   entryDate?: string;
@@ -77,6 +81,17 @@ export interface PatientPortalDeliverable {
   updatedAt: string;
 }
 
+export interface PatientPortalAppointment {
+  id: string;
+  title: string;
+  description: string | null;
+  startTime: string;
+  endTime: string;
+  status: string;
+  notes: string | null;
+  meetingUrl: string | null;
+}
+
 export interface PatientPortalProject {
   id: string;
   name: string;
@@ -115,7 +130,7 @@ export interface PatientPortalPatient {
     id: string;
     fullName: string;
     avatarUrl?: string | null;
-    settings?: any;
+    settings?: Record<string, unknown> | null;
   };
   projects?: PatientPortalProject[];
 }
@@ -150,6 +165,7 @@ export interface PatientPortalOverview {
   notifications: PatientPortalEntry[];
   sharedResources: PatientPortalResource[];
   sharedDeliverables: PatientPortalDeliverable[];
+  appointments: PatientPortalAppointment[];
   status: string;
 }
 
@@ -168,4 +184,28 @@ export interface PortalInviteResponse {
 
 export interface PortalVerificationResponse extends PatientPortalOverview {
   accessToken: string;
+}
+
+export interface PatientPortalFollowUpItem {
+  patient: PatientPortalPatient;
+  pendingQuestions: number;
+  latestEntryAt: string | null;
+  latestEntryKind: PatientPortalEntryKind | null;
+  latestEntryBody: string | null;
+  latestQuestionAt: string | null;
+  latestQuestionBody: string | null;
+  latestQuestionId: string | null;
+  hasAttention: boolean;
+  attentionAt: string;
+}
+
+export interface PatientPortalFollowUpsResponse {
+  data: PatientPortalFollowUpItem[];
+  meta: {
+    total: number;
+    filteredTotal: number;
+    pendingCount: number;
+    page: number;
+    lastPage: number;
+  };
 }

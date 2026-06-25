@@ -34,6 +34,7 @@ interface UserData {
     | "ADMIN_MASTER"
     | "ADMIN_GENERAL"
     | "NUTRITIONIST"
+    | "NUTRITIONIST_DEVELOPER"
     | "ORGANIZATION"
     | "SUPPLEMENT_STORE"
     | "SUPERMARKET";
@@ -43,11 +44,17 @@ interface UserData {
   createdAt: string;
 }
 
+const ADMIN_ROLES = ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"] as const;
+const isAdminRole = (role: string) =>
+  (ADMIN_ROLES as readonly string[]).includes(role);
+const isDeveloperRole = (role: string) => role === "NUTRITIONIST_DEVELOPER";
+
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrador",
   ADMIN_MASTER: "Admin Master",
   ADMIN_GENERAL: "Admin General",
   NUTRITIONIST: "Nutricionista",
+  NUTRITIONIST_DEVELOPER: "Nutri Dev QA",
   ORGANIZATION: "Organización",
   SUPPLEMENT_STORE: "Tienda de Suplementos",
   SUPERMARKET: "Supermercado",
@@ -57,6 +64,9 @@ export default function AdminUsersPage() {
   const [activeTab, setActiveTab] = useState<"create" | "reset" | "admins">(
     "admins",
   );
+  const [accountFilter, setAccountFilter] = useState<
+    "all" | "admins" | "developer"
+  >("all");
   const [currentAdminRole, setCurrentAdminRole] = useState<string | null>(null);
 
   // State for Users List
@@ -67,7 +77,7 @@ export default function AdminUsersPage() {
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
-    type: "STATUS" | "ROLE";
+    type: "STATUS" | "ROLE" | "DELETE";
     targetValue: string;
   } | null>(null);
 
@@ -78,6 +88,7 @@ export default function AdminUsersPage() {
     | "ADMIN_MASTER"
     | "ADMIN_GENERAL"
     | "NUTRITIONIST"
+    | "NUTRITIONIST_DEVELOPER"
     | "ORGANIZATION"
     | "SUPPLEMENT_STORE"
     | "SUPERMARKET"
@@ -110,7 +121,7 @@ export default function AdminUsersPage() {
     if (activeTab === "admins") {
       fetchUsers();
     }
-  }, [activeTab]);
+  }, [activeTab, accountFilter]);
 
   const fetchMembershipPlans = async () => {
     try {
@@ -131,7 +142,14 @@ export default function AdminUsersPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi(`/users?role=ALL_ADMINS`, {
+      const roleFilter =
+        accountFilter === "admins"
+          ? "ALL_ADMINS"
+          : accountFilter === "developer"
+            ? "NUTRITIONIST_DEVELOPER"
+            : "ALL_MANAGEMENT_ACCOUNTS";
+
+      const response = await fetchApi(`/users?role=${roleFilter}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Error al cargar usuarios");
@@ -149,9 +167,7 @@ export default function AdminUsersPage() {
   const isMaster = currentAdminRole === "ADMIN_MASTER";
 
   const canModifyAdmins = (targetUser: UserData) => {
-    const isTargetAdmin = ["ADMIN_MASTER", "ADMIN_GENERAL", "ADMIN"].includes(
-      targetUser.role,
-    );
+    const isTargetAdmin = isAdminRole(targetUser.role);
     // Only Master can touch other admins
     return isMaster || !isTargetAdmin;
   };
@@ -180,6 +196,17 @@ export default function AdminUsersPage() {
     setIsConfirmModalOpen(true);
   };
 
+  const handleDeleteRequest = (user: UserData) => {
+    if (!canModifyAdmins(user)) {
+      toast.error("Solo un Admin Master puede eliminar cuentas administrativas");
+      return;
+    }
+
+    setSelectedUser(user);
+    setConfirmAction({ type: "DELETE", targetValue: "DELETE" });
+    setIsConfirmModalOpen(true);
+  };
+
   const executeConfirmAction = async () => {
     if (!selectedUser || !confirmAction) return;
 
@@ -187,26 +214,36 @@ export default function AdminUsersPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const payload =
-        confirmAction.type === "STATUS"
-          ? { status: confirmAction.targetValue }
-          : { role: confirmAction.targetValue };
-
-      const response = await fetchApi(`/users/${selectedUser.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
+      const response =
+        confirmAction.type === "DELETE"
+          ? await fetchApi(`/users/${selectedUser.id}`, {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            })
+          : await fetchApi(`/users/${selectedUser.id}`, {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body:
+                confirmAction.type === "STATUS"
+                  ? JSON.stringify({ status: confirmAction.targetValue })
+                  : JSON.stringify({ role: confirmAction.targetValue }),
+            });
 
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.message || "Error en la actualización");
       }
 
-      toast.success(`Usuario actualizado correctamente`);
+      toast.success(
+        confirmAction.type === "DELETE"
+          ? "Usuario eliminado permanentemente"
+          : "Usuario actualizado correctamente",
+      );
       setIsConfirmModalOpen(false);
       fetchUsers();
     } catch (error: any) {
@@ -222,9 +259,7 @@ export default function AdminUsersPage() {
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const isTargetAdmin = ["ADMIN_MASTER", "ADMIN_GENERAL", "ADMIN"].includes(
-      creationRole,
-    );
+    const isTargetAdmin = isAdminRole(creationRole);
     if (isTargetAdmin && !isMaster) {
       toast.error(
         "Solo un Admin Master puede crear otras cuentas administrativas",
@@ -297,10 +332,10 @@ export default function AdminUsersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-indigo-900">
-          Gestión de Accesos
+          Cuentas
         </h1>
         <p className="text-slate-500">
-          Administración de rol, suscripciones y estados de cuenta.
+          Administración de administradores y nutricionistas developer.
         </p>
       </div>
 
@@ -343,6 +378,41 @@ export default function AdminUsersPage() {
 
       {activeTab === "admins" && (
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex items-center gap-2 border-b border-slate-100 px-6 py-4">
+            <button
+              type="button"
+              onClick={() => setAccountFilter("all")}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors cursor-pointer ${
+                accountFilter === "all"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              onClick={() => setAccountFilter("admins")}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors cursor-pointer ${
+                accountFilter === "admins"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Admins
+            </button>
+            <button
+              type="button"
+              onClick={() => setAccountFilter("developer")}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors cursor-pointer ${
+                accountFilter === "developer"
+                  ? "bg-amber-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Nutri Dev
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
@@ -387,22 +457,37 @@ export default function AdminUsersPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <select
-                          value={user.role}
-                          disabled={!isMaster}
-                          onChange={(e) =>
-                            handleRoleChangeRequest(user, e.target.value)
-                          }
-                          className={`text-xs font-bold text-slate-900 rounded-md bg-white border-slate-200 focus:ring-indigo-500 py-1 transition-all shadow-sm ${!isMaster ? "opacity-70 cursor-not-allowed bg-slate-50" : "cursor-pointer"}`}
-                        >
-                          {user.role === "ADMIN" && (
-                            <option value="ADMIN">
-                              Administrador (Legado)
-                            </option>
-                          )}
-                          <option value="ADMIN_MASTER">Admin Master</option>
-                          <option value="ADMIN_GENERAL">Admin General</option>
-                        </select>
+                        {isAdminRole(user.role) ? (
+                          <select
+                            value={user.role}
+                            disabled={!isMaster}
+                            onChange={(e) =>
+                              handleRoleChangeRequest(user, e.target.value)
+                            }
+                            className={`text-xs font-bold text-slate-900 rounded-md bg-white border-slate-200 focus:ring-indigo-500 py-1 transition-all shadow-sm ${!isMaster ? "opacity-70 cursor-not-allowed bg-slate-50" : "cursor-pointer"}`}
+                          >
+                            {user.role === "ADMIN" && (
+                              <option value="ADMIN">
+                                Administrador (Legado)
+                              </option>
+                            )}
+                            <option value="ADMIN_MASTER">Admin Master</option>
+                            <option value="ADMIN_GENERAL">Admin General</option>
+                          </select>
+                        ) : isDeveloperRole(user.role) ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="inline-flex w-fit items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                              Nutri Dev QA
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                              Nutricionista con extras para pruebas y cambios de plan.
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs font-medium text-slate-600">
+                            {roleLabels[user.role] || user.role}
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span
@@ -416,28 +501,39 @@ export default function AdminUsersPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <Button
-                          variant="ghost"
-                          disabled={!canModifyAdmins(user)}
-                          onClick={() => handleStatusToggle(user)}
-                          className={`h-8 px-3 ${!canModifyAdmins(user) ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${
-                            user.status === "ACTIVE"
-                              ? "text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                              : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                          }`}
-                        >
-                          {user.status === "ACTIVE" ? (
-                            <>
-                              <UserX className="h-4 w-4 mr-2" /> Desactivar
-                              Account
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 mr-2" /> Activar
-                              Account
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            disabled={!canModifyAdmins(user)}
+                            onClick={() => handleStatusToggle(user)}
+                            className={`h-8 px-3 ${!canModifyAdmins(user) ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${
+                              user.status === "ACTIVE"
+                                ? "text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                            }`}
+                          >
+                            {user.status === "ACTIVE" ? (
+                              <>
+                                <UserX className="h-4 w-4 mr-2" />
+                                Desactivar
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                Activar
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            disabled={!canModifyAdmins(user)}
+                            onClick={() => handleDeleteRequest(user)}
+                            className={`h-8 px-3 ${!canModifyAdmins(user) ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} text-slate-600 hover:text-rose-700 hover:bg-rose-50`}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Eliminar
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -513,6 +609,9 @@ export default function AdminUsersPage() {
                         className="block w-full rounded-md border-0 py-2.5 pl-10 pr-4 text-slate-900 ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                       >
                         <option value="NUTRITIONIST">Nutricionista</option>
+                        <option value="NUTRITIONIST_DEVELOPER">
+                          Nutri Dev QA
+                        </option>
                         {isMaster && (
                           <>
                             <option value="ADMIN_MASTER">
@@ -563,6 +662,13 @@ export default function AdminUsersPage() {
                       </p>
                     </div>
                   )}
+
+                    {creationRole === "NUTRITIONIST_DEVELOPER" && (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 animate-in fade-in duration-300">
+                        Se creará con el mayor plan activo y acceso al selector de
+                        planes en el navbar para QA.
+                      </div>
+                    )}
 
                   <div className="pt-2">
                     <Button
@@ -635,11 +741,17 @@ export default function AdminUsersPage() {
         title={
           confirmAction?.type === "STATUS"
             ? "Cambiar Estado de Cuenta"
-            : "Cambiar Rol de Usuario"
+            : confirmAction?.type === "ROLE"
+              ? "Cambiar Rol de Usuario"
+              : "Eliminar Cuenta"
         }
-        message={`¿Estás seguro de que deseas cambiar el ${confirmAction?.type === "STATUS" ? "estado" : "rol"} de ${selectedUser?.email} a ${confirmAction?.type === "ROLE" ? roleLabels[confirmAction.targetValue] : confirmAction?.targetValue === "ACTIVE" ? "Activo" : "Inactivo"}? Esta acción tendrá efecto inmediato.`}
-        variant={confirmAction?.type === "STATUS" ? "danger" : "warning"}
-        confirmText="Sí, actualizar"
+        message={
+          confirmAction?.type === "DELETE"
+            ? `¿Estás seguro de que deseas eliminar permanentemente la cuenta de ${selectedUser?.email}? Esta acción borrará la cuenta de la base de datos y no se puede deshacer.`
+            : `¿Estás seguro de que deseas cambiar el ${confirmAction?.type === "STATUS" ? "estado" : "rol"} de ${selectedUser?.email} a ${confirmAction?.type === "ROLE" ? roleLabels[confirmAction.targetValue] : confirmAction?.targetValue === "ACTIVE" ? "Activo" : "Inactivo"}? Esta acción tendrá efecto inmediato.`
+        }
+        variant={confirmAction?.type === "DELETE" ? "danger" : confirmAction?.type === "STATUS" ? "danger" : "warning"}
+        confirmText={confirmAction?.type === "DELETE" ? "Sí, eliminar" : "Sí, actualizar"}
         cancelText="Cancelar"
       />
     </div>

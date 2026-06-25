@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Crown, Plus, Edit2, Trash2, Check, X, Star } from "lucide-react";
+import { useState, useEffect, type ReactNode } from "react";
+import { Plus, Edit2, Trash2, Check, X, Star } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
+import { cn } from "@/lib/utils";
+import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
 
 interface MembershipPlan {
   id: string;
@@ -24,10 +26,81 @@ interface MembershipPlan {
   displayOrder: number;
 }
 
+type FeatureDraft = {
+  id: string;
+  text: string;
+  isExcluded: boolean;
+};
+
+type MembershipPlanForm = Omit<Partial<MembershipPlan>, "features"> & {
+  features?: FeatureDraft[];
+};
+
+const FEATURE_PREFIX_INCLUDED = "✓";
+const FEATURE_PREFIX_EXCLUDED = "X";
+
+const parseFeatureDraft = (value: string): FeatureDraft => {
+  const normalized = value.trim();
+  const markerMatch = normalized.match(/^(✓|X)\s+(.*)$/);
+
+  if (markerMatch) {
+    return {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      text: markerMatch[2].trim(),
+      isExcluded: markerMatch[1] === FEATURE_PREFIX_EXCLUDED,
+    };
+  }
+
+  return {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    text: normalized,
+    isExcluded: false,
+  };
+};
+
+const serializeFeatureDraft = (feature: FeatureDraft) => {
+  const text = feature.text.trim();
+
+  if (!text) {
+    return null;
+  }
+
+  return `${feature.isExcluded ? FEATURE_PREFIX_EXCLUDED : FEATURE_PREFIX_INCLUDED} ${text}`;
+};
+
+const renderBoldText = (text: string) => {
+  const parts: Array<string | ReactNode> = [];
+  const pattern = /\*(.+?)\*/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    parts.push(
+      <strong key={`${match.index}-${match[1]}`} className="font-semibold text-slate-900">
+        {match[1]}
+      </strong>,
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+};
+
 export default function MembershipsPage() {
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Partial<MembershipPlan>>({});
+  const [editForm, setEditForm] = useState<MembershipPlanForm>({});
+  const [copyFromPlanId, setCopyFromPlanId] = useState<string>("");
+  const [draggedFeatureIndex, setDraggedFeatureIndex] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -58,16 +131,30 @@ export default function MembershipsPage() {
 
   const startEdit = (plan: MembershipPlan) => {
     setEditingId(plan.id);
-    setEditForm({ ...plan });
+    setCopyFromPlanId("");
+    setDraggedFeatureIndex(null);
+    setEditForm({
+      ...plan,
+      features: plan.features.map((feature) => parseFeatureDraft(feature)),
+    });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditForm({});
+    setCopyFromPlanId("");
+    setDraggedFeatureIndex(null);
   };
 
   const saveEdit = async () => {
     if (!editingId) return;
+
+    const payload = {
+      ...editForm,
+      features: (editForm.features || [])
+        .map(serializeFeatureDraft)
+        .filter((feature): feature is string => Boolean(feature)),
+    };
 
     try {
       const token =
@@ -78,7 +165,7 @@ export default function MembershipsPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) throw new Error("Error al actualizar");
@@ -86,6 +173,8 @@ export default function MembershipsPage() {
       toast.success("Plan actualizado correctamente");
       setEditingId(null);
       setEditForm({});
+      setCopyFromPlanId("");
+      setDraggedFeatureIndex(null);
       fetchPlans();
     } catch (error) {
       console.error(error);
@@ -120,19 +209,78 @@ export default function MembershipsPage() {
   const addFeature = () => {
     setEditForm({
       ...editForm,
-      features: [...(editForm.features || []), "Nueva característica"],
+      features: [
+        ...(editForm.features || []),
+        {
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          text: "",
+          isExcluded: false,
+        },
+      ],
     });
   };
 
   const updateFeature = (index: number, value: string) => {
     const newFeatures = [...(editForm.features || [])];
-    newFeatures[index] = value;
+    newFeatures[index] = {
+      ...newFeatures[index],
+      text: value,
+    };
     setEditForm({ ...editForm, features: newFeatures });
   };
 
   const removeFeature = (index: number) => {
     const newFeatures = (editForm.features || []).filter((_, i) => i !== index);
     setEditForm({ ...editForm, features: newFeatures });
+  };
+
+  const toggleFeatureType = (index: number) => {
+    const newFeatures = [...(editForm.features || [])];
+    newFeatures[index] = {
+      ...newFeatures[index],
+      isExcluded: !newFeatures[index].isExcluded,
+    };
+    setEditForm({ ...editForm, features: newFeatures });
+  };
+
+  const moveFeature = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+
+    const newFeatures = [...(editForm.features || [])];
+    const [movedFeature] = newFeatures.splice(fromIndex, 1);
+    if (!movedFeature) return;
+
+    newFeatures.splice(toIndex, 0, movedFeature);
+    setEditForm({ ...editForm, features: newFeatures });
+  };
+
+  const handleFeatureDrop = (fromIndex: number, toIndex: number) => {
+    moveFeature(fromIndex, toIndex);
+    setDraggedFeatureIndex(null);
+  };
+
+  const copyFeaturesFromPlan = () => {
+    if ((editForm.features || []).length > 0) {
+      toast.info("Vacía las características antes de copiar otro plan");
+      return;
+    }
+
+    if (!copyFromPlanId) {
+      toast.error("Selecciona un plan para copiar");
+      return;
+    }
+
+    const sourcePlan = plans.find((plan) => plan.id === copyFromPlanId);
+
+    if (!sourcePlan) {
+      toast.error("No se encontró el plan base");
+      return;
+    }
+
+    setEditForm({
+      ...editForm,
+      features: sourcePlan.features.map((feature) => parseFeatureDraft(feature)),
+    });
   };
 
   const createNewPlan = async () => {
@@ -143,7 +291,7 @@ export default function MembershipsPage() {
       price: 0,
       currency: "CLP",
       billingPeriod: "monthly",
-      features: ["Característica 1", "Característica 2"],
+      features: [],
       maxPatients: null,
       maxStorage: null,
       isPopular: false,
@@ -211,12 +359,22 @@ export default function MembershipsPage() {
                     : "border-slate-200"
                   }`}
               >
-                {/* Popular Badge */}
-                {plan.isPopular && (
-                  <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-center py-1.5 text-xs font-semibold">
-                    ⭐ Más Popular
-                  </div>
-                )}
+{/* Popular Badge */}
+                  {plan.isPopular && (
+                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-center py-1.5 text-xs font-semibold">
+                      ⭐ Más Popular
+                    </div>
+                  )}
+
+                  {/* Active Badge */}
+                  {!isEditing && (
+                    <div className="flex items-center justify-center gap-1.5">
+                      <div className={cn("w-2 h-2 rounded-full", plan.isActive ? "bg-green-500" : "bg-slate-300")} />
+                      <span className={cn("text-xs font-medium", plan.isActive ? "text-green-600" : "text-slate-400")}>
+                        {plan.isActive ? "Visible" : "Oculto"}
+                      </span>
+                    </div>
+                  )}
 
                 {/* Card Content */}
                 <div className="p-4 space-y-3">
@@ -296,22 +454,87 @@ export default function MembershipsPage() {
                   <div className="space-y-1.5 pt-2">
                     {isEditing ? (
                       <>
-                        {(currentData.features || []).map((feature, index) => (
+                        <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 space-y-3">
+                          <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
+                            <label className="space-y-1">
+                              <span className="block text-xs font-medium text-slate-600">
+                                Copiar características de
+                              </span>
+                              <select
+                                value={copyFromPlanId}
+                                onChange={(e) => setCopyFromPlanId(e.target.value)}
+                                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-600"
+                              >
+                                <option value="">Selecciona un plan</option>
+                                {plans
+                                  .filter((sourcePlan) => sourcePlan.id !== plan.id)
+                                  .map((sourcePlan) => (
+                                    <option key={sourcePlan.id} value={sourcePlan.id}>
+                                      {sourcePlan.name}
+                                    </option>
+                                  ))}
+                              </select>
+                            </label>
+                            <Button
+                              type="button"
+                              onClick={copyFeaturesFromPlan}
+                              disabled={(editForm.features || []).length > 0}
+                              className="cursor-pointer bg-slate-900 hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                            >
+                              Copiar características
+                            </Button>
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            Solo se copiarán las características. Si ya llenaste líneas,
+                            vacíalas primero para reemplazarlas.
+                          </p>
+                        </div>
+
+                        {(editForm.features || []).map((feature, index) => (
                           <div
-                            key={index}
-                            className="flex items-start gap-2 group"
+                            key={feature.id}
+                            draggable
+                            onDragStart={(e) => {
+                              setDraggedFeatureIndex(index);
+                              e.dataTransfer.effectAllowed = "move";
+                              e.dataTransfer.setData("text/plain", String(index));
+                            }}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              if (draggedFeatureIndex === null) return;
+                              handleFeatureDrop(draggedFeatureIndex, index);
+                            }}
+                            onDragEnd={() => setDraggedFeatureIndex(null)}
+                            className={`flex items-start gap-2 group rounded-md transition-colors cursor-grab active:cursor-grabbing ${
+                              draggedFeatureIndex === index
+                                ? "bg-indigo-50 opacity-70"
+                                : "hover:bg-slate-100"
+                            }`}
                           >
-                            <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                            <button
+                              type="button"
+                              onClick={() => toggleFeatureType(index)}
+                              className="mt-0.5 shrink-0 cursor-pointer"
+                              aria-label={feature.isExcluded ? "Marcar como incluido" : "Marcar como excluido"}
+                            >
+                              {feature.isExcluded ? (
+                                <X className="h-4 w-4 text-red-500" />
+                              ) : (
+                                <Check className="h-4 w-4 text-green-500" />
+                              )}
+                            </button>
                             <input
                               type="text"
-                              value={feature}
+                              value={feature.text}
                               onChange={(e) =>
                                 updateFeature(index, e.target.value)
                               }
                               className="flex-1 text-sm text-slate-700 border-b border-transparent hover:border-slate-300 focus:border-indigo-600 outline-none bg-transparent"
-                              placeholder="Característica"
+                              placeholder="Característica X"
                             />
                             <button
+                              type="button"
                               onClick={() => removeFeature(index)}
                               className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity cursor-pointer"
                             >
@@ -328,25 +551,28 @@ export default function MembershipsPage() {
                         </button>
                       </>
                     ) : (
-                      plan.features.slice(0, 5).map((feature, index) => (
-                        <div key={index} className="flex items-start gap-2">
-                          <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                          <span className="text-sm text-slate-700">
-                            {feature}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                    {!isEditing && plan.features.length > 5 && (
-                      <p className="text-xs text-slate-400 pl-6">
-                        +{plan.features.length - 5} más...
-                      </p>
+                      plan.features.map((feature, index) => {
+                        const featureDisplay = getMembershipFeatureDisplay(feature);
+
+                        return (
+                          <div key={index} className="flex items-start gap-2">
+                            {featureDisplay.isExcluded ? (
+                              <X className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                            ) : (
+                              <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                            )}
+                            <span className="text-sm text-slate-700">
+                              {renderBoldText(featureDisplay.label)}
+                            </span>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
 
                   {/* Popular Toggle (Only in Edit Mode) */}
                   {isEditing && (
-                    <div className="pt-3 border-t border-slate-100">
+                    <div className="pt-3 border-t border-slate-100 space-y-3">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
@@ -360,13 +586,26 @@ export default function MembershipsPage() {
                           className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
                         />
                         <span className="text-sm text-slate-700 font-medium">
-                          Marcar como "Más Popular"
+                          Marcar como &quot;Más Popular&quot;
                         </span>
                         <Star className="h-4 w-4 text-amber-500" />
                       </label>
-                      <p className="text-xs text-slate-500 ml-6 mt-1">
-                        Se mostrará con un badge destacado en la landing page
-                      </p>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={currentData.isActive ?? true}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              isActive: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                        />
+                        <span className="text-sm text-slate-700 font-medium">
+                          Visible en landing
+                        </span>
+                      </label>
                     </div>
                   )}
                 </div>

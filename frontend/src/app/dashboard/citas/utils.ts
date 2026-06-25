@@ -543,8 +543,7 @@ export const getStoredNutritionistProfile = () => {
     };
 
     const nutritionist = user.nutritionist || null;
-    const nutritionistId =
-      normalizeText(nutritionist?.id) || normalizeText(user.id) || "";
+    const nutritionistId = normalizeText(nutritionist?.id) || "";
     const nutritionistName =
       normalizeText(nutritionist?.fullName) ||
       normalizeText(nutritionist?.name) ||

@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
+import { FeatureGate } from "@/components/memberships/FeatureGate";
 import {
   calculateBMI,
   calculateGET,
@@ -58,6 +59,10 @@ export default function CalculosClient() {
   const portions = get ? calculateExchangePortions(get.macros) : [];
 
   return (
+    <FeatureGate
+      feature="clinical_calculator.access"
+      message="La calculadora clínica está disponible desde Iniciante."
+    >
     <div className="max-w-5xl mx-auto pb-24">
       <div className="mb-8">
         <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 flex items-center gap-3">
@@ -380,5 +385,6 @@ export default function CalculosClient() {
         </div>
       )}
     </div>
+    </FeatureGate>
   );
 }

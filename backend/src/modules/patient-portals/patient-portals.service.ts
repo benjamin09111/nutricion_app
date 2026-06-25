@@ -8,12 +8,14 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AppointmentsService } from '../appointments/appointments.service';
 import { MailService } from '../mail/mail.service';
 import { CreatePatientPortalInvitationDto } from './dto/create-patient-portal-invitation.dto';
 import { CreatePatientPortalEntryDto } from './dto/create-patient-portal-entry.dto';
 import { CreatePatientPortalQuestionDto } from './dto/create-patient-portal-question.dto';
 import { CreatePatientPortalReplyDto } from './dto/create-patient-portal-reply.dto';
 import { CreatePatientPortalNotificationDto } from './dto/create-patient-portal-notification.dto';
+import { RequestAppointmentDto } from './dto/request-appointment.dto';
 
 type PortalSessionPayload = {
   kind: 'patient-portal';
@@ -117,6 +119,27 @@ type PortalDeliverable = {
   updatedAt: Date;
 };
 
+type PortalFollowUpPatient = {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  documentId: string | null;
+  status: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type PortalFollowUpEntry = {
+  id: string;
+  patientId: string;
+  kind: PortalEntryKind;
+  body: string | null;
+  replyToId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type TrackingSections = {
   alimentacion?: string;
   suplementos?: string;
@@ -165,6 +188,7 @@ export class PatientPortalsService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly appointmentsService: AppointmentsService,
   ) {}
 
   async createInvitation(
@@ -453,6 +477,164 @@ export class PatientPortalsService {
     return this.buildOverview(nutritionistId, patientId);
   }
 
+  async getFollowUps(
+    nutritionistId: string,
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: string;
+      documentId?: string;
+      tags?: string;
+      pendingOnly?: boolean;
+    },
+  ) {
+    const page = Math.max(1, Number(params.page || 1));
+    const limit = Math.max(1, Math.min(50, Number(params.limit || 10)));
+
+    const where: any = {
+      nutritionistId,
+    };
+
+    if (params.status && params.status !== 'Todos') {
+      where.status = params.status === 'Activos' ? 'Active' : 'Inactive';
+    }
+
+    if (params.search?.trim()) {
+      const search = params.search.trim();
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { documentId: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (params.documentId?.trim()) {
+      where.documentId = {
+        contains: params.documentId.trim(),
+        mode: 'insensitive',
+      };
+    }
+
+    const parsedTags = params.tags
+      ?.split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+
+    if (parsedTags && parsedTags.length > 0) {
+      where.tags = { hasSome: parsedTags };
+    }
+
+    const patients = (await this.prisma.patient.findMany({
+      where,
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        documentId: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    })) as PortalFollowUpPatient[];
+
+    const patientIds = patients.map((patient) => patient.id);
+    const entries = patientIds.length
+      ? ((await this.prisma.patientPortalEntry.findMany({
+          where: {
+            nutritionistId,
+            patientId: { in: patientIds },
+          },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            patientId: true,
+            kind: true,
+            body: true,
+            replyToId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        })) as PortalFollowUpEntry[])
+      : [];
+
+    const entriesByPatient = new Map<string, PortalFollowUpEntry[]>();
+    const repliedQuestionIds = new Set<string>();
+
+    entries.forEach((entry) => {
+      const currentEntries = entriesByPatient.get(entry.patientId) || [];
+      currentEntries.push(entry);
+      entriesByPatient.set(entry.patientId, currentEntries);
+
+      if (entry.kind === 'REPLY' && entry.replyToId) {
+        repliedQuestionIds.add(entry.replyToId);
+      }
+    });
+
+    const followUps = patients.map((patient) => {
+      const patientEntries = entriesByPatient.get(patient.id) || [];
+      const questionEntries = patientEntries.filter(
+        (entry) => entry.kind === 'QUESTION',
+      );
+      const pendingQuestions = questionEntries.filter(
+        (entry) => !repliedQuestionIds.has(entry.id),
+      ).length;
+      const latestEntry = patientEntries[0] || null;
+      const latestQuestion = questionEntries[0] || null;
+
+      return {
+        patient,
+        pendingQuestions,
+        latestEntryAt: latestEntry?.createdAt || null,
+        latestEntryKind: (latestEntry?.kind || null) as PortalEntryKind | null,
+        latestEntryBody: latestEntry?.body || null,
+        latestQuestionAt: latestQuestion?.createdAt || null,
+        latestQuestionBody: latestQuestion?.body || null,
+        latestQuestionId: latestQuestion?.id || null,
+        hasAttention: pendingQuestions > 0,
+        attentionAt:
+          (pendingQuestions > 0
+            ? latestQuestion?.createdAt ||
+              latestEntry?.createdAt ||
+              patient.updatedAt
+            : latestEntry?.createdAt || patient.updatedAt) || patient.updatedAt,
+      };
+    });
+
+    const pendingCount = followUps.filter((item) => item.hasAttention).length;
+    const filtered = followUps.filter((item) =>
+      params.pendingOnly ? item.hasAttention : true,
+    );
+    const sorted = filtered.sort((a, b) => {
+      if (b.pendingQuestions !== a.pendingQuestions) {
+        return b.pendingQuestions - a.pendingQuestions;
+      }
+
+      const attentionDiff =
+        new Date(b.attentionAt).getTime() - new Date(a.attentionAt).getTime();
+      if (attentionDiff !== 0) return attentionDiff;
+
+      return b.patient.updatedAt.getTime() - a.patient.updatedAt.getTime();
+    });
+
+    const filteredTotal = sorted.length;
+    const lastPage = Math.max(1, Math.ceil(filteredTotal / limit));
+    const safePage = Math.min(page, lastPage);
+    const start = (safePage - 1) * limit;
+
+    return {
+      data: sorted.slice(start, start + limit),
+      meta: {
+        total: followUps.length,
+        filteredTotal,
+        pendingCount,
+        page: safePage,
+        lastPage,
+      },
+    };
+  }
+
   async setAccessStatus(
     nutritionistId: string,
     patientId: string,
@@ -568,18 +750,37 @@ export class PatientPortalsService {
     patientId: string,
     dto: CreatePatientPortalReplyDto,
   ) {
-    const question = await this.prisma.patientPortalEntry.findFirst({
-      where: {
-        id: dto.questionId,
-        patientId,
-        nutritionistId,
-        kind: 'QUESTION',
-      },
-      select: ENTRY_SELECT,
-    });
+    const [question, patient] = await Promise.all([
+      this.prisma.patientPortalEntry.findFirst({
+        where: {
+          id: dto.questionId,
+          patientId,
+          nutritionistId,
+          kind: 'QUESTION',
+        },
+        select: ENTRY_SELECT,
+      }),
+      this.prisma.patient.findFirst({
+        where: { id: patientId, nutritionistId },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          nutritionist: {
+            select: {
+              fullName: true,
+            },
+          },
+        },
+      }),
+    ]);
 
     if (!question) {
       throw new NotFoundException('No encontramos esa pregunta');
+    }
+
+    if (!patient) {
+      throw new NotFoundException('No encontramos ese paciente');
     }
 
     const body = dto.message.trim();
@@ -600,6 +801,35 @@ export class PatientPortalsService {
       },
       select: ENTRY_SELECT,
     });
+
+    const invitation = await this.prisma.patientPortalInvitation.findFirst({
+      where: {
+        patientId,
+        nutritionistId,
+        status: 'ACTIVE',
+        revokedAt: null,
+        blockedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        email: true,
+      },
+    });
+
+    const recipientEmail = invitation?.email || patient.email || null;
+    if (recipientEmail) {
+      this.mailService
+        .sendPatientPortalReplyEmail({
+          email: recipientEmail,
+          patientName: patient.fullName,
+          nutritionistName: patient.nutritionist.fullName,
+          question: question.body,
+          reply: body,
+        })
+        .catch((err) =>
+          console.error('Error sending portal reply email:', err),
+        );
+    }
 
     return {
       entry,
@@ -710,8 +940,103 @@ export class PatientPortalsService {
       select: ENTRY_SELECT,
     });
 
+    const patient = await this.prisma.patient.findFirst({
+      where: { id: patientId, nutritionistId },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        nutritionist: {
+          select: {
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    if (patient) {
+      const invitation = await this.prisma.patientPortalInvitation.findFirst({
+        where: {
+          patientId,
+          nutritionistId,
+          status: 'ACTIVE',
+          revokedAt: null,
+          blockedAt: null,
+        },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          email: true,
+        },
+      });
+
+      const recipientEmail = invitation?.email || patient.email || null;
+      if (recipientEmail) {
+        this.mailService
+          .sendPatientPortalMessageEmail({
+            email: recipientEmail,
+            patientName: patient.fullName,
+            nutritionistName: patient.nutritionist.fullName,
+            message: body.trim(),
+          })
+          .catch((err) =>
+            console.error('Error sending portal message email:', err),
+          );
+      }
+    }
+
     return {
       entry,
+      overview: await this.buildOverview(nutritionistId, patientId),
+    };
+  }
+
+  async requestAppointment(
+    session: PortalSessionPayload,
+    dto: RequestAppointmentDto,
+  ) {
+    const { patientId, nutritionistId } = session;
+
+    const calendar = await this.prisma.appointmentCalendar.findFirst({
+      where: { nutritionistId },
+    });
+
+    if (!calendar) {
+      throw new BadRequestException(
+        'El nutricionista no tiene agenda configurada',
+      );
+    }
+
+    const patient = await this.prisma.patient.findFirst({
+      where: { id: patientId, nutritionistId },
+      select: { fullName: true, email: true, phone: true },
+    });
+
+    if (!patient) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
+
+    if (!dto.startAt || !dto.endAt) {
+      throw new BadRequestException('Debes seleccionar un horario disponible');
+    }
+
+    const appointment = await this.appointmentsService.requestAppointment(
+      nutritionistId,
+      {
+        calendarId: calendar.id,
+        nutritionistId,
+        patientId,
+        guestName: patient.fullName,
+        guestEmail: patient.email || undefined,
+        guestPhone: patient.phone || undefined,
+        start: dto.startAt,
+        end: dto.endAt,
+        message: dto.message,
+        source: 'patient-portal',
+      },
+    );
+
+    return {
+      appointment,
       overview: await this.buildOverview(nutritionistId, patientId),
     };
   }
@@ -822,56 +1147,84 @@ export class PatientPortalsService {
     const latestInvitation = invitations[0] || null;
     const sharingInvitation = activeInvitation || latestInvitation;
 
-    const [sharedResources, sharedDeliverables] = await Promise.all([
-      sharingInvitation?.resourceIds?.length
-        ? this.prisma.resource.findMany({
-            where: {
-              id: { in: sharingInvitation.resourceIds },
-              OR: [
-                { nutritionistId },
-                { isPublic: true },
-                { nutritionistId: null },
+    const [sharedResources, sharedDeliverables, appointments] =
+      await Promise.all([
+        sharingInvitation?.resourceIds?.length
+          ? this.prisma.resource.findMany({
+              where: {
+                id: { in: sharingInvitation.resourceIds },
+                OR: [
+                  { nutritionistId },
+                  { isPublic: true },
+                  { nutritionistId: null },
+                ],
+              },
+              orderBy: { updatedAt: 'desc' },
+              select: {
+                id: true,
+                title: true,
+                content: true,
+                category: true,
+                tags: true,
+                isPublic: true,
+                format: true,
+                fileUrl: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            })
+          : Promise.resolve([] as PortalResource[]),
+        sharingInvitation?.deliverableCreationIds?.length
+          ? this.prisma.creation.findMany({
+              where: {
+                id: { in: sharingInvitation.deliverableCreationIds },
+                nutritionistId,
+                type: {
+                  in: ['DIET', 'SHOPPING_LIST', 'RECIPE', 'FAST_DELIVERABLE'],
+                },
+              },
+              orderBy: { updatedAt: 'desc' },
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                format: true,
+                content: true,
+                metadata: true,
+                tags: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            })
+          : Promise.resolve([] as PortalDeliverable[]),
+        this.prisma.appointment.findMany({
+          where: {
+            patientId,
+            status: {
+              in: [
+                'REQUESTED' as const,
+                'SCHEDULED' as const,
+                'CONFIRMED' as const,
               ],
             },
-            orderBy: { updatedAt: 'desc' },
-            select: {
-              id: true,
-              title: true,
-              content: true,
-              category: true,
-              tags: true,
-              isPublic: true,
-              format: true,
-              fileUrl: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-          })
-        : Promise.resolve([] as PortalResource[]),
-      sharingInvitation?.deliverableCreationIds?.length
-        ? this.prisma.creation.findMany({
-            where: {
-              id: { in: sharingInvitation.deliverableCreationIds },
-              nutritionistId,
-              type: {
-                in: ['DIET', 'SHOPPING_LIST', 'RECIPE', 'FAST_DELIVERABLE'],
-              },
-            },
-            orderBy: { updatedAt: 'desc' },
-            select: {
-              id: true,
-              name: true,
-              type: true,
-              format: true,
-              content: true,
-              metadata: true,
-              tags: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-          })
-        : Promise.resolve([] as PortalDeliverable[]),
-    ]);
+            OR: [
+              { status: 'REQUESTED' as const },
+              { startTime: { gte: new Date() } },
+            ],
+          },
+          orderBy: { startTime: 'asc' },
+          take: 10,
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            startTime: true,
+            endTime: true,
+            status: true,
+            notes: true,
+          },
+        }),
+      ]);
 
     const normalizedEntries = entries.map((entry) =>
       this.normalizeEntry(entry),
@@ -916,6 +1269,10 @@ export class PatientPortalsService {
       ),
       sharedResources,
       sharedDeliverables,
+      appointments: appointments.map((apt) => ({
+        ...apt,
+        meetingUrl: null,
+      })),
       status: activeInvitation?.status || 'NONE',
     };
   }

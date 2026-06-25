@@ -1,10 +1,11 @@
 import * as path from 'path';
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import * as fs from 'fs';
 import * as XLSX from 'xlsx';
 import { loadPrismaEnv } from './load-prisma-env';
 import { replaceDefaultResources } from './resource-seed';
+import { getMembershipPlanEntitlements } from '../src/modules/memberships/plan-entitlements';
 
 loadPrismaEnv();
 
@@ -195,56 +196,60 @@ async function main() {
   // 4. Create Membership Plans
   const plans = [
     {
-      name: 'Plan Gratuito',
+      name: 'Gratis',
       slug: 'free',
       description: 'Ideal para nutricionistas que están comenzando su consulta.',
       price: 0,
       currency: 'CLP',
       billingPeriod: 'monthly',
-      features: ['Hasta 10 pacientes', 'Cálculos nutricionales básicos', 'Exportación a PDF con marca de agua', 'Soporte vía email'],
-      maxPatients: 10,
+      features: ['3 pacientes activos', '5 consultas al mes', 'PDFs con marca de agua', 'Base de ingredientes', 'Soporte vía email'],
+      maxPatients: 3,
       isPopular: false,
-      displayOrder: 1
+      displayOrder: 1,
+      entitlements: getMembershipPlanEntitlements('free'),
     },
     {
-      name: 'Plan Profesional',
-      slug: 'pro',
-      description: 'Todo lo que necesitas para escalar tu consulta al siguiente nivel.',
+      name: 'Iniciante',
+      slug: 'iniciante',
+      description: 'Para nutricionistas con pocos clientes o para probar funciones extra.',
       price: 19990,
       currency: 'CLP',
       billingPeriod: 'monthly',
-      features: ['Pacientes ilimitados', 'IA Generadora de Dietas', 'Lista de compras inteligente', 'Perfil de paciente CRM completo', 'Sin marcas de agua', 'Soporte prioritario'],
+      features: ['30 pacientes activos', '60 consultas al mes', '30 PDFs al mes', '2 seguimientos privados activos', 'Base de ingredientes', 'Calculadora clínica', 'Grupos de alimentos', '20 llamadas a IA'],
       maxPatients: null,
       isPopular: true,
-      displayOrder: 2
+      displayOrder: 2,
+      entitlements: getMembershipPlanEntitlements('iniciante'),
     },
     {
-      name: 'Plan Enterprise',
-      slug: 'enterprise',
-      description: 'Para clínicas y centros de salud con múltiples profesionales.',
-      price: 49990,
+      name: 'Pro',
+      slug: 'pro',
+      description: 'Plan profesional completo para automatizar y crecer.',
+      price: 39990,
       currency: 'CLP',
       billingPeriod: 'monthly',
-      features: ['Múltiples cuentas de nutricionista', 'Gestión de inventario de suplementos', 'Integración con laboratorios', 'Panel de administración avanzado', 'Capacitación personalizada'],
+      features: ['Pacientes ilimitados', 'Consultas ilimitadas', 'PDFs ilimitados', 'Relleno automático de IA', 'Gestión de citas', 'Google Calendar', 'Portal de nutricionista', 'Boletas SII'],
       maxPatients: null,
       isPopular: false,
-      displayOrder: 3
+      displayOrder: 3,
+      entitlements: getMembershipPlanEntitlements('pro'),
     }
   ];
 
   for (const plan of plans) {
     await prisma.membershipPlan.upsert({
       where: { slug: plan.slug },
-      update: {
-        name: plan.name,
-        description: plan.description,
-        price: plan.price,
-        features: plan.features,
-        isPopular: plan.isPopular,
-        displayOrder: plan.displayOrder
-      },
-      create: {
-        ...plan,
+        update: {
+          name: plan.name,
+          description: plan.description,
+          price: plan.price,
+          features: plan.features,
+          entitlements: plan.entitlements,
+          isPopular: plan.isPopular,
+          displayOrder: plan.displayOrder
+        },
+        create: {
+          ...plan,
         features: plan.features as any // Prisma JSON field
       },
     });

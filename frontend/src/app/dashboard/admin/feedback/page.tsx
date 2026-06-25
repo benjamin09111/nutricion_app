@@ -27,13 +27,13 @@ interface Feedback {
   email: string;
   message: string;
   type:
-  | "PASSWORD_RESET"
-  | "CONTACT"
-  | "OTHER"
-  | "FEEDBACK"
-  | "TESTIMONIO"
-  | "COMPLAINT"
-  | "IDEA";
+    | "PASSWORD_RESET"
+    | "CONTACT"
+    | "OTHER"
+    | "FEEDBACK"
+    | "TESTIMONIO"
+    | "COMPLAINT"
+    | "IDEA";
   status: "PENDING" | "IN_PROGRESS" | "RESOLVED";
   createdAt: string;
   updatedAt: string;
@@ -47,19 +47,23 @@ export default function AdminFeedbackPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [feedbackToDelete, setFeedbackToDelete] = useState<string | null>(null);
+  const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(
+    null,
+  );
+  const [resolutionNote, setResolutionNote] = useState("");
+  const [isResolving, setIsResolving] = useState(false);
+  const [isDeleteResolvedConfirmOpen, setIsDeleteResolvedConfirmOpen] =
+    useState(false);
 
   const fetchFeedback = async () => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetchApi(
-        `/support`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      const response = await fetchApi(`/support`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
       if (!response.ok) throw new Error("Error al cargar feedback");
 
@@ -79,26 +83,37 @@ export default function AdminFeedbackPage() {
     }
   }, [isAdmin]);
 
-  const handleResolve = async (id: string) => {
+  const handleResolve = async () => {
+    if (!selectedFeedback) return;
+
+    setIsResolving(true);
     try {
       const token = localStorage.getItem("auth_token");
       const response = await fetchApi(
-        `/support/${id}/resolve`,
+        `/support/${selectedFeedback.id}/resolve`,
         {
           method: "PATCH",
           headers: {
             Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            adminMessage: resolutionNote.trim() || undefined,
+          }),
         },
       );
 
       if (!response.ok) throw new Error("Error al resolver feedback");
 
-      toast.success("Feedback marcado como resuelto");
-      fetchFeedback(); // Refresh list
+      toast.success("Feedback marcado como resuelto y correo enviado");
+      setSelectedFeedback(null);
+      setResolutionNote("");
+      fetchFeedback();
     } catch (error) {
       console.error(error);
       toast.error("Error al actualizar el estado");
+    } finally {
+      setIsResolving(false);
     }
   };
 
@@ -106,27 +121,54 @@ export default function AdminFeedbackPage() {
     if (!feedbackToDelete) return;
     try {
       const token = localStorage.getItem("auth_token");
-      const response = await fetchApi(
-        `/support/${feedbackToDelete}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      const response = await fetchApi(`/support/${feedbackToDelete}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
       if (!response.ok) throw new Error("Error al eliminar feedback");
 
       toast.success("Feedback eliminado");
       // Remove from state immediately to feel snappy
-      setFeedbackList((prev) => prev.filter((item) => item.id !== feedbackToDelete));
+      setFeedbackList((prev) =>
+        prev.filter((item) => item.id !== feedbackToDelete),
+      );
     } catch (error) {
       console.error(error);
       toast.error("Error al eliminar");
     } finally {
       setIsDeleteConfirmOpen(false);
       setFeedbackToDelete(null);
+    }
+  };
+
+  const handleDeleteResolved = async () => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetchApi("/support/resolved", {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Error al eliminar feedback resueltos");
+
+      const data = await response.json().catch(() => null);
+      const deletedCount = data?.count ?? data?.deletedCount ?? 0;
+      toast.success(
+        deletedCount > 0
+          ? `Se eliminaron ${deletedCount} feedback resueltos`
+          : "No había feedback resueltos para eliminar",
+      );
+      fetchFeedback();
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al limpiar feedback resueltos");
+    } finally {
+      setIsDeleteResolvedConfirmOpen(false);
     }
   };
 
@@ -195,6 +237,10 @@ export default function AdminFeedbackPage() {
     return matchesType && matchesSearch;
   });
 
+  const resolvedCount = feedbackList.filter(
+    (item) => item.status === "RESOLVED",
+  ).length;
+
   return (
     <div className="max-w-7xl mx-auto py-8 px-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -209,13 +255,28 @@ export default function AdminFeedbackPage() {
             Gestiona las sugerencias, reportes y mensajes de los usuarios.
           </p>
         </div>
-        <button
-          onClick={fetchFeedback}
-          className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors self-start md:self-center"
-          title="Recargar"
-        >
-          <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
-        </button>
+        <div className="flex items-center gap-2 self-start md:self-center">
+          <button
+            onClick={() => setIsDeleteResolvedConfirmOpen(true)}
+            className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Eliminar feedback resueltos"
+            disabled={resolvedCount === 0}
+          >
+            <Trash2 size={16} />
+            Eliminar resueltos
+            <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-rose-600">
+              {resolvedCount}
+            </span>
+          </button>
+
+          <button
+            onClick={fetchFeedback}
+            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors cursor-pointer"
+            title="Recargar"
+          >
+            <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -266,13 +327,31 @@ export default function AdminFeedbackPage() {
             {filteredFeedback.map((item) => (
               <div
                 key={item.id}
-                className="p-4 sm:p-6 hover:bg-slate-50 transition-colors group"
+                className={`p-4 sm:p-6 transition-colors group ${item.status !== "RESOLVED" ? "hover:bg-slate-50 cursor-pointer" : ""}`}
+                role={item.status !== "RESOLVED" ? "button" : undefined}
+                tabIndex={item.status !== "RESOLVED" ? 0 : -1}
+                onClick={
+                  item.status !== "RESOLVED"
+                    ? () => setSelectedFeedback(item)
+                    : undefined
+                }
+                onKeyDown={
+                  item.status !== "RESOLVED"
+                    ? (event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedFeedback(item);
+                        }
+                      }
+                    : undefined
+                }
               >
                 <div className="flex flex-col sm:flex-row gap-4 items-start justify-between">
                   <div className="flex gap-4 w-full">
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 mt-1 ${getTypeColor(item.type).split(" ")[0]
-                        }`}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 mt-1 ${
+                        getTypeColor(item.type).split(" ")[0]
+                      }`}
                     >
                       {getTypeIcon(item.type)}
                     </div>
@@ -324,26 +403,32 @@ export default function AdminFeedbackPage() {
                   <div className="flex items-center gap-2 self-end sm:self-start shrink-0 ml-14 sm:ml-0">
                     {item.status !== "RESOLVED" && (
                       <button
-                        onClick={() => handleResolve(item.id)}
-                        className="text-xs font-medium bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all shadow-sm flex items-center gap-1"
-                        title="Marcar como resuelto"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedFeedback(item);
+                        }}
+                        className="text-xs font-medium bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                        title="Responder feedback"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Resolver</span>
+                        <Mail className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Responder</span>
                       </button>
                     )}
 
-                    <button
-                      onClick={() => {
-                        setFeedbackToDelete(item.id);
-                        setIsDeleteConfirmOpen(true);
-                      }}
-                      className="text-xs font-medium bg-white border border-slate-200 text-rose-600 px-3 py-1.5 rounded-lg hover:bg-rose-50 hover:border-rose-200 transition-all shadow-sm flex items-center gap-1"
-                      title="Eliminar permanentemente"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Eliminar</span>
-                    </button>
+                    <div className="ml-2 pl-2 border-l border-slate-200">
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setFeedbackToDelete(item.id);
+                          setIsDeleteConfirmOpen(true);
+                        }}
+                        className="text-xs font-medium bg-rose-50 border border-rose-200 text-rose-700 px-3 py-1.5 rounded-lg hover:bg-rose-100 hover:border-rose-300 transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                        title="Eliminar permanentemente"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Eliminar</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -351,6 +436,110 @@ export default function AdminFeedbackPage() {
           </div>
         )}
       </div>
+
+      <ConfirmationModal
+        isOpen={selectedFeedback !== null}
+        onClose={() => {
+          setSelectedFeedback(null);
+          setResolutionNote("");
+        }}
+        onConfirm={handleResolve}
+        title={
+          selectedFeedback
+            ? "Responder feedback y cerrar"
+            : "Responder feedback y cerrar"
+        }
+        description="Revisa el comentario, agrega una respuesta opcional y envía el correo de cierre."
+        confirmText="Marcar resuelto y enviar correo"
+        variant="primary"
+        isLoading={isResolving}
+        size="xl"
+      >
+        {selectedFeedback && (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400 mb-1">
+                  Tipo
+                </p>
+                <div
+                  className={`inline-flex ${getTypeColor(selectedFeedback.type)} px-3 py-1 rounded-full text-xs font-bold border`}
+                >
+                  {getTypeLabel(selectedFeedback.type)}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400 mb-1">
+                  Estado
+                </p>
+                <p className="text-sm font-semibold text-slate-700">
+                  {selectedFeedback.status === "RESOLVED"
+                    ? "Resuelto"
+                    : "Pendiente"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400 mb-1">
+                  Recibido
+                </p>
+                <p className="text-sm font-semibold text-slate-700">
+                  {formatDistanceToNow(new Date(selectedFeedback.createdAt), {
+                    addSuffix: true,
+                    locale: es,
+                  })}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-indigo-100 bg-indigo-50/60 p-5">
+              <div className="flex items-center gap-2 mb-3 text-indigo-700 font-semibold">
+                <MessageSquare className="w-4 h-4" />
+                Feedback recibido
+              </div>
+              <div className="rounded-2xl bg-white border border-indigo-100 p-4">
+                <p className="text-sm font-medium text-slate-900 break-all">
+                  {selectedFeedback.email}
+                </p>
+                <p className="mt-3 whitespace-pre-wrap leading-relaxed text-slate-700">
+                  {selectedFeedback.message || (
+                    <span className="italic text-slate-400">Sin mensaje</span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-slate-700">
+                Mensaje adicional para el correo (opcional)
+              </label>
+              <textarea
+                value={resolutionNote}
+                onChange={(event) => setResolutionNote(event.target.value)}
+                rows={5}
+                placeholder="Ej: Gracias por avisarnos. Ya ajustamos el comportamiento para que sea más claro."
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+              />
+              <p className="text-xs text-slate-500">
+                El correo saldrá desde{" "}
+                <span className="font-semibold text-slate-700">
+                  soporte@nutrinet.cl
+                </span>{" "}
+                y se enviará al marcarlo como resuelto.
+              </p>
+            </div>
+          </div>
+        )}
+      </ConfirmationModal>
+
+      <ConfirmationModal
+        isOpen={isDeleteResolvedConfirmOpen}
+        onClose={() => setIsDeleteResolvedConfirmOpen(false)}
+        onConfirm={handleDeleteResolved}
+        title="¿Eliminar feedback resueltos?"
+        description="Esta acción eliminará de la base de datos todos los feedback que ya estén marcados como resueltos."
+        confirmText="Sí, eliminar"
+        variant="destructive"
+      />
 
       <ConfirmationModal
         isOpen={isDeleteConfirmOpen}

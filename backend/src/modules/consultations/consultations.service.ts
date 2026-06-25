@@ -8,6 +8,7 @@ import { CreateConsultationDto } from './dto/create-consultation.dto';
 import { UpdateConsultationDto } from './dto/update-consultation.dto';
 
 import { CacheService } from '../../common/services/cache.service';
+import { PermissionsService } from '../permissions/permissions.service';
 
 type ConsultationMetric = {
   key?: string;
@@ -40,30 +41,59 @@ const normalizeMetricKey = (label: string = '', key?: string) => {
     .replace(/\s+/g, '_');
 };
 
+const consultationSelect = {
+  id: true,
+  patientId: true,
+  nutritionistId: true,
+  date: true,
+  title: true,
+  description: true,
+  metrics: true,
+  updatedAt: true,
+  patient: {
+    select: {
+      fullName: true,
+    },
+  },
+} as const;
+
 @Injectable()
 export class ConsultationsService {
   constructor(
     private prisma: PrismaService,
     private cacheService: CacheService,
+    private permissionsService: PermissionsService,
   ) {}
 
   async create(
+    accountId: string,
     nutritionistId: string,
     createConsultationDto: CreateConsultationDto,
   ) {
+    const now = new Date();
+    const startOfMonth = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+    const consultationsThisMonth = await this.prisma.consultation.count({
+      where: {
+        nutritionistId,
+        date: { gte: startOfMonth },
+      },
+    });
+
+    await this.permissionsService.ensureWithinLimit(
+      accountId,
+      'consultations.monthly.limit',
+      consultationsThisMonth,
+    );
+
     const consultation = await this.prisma.consultation.create({
       data: {
         ...createConsultationDto,
         nutritionistId,
         date: new Date(createConsultationDto.date),
       },
-      include: {
-        patient: {
-          select: {
-            fullName: true,
-          },
-        },
-      },
+      select: consultationSelect,
     });
 
     // Sync patient data if metrics are present
@@ -135,13 +165,7 @@ export class ConsultationsService {
         skip,
         take: limit,
         orderBy: { date: 'desc' },
-        include: {
-          patient: {
-            select: {
-              fullName: true,
-            },
-          },
-        },
+        select: consultationSelect,
       }),
     ]);
 
@@ -161,13 +185,7 @@ export class ConsultationsService {
   async findOne(nutritionistId: string, id: string) {
     const consultation = await this.prisma.consultation.findUnique({
       where: { id },
-      include: {
-        patient: {
-          select: {
-            fullName: true,
-          },
-        },
-      },
+      select: consultationSelect,
     });
 
     if (!consultation) {
@@ -201,13 +219,7 @@ export class ConsultationsService {
     const consultation = await this.prisma.consultation.update({
       where: { id },
       data,
-      include: {
-        patient: {
-          select: {
-            fullName: true,
-          },
-        },
-      },
+      select: consultationSelect,
     });
 
     // Sync patient data if metrics are present

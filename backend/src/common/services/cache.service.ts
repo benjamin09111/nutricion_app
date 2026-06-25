@@ -58,7 +58,7 @@ export class CacheService {
       try {
         // Try passing pattern first (works for Redis)
         keys = await store.keys(pattern);
-      } catch (e) {
+      } catch {
         // If it fails, it might require no arguments
         keys = await store.keys();
       }
@@ -85,10 +85,13 @@ export class CacheService {
       }
     } catch (error) {
       this.logger.error(
-        `Error invalidating cache for pattern ${pattern}. Forcing full cache wipe.`,
+        `Error invalidating cache for pattern ${pattern}.`,
         error,
       );
-      await this.reset();
+      // Do NOT reset the entire cache — stale data is preferable to losing all cached data globally
+      this.logger.warn(
+        'Skipping full cache wipe to prevent performance degradation.',
+      );
     }
   }
 

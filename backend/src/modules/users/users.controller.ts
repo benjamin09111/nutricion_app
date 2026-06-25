@@ -3,6 +3,7 @@ import {
   Get,
   Body,
   Patch,
+  Delete,
   Param,
   UseGuards,
   Query,
@@ -11,10 +12,16 @@ import {
   Post,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import {
+  SPECIAL_FEATURES,
+  isAdminRole,
+} from '../permissions/permissions.constants';
 
 @Controller('users')
-// @UseGuards(AuthGuard('jwt')) -> Moved to individual methods to allow public access to count
+// @UseGuards(AuthGuard) -> Moved to individual methods to allow public access to count
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -25,19 +32,39 @@ export class UsersController {
   }
 
   @Get()
-  @UseGuards(AuthGuard('jwt'))
-  findAll(@Query('role') role?: any, @Query('search') search?: string) {
-    return this.usersService.findAll(role, search);
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
+  findAll(
+    @Query('role') role?: any,
+    @Query('search') search?: string,
+    @Query('visibility') visibility?: 'all' | 'public' | 'hidden',
+    @Query('plan') plan?: string,
+    @Query('status') status?: string,
+    @Query('payment') payment?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.usersService.findAll(
+      role,
+      search,
+      visibility,
+      plan,
+      status,
+      payment,
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined,
+    );
   }
 
   @Patch('me/settings')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard)
   async updateMySettings(@Request() req: any, @Body() body: any) {
     return this.usersService.updateMySettings(req.user.id, body);
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   async update(
     @Param('id') id: string,
     @Body() body: any,
@@ -45,7 +72,7 @@ export class UsersController {
   ) {
     // 1. Basic check: must be at least some kind of admin
     const requesterRole = req.user.role;
-    if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(requesterRole)) {
+    if (!isAdminRole(requesterRole)) {
       throw new UnauthorizedException(
         'Solo personal autorizado puede realizar esta acción',
       );
@@ -57,9 +84,7 @@ export class UsersController {
       throw new UnauthorizedException('Usuario no encontrado');
     }
 
-    const isTargetAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(
-      targetUser.role,
-    );
+    const isTargetAdmin = isAdminRole(targetUser.role);
     const isRequestingMaster = body.role === 'ADMIN_MASTER';
     const isChangingStatusOfAdmin = isTargetAdmin && body.status !== undefined;
 
@@ -79,13 +104,14 @@ export class UsersController {
   }
 
   @Patch(':id/plan')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   updatePlan(
     @Param('id') id: string,
     @Body() body: { plan: string; days?: number },
     @Request() req: any,
   ) {
-    if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
+    if (!isAdminRole(req.user.role)) {
       throw new UnauthorizedException(
         'Solo el administrador puede cambiar planes',
       );
@@ -93,10 +119,31 @@ export class UsersController {
     return this.usersService.updatePlan(id, body.plan as any, body.days);
   }
 
+  @Patch(':id/public-profile')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
+  updatePublicProfileVisibility(
+    @Param('id') id: string,
+    @Body() body: { publicProfileEnabled: boolean },
+    @Request() req: any,
+  ) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException(
+        'Solo el administrador puede gestionar el portal público',
+      );
+    }
+
+    return this.usersService.updatePublicProfileVisibility(
+      id,
+      body.publicProfileEnabled === true,
+    );
+  }
+
   @Post('reset-unpaid-plans')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   resetUnpaidPlans(@Request() req: any) {
-    if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(req.user.role)) {
+    if (!isAdminRole(req.user.role)) {
       throw new UnauthorizedException(
         'Solo el administrador puede resetear planes',
       );
@@ -105,11 +152,12 @@ export class UsersController {
   }
 
   @Patch(':id/delete')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   async softDelete(@Param('id') id: string, @Request() req: any) {
     // Permissions check: must be at least some kind of admin
     const requesterRole = req.user.role;
-    if (!['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(requesterRole)) {
+    if (!isAdminRole(requesterRole)) {
       throw new UnauthorizedException(
         'Solo personal autorizado puede realizar esta acción',
       );
@@ -122,15 +170,39 @@ export class UsersController {
     }
 
     // SECURE RULE: Only ADMIN_MASTER can delete another Admin
-    const isTargetAdmin = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'].includes(
-      targetUser.role,
-    );
+    const isTargetAdmin = isAdminRole(targetUser.role);
     if (isTargetAdmin && requesterRole !== 'ADMIN_MASTER') {
       throw new UnauthorizedException(
         'Solo un Admin Master puede eliminar a otros administradores',
       );
     }
 
-    return this.usersService.softDelete(id);
+    return this.usersService.hardDelete(id);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
+  async hardDelete(@Param('id') id: string, @Request() req: any) {
+    const requesterRole = req.user.role;
+    if (!isAdminRole(requesterRole)) {
+      throw new UnauthorizedException(
+        'Solo personal autorizado puede realizar esta acción',
+      );
+    }
+
+    const targetUser = await this.usersService.findOne(id);
+    if (!targetUser) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    const isTargetAdmin = isAdminRole(targetUser.role);
+    if (isTargetAdmin && requesterRole !== 'ADMIN_MASTER') {
+      throw new UnauthorizedException(
+        'Solo un Admin Master puede eliminar a otros administradores',
+      );
+    }
+
+    return this.usersService.hardDelete(id);
   }
 }

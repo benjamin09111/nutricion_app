@@ -1,19 +1,46 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { User, Lock, Save, Eye, EyeOff, Sun, Moon, Type, FileText } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
+import { User, Lock, Save, Eye, EyeOff, Sun, Moon, Type, FileText, Globe, MapPin, Phone, Mail, Calendar, Check, Crown, Clock, AlertCircle, BadgeCheck, TestTube, ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Textarea } from "@/components/ui/Textarea";
 import { authService } from "@/features/auth/services/auth.service";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
 import { useTheme } from "@/context/ThemeContext";
 import { useFont } from "@/context/FontContext";
+import { cn } from "@/lib/utils";
+import { getPasswordRequirements, getPasswordStrength } from "@/lib/password-policy";
+import { MembershipPlanSection } from "./MembershipPlanSection";
 
 interface UserSettings {
   professionalInstagram?: string;
   professionalPhone?: string;
   professionalEmail?: string;
+  publicProfileEnabled?: boolean;
+  publicSlug?: string;
+  headline?: string;
+  bio?: string;
+  consultationMode?: string;
+  location?: string;
+  publicPhone?: string;
+  publicEmail?: string;
+  bookingEnabled?: boolean;
+  showPublicPhone?: boolean;
+  showPublicEmail?: boolean;
+  showInstagram?: boolean;
+  showLinkedin?: boolean;
+  showSchedule?: boolean;
+  conditionsTreated?: string;
+  patientTypes?: string;
+  prices?: string;
+  officeAddress?: string;
+  paymentMethods?: string;
+  acceptedInsurance?: string;
+  linkedin?: string;
+  country?: string;
 }
 
 const LEGAL_SECTIONS = [
@@ -87,6 +114,7 @@ const LEGAL_SECTIONS = [
 
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"profile" | "account" | "membership">("profile");
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -94,6 +122,8 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const passwordStrength = getPasswordStrength(newPassword);
+  const passwordRequirements = getPasswordRequirements(newPassword);
 
   const [userData, setUserData] = useState<{
     email: string;
@@ -106,6 +136,32 @@ export default function SettingsPage() {
   const [professionalEmail, setProfessionalEmail] = useState("");
   const [isSavingProfessionalContact, setIsSavingProfessionalContact] =
     useState(false);
+
+  const [publicProfileEnabled, setPublicProfileEnabled] = useState(false);
+  const [publicSlug, setPublicSlug] = useState("");
+  const [headline, setHeadline] = useState("");
+  const [bio, setBio] = useState("");
+  const [consultationMode, setConsultationMode] = useState("online");
+  const [location, setLocation] = useState("");
+  const [publicPhone, setPublicPhone] = useState("");
+  const [publicEmail, setPublicEmail] = useState("");
+  const [bookingEnabled, setBookingEnabled] = useState(true);
+const [showPublicPhone, setShowPublicPhone] = useState(false);
+  const [showPublicEmail, setShowPublicEmail] = useState(true);
+  const [showInstagram, setShowInstagram] = useState(false);
+  const [showLinkedin, setShowLinkedin] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(true);
+  const [conditionsTreated, setConditionsTreated] = useState("");
+  const [patientTypes, setPatientTypes] = useState("");
+  const [prices, setPrices] = useState("");
+  const [officeAddress, setOfficeAddress] = useState("");
+  const [paymentMethods, setPaymentMethods] = useState("");
+  const [acceptedInsurance, setAcceptedInsurance] = useState("");
+  const [linkedin, setLinkedin] = useState("");
+  const [country, setCountry] = useState("Chile");
+  const [isSavingPublicProfile, setIsSavingPublicProfile] = useState(false);
+  const [publishedPublicSlug, setPublishedPublicSlug] = useState("");
+  const [highlightProfile, setHighlightProfile] = useState(false);
   const { theme, setTheme } = useTheme();
   const { fontPreference, setFontPreference } = useFont();
   useEffect(() => {
@@ -122,10 +178,54 @@ export default function SettingsPage() {
         setProfessionalInstagram(settings.professionalInstagram || "");
         setProfessionalPhone(settings.professionalPhone || "");
         setProfessionalEmail(settings.professionalEmail || "");
+
+        setPublicProfileEnabled(settings.publicProfileEnabled || false);
+        setPublicSlug(settings.publicSlug || "");
+        setPublishedPublicSlug(settings.publicSlug || "");
+        setHeadline(settings.headline || "");
+        setBio(settings.bio || "");
+        setConsultationMode(settings.consultationMode || "online");
+        setLocation(settings.location || "");
+        setPublicPhone(settings.publicPhone || "");
+        setPublicEmail(settings.publicEmail || "");
+        setBookingEnabled(settings.bookingEnabled !== false);
+        setShowPublicPhone(settings.showPublicPhone === true);
+        setShowPublicEmail(settings.showPublicEmail !== false);
+        setShowInstagram(settings.showInstagram === true);
+        setShowLinkedin(settings.showLinkedin === true);
+        setShowSchedule(settings.showSchedule !== false);
+        setConditionsTreated(settings.conditionsTreated || "");
+        setPatientTypes(settings.patientTypes || "");
+        setPrices(settings.prices || "");
+        setOfficeAddress(settings.officeAddress || "");
+        setPaymentMethods(settings.paymentMethods || "");
+        setAcceptedInsurance(settings.acceptedInsurance || "");
+        setLinkedin(settings.linkedin || "");
+        setCountry(settings.country || "Chile");
       } catch (e) {
         console.error("Error loading user data", e);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    const scrollToProfile = () => {
+      if (window.location.hash !== "#public-profile-section") return;
+      setActiveTab("profile");
+      const el = document.getElementById("public-profile-section");
+      if (!el) return;
+      window.scrollTo({ top: 0, behavior: "instant" });
+      requestAnimationFrame(() => {
+        const rect = el.getBoundingClientRect();
+        const offset = rect.top + window.scrollY - 100;
+        window.scrollTo({ top: offset, behavior: "smooth" });
+        setHighlightProfile(true);
+        setTimeout(() => setHighlightProfile(false), 2500);
+      });
+    };
+    scrollToProfile();
+    window.addEventListener("hashchange", scrollToProfile);
+    return () => window.removeEventListener("hashchange", scrollToProfile);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -137,8 +237,9 @@ export default function SettingsPage() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      toast.error("La nueva contraseña debe tener al menos 6 caracteres");
+    const unmetRequirements = passwordRequirements.filter((rule) => !rule.met);
+    if (unmetRequirements.length > 0) {
+      toast.error(unmetRequirements[0]?.label || "La nueva contraseña no cumple la política de seguridad");
       return;
     }
 
@@ -214,6 +315,90 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSavePublicProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingPublicProfile(true);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetchApi(`/users/me/settings`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          publicProfileEnabled,
+          publicSlug: publicSlug.trim() || undefined,
+          headline: headline.trim(),
+bio: bio.trim(),
+          consultationMode,
+          location: location.trim(),
+          publicPhone: publicPhone.trim(),
+          publicEmail: publicEmail.trim(),
+          bookingEnabled,
+          showPublicPhone,
+          showPublicEmail,
+          showInstagram,
+          showSchedule,
+          conditionsTreated: conditionsTreated.trim(),
+          patientTypes: patientTypes.trim(),
+          prices: prices.trim(),
+          officeAddress: officeAddress.trim(),
+          paymentMethods: paymentMethods.trim(),
+          acceptedInsurance: acceptedInsurance.trim(),
+          linkedin: linkedin.trim(),
+          country: country.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo guardar el perfil público");
+      }
+
+      const updatedNutritionist = await response.json().catch(() => null);
+
+      const resolvedSlug =
+        (updatedNutritionist?.publicSlug as string | undefined)?.trim() ||
+        publicSlug.trim() ||
+        "";
+
+      setPublicProfileEnabled(Boolean(updatedNutritionist?.publicProfileEnabled ?? publicProfileEnabled));
+      setPublishedPublicSlug(resolvedSlug);
+
+      toast.success("Perfil público guardado correctamente");
+
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        if (user.nutritionist) {
+          user.nutritionist.settings = {
+            ...user.nutritionist.settings,
+            publicProfileEnabled: Boolean(updatedNutritionist?.publicProfileEnabled ?? publicProfileEnabled),
+            publicSlug: resolvedSlug || undefined,
+            headline: headline.trim(),
+            bio: bio.trim(),
+            consultationMode,
+            location: location.trim(),
+            publicPhone: publicPhone.trim(),
+            publicEmail: publicEmail.trim(),
+            bookingEnabled,
+            showPublicPhone,
+            showPublicEmail,
+            showInstagram,
+            professionalInstagram: professionalInstagram.trim(),
+          };
+          localStorage.setItem("user", JSON.stringify(user));
+        }
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Hubo un error";
+      toast.error(message || "Hubo un error");
+    } finally {
+      setIsSavingPublicProfile(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -225,9 +410,45 @@ export default function SettingsPage() {
         </p>
       </div>
 
+      <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setActiveTab("profile")}
+          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+            activeTab === "profile"
+              ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200"
+              : "text-slate-500 hover:text-slate-900"
+          }`}
+        >
+          Mi perfil
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("account")}
+          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+            activeTab === "account"
+              ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200"
+              : "text-slate-500 hover:text-slate-900"
+          }`}
+        >
+          Cuenta
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("membership")}
+          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+            activeTab === "membership"
+              ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200"
+              : "text-slate-500 hover:text-slate-900"
+          }`}
+        >
+          Mi plan actual
+        </button>
+      </div>
+
       <div className="grid gap-6 md:grid-cols-2">
         {/* Profile Information */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm font-medium">
+        <div className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "profile" ? "" : "hidden"}`}>
           <div className="border-b border-slate-200 px-6 py-4">
             <div className="flex items-center gap-x-2">
               <User className="h-5 w-5 text-emerald-600" />
@@ -338,7 +559,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Security Settings */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm font-medium">
+        <div className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "account" ? "" : "hidden"}`}>
           <div className="border-b border-slate-200 px-6 py-4">
             <div className="flex items-center gap-x-2">
               <Lock className="h-5 w-5 text-emerald-600" />
@@ -356,7 +577,7 @@ export default function SettingsPage() {
                 <div className="relative">
                   <Input
                     type={showCurrentPassword ? "text" : "password"}
-                    className="pr-10"
+                    className="pr-11"
                     placeholder="••••••••"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
@@ -365,7 +586,8 @@ export default function SettingsPage() {
               <button
                     type="button"
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-400 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
+                    aria-label={showCurrentPassword ? "Ocultar contraseña actual" : "Ver contraseña actual"}
                   >
                     {showCurrentPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -383,8 +605,8 @@ export default function SettingsPage() {
                 <div className="relative">
                   <Input
                     type={showNewPassword ? "text" : "password"}
-                    className="pr-10"
-                    placeholder="Mínimo 6 caracteres"
+                    className="pr-11"
+                    placeholder="Mínimo 8 caracteres"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
@@ -392,7 +614,8 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-400 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
+                    aria-label={showNewPassword ? "Ocultar nueva contraseña" : "Ver nueva contraseña"}
                   >
                     {showNewPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -401,6 +624,61 @@ export default function SettingsPage() {
                     )}
                   </button>
                 </div>
+                {newPassword.length > 0 && (
+                <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                      Seguridad
+                    </span>
+                    <span
+                      className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${
+                        passwordStrength.tone === "emerald"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : passwordStrength.tone === "indigo"
+                            ? "bg-indigo-100 text-indigo-700"
+                            : passwordStrength.tone === "amber"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-rose-100 text-rose-700"
+                      }`}
+                    >
+                      {passwordStrength.label}
+                    </span>
+                  </div>
+                  <div className="mb-4 h-2 overflow-hidden rounded-full bg-white">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        passwordStrength.tone === "emerald"
+                          ? "bg-emerald-500"
+                          : passwordStrength.tone === "indigo"
+                            ? "bg-indigo-500"
+                            : passwordStrength.tone === "amber"
+                              ? "bg-amber-500"
+                              : "bg-rose-500"
+                      }`}
+                      style={{
+                        width: `${Math.min(100, (passwordStrength.score / 6) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {passwordRequirements.map((rule) => (
+                      <div
+                        key={rule.key}
+                        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium ${
+                          rule.met
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 bg-white text-slate-500"
+                        }`}
+                      >
+                        <Check
+                          className={`h-3.5 w-3.5 ${rule.met ? "opacity-100" : "opacity-25"}`}
+                        />
+                        {rule.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                )}
               </div>
 
               <div>
@@ -410,7 +688,7 @@ export default function SettingsPage() {
                 <div className="relative">
                   <Input
                     type={showConfirmPassword ? "text" : "password"}
-                    className="pr-10"
+                    className="pr-11"
                     placeholder="Repite tu nueva contraseña"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -419,7 +697,8 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-400 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
+                    aria-label={showConfirmPassword ? "Ocultar confirmación" : "Ver confirmación"}
                   >
                     {showConfirmPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -445,7 +724,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm font-medium">
+      <div className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "account" ? "" : "hidden"}`}>
         <div className="border-b border-slate-200 px-6 py-4">
           <div className="flex items-center gap-x-2">
             <Type className="h-5 w-5 text-emerald-600" />
@@ -540,7 +819,400 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm font-medium">
+      <div
+        className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium transition-all duration-700 ${activeTab === "profile" ? "" : "hidden"} ${
+          highlightProfile
+            ? "ring-4 ring-emerald-400/50 ring-offset-4 ring-offset-white shadow-xl shadow-emerald-200/60 scale-[1.02]"
+            : ""
+        }`}
+        id="public-profile-section"
+      >
+        <div className="border-b border-slate-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-x-2">
+              <Globe className="h-5 w-5 text-emerald-600" />
+              <h2 className="font-semibold text-slate-900">
+                Perfil Público
+              </h2>
+            </div>
+          </div>
+          <p className="mt-2 text-sm text-slate-500">
+            Permite que otros usuarios te encuentren y soliciten citas desde el directorio de nutricionistas.
+          </p>
+        </div>
+
+        <div className="p-6 space-y-6">
+          <div className={`rounded-2xl border p-5 ${publicProfileEnabled ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-slate-50"}`}>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-900">
+                  {publicProfileEnabled ? "Tu perfil ya es público" : "Activa tu perfil público"}
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {publicProfileEnabled
+                    ? "Ya apareces en el directorio y puedes recibir solicitudes."
+                    : "Haz visible tu perfil para que te encuentren desde Google y el directorio."}
+                </p>
+                {isSavingPublicProfile && (
+                  <p className="mt-2 text-sm font-semibold text-emerald-700">Publicando perfil...</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPublicProfileEnabled(!publicProfileEnabled)}
+                className={`inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-bold transition-all ${
+                  publicProfileEnabled
+                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                    : "bg-indigo-600 text-white hover:bg-indigo-700"
+                }`}
+              >
+                {publicProfileEnabled ? "Perfil público activo" : "Hacer perfil público"}
+              </button>
+            </div>
+            {publicProfileEnabled && publishedPublicSlug && !isSavingPublicProfile && (
+              <div className="mt-4">
+                <Link
+                  href={`/nutricionistas/${publishedPublicSlug}`}
+                  className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-white px-5 py-3 text-sm font-bold text-emerald-700 transition-colors hover:bg-emerald-50"
+                >
+                  Visitar mi perfil público
+                </Link>
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={handleSavePublicProfile} className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    URL pública (slug)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-500">nutrinet.cl/nutricionistas/</span>
+                    <Input
+                      type="text"
+                      value={publicSlug}
+                      onChange={(e) => setPublicSlug(e.target.value)}
+                      placeholder="tu-nombre"
+                      className="flex-1"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Deja vacío para generar automáticamente
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Frase corta (headline)
+                  </label>
+                  <Input
+                    type="text"
+                    value={headline}
+                    onChange={(e) => setHeadline(e.target.value)}
+                    placeholder="Nutricionista clínica especializada en..."
+                    maxLength={100}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">
+                  Bio / Descripción
+                </label>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Cuéntales a los pacientes sobre tu enfoque profesional, tu experiencia y cómo les puedes ayudar..."
+                  className="w-full min-h-[120px] rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none"
+                  maxLength={500}
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  {bio.length}/500 caracteres
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Modalidad de atención
+                  </label>
+                  <select
+                    value={consultationMode}
+                    onChange={(e) => setConsultationMode(e.target.value)}
+                    className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                  >
+                    <option value="online">Online</option>
+                    <option value="presencial">Presencial</option>
+                    <option value="both">Online y Presencial</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Ubicación (ciudad/comuna)
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      type="text"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="Santiago, Chile"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-6">
+                <h3 className="text-sm font-bold text-slate-700 mb-4">
+                  Información de contacto pública
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <Phone className="h-4 w-4 text-slate-500" />
+                      <span className="text-sm font-medium text-slate-700">Teléfono</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="text"
+                        value={publicPhone}
+                        onChange={(e) => setPublicPhone(e.target.value)}
+                        placeholder="+56 9 1234 5678"
+                        className="h-8 w-40 text-xs"
+                      />
+                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
+                        <div
+                          className={`relative w-9 h-5 rounded-full transition-colors ${showPublicPhone ? "bg-emerald-500" : "bg-slate-300"}`}
+                          onClick={() => setShowPublicPhone(!showPublicPhone)}
+                        >
+                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showPublicPhone ? "left-4.5" : "left-0.5"}`} />
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <Mail className="h-4 w-4 text-slate-500" />
+                      <span className="text-sm font-medium text-slate-700">Email</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="email"
+                        value={publicEmail}
+                        onChange={(e) => setPublicEmail(e.target.value)}
+                        placeholder="contacto@tuemail.cl"
+                        className="h-8 w-40 text-xs"
+                      />
+                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
+                        <div
+                          className={`relative w-9 h-5 rounded-full transition-colors ${showPublicEmail ? "bg-emerald-500" : "bg-slate-300"}`}
+                          onClick={() => setShowPublicEmail(!showPublicEmail)}
+                        >
+                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showPublicEmail ? "left-4.5" : "left-0.5"}`} />
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-base">📷</span>
+                      <span className="text-sm font-medium text-slate-700">Instagram</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="text"
+                        value={professionalInstagram}
+                        onChange={(e) => setProfessionalInstagram(e.target.value)}
+                        placeholder="@tuusuario"
+                        className="h-8 w-40 text-xs"
+                      />
+                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
+                        <div
+                          className={`relative w-9 h-5 rounded-full transition-colors ${showInstagram ? "bg-emerald-500" : "bg-slate-300"}`}
+                          onClick={() => setShowInstagram(!showInstagram)}
+                        >
+                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showInstagram ? "left-4.5" : "left-0.5"}`} />
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-base">💼</span>
+                      <span className="text-sm font-medium text-slate-700">LinkedIn</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="text"
+                        value={linkedin}
+                        onChange={(e) => setLinkedin(e.target.value)}
+                        placeholder="linkedin.com/in/tu-perfil"
+                        className="h-8 w-40 text-xs"
+                      />
+                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
+                        <div
+                          className={`relative w-9 h-5 rounded-full transition-colors ${showLinkedin ? "bg-emerald-500" : "bg-slate-300"}`}
+                          onClick={() => setShowLinkedin(!showLinkedin)}
+                        >
+                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showLinkedin ? "left-4.5" : "left-0.5"}`} />
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-4 w-4 text-slate-500" />
+                      <span className="text-sm font-medium text-slate-700">Horario en portal</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
+                        <div
+                          className={`relative w-9 h-5 rounded-full transition-colors ${showSchedule ? "bg-emerald-500" : "bg-slate-300"}`}
+                          onClick={() => setShowSchedule(!showSchedule)}
+                        >
+                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showSchedule ? "left-4.5" : "left-0.5"}`} />
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-6">
+                <h3 className="text-sm font-bold text-slate-700 mb-4">
+                  Información adicional del perfil público
+                </h3>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Enfermedades o temas tratados</label>
+                    <Input
+                      value={conditionsTreated}
+                      onChange={(e) => setConditionsTreated(e.target.value)}
+                      placeholder="Ej: Obesidad, diabetes, estrés, nutrición deportiva"
+                      className="h-10"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Tipos de pacientes</label>
+                    <Input
+                      value={patientTypes}
+                      onChange={(e) => setPatientTypes(e.target.value)}
+                      placeholder="Ej: Adultos, niños, athletes, embarazadas"
+                      className="h-10"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Precios y servicios</label>
+                    <Textarea
+                      value={prices}
+                      onChange={(e) => setPrices(e.target.value)}
+                      placeholder="Ej: Consulta online $40.000 | Primera consulta $60.000"
+                      rows={2}
+                      className="text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Dirección de consultorio</label>
+                    <Input
+                      value={officeAddress}
+                      onChange={(e) => setOfficeAddress(e.target.value)}
+                      placeholder="Ej: Av. Providencia 1234, oficina 502, Providencia, Santiago"
+                      className="h-10"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Formas de pago</label>
+                    <Input
+                      value={paymentMethods}
+                      onChange={(e) => setPaymentMethods(e.target.value)}
+                      placeholder="Ej: Efectivo, transferencia, debitocrédito"
+                      className="h-10"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Seguros aceptados</label>
+                    <Input
+                      value={acceptedInsurance}
+                      onChange={(e) => setAcceptedInsurance(e.target.value)}
+                      placeholder="Ej: Consalud, Banmédica,此地"
+                      className="h-10"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">País</label>
+                    <Input
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      placeholder="Ej: Chile"
+                      className="h-10"
+                    />
+                  </div>
+                </div>
+              </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <Calendar className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-900">Permitir solicitar citas</p>
+                      <p className="text-xs text-slate-500">
+                        {bookingEnabled
+                          ? "Los usuarios podrán pedir hora desde tu perfil público"
+                          : "Los usuarios podrán enviarte un mensaje directo y lo verás en tu módulo de citas"}
+                      </p>
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <div
+                      className={`relative w-11 h-6 rounded-full transition-colors ${
+                        bookingEnabled ? "bg-emerald-500" : "bg-slate-200"
+                      }`}
+                      onClick={() => setBookingEnabled(!bookingEnabled)}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          bookingEnabled ? "left-6" : "left-0.5"
+                        }`}
+                      />
+                    </div>
+                  </label>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                <Button
+                  type="submit"
+                  isLoading={isSavingPublicProfile}
+                  className="flex items-center gap-2 font-bold"
+                >
+                  {!isSavingPublicProfile && <Save className="h-4 w-4" />}
+                  Guardar Perfil Público
+                </Button>
+              </div>
+            </form>
+          </div>
+      </div>
+
+      <div className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "account" ? "" : "hidden"}`}>
         <div className="border-b border-slate-200 px-6 py-4">
           <div className="flex items-center gap-x-2">
             <FileText className="h-5 w-5 text-emerald-600" />
@@ -581,6 +1253,10 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Membresía Tab */}
+      <div className={`space-y-6 ${activeTab === "membership" ? "" : "hidden"}`}>
+        <MembershipPlanSection />
+      </div>
     </div>
   );
 }

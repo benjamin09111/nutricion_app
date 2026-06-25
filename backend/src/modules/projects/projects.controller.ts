@@ -16,9 +16,13 @@ import { AuthGuard } from '../auth/guards/auth.guard';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectsService } from './projects.service';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 
 @Controller('projects')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermissionsGuard)
+@RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 @UseInterceptors(HttpCacheInterceptor)
 @CacheTTL(300000)
 export class ProjectsController {

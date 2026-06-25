@@ -31,6 +31,11 @@ import { DietModule } from './modules/diet/diet.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { PatientPortalsModule } from './modules/patient-portals/patient-portals.module';
+import { AppointmentsModule } from './modules/appointments/appointments.module';
+import { PautasModule } from './modules/pautas/pautas.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AnnouncementsModule } from './modules/announcements/announcements.module';
+import { MessageTemplatesModule } from './modules/message-templates/message-templates.module';
 
 @Module({
   imports: [
@@ -52,9 +57,26 @@ import { PatientPortalsModule } from './modules/patient-portals/patient-portals.
     IngredientGroupsModule,
     RecipesModule,
     ScheduleModule.forRoot(),
-    CacheModule.register({
+    CacheModule.registerAsync({
       isGlobal: true,
-      ttl: 300, // 5 minutes
+      useFactory: async () => {
+        const redisUrl = process.env.REDIS_URL;
+        if (redisUrl) {
+          try {
+            return {
+              store: await redisStore({ url: redisUrl }),
+              ttl: 300_000, // cache-manager-redis-yet uses milliseconds
+            };
+          } catch (error) {
+            console.warn(
+              '[Cache] Redis unavailable, falling back to in-memory cache:',
+              error instanceof Error ? error.message : error,
+            );
+          }
+        }
+        // Fallback to in-memory store when Redis is not configured
+        return { ttl: 300 };
+      },
     }),
     DashboardModule,
     CreationsModule,
@@ -67,6 +89,11 @@ import { PatientPortalsModule } from './modules/patient-portals/patient-portals.
     ProjectsModule,
     PermissionsModule,
     PatientPortalsModule,
+    AppointmentsModule,
+    PautasModule,
+    NotificationsModule,
+    AnnouncementsModule,
+    MessageTemplatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -51,7 +51,7 @@
   {
     "id": "foods",
     "moduleKey": "foods",
-    "label": "Ingredientes",
+    "label": "Composición de alimentos",
     "routePatterns": ["/dashboard/alimentos", "/dashboard/alimentos/*"],
     "status": "planned"
   },
