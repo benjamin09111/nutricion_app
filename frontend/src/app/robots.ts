@@ -5,8 +5,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/nutricionistas", "/nutricionistas/"],
-        disallow: ["/dashboard", "/dashboard/", "/portal", "/portal/", "/login", "/api"],
+        allow: ["/privacy-policy", "/terms", "/sitemap.xml"],
+        disallow: ["/dashboard", "/portal", "/login", "/api", "/maintenance"],
       },
     ],
     sitemap: "https://nutrinet.cl/sitemap.xml",

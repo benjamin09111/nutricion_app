@@ -44,6 +44,10 @@ export class ApiKeyGuard implements CanActivate {
 
           headers['x-nutritionist-id'] = nutritionistId;
           headers['x-api-key'] = 'from-jwt';
+          (request as any).user = {
+            id: nutritionistId,
+            nutritionistId,
+          };
           return true;
         }
       } catch {

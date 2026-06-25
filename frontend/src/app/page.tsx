@@ -602,6 +602,15 @@ export default function LandingPage() {
               {content.footer.line2}
             </p>
           </div>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-sm font-medium text-[#a88aed]/75">
+            <Link href="/privacy-policy" className="transition-colors hover:text-[#8f70d8]">
+              Política de Privacidad
+            </Link>
+            <span className="text-[#a88aed]/30">•</span>
+            <Link href="/terms" className="transition-colors hover:text-[#8f70d8]">
+              Términos de Servicio
+            </Link>
+          </div>
           <div className={cn("text-sm pt-4", "text-[#a88aed]/60")}>
             {content.footer.copyright}
           </div>
