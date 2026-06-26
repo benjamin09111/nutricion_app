@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   EntitlementMap,
-  isAdminRole,
+  isStaffRole,
   normalizeEntitlementMap,
   SPECIAL_FEATURES,
 } from './permissions.constants';
@@ -18,7 +18,7 @@ const isSubscriptionSelectable = (account: {
   role: string;
   subscription: { status: string; endDate: Date | null } | null;
 }) => {
-  if (isAdminRole(account.role)) {
+  if (isStaffRole(account.role)) {
     return true;
   }
 
@@ -94,7 +94,7 @@ export class PermissionsService {
       entitlements: EntitlementMap;
     } | null,
   ): EntitlementMap {
-    if (isAdminRole(account.role)) {
+    if (isStaffRole(account.role)) {
       return { [SPECIAL_FEATURES.MEMBERSHIP_SELECTED]: true };
     }
 
@@ -165,7 +165,7 @@ export class PermissionsService {
 
     const { account, entitlements } = snapshot;
 
-    if (isAdminRole(account.role)) {
+    if (isStaffRole(account.role)) {
       return true;
     }
 
@@ -180,7 +180,7 @@ export class PermissionsService {
     const snapshot = await this.getAccountAccess(accountId);
 
     if (!snapshot) return 0;
-    if (isAdminRole(snapshot.role)) return Infinity;
+    if (isStaffRole(snapshot.role)) return Infinity;
 
     const value = snapshot.entitlements[limitKey];
     if (typeof value !== 'number') return 0;

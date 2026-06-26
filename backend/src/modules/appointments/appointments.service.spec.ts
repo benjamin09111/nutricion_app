@@ -38,7 +38,9 @@ const createGoogleIntegrationMock = () => ({
   getBusyEventsForCalendar: jest.fn().mockResolvedValue([]),
   syncAppointmentToGoogle: jest.fn().mockResolvedValue({ synced: false }),
   deleteAppointmentFromGoogle: jest.fn().mockResolvedValue({ deleted: false }),
-  getConnectionStatus: jest.fn().mockResolvedValue({ connected: false, googleEmail: null }),
+  getConnectionStatus: jest
+    .fn()
+    .mockResolvedValue({ connected: false, googleEmail: null }),
 });
 
 describe('AppointmentsService', () => {
@@ -65,10 +67,16 @@ describe('AppointmentsService', () => {
 
   beforeEach(() => {
     prisma = createPrismaMock();
-    prisma.$transaction.mockImplementation(async (callback: any) => callback(prisma as any));
+    prisma.$transaction.mockImplementation(async (callback: any) =>
+      callback(prisma as any),
+    );
     mail = createMailMock();
     google = createGoogleIntegrationMock();
-    service = new AppointmentsService(prisma as any, mail as any, google as any);
+    service = new AppointmentsService(
+      prisma as any,
+      mail as any,
+      google as any,
+    );
   });
 
   it('creates a requested appointment and notifies both parties', async () => {
@@ -161,7 +169,10 @@ describe('AppointmentsService', () => {
     };
     const transactionTx = {
       appointment: {
-        findFirst: jest.fn().mockResolvedValueOnce(requestedAppointment).mockResolvedValueOnce(null),
+        findFirst: jest
+          .fn()
+          .mockResolvedValueOnce(requestedAppointment)
+          .mockResolvedValueOnce(null),
         update: jest.fn().mockResolvedValue({
           id: 'apt-1',
           calendarId: 'calendar-1',
@@ -180,7 +191,9 @@ describe('AppointmentsService', () => {
         }),
       },
     };
-    prisma.$transaction.mockImplementation(async (callback: any) => callback(transactionTx as any));
+    prisma.$transaction.mockImplementation(async (callback: any) =>
+      callback(transactionTx as any),
+    );
 
     const result = await service.approveAppointment('nutri-1', 'apt-1');
 
@@ -222,7 +235,11 @@ describe('AppointmentsService', () => {
       updatedAt: new Date('2026-06-16T14:00:00.000Z'),
     });
 
-    const result = await service.rejectAppointment('nutri-1', 'apt-1', 'Sin cupo');
+    const result = await service.rejectAppointment(
+      'nutri-1',
+      'apt-1',
+      'Sin cupo',
+    );
 
     expect(result.status).toBe(AppointmentStatus.REJECTED);
     expect(mail.sendAppointmentRejectedEmail).toHaveBeenCalledWith(

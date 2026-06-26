@@ -8,7 +8,8 @@ type UserRole =
   | "ADMIN_MASTER"
   | "ADMIN_GENERAL"
   | "NUTRITIONIST"
-  | "NUTRITIONIST_DEVELOPER";
+  | "NUTRITIONIST_DEVELOPER"
+  | "WORKER";
 type ViewMode = "ADMIN" | "NUTRITIONIST";
 
 interface AdminContextType {
@@ -25,36 +26,46 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        setRole(user.role as UserRole);
-      } catch (error) {
-        console.error("Error parsing stored user:", error);
-      }
+  const [role] = useState<UserRole | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
     }
-    setIsLoading(false);
-  }, []);
+
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) {
+      return null;
+    }
+
+    try {
+      const user = JSON.parse(storedUser);
+      return user.role as UserRole;
+    } catch (error) {
+      console.error("Error parsing stored user:", error);
+      return null;
+    }
+  });
+  const [isLoading] = useState(false);
 
   function checkIsAdmin(r: string | null) {
     return r ? ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(r) : false;
   }
 
+  function checkIsWorker(r: string | null) {
+    return r ? ["WORKER"].includes(r) : false;
+  }
+
   const isAdmin = checkIsAdmin(role);
-  const viewMode: ViewMode = isAdmin ? "ADMIN" : "NUTRITIONIST";
+  const isWorker = checkIsWorker(role);
+  const isAdminView = isAdmin || isWorker;
+  const viewMode: ViewMode = isAdminView ? "ADMIN" : "NUTRITIONIST";
 
   useEffect(() => {
-    if (!isLoading && isAdmin) {
+    if (!isLoading && isAdminView) {
       if (pathname === "/dashboard") {
         router.push("/dashboard/admin");
       }
     }
-  }, [pathname, isAdmin, router, isLoading]);
+  }, [pathname, isAdminView, router, isLoading]);
 
   const toggleViewMode = () => {
     console.warn(
@@ -67,7 +78,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     viewMode,
     toggleViewMode,
     isAdmin,
-    isAdminView: viewMode === "ADMIN",
+    isAdminView,
     isLoading,
   };
 

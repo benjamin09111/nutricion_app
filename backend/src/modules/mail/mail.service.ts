@@ -304,34 +304,47 @@ export class MailService {
     message?: string;
     adminMessage?: string;
   }): Promise<void> {
+    const replyMessage =
+      data.adminMessage ||
+      'Hemos revisado tu mensaje y te responderemos pronto.';
+
+    await this.sendSupportReplyEmail({
+      email: data.email,
+      originalMessage: data.message,
+      type: data.type,
+      replyMessage,
+    });
+  }
+
+  async sendSupportReplyEmail(data: {
+    email: string;
+    originalMessage?: string;
+    type?: string;
+    replyMessage: string;
+  }): Promise<void> {
     const originalBlock =
-      data.type || data.message
-        ? `<div style="margin:20px 0;padding:16px 18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px"><div style="font-size:12px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em">Feedback original</div>${data.type ? `<div style="margin-top:8px"><strong>Tipo:</strong> ${this.escapeHtml(data.type)}</div>` : ''}${data.message ? `<div style="margin-top:8px"><strong>Mensaje:</strong><br>${this.escapeHtml(data.message).replace(/\n/g, '<br>')}</div>` : ''}</div>`
+      data.type || data.originalMessage
+        ? `<div style="margin:20px 0;padding:16px 18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px"><div style="font-size:12px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em">Mensaje original</div>${data.type ? `<div style="margin-top:8px"><strong>Tipo:</strong> ${this.escapeHtml(data.type)}</div>` : ''}${data.originalMessage ? `<div style="margin-top:8px"><strong>Mensaje:</strong><br>${this.escapeHtml(data.originalMessage).replace(/\n/g, '<br>')}</div>` : ''}</div>`
         : '';
 
-    const adminBlock = data.adminMessage
-      ? `<div style="margin:20px 0;padding:16px 18px;background:#ecfdf5;border:1px solid #a7f3d0;border-left:4px solid #10b981;border-radius:16px"><div style="font-size:12px;text-transform:uppercase;color:#047857;font-weight:700;letter-spacing:.08em">Mensaje adicional</div><div style="margin-top:8px;white-space:pre-line">${this.escapeHtml(data.adminMessage)}</div></div>`
-      : '';
-
     const html = this.wrapHtml(
-      'Tu feedback fue revisado',
-      `<p>Hola,</p><p>Gracias por compartir tu comentario con NutriNet. Lo hemos revisado y lo tendremos en cuenta para seguir mejorando la plataforma.</p><p>Valoramos mucho este tipo de observaciones porque nos ayudan a pulir la experiencia de uso.</p>${originalBlock}${adminBlock}<p style="color:#64748b;font-size:14px">Saludos,<br><strong>Equipo de soporte de NutriNet</strong></p>`,
+      'Tienes una respuesta de NutriNet',
+      `<p>Hola,</p><p>Gracias por escribirnos. Ya revisamos tu mensaje y aquí va nuestra respuesta.</p>${originalBlock}<div style="margin:20px 0;padding:16px 18px;background:#ecfdf5;border:1px solid #a7f3d0;border-left:4px solid #10b981;border-radius:16px"><div style="font-size:12px;text-transform:uppercase;color:#047857;font-weight:700;letter-spacing:.08em">Respuesta</div><div style="margin-top:8px;white-space:pre-line">${this.escapeHtml(data.replyMessage)}</div></div><p style="color:#64748b;font-size:14px">Saludos,<br><strong>Equipo de NutriNet</strong></p>`,
     );
 
     const text = [
-      'Tu feedback fue revisado en NutriNet.',
-      'Gracias por compartir tu comentario. Lo hemos tenido en cuenta para seguir mejorando la plataforma.',
+      'Hemos respondido tu mensaje en NutriNet.',
       data.type ? `Tipo original: ${data.type}` : null,
-      data.message ? `Mensaje original: ${data.message}` : null,
-      data.adminMessage ? `Mensaje adicional: ${data.adminMessage}` : null,
-      'Saludos, Equipo de soporte de NutriNet',
+      data.originalMessage ? `Mensaje original: ${data.originalMessage}` : null,
+      `Respuesta: ${data.replyMessage}`,
+      'Saludos, Equipo de NutriNet',
     ]
       .filter(Boolean)
       .join('\n\n');
 
     await this.sendEmail({
       to: data.email,
-      subject: 'Gracias por tu feedback en NutriNet',
+      subject: 'Hemos respondido tu mensaje en NutriNet',
       html,
       text,
       channel: 'support',

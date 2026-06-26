@@ -1,10 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
-import Cookies from "js-cookie";
 import {
   LayoutDashboard,
   Users,
@@ -13,14 +12,15 @@ import {
   Settings,
   Shield,
   Building2,
-  Inbox,
   MessageSquare,
   Globe2,
+  Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { fetchApi } from "@/lib/api-base";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { useTheme } from "@/context/ThemeContext";
+import { fetchApi } from "@/lib/api-base";
+import { useAdmin } from "@/context/AdminContext";
 
 interface SidebarItem {
   name: string;
@@ -28,6 +28,7 @@ interface SidebarItem {
   icon: React.ElementType;
   disabled?: boolean;
   locked?: boolean;
+  badge?: "inboxPending";
 }
 
 interface SidebarGroup {
@@ -49,7 +50,6 @@ const groups: SidebarGroup[] = [
   {
     title: "Gestión",
     items: [
-      { name: "Peticiones", href: "/dashboard/admin/peticiones", icon: Inbox },
       {
         name: "Clientes",
         href: "/dashboard/admin/nutricionistas",
@@ -66,7 +66,13 @@ const groups: SidebarGroup[] = [
         href: "/dashboard/admin/mensajes",
         icon: MessageSquare,
       },
-      { name: "Feedback", href: "/dashboard/admin/feedback", icon: Inbox },
+      {
+        name: "Inbox",
+        href: "/dashboard/admin/inbox",
+        icon: Inbox,
+        badge: "inboxPending",
+      },
+      { name: "Feedback", href: "/dashboard/admin/feedback", icon: MessageSquare },
       {
         name: "Licencias",
         href: "/dashboard/admin/organizaciones",
@@ -80,6 +86,7 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Pagos", href: "/dashboard/admin/pagos", icon: CreditCard },
       { name: "Membresías", href: "/dashboard/admin/membresias", icon: Crown },
+      { name: "Cupones", href: "/dashboard/admin/cupones", icon: Crown },
     ],
   },
   {
@@ -95,38 +102,85 @@ const groups: SidebarGroup[] = [
   },
 ];
 
+const WORKER_ALLOWED_PATHS = new Set([
+  "/dashboard/admin",
+  "/dashboard/admin/nutricionistas",
+  "/dashboard/admin/mensajes",
+  "/dashboard/admin/feedback",
+  "/dashboard/admin/cupones",
+]);
+
 export function AdminSidebar() {
   const pathname = usePathname();
-  const [pendingCount, setPendingCount] = useState(0);
   const { isSidebarCollapsed } = useDashboardShell();
   const { isDarkMode } = useTheme();
+  const [inboxPendingCount, setInboxPendingCount] = useState(0);
 
   useEffect(() => {
-    const fetchPendingCount = async () => {
-      try {
-        const token =
-          Cookies.get("auth_token") || localStorage.getItem("auth_token");
-        if (!token) return; // Don't fetch if no token
+    let isMounted = true;
 
-        const res = await fetchApi(`/requests/count/pending`, {
+    const fetchInboxPendingCount = async () => {
+      try {
+        const token = localStorage.getItem("auth_token");
+        if (!token) return;
+
+        const response = await fetchApi("/support", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (res.ok) {
-          const count = await res.json();
-          setPendingCount(count);
+
+        if (!response.ok) return;
+
+        const data = (await response.json()) as Array<{
+          type: string;
+          status: string;
+        }>;
+        const pendingCount = data.filter(
+          (item) => item.type === "CONTACT" && item.status === "PENDING",
+        ).length;
+
+        if (isMounted) {
+          setInboxPendingCount(pendingCount);
         }
       } catch (error) {
-        // Silently handle fetch errors in sidebar to avoid intrusive error overlays
-        console.error("Error fetching pending count:", error);
+        console.error("Error fetching inbox pending count:", error);
       }
     };
 
-    fetchPendingCount();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchInboxPendingCount();
+      }
+    };
 
-    // Optional: Poll every 30s
-    const interval = setInterval(fetchPendingCount, 30000);
-    return () => clearInterval(interval);
+    fetchInboxPendingCount();
+    window.addEventListener("admin-inbox-updated", fetchInboxPendingCount);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const interval = window.setInterval(fetchInboxPendingCount, 60000);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("admin-inbox-updated", fetchInboxPendingCount);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.clearInterval(interval);
+    };
   }, []);
+
+  const getItemBadge = (item: SidebarItem) => {
+    if (item.badge !== "inboxPending" || inboxPendingCount <= 0) return null;
+
+    return inboxPendingCount > 99 ? "99+" : String(inboxPendingCount);
+  };
+  const { role } = useAdmin();
+  const isWorker = role === "WORKER";
+
+  const visibleGroups = groups
+    .map((group) => ({
+      ...group,
+      items: isWorker
+        ? group.items.filter((item) => WORKER_ALLOWED_PATHS.has(item.href))
+        : group.items,
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <div
@@ -154,7 +208,7 @@ export function AdminSidebar() {
       </div>
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-3">
-          {groups.map((group) => (
+          {visibleGroups.map((group) => (
             <li key={group.title}>
               {!isSidebarCollapsed && (
                 <div
@@ -170,6 +224,7 @@ export function AdminSidebar() {
                 {group.items.map((item) => {
                   const isActive =
                     pathname === item.href || pathname.startsWith(item.href);
+                  const itemBadge = getItemBadge(item);
 
                   if (item.locked) return null;
 
@@ -186,6 +241,7 @@ export function AdminSidebar() {
                               ? "text-indigo-100/75 hover:bg-indigo-500/8 hover:text-indigo-50"
                               : "text-slate-600 hover:text-indigo-700 hover:bg-indigo-50",
                           "group flex gap-x-2 rounded-md p-2 leading-5 font-medium transition-colors items-center cursor-pointer",
+                          "relative",
                           isSidebarCollapsed && "justify-center",
                         )}
                         title={item.name}
@@ -204,13 +260,19 @@ export function AdminSidebar() {
                           aria-hidden="true"
                         />
                         {!isSidebarCollapsed && <span>{item.name}</span>}
-                        {!isSidebarCollapsed &&
-                          item.name === "Peticiones" &&
-                          pendingCount > 0 && (
-                            <span className="ml-auto inline-flex items-center justify-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
-                              {pendingCount}
-                            </span>
-                          )}
+                        {itemBadge && (
+                          <span
+                            className={cn(
+                              "ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[10px] font-black leading-none text-white shadow-sm ring-2",
+                              isDarkMode ? "ring-slate-900" : "ring-white",
+                              isSidebarCollapsed &&
+                                "absolute -right-1 -top-1 ml-0",
+                            )}
+                            aria-label={`${itemBadge} mensajes pendientes`}
+                          >
+                            {itemBadge}
+                          </span>
+                        )}
                       </Link>
                     </li>
                   );

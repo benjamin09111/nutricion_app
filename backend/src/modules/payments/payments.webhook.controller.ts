@@ -7,44 +7,24 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { MercadoPagoService } from './mercadopago.service';
+import { FlowService } from './flow.service';
 
 @Controller('payments')
 export class PaymentsWebhookController {
   private readonly logger = new Logger(PaymentsWebhookController.name);
 
-  constructor(private readonly mercadopagoService: MercadoPagoService) {}
+  constructor(private readonly flowService: FlowService) {}
 
-  @Post('webhook')
+  @Post('flow/confirmation')
   @HttpCode(HttpStatus.OK)
-  async handleWebhook(@Req() req: Request) {
-    const body = req.body;
-
-    if (!body || body.type !== 'payment') {
-      return { message: 'Notificación ignorada' };
-    }
-
-    const isValid = this.mercadopagoService.verifyWebhookSignature(
-      req.headers as Record<string, string>,
-      body,
-    );
-
-    if (!isValid) {
-      this.logger.warn('Invalid webhook signature');
-      return { message: 'Firma inválida' };
-    }
-
-    const paymentId = body.data?.id;
-    if (!paymentId) {
-      return { message: 'ID de pago no encontrado' };
-    }
-
+  async handleFlowConfirmation(@Req() req: Request) {
+    const token = req.body?.token;
     try {
-      const result = await this.mercadopagoService.handleWebhook(paymentId);
+      const result = await this.flowService.handlePaymentConfirmation(token);
       return result;
     } catch (error) {
-      this.logger.error('Webhook processing failed', error);
-      return { message: 'Error al procesar notificación' };
+      this.logger.error('Flow confirmation processing failed', error);
+      return { message: 'Error al procesar confirmación Flow' };
     }
   }
 }

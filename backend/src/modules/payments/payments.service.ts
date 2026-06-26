@@ -15,7 +15,9 @@ import {
   PaymentMethod,
   SubscriptionStatus,
   SubscriptionPlan,
+  DiscountCodeType,
 } from '@prisma/client';
+import { DiscountCodesService } from '../discount-codes/discount-codes.service';
 
 @Injectable()
 export class PaymentsService {
@@ -26,6 +28,7 @@ export class PaymentsService {
     private readonly configService: ConfigService,
     private readonly permissionsService: PermissionsService,
     private readonly planUsageService: PlanUsageService,
+    private readonly discountCodesService: DiscountCodesService,
   ) {}
 
   private isMockMode(): boolean {
@@ -304,8 +307,94 @@ export class PaymentsService {
       );
     }
 
-    // Real Mercado Pago flow
+    // Real checkout is handled by FlowService through /payments/flow/checkout.
     return { mock: false, requiresProvider: true };
+  }
+
+  async prepareMembershipPayment(
+    accountId: string,
+    planId: string,
+    discount?: { code: string; percent: number; type: string },
+  ) {
+    const plan = await this.prisma.membershipPlan.findUnique({
+      where: { id: planId },
+    });
+
+    if (!plan || !plan.isActive) {
+      throw new BadRequestException('Plan no encontrado o inactivo');
+    }
+
+    const price = Number(plan.price);
+    if (price === 0) {
+      throw new BadRequestException(
+        'Este plan es gratuito. Usa el endpoint de plan gratis.',
+      );
+    }
+
+    const credit = await this.calculateProratedCredit(accountId);
+    let chargeAmount = Math.max(0, price - credit);
+
+    if (discount) {
+      chargeAmount = Math.max(0, Math.round(chargeAmount * (1 - discount.percent / 100)));
+    }
+
+    return this.prisma.payment.create({
+      data: {
+        accountId,
+        amount: chargeAmount,
+        currency: plan.currency,
+        status: PaymentStatus.PENDING,
+        method: PaymentMethod.FLOW,
+        metadata: {
+          type: 'MEMBERSHIP_PLAN',
+          provider: 'FLOW',
+          mock: false,
+          planId: plan.id,
+          planName: plan.name,
+          planSlug: plan.slug,
+          fullPrice: price,
+          proratedCredit: credit,
+          chargedAmount: chargeAmount,
+          ...(discount ? {
+            discountCode: discount.code,
+            discountPercent: discount.percent,
+            discountType: discount.type,
+          } : {}),
+        },
+      },
+    });
+  }
+
+  async validateDiscount(
+    accountId: string,
+    planId: string,
+    code: string,
+  ) {
+    const plan = await this.prisma.membershipPlan.findUnique({
+      where: { id: planId },
+    });
+
+    if (!plan || !plan.isActive) {
+      throw new BadRequestException('Plan no encontrado o inactivo');
+    }
+
+    const discountCode = await this.discountCodesService.validateAndGetDiscount(code);
+    const price = Number(plan.price);
+    const credit = await this.calculateProratedCredit(accountId);
+    const base = Math.max(0, price - credit);
+    const finalPrice = Math.max(0, Math.round(base * (1 - discountCode.discountPercent / 100)));
+
+    return {
+      valid: true,
+      code: discountCode.code,
+      type: discountCode.type,
+      discountPercent: discountCode.discountPercent,
+      originalPrice: price,
+      proratedCredit: credit,
+      basePrice: base,
+      finalPrice,
+      currency: plan.currency,
+    };
   }
 
   private async calculateProratedCredit(accountId: string): Promise<number> {
@@ -354,13 +443,13 @@ export class PaymentsService {
           amount,
           currency: plan.currency,
           status: PaymentStatus.COMPLETED,
-          method: PaymentMethod.MERCADOPAGO,
+          method: PaymentMethod.FLOW,
           paidAt: startDate,
           metadata: {
             type: 'MEMBERSHIP_PLAN',
             source: 'MOCK_CHECKOUT',
             mock: true,
-            provider: 'MERCADOPAGO',
+            provider: 'FLOW',
             planId: plan.id,
             planName: plan.name,
             planSlug: plan.slug,

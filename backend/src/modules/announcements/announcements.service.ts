@@ -50,6 +50,7 @@ export class AnnouncementsService {
               UserRole.ADMIN_MASTER,
               UserRole.ADMIN_GENERAL,
             ];
+          if (role === 'WORKER') return [UserRole.WORKER];
           if (role === 'NUTRITIONIST') return NUTRITIONIST_ROLES;
           return [];
         });

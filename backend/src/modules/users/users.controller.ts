@@ -18,7 +18,18 @@ import { RequireFeatures } from '../permissions/permissions.decorator';
 import {
   SPECIAL_FEATURES,
   isAdminRole,
+  isStaffRole,
 } from '../permissions/permissions.constants';
+
+const WORKER_ALLOWED_USER_ROLES = new Set([
+  'ADMIN_GENERAL',
+  'ALL_NUTRITIONISTS',
+  'NUTRITIONIST',
+  'NUTRITIONIST_DEVELOPER',
+  'ORGANIZATION',
+  'SUPPLEMENT_STORE',
+  'SUPERMARKET',
+]);
 
 @Controller('users')
 // @UseGuards(AuthGuard) -> Moved to individual methods to allow public access to count
@@ -35,6 +46,7 @@ export class UsersController {
   @UseGuards(AuthGuard, PermissionsGuard)
   @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   findAll(
+    @Request() req: any,
     @Query('role') role?: any,
     @Query('search') search?: string,
     @Query('visibility') visibility?: 'all' | 'public' | 'hidden',
@@ -44,6 +56,35 @@ export class UsersController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
+    const requesterRole = req.user?.role;
+    if (!isStaffRole(requesterRole)) {
+      throw new UnauthorizedException(
+        'Solo personal autorizado puede ver usuarios',
+      );
+    }
+
+    if (requesterRole === 'WORKER') {
+      const requestedRoles =
+        typeof role === 'string'
+          ? role
+              .split(',')
+              .map((value) => value.trim())
+              .filter(Boolean)
+          : [];
+
+      if (
+        requestedRoles.length === 0 ||
+        requestedRoles.some(
+          (requestedRole: string) =>
+            !WORKER_ALLOWED_USER_ROLES.has(requestedRole),
+        )
+      ) {
+        throw new UnauthorizedException(
+          'No tienes permisos para consultar esos usuarios',
+        );
+      }
+    }
+
     return this.usersService.findAll(
       role,
       search,

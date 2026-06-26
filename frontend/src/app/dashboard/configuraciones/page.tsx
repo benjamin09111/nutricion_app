@@ -15,6 +15,24 @@ import { cn } from "@/lib/utils";
 import { getPasswordRequirements, getPasswordStrength } from "@/lib/password-policy";
 import { MembershipPlanSection } from "./MembershipPlanSection";
 
+function RoleBadge({ role }: { role?: string | null }) {
+  const config: Record<string, { label: string; className: string }> = {
+    ADMIN_MASTER: { label: "Admin Master", className: "bg-rose-50 text-rose-700 ring-rose-600/20" },
+    ADMIN_GENERAL: { label: "Admin General", className: "bg-rose-50 text-rose-700 ring-rose-600/20" },
+    ADMIN: { label: "Admin", className: "bg-rose-50 text-rose-700 ring-rose-600/20" },
+    WORKER: { label: "Worker", className: "bg-amber-50 text-amber-700 ring-amber-600/20" },
+    NUTRITIONIST_DEVELOPER: { label: "Developer", className: "bg-purple-50 text-purple-700 ring-purple-600/20" },
+    NUTRITIONIST: { label: "Nutricionista", className: "bg-emerald-50 text-emerald-700 ring-emerald-600/20" },
+  };
+  const c = role ? config[role] : undefined;
+  if (!c) return null;
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-widest ring-1 ring-inset ${c.className}`}>
+      {c.label}
+    </span>
+  );
+}
+
 interface UserSettings {
   professionalInstagram?: string;
   professionalPhone?: string;
@@ -128,6 +146,9 @@ export default function SettingsPage() {
   const [userData, setUserData] = useState<{
     email: string;
     fullName?: string;
+    role?: string | null;
+    googleAvatarUrl?: string | null;
+    createdAt?: string | null;
     settings?: UserSettings;
   } | null>(null);
 
@@ -173,6 +194,9 @@ const [showPublicPhone, setShowPublicPhone] = useState(false);
         setUserData({
           email: user.email,
           fullName: user.nutritionist?.fullName || "Profesional",
+          role: user.role || null,
+          googleAvatarUrl: user.googleAvatarUrl || null,
+          createdAt: user.createdAt || null,
           settings,
         });
         setProfessionalInstagram(settings.professionalInstagram || "");
@@ -459,9 +483,18 @@ bio: bio.trim(),
           </div>
           <div className="p-6">
             <div className="flex items-center gap-x-4 mb-6 font-bold">
-              <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 border border-emerald-200 text-2xl font-bold">
-                {userData?.fullName?.charAt(0) || "U"}
-              </div>
+              {userData?.googleAvatarUrl ? (
+                <img
+                  src={userData.googleAvatarUrl}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="h-16 w-16 rounded-full border-2 border-emerald-200 object-cover"
+                />
+              ) : (
+                <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 border border-emerald-200 text-2xl font-bold">
+                  {userData?.fullName?.charAt(0) || "U"}
+                </div>
+              )}
               <div>
                 <h3 className="font-bold text-slate-900">
                   {userData?.fullName || "Cargando..."}
@@ -469,8 +502,18 @@ bio: bio.trim(),
                 <p className="text-sm font-medium text-slate-500">
                   {userData?.email || "..."}
                 </p>
-                <div className="mt-1 inline-flex items-center rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-                  Perfil Profesional
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <RoleBadge role={userData?.role} />
+                  {userData?.createdAt && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">
+                      <Calendar className="h-3 w-3" />
+                      Miembro desde{" "}
+                      {new Date(userData.createdAt).toLocaleDateString("es-CL", {
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

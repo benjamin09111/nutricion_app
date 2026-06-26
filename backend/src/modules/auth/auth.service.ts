@@ -17,6 +17,26 @@ import { isAdminRole } from '../permissions/permissions.constants';
 
 import { Prisma, UserRole, SubscriptionPlan } from '@prisma/client';
 
+const GOOGLE_ADMIN_EMAIL = 'moralespizarrobenjamin763@gmail.com';
+const GOOGLE_NUTRI_DEV_EMAIL = 'benjamin.morales3@mail.udp.cl';
+
+const resolveGoogleRole = (email: string): UserRole => {
+  const normalizedEmail = email.toLowerCase().trim();
+
+  if (normalizedEmail === GOOGLE_ADMIN_EMAIL) {
+    return 'ADMIN_MASTER';
+  }
+
+  if (normalizedEmail === GOOGLE_NUTRI_DEV_EMAIL) {
+    return 'NUTRITIONIST_DEVELOPER';
+  }
+
+  return 'NUTRITIONIST';
+};
+
+const resolvePlanForRole = (role: UserRole): SubscriptionPlan =>
+  role === 'NUTRITIONIST' ? SubscriptionPlan.FREE : SubscriptionPlan.ENTERPRISE;
+
 const buildPublicSlug = (fullName: string, id: string) => {
   const namePart = fullName
     .toLowerCase()
@@ -50,6 +70,8 @@ export class AuthService {
     email: string;
     role: UserRole;
     plan: SubscriptionPlan;
+    createdAt: Date;
+    googleAvatarUrl?: string | null;
     nutritionist?: { id: string; fullName: string } | null;
     subscription?: {
       status: string;
@@ -58,11 +80,17 @@ export class AuthService {
       cancelAtPeriodEnd: boolean;
       canceledAt: Date | null;
       planId: string;
-      plan?: { name: string | null; slug: string | null; price: Prisma.Decimal | number | string } | null;
+      plan?: {
+        name: string | null;
+        slug: string | null;
+        price: Prisma.Decimal | number | string;
+      } | null;
     } | null;
   }) {
     const planName = account.subscription?.plan?.name || 'Plan Gratuito';
-    const accessSnapshot = await this.permissionsService.getAccessSnapshot(account.id);
+    const accessSnapshot = await this.permissionsService.getAccessSnapshot(
+      account.id,
+    );
 
     const subscriptionInfo = account.subscription
       ? {
@@ -90,6 +118,8 @@ export class AuthService {
         role: account.role,
         plan: account.plan,
         planName,
+        createdAt: account.createdAt?.toISOString() ?? null,
+        googleAvatarUrl: account.googleAvatarUrl || null,
         requiresPlanSelection: accessSnapshot?.requiresPlanSelection ?? true,
         entitlements: accessSnapshot?.entitlements ?? {},
         subscription: subscriptionInfo,
@@ -266,7 +296,7 @@ export class AuthService {
   }
 
   async register(data: RegisterDto) {
-    const { email, password, fullName, message } = data;
+    const { email, password, fullName } = data;
     const normalizedEmail = email.toLowerCase().trim();
     const frontendUrl = getFrontendUrl();
 
@@ -320,11 +350,7 @@ export class AuthService {
           fullName,
           `${frontendUrl}/verify-email?token=${verificationToken}`,
         ),
-        this.mailService.sendRegistrationAlert(
-          fullName,
-          normalizedEmail,
-          message,
-        ),
+        this.mailService.sendRegistrationAlert(fullName, normalizedEmail),
       ]);
 
       return {
@@ -543,6 +569,13 @@ export class AuthService {
     picture?: string;
   }) {
     const normalizedEmail = profile.email.toLowerCase().trim();
+    const targetRole = resolveGoogleRole(normalizedEmail);
+
+    if (!profile.email_verified) {
+      throw new BadRequestException(
+        'Tu cuenta de Google debe tener el correo verificado',
+      );
+    }
 
     const account = await this.prisma.$transaction(async (tx) => {
       const existingByGoogle = await tx.account.findUnique({
@@ -557,8 +590,11 @@ export class AuthService {
         return tx.account.update({
           where: { id: existingByGoogle.id },
           data: {
+            role: targetRole,
+            plan: resolvePlanForRole(targetRole),
             googleEmail: normalizedEmail,
-            googleAvatarUrl: profile.picture || existingByGoogle.googleAvatarUrl,
+            googleAvatarUrl:
+              profile.picture || existingByGoogle.googleAvatarUrl,
             emailVerifiedAt: existingByGoogle.emailVerifiedAt || new Date(),
             status: 'ACTIVE',
             authProvider: 'google',
@@ -579,21 +615,11 @@ export class AuthService {
       });
 
       if (existingByEmail) {
-        if (
-          ![
-            'NUTRITIONIST',
-            'NUTRITIONIST_DEVELOPER',
-            'ORGANIZATION',
-            'SUPPLEMENT_STORE',
-            'SUPERMARKET',
-          ].includes(existingByEmail.role)
-        ) {
-          throw new BadRequestException('Esta cuenta no puede vincularse con Google');
-        }
-
         const updated = await tx.account.update({
           where: { id: existingByEmail.id },
           data: {
+            role: targetRole,
+            plan: resolvePlanForRole(targetRole),
             googleSub: profile.sub,
             googleEmail: normalizedEmail,
             googleAvatarUrl: profile.picture || existingByEmail.googleAvatarUrl,
@@ -608,7 +634,8 @@ export class AuthService {
         });
 
         if (
-          (updated.role === 'NUTRITIONIST' || updated.role === 'NUTRITIONIST_DEVELOPER') &&
+          (updated.role === 'NUTRITIONIST' ||
+            updated.role === 'NUTRITIONIST_DEVELOPER') &&
           !updated.nutritionist
         ) {
           const nutritionist = await tx.nutritionist.create({
@@ -620,7 +647,12 @@ export class AuthService {
 
           await tx.nutritionist.update({
             where: { id: nutritionist.id },
-            data: { publicSlug: buildPublicSlug(profile.name || 'Usuario', nutritionist.id) },
+            data: {
+              publicSlug: buildPublicSlug(
+                profile.name || 'Usuario',
+                nutritionist.id,
+              ),
+            },
           });
 
           return tx.account.findUniqueOrThrow({
@@ -643,8 +675,8 @@ export class AuthService {
           googleEmail: normalizedEmail,
           googleAvatarUrl: profile.picture || null,
           authProvider: 'google',
-          role: 'NUTRITIONIST',
-          plan: 'FREE',
+          role: targetRole,
+          plan: resolvePlanForRole(targetRole),
           status: 'ACTIVE',
           emailVerifiedAt: new Date(),
           emailVerificationToken: null,
@@ -665,7 +697,12 @@ export class AuthService {
 
       await tx.nutritionist.update({
         where: { id: nutritionist.id },
-        data: { publicSlug: buildPublicSlug(profile.name || 'Usuario', nutritionist.id) },
+        data: {
+          publicSlug: buildPublicSlug(
+            profile.name || 'Usuario',
+            nutritionist.id,
+          ),
+        },
       });
 
       return tx.account.findUniqueOrThrow({

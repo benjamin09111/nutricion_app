@@ -33,6 +33,8 @@ model Account {
   planUsageCounters  PlanUsageCounter[]
   notifications      Notification[]
   googleCalendarConnections GoogleCalendarConnection[]
+  createdDiscountCodes DiscountCode[] @relation("DiscountCodeCreator")
+  usedDiscountCodes    DiscountCode[] @relation("DiscountCodeUser")
 
   @@index([role, createdAt])
   @@map("accounts")
@@ -582,6 +584,25 @@ model PlanUsageCounter {
   @@map("plan_usage_counters")
 }
 
+model DiscountCode {
+  id               String           @id @default(uuid())
+  code             String           @unique
+  type             DiscountCodeType
+  discountPercent  Int              @map("discount_percent")
+  isUsed           Boolean          @default(false) @map("is_used")
+  usedByAccountId  String?          @map("used_by_account_id")
+  usedAt           DateTime?        @map("used_at")
+  createdByAdminId String           @map("created_by_admin_id")
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  usedBy    Account? @relation("DiscountCodeUser", fields: [usedByAccountId], references: [id])
+  createdBy Account  @relation("DiscountCodeCreator", fields: [createdByAdminId], references: [id])
+
+  @@index([code])
+  @@index([createdByAdminId])
+  @@map("discount_codes")
+}
+
 model DailyMetric {
   id                  String   @id @default(uuid())
   date                DateTime @unique
@@ -743,6 +764,7 @@ enum UserRole {
   SUPERMARKET
   ADMIN_MASTER
   ADMIN_GENERAL
+  WORKER
 }
 
 enum AccountStatus {
@@ -791,7 +813,7 @@ enum PaymentStatus {
 enum PaymentMethod {
   TRANSBANK
   WEBPAY
-  MERCADOPAGO
+  FLOW
   STRIPE
   BANK_TRANSFER
   MANUAL
@@ -803,6 +825,11 @@ enum SubscriptionStatus {
   PAST_DUE
   CANCELED
   UNPAID
+}
+
+enum DiscountCodeType {
+  NUTRI
+  BETA
 }
 
 model AppointmentCalendar {

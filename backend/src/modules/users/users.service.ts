@@ -252,9 +252,11 @@ export class UsersService {
             ? 'Admin General'
             : acc.role === 'ADMIN'
               ? 'Administrador (Legado)'
-              : acc.role === 'NUTRITIONIST_DEVELOPER'
-                ? 'Nutricionista Developer'
-                : acc.email.split('@')[0]),
+              : acc.role === 'WORKER'
+                ? 'Worker'
+                : acc.role === 'NUTRITIONIST_DEVELOPER'
+                  ? 'Nutricionista Developer'
+                  : acc.email.split('@')[0]),
       patientCount: acc.nutritionist?._count?.patients || 0,
       publicSlug: acc.nutritionist?.publicSlug || null,
       publicProfileEnabled: acc.nutritionist?.publicProfileEnabled ?? false,

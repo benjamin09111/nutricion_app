@@ -12,6 +12,26 @@ const PUBLIC_PATHS = new Set([
 const isStaticAsset = (pathname: string) =>
   pathname.startsWith("/_next/") || /\.[a-zA-Z0-9]+$/.test(pathname);
 
+const STAFF_ROLES = new Set([
+  "ADMIN",
+  "ADMIN_MASTER",
+  "ADMIN_GENERAL",
+  "WORKER",
+]);
+
+const WORKER_ALLOWED_ADMIN_PATHS = [
+  "/dashboard/admin/nutricionistas",
+  "/dashboard/admin/mensajes",
+  "/dashboard/admin/feedback",
+  "/dashboard/admin/cupones",
+];
+
+const isAllowedWorkerAdminPath = (pathname: string) =>
+  pathname === "/dashboard/admin" ||
+  WORKER_ALLOWED_ADMIN_PATHS.some(
+    (allowedPath) => pathname === allowedPath || pathname.startsWith(`${allowedPath}/`),
+  );
+
 export default function proxy(request: NextRequest) {
   const token = request.cookies.get("auth_token")?.value;
   const userData = request.cookies.get("user")?.value;
@@ -19,6 +39,10 @@ export default function proxy(request: NextRequest) {
 
   if (isStaticAsset(pathname) || PUBLIC_PATHS.has(pathname)) {
     return NextResponse.next();
+  }
+
+  if (pathname === "/register") {
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   let parsedUser: { role?: string } | null = null;
@@ -34,7 +58,7 @@ export default function proxy(request: NextRequest) {
   }
 
   const isDashboardRoute = pathname.startsWith("/dashboard");
-  const isAuthRoute = pathname === "/login" || pathname === "/register";
+  const isAuthRoute = pathname === "/login";
 
   if (isDashboardRoute && !token) {
     const url = new URL("/login", request.url);
@@ -51,22 +75,37 @@ export default function proxy(request: NextRequest) {
 
   if (isAuthRoute && token) {
     const target =
-      parsedUser && ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(parsedUser.role || "")
+      parsedUser && STAFF_ROLES.has(parsedUser.role || "")
         ? "/dashboard/admin"
         : "/dashboard";
     return NextResponse.redirect(new URL(target, request.url));
   }
 
   if (isDashboardRoute && parsedUser) {
-    const isAdmin = ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(
-      parsedUser.role || "",
-    );
+    const isStaff = STAFF_ROLES.has(parsedUser.role || "");
+    const isWorker = parsedUser.role === "WORKER";
 
-    if (pathname === "/dashboard" && isAdmin) {
+    if (pathname === "/dashboard" && isStaff) {
       return NextResponse.redirect(new URL("/dashboard/admin", request.url));
     }
 
-    if (pathname.startsWith("/dashboard/admin") && !isAdmin) {
+    if (isWorker) {
+      if (
+        pathname.startsWith("/dashboard/admin") &&
+        !isAllowedWorkerAdminPath(pathname)
+      ) {
+        return NextResponse.redirect(new URL("/dashboard/admin", request.url));
+      }
+
+      if (
+        !pathname.startsWith("/dashboard/admin") &&
+        pathname !== "/dashboard"
+      ) {
+        return NextResponse.redirect(new URL("/dashboard/admin", request.url));
+      }
+    }
+
+    if (pathname.startsWith("/dashboard/admin") && !isStaff) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
   }

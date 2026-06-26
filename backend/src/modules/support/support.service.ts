@@ -41,30 +41,6 @@ export class SupportService {
       },
     });
 
-    // 2. Notify Admins via Email (Non-blocking)
-    this.mailService
-      .sendFeedback({
-        type: data.type, // Send the specific type (FEEDBACK, IDEA, etc)
-        subject:
-          data.subject ||
-          (data.message ? data.message.substring(0, 30) + '...' : 'Sin asunto'),
-        message:
-          data.type === 'TESTIMONIO'
-            ? `Testimonio público potencial: ${data.message || 'Sin mensaje'}`
-            : data.message || 'Sin mensaje',
-        fromEmail: data.email,
-      })
-      .catch((err) =>
-        console.error('Error sending support notification:', err),
-      );
-
-    // 3. Send confirmation to user (Non-blocking)
-    this.mailService
-      .sendFeedbackConfirmation(data.email)
-      .catch((err) =>
-        console.error('Error sending feedback confirmation:', err),
-      );
-
     return request;
   }
 
@@ -75,6 +51,20 @@ export class SupportService {
   }
 
   async resolve(id: string, adminMessage?: string) {
+    return this.reply(
+      id,
+      adminMessage?.trim() ||
+        'Hemos revisado tu mensaje y te responderemos pronto.',
+    );
+  }
+
+  async reply(id: string, replyMessage: string) {
+    const normalizedReply = replyMessage.trim();
+
+    if (!normalizedReply) {
+      throw new BadRequestException('La respuesta no puede estar vacía');
+    }
+
     const request = await this.prisma.supportRequest.findUnique({
       where: { id },
     });
@@ -93,15 +83,13 @@ export class SupportService {
     });
 
     this.mailService
-      .sendFeedbackResolutionEmail({
+      .sendSupportReplyEmail({
         email: request.email,
-        message: request.message || undefined,
+        originalMessage: request.message || undefined,
         type: request.type,
-        adminMessage,
+        replyMessage: normalizedReply,
       })
-      .catch((err) =>
-        console.error('Error sending feedback resolution email:', err),
-      );
+      .catch((err) => console.error('Error sending support reply email:', err));
 
     return updatedRequest;
   }

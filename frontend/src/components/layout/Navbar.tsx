@@ -11,7 +11,6 @@ import {
   Menu,
   Moon,
   Sun,
-  Globe,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -19,7 +18,6 @@ import { useAdmin } from "@/context/AdminContext";
 import { cn } from "@/lib/utils";
 import {
   useSubscription,
-  SubscriptionPlan,
 } from "@/context/SubscriptionContext";
 import { authService } from "@/features/auth/services/auth.service";
 import { useNotifications } from "@/context/NotificationsContext";
@@ -33,7 +31,7 @@ import { DeveloperPlanSwitcher } from "@/components/layout/DeveloperPlanSwitcher
 import { FollowUpNotificationsMenu } from "@/components/layout/FollowUpNotificationsMenu";
 
 function PlanBadge() {
-  const { planName, cancelAtPeriodEnd, currentPlan } = useSubscription();
+  const { cancelAtPeriodEnd, currentPlan } = useSubscription();
   const { isDarkMode } = useTheme();
 
   if (!currentPlan) return null;
@@ -60,7 +58,6 @@ function PlanBadge() {
 export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isPortalMenuOpen, setIsPortalMenuOpen] = useState(false);
   const [userEmail] = useState<string>(() => {
     if (typeof window === "undefined") {
       return "usuario@demo.com";
@@ -81,13 +78,8 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
-  const portalMenuRef = useRef<HTMLDivElement>(null);
 
-  const handlePortalMenuToggle = () => {
-    setIsPortalMenuOpen(!isPortalMenuOpen);
-  };
-  const { isAdmin, isAdminView, role } = useAdmin();
-  const { planName } = useSubscription();
+  const { isAdminView } = useAdmin();
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
     useNotifications();
   const { isDarkMode, toggleTheme } = useTheme();
@@ -130,12 +122,6 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
       ) {
         setIsNotificationsOpen(false);
       }
-      if (
-        portalMenuRef.current &&
-        !portalMenuRef.current.contains(event.target as Node)
-      ) {
-        setIsPortalMenuOpen(false);
-      }
     }
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -146,15 +132,6 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
     authService.signOut();
     router.replace("/login");
   };
-
-  const adminRoleLabel =
-    role === "ADMIN_MASTER"
-      ? "Admin Master"
-      : role === "ADMIN_GENERAL"
-        ? "Admin General"
-        : role === "ADMIN"
-          ? "Admin"
-          : null;
 
   return (
     <div

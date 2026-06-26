@@ -13,7 +13,9 @@ export class ApiKeyGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-    const path = ((request as any).originalUrl || request.url || '').split('?')[0];
+    const path = ((request as any).originalUrl || request.url || '').split(
+      '?',
+    )[0];
 
     if (path === '/calendars/google/callback') {
       return true;

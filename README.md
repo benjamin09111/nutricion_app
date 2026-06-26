@@ -8,7 +8,7 @@ NutriNet es una plataforma para nutricionistas. Su foco es acelerar la consulta 
 - Construcción de dietas y porciones.
 - Generación de recetas, carrito y entregable PDF.
 - Reutilización de contenidos y recursos educativos.
-- Panel admin para soporte, pagos, membresías y peticiones.
+- Panel admin para soporte, pagos y membresías.
 
 ## Flujo principal
 

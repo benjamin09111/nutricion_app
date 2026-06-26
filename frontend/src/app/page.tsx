@@ -5,42 +5,25 @@ import content from "@/content/landing.json";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { fetchApi } from "@/lib/api-base";
 import {
   Check,
   Zap,
   ShieldCheck,
   Monitor,
-  Send,
   Sparkles,
   Menu,
   X,
-  Eye,
-  EyeOff,
 } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { toast } from "sonner";
-import { fetchApi } from "@/lib/api-base";
 import { cn } from "@/lib/utils";
 import { useInView } from "@/hooks/useInView";
 import { JsonLd } from "@/components/seo/JsonLd";
-import {
-  landingRegistrationSchema,
-  type LandingRegistrationFormData,
-} from "@/lib/schemas/auth";
-import {
-  getPasswordRequirements,
-  getPasswordStrength,
-} from "@/lib/password-policy";
 import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
 import { type MembershipPlan } from "@/features/memberships/services/membership.service";
-
+import LandingContactForm from "@/components/landing/LandingContactForm";
 
 export default function LandingPage() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
 
@@ -51,31 +34,15 @@ export default function LandingPage() {
       .catch(() => {});
   }, []);
 
-  const {
-    register: registerField,
-    handleSubmit,
-    watch,
-    reset,
-    formState: { errors },
-  } = useForm<LandingRegistrationFormData>({
-    resolver: zodResolver(landingRegistrationSchema),
-    mode: "onChange",
-    defaultValues: {
-      fullName: "",
-      email: "",
-      password: "",
-      message: "",
-    },
+  const { ref: featuresRef, isInView: isFeaturesInView } = useInView({
+    threshold: 0.15,
   });
-
-  const passwordValue = watch("password");
-  const passwordStrength = getPasswordStrength(passwordValue || "");
-  const passwordRequirements = getPasswordRequirements(passwordValue || "");
-
-
-  const featuresInView = useInView({ threshold: 0.15 });
-  const pricingInView = useInView({ threshold: 0.15 });
-  const registrationInView = useInView({ threshold: 0.1 });
+  const { ref: pricingRef, isInView: isPricingInView } = useInView({
+    threshold: 0.15,
+  });
+  const { ref: registrationRef, isInView: isRegistrationInView } = useInView({
+    threshold: 0.1,
+  });
   const visiblePlans = plans.filter((plan) => plan.isActive);
   const sortedPlans = [...visiblePlans].sort((a, b) => {
     const aFree = Number(a.price) === 0;
@@ -120,55 +87,6 @@ export default function LandingPage() {
     return () => document.removeEventListener("click", handleClick);
   }, []);
 
-  const onSubmit = async (values: LandingRegistrationFormData) => {
-    setIsSubmitting(true);
-
-    try {
-      const response = await fetchApi(`/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: values.email,
-          password: values.password,
-          fullName: values.fullName,
-          message: values.message,
-        }),
-      });
-
-      const contentType = response.headers.get("content-type");
-      let responseData: { message?: string } = {};
-      
-      if (contentType && contentType.includes("application/json")) {
-        responseData = await response.json();
-      }
-
-      if (!response.ok) {
-        throw new Error(responseData.message || `Error ${response.status}: No se pudo crear la cuenta.`);
-      }
-
-      toast.success(
-        "¡Cuenta creada! Confirma tu correo para activar el acceso.",
-        {
-          duration: 5000,
-        }
-      );
-
-      reset();
-      setShowPassword(false);
-
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 2000);
-      
-    } catch (error: unknown) {
-      toast.error(
-        error instanceof Error ? error.message : "Hubo un error al crear tu cuenta.",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <JsonLd
@@ -180,7 +98,8 @@ export default function LandingPage() {
             url: "https://nutrinet.cl",
             potentialAction: {
               "@type": "SearchAction",
-              target: "https://nutrinet.cl/nutricionistas?search={search_term_string}",
+              target:
+                "https://nutrinet.cl/nutricionistas?search={search_term_string}",
               "query-input": "required name=search_term_string",
             },
           },
@@ -198,7 +117,8 @@ export default function LandingPage() {
             name: "NutriNet",
             applicationCategory: "BusinessApplication",
             operatingSystem: "Web",
-            description: "Software para nutricionistas en Chile para gestionar pacientes, dietas y consultas.",
+            description:
+              "Software para nutricionistas en Chile para gestionar pacientes, dietas y consultas.",
             url: "https://nutrinet.cl",
           },
         ]}
@@ -216,7 +136,11 @@ export default function LandingPage() {
               priority
             />
           </div>
-          <nav className="hidden items-center gap-5 lg:flex" role="navigation" aria-label="Navegación principal">
+          <nav
+            className="hidden items-center gap-5 lg:flex"
+            role="navigation"
+            aria-label="Navegación principal"
+          >
             <a
               href="#planes"
               className="relative text-sm font-semibold transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-[#a88aed] after:transition-all after:duration-300 hover:after:w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2 rounded text-[#a88aed] hover:text-[#8f70d8]"
@@ -235,11 +159,11 @@ export default function LandingPage() {
             >
               Ver Nutricionistas
             </Link>
-            <a href="#registro">
+            <Link href="/login">
               <Button className="rounded-full h-10 px-6 text-xs font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2">
                 Empieza Gratis
               </Button>
-            </a>
+            </Link>
           </nav>
 
           <button
@@ -249,7 +173,11 @@ export default function LandingPage() {
             aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={isMobileMenuOpen}
           >
-            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {isMobileMenuOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
           </button>
         </div>
 
@@ -270,20 +198,20 @@ export default function LandingPage() {
               >
                 Inicia Sesión
               </Link>
-<Link
+              <Link
                 href="/nutricionistas"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="rounded-2xl border border-emerald-200 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
               >
                 Ver Nutricionistas
               </Link>
-              <a
-                href="#registro"
+              <Link
+                href="/login"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="inline-flex items-center justify-center rounded-full bg-[#a88aed] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#8f70d8]"
               >
                 Empieza Gratis
-              </a>
+              </Link>
             </div>
           </div>
         )}
@@ -294,13 +222,25 @@ export default function LandingPage() {
         <section className="relative overflow-hidden pt-28 pb-16 sm:pt-32 sm:pb-20 lg:pt-44 lg:pb-28">
           <div className="mx-auto max-w-5xl px-4 sm:px-6">
             <div className="space-y-8 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
-              <div className={cn("inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-xs font-medium transition-all duration-300 hover:scale-105 sm:px-5 sm:text-sm", "bg-[#a88aed]/10 text-[#a88aed] border-[#a88aed]/30")}>
+              <div
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-xs font-medium transition-all duration-300 hover:scale-105 sm:px-5 sm:text-sm",
+                  "bg-[#a88aed]/10 text-[#a88aed] border-[#a88aed]/30",
+                )}
+              >
                 <Sparkles className="h-4 w-4" />
                 {content.hero.badge}
               </div>
-              
+
               <div className="space-y-2">
-                <h1 className="text-4xl font-black leading-none tracking-tight sm:text-5xl lg:text-8xl" style={{ WebkitTextStroke: "4px #a6c261", color: "transparent", fontWeight: 900 }}>
+                <h1
+                  className="text-4xl font-black leading-none tracking-tight sm:text-5xl lg:text-8xl"
+                  style={{
+                    WebkitTextStroke: "4px #a6c261",
+                    color: "transparent",
+                    fontWeight: 900,
+                  }}
+                >
                   {content.hero.titleLine1}
                 </h1>
                 <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
@@ -319,19 +259,30 @@ export default function LandingPage() {
               </p>
 
               <div className="pt-4">
-                <a href="#registro">
+                <Link href="/login">
                   <span className="group inline-flex items-center gap-2 rounded-full bg-[#a6c261] px-7 py-3 text-base font-bold italic text-white shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#8da84f] hover:shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a6c261] focus-visible:ring-offset-2 sm:px-10 sm:py-4 sm:text-lg">
-                    {content.hero.ctaButton} 
-                    <span className="transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1">🚀</span>
+                    {content.hero.ctaButton}
+                    <span className="transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1">
+                      🚀
+                    </span>
                   </span>
-                </a>
+                </Link>
               </div>
             </div>
           </div>
         </section>
 
         {/* Features Section */}
-        <section ref={featuresInView.ref} className={cn("py-16 transition-all duration-700 sm:py-20 lg:py-28", "bg-slate-50", featuresInView.isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8")}>
+        <section
+          ref={featuresRef}
+          className={cn(
+            "py-16 transition-all duration-700 sm:py-20 lg:py-28",
+            "bg-slate-50",
+            isFeaturesInView
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-8",
+          )}
+        >
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <div className="grid gap-6 md:grid-cols-3 lg:gap-8">
               {content.features.cards.map((feature, idx) => {
@@ -350,16 +301,33 @@ export default function LandingPage() {
                     className={cn(
                       "group cursor-pointer rounded-2xl border p-6 transition-all duration-500 hover:-translate-y-2 hover:shadow-xl sm:p-8",
                       delays[idx],
-                      "bg-white border-slate-200 shadow-md hover:border-[#a88aed]/40 hover:shadow-[#a88aed]/10"
+                      "bg-white border-slate-200 shadow-md hover:border-[#a88aed]/40 hover:shadow-[#a88aed]/10",
                     )}
                   >
-                    <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3", iconBgColors[feature.iconColor as keyof typeof iconBgColors])}>
+                    <div
+                      className={cn(
+                        "h-12 w-12 rounded-xl flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3",
+                        iconBgColors[
+                          feature.iconColor as keyof typeof iconBgColors
+                        ],
+                      )}
+                    >
                       {Icon && <Icon className="h-6 w-6" />}
                     </div>
-                    <h3 className={cn("text-lg font-bold mb-3 transition-colors duration-300", "text-indigo-900 group-hover:text-[#a88aed]")}>
+                    <h3
+                      className={cn(
+                        "text-lg font-bold mb-3 transition-colors duration-300",
+                        "text-indigo-900 group-hover:text-[#a88aed]",
+                      )}
+                    >
                       {feature.title}
                     </h3>
-                    <p className={cn("text-sm leading-relaxed", "text-slate-600")}>
+                    <p
+                      className={cn(
+                        "text-sm leading-relaxed",
+                        "text-slate-600",
+                      )}
+                    >
                       {feature.description}
                     </p>
                   </div>
@@ -369,11 +337,27 @@ export default function LandingPage() {
           </div>
         </section>
 
-{/* Pricing Section */}
-        <section id="planes" ref={pricingInView.ref} className={cn("py-16 transition-all duration-700 lg:py-24", pricingInView.isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8")}>
+        {/* Pricing Section */}
+        <section
+          id="planes"
+          ref={pricingRef}
+          className={cn(
+            "py-16 transition-all duration-700 lg:py-24",
+            isPricingInView
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-8",
+          )}
+        >
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="space-y-8 mb-12 text-center">
-              <span className="block text-4xl font-black tracking-tight sm:text-5xl lg:text-7xl" style={{ WebkitTextStroke: "3px #a6c261", color: "transparent", fontWeight: 900 }}>
+              <span
+                className="block text-4xl font-black tracking-tight sm:text-5xl lg:text-7xl"
+                style={{
+                  WebkitTextStroke: "3px #a6c261",
+                  color: "transparent",
+                  fontWeight: 900,
+                }}
+              >
                 {content.pricing.titleLine1}
               </span>
               <span className="block text-2xl font-bold text-[#a88aed] sm:text-3xl lg:text-4xl">
@@ -390,7 +374,7 @@ export default function LandingPage() {
                       "relative flex flex-col rounded-3xl bg-white text-center transition-all duration-500",
                       isPopular
                         ? "border-2 border-[#a88aed] shadow-[0_20px_60px_rgba(168,138,237,0.25)] lg:scale-105 z-10"
-                        : "border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1"
+                        : "border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1",
                     )}
                   >
                     {isPopular && (
@@ -398,9 +382,19 @@ export default function LandingPage() {
                         ⭐ Más Popular
                       </div>
                     )}
-                    <div className={cn("flex flex-col flex-1 p-6 sm:p-8", isPopular ? "pt-10" : "pt-6")}>
+                    <div
+                      className={cn(
+                        "flex flex-col flex-1 p-6 sm:p-8",
+                        isPopular ? "pt-10" : "pt-6",
+                      )}
+                    >
                       <div className="mb-6">
-                        <h3 className={cn("text-xl font-bold mb-2", isPopular ? "text-indigo-700" : "text-slate-900")}>
+                        <h3
+                          className={cn(
+                            "text-xl font-bold mb-2",
+                            isPopular ? "text-indigo-700" : "text-slate-900",
+                          )}
+                        >
                           {plan.name}
                         </h3>
                         <div className="flex items-baseline justify-center gap-1">
@@ -410,29 +404,52 @@ export default function LandingPage() {
                           <span className="text-slate-500 text-sm">/mes</span>
                         </div>
                         {plan.description && (
-                          <p className="mt-3 text-sm text-slate-500">{plan.description}</p>
+                          <p className="mt-3 text-sm text-slate-500">
+                            {plan.description}
+                          </p>
                         )}
                       </div>
 
                       <ul className="mb-8 space-y-3 text-left flex-1">
-                        {(Array.isArray(plan.features) ? plan.features : JSON.parse(plan.features || "[]")).map((feature: string, idx: number) => {
-                          const featureDisplay = getMembershipFeatureDisplay(feature);
+                        {(Array.isArray(plan.features)
+                          ? plan.features
+                          : JSON.parse(plan.features || "[]")
+                        ).map((feature: string, idx: number) => {
+                          const featureDisplay =
+                            getMembershipFeatureDisplay(feature);
 
                           return (
                             <li key={idx} className="flex items-start gap-3">
-                              <div className={cn("mt-0.5 rounded-full p-0.5", featureDisplay.isExcluded ? "bg-red-100" : isPopular ? "bg-indigo-100" : "bg-slate-100")}>
+                              <div
+                                className={cn(
+                                  "mt-0.5 rounded-full p-0.5",
+                                  featureDisplay.isExcluded
+                                    ? "bg-red-100"
+                                    : isPopular
+                                      ? "bg-indigo-100"
+                                      : "bg-slate-100",
+                                )}
+                              >
                                 {featureDisplay.isExcluded ? (
                                   <X className="h-3.5 w-3.5 text-red-500" />
                                 ) : (
-                                  <Check className={cn("h-3.5 w-3.5", isPopular ? "text-indigo-600" : "text-slate-500")} />
+                                  <Check
+                                    className={cn(
+                                      "h-3.5 w-3.5",
+                                      isPopular
+                                        ? "text-indigo-600"
+                                        : "text-slate-500",
+                                    )}
+                                  />
                                 )}
                               </div>
-                              <span className="text-sm text-slate-700">{featureDisplay.label}</span>
+                              <span className="text-sm text-slate-700">
+                                {featureDisplay.label}
+                              </span>
                             </li>
                           );
                         })}
                       </ul>
-
                     </div>
                   </div>
                 );
@@ -440,28 +457,40 @@ export default function LandingPage() {
             </div>
             <div className="mt-10 flex flex-col items-center gap-4 text-center">
               <p className="text-sm font-medium text-slate-600">
-                Elige al crear tu cuenta
+                Inicia con Google o escríbenos si tienes dudas
               </p>
-              <a href="#registro">
-                <Button className="rounded-full bg-[#a88aed] px-8 py-3 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#8f70d8] cursor-pointer">
-                  Crear mi cuenta
-                </Button>
-              </a>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Link href="/login" className="cursor-pointer rounded-full bg-[#a88aed] px-8 py-3 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#8f70d8]">
+                  Iniciar con Google
+                </Link>
+                <a href="#contacto" className="cursor-pointer rounded-full border border-[#a88aed]/20 bg-white px-8 py-3 text-sm font-bold text-[#a88aed] shadow-sm transition-all duration-300 hover:border-[#a88aed]/35 hover:bg-[#a88aed]/5">
+                  Enviar mensaje
+                </a>
+              </div>
             </div>
-            <p className="text-center text-sm text-slate-500 mt-8">
-              Sin compromiso. Cancela cuando quieras. Facturación segura.
+            <p className="mt-8 text-center text-sm text-slate-500">
+              Google-only para acceso. Te responderemos por correo electrónico.
             </p>
           </div>
         </section>
 
-        {/* Registration Form Section */}
-        <section id="registro" ref={registrationInView.ref} className={cn("py-16 transition-all duration-700 sm:py-20 lg:py-24", registrationInView.isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8")}>
+        {/* Access and Contact Section */}
+        <section
+          id="contacto"
+          ref={registrationRef}
+          className={cn(
+            "py-16 transition-all duration-700 sm:py-20 lg:py-24",
+            isRegistrationInView
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-8",
+          )}
+        >
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
               <div className="space-y-6 pt-1 sm:pt-4">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#a88aed]/20 bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#a88aed] shadow-sm">
                   <ShieldCheck className="h-4 w-4" />
-                  Alta segura
+                  Acceso con Google
                 </div>
                 <h2 className="text-3xl font-black text-[#a88aed] sm:text-4xl lg:text-5xl">
                   {content.registration.titleLine1}
@@ -480,98 +509,34 @@ export default function LandingPage() {
                   <p>{content.registration.paragraph2}</p>
                   <p>{content.registration.paragraph3}</p>
                 </div>
+                <div className="flex flex-wrap gap-3 pt-2">
+                  <Link href="/login" className="cursor-pointer rounded-full bg-[#a88aed] px-6 py-3 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#8f70d8]">
+                    Iniciar sesión con Google
+                  </Link>
+                  <a href="#contacto" className="cursor-pointer rounded-full border border-[#a88aed]/20 bg-white px-6 py-3 text-sm font-bold text-[#a88aed] shadow-sm transition-all duration-300 hover:border-[#a88aed]/35 hover:bg-[#a88aed]/5">
+                    Ir al formulario
+                  </a>
+                </div>
               </div>
 
-              <div className={cn("rounded-3xl border border-[#a88aed]/15 bg-white/70 p-5 shadow-[0_18px_50px_rgba(168,138,237,0.12)] backdrop-blur-sm transition-all duration-500 hover:shadow-[0_24px_60px_rgba(168,138,237,0.18)] sm:p-8 lg:p-10", "bg-[#a88aed]/10") }>
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 sm:space-y-6">
-                  <div className="space-y-2">
-                    <label className={cn("text-xs font-black uppercase tracking-[0.18em]", "text-[#a88aed]")}>{content.registration.formTitle}</label>
-                    <Input
-                      placeholder="Juan Andrés Silva Pérez"
-                      autoComplete="name"
-                      className="h-12 rounded-2xl border-[#a88aed]/25 bg-white/90 px-5 transition-all duration-300 focus:border-[#a88aed] focus:shadow-md"
-                      error={errors.fullName?.message}
-                      {...registerField("fullName")}
-                    />
-                    {errors.fullName?.message && <p className="text-xs font-medium text-rose-600">{errors.fullName.message}</p>}
+              <div
+                className={cn(
+                  "rounded-3xl border border-[#a88aed]/15 bg-white/70 p-5 shadow-[0_18px_50px_rgba(168,138,237,0.12)] backdrop-blur-sm transition-all duration-500 hover:shadow-[0_24px_60px_rgba(168,138,237,0.18)] sm:p-8 lg:p-10",
+                  "bg-[#a88aed]/10",
+                )}
+              >
+                <div className="mb-5 space-y-2">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#a88aed] shadow-sm">
+                    {content.registration.formTitle}
                   </div>
-                  <div className="space-y-2">
-                    <label className={cn("text-xs font-black uppercase tracking-[0.18em]", "text-[#a88aed]")}>{content.registration.formEmail}</label>
-                    <Input
-                      type="email"
-                      placeholder="juan.nutri@ejemplo.com"
-                      autoComplete="email"
-                      className="h-12 rounded-2xl border-[#a88aed]/25 bg-white/90 px-5 transition-all duration-300 focus:border-[#a88aed] focus:shadow-md"
-                      error={errors.email?.message}
-                      {...registerField("email")}
-                    />
-                    {errors.email?.message && <p className="text-xs font-medium text-rose-600">{errors.email.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <label className={cn("text-xs font-black uppercase tracking-[0.18em]", "text-[#a88aed]")}>{content.registration.formPassword}</label>
-                    <div className="relative">
-                      <Input
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Crea una contraseña segura"
-                        autoComplete="new-password"
-                        className="h-12 rounded-2xl border-[#a88aed]/25 bg-white/90 px-5 pr-12 transition-all duration-300 focus:border-[#a88aed] focus:shadow-md"
-                        error={errors.password?.message}
-                        {...registerField("password")}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((value) => !value)}
-                        className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#a88aed]/15 bg-white/90 text-[#a88aed] shadow-sm transition hover:border-[#a88aed]/25 hover:bg-[#a88aed]/10 hover:text-[#8f70d8]"
-                        aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-
-                    {passwordValue.length > 0 && (
-                    <div className="rounded-2xl border border-[#a88aed]/15 bg-white/85 p-4">
-                      <div className="mb-3 flex items-center justify-between gap-3">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Seguridad</span>
-                        <span className={cn("rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em]", passwordStrength.tone === "emerald" && "bg-emerald-100 text-emerald-700", passwordStrength.tone === "indigo" && "bg-indigo-100 text-indigo-700", passwordStrength.tone === "amber" && "bg-amber-100 text-amber-700", passwordStrength.tone === "rose" && "bg-rose-100 text-rose-700")}>{passwordStrength.label}</span>
-                      </div>
-                      <div className="mb-4 h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div className={cn("h-full rounded-full transition-all duration-300", passwordStrength.tone === "emerald" && "bg-emerald-500", passwordStrength.tone === "indigo" && "bg-indigo-500", passwordStrength.tone === "amber" && "bg-amber-500", passwordStrength.tone === "rose" && "bg-rose-500")} style={{ width: `${Math.min(100, (passwordStrength.score / 6) * 100)}%` }} />
-                      </div>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {passwordRequirements.map((rule) => (
-                          <div key={rule.key} className={cn("flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors", rule.met ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-white text-slate-500")}>
-                            <Check className={cn("h-3.5 w-3.5", rule.met ? "opacity-100" : "opacity-25")} />
-                            {rule.label}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    )}
-
-                    {errors.password?.message && <p className="text-xs font-medium text-rose-600">{errors.password.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className={cn("text-xs font-black uppercase tracking-[0.18em]", "text-[#a88aed]")}>{content.registration.formMessage}</label>
-                    <textarea
-                      className={cn("min-h-28 w-full rounded-2xl border border-[#a88aed]/25 bg-white/90 p-4 text-sm text-slate-700 placeholder:text-slate-400 transition-all duration-300 focus:border-[#a88aed] focus:outline-none focus:ring-2 focus:ring-[#a88aed]/20", errors.message && "border-rose-300 bg-rose-50 text-rose-900")}
-                      placeholder="Cuéntanos un poco sobre tu consulta..."
-                      {...registerField("message")}
-                    />
-                    {errors.message?.message && <p className="text-xs font-medium text-rose-600">{errors.message.message}</p>}
-                  </div>
-
-                  <div className="pt-2">
-                    <Button
-                      type="submit"
-                      isLoading={isSubmitting}
-                      className={cn("h-14 w-full rounded-full text-base font-bold transition-all duration-300 hover:scale-[1.01] hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2 sm:text-lg", "bg-[#a88aed] text-white shadow-lg shadow-[#a88aed]/30 hover:bg-[#8f70d8]")}
-                    >
-                      {content.registration.formSubmit} 🚀
-                      <Send className="ml-2 h-5 w-5" />
-                    </Button>
-                  </div>
-                </form>
+                  <h3 className="text-2xl font-black tracking-tight text-[#a88aed]">
+                    Escríbenos tu pregunta
+                  </h3>
+                  <p className="text-sm leading-6 text-slate-600">
+                    Tu mensaje se guardará en nuestro inbox y te responderemos por correo electrónico.
+                  </p>
+                </div>
+                <LandingContactForm />
               </div>
             </div>
 
@@ -583,7 +548,12 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className={cn("py-16 transition-colors duration-300 lg:py-20", "bg-[#a88aed]/5")}>
+      <footer
+        className={cn(
+          "py-16 transition-colors duration-300 lg:py-20",
+          "bg-[#a88aed]/5",
+        )}
+      >
         <div className="mx-auto max-w-7xl space-y-6 px-4 text-center sm:px-6">
           <div className="flex items-center justify-center gap-2">
             <Image
@@ -603,11 +573,17 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-4 text-sm font-medium text-[#a88aed]/75">
-            <Link href="/privacy-policy" className="transition-colors hover:text-[#8f70d8]">
+            <Link
+              href="/privacy-policy"
+              className="transition-colors hover:text-[#8f70d8]"
+            >
               Política de Privacidad
             </Link>
             <span className="text-[#a88aed]/30">•</span>
-            <Link href="/terms" className="transition-colors hover:text-[#8f70d8]">
+            <Link
+              href="/terms"
+              className="transition-colors hover:text-[#8f70d8]"
+            >
               Términos de Servicio
             </Link>
           </div>

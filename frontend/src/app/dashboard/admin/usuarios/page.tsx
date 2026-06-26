@@ -1,19 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   UserPlus,
   Mail,
   Shield,
-  ShieldAlert,
   KeyRound,
   RefreshCw,
   User,
-  Users,
-  Edit,
   Trash2,
-  Save,
-  X,
   Calendar,
   CheckCircle2,
   UserX,
@@ -35,6 +30,7 @@ interface UserData {
     | "ADMIN_GENERAL"
     | "NUTRITIONIST"
     | "NUTRITIONIST_DEVELOPER"
+    | "WORKER"
     | "ORGANIZATION"
     | "SUPPLEMENT_STORE"
     | "SUPERMARKET";
@@ -43,6 +39,22 @@ interface UserData {
   subscriptionEndsAt: string | null;
   createdAt: string;
 }
+
+interface MembershipPlan {
+  id: string;
+  name: string;
+  billingPeriod: string;
+}
+
+type CreationRole =
+  | "ADMIN_MASTER"
+  | "ADMIN_GENERAL"
+  | "NUTRITIONIST"
+  | "NUTRITIONIST_DEVELOPER"
+  | "WORKER"
+  | "ORGANIZATION"
+  | "SUPPLEMENT_STORE"
+  | "SUPERMARKET";
 
 const ADMIN_ROLES = ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"] as const;
 const isAdminRole = (role: string) =>
@@ -55,6 +67,7 @@ const roleLabels: Record<string, string> = {
   ADMIN_GENERAL: "Admin General",
   NUTRITIONIST: "Nutricionista",
   NUTRITIONIST_DEVELOPER: "Nutri Dev QA",
+  WORKER: "Worker",
   ORGANIZATION: "Organización",
   SUPPLEMENT_STORE: "Tienda de Suplementos",
   SUPERMARKET: "Supermercado",
@@ -84,17 +97,9 @@ export default function AdminUsersPage() {
   // Create Account State
   const [creationEmail, setCreationEmail] = useState("");
   const [creationName, setCreationName] = useState("");
-  const [creationRole, setCreationRole] = useState<
-    | "ADMIN_MASTER"
-    | "ADMIN_GENERAL"
-    | "NUTRITIONIST"
-    | "NUTRITIONIST_DEVELOPER"
-    | "ORGANIZATION"
-    | "SUPPLEMENT_STORE"
-    | "SUPERMARKET"
-  >("NUTRITIONIST");
+  const [creationRole, setCreationRole] = useState<CreationRole>("NUTRITIONIST");
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
-  const [membershipPlans, setMembershipPlans] = useState<any[]>([]);
+  const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState("");
 
   // Reset Password State
@@ -115,14 +120,6 @@ export default function AdminUsersPage() {
     }
   }, []);
 
-  // Fetch users when on 'admins' tab
-  useEffect(() => {
-    fetchMembershipPlans();
-    if (activeTab === "admins") {
-      fetchUsers();
-    }
-  }, [activeTab, accountFilter]);
-
   const fetchMembershipPlans = async () => {
     try {
       const response = await fetchApi(`/memberships/active`);
@@ -137,7 +134,7 @@ export default function AdminUsersPage() {
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setIsLoadingUsers(true);
     try {
       const token =
@@ -161,7 +158,15 @@ export default function AdminUsersPage() {
     } finally {
       setIsLoadingUsers(false);
     }
-  };
+  }, [accountFilter]);
+
+  // Fetch users when on 'admins' tab
+  useEffect(() => {
+    fetchMembershipPlans();
+    if (activeTab === "admins") {
+      fetchUsers();
+    }
+  }, [activeTab, fetchUsers]);
 
   // Permission Helpers
   const isMaster = currentAdminRole === "ADMIN_MASTER";
@@ -246,9 +251,13 @@ export default function AdminUsersPage() {
       );
       setIsConfirmModalOpen(false);
       fetchUsers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      toast.error(error.message || "Hubo un error al procesar el cambio");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Hubo un error al procesar el cambio",
+      );
     } finally {
       setIsLoadingUsers(false);
       setSelectedUser(null);
@@ -296,8 +305,10 @@ export default function AdminUsersPage() {
       setCreationName("");
       toast.success("Cuenta creada correctamente y bienvenida enviada");
       setActiveTab("admins");
-    } catch (error: any) {
-      toast.error(error.message || "Error al crear la cuenta");
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error ? error.message : "Error al crear la cuenta",
+      );
     } finally {
       setIsCreatingAccount(false);
     }
@@ -321,8 +332,12 @@ export default function AdminUsersPage() {
 
       setResetEmail("");
       toast.success("Se ha enviado un correo para restablecer la contraseña");
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Error al restablecer contraseña",
+      );
     } finally {
       setIsResetting(false);
     }
@@ -605,13 +620,14 @@ export default function AdminUsersPage() {
                       </div>
                       <select
                         value={creationRole}
-                        onChange={(e) => setCreationRole(e.target.value as any)}
+                        onChange={(e) => setCreationRole(e.target.value as CreationRole)}
                         className="block w-full rounded-md border-0 py-2.5 pl-10 pr-4 text-slate-900 ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                       >
                         <option value="NUTRITIONIST">Nutricionista</option>
                         <option value="NUTRITIONIST_DEVELOPER">
                           Nutri Dev QA
                         </option>
+                        <option value="WORKER">Worker</option>
                         {isMaster && (
                           <>
                             <option value="ADMIN_MASTER">

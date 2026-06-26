@@ -6,6 +6,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useMemo,
 } from "react";
 import { toast } from "sonner";
 import { membershipService } from "@/features/memberships/services/membership.service";
@@ -88,14 +89,18 @@ export function SubscriptionProvider({
     [entitlements],
   );
 
-  const planFeatures = {
-    canGenerateDiet: !requiresPlanSelection,
-    canExportPDF: getLimitValue("pdf.monthly.limit") > 0,
-    patientLimit: Number.isFinite(getLimitValue("patients.active.limit"))
-      ? getLimitValue("patients.active.limit")
-      : 999,
-    hasBranding: (currentPlan?.key || currentPlan?.slug || "").toLowerCase() !== "free",
-  };
+  const planFeatures = useMemo(
+    () => ({
+      canGenerateDiet: !requiresPlanSelection,
+      canExportPDF: getLimitValue("pdf.monthly.limit") > 0,
+      patientLimit: Number.isFinite(getLimitValue("patients.active.limit"))
+        ? getLimitValue("patients.active.limit")
+        : 999,
+      hasBranding:
+        (currentPlan?.key || currentPlan?.slug || "").toLowerCase() !== "free",
+    }),
+    [currentPlan?.key, currentPlan?.slug, getLimitValue, requiresPlanSelection],
+  );
 
   const applyStoredUserSnapshot = useCallback(() => {
     const storedUser = localStorage.getItem("user");
@@ -200,7 +205,12 @@ export function SubscriptionProvider({
         try {
           const user = JSON.parse(storedUser);
           const role = String(user?.role || "").toUpperCase();
-          if (role === "ADMIN" || role === "ADMIN_MASTER" || role === "ADMIN_GENERAL") {
+          if (
+            role === "ADMIN" ||
+            role === "ADMIN_MASTER" ||
+            role === "ADMIN_GENERAL" ||
+            role === "WORKER"
+          ) {
             return true;
           }
         } catch {}
