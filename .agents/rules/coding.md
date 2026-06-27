@@ -17,6 +17,7 @@
 
 ## File Boundaries & Modularization (Strict Rule)
 - **Zero Monolithic Components**: Never write or expand components into monolithic "super-files" (e.g. over 400 lines). Break down layouts, modals, and views into separate sub-components.
+- **Component Reuse First**: Before creating any new component, check if a similar one already exists in `src/components/` or `src/features/`. Prefer extending or modifying an existing component with props (maintaining clean React/Next.js patterns) over creating a duplicate.
 - **Strict Separation of Concerns**:
   - **UI Render**: Components in `src/app` or `src/features/components` should focus *only* on rendering.
   - **State & Logic**: Complex React states, API calls, and handlers *must* be extracted into custom React hooks (e.g. `useRecipes.ts`).
