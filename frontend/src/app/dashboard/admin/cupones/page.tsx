@@ -52,10 +52,16 @@ export default function AdminCuponesPage() {
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      const newCodes = await membershipService.generateDiscountCodes(
+      const result = await membershipService.generateDiscountCodes(
         genType,
         genCount,
       );
+      const newCodes = Array.isArray(result)
+        ? result
+        : Array.isArray((result as { data?: DiscountCodeAdmin[] })?.data)
+          ? (result as { data: DiscountCodeAdmin[] }).data
+          : [];
+
       toast.success(`${newCodes.length} codigos generados`);
       setCodes((prev) => [...newCodes, ...prev]);
     } catch (e: any) {
