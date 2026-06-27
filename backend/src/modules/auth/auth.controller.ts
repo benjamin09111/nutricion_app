@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Body,
+  Patch,
   Query,
   HttpCode,
   HttpStatus,
@@ -67,6 +68,25 @@ export class AuthController {
     return this.authService.getMe(req.user.id);
   }
 
+  @UseGuards(AuthGuard)
+  @Patch('me/tutorial-progress')
+  async updateTutorialProgress(
+    @Request() req: any,
+    @Body()
+    body: {
+      tutorialId: string;
+      progress: {
+        status: 'new' | 'in_progress' | 'completed' | 'skipped';
+        version: number;
+        lastStepIndex: number;
+        updatedAt: string;
+      };
+      hasSeenTutorialCoachmark?: boolean;
+    },
+  ) {
+    return this.authService.updateTutorialProgress(req.user.id, body);
+  }
+
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login() {
@@ -102,6 +122,7 @@ export class AuthController {
       createAccountDto.fullName,
       undefined,
       createAccountDto.planId,
+      createAccountDto.forceRoleChange === true,
     );
   }
 

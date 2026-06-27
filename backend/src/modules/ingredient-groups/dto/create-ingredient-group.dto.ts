@@ -34,4 +34,9 @@ export class CreateIngredientGroupDto {
     amount?: number;
     unit?: string;
   }[];
+
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  recipeIds?: string[];
 }

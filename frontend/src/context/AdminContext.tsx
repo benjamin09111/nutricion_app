@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { fetchApi } from "@/lib/api-base";
 
 type UserRole =
   | "ADMIN"
@@ -38,22 +39,59 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const syncRole = async () => {
+      const token = localStorage.getItem("auth_token");
+      const storedUser = localStorage.getItem("user");
 
-    if (!storedUser) {
-      setIsLoading(false);
-      return;
-    }
+      if (!token && !storedUser) {
+        setIsLoading(false);
+        return;
+      }
 
-    try {
-      const user = JSON.parse(storedUser);
-      setRole(user.role as UserRole);
-    } catch (error) {
-      console.error("Error parsing stored user:", error);
-      setRole(null);
-    } finally {
-      setIsLoading(false);
-    }
+      if (!token) {
+        try {
+          const user = JSON.parse(storedUser || "null");
+          setRole(user?.role as UserRole | null);
+        } catch (error) {
+          console.error("Error parsing stored user:", error);
+          setRole(null);
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const response = await fetchApi("/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          throw new Error("No se pudo sincronizar la sesión");
+        }
+
+        const data = await response.json();
+        const user = data?.user || data;
+        setRole(user?.role as UserRole | null);
+
+        if (user) {
+          localStorage.setItem("user", JSON.stringify(user));
+        }
+      } catch (error) {
+        console.error("Error syncing admin session:", error);
+        try {
+          const user = JSON.parse(storedUser || "null");
+          setRole(user?.role as UserRole | null);
+        } catch (parseError) {
+          console.error("Error parsing stored user:", parseError);
+          setRole(null);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void syncRole();
   }, []);
 
   const isAdmin = checkIsAdmin(role);

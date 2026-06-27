@@ -25,13 +25,15 @@ export interface Patient {
   nutritionalFocus?: string;
   fitnessGoals?: string;
   likes?: string;
-  activityLevel?: "sedentario" | "ligero" | "moderado" | "activo" | "muy_activo";
+  activityLevel?: ActivityLevel;
 
   // UI specific/Legacy fields
   status?: "Active" | "Inactive";
   lastVisit?: string;
   projects?: PatientProject[];
 }
+
+export type ActivityLevel = "sedentario" | "ligero" | "moderado" | "activo" | "muy_activo";
 
 export interface PatientProject {
   id: string;

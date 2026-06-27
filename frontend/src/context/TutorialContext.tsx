@@ -1,10 +1,10 @@
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect */
 
 import {
   createContext,
   useContext,
   useEffect,
+  useCallback,
   useMemo,
   useState,
 } from "react";
@@ -21,12 +21,18 @@ import {
   setTutorialCompleted,
   setTutorialInProgress,
   setTutorialSkipped,
+  setTutorialStore,
   type TutorialDefinition,
+  type TutorialPersistedProgress,
   type TutorialRuntimeState,
 } from "@/lib/tutorials";
 import { tutorialContentById } from "@/content/tutorials";
 import { TutorialLayer } from "@/components/tutorials/TutorialLayer";
 import { useAdmin } from "./AdminContext";
+import {
+  loadTutorialStoreFromServer,
+  saveTutorialProgressToServer,
+} from "@/lib/tutorial-progress-api";
 
 type TutorialContextValue = {
   currentTutorial: TutorialDefinition | null;
@@ -92,11 +98,11 @@ export function TutorialProvider({
 }) {
   const { isAdmin, isLoading: isAdminLoading } = useAdmin();
   const pathname = usePathname();
-  const [progressRevision, setProgressRevision] = useState(0);
   const [runtimeState, setRuntimeState] = useState<TutorialRuntimeState | null>(
     null,
   );
   const [showCoachmark, setShowCoachmark] = useState(false);
+  const [isTutorialStoreHydrated, setIsTutorialStoreHydrated] = useState(false);
   const [coachmarkSeen, setCoachmarkSeen] = useState(
     () => hasSeenTutorialCoachmark(),
   );
@@ -106,18 +112,14 @@ export function TutorialProvider({
     [pathname],
   );
 
-  const currentProgress = useMemo(
-    () =>
-      currentTutorial
-        ? getTutorialProgress(currentTutorial)
-        : {
-            status: "new",
-            version: 1,
-            lastStepIndex: 0,
-            updatedAt: new Date().toISOString(),
-          },
-    [currentTutorial, progressRevision],
-  );
+  const currentProgress = currentTutorial
+    ? getTutorialProgress(currentTutorial)
+    : {
+        status: "new",
+        version: 1,
+        lastStepIndex: 0,
+        updatedAt: new Date().toISOString(),
+      };
 
   const isTutorialAvailable = hasTutorialSteps(currentTutorial);
   const launchableTutorial = useMemo(() => {
@@ -132,47 +134,132 @@ export function TutorialProvider({
 
     const contextualTutorial = getTutorialForPath(lastContextPath);
     return hasTutorialSteps(contextualTutorial) ? contextualTutorial : null;
-  }, [currentTutorial, isTutorialAvailable, pathname]);
-  const introProgress = useMemo(
-    () => getTutorialProgress(INTRO_BETA_TUTORIAL),
-    [pathname, progressRevision],
+  }, [currentTutorial, isTutorialAvailable]);
+  const introProgress = getTutorialProgress(INTRO_BETA_TUTORIAL);
+
+  const persistTutorialProgress = useCallback(
+    (
+      tutorial: TutorialDefinition,
+      progress: TutorialPersistedProgress,
+      hasSeenCoachmark?: boolean,
+    ) => {
+      void saveTutorialProgressToServer({
+        tutorialId: tutorial.id,
+        progress,
+        hasSeenTutorialCoachmark: hasSeenCoachmark,
+      })
+        .then((serverStore) => {
+          if (!serverStore) {
+            return;
+          }
+
+          setTutorialStore(serverStore);
+          setCoachmarkSeen(serverStore.hasSeenTutorialCoachmark);
+        })
+        .catch(() => {
+          // Keep the local cache as the fallback.
+        });
+    },
+    [],
   );
 
-  const bumpProgressRevision = () => {
-    setProgressRevision((currentValue) => currentValue + 1);
-  };
+  const markTutorialInProgress = useCallback(
+    (tutorial: TutorialDefinition, stepIndex: number) => {
+      const progress = {
+        status: "in_progress" as const,
+        version: tutorial.version,
+        lastStepIndex: Math.max(
+          0,
+          Math.min(stepIndex, Math.max(0, tutorial.steps.length - 1)),
+        ),
+        updatedAt: new Date().toISOString(),
+      };
 
-  const markTutorialInProgress = (
-    tutorial: TutorialDefinition,
-    stepIndex: number,
-  ) => {
-    setTutorialInProgress(tutorial, stepIndex);
-    bumpProgressRevision();
-  };
+      setTutorialInProgress(tutorial, stepIndex);
+      persistTutorialProgress(tutorial, progress);
+    },
+    [persistTutorialProgress],
+  );
 
-  const markTutorialAsCompleted = (tutorial: TutorialDefinition) => {
+  const markTutorialAsCompleted = useCallback((tutorial: TutorialDefinition) => {
+    const progress = {
+      status: "completed" as const,
+      version: tutorial.version,
+      lastStepIndex: Math.max(0, tutorial.steps.length - 1),
+      updatedAt: new Date().toISOString(),
+    };
+
     setTutorialCompleted(tutorial);
-    bumpProgressRevision();
-  };
+    persistTutorialProgress(tutorial, progress);
+  }, [persistTutorialProgress]);
 
-  const markTutorialAsSkipped = (tutorial: TutorialDefinition) => {
+  const markTutorialAsSkipped = useCallback((tutorial: TutorialDefinition) => {
+    const progress = {
+      status: "skipped" as const,
+      version: tutorial.version,
+      lastStepIndex: Math.max(0, tutorial.steps.length - 1),
+      updatedAt: new Date().toISOString(),
+    };
+
     setTutorialSkipped(tutorial);
-    bumpProgressRevision();
-  };
+    persistTutorialProgress(tutorial, progress, true);
+  }, [persistTutorialProgress]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrateTutorialStore = async () => {
+      if (isAdminLoading) {
+        return;
+      }
+
+      if (isAdmin) {
+        setIsTutorialStoreHydrated(true);
+        return;
+      }
+
+      const serverStore = await loadTutorialStoreFromServer();
+
+      if (cancelled) {
+        return;
+      }
+
+      if (serverStore) {
+        setTutorialStore(serverStore);
+        setCoachmarkSeen(serverStore.hasSeenTutorialCoachmark);
+      }
+
+      setIsTutorialStoreHydrated(true);
+    };
+
+    void hydrateTutorialStore();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, isAdminLoading]);
 
   useEffect(() => {
     if (
-      pathname &&
-      currentTutorial &&
-      hasTutorialSteps(currentTutorial) &&
-      currentTutorial.id !== INTRO_BETA_TUTORIAL.id
+      !isTutorialStoreHydrated ||
+      !pathname ||
+      !currentTutorial ||
+      !hasTutorialSteps(currentTutorial) ||
+      currentTutorial.id === INTRO_BETA_TUTORIAL.id
     ) {
-      setLastTutorialContextPath(pathname);
+      return;
     }
-  }, [currentTutorial, pathname]);
+
+    setLastTutorialContextPath(pathname);
+  }, [currentTutorial, isTutorialStoreHydrated, pathname]);
 
   useEffect(() => {
-    if (!pathname?.startsWith("/dashboard") || isAdminLoading || isAdmin) {
+    if (
+      !isTutorialStoreHydrated ||
+      !pathname?.startsWith("/dashboard") ||
+      isAdminLoading ||
+      isAdmin
+    ) {
       return;
     }
 
@@ -201,10 +288,23 @@ export function TutorialProvider({
       });
       return;
     }
-  }, [introProgress.lastStepIndex, introProgress.status, pathname, isAdmin, isAdminLoading]);
+  }, [
+    introProgress.lastStepIndex,
+    introProgress.status,
+    pathname,
+    isAdmin,
+    isAdminLoading,
+    isTutorialStoreHydrated,
+    markTutorialInProgress,
+  ]);
 
   useEffect(() => {
-    if (!currentTutorial || isAdminLoading || isAdmin) {
+    if (
+      !isTutorialStoreHydrated ||
+      !currentTutorial ||
+      isAdminLoading ||
+      isAdmin
+    ) {
       return;
     }
 
@@ -248,6 +348,8 @@ export function TutorialProvider({
     runtimeState?.tutorialId,
     isAdmin,
     isAdminLoading,
+    isTutorialStoreHydrated,
+    markTutorialInProgress,
   ]);
 
   const closeTutorial = () => {

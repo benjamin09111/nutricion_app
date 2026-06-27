@@ -18,6 +18,7 @@ import {
   DiscountCodeType,
 } from '@prisma/client';
 import { DiscountCodesService } from '../discount-codes/discount-codes.service';
+import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
 
 @Injectable()
 export class PaymentsService {
@@ -335,7 +336,10 @@ export class PaymentsService {
     let chargeAmount = Math.max(0, price - credit);
 
     if (discount) {
-      chargeAmount = Math.max(0, Math.round(chargeAmount * (1 - discount.percent / 100)));
+      chargeAmount = Math.max(
+        0,
+        Math.round(chargeAmount * (1 - discount.percent / 100)),
+      );
     }
 
     return this.prisma.payment.create({
@@ -355,21 +359,19 @@ export class PaymentsService {
           fullPrice: price,
           proratedCredit: credit,
           chargedAmount: chargeAmount,
-          ...(discount ? {
-            discountCode: discount.code,
-            discountPercent: discount.percent,
-            discountType: discount.type,
-          } : {}),
+          ...(discount
+            ? {
+                discountCode: discount.code,
+                discountPercent: discount.percent,
+                discountType: discount.type,
+              }
+            : {}),
         },
       },
     });
   }
 
-  async validateDiscount(
-    accountId: string,
-    planId: string,
-    code: string,
-  ) {
+  async validateDiscount(accountId: string, planId: string, code: string) {
     const plan = await this.prisma.membershipPlan.findUnique({
       where: { id: planId },
     });
@@ -378,11 +380,15 @@ export class PaymentsService {
       throw new BadRequestException('Plan no encontrado o inactivo');
     }
 
-    const discountCode = await this.discountCodesService.validateAndGetDiscount(code);
+    const discountCode =
+      await this.discountCodesService.validateAndGetDiscount(code);
     const price = Number(plan.price);
     const credit = await this.calculateProratedCredit(accountId);
     const base = Math.max(0, price - credit);
-    const finalPrice = Math.max(0, Math.round(base * (1 - discountCode.discountPercent / 100)));
+    const finalPrice = Math.max(
+      0,
+      Math.round(base * (1 - discountCode.discountPercent / 100)),
+    );
 
     return {
       valid: true,
@@ -752,8 +758,9 @@ export class PaymentsService {
     plan: any,
     endDate: Date,
   ) {
-    const accountPlan: SubscriptionPlan =
-      Number(plan.price) === 0 ? SubscriptionPlan.FREE : SubscriptionPlan.PRO;
+    const accountPlan = resolveAccountPlanFromMembershipPlan(
+      plan.slug || plan.name,
+    );
 
     return tx.account.update({
       where: { id: accountId },

@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  ConflictException,
   UnauthorizedException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -13,31 +14,89 @@ import { UpdatePasswordDto } from './dto/update-password.dto';
 import { MailService } from '../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
 import { PermissionsService } from '../permissions/permissions.service';
-import { isAdminRole } from '../permissions/permissions.constants';
 
-import { Prisma, UserRole, SubscriptionPlan } from '@prisma/client';
+import { Prisma, UserRole, SubscriptionPlan, AccountStatus } from '@prisma/client';
 
-const GOOGLE_ADMIN_EMAIL = 'moralespizarrobenjamin763@gmail.com';
-const GOOGLE_NUTRI_DEV_EMAIL = 'benjamin.morales3@mail.udp.cl';
+type TutorialProgressStatus = 'new' | 'in_progress' | 'completed' | 'skipped';
 
-const resolveGoogleRole = (email: string): UserRole => {
-  const normalizedEmail = email.toLowerCase().trim();
+type TutorialPersistedProgress = {
+  status: TutorialProgressStatus;
+  version: number;
+  lastStepIndex: number;
+  updatedAt: string;
+};
 
-  if (normalizedEmail === GOOGLE_ADMIN_EMAIL) {
-    return 'ADMIN_MASTER';
+type TutorialStore = {
+  tutorials: Record<string, TutorialPersistedProgress>;
+  hasSeenTutorialCoachmark: boolean;
+};
+
+const DEFAULT_TUTORIAL_STORE: TutorialStore = {
+  tutorials: {},
+  hasSeenTutorialCoachmark: false,
+};
+
+const normalizeTutorialStore = (value: unknown): TutorialStore => {
+  if (!value || typeof value !== 'object') {
+    return { ...DEFAULT_TUTORIAL_STORE };
   }
 
-  if (normalizedEmail === GOOGLE_NUTRI_DEV_EMAIL) {
-    return 'NUTRITIONIST_DEVELOPER';
-  }
+  const store = value as Partial<TutorialStore> & {
+    tutorials?: Record<string, Partial<TutorialPersistedProgress>>;
+  };
 
-  return 'NUTRITIONIST';
+  return {
+    tutorials: Object.fromEntries(
+      Object.entries(store.tutorials || {}).map(([tutorialId, progress]) => [
+        tutorialId,
+        {
+          status:
+            progress.status === 'in_progress' ||
+            progress.status === 'completed' ||
+            progress.status === 'skipped'
+              ? progress.status
+              : 'new',
+          version: Number(progress.version || 1),
+          lastStepIndex: Math.max(0, Number(progress.lastStepIndex || 0)),
+          updatedAt:
+            typeof progress.updatedAt === 'string'
+              ? progress.updatedAt
+              : new Date().toISOString(),
+        },
+      ]),
+    ),
+    hasSeenTutorialCoachmark: store.hasSeenTutorialCoachmark === true,
+  };
 };
 
 const resolvePlanForRole = (role: UserRole): SubscriptionPlan =>
   role === 'NUTRITIONIST' || role === 'NUTRITIONIST_DEVELOPER'
     ? SubscriptionPlan.FREE
     : SubscriptionPlan.ENTERPRISE;
+
+const resolveGreetingName = (account: {
+  role: UserRole;
+  email: string;
+  nutritionist?: { fullName: string } | null;
+}) => {
+  if (account.nutritionist?.fullName) {
+    return account.nutritionist.fullName;
+  }
+
+  if (account.role === 'ADMIN_MASTER') {
+    return 'Admin Master';
+  }
+
+  if (account.role === 'ADMIN' || account.role === 'ADMIN_GENERAL') {
+    return 'Admin General';
+  }
+
+  if (account.role === 'NUTRITIONIST_DEVELOPER') {
+    return 'Nutricionista';
+  }
+
+  return account.email.split('@')[0] || 'Usuario';
+};
 
 const buildPublicSlug = (fullName: string, id: string) => {
   const namePart = fullName
@@ -74,6 +133,7 @@ export class AuthService {
     plan: SubscriptionPlan;
     createdAt: Date;
     googleAvatarUrl?: string | null;
+    tutorialProgress?: unknown;
     nutritionist?: { id: string; fullName: string } | null;
     subscription?: {
       status: string;
@@ -89,10 +149,20 @@ export class AuthService {
       } | null;
     } | null;
   }) {
-    const planName = account.subscription?.plan?.name || 'Plan Gratuito';
     const accessSnapshot = await this.permissionsService.getAccessSnapshot(
       account.id,
     );
+    const effectivePlan =
+      (accessSnapshot as any)?.accountPlan ||
+      account.plan ||
+      SubscriptionPlan.FREE;
+    const planName =
+      accessSnapshot?.currentPlan?.name ||
+      (effectivePlan === SubscriptionPlan.FREE
+        ? 'Plan Gratuito'
+        : effectivePlan === SubscriptionPlan.ENTERPRISE
+          ? 'Plan Enterprise'
+          : 'Plan Pro');
 
     const subscriptionInfo = account.subscription
       ? {
@@ -118,10 +188,11 @@ export class AuthService {
         id: account.id,
         email: account.email,
         role: account.role,
-        plan: account.plan,
+        plan: effectivePlan,
         planName,
         createdAt: account.createdAt?.toISOString() ?? null,
         googleAvatarUrl: account.googleAvatarUrl || null,
+        tutorialProgress: normalizeTutorialStore(account.tutorialProgress),
         requiresPlanSelection: accessSnapshot?.requiresPlanSelection ?? true,
         entitlements: accessSnapshot?.entitlements ?? {},
         subscription: subscriptionInfo,
@@ -152,24 +223,24 @@ export class AuthService {
     fullName: string = 'Usuario',
     adminMessage?: string,
     planId?: string,
+    forceRoleChange = false,
   ) {
     const normalizedEmail = email.toLowerCase().trim();
     const existingAccount = await this.prisma.account.findUnique({
       where: { email: normalizedEmail },
+      include: { nutritionist: true },
     });
 
-    if (existingAccount) {
-      throw new BadRequestException('La cuenta ya existe con este correo');
+    if (existingAccount && existingAccount.role !== role && !forceRoleChange) {
+      throw new ConflictException(
+        'La cuenta ya existe. Confirma para forzar el cambio de rol.',
+      );
     }
-
-    const password = crypto.randomBytes(8).toString('hex');
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     try {
       await this.prisma.$transaction(async (tx) => {
-        // Nutritionists start with the free plan unless an explicit plan is selected.
+        const targetPlanId = planId;
         let subscriptionPlan: SubscriptionPlan = SubscriptionPlan.FREE;
-        let targetPlanId = planId;
 
         const isNutritionist = [
           'NUTRITIONIST',
@@ -178,8 +249,8 @@ export class AuthService {
           'SUPPLEMENT_STORE',
           'SUPERMARKET',
         ].includes(role);
+
         if (isNutritionist) {
-          // Find the membership plan details
           let membershipPlan;
 
           if (targetPlanId) {
@@ -199,26 +270,38 @@ export class AuthService {
           }
         }
 
-        const newAccount = await tx.account.create({
-          data: {
-            email: normalizedEmail,
-            password: hashedPassword,
-            role: role,
-            plan:
-              role === 'NUTRITIONIST' || isNutritionist
-                ? subscriptionPlan
-                : 'ENTERPRISE', // Admins get full access
-            status: 'ACTIVE',
-            emailVerifiedAt: new Date(),
-            emailVerificationToken: null,
-            emailVerificationSentAt: null,
-          },
-        });
+        const accountData = {
+          email: normalizedEmail,
+          password: null,
+          googleSub: existingAccount?.googleSub || null,
+          googleEmail: normalizedEmail,
+          googleAvatarUrl: existingAccount?.googleAvatarUrl || null,
+          authProvider: 'google',
+          role,
+          plan:
+            role === 'NUTRITIONIST' || isNutritionist
+              ? subscriptionPlan
+              : SubscriptionPlan.ENTERPRISE,
+          status: 'ACTIVE' as AccountStatus,
+          emailVerifiedAt: new Date(),
+          emailVerificationToken: null,
+          emailVerificationSentAt: null,
+        };
 
-        if (role === 'NUTRITIONIST' || role === 'NUTRITIONIST_DEVELOPER') {
+        const savedAccount = existingAccount
+          ? await tx.account.update({
+              where: { id: existingAccount.id },
+              data: accountData,
+            })
+          : await tx.account.create({ data: accountData });
+
+        if (
+          (role === 'NUTRITIONIST' || role === 'NUTRITIONIST_DEVELOPER') &&
+          !existingAccount?.nutritionist
+        ) {
           const nutritionist = await tx.nutritionist.create({
             data: {
-              accountId: newAccount.id,
+              accountId: savedAccount.id,
               fullName: fullName,
             },
           });
@@ -230,10 +313,10 @@ export class AuthService {
         }
 
         // Only create a subscription when an explicit plan was provided.
-        if (isNutritionist && targetPlanId) {
+        if (!existingAccount && isNutritionist && targetPlanId) {
           await tx.subscription.create({
             data: {
-              accountId: newAccount.id,
+              accountId: savedAccount.id,
               planId: targetPlanId,
               status: 'ACTIVE', // Or TRIALING depending on business rules
               startDate: new Date(),
@@ -243,24 +326,22 @@ export class AuthService {
         }
       });
 
-      const isAdmin = isAdminRole(role);
-
-      if (!isAdmin) {
-        try {
-          await this.mailService.sendWelcomeEmail(
-            normalizedEmail,
-            fullName,
-            password,
-            adminMessage,
-          );
-        } catch (mailError) {
-          console.error('Error sending welcome email:', mailError);
-        }
+      try {
+        await this.mailService.sendWelcomeEmail(
+          normalizedEmail,
+          fullName,
+          `${getFrontendUrl()}/login`,
+          adminMessage,
+        );
+      } catch (mailError) {
+        console.error('Error sending access email:', mailError);
       }
 
       return {
         success: true,
-        message: 'Cuenta creada correctamente.',
+        message: existingAccount
+          ? 'Acceso actualizado correctamente.'
+          : 'Cuenta creada correctamente.',
       };
     } catch (error) {
       console.error('CRITICAL ERROR creating account:', error);
@@ -492,10 +573,20 @@ export class AuthService {
         expiresIn: loginDto.rememberMe ? '30d' : '24h',
       };
 
-      const planName = account.subscription?.plan?.name || 'Plan Gratuito';
       const accessSnapshot = await this.permissionsService.getAccessSnapshot(
         account.id,
       );
+      const effectivePlan =
+        (accessSnapshot as any)?.accountPlan ||
+        account.plan ||
+        SubscriptionPlan.FREE;
+      const planName =
+        accessSnapshot?.currentPlan?.name ||
+        (effectivePlan === SubscriptionPlan.FREE
+          ? 'Plan Gratuito'
+          : effectivePlan === SubscriptionPlan.ENTERPRISE
+            ? 'Plan Enterprise'
+            : 'Plan Pro');
 
       const subscriptionInfo = account.subscription
         ? {
@@ -512,6 +603,9 @@ export class AuthService {
               : null,
           }
         : null;
+      const tutorialProgress = normalizeTutorialStore(
+        (account as any).tutorialProgress,
+      );
 
       return {
         access_token: this.jwtService.sign(payload, signOptions),
@@ -519,11 +613,12 @@ export class AuthService {
           id: account.id,
           email: account.email,
           role: account.role,
-          plan: account.plan,
+          plan: effectivePlan,
           planName,
           requiresPlanSelection: accessSnapshot?.requiresPlanSelection ?? true,
           entitlements: accessSnapshot?.entitlements ?? {},
           subscription: subscriptionInfo,
+          tutorialProgress,
           nutritionist: account.nutritionist,
         },
       };
@@ -547,7 +642,6 @@ export class AuthService {
     picture?: string;
   }) {
     const normalizedEmail = profile.email.toLowerCase().trim();
-    const targetRole = resolveGoogleRole(normalizedEmail);
 
     if (!profile.email_verified) {
       throw new BadRequestException(
@@ -568,8 +662,9 @@ export class AuthService {
         return tx.account.update({
           where: { id: existingByGoogle.id },
           data: {
-            role: targetRole,
-            plan: resolvePlanForRole(targetRole),
+            password: null,
+            role: existingByGoogle.role,
+            plan: resolvePlanForRole(existingByGoogle.role),
             googleEmail: normalizedEmail,
             googleAvatarUrl:
               profile.picture || existingByGoogle.googleAvatarUrl,
@@ -596,8 +691,9 @@ export class AuthService {
         const updated = await tx.account.update({
           where: { id: existingByEmail.id },
           data: {
-            role: targetRole,
-            plan: resolvePlanForRole(targetRole),
+            password: null,
+            role: existingByEmail.role,
+            plan: resolvePlanForRole(existingByEmail.role),
             googleSub: profile.sub,
             googleEmail: normalizedEmail,
             googleAvatarUrl: profile.picture || existingByEmail.googleAvatarUrl,
@@ -653,8 +749,8 @@ export class AuthService {
           googleEmail: normalizedEmail,
           googleAvatarUrl: profile.picture || null,
           authProvider: 'google',
-          role: targetRole,
-          plan: resolvePlanForRole(targetRole),
+          role: 'NUTRITIONIST',
+          plan: SubscriptionPlan.FREE,
           status: 'ACTIVE',
           emailVerifiedAt: new Date(),
           emailVerificationToken: null,
@@ -722,6 +818,46 @@ export class AuthService {
     return this.buildSessionPayload(account as any);
   }
 
+  async updateTutorialProgress(
+    userId: string,
+    body: {
+      tutorialId: string;
+      progress: TutorialPersistedProgress;
+      hasSeenTutorialCoachmark?: boolean;
+    },
+  ) {
+    const account = (await this.prisma.account.findUnique({
+      where: { id: userId },
+    })) as any;
+
+    if (!account) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    const currentStore = normalizeTutorialStore(account.tutorialProgress);
+    const nextStore: TutorialStore = {
+      tutorials: {
+        ...currentStore.tutorials,
+        [body.tutorialId]: {
+          status: body.progress.status,
+          version: body.progress.version,
+          lastStepIndex: Math.max(0, body.progress.lastStepIndex),
+          updatedAt: body.progress.updatedAt,
+        },
+      },
+      hasSeenTutorialCoachmark:
+        body.hasSeenTutorialCoachmark === true ||
+        currentStore.hasSeenTutorialCoachmark,
+    };
+
+    await this.prisma.account.update({
+      where: { id: userId },
+      data: { tutorialProgress: nextStore } as any,
+    });
+
+    return nextStore;
+  }
+
   async validateUser(payload: any) {
     return this.prisma.account.findUnique({
       where: { id: payload.sub },
@@ -732,7 +868,7 @@ export class AuthService {
   async resetAccountPassword(email: string) {
     const normalizedEmail = email.toLowerCase().trim();
     console.log(
-      `[AuthService] Attempting to reset password for email: "${normalizedEmail}"`,
+      `[AuthService] Attempting to resend access for email: "${normalizedEmail}"`,
     );
     const account = await this.prisma.account.findUnique({
       where: { email: normalizedEmail },
@@ -741,57 +877,48 @@ export class AuthService {
 
     if (!account) {
       console.error(
-        `[AuthService] Reset failed: User not found for email "${email}"`,
+        `[AuthService] Access resend failed: User not found for email "${email}"`,
       );
       throw new BadRequestException('Usuario no encontrado');
     }
-    console.log(
-      `[AuthService] User found: ${account.id}, role: ${account.role}`,
-    );
-
-    const password = crypto.randomBytes(8).toString('hex');
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     try {
       await this.prisma.account.update({
         where: { email: normalizedEmail },
-        data: { password: hashedPassword },
+        data: {
+          password: null,
+          authProvider: 'google',
+          googleEmail: normalizedEmail,
+          emailVerifiedAt: new Date(),
+          status: 'ACTIVE',
+          emailVerificationToken: null,
+          emailVerificationSentAt: null,
+        },
       });
 
-      // Determine greeting name
-      let greetingName = 'Usuario';
-      if (account.nutritionist?.fullName) {
-        greetingName = account.nutritionist.fullName;
-      } else if (account.role === 'ADMIN_MASTER') {
-        greetingName = 'Admin Master';
-      } else if (['ADMIN', 'ADMIN_GENERAL'].includes(account.role)) {
-        greetingName = 'Admin General';
-      } else if (account.role === 'NUTRITIONIST_DEVELOPER') {
-        greetingName = 'Nutricionista';
-      }
+      const greetingName = resolveGreetingName(account as any);
 
       console.log(
-        `[AuthService] Password updated in DB for ${normalizedEmail}. New temporary pass: ${password}`,
+        `[AuthService] Access updated in DB for ${normalizedEmail}`,
       );
 
       try {
         await this.mailService.sendPasswordResetEmail(
           normalizedEmail,
           greetingName,
-          password,
+          `${getFrontendUrl()}/login`,
         );
       } catch (mailError) {
-        console.error('Error sending password reset email:', mailError);
+        console.error('Error sending access reminder email:', mailError);
       }
 
       return {
         success: true,
-        message: 'Contraseña restablecida y enviada por correo.',
-        temporaryPassword: password,
+        message: 'Acceso reenviado correctamente.',
       };
     } catch (error) {
-      console.error('Error resetting password:', error);
-      throw new BadRequestException('Error al restablecer la contraseña.');
+      console.error('Error resetting access:', error);
+      throw new BadRequestException('Error al reenviar el acceso.');
     }
   }
 

@@ -11,6 +11,7 @@ import {
   getMembershipPlanKey,
   normalizeMembershipPlanKey,
 } from '../memberships/plan-entitlements';
+import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['ACTIVE', 'TRIALING']);
 
@@ -52,20 +53,33 @@ export class PermissionsService {
       return null;
     }
 
-    const currentPlan = account.subscription?.plan
-      ? {
-          id: account.subscription.plan.id,
-          name: account.subscription.plan.name,
-          slug: account.subscription.plan.slug,
-          key: getMembershipPlanKey(account.subscription.plan),
-          price: Number(account.subscription.plan.price),
-          features: account.subscription.plan.features,
-          entitlements: normalizeEntitlementMap(
-            (account.subscription.plan as any).entitlements ||
-              getMembershipPlanEntitlementsFromPlan(account.subscription.plan),
-          ),
-        }
-      : null;
+    const subscriptionSelectable = isSubscriptionSelectable({
+      role: account.role,
+      subscription: account.subscription
+        ? {
+            status: account.subscription.status,
+            endDate: account.subscription.endDate,
+          }
+        : null,
+    });
+
+    const currentPlan =
+      subscriptionSelectable && account.subscription?.plan
+        ? {
+            id: account.subscription.plan.id,
+            name: account.subscription.plan.name,
+            slug: account.subscription.plan.slug,
+            key: getMembershipPlanKey(account.subscription.plan),
+            price: Number(account.subscription.plan.price),
+            features: account.subscription.plan.features,
+            entitlements: normalizeEntitlementMap(
+              (account.subscription.plan as any).entitlements ||
+                getMembershipPlanEntitlementsFromPlan(
+                  account.subscription.plan,
+                ),
+            ),
+          }
+        : null;
 
     const requiresPlanSelection = !isSubscriptionSelectable({
       role: account.role,
@@ -83,6 +97,14 @@ export class PermissionsService {
       currentPlan,
       requiresPlanSelection,
       entitlements: this.buildEntitlements(account, currentPlan),
+      accountPlan:
+        subscriptionSelectable && account.subscription?.plan
+          ? resolveAccountPlanFromMembershipPlan(
+              account.subscription.plan.slug || account.subscription.plan.name,
+            )
+          : isStaffRole(account.role)
+            ? account.plan
+            : 'FREE',
     };
   }
 
@@ -119,7 +141,7 @@ export class PermissionsService {
       snapshot;
 
     return {
-      accountPlan: account.plan,
+      accountPlan: snapshot.accountPlan,
       role: account.role,
       currentPlanKey: currentPlan ? currentPlan.key || null : null,
       requiresPlanSelection,

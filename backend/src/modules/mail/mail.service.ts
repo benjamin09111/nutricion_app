@@ -123,14 +123,12 @@ export class MailService {
   async sendWelcomeEmail(
     email: string,
     fullName: string,
-    password: string,
+    loginUrl: string,
     validAdminMessage?: string,
   ): Promise<void> {
-    const loginUrl = `${this.frontendUrl}/login`;
     const { html, text } = buildWelcomeEmailTemplate({
       fullName,
       email,
-      password,
       loginUrl,
       adminMessage: validAdminMessage,
     });
@@ -407,19 +405,18 @@ export class MailService {
   async sendPasswordResetEmail(
     email: string,
     fullName: string,
-    password: string,
+    loginUrl: string,
   ) {
-    const loginUrl = `${this.frontendUrl}/login`;
     const html = this.wrapHtml(
-      'Tu contraseña fue restablecida',
-      `<p>Hola <strong>${this.escapeHtml(fullName)}</strong>,</p><p>Restablecimos tu contraseña temporalmente.</p><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:16px 18px;margin:20px 0"><div style="font-size:12px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em">Contraseña temporal</div><div style="font-family:monospace;font-size:18px;font-weight:700">${this.escapeHtml(password)}</div></div><p><a href="${loginUrl}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 18px;border-radius:999px;font-weight:700">Ingresar</a></p><p style="color:#64748b;font-size:14px">Cámbiala apenas entres al sistema.</p>`,
+      'Tu acceso fue reenviado',
+      `<p>Hola <strong>${this.escapeHtml(fullName)}</strong>,</p><p>Tu acceso a NutriNet ya está habilitado para iniciar sesión con Google.</p><p><a href="${loginUrl}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 18px;border-radius:999px;font-weight:700">Iniciar con Google</a></p><p style="color:#64748b;font-size:14px">No necesitas contraseña para entrar.</p>`,
     );
 
     await this.sendEmail({
       to: email,
-      subject: 'Restablecimiento de contraseña en NutriNet',
+      subject: 'Tu acceso a NutriNet',
       html,
-      text: `Tu contraseña temporal es: ${password}. Inicia sesión en ${loginUrl}`,
+      text: `Tu acceso a NutriNet ya está habilitado. Inicia sesión con Google en ${loginUrl}`,
       channel: 'noReply',
     });
   }

@@ -24,6 +24,7 @@ model Account {
   plan                       SubscriptionPlan @default(FREE)
   subscriptionEndsAt         DateTime?        @map("subscription_ends_at")
   lastLoginAt                DateTime?        @map("last_login_at") @db.Timestamptz(6)
+  tutorialProgress           Json?            @default("{}") @map("tutorial_progress")
   emailVerificationToken     String?          @unique @map("email_verification_token")
   emailVerificationSentAt    DateTime?        @map("email_verification_sent_at") @db.Timestamptz(6)
   emailVerifiedAt            DateTime?        @map("email_verified_at") @db.Timestamptz(6)
@@ -35,6 +36,7 @@ model Account {
   googleCalendarConnections GoogleCalendarConnection[]
   createdDiscountCodes DiscountCode[] @relation("DiscountCodeCreator")
   usedDiscountCodes    DiscountCode[] @relation("DiscountCodeUser")
+  archivedDiscountCodes DiscountCode[] @relation("DiscountCodeArchiver")
 
   @@index([role, createdAt])
   @@map("accounts")
@@ -593,13 +595,17 @@ model DiscountCode {
   usedByAccountId  String?          @map("used_by_account_id")
   usedAt           DateTime?        @map("used_at")
   createdByAdminId String           @map("created_by_admin_id")
+  archivedAt       DateTime?        @map("archived_at")
+  archivedByAdminId String?         @map("archived_by_admin_id")
   createdAt        DateTime         @default(now()) @map("created_at")
 
   usedBy    Account? @relation("DiscountCodeUser", fields: [usedByAccountId], references: [id])
   createdBy Account  @relation("DiscountCodeCreator", fields: [createdByAdminId], references: [id])
+  archivedBy Account? @relation("DiscountCodeArchiver", fields: [archivedByAdminId], references: [id])
 
   @@index([code])
   @@index([createdByAdminId])
+  @@index([archivedAt])
   @@map("discount_codes")
 }
 
@@ -633,8 +639,8 @@ model Recipe {
   sodium         Float?             @default(0)
   isPublic       Boolean            @default(false) @map("is_public")
   nutritionistId String?            @map("nutritionist_id")
-  createdAt      DateTime           @map("created_at")@default(now())
-  updatedAt      DateTime           @updatedAt@map("updated_at")
+  createdAt      DateTime           @map("createdAt") @default(now())
+  updatedAt      DateTime           @updatedAt @map("updatedAt")
   imageUrl       String?            @map("image_url")
   metadata       Json?
   ingredients    RecipeIngredient[]
