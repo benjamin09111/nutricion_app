@@ -49,7 +49,7 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
         localStorage.setItem("auth_token", token);
         localStorage.setItem("user", JSON.stringify(data.user));
 
-        router.replace(next);
+        router.replace(data.user?.requiresPlanSelection ? "/plan" : next);
       } catch (error) {
         console.error("Auth callback error:", error);
         setMessage("No pudimos completar el inicio de sesión con Google.");

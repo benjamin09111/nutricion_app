@@ -204,7 +204,7 @@ export class MetricsService {
               ? 'Admin General'
               : acc.role === 'ADMIN'
                 ? 'Administrador (Legado)'
-                : acc.role === 'WORKER'
+                : String(acc.role) === 'WORKER'
                   ? 'Worker'
                   : acc.role === 'NUTRITIONIST_DEVELOPER'
                     ? 'Nutricionista Developer'

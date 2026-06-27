@@ -35,7 +35,9 @@ const resolveGoogleRole = (email: string): UserRole => {
 };
 
 const resolvePlanForRole = (role: UserRole): SubscriptionPlan =>
-  role === 'NUTRITIONIST' ? SubscriptionPlan.FREE : SubscriptionPlan.ENTERPRISE;
+  role === 'NUTRITIONIST' || role === 'NUTRITIONIST_DEVELOPER'
+    ? SubscriptionPlan.FREE
+    : SubscriptionPlan.ENTERPRISE;
 
 const buildPublicSlug = (fullName: string, id: string) => {
   const namePart = fullName
@@ -165,9 +167,8 @@ export class AuthService {
 
     try {
       await this.prisma.$transaction(async (tx) => {
-        // Determine the high-level plan enum
-        let subscriptionPlan: any =
-          role === 'NUTRITIONIST_DEVELOPER' ? 'ENTERPRISE' : 'FREE';
+        // Nutritionists start with the free plan unless an explicit plan is selected.
+        let subscriptionPlan: SubscriptionPlan = SubscriptionPlan.FREE;
         let targetPlanId = planId;
 
         const isNutritionist = [
@@ -177,37 +178,14 @@ export class AuthService {
           'SUPPLEMENT_STORE',
           'SUPERMARKET',
         ].includes(role);
-        const isDeveloperNutritionist = role === 'NUTRITIONIST_DEVELOPER';
-
         if (isNutritionist) {
           // Find the membership plan details
           let membershipPlan;
-
-          if (!targetPlanId && isDeveloperNutritionist) {
-            const enterprisePlan = await tx.membershipPlan.findFirst({
-              where: {
-                isActive: true,
-                slug: { contains: 'enterprise', mode: 'insensitive' },
-              },
-              orderBy: { price: 'desc' },
-            });
-
-            targetPlanId = enterprisePlan?.id || targetPlanId;
-          }
 
           if (targetPlanId) {
             membershipPlan = await tx.membershipPlan.findUnique({
               where: { id: targetPlanId },
             });
-          }
-
-          if (!membershipPlan && isDeveloperNutritionist) {
-            membershipPlan = await tx.membershipPlan.findFirst({
-              where: { isActive: true },
-              orderBy: [{ price: 'desc' }, { displayOrder: 'asc' }],
-            });
-
-            targetPlanId = membershipPlan?.id || targetPlanId;
           }
 
           if (targetPlanId && !membershipPlan) {
@@ -789,7 +767,7 @@ export class AuthService {
       } else if (['ADMIN', 'ADMIN_GENERAL'].includes(account.role)) {
         greetingName = 'Admin General';
       } else if (account.role === 'NUTRITIONIST_DEVELOPER') {
-        greetingName = 'Nutricionista Developer';
+        greetingName = 'Nutricionista';
       }
 
       console.log(

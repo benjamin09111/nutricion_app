@@ -26,25 +26,8 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [role] = useState<UserRole | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      return null;
-    }
-
-    try {
-      const user = JSON.parse(storedUser);
-      return user.role as UserRole;
-    } catch (error) {
-      console.error("Error parsing stored user:", error);
-      return null;
-    }
-  });
-  const [isLoading] = useState(false);
+  const [role, setRole] = useState<UserRole | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   function checkIsAdmin(r: string | null) {
     return r ? ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(r) : false;
@@ -53,6 +36,25 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   function checkIsWorker(r: string | null) {
     return r ? ["WORKER"].includes(r) : false;
   }
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+
+    if (!storedUser) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const user = JSON.parse(storedUser);
+      setRole(user.role as UserRole);
+    } catch (error) {
+      console.error("Error parsing stored user:", error);
+      setRole(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const isAdmin = checkIsAdmin(role);
   const isWorker = checkIsWorker(role);

@@ -2,7 +2,8 @@
 
 import { toast } from "sonner";
 import Cookies from "js-cookie";
-import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useRef, useState } from "react";
 import {
   Search,
   MoreHorizontal,
@@ -52,7 +53,7 @@ export default function AdminClientsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [planFilter, setPlanFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -63,11 +64,14 @@ export default function AdminClientsPage() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [durationDays, setDurationDays] = useState<number>(30);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedPlan, setSelectedPlan] = useState<string>("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
+  const actionButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const normalizePlanValue = (plan?: MembershipPlan | null) => {
     if (!plan) return "FREE";
@@ -135,16 +139,46 @@ export default function AdminClientsPage() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        openMenuId &&
-        !(event.target as Element).closest(".actions-menu-container")
-      ) {
+      const target = event.target as Node;
+      const clickedMenu = menuRef.current?.contains(target) ?? false;
+      const clickedButton = openMenuId
+        ? actionButtonRefs.current[openMenuId]?.contains(target) ?? false
+        : false;
+
+      if (openMenuId && !clickedMenu && !clickedButton) {
         setOpenMenuId(null);
+        setMenuPosition(null);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openMenuId]);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+
+    const button = actionButtonRefs.current[openMenuId];
+    if (!button) return;
+
+    setMenuPosition(getMenuPosition(button));
+  }, [openMenuId, clients]);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+
+    const closeMenu = () => {
+      setOpenMenuId(null);
+      setMenuPosition(null);
+    };
+
+    window.addEventListener("resize", closeMenu);
+    window.addEventListener("scroll", closeMenu, true);
+
+    return () => {
+      window.removeEventListener("resize", closeMenu);
+      window.removeEventListener("scroll", closeMenu, true);
+    };
   }, [openMenuId]);
 
   const fetchMembershipPlans = async () => {
@@ -449,6 +483,23 @@ export default function AdminClientsPage() {
     }
   };
 
+  const getMenuPosition = (button: HTMLButtonElement) => {
+    const rect = button.getBoundingClientRect();
+    const estimatedWidth = 144;
+    const estimatedHeight = 132;
+    const gap = 8;
+
+    let left = rect.right - estimatedWidth;
+    left = Math.max(gap, Math.min(left, window.innerWidth - estimatedWidth - gap));
+
+    let top = rect.bottom + gap;
+    if (top + estimatedHeight > window.innerHeight - gap) {
+      top = Math.max(gap, rect.top - estimatedHeight - gap);
+    }
+
+    return { top, left };
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -723,56 +774,24 @@ export default function AdminClientsPage() {
                       </td>
                       <td className="px-6 py-4 relative actions-menu-container">
                         <button
-                          onClick={() =>
-                            setOpenMenuId(
-                              openMenuId === client.id ? null : client.id,
-                            )
-                          }
+                          ref={(el) => {
+                            actionButtonRefs.current[client.id] = el;
+                          }}
+                          onClick={() => {
+                            if (openMenuId === client.id) {
+                              setOpenMenuId(null);
+                              setMenuPosition(null);
+                              return;
+                            }
+
+                            const button = actionButtonRefs.current[client.id];
+                            setMenuPosition(button ? getMenuPosition(button) : null);
+                            setOpenMenuId(client.id);
+                          }}
                           className="p-1 hover:bg-slate-100 rounded-md text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
                         >
                           <MoreHorizontal className="h-4 w-4" />
                         </button>
-                        {openMenuId === client.id && (
-                          <div className="absolute right-0 mt-1 w-36 rounded-xl bg-white shadow-xl ring-1 ring-black/5 z-20 p-1.5 border-none animate-in fade-in zoom-in-95 duration-100">
-                            {client.status === "PENDING" && (
-                              <button
-                                onClick={() => {
-                                  void handleResendVerificationEmail(client);
-                                  setOpenMenuId(null);
-                                }}
-                                disabled={isResendingVerification}
-                                className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                <Mail className="h-3.5 w-3.5" />
-                                Reenviar correo
-                              </button>
-                            )}
-                            <button
-                              onClick={() => {
-                                setSelectedUser(client);
-                                setSelectedPlan(getSelectedPlanValue(client.plan));
-                                setDurationDays(30);
-                                setShowConfigModal(true);
-                                setOpenMenuId(null);
-                              }}
-                              className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg transition-colors cursor-pointer"
-                            >
-                              <Settings className="h-3.5 w-3.5" />
-                              Configurar
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedUser(client);
-                                setShowDeleteModal(true);
-                                setOpenMenuId(null);
-                              }}
-                              className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg transition-colors cursor-pointer border-t border-slate-100 mt-1 pt-2"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Eliminar
-                            </button>
-                          </div>
-                        )}
                       </td>
                     </tr>
                   );
@@ -781,6 +800,67 @@ export default function AdminClientsPage() {
             </tbody>
           </table>
         </div>
+
+        {typeof document !== "undefined" && openMenuId && menuPosition
+          ? createPortal(
+              <div
+                ref={menuRef}
+                className="fixed w-36 rounded-xl bg-white shadow-xl ring-1 ring-black/5 z-[9999] p-1.5 border-none animate-in fade-in zoom-in-95 duration-100"
+                style={{ top: menuPosition.top, left: menuPosition.left }}
+              >
+                {(() => {
+                  const client = clients.find((item) => item.id === openMenuId);
+                  if (!client) return null;
+
+                  return (
+                    <>
+                      {client.status === "PENDING" && (
+                        <button
+                          onClick={() => {
+                            void handleResendVerificationEmail(client);
+                            setOpenMenuId(null);
+                            setMenuPosition(null);
+                          }}
+                          disabled={isResendingVerification}
+                          className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Mail className="h-3.5 w-3.5" />
+                          Reenviar correo
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          setSelectedUser(client);
+                          setSelectedPlan(getSelectedPlanValue(client.plan));
+                          setDurationDays(30);
+                          setShowConfigModal(true);
+                          setOpenMenuId(null);
+                          setMenuPosition(null);
+                        }}
+                        className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                        Configurar
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedUser(client);
+                          setShowDeleteModal(true);
+                          setOpenMenuId(null);
+                          setMenuPosition(null);
+                        }}
+                        className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg transition-colors cursor-pointer border-t border-slate-100 mt-1 pt-2"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Eliminar
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>,
+              document.body,
+            )
+          : null}
 
         <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-4 md:flex-row md:items-center md:justify-between">
           <div className="text-sm text-slate-500">

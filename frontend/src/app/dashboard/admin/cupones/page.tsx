@@ -36,8 +36,8 @@ export default function AdminCuponesPage() {
               ? false
               : undefined,
       });
-      setCodes(result.data);
-      setTotal(result.total);
+      setCodes(Array.isArray(result.data) ? result.data : []);
+      setTotal(typeof result.total === "number" ? result.total : 0);
     } catch {
       toast.error("Error al cargar codigos");
     } finally {
