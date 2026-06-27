@@ -32,7 +32,7 @@ const isAllowedWorkerAdminPath = (pathname: string) =>
     (allowedPath) => pathname === allowedPath || pathname.startsWith(`${allowedPath}/`),
   );
 
-export default function proxy(request: NextRequest) {
+export default function middleware(request: NextRequest) {
   const token = request.cookies.get("auth_token")?.value;
   const userData = request.cookies.get("user")?.value;
   const { pathname } = request.nextUrl;
