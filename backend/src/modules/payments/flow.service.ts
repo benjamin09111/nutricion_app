@@ -51,12 +51,20 @@ export class FlowService {
     let discount: { code: string; percent: number; type: string } | undefined;
 
     if (discountCode) {
-      const code = await this.discountCodesService.validateAndGetDiscount(discountCode);
-      discount = { code: code.code, percent: code.discountPercent, type: code.type };
+      const code =
+        await this.discountCodesService.validateAndGetDiscount(discountCode);
+      discount = {
+        code: code.code,
+        percent: code.discountPercent,
+        type: code.type,
+      };
     }
 
-    const pendingPayment =
-      await this.paymentsService.prepareMembershipPayment(accountId, planId, discount);
+    const pendingPayment = await this.paymentsService.prepareMembershipPayment(
+      accountId,
+      planId,
+      discount,
+    );
     const metadata = (pendingPayment.metadata as any) || {};
     const commerceOrder = `membership_${pendingPayment.id}`;
 
@@ -75,7 +83,9 @@ export class FlowService {
         accountId,
         planId,
         type: 'MEMBERSHIP_PLAN',
-        ...(discount ? { discountCode: discount.code, discountPercent: discount.percent } : {}),
+        ...(discount
+          ? { discountCode: discount.code, discountPercent: discount.percent }
+          : {}),
       }),
     });
 
@@ -83,7 +93,11 @@ export class FlowService {
 
     if (discountCode && discount) {
       await this.prisma.$transaction(async (tx) => {
-        await this.discountCodesService.markAsUsed(discount!.code, accountId, tx);
+        await this.discountCodesService.markAsUsed(
+          discount.code,
+          accountId,
+          tx,
+        );
         await tx.payment.update({
           where: { id: pendingPayment.id },
           data: {
@@ -297,7 +311,8 @@ export class FlowService {
     if (configured) return configured;
 
     const apiUrl = this.configService.get<string>('API_URL');
-    if (apiUrl) return `${apiUrl.replace(/\/$/, '')}/payments/flow/confirmation`;
+    if (apiUrl)
+      return `${apiUrl.replace(/\/$/, '')}/payments/flow/confirmation`;
 
     return 'http://localhost:3001/payments/flow/confirmation';
   }

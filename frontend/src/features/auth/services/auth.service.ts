@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { LoginFormData } from "@/lib/schemas/auth";
 import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
+import { normalizeTutorialStore, setTutorialStore } from "@/lib/tutorials";
 
 export const authService = {
   async signIn(credentials: LoginFormData) {
@@ -36,6 +37,7 @@ export const authService = {
       // Also keep in localStorage for client-side easy access if needed
       localStorage.setItem("auth_token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
+      setTutorialStore(normalizeTutorialStore(data.user?.tutorialProgress));
     }
 
     return data;

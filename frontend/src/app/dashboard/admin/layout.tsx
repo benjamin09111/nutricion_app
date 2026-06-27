@@ -9,7 +9,7 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAdminView } = useAdmin();
+  const { isAdminView, isLoading } = useAdmin();
   const router = useRouter();
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function AdminLayout({
     }
   }, [isAdminView, router]);
 
-  if (!isAdminView) {
+  if (isLoading || !isAdminView) {
     return null; // Or a loading spinner
   }
 

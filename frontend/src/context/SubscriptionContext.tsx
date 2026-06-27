@@ -10,6 +10,8 @@ import React, {
 } from "react";
 import { toast } from "sonner";
 import { membershipService } from "@/features/memberships/services/membership.service";
+import { fetchApi } from "@/lib/api-base";
+import { getAuthToken } from "@/lib/auth-token";
 
 export type SubscriptionPlan = "free" | "trial" | "pro";
 export type SubscriptionStatus = "active" | "expired" | "cancelled";
@@ -154,6 +156,8 @@ export function SubscriptionProvider({
   );
 
   const refreshSubscription = useCallback(async () => {
+    let resolvedRole: string | null = null;
+
     try {
       const data = await membershipService.getStatus();
       const key = computePlan(data.currentPlan, data.accountPlan);
@@ -171,12 +175,38 @@ export function SubscriptionProvider({
       setUsage(data.usage);
       setBilling(data.billing);
 
+      try {
+        const token = getAuthToken();
+        if (!token) return;
+
+        const meResponse = await fetchApi("/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (meResponse.ok) {
+          const meData = await meResponse.json();
+          const user = meData?.user || meData;
+          resolvedRole = typeof user?.role === "string" ? user.role : null;
+          setRole(resolvedRole);
+
+          const storedUser = localStorage.getItem("user");
+          if (storedUser) {
+            try {
+              const parsedUser = JSON.parse(storedUser);
+              const nextUser = { ...parsedUser, ...user };
+              localStorage.setItem("user", JSON.stringify(nextUser));
+            } catch {}
+          }
+        }
+      } catch {}
+
       // Sync to localStorage for legacy consumers
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         try {
           const user = JSON.parse(storedUser);
-          setRole(typeof user?.role === "string" ? user.role : null);
+          if (resolvedRole === null) {
+            setRole(typeof user?.role === "string" ? user.role : null);
+          }
           user.plan = data.accountPlan || key;
           user.planName = data.currentPlan?.name || "Plan Gratuito";
           user.subscription = data.subscription;

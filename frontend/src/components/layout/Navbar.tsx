@@ -80,6 +80,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const notificationRef = useRef<HTMLDivElement>(null);
 
   const { isAdminView } = useAdmin();
+  const { planName } = useSubscription();
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
     useNotifications();
   const { isDarkMode, toggleTheme } = useTheme();

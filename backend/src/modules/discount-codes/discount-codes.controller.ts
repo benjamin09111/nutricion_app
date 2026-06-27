@@ -18,13 +18,13 @@ import { DiscountCodeType } from '@prisma/client';
 @Controller('discount-codes')
 @UseGuards(AuthGuard)
 export class DiscountCodesController {
-  constructor(
-    private readonly discountCodesService: DiscountCodesService,
-  ) {}
+  constructor(private readonly discountCodesService: DiscountCodesService) {}
 
   private ensureStaff(req: any) {
     if (!isStaffRole(req.user?.role)) {
-      throw new UnauthorizedException('Solo administradores pueden gestionar codigos');
+      throw new UnauthorizedException(
+        'Solo administradores pueden gestionar codigos',
+      );
     }
   }
 
@@ -45,6 +45,7 @@ export class DiscountCodesController {
     @Query('adminId') adminId?: string,
     @Query('start') start?: string,
     @Query('limit') limit?: string,
+    @Query('includeArchived') includeArchived?: string,
     @Request() req?: any,
   ) {
     this.ensureStaff(req);
@@ -54,7 +55,14 @@ export class DiscountCodesController {
       adminId: adminId || undefined,
       start: start ? parseInt(start) : 0,
       limit: limit ? parseInt(limit) : 100,
+      includeArchived: includeArchived === 'true',
     });
+  }
+
+  @Post('archive-used')
+  async archiveUsed(@Request() req: any) {
+    this.ensureStaff(req);
+    return this.discountCodesService.archiveUsedCodes(req.user.id);
   }
 
   @Get(':id')

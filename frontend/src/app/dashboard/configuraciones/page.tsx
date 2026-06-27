@@ -21,7 +21,7 @@ function RoleBadge({ role }: { role?: string | null }) {
     ADMIN_GENERAL: { label: "Admin General", className: "bg-rose-50 text-rose-700 ring-rose-600/20" },
     ADMIN: { label: "Admin", className: "bg-rose-50 text-rose-700 ring-rose-600/20" },
     WORKER: { label: "Worker", className: "bg-amber-50 text-amber-700 ring-amber-600/20" },
-    NUTRITIONIST_DEVELOPER: { label: "Developer", className: "bg-purple-50 text-purple-700 ring-purple-600/20" },
+    NUTRITIONIST_DEVELOPER: { label: "Nutricionista", className: "bg-emerald-50 text-emerald-700 ring-emerald-600/20" },
     NUTRITIONIST: { label: "Nutricionista", className: "bg-emerald-50 text-emerald-700 ring-emerald-600/20" },
   };
   const c = role ? config[role] : undefined;

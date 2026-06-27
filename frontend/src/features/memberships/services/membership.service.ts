@@ -1,5 +1,14 @@
 import { api } from "@/lib/api";
 
+async function readJsonResponse<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({} as { message?: string }));
+    throw new Error(errorData?.message || "Error al procesar la solicitud");
+  }
+
+  return res.json() as Promise<T>;
+}
+
 export interface MembershipStatus {
   requiresPlanSelection: boolean;
   accountPlan: string;
@@ -103,9 +112,12 @@ export interface DiscountCodeAdmin {
   isUsed: boolean;
   usedByAccountId: string | null;
   usedAt: string | null;
+  archivedAt?: string | null;
+  archivedByAdminId?: string | null;
   createdAt: string;
   createdBy: { email: string };
   usedBy?: { email: string } | null;
+  archivedBy?: { email: string } | null;
 }
 
 export const membershipService = {
@@ -168,7 +180,7 @@ export const membershipService = {
 
   async generateDiscountCodes(type: string, count: number): Promise<DiscountCodeAdmin[]> {
     const res = await api.post("/discount-codes/generate", { type, count });
-    return res.json();
+    return readJsonResponse<DiscountCodeAdmin[]>(res);
   },
 
   async listDiscountCodes(params?: {
@@ -176,13 +188,20 @@ export const membershipService = {
     isUsed?: boolean;
     start?: number;
     limit?: number;
+    includeArchived?: boolean;
   }): Promise<{ total: number; data: DiscountCodeAdmin[] }> {
     const query = new URLSearchParams();
     if (params?.type) query.set("type", params.type);
     if (params?.isUsed !== undefined) query.set("isUsed", String(params.isUsed));
     if (params?.start !== undefined) query.set("start", String(params.start));
     if (params?.limit !== undefined) query.set("limit", String(params.limit));
+    if (params?.includeArchived !== undefined) query.set("includeArchived", String(params.includeArchived));
     const res = await api.get(`/discount-codes?${query}`);
-    return res.json();
+    return readJsonResponse<{ total: number; data: DiscountCodeAdmin[] }>(res);
+  },
+
+  async archiveUsedDiscountCodes(): Promise<{ archivedCount: number; archivedAt: string }> {
+    const res = await api.post("/discount-codes/archive-used");
+    return readJsonResponse<{ archivedCount: number; archivedAt: string }>(res);
   },
 };

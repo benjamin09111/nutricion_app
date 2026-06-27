@@ -54,11 +54,10 @@ npm run lint
 - PostgreSQL + Prisma.
 - `Project` actúa como contenedor del flujo clínico.
 - `Patient`, `Consultation`, `Creation` y `Resource` concentran gran parte del dominio.
-- Ver [../SAFE_MODE.md](/Users/juako/Code/nutricion_app/SAFE_MODE.md) antes de tocar migraciones o entornos.
+- Antes de tocar migraciones o entornos, revisa `../.agents/rules/core.md`.
 
 ## Documentación relacionada
 
-- [../README.md](/Users/juako/Code/nutricion_app/README.md)
-- [../ARCHITECTURE.md](/Users/juako/Code/nutricion_app/ARCHITECTURE.md)
-- [../docs/README.md](/Users/juako/Code/nutricion_app/docs/README.md)
-- [scripts/README.md](/Users/juako/Code/nutricion_app/backend/scripts/README.md)
+- [../README.md](../README.md)
+- [../docs/README.md](../docs/README.md)
+- [scripts/README.md](scripts/README.md)

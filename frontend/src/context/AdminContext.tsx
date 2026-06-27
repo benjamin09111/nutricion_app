@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { fetchApi } from "@/lib/api-base";
 
 type UserRole =
   | "ADMIN"
@@ -26,25 +27,8 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [role] = useState<UserRole | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      return null;
-    }
-
-    try {
-      const user = JSON.parse(storedUser);
-      return user.role as UserRole;
-    } catch (error) {
-      console.error("Error parsing stored user:", error);
-      return null;
-    }
-  });
-  const [isLoading] = useState(false);
+  const [role, setRole] = useState<UserRole | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   function checkIsAdmin(r: string | null) {
     return r ? ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(r) : false;
@@ -53,6 +37,62 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   function checkIsWorker(r: string | null) {
     return r ? ["WORKER"].includes(r) : false;
   }
+
+  useEffect(() => {
+    const syncRole = async () => {
+      const token = localStorage.getItem("auth_token");
+      const storedUser = localStorage.getItem("user");
+
+      if (!token && !storedUser) {
+        setIsLoading(false);
+        return;
+      }
+
+      if (!token) {
+        try {
+          const user = JSON.parse(storedUser || "null");
+          setRole(user?.role as UserRole | null);
+        } catch (error) {
+          console.error("Error parsing stored user:", error);
+          setRole(null);
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const response = await fetchApi("/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          throw new Error("No se pudo sincronizar la sesión");
+        }
+
+        const data = await response.json();
+        const user = data?.user || data;
+        setRole(user?.role as UserRole | null);
+
+        if (user) {
+          localStorage.setItem("user", JSON.stringify(user));
+        }
+      } catch (error) {
+        console.error("Error syncing admin session:", error);
+        try {
+          const user = JSON.parse(storedUser || "null");
+          setRole(user?.role as UserRole | null);
+        } catch (parseError) {
+          console.error("Error parsing stored user:", parseError);
+          setRole(null);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void syncRole();
+  }, []);
 
   const isAdmin = checkIsAdmin(role);
   const isWorker = checkIsWorker(role);

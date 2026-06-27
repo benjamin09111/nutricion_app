@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsNotEmpty,
   IsOptional,
@@ -23,4 +24,8 @@ export class CreateAccountDto {
   @IsString()
   @IsOptional()
   planId?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  forceRoleChange?: boolean;
 }

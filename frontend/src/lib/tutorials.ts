@@ -69,6 +69,18 @@ export const TUTORIAL_STORE_KEY = "nutri_tutorial_store_v2";
 export const TUTORIAL_TRIGGER_TARGET_ID = "tutorial-trigger";
 export const TUTORIAL_CONTEXT_PATH_KEY = "nutri_tutorial_context_path_v1";
 
+export const createDefaultTutorialStore = (): TutorialStore => ({
+  tutorials: {},
+  hasSeenTutorialCoachmark: false,
+});
+
+export const normalizeTutorialStore = (
+  store?: Partial<TutorialStore> | null,
+): TutorialStore => ({
+  tutorials: store?.tutorials ?? {},
+  hasSeenTutorialCoachmark: store?.hasSeenTutorialCoachmark === true,
+});
+
 const getTutorialUserScope = () => {
   if (typeof window === "undefined") {
     return "anonymous";
@@ -195,29 +207,29 @@ export const normalizeProgress = (
 
 const readStore = (): TutorialStore => {
   if (typeof window === "undefined") {
-    return { tutorials: {}, hasSeenTutorialCoachmark: false };
+    return createDefaultTutorialStore();
   }
 
   const raw = window.localStorage.getItem(getTutorialStoreKey());
   if (!raw) {
-    return { tutorials: {}, hasSeenTutorialCoachmark: false };
+    return createDefaultTutorialStore();
   }
 
   try {
     const parsed = JSON.parse(raw) as Partial<TutorialStore>;
-    return {
-      tutorials: parsed.tutorials ?? {},
-      hasSeenTutorialCoachmark:
-        parsed.hasSeenTutorialCoachmark === true,
-    };
+    return normalizeTutorialStore(parsed);
   } catch {
-    return { tutorials: {}, hasSeenTutorialCoachmark: false };
+    return createDefaultTutorialStore();
   }
 };
 
 const writeStore = (store: TutorialStore) => {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(getTutorialStoreKey(), JSON.stringify(store));
+};
+
+export const setTutorialStore = (store: TutorialStore) => {
+  writeStore(normalizeTutorialStore(store));
 };
 
 export const getTutorialProgress = (

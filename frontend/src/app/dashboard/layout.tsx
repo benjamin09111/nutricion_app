@@ -88,13 +88,15 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         <Navbar onMenuClick={() => setSidebarOpen(true)} />
         <main
           className={cn(
-            "flex-1 py-6 lg:py-10",
+            isAdminView ? "flex-1 py-4 lg:py-5" : "flex-1 py-6 lg:py-10",
             isAdminView && !isDarkMode && "bg-indigo-50/10",
           )}
         >
           <div
             className={`mx-auto w-full ${
-              isRecipesModule
+              isAdminView
+                ? "max-w-[96rem] px-3 sm:px-4 lg:px-6"
+                : isRecipesModule
                 ? "max-w-[120rem] px-3 sm:px-5 lg:px-6"
                 : "max-w-7xl px-4 sm:px-6 lg:px-8"
             }`}

@@ -21,7 +21,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // Verify the account still exists and is active in the database
     const account = await this.prisma.account.findUnique({
       where: { id: payload.sub },
-      select: { status: true },
+      select: {
+        status: true,
+        role: true,
+        email: true,
+        nutritionist: {
+          select: { id: true },
+        },
+      },
     });
 
     if (
@@ -34,9 +41,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     return {
       id: payload.sub,
-      email: payload.email,
-      role: payload.role,
-      nutritionistId: payload.nutritionistId,
+      email: account.email,
+      role: account.role,
+      nutritionistId: account.nutritionist?.id,
     };
   }
 }

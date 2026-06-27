@@ -3,7 +3,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import type { Prisma, MembershipPlan } from '@prisma/client';
 
 const normalizeMembershipFeature = (value: unknown): string => {
-  const feature = typeof value === 'string' ? value.trim() : String(value ?? '').trim();
+  const feature =
+    typeof value === 'string' ? value.trim() : String(value ?? '').trim();
   if (!feature) return '';
 
   if (/^([✓✔Xx])\s*(.*)$/.test(feature)) {

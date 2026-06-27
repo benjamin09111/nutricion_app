@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Cookies from "js-cookie";
 import { Loader2 } from "lucide-react";
 import { fetchApi } from "@/lib/api-base";
+import { normalizeTutorialStore, setTutorialStore } from "@/lib/tutorials";
 
 const storageOptions = {
   expires: 30,
@@ -48,8 +49,9 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
         Cookies.set("user", JSON.stringify(data.user), storageOptions);
         localStorage.setItem("auth_token", token);
         localStorage.setItem("user", JSON.stringify(data.user));
+        setTutorialStore(normalizeTutorialStore(data.user?.tutorialProgress));
 
-        router.replace(next);
+        router.replace(data.user?.requiresPlanSelection ? "/plan" : next);
       } catch (error) {
         console.error("Auth callback error:", error);
         setMessage("No pudimos completar el inicio de sesión con Google.");

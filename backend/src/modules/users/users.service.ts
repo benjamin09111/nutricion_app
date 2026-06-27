@@ -5,6 +5,8 @@ const normalizeCalendarTimeZone = (timeZone?: string | null) =>
 import { AccountStatus, SubscriptionPlan, UserRole } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
 import { ADMIN_ROLES } from '../permissions/permissions.constants';
+import { normalizeMembershipPlanKey } from '../memberships/plan-entitlements';
+import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
 
 const NUTRITIONIST_ROLES = ['NUTRITIONIST', 'NUTRITIONIST_DEVELOPER'] as const;
 
@@ -252,7 +254,7 @@ export class UsersService {
             ? 'Admin General'
             : acc.role === 'ADMIN'
               ? 'Administrador (Legado)'
-              : acc.role === 'WORKER'
+              : String(acc.role) === 'WORKER'
                 ? 'Worker'
                 : acc.role === 'NUTRITIONIST_DEVELOPER'
                   ? 'Nutricionista Developer'
@@ -455,17 +457,68 @@ export class UsersService {
    * Update user's subscription plan
    */
   async updatePlan(userId: string, plan: SubscriptionPlan, days?: number) {
-    const updateData: any = { plan };
+    const normalizedPlan = normalizeMembershipPlanKey(String(plan));
 
-    if (days && days > 0) {
+    return this.prisma.$transaction(async (tx) => {
+      if (normalizedPlan === 'free') {
+        await tx.subscription.deleteMany({ where: { accountId: userId } });
+
+        return tx.account.update({
+          where: { id: userId },
+          data: {
+            plan: SubscriptionPlan.FREE,
+            subscriptionEndsAt: null,
+          },
+        });
+      }
+
+      const membershipPlans = await tx.membershipPlan.findMany({
+        where: { isActive: true },
+      });
+      const membershipPlan = membershipPlans.find((membership) => {
+        const membershipKey = normalizeMembershipPlanKey(
+          membership.slug || membership.name || '',
+        );
+        return membershipKey === normalizedPlan;
+      });
+
+      if (!membershipPlan) {
+        throw new Error('Plan de membresía no encontrado');
+      }
+
       const endDate = new Date();
-      endDate.setDate(endDate.getDate() + days);
-      updateData.subscriptionEndsAt = endDate;
-    }
+      endDate.setDate(endDate.getDate() + (days && days > 0 ? days : 30));
 
-    return this.prisma.account.update({
-      where: { id: userId },
-      data: updateData,
+      const accountPlan = resolveAccountPlanFromMembershipPlan(
+        membershipPlan.slug || membershipPlan.name,
+      );
+
+      await tx.subscription.upsert({
+        where: { accountId: userId },
+        update: {
+          planId: membershipPlan.id,
+          status: 'ACTIVE',
+          startDate: new Date(),
+          endDate,
+          cancelAtPeriodEnd: false,
+          canceledAt: null,
+        },
+        create: {
+          accountId: userId,
+          planId: membershipPlan.id,
+          status: 'ACTIVE',
+          startDate: new Date(),
+          endDate,
+        },
+      });
+
+      return tx.account.update({
+        where: { id: userId },
+        data: {
+          plan: accountPlan,
+          subscriptionEndsAt: endDate,
+        },
+      });
     });
   }
 

@@ -364,7 +364,16 @@ export default function LandingPage() {
                 {content.pricing.titleLine2} 🌱
               </span>
             </div>
-            <div className="grid gap-6 lg:grid-cols-3 xl:gap-8">
+            <div
+              className={cn(
+                "grid gap-6 xl:gap-8",
+                sortedPlans.length === 1
+                  ? "mx-auto max-w-2xl lg:grid-cols-1"
+                  : sortedPlans.length === 2
+                    ? "mx-auto max-w-5xl lg:grid-cols-2"
+                    : "lg:grid-cols-3",
+              )}
+            >
               {sortedPlans.map((plan) => {
                 const isPopular = plan.isPopular;
                 return (
@@ -372,6 +381,7 @@ export default function LandingPage() {
                     key={plan.id}
                     className={cn(
                       "relative flex flex-col rounded-3xl bg-white text-center transition-all duration-500",
+                      sortedPlans.length === 1 && "w-full",
                       isPopular
                         ? "border-2 border-[#a88aed] shadow-[0_20px_60px_rgba(168,138,237,0.25)] lg:scale-105 z-10"
                         : "border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1",
