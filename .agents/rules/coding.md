@@ -15,9 +15,12 @@
 - **Maintainability**: Clean code. Clear English comments.
 - **Integrity**: NO unsolicited renames/moves. Preserve UTF-8 Spanish text.
 
-## File Boundaries
-- **Single Responsibility**: One file should solve one cohesive concern.
-- **Size Budget**: If a file starts getting large or mixing data fetching, state, UI, and business rules, split it.
-- **Extraction Rule**: Pull repeated logic into helpers/hooks/services instead of growing a single component or service.
-- **Review Trigger**: Treat files approaching a few hundred lines as a signal to refactor, not as a target to keep extending.
-- **Preferred Outcome**: Smaller files that are easy for another agent or person to read, test, and change quickly.
+## File Boundaries & Modularization (Strict Rule)
+- **Zero Monolithic Components**: Never write or expand components into monolithic "super-files" (e.g. over 400 lines). Break down layouts, modals, and views into separate sub-components.
+- **Strict Separation of Concerns**:
+  - **UI Render**: Components in `src/app` or `src/features/components` should focus *only* on rendering.
+  - **State & Logic**: Complex React states, API calls, and handlers *must* be extracted into custom React hooks (e.g. `useRecipes.ts`).
+  - **Business Rules & Math**: Formula calculations, PDF builders, and helper logic must be placed in pure helper files under `src/lib/` or `features/.../utils`.
+- **Enforce the `features/` Directory**: Do not write feature-specific components or local utilities inside the Next.js `app/` folder. Place modular hooks, sub-components, and types inside `src/features/<feature-name>/`.
+- **Continuous Refactoring**: If an existing component is massive (such as RecipesClient or PatientDetailClient), any new change or fix should be used as an opportunity to extract and modularize its pieces rather than making the file larger.
+- **Ease of Collaboration**: Code must be modular so multiple developers can edit different parts of the same view without causing git merge conflicts.
