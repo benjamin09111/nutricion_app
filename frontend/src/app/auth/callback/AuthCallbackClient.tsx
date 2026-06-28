@@ -13,6 +13,19 @@ const storageOptions = {
   sameSite: "strict" as const,
 };
 
+const DRAFT_STORAGE_KEYS = [
+  "nutri_active_draft",
+  "nutri_patient",
+  "nutri_quick_deliverable_draft",
+  "nutri_quick_recipes_draft",
+  "nutri_pauta_alimentacion_draft",
+];
+
+const SESSION_DRAFT_KEYS = [
+  "nutri_cart_draft_decided",
+  "nutri_deliverable_draft_decided",
+];
+
 type Props = {
   fallbackMessage?: string;
 };
@@ -45,6 +58,16 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
         }
 
         const data = await response.json();
+        try {
+          const previousUserRaw = localStorage.getItem("user");
+          const previousUser = previousUserRaw ? JSON.parse(previousUserRaw) : null;
+          if (previousUser?.id && previousUser.id !== data.user?.id) {
+            DRAFT_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+            SESSION_DRAFT_KEYS.forEach((key) => sessionStorage.removeItem(key));
+          }
+        } catch (error) {
+          console.error("Error clearing stale draft storage", error);
+        }
         Cookies.set("auth_token", token, storageOptions);
         Cookies.set("user", JSON.stringify(data.user), storageOptions);
         localStorage.setItem("auth_token", token);

@@ -65,6 +65,20 @@ export class ConsultationsService {
     private permissionsService: PermissionsService,
   ) {}
 
+  private async assertPatientOwnership(
+    nutritionistId: string,
+    patientId: string,
+  ) {
+    const patient = await this.prisma.patient.findFirst({
+      where: { id: patientId, nutritionistId },
+      select: { id: true },
+    });
+
+    if (!patient) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
+  }
+
   async create(
     accountId: string,
     nutritionistId: string,
@@ -87,6 +101,11 @@ export class ConsultationsService {
       consultationsThisMonth,
     );
 
+    await this.assertPatientOwnership(
+      nutritionistId,
+      createConsultationDto.patientId,
+    );
+
     const consultation = await this.prisma.consultation.create({
       data: {
         ...createConsultationDto,
@@ -99,6 +118,7 @@ export class ConsultationsService {
     // Sync patient data if metrics are present
     if (createConsultationDto.metrics) {
       await this.syncPatientData(
+        nutritionistId,
         createConsultationDto.patientId,
         createConsultationDto.metrics,
       );
@@ -210,6 +230,9 @@ export class ConsultationsService {
     updateConsultationDto: UpdateConsultationDto,
   ) {
     const existing = await this.findOne(nutritionistId, id);
+    const targetPatientId = updateConsultationDto.patientId ?? existing.patientId;
+
+    await this.assertPatientOwnership(nutritionistId, targetPatientId);
 
     const data: any = { ...updateConsultationDto };
     if (updateConsultationDto.date) {
@@ -225,7 +248,8 @@ export class ConsultationsService {
     // Sync patient data if metrics are present
     if (updateConsultationDto.metrics) {
       await this.syncPatientData(
-        existing.patientId,
+        nutritionistId,
+        targetPatientId,
         updateConsultationDto.metrics,
       );
     }
@@ -242,6 +266,7 @@ export class ConsultationsService {
   }
 
   private async syncPatientData(
+    nutritionistId: string,
     patientId: string,
     metrics: ConsultationMetric[],
   ) {
@@ -250,12 +275,16 @@ export class ConsultationsService {
       height?: number;
       customVariables?: PatientCustomVariable[];
     } = {};
-    const patient = await this.prisma.patient.findUnique({
-      where: { id: patientId },
+    const patient = await this.prisma.patient.findFirst({
+      where: { id: patientId, nutritionistId },
       select: {
         customVariables: true,
       },
     });
+
+    if (!patient) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
 
     const customVariables = Array.isArray(patient?.customVariables)
       ? [...(patient.customVariables as PatientCustomVariable[])]
