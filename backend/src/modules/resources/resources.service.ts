@@ -59,9 +59,18 @@ export class ResourcesService {
     );
   }
 
-  async findOne(id: string) {
-    const resource = await this.prisma.resource.findUnique({
-      where: { id },
+  async findOne(id: string, nutritionistId: string, _isAdmin: boolean) {
+    const ownershipFilters = [
+      { nutritionistId: null },
+      { isPublic: true },
+      ...(nutritionistId ? [{ nutritionistId }] : []),
+    ];
+
+    const resource = await this.prisma.resource.findFirst({
+      where: {
+        id,
+        OR: ownershipFilters,
+      },
     });
     if (!resource) return null;
     return this.enrichWithVariables(resource);
