@@ -29,10 +29,13 @@ export class NutritionistsController {
   }
 
   @Post('share-schedule')
-  async shareSchedule(
-    @Request() req: any,
+  shareSchedule(
     @Body()
-    body: { email: string; bookingUrl: string; nutritionistName: string },
+    body: {
+      email: string;
+      bookingUrl: string;
+      nutritionistName: string;
+    },
   ) {
     this.mailService
       .sendBookingLinkEmail({

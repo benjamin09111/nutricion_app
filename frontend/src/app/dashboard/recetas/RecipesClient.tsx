@@ -107,7 +107,7 @@ export default function RecipesClient() {
   );
 
   const assignedSourceSummary = useMemo(() => {
-    if (state.sourceModules.diet) return "Dieta asignada";
+    if (state.sourceModules.diet) return "Dieta asignada · metas heredadas";
     return "Sin dieta asignada";
   }, [state.sourceModules]);
 
@@ -186,7 +186,7 @@ export default function RecipesClient() {
                   Status del Plan
                 </p>
                 <p className="text-xs font-bold text-slate-600">
-                  Estructura semanal alineada con Dieta y lista para seguir creciendo.
+                  Estructura semanal alineada con Dieta y con sus objetivos clínicos heredados.
                 </p>
               </div>
             </div>

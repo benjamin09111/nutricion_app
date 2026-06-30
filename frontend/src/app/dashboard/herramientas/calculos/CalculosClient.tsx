@@ -52,8 +52,8 @@ export default function CalculosClient() {
   const heightNum = parseFloat(height) || 0;
   const ageNum = parseInt(age) || 0;
 
-  const bmi = calculateBMI(weightNum, heightNum);
-  const idealWeight = getIdealWeightRange(heightNum);
+  const bmi = calculateBMI(weightNum, heightNum, { gender, ageYears: ageNum || undefined });
+  const idealWeight = getIdealWeightRange(heightNum, { gender, ageYears: ageNum });
   const get = calculateGET(gender, weightNum, heightNum, ageNum, activityLevel, tmbFormula);
   const macros = calculateMacros(get?.get || 0, carbPct / 100, proteinPct / 100, fatPct / 100);
   const portions = get ? calculateExchangePortions(get.macros) : [];
@@ -202,8 +202,22 @@ export default function CalculosClient() {
             {bmi ? (
               <div className="space-y-3">
                 <p className="text-4xl font-bold text-slate-900">{bmi.bmi} <span className="text-base font-normal text-slate-400">kg/m²</span></p>
-                {idealWeight && (
-                  <p className="text-sm text-slate-500">Peso ideal estimado: <span className="font-semibold text-slate-700">{idealWeight.min} – {idealWeight.max} kg</span></p>
+                {typeof bmi.percentile === "number" && (
+                  <p className="text-sm text-slate-500">
+                    Percentil aprox. {bmi.percentile}{bmi.percentileCategory ? ` (${bmi.percentileCategory})` : ""}
+                  </p>
+                )}
+                {bmi.note && (
+                  <p className="text-xs text-amber-600">{bmi.note}</p>
+                )}
+                {idealWeight && idealWeight.supported !== false && (
+                  <div className="space-y-1">
+                    <p className="text-sm text-slate-500">Peso ideal estimado: <span className="font-semibold text-slate-700">{idealWeight.min} – {idealWeight.max} kg</span></p>
+                    <p className="text-[11px] text-slate-400">{idealWeight.reference}{idealWeight.note ? ` · ${idealWeight.note}` : ""}</p>
+                  </div>
+                )}
+                {idealWeight?.supported === false && idealWeight.note && (
+                  <p className="text-sm text-amber-600">{idealWeight.note}</p>
                 )}
                 <div className="flex h-2 rounded-full overflow-hidden bg-slate-100">
                   {BMI_CLASSIFICATIONS.map((c, i) => (

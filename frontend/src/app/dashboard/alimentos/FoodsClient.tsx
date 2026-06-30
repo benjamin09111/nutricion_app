@@ -305,6 +305,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         ...prev.filter((ingredient) => ingredient.id !== newIngredient.id),
       ]);
     }
+    setActiveTab("Mis creaciones");
     await Promise.all([fetchIngredients(), fetchCatalogPool()]);
 
   };
@@ -573,7 +574,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                   )}
                 >
                   <BadgeCheck size={14} />
-                  🏢 Oficiales App
+                  🏢 INTA 2018
                 </button>
                 <button
                   onClick={() => setBaseTab("community")}
@@ -630,7 +631,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
               className="w-full justify-center bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-sm sm:w-auto cursor-pointer rounded-xl font-semibold"
             >
               <Plus size={18} />
-              Nuevo Ingrediente
+              Nuevo Alimento
             </Button>
           </div>
         </div>

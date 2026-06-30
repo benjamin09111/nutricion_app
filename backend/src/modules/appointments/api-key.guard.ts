@@ -9,7 +9,8 @@ import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
-  private readonly jwtSecret = process.env.JWT_SECRET || 'change_me_local';
+  private readonly jwtSecret = process.env.JWT_SECRET;
+  private readonly apiKey = process.env.APPOINTMENTS_API_KEY;
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
@@ -25,11 +26,11 @@ export class ApiKeyGuard implements CanActivate {
     const nutritionistId = request.headers['x-nutritionist-id'] as string;
     const authHeader = request.headers['authorization'] as string;
 
-    if (apiKey && nutritionistId) {
+    if (apiKey && nutritionistId && this.apiKey && apiKey === this.apiKey) {
       return true;
     }
 
-    if (authHeader?.startsWith('Bearer ')) {
+    if (authHeader?.startsWith('Bearer ') && this.jwtSecret) {
       const token = authHeader.substring(7);
       try {
         const decoded = jwt.verify(token, this.jwtSecret) as jwt.JwtPayload & {
@@ -63,7 +64,7 @@ export class ApiKeyGuard implements CanActivate {
     }
 
     throw new UnauthorizedException(
-      'Se requiere X-Api-Key y X-Nutritionist-Id, o un JWT válido en Authorization',
+      'Se requiere una clave de API válida o un JWT válido en Authorization',
     );
   }
 }

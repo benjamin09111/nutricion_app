@@ -246,7 +246,6 @@ export const extractCalendarCandidate = (payload: unknown): Record<string, unkno
 
 export const normalizeAvailabilityRules = (payload: unknown): WeekRule[] => {
   const items = extractAvailabilityRules(payload);
-  console.log("[appointments] normalizeAvailabilityRules raw items:", items);
   if (!items.length) {
     return [];
   }
@@ -254,7 +253,6 @@ export const normalizeAvailabilityRules = (payload: unknown): WeekRule[] => {
   const parsed = items
     .map(parseAvailabilityRuleItem)
     .filter((item): item is WeekRule => item !== null);
-  console.log("[appointments] normalizeAvailabilityRules parsed:", parsed);
 
   if (!parsed.length) {
     return [];
@@ -535,44 +533,40 @@ export const createAppointmentDraft = () => ({
 export const formatTimeInput = (date: Date) =>
   `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 
+import { getCurrentUser } from "@/lib/current-user";
+
 export const getStoredNutritionistProfile = () => {
   if (typeof window === "undefined") {
     return null;
   }
 
-  try {
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) return null;
-
-    const user = JSON.parse(storedUser) as Record<string, unknown> & {
+  const user = getCurrentUser() as Record<string, unknown> & {
+    id?: string;
+    fullName?: string;
+    name?: string;
+    email?: string;
+    nutritionist?: {
       id?: string;
       fullName?: string;
       name?: string;
-      email?: string;
-      nutritionist?: {
-        id?: string;
-        fullName?: string;
-        name?: string;
-      } | null;
-    };
+    } | null;
+  } | null;
 
-    const nutritionist = user.nutritionist || null;
-    const nutritionistId = normalizeText(nutritionist?.id) || "";
-    const nutritionistName =
-      normalizeText(nutritionist?.fullName) ||
-      normalizeText(nutritionist?.name) ||
-      normalizeText(user.fullName) ||
-      normalizeText(user.name) ||
-      normalizeText(user.email) ||
-      "Nutricionista";
+  if (!user) return null;
 
-    return {
-      nutritionistId,
-      nutritionistName,
-    };
-  } catch (error) {
-    console.error("Error reading stored user for appointments share link", error);
-    return null;
-  }
+  const nutritionist = user.nutritionist || null;
+  const nutritionistId = normalizeText(nutritionist?.id) || "";
+  const nutritionistName =
+    normalizeText(nutritionist?.fullName) ||
+    normalizeText(nutritionist?.name) ||
+    normalizeText(user.fullName) ||
+    normalizeText(user.name) ||
+    normalizeText(user.email) ||
+    "Nutricionista";
+
+  return {
+    nutritionistId,
+    nutritionistName,
+  };
 };
 export type TabKey = "calendar" | "upcoming" | "past" | "requests";

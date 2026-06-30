@@ -15,59 +15,12 @@ import { MailService } from '../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
 import { PermissionsService } from '../permissions/permissions.service';
 
-import { Prisma, UserRole, SubscriptionPlan, AccountStatus } from '@prisma/client';
-
-type TutorialProgressStatus = 'new' | 'in_progress' | 'completed' | 'skipped';
-
-type TutorialPersistedProgress = {
-  status: TutorialProgressStatus;
-  version: number;
-  lastStepIndex: number;
-  updatedAt: string;
-};
-
-type TutorialStore = {
-  tutorials: Record<string, TutorialPersistedProgress>;
-  hasSeenTutorialCoachmark: boolean;
-};
-
-const DEFAULT_TUTORIAL_STORE: TutorialStore = {
-  tutorials: {},
-  hasSeenTutorialCoachmark: false,
-};
-
-const normalizeTutorialStore = (value: unknown): TutorialStore => {
-  if (!value || typeof value !== 'object') {
-    return { ...DEFAULT_TUTORIAL_STORE };
-  }
-
-  const store = value as Partial<TutorialStore> & {
-    tutorials?: Record<string, Partial<TutorialPersistedProgress>>;
-  };
-
-  return {
-    tutorials: Object.fromEntries(
-      Object.entries(store.tutorials || {}).map(([tutorialId, progress]) => [
-        tutorialId,
-        {
-          status:
-            progress.status === 'in_progress' ||
-            progress.status === 'completed' ||
-            progress.status === 'skipped'
-              ? progress.status
-              : 'new',
-          version: Number(progress.version || 1),
-          lastStepIndex: Math.max(0, Number(progress.lastStepIndex || 0)),
-          updatedAt:
-            typeof progress.updatedAt === 'string'
-              ? progress.updatedAt
-              : new Date().toISOString(),
-        },
-      ]),
-    ),
-    hasSeenTutorialCoachmark: store.hasSeenTutorialCoachmark === true,
-  };
-};
+import {
+  Prisma,
+  UserRole,
+  SubscriptionPlan,
+  AccountStatus,
+} from '@prisma/client';
 
 const resolvePlanForRole = (role: UserRole): SubscriptionPlan =>
   role === 'NUTRITIONIST' || role === 'NUTRITIONIST_DEVELOPER'
@@ -119,12 +72,43 @@ const getFrontendUrl = () =>
 
 @Injectable()
 export class AuthService {
+  private readonly oauthSessionTickets = new Map<
+    string,
+    { payload: { access_token: string; user: any }; expiresAt: number }
+  >();
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private mailService: MailService,
     private permissionsService: PermissionsService,
   ) {}
+
+  createOAuthSessionTicket(session: { access_token: string; user: any }) {
+    const ticket = crypto.randomBytes(24).toString('base64url');
+    this.oauthSessionTickets.set(ticket, {
+      payload: session,
+      expiresAt: Date.now() + 2 * 60 * 1000,
+    });
+
+    return ticket;
+  }
+
+  consumeOAuthSessionTicket(ticket: string) {
+    const entry = this.oauthSessionTickets.get(ticket);
+
+    if (!entry) {
+      return null;
+    }
+
+    this.oauthSessionTickets.delete(ticket);
+
+    if (entry.expiresAt < Date.now()) {
+      return null;
+    }
+
+    return entry.payload;
+  }
 
   private async buildSessionPayload(account: {
     id: string;
@@ -133,7 +117,6 @@ export class AuthService {
     plan: SubscriptionPlan;
     createdAt: Date;
     googleAvatarUrl?: string | null;
-    tutorialProgress?: unknown;
     nutritionist?: { id: string; fullName: string } | null;
     subscription?: {
       status: string;
@@ -192,7 +175,6 @@ export class AuthService {
         planName,
         createdAt: account.createdAt?.toISOString() ?? null,
         googleAvatarUrl: account.googleAvatarUrl || null,
-        tutorialProgress: normalizeTutorialStore(account.tutorialProgress),
         requiresPlanSelection: accessSnapshot?.requiresPlanSelection ?? true,
         entitlements: accessSnapshot?.entitlements ?? {},
         subscription: subscriptionInfo,
@@ -603,10 +585,6 @@ export class AuthService {
               : null,
           }
         : null;
-      const tutorialProgress = normalizeTutorialStore(
-        (account as any).tutorialProgress,
-      );
-
       return {
         access_token: this.jwtService.sign(payload, signOptions),
         user: {
@@ -618,7 +596,6 @@ export class AuthService {
           requiresPlanSelection: accessSnapshot?.requiresPlanSelection ?? true,
           entitlements: accessSnapshot?.entitlements ?? {},
           subscription: subscriptionInfo,
-          tutorialProgress,
           nutritionist: account.nutritionist,
         },
       };
@@ -818,46 +795,6 @@ export class AuthService {
     return this.buildSessionPayload(account as any);
   }
 
-  async updateTutorialProgress(
-    userId: string,
-    body: {
-      tutorialId: string;
-      progress: TutorialPersistedProgress;
-      hasSeenTutorialCoachmark?: boolean;
-    },
-  ) {
-    const account = (await this.prisma.account.findUnique({
-      where: { id: userId },
-    })) as any;
-
-    if (!account) {
-      throw new UnauthorizedException('Usuario no encontrado');
-    }
-
-    const currentStore = normalizeTutorialStore(account.tutorialProgress);
-    const nextStore: TutorialStore = {
-      tutorials: {
-        ...currentStore.tutorials,
-        [body.tutorialId]: {
-          status: body.progress.status,
-          version: body.progress.version,
-          lastStepIndex: Math.max(0, body.progress.lastStepIndex),
-          updatedAt: body.progress.updatedAt,
-        },
-      },
-      hasSeenTutorialCoachmark:
-        body.hasSeenTutorialCoachmark === true ||
-        currentStore.hasSeenTutorialCoachmark,
-    };
-
-    await this.prisma.account.update({
-      where: { id: userId },
-      data: { tutorialProgress: nextStore } as any,
-    });
-
-    return nextStore;
-  }
-
   async validateUser(payload: any) {
     return this.prisma.account.findUnique({
       where: { id: payload.sub },
@@ -898,9 +835,7 @@ export class AuthService {
 
       const greetingName = resolveGreetingName(account as any);
 
-      console.log(
-        `[AuthService] Access updated in DB for ${normalizedEmail}`,
-      );
+      console.log(`[AuthService] Access updated in DB for ${normalizedEmail}`);
 
       try {
         await this.mailService.sendPasswordResetEmail(

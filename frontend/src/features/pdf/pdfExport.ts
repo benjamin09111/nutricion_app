@@ -13,7 +13,6 @@ export async function downloadDietPdf(data: DietPdfData): Promise<void> {
         import("react"),
     ]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const doc = React.createElement(DietPdfDocument, { data }) as any;
     const blob = await pdf(doc).toBlob();
 

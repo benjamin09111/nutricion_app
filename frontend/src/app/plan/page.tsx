@@ -1,4 +1,4 @@
-import { PlanSelector } from "@/components/memberships/PlanSelector";
+import { PlanPageClient } from "./PlanPageClient";
 
 export const metadata = {
   title: "Elige tu plan | NutriNet",
@@ -6,5 +6,5 @@ export const metadata = {
 };
 
 export default function PlanPage() {
-  return <PlanSelector />;
+  return <PlanPageClient />;
 }

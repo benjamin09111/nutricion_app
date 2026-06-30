@@ -117,12 +117,16 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
         tags: [] as string[],
     });
 
-    const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-
-    const getAuthHeaders = () => ({
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-    });
+    /** Lee el token en el momento de la petición para evitar valores obsoletos */
+    const getAuthHeaders = () => {
+        const token =
+            Cookies.get("auth_token") ||
+            (typeof window !== "undefined" ? localStorage.getItem("auth_token") : "");
+        return {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+        };
+    };
 
     const draftKey = useMemo(() => {
         const key = formData.patientId ? `consultation_draft_${formData.patientId}` : "";
@@ -231,7 +235,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const fetchPatients = async () => {
         setIsPatientsLoading(true);
         try {
-            const response = await fetchApi(`/patients?limit=1000`, {
+            const response = await fetchApi(`/patients?limit=100`, {
                 headers: getAuthHeaders(),
             });
             if (response.ok) {
@@ -350,33 +354,50 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
 
             if (!cResponse.ok) throw new Error("Error saving consultation");
 
-            // 2. Update Patient Record (Clinical info)
-            // Check if data changed to avoid redundant requests
-            const patientPayload = {
-                fullName: patientForm.fullName.trim() || patientData?.fullName || "",
-                email: patientForm.email.trim() || null,
-                phone: patientForm.phone.trim() || null,
-                documentId: patientForm.documentId.trim() || null,
-                gender: patientForm.gender.trim() || null,
-                // Anthropometry should come from metrics in the consultation flow.
-                // We intentionally do not overwrite height/weight from this panel.
-                height: undefined,
-                weight: undefined,
-                nutritionalFocus: patientForm.nutritionalFocus.trim() || null,
-                fitnessGoals: patientForm.fitnessGoals.trim() || null,
-                likes: patientForm.likes.trim() || null,
-                clinicalSummary: patientForm.clinicalSummary.trim() || null,
-                dietRestrictions: patientForm.dietRestrictions,
-                tags: patientForm.tags,
-            };
+            // 2. Update Patient Record solo si hay cambios (dirty check)
+            const isDirty =
+                patientForm.fullName.trim() !== (patientData?.fullName || "") ||
+                patientForm.email.trim() !== (patientData?.email || "") ||
+                patientForm.phone.trim() !== (patientData?.phone || "") ||
+                patientForm.documentId.trim() !== (patientData?.documentId || "") ||
+                patientForm.gender.trim() !== (patientData?.gender || "") ||
+                patientForm.height.trim() !== String(patientData?.height || "") ||
+                patientForm.weight.trim() !== String(patientData?.weight || "") ||
+                patientForm.nutritionalFocus.trim() !== (patientData?.nutritionalFocus || "") ||
+                patientForm.fitnessGoals.trim() !== (patientData?.fitnessGoals || "") ||
+                patientForm.likes.trim() !== (patientData?.likes || "") ||
+                patientForm.clinicalSummary.trim() !== (patientData?.clinicalSummary || "") ||
+                activityLevel !== (patientData?.activityLevel || "sedentario") ||
+                JSON.stringify(patientForm.dietRestrictions) !== JSON.stringify(patientData?.dietRestrictions || []) ||
+                JSON.stringify(patientForm.tags) !== JSON.stringify(patientData?.tags || []);
 
-            const pResponse = await fetchApi(`/patients/${formData.patientId}`, {
-                method: "PATCH",
-                headers: getAuthHeaders(),
-                body: JSON.stringify(patientPayload),
-            });
+            if (isDirty) {
+                const patientPayload = {
+                    fullName: patientForm.fullName.trim() || patientData?.fullName || "",
+                    email: patientForm.email.trim() || null,
+                    phone: patientForm.phone.trim() || null,
+                    documentId: patientForm.documentId.trim() || null,
+                    gender: patientForm.gender.trim() || null,
+                    height: patientForm.height.trim() ? Number(patientForm.height) : undefined,
+                    weight: patientForm.weight.trim() ? Number(patientForm.weight) : undefined,
+                    activityLevel,
+                    nutritionalFocus: patientForm.nutritionalFocus.trim() || null,
+                    fitnessGoals: patientForm.fitnessGoals.trim() || null,
+                    likes: patientForm.likes.trim() || null,
+                    clinicalSummary: patientForm.clinicalSummary.trim() || null,
+                    dietRestrictions: patientForm.dietRestrictions,
+                    tags: patientForm.tags,
+                    recalculateNutrition: true,
+                };
 
-            if (!pResponse.ok) throw new Error("Error updating patient profile");
+                const pResponse = await fetchApi(`/patients/${formData.patientId}`, {
+                    method: "PATCH",
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(patientPayload),
+                });
+
+                if (!pResponse.ok) throw new Error("Error updating patient profile");
+            }
 
             toast.success(id ? "Consulta y perfil actualizados" : "Consulta registrada con éxito");
             clearDraft();
@@ -744,13 +765,20 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                     {(() => {
                                       const bmi = calculateBMI(
                                         Number(patientForm.weight || patientData.weight),
-                                        Number(patientForm.height || patientData.height)
+                                        Number(patientForm.height || patientData.height),
+                                        {
+                                          gender: (patientForm.gender || patientData.gender) === "Masculino" || (patientForm.gender || patientData.gender) === "Femenino"
+                                            ? (patientForm.gender || patientData.gender) as "Masculino" | "Femenino"
+                                            : null,
+                                          ageYears: calculateAge(patientData.birthDate) || undefined,
+                                          birthDate: patientData.birthDate || undefined,
+                                        }
                                       );
                                       const getVal = calculateGET(
                                         (patientForm.gender || patientData.gender) === "Masculino" ? "Masculino" : "Femenino",
                                         Number(patientForm.weight || patientData.weight) || 0,
                                         Number(patientForm.height || patientData.height) || 0,
-                                        calculateAge(patientData.birthDate) || 30,
+                                        calculateAge(patientData.birthDate) ?? 30,
                                         (activityLevel as any) || "sedentario",
                                         "mifflin-st-jeor"
                                       );

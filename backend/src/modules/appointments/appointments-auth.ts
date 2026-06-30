@@ -33,9 +33,10 @@ export async function resolveNutritionistIdFromRequest(
   prisma: PrismaService,
 ): Promise<string> {
   const headerId = readHeader(request.headers['x-nutritionist-id']);
+  const apiKey = readHeader(request.headers['x-api-key']);
   const authHeader = readHeader(request.headers['authorization']);
 
-  if (headerId) {
+  if (headerId && apiKey && apiKey === process.env.APPOINTMENTS_API_KEY) {
     const headerNutritionist = await prisma.nutritionist.findUnique({
       where: { id: headerId },
       select: { id: true },
@@ -50,10 +51,13 @@ export async function resolveNutritionistIdFromRequest(
     const token = authHeader.substring(7);
 
     try {
-      const decoded = jwt.verify(
-        token,
-        process.env.JWT_SECRET || 'change_me_local',
-      ) as NutritionistJwtPayload;
+      const jwtSecret = process.env.JWT_SECRET;
+
+      if (!jwtSecret) {
+        throw new Error('JWT secret not configured');
+      }
+
+      const decoded = jwt.verify(token, jwtSecret) as NutritionistJwtPayload;
 
       if (decoded?.sub) {
         const account = await prisma.account.findUnique({

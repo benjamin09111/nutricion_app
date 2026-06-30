@@ -3,7 +3,6 @@ import {
   Post,
   Get,
   Body,
-  Patch,
   Query,
   HttpCode,
   HttpStatus,
@@ -29,11 +28,8 @@ export class AuthController {
   ) {}
 
   @Get('google/start')
-  async googleStart(
-    @Query('next') next: string | undefined,
-    @Res() res: Response,
-  ) {
-    const authUrl = await this.googleIntegrationService.buildGoogleLoginUrl(
+  googleStart(@Query('next') next: string | undefined, @Res() res: Response) {
+    const authUrl = this.googleIntegrationService.buildGoogleLoginUrl(
       next || '/dashboard',
     );
     return res.redirect(authUrl);
@@ -55,11 +51,54 @@ export class AuthController {
         state,
       );
     const result = await this.authService.loginWithGoogle(callback.profile);
+    const ticket = this.authService.createOAuthSessionTicket(result);
     const frontendUrl = (
       process.env.FRONTEND_URL || 'http://localhost:3000'
     ).replace(/\/$/, '');
-    const targetUrl = `${frontendUrl}/auth/callback?token=${encodeURIComponent(result.access_token)}&next=${encodeURIComponent(callback.next || '/dashboard')}`;
+    const targetUrl = `${frontendUrl}/auth/callback?ticket=${encodeURIComponent(ticket)}&next=${encodeURIComponent(callback.next || '/dashboard')}`;
     return res.redirect(targetUrl);
+  }
+
+  @Post('oauth/exchange')
+  @HttpCode(HttpStatus.OK)
+  exchangeOAuthTicket(
+    @Body() body: { ticket?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!body.ticket) {
+      throw new BadRequestException('Ticket de autenticación requerido');
+    }
+
+    const session = this.authService.consumeOAuthSessionTicket(body.ticket);
+
+    if (!session) {
+      throw new UnauthorizedException('Ticket inválido o expirado');
+    }
+
+    res.cookie('auth_token', 'session', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    res.cookie('auth_token_http', session.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    return { user: session.user };
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('auth_token', { path: '/' });
+    res.clearCookie('auth_token_http', { path: '/' });
+    res.clearCookie('auth_session', { path: '/' });
+    return { success: true };
   }
 
   @UseGuards(AuthGuard)
@@ -69,24 +108,6 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard)
-  @Patch('me/tutorial-progress')
-  async updateTutorialProgress(
-    @Request() req: any,
-    @Body()
-    body: {
-      tutorialId: string;
-      progress: {
-        status: 'new' | 'in_progress' | 'completed' | 'skipped';
-        version: number;
-        lastStepIndex: number;
-        updatedAt: string;
-      };
-      hasSeenTutorialCoachmark?: boolean;
-    },
-  ) {
-    return this.authService.updateTutorialProgress(req.user.id, body);
-  }
-
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login() {

@@ -536,7 +536,7 @@ export default function RecipeGroupsClient({ initialRecipes }: RecipeGroupsClien
                     </button>
                     <button type="button" onClick={() => setCreateViewTab("agregadas")} className={cn("flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer", createViewTab === "agregadas" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700")}>
                       <UtensilsCrossed size={14} />
-                      Ya seleccionados ({confirmedRecipeIds.size})
+                      Ya seleccionados ({selectedCount})
                     </button>
                   </div>
 

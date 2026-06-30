@@ -66,7 +66,7 @@ export class DiscountCodesController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string, @Request() req: any) {
+  findOne(@Param('id') id: string, @Request() req: any) {
     this.ensureStaff(req);
     return this.discountCodesService.getCodeById(id);
   }

@@ -25,10 +25,80 @@ import {
   mapIngredientToMarketPrice,
   getUserDraftKey,
 } from "../utils/diet-helpers";
+import { getMacroPctFromGrams } from "@/lib/nutrition-formulas";
 
 interface UseDietStateProps {
   initialFoods: MarketPrice[];
 }
+
+export type MacroSettings = {
+  referenceWeightKg: number;
+  proteinGPerKg: number;
+  carbsGPerKg: number;
+  fatsGPerKg: number;
+  calorieAdjustmentMode: "kcal" | "percent";
+  calorieAdjustment: number;
+};
+
+export type MacroTargetsSummary = {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+  proteinPercent: number;
+  carbsPercent: number;
+  fatsPercent: number;
+  baseCalories: number;
+  calorieAdjustment: number;
+  referenceWeightKg: number;
+};
+
+const createDefaultMacroSettings = (
+  referenceWeightKg = 70,
+): MacroSettings => ({
+  referenceWeightKg,
+  proteinGPerKg: 1.8,
+  carbsGPerKg: 3.5,
+  fatsGPerKg: 0.9,
+  calorieAdjustmentMode: "kcal",
+  calorieAdjustment: 0,
+});
+
+const buildMacroTargets = (settings: MacroSettings): MacroTargetsSummary => {
+  const referenceWeightKg = Math.max(Number(settings.referenceWeightKg) || 0, 0);
+  const protein = Math.max(
+    0,
+    Math.round(referenceWeightKg * (Number(settings.proteinGPerKg) || 0)),
+  );
+  const carbs = Math.max(
+    0,
+    Math.round(referenceWeightKg * (Number(settings.carbsGPerKg) || 0)),
+  );
+  const fats = Math.max(
+    0,
+    Math.round(referenceWeightKg * (Number(settings.fatsGPerKg) || 0)),
+  );
+  const baseCalories = protein * 4 + carbs * 4 + fats * 9;
+  const adjustmentValue = Number(settings.calorieAdjustment) || 0;
+  const calories =
+    settings.calorieAdjustmentMode === "percent"
+      ? Math.max(0, Math.round(baseCalories * (1 - adjustmentValue / 100)))
+      : Math.max(0, Math.round(baseCalories + adjustmentValue));
+  const macroPercents = getMacroPctFromGrams(calories, protein, carbs, fats);
+
+  return {
+    calories,
+    protein,
+    carbs,
+    fats,
+    proteinPercent: macroPercents.proteinPercent,
+    carbsPercent: macroPercents.carbsPercent,
+    fatsPercent: macroPercents.fatsPercent,
+    baseCalories,
+    calorieAdjustment: Number(settings.calorieAdjustment) || 0,
+    referenceWeightKg,
+  };
+};
 
 export function useDietState({ initialFoods }: UseDietStateProps) {
   const router = useRouter();
@@ -39,6 +109,9 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   const [dietName, setDietName] = useState("");
   const [dietTags, setDietTags] = useState<string[]>([]);
   const [activeConstraints, setActiveConstraints] = useState<string[]>([]);
+  const [macroSettings, setMacroSettings] = useState<MacroSettings>(
+    createDefaultMacroSettings(),
+  );
   const [foodStatus, setFoodStatus] = useState<
     Record<string, "base" | "favorite" | "removed" | "added">
   >({});
@@ -176,6 +249,11 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     );
   }, [activeConstraints]);
 
+  const macroTargets = useMemo(
+    () => buildMacroTargets(macroSettings),
+    [macroSettings],
+  );
+
   useEffect(() => {
     setCurrentProjectId(projectIdFromUrl);
     setIsProjectLoading(Boolean(projectIdFromUrl));
@@ -245,6 +323,8 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
         dietName,
         dietTags,
         activeConstraints,
+        macroSettings,
+        macroTargets,
         foodStatus,
         manualAdditions,
         customGroups,
@@ -361,6 +441,12 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
 
     setSelectedPatient(normalizedPatient);
     localStorage.setItem("nutri_patient", JSON.stringify(normalizedPatient));
+    if (normalizedPatient.weight) {
+      setMacroSettings((prev) => ({
+        ...prev,
+        referenceWeightKg: normalizedPatient.weight || prev.referenceWeightKg,
+      }));
+    }
 
     const restrictions = Array.isArray(normalizedPatient.dietRestrictions)
       ? normalizedPatient.dietRestrictions
@@ -371,6 +457,12 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     );
 
     setActiveConstraints(newConstraints);
+    if (patient.weight) {
+      setMacroSettings((prev) => ({
+        ...prev,
+        referenceWeightKg: patient.weight || prev.referenceWeightKg,
+      }));
+    }
 
     const storedDraft = localStorage.getItem("nutri_active_draft");
     let draft = storedDraft ? JSON.parse(storedDraft) : {};
@@ -391,6 +483,11 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
 
     if (!draft.diet) draft.diet = {};
     draft.diet.activeConstraints = newConstraints;
+    draft.diet.macroSettings = {
+      ...macroSettings,
+      referenceWeightKg:
+        normalizedPatient.weight || macroSettings.referenceWeightKg,
+    };
 
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
 
@@ -492,6 +589,10 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
 
     if (!draft.diet) draft.diet = {};
     draft.diet.activeConstraints = newConstraints;
+    draft.diet.macroSettings = {
+      ...macroSettings,
+      referenceWeightKg: patient.weight || macroSettings.referenceWeightKg,
+    };
 
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
 
@@ -561,6 +662,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
         setDietName(creation.name || "");
         setDietTags(creation.tags || []);
         setActiveConstraints(content.activeConstraints || []);
+        setMacroSettings(content.macroSettings || createDefaultMacroSettings());
         setManualAdditions(content.manualAdditions || content.foods || []);
         setCustomGroups(content.customGroups || []);
         setCustomConstraints(content.customConstraints || []);
@@ -717,6 +819,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
         setDietName(draft.dietName || "");
         setDietTags(draft.dietTags || []);
         setActiveConstraints(draft.activeConstraints || []);
+        setMacroSettings(draft.macroSettings || createDefaultMacroSettings());
         setManualAdditions(draft.manualAdditions || []);
         setCustomGroups(draft.customGroups || []);
         setCustomConstraints(draft.customConstraints || []);
@@ -890,6 +993,10 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
           overrides.customConstraints !== undefined
             ? overrides.customConstraints
             : customConstraints,
+        macroSettings:
+          overrides.macroSettings !== undefined
+            ? overrides.macroSettings
+            : macroSettings,
         favoritesEnabled,
         timestamp: Date.now(),
       };
@@ -911,6 +1018,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     activeConstraints,
     customGroups,
     customConstraints,
+    macroSettings,
     manualAdditions,
     foodStatus,
   ]);
@@ -1170,6 +1278,8 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
       name: dietName,
       tags: dietTags,
       activeConstraints,
+      macroSettings,
+      macroTargets,
       manualAdditions,
       customGroups,
       customConstraints,
@@ -1383,6 +1493,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     setDietName("");
     setDietTags([]);
     setActiveConstraints([]);
+    setMacroSettings(createDefaultMacroSettings());
     setFoodStatus(createBaseFoodStatus() as any);
     setManualAdditions([]);
     setCustomGroups([]);
@@ -1431,6 +1542,10 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     };
 
     setSelectedPatient(patientData as any);
+    setMacroSettings((prev) => ({
+      ...prev,
+      referenceWeightKg: patientData.weight || prev.referenceWeightKg,
+    }));
     localStorage.setItem("nutri_patient", JSON.stringify(patientData));
     window.dispatchEvent(new Event("patient-updated"));
 
@@ -1977,6 +2092,9 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     setDietTags,
     activeConstraints,
     setActiveConstraints,
+    macroSettings,
+    setMacroSettings,
+    macroTargets,
     foodStatus,
     setFoodStatus,
     manualAdditions,
@@ -2121,6 +2239,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     fetchAvailableTags,
     createGlobalTag,
     buildDietCreationPayload,
+    saveDraft,
     ensureProjectForWorkflow,
     applySelectedPatient,
     fetchPatients,

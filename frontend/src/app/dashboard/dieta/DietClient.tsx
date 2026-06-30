@@ -17,10 +17,12 @@ import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { MarketPrice } from "@/features/foods";
+import { toast } from "sonner";
 
 import { useDietState } from "@/features/diet/hooks/useDietState";
 import { DietPatientSection } from "@/features/diet/components/DietPatientSection";
 import { DietConstraintSection } from "@/features/diet/components/DietConstraintSection";
+import { DietMacroSection } from "@/features/diet/components/DietMacroSection";
 import { DietPlannerSection } from "@/features/diet/components/DietPlannerSection";
 import { DietModals } from "@/features/diet/components/DietModals";
 import {
@@ -201,6 +203,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           saveDraft={state.saveDraft}
         />
 
+        <DietMacroSection
+          macroSettings={state.macroSettings}
+          macroTargets={state.macroTargets}
+          setMacroSettings={state.setMacroSettings}
+          saveDraft={state.saveDraft}
+        />
+
         <DietPlannerSection
           allGroupsToRender={state.allGroupsToRender}
           isApplyingPreferences={state.isApplyingPreferences}
@@ -213,7 +222,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           setIsFoodInfoModalOpen={state.setIsFoodInfoModalOpen}
           removeFood={state.removeFood}
           setIsAddGroupModalOpen={state.setIsAddGroupModalOpen}
-          foodStatus={state.foodStatus}
         />
 
         <DietModals

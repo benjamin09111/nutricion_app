@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { membershipService } from "@/features/memberships/services/membership.service";
 import { fetchApi } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
+import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 
 export type SubscriptionPlan = "free" | "trial" | "pro";
 export type SubscriptionStatus = "active" | "expired" | "cancelled";
@@ -105,34 +106,31 @@ export function SubscriptionProvider({
   );
 
   const applyStoredUserSnapshot = useCallback(() => {
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) return;
+    const user = getCurrentUser();
+    if (!user) return;
 
-    try {
-      const user = JSON.parse(storedUser);
-      setRole(typeof user?.role === "string" ? user.role : null);
-      if (user.plan || user.currentPlan?.key || user.currentPlan?.slug) {
-        const backendPlan = String(user.currentPlan?.key || user.currentPlan?.slug || user.plan).toLowerCase();
-        if (backendPlan === "free") setPlan("free");
-        else if (backendPlan === "pro" || backendPlan === "premium" || backendPlan === "enterprise" || backendPlan === "iniciante") setPlan("pro");
-      }
-      if (user.planName) setPlanName(user.planName);
-      if (user.currentPlan) setCurrentPlan(user.currentPlan);
-      if (user.usage) setUsage(user.usage);
-      if (user.billing) setBilling(user.billing);
-      if (user.subscription?.endDate) {
-        setSubscriptionEndsAt(new Date(user.subscription.endDate));
-        const endDate = new Date(user.subscription.endDate);
-        const days = Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-        setDaysRemaining(days > 0 ? days : null);
-      }
-      if (user.subscription?.cancelAtPeriodEnd) {
-        setCancelAtPeriodEnd(true);
-      }
-      if (user.membershipSelected === true || user.requiresPlanSelection === false) {
-        setRequiresPlanSelection(false);
-      }
-    } catch {}
+    setRole(typeof user?.role === "string" ? user.role : null);
+    if (user.plan || user.currentPlan?.key || user.currentPlan?.slug) {
+      const backendPlan = String(user.currentPlan?.key || user.currentPlan?.slug || user.plan).toLowerCase();
+      if (backendPlan === "free") setPlan("free");
+      else if (backendPlan === "pro" || backendPlan === "premium" || backendPlan === "enterprise" || backendPlan === "iniciante") setPlan("pro");
+    }
+    if (user.planName) setPlanName(user.planName);
+    if (user.currentPlan) setCurrentPlan(user.currentPlan as MembershipState["currentPlan"]);
+    if (user.usage) setUsage(user.usage as MembershipState["usage"]);
+    if (user.billing) setBilling(user.billing as MembershipState["billing"]);
+    if (user.subscription?.endDate) {
+      setSubscriptionEndsAt(new Date(user.subscription.endDate));
+      const endDate = new Date(user.subscription.endDate);
+      const days = Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      setDaysRemaining(days > 0 ? days : null);
+    }
+    if (user.subscription?.cancelAtPeriodEnd) {
+      setCancelAtPeriodEnd(true);
+    }
+    if (user.membershipSelected === true || user.requiresPlanSelection === false) {
+      setRequiresPlanSelection(false);
+    }
   }, []);
 
   const computePlan = useCallback(
@@ -187,36 +185,24 @@ export function SubscriptionProvider({
           const user = meData?.user || meData;
           resolvedRole = typeof user?.role === "string" ? user.role : null;
           setRole(resolvedRole);
-
-          const storedUser = localStorage.getItem("user");
-          if (storedUser) {
-            try {
-              const parsedUser = JSON.parse(storedUser);
-              const nextUser = { ...parsedUser, ...user };
-              localStorage.setItem("user", JSON.stringify(nextUser));
-            } catch {}
-          }
+          setCurrentUser(user);
         }
       } catch {}
 
-      // Sync to localStorage for legacy consumers
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        try {
-          const user = JSON.parse(storedUser);
-          if (resolvedRole === null) {
-            setRole(typeof user?.role === "string" ? user.role : null);
-          }
-          user.plan = data.accountPlan || key;
-          user.planName = data.currentPlan?.name || "Plan Gratuito";
-          user.subscription = data.subscription;
-          user.currentPlan = data.currentPlan;
-          user.subscriptionEndsAt = data.subscription?.endDate || null;
-          user.entitlements = data.entitlements || {};
-          user.usage = data.usage || null;
-          user.billing = data.billing || null;
-          localStorage.setItem("user", JSON.stringify(user));
-        } catch {}
+      const user = getCurrentUser();
+      if (user) {
+        if (resolvedRole === null) {
+          setRole(typeof user?.role === "string" ? user.role : null);
+        }
+        user.plan = data.accountPlan || key;
+        user.planName = data.currentPlan?.name || "Plan Gratuito";
+        user.subscription = data.subscription;
+        user.currentPlan = data.currentPlan;
+        user.subscriptionEndsAt = data.subscription?.endDate || null;
+        user.entitlements = data.entitlements || {};
+        user.usage = data.usage || null;
+        user.billing = data.billing || null;
+        setCurrentUser(user);
       }
     } catch {
       // Fallback to localStorage
@@ -230,20 +216,17 @@ export function SubscriptionProvider({
 
   const can = useCallback(
     (featureKey: string) => {
-      const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
-      if (storedUser) {
-        try {
-          const user = JSON.parse(storedUser);
-          const role = String(user?.role || "").toUpperCase();
-          if (
-            role === "ADMIN" ||
-            role === "ADMIN_MASTER" ||
-            role === "ADMIN_GENERAL" ||
-            role === "WORKER"
-          ) {
-            return true;
-          }
-        } catch {}
+      const user = getCurrentUser();
+      if (user) {
+        const role = String(user?.role || "").toUpperCase();
+        if (
+          role === "ADMIN" ||
+          role === "ADMIN_MASTER" ||
+          role === "ADMIN_GENERAL" ||
+          role === "WORKER"
+        ) {
+          return true;
+        }
       }
 
       if (featureKey === "membership.selected") {
@@ -316,16 +299,10 @@ export function SubscriptionProvider({
     [entitlements, planFeatures.patientLimit],
   );
 
-  // Load from localStorage immediately on mount, then refresh from backend
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        if (user.membershipSelected === true || user.requiresPlanSelection === false) {
-          setRequiresPlanSelection(false);
-        }
-      } catch {}
+    const user = getCurrentUser();
+    if (user?.membershipSelected === true || user?.requiresPlanSelection === false) {
+      setRequiresPlanSelection(false);
     }
 
     refreshSubscription();

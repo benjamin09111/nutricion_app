@@ -4,9 +4,6 @@ import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { SanitizationPipe } from './common/pipes/sanitization.pipe';
-import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
-import { join } from 'path';
-import * as express from 'express';
 import * as dns from 'dns';
 
 // Force IPv4 preference for DNS resolution to avoid ENETUNREACH on IPv6-only cloud networks
@@ -19,9 +16,29 @@ async function bootstrap() {
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   // Security
-  // app.use(helmet()); // Temporarily disabled to debug connectivity
+  app.use(helmet());
+
+  const frontendOrigins = new Set(
+    [
+      process.env.FRONTEND_URL,
+      process.env.NEXT_PUBLIC_FRONTEND_URL,
+      process.env.CORS_ORIGIN,
+      'http://localhost:3000',
+    ]
+      .filter(Boolean)
+      .map((origin) => origin!.replace(/\/$/, '')),
+  );
   app.enableCors({
-    origin: true,
+    origin: (
+      origin: string | undefined,
+      callback: (error: Error | null, allow?: boolean) => void,
+    ) => {
+      if (!origin || frontendOrigins.has(origin.replace(/\/$/, ''))) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('CORS blocked'));
+    },
     credentials: true,
   });
 
@@ -69,4 +86,4 @@ async function bootstrap() {
     }
   }
 }
-bootstrap();
+void bootstrap();

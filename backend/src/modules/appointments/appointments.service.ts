@@ -151,14 +151,6 @@ const getBlockKeyInTimeZone = (date: Date, timeZone: string) => {
   return `${dateKey}-${hour}`;
 };
 
-const getBlockRangeInTimeZone = (date: Date, timeZone: string) => {
-  const { dateKey, hour } = getDatePartsInTimeZone(date, timeZone);
-  return {
-    start: new Date(localDateTimeToUtcIso(dateKey, hour, timeZone)),
-    end: new Date(localDateTimeToUtcIso(dateKey, hour + 1, timeZone)),
-  };
-};
-
 const parseAppointmentMetadata = (
   metadata: Prisma.JsonValue | null | undefined,
 ): Record<string, unknown> | null => {
@@ -169,8 +161,8 @@ const parseAppointmentMetadata = (
   return metadata;
 };
 
-const getAppointmentStatus = (status: string | AppointmentStatus) =>
-  status.toString().toUpperCase() as AppointmentStatus;
+const getAppointmentStatus = (status: string) =>
+  status.toUpperCase() as AppointmentStatus;
 
 const normalizeCalendarTimeZone = (timeZone?: string | null) =>
   !timeZone || timeZone === 'UTC' ? 'America/Santiago' : timeZone;

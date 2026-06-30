@@ -145,6 +145,12 @@ export const RecipePlannerSection: React.FC<RecipePlannerSectionProps> = ({
   proteinSupplementPerDay,
   plannerSectionRef,
 }) => {
+  const getMacroSummary = (recipe?: Recipe | null) => {
+    if (!recipe) return null;
+
+    return `kcal ${Math.round(recipe.calories || 0)} · P ${Math.round(recipe.protein || 0)}g · C ${Math.round(recipe.carbs || 0)}g · G ${Math.round(recipe.fats || 0)}g`;
+  };
+
   return (
     <>
       {/* Center Panel: Planner */}
@@ -420,6 +426,11 @@ export const RecipePlannerSection: React.FC<RecipePlannerSectionProps> = ({
                                   Porción: {slot.recipe.recommendedPortion}
                                 </p>
                               ) : null}
+                              {getMacroSummary(slot.recipe) ? (
+                                <p className="inline-flex flex-wrap gap-x-3 gap-y-1 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 shadow-sm ring-1 ring-slate-200">
+                                  {getMacroSummary(slot.recipe)}
+                                </p>
+                              ) : null}
                               <Input
                                 value={slot.recipe.recommendedPortion || ""}
                                 onChange={(e) =>
@@ -586,6 +597,11 @@ export const RecipePlannerSection: React.FC<RecipePlannerSectionProps> = ({
                               {slot.recipe?.recommendedPortion ? (
                                 <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
                                   Porción: {slot.recipe.recommendedPortion}
+                                </p>
+                              ) : null}
+                              {getMacroSummary(slot.recipe) ? (
+                                <p className="mt-1 inline-flex flex-wrap gap-x-3 gap-y-1 rounded-full bg-white px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500 shadow-sm ring-1 ring-slate-200">
+                                  {getMacroSummary(slot.recipe)}
                                 </p>
                               ) : null}
                               {slot.recipe ? (

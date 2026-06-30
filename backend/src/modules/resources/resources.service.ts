@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-const pdf = require('pdf-parse');
 import * as fs from 'fs';
 import { join } from 'path';
 
@@ -40,6 +39,7 @@ export class ResourcesService {
   }
 
   async findAll(nutritionistId: string, isAdmin: boolean) {
+    void isAdmin;
     const resources = await this.prisma.resource.findMany({
       where: {
         OR: [
@@ -59,7 +59,8 @@ export class ResourcesService {
     );
   }
 
-  async findOne(id: string, nutritionistId: string, _isAdmin: boolean) {
+  async findOne(id: string, nutritionistId: string, isAdmin: boolean) {
+    void isAdmin;
     const ownershipFilters = [
       { nutritionistId: null },
       { isPublic: true },
@@ -196,7 +197,9 @@ export class ResourcesService {
       }
 
       const dataBuffer = fs.readFileSync(filePath);
-      const data = await pdf(dataBuffer);
+      const { PDFParse } = await import('pdf-parse');
+      const parser = new PDFParse({ data: dataBuffer });
+      const data = await parser.getText();
 
       // Clean text
       const cleanText = data.text
@@ -217,8 +220,6 @@ export class ResourcesService {
       return {
         text: cleanText,
         html: htmlContent,
-        pages: data.numpages,
-        info: data.info,
       };
     } catch (error) {
       console.error('Error in PDF extraction:', error);

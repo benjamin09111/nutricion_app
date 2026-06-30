@@ -42,7 +42,7 @@ type GoogleTokenPayload = {
 };
 
 type GoogleCalendarConnectionRecord =
-  Prisma.GoogleCalendarConnectionGetPayload<{}>;
+  Prisma.GoogleCalendarConnectionGetPayload<Prisma.GoogleCalendarConnectionDefaultArgs>;
 
 type GoogleBusyRange = {
   start: Date;
@@ -77,7 +77,13 @@ export class GoogleIntegrationService {
   }
 
   private getAppSecret() {
-    return this.configService.get<string>('JWT_SECRET') || 'secret';
+    const secret = this.configService.get<string>('JWT_SECRET');
+
+    if (!secret) {
+      throw new Error('JWT_SECRET is required');
+    }
+
+    return secret;
   }
 
   private getGoogleClientId() {
@@ -213,7 +219,7 @@ export class GoogleIntegrationService {
     return `${GOOGLE_AUTH_BASE}?${query.toString()}`;
   }
 
-  async buildGoogleLoginUrl(next = '/dashboard') {
+  buildGoogleLoginUrl(next = '/dashboard') {
     return this.buildGoogleAuthUrl({
       state: { mode: 'login', next },
       redirectUri: this.getGoogleAuthRedirectUri(),
@@ -221,7 +227,7 @@ export class GoogleIntegrationService {
     });
   }
 
-  async buildGoogleCalendarConnectUrl(input: {
+  buildGoogleCalendarConnectUrl(input: {
     accountId: string;
     nutritionistId: string;
     calendarId: string;

@@ -9,6 +9,7 @@ import { UpdateConsultationDto } from './dto/update-consultation.dto';
 
 import { CacheService } from '../../common/services/cache.service';
 import { PermissionsService } from '../permissions/permissions.service';
+import { PatientsService } from '../patients/patients.service';
 
 type ConsultationMetric = {
   key?: string;
@@ -23,6 +24,9 @@ type PatientCustomVariable = {
   unit?: string;
   value?: string | number | null;
 };
+
+/** Título especial que identifica consultas de métricas independientes */
+export const INDEPENDENT_METRICS_TITLE = 'Registro de Métricas Independiente';
 
 const normalizeMetricKey = (label: string = '', key?: string) => {
   const rawKey = (key || '').trim().toLowerCase();
@@ -63,6 +67,7 @@ export class ConsultationsService {
     private prisma: PrismaService,
     private cacheService: CacheService,
     private permissionsService: PermissionsService,
+    private patientsService: PatientsService,
   ) {}
 
   private async assertPatientOwnership(
@@ -92,6 +97,7 @@ export class ConsultationsService {
       where: {
         nutritionistId,
         date: { gte: startOfMonth },
+        title: { not: INDEPENDENT_METRICS_TITLE },
       },
     });
 
@@ -106,23 +112,35 @@ export class ConsultationsService {
       createConsultationDto.patientId,
     );
 
-    const consultation = await this.prisma.consultation.create({
-      data: {
-        ...createConsultationDto,
-        nutritionistId,
-        date: new Date(createConsultationDto.date),
-      },
-      select: consultationSelect,
+    // Crear consulta y sincronizar métricas del paciente de forma atómica
+    const consultation = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.consultation.create({
+        data: {
+          patientId: createConsultationDto.patientId,
+          title: createConsultationDto.title,
+          description: createConsultationDto.description,
+          date: new Date(createConsultationDto.date),
+          nutritionistId,
+          // metrics es Json en Prisma; el tipado fuerte viene del DTO
+          metrics: (createConsultationDto.metrics ?? []) as any,
+        },
+        select: consultationSelect,
+      });
+
+      if (
+        createConsultationDto.metrics &&
+        createConsultationDto.metrics.length > 0
+      ) {
+        // Patient sync happens after the transaction to keep the reconciliation logic centralized.
+      }
+
+      return created;
     });
 
-    // Sync patient data if metrics are present
-    if (createConsultationDto.metrics) {
-      await this.syncPatientData(
-        nutritionistId,
-        createConsultationDto.patientId,
-        createConsultationDto.metrics,
-      );
-    }
+    await this.reconcilePatientProfileFromConsultations(
+      nutritionistId,
+      createConsultationDto.patientId,
+    );
 
     await this.cacheService.invalidateNutritionistPrefix(
       nutritionistId,
@@ -143,14 +161,18 @@ export class ConsultationsService {
     patientId?: string,
     type?: 'CLINICAL' | 'METRIC' | 'ALL',
   ) {
-    const skip = (page - 1) * limit;
+    const safePage = Number.isFinite(page) ? Math.max(1, page) : 1;
+    const safeLimit = Number.isFinite(limit)
+      ? Math.min(Math.max(1, limit), 100)
+      : 20;
+    const skip = (safePage - 1) * safeLimit;
 
     if (!nutritionistId) {
       return {
         data: [],
         meta: {
           total: 0,
-          page,
+          page: safePage,
           lastPage: 0,
         },
       };
@@ -161,9 +183,9 @@ export class ConsultationsService {
     };
 
     if (type === 'CLINICAL' || !type) {
-      where.title = { not: 'Registro de Métricas Independiente' };
+      where.title = { not: INDEPENDENT_METRICS_TITLE };
     } else if (type === 'METRIC') {
-      where.title = 'Registro de Métricas Independiente';
+      where.title = INDEPENDENT_METRICS_TITLE;
     }
     // if type === 'ALL', we don't add the title filter
 
@@ -196,8 +218,8 @@ export class ConsultationsService {
       })),
       meta: {
         total,
-        page,
-        lastPage: Math.ceil(total / limit),
+        page: safePage,
+        lastPage: Math.ceil(total / safeLimit),
       },
     };
   }
@@ -229,30 +251,41 @@ export class ConsultationsService {
     id: string,
     updateConsultationDto: UpdateConsultationDto,
   ) {
-    const existing = await this.findOne(nutritionistId, id);
-    const targetPatientId = updateConsultationDto.patientId ?? existing.patientId;
-
-    await this.assertPatientOwnership(nutritionistId, targetPatientId);
+    // findOne ya valida que la consulta pertenece a este nutricionista
+    await this.findOne(nutritionistId, id);
+    // patientId no puede cambiarse; siempre se usa el original
 
     const data: any = { ...updateConsultationDto };
+    // Excluir patientId del update para evitar reasignación de paciente
+    delete data.patientId;
     if (updateConsultationDto.date) {
       data.date = new Date(updateConsultationDto.date);
     }
 
-    const consultation = await this.prisma.consultation.update({
-      where: { id },
-      data,
-      select: consultationSelect,
-    });
+    const consultation = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.consultation.update({
+        where: { id },
+        data: {
+          ...(data.title !== undefined && { title: data.title }),
+          ...(data.description !== undefined && {
+            description: data.description,
+          }),
+          ...(data.date !== undefined && { date: data.date }),
+          // metrics es Json en Prisma; el tipado fuerte viene del DTO
+          ...(data.metrics !== undefined && { metrics: data.metrics }),
+        },
+        select: consultationSelect,
+      });
 
-    // Sync patient data if metrics are present
-    if (updateConsultationDto.metrics) {
-      await this.syncPatientData(
-        nutritionistId,
-        targetPatientId,
-        updateConsultationDto.metrics,
-      );
-    }
+      if (
+        updateConsultationDto.metrics &&
+        updateConsultationDto.metrics.length > 0
+      ) {
+        // Patient sync happens after the transaction to keep the reconciliation logic centralized.
+      }
+
+      return updated;
+    });
 
     await this.cacheService.invalidateNutritionistPrefix(
       nutritionistId,
@@ -265,96 +298,93 @@ export class ConsultationsService {
     return consultation;
   }
 
-  private async syncPatientData(
+  private async reconcilePatientProfileFromConsultations(
     nutritionistId: string,
     patientId: string,
-    metrics: ConsultationMetric[],
   ) {
-    const updates: {
-      weight?: number;
-      height?: number;
-      customVariables?: PatientCustomVariable[];
-    } = {};
     const patient = await this.prisma.patient.findFirst({
       where: { id: patientId, nutritionistId },
-      select: {
-        customVariables: true,
-      },
+      select: { customVariables: true },
     });
 
     if (!patient) {
       throw new NotFoundException('Paciente no encontrado');
     }
 
-    const customVariables = Array.isArray(patient?.customVariables)
-      ? [...(patient.customVariables as PatientCustomVariable[])]
+    const consultations = await this.prisma.consultation.findMany({
+      where: { patientId, nutritionistId },
+      orderBy: [{ date: 'asc' }, { updatedAt: 'asc' }],
+      select: { metrics: true },
+    });
+
+    const latestScalarValues: Partial<Record<'weight' | 'height', number>> = {};
+    const latestVariables = new Map<string, PatientCustomVariable>();
+
+    const currentVariables = Array.isArray(patient.customVariables)
+      ? (patient.customVariables as PatientCustomVariable[])
       : [];
-    let shouldUpdateCustomVariables = false;
 
-    for (const metric of metrics) {
-      const normalizedKey = normalizeMetricKey(metric.label, metric.key);
-      const rawValue =
-        typeof metric.value === 'string'
-          ? metric.value.replace(',', '.')
-          : metric.value;
-      const val = parseFloat(String(rawValue));
-
-      if (
-        normalizedKey === 'weight' &&
-        metric.value !== undefined &&
-        metric.value !== null &&
-        metric.value !== ''
-      ) {
-        if (!isNaN(val)) updates.weight = val;
-      }
-
-      if (
-        normalizedKey === 'height' &&
-        metric.value !== undefined &&
-        metric.value !== null &&
-        metric.value !== ''
-      ) {
-        if (!isNaN(val)) updates.height = val;
-      }
-
-      if (
-        normalizedKey &&
-        normalizedKey !== 'weight' &&
-        normalizedKey !== 'height'
-      ) {
-        const metricEntry = {
-          key: normalizedKey,
-          label: (metric.label || normalizedKey).trim(),
-          unit: (metric.unit || '').trim(),
-        };
-
-        const existingIndex = customVariables.findIndex(
-          (cv) => normalizeMetricKey(cv.label, cv.key) === normalizedKey,
-        );
-
-        if (existingIndex >= 0) {
-          customVariables[existingIndex] = {
-            ...customVariables[existingIndex],
-            ...metricEntry,
-          };
-        } else {
-          customVariables.push(metricEntry);
-        }
-
-        shouldUpdateCustomVariables = true;
-      }
-    }
-
-    if (shouldUpdateCustomVariables) {
-      updates.customVariables = customVariables;
-    }
-
-    if (Object.keys(updates).length > 0) {
-      await this.prisma.patient.update({
-        where: { id: patientId },
-        data: updates,
+    for (const variable of currentVariables) {
+      const normalizedKey = normalizeMetricKey(variable.label, variable.key);
+      latestVariables.set(normalizedKey, {
+        ...variable,
+        key: normalizedKey,
       });
     }
+
+    for (const consultation of consultations) {
+      const metrics = Array.isArray(consultation.metrics)
+        ? (consultation.metrics as ConsultationMetric[])
+        : [];
+
+      for (const metric of metrics) {
+        const normalizedKey = normalizeMetricKey(metric.label, metric.key);
+        const rawValue =
+          typeof metric.value === 'string'
+            ? metric.value.replace(',', '.')
+            : metric.value;
+        const parsedValue = Number(rawValue);
+
+        if (
+          (normalizedKey === 'weight' || normalizedKey === 'height') &&
+          metric.value !== undefined &&
+          metric.value !== null &&
+          metric.value !== '' &&
+          Number.isFinite(parsedValue)
+        ) {
+          latestScalarValues[normalizedKey] = parsedValue;
+          continue;
+        }
+
+        if (!normalizedKey) continue;
+
+        latestVariables.set(normalizedKey, {
+          key: normalizedKey,
+          label: (metric.label || normalizedKey).trim(),
+          unit: (metric.unit || '').trim() || undefined,
+          value: metric.value ?? null,
+        });
+      }
+    }
+
+    const updatePayload: Record<string, unknown> = {
+      recalculateNutrition: true,
+      customVariables: Array.from(latestVariables.values()),
+    };
+
+    if (latestScalarValues.weight !== undefined) {
+      updatePayload.weight = latestScalarValues.weight;
+    }
+
+    if (latestScalarValues.height !== undefined) {
+      updatePayload.height = latestScalarValues.height;
+    }
+
+    await this.patientsService.update(
+      nutritionistId,
+      patientId,
+      updatePayload as any,
+    );
   }
 
   async remove(nutritionistId: string, id: string) {
@@ -363,6 +393,11 @@ export class ConsultationsService {
     const deleted = await this.prisma.consultation.delete({
       where: { id },
     });
+
+    await this.reconcilePatientProfileFromConsultations(
+      nutritionistId,
+      deleted.patientId,
+    );
 
     await this.cacheService.invalidateNutritionistPrefix(
       nutritionistId,

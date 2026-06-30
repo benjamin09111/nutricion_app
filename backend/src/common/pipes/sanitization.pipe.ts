@@ -1,13 +1,8 @@
-import {
-  PipeTransform,
-  Injectable,
-  ArgumentMetadata,
-  BadRequestException,
-} from '@nestjs/common';
+import { PipeTransform, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class SanitizationPipe implements PipeTransform {
-  transform(value: any, metadata: ArgumentMetadata) {
+  transform(value: any) {
     if (!value) {
       return value;
     }
@@ -33,7 +28,7 @@ export class SanitizationPipe implements PipeTransform {
     }
 
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         if (typeof obj[key] === 'string') {
           obj[key] = this.sanitize(obj[key]);
         } else if (typeof obj[key] === 'object' && obj[key] !== null) {

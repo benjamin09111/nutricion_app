@@ -156,12 +156,12 @@ export default function CreateIngredientModal({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Error al crear ingrediente");
+        throw new Error(errorData.message || "Error al crear alimento");
       }
 
       const newIngredient = await response.json();
 
-      toast.success("Ingrediente creado correctamente");
+      toast.success("Alimento creado correctamente");
       reset();
       onSuccess(newIngredient);
       onClose();
@@ -181,12 +181,12 @@ export default function CreateIngredientModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Nuevo Ingrediente"
+      title="Nuevo Alimento"
       className="max-w-2xl"
     >
       <div className="flex flex-col max-h-[80vh]">
         <p className="text-sm text-slate-500 mb-6">
-          Se creará dentro de tus ingredientes. Si quieres, luego puedes compartirlo con la comunidad desde &quot;Mis creaciones&quot;.
+          Se creará dentro de tus alimentos. Si quieres, luego puedes compartirlo con la comunidad desde &quot;Mis creaciones&quot;.
         </p>
 
         <div className="overflow-y-auto flex-1 pr-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
@@ -418,7 +418,7 @@ export default function CreateIngredientModal({
                 )}
               />
               <p className="text-xs text-slate-400">
-                Ayuda a filtrar ingredientes rápidamente.
+                Ayuda a filtrar alimentos rápidamente.
               </p>
             </div>
           </form>
@@ -448,7 +448,7 @@ export default function CreateIngredientModal({
             ) : (
               <>
                 <Save className="h-4 w-4" />
-                Guardar Ingrediente
+                Guardar Alimento
               </>
             )}
           </button>

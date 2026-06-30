@@ -1,7 +1,7 @@
 import React from "react";
 import { Search, RotateCcw, X, ArrowRight, Loader2, User, AlertCircle } from "lucide-react";
-import { Modal } from "@/components/shared/Modal";
-import { SaveCreationModal } from "@/components/shared/SaveCreationModal";
+import { Modal } from "@/components/ui/Modal";
+import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
@@ -276,8 +276,7 @@ export const RecipeModals: React.FC<RecipeModalsProps> = ({
                 {filteredRecipeLibrary.map((r) => (
                   <div
                     key={r.id}
-                    className="p-5 border border-slate-100 bg-slate-50 rounded-3xl hover:border-emerald-500 hover:bg-emerald-50/30 transition-all group cursor-pointer flex items-center justify-between"
-                    onClick={() => assignRecipeToActiveSlot(r)}
+                    className="p-5 border border-slate-100 bg-slate-50 rounded-3xl hover:border-emerald-500 hover:bg-emerald-50/30 transition-all group flex items-center justify-between"
                   >
                     <div className="flex items-center gap-4">
                       <div className="h-14 w-14 bg-white rounded-2xl border border-slate-200 flex items-center justify-center text-2xl shadow-sm">
@@ -300,7 +299,14 @@ export const RecipeModals: React.FC<RecipeModalsProps> = ({
                         </div>
                       </div>
                     </div>
-                    <ArrowRight className="h-5 w-5 text-slate-300 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
+                    <button
+                      type="button"
+                      onClick={() => assignRecipeToActiveSlot(r)}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-600 shadow-sm transition-all hover:border-emerald-300 hover:bg-emerald-50"
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                      Abrir
+                    </button>
                   </div>
                 ))}
               </div>

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Suspense } from "react";
 import LoginForm from "@/components/auth/LoginForm";
 
 export default function LoginPage() {
@@ -59,7 +60,9 @@ export default function LoginPage() {
             </div>
 
             <div className="mt-6 lg:mt-10">
-              <LoginForm />
+              <Suspense fallback={null}>
+                <LoginForm />
+              </Suspense>
             </div>
           </div>
         </div>

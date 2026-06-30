@@ -67,7 +67,7 @@ describe('AppointmentsService', () => {
 
   beforeEach(() => {
     prisma = createPrismaMock();
-    prisma.$transaction.mockImplementation(async (callback: any) =>
+    prisma.$transaction.mockImplementation((callback: any) =>
       callback(prisma as any),
     );
     mail = createMailMock();
@@ -191,7 +191,7 @@ describe('AppointmentsService', () => {
         }),
       },
     };
-    prisma.$transaction.mockImplementation(async (callback: any) =>
+    prisma.$transaction.mockImplementation((callback: any) =>
       callback(transactionTx as any),
     );
 

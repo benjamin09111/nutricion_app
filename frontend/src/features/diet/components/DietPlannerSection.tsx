@@ -2,7 +2,6 @@ import React from "react";
 import { Sparkles, Loader2, Filter, Plus, Trash2, Pencil, Info } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { MarketPrice } from "@/features/foods";
-import { formatCLP } from "@/lib/utils/currency";
 
 interface DietPlannerSectionProps {
   allGroupsToRender: Record<string, MarketPrice[]>;
@@ -16,7 +15,6 @@ interface DietPlannerSectionProps {
   setIsFoodInfoModalOpen: (open: boolean) => void;
   removeFood: (productName: string) => void;
   setIsAddGroupModalOpen: (open: boolean) => void;
-  foodStatus: Record<string, string>;
 }
 
 export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
@@ -31,7 +29,6 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
   setIsFoodInfoModalOpen,
   removeFood,
   setIsAddGroupModalOpen,
-  foodStatus,
 }) => {
   return (
     <div className="space-y-6">

@@ -1,9 +1,11 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import type { SectionProgressStatus } from "@/components/shared/SectionProgressNav";
 import { useAdmin } from "@/context/AdminContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useDashboardShell } from "@/context/DashboardShellContext";
+import mealSectionsData from "@/content/meal-sections.json";
 import { fetchApi } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
 import { buildExchangeGuideForAi } from "@/lib/exchange-portions";
@@ -602,6 +604,23 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
 
   const buildPatientMeta = (patient: any) => normalizePatientContext(patient) || undefined;
 
+  const applyDietMacroTargets = (draft: Record<string, any>) => {
+    const source = draft?.diet?.macroTargets || draft?.diet?.targets;
+    if (!source) return false;
+
+    const calories = Number(source.calories || source.targetCalories || 0);
+    const protein = Number(source.protein || source.targetProtein || 0);
+    const carbs = Number(source.carbs || source.targetCarbs || 0);
+    const fats = Number(source.fats || source.targetFats || 0);
+
+    if (calories > 0) setTargetCalories(Math.round(calories));
+    if (protein > 0) setTargetProtein(Math.round(protein));
+    if (carbs > 0) setTargetCarbs(Math.round(carbs));
+    if (fats > 0) setTargetFats(Math.round(fats));
+
+    return calories > 0 || protein > 0 || carbs > 0 || fats > 0;
+  };
+
   const buildRecipesModule = () => ({
     plannerView,
     cycleDayCount,
@@ -716,6 +735,7 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
         const draft = JSON.parse(storedDraft);
         if (draft.diet) {
           syncSourceFoods(draft);
+          applyDietMacroTargets(draft);
         }
 
         if (draft.recipes && draft.recipes.weekSlots && !alreadyDecided) {
@@ -815,6 +835,8 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
           nextDraft.recipes = recipeCreation.content;
           applyRecipesContent(recipeCreation.content);
         }
+
+        applyDietMacroTargets(nextDraft);
 
         localStorage.setItem("nutri_active_draft", JSON.stringify(nextDraft));
         syncSourceFoods(nextDraft);
@@ -1641,6 +1663,38 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
     setDropTargetKey(null);
   };
 
+  const redistributeMealTimes = () => {
+    setWeekSlots((prev) => {
+      const currentStructure = getStructureTemplate(prev[currentDay] || []);
+      if (currentStructure.length === 0) return prev;
+
+      const [wakeHour, wakeMinute] = wakeUpTime.split(":").map(Number);
+      const [sleepHour, sleepMinute] = sleepTime.split(":").map(Number);
+      const startMinutes = wakeHour * 60 + wakeMinute;
+      const endMinutes = sleepHour * 60 + sleepMinute;
+
+      if (!Number.isFinite(startMinutes) || !Number.isFinite(endMinutes) || endMinutes <= startMinutes) {
+        return prev;
+      }
+
+      const step = currentStructure.length > 1 ? (endMinutes - startMinutes) / (currentStructure.length - 1) : 0;
+      const nextStructure = currentStructure.map((slot, index) => {
+        const totalMinutes = Math.round(startMinutes + step * index);
+        const hours = Math.floor(totalMinutes / 60)
+          .toString()
+          .padStart(2, "0");
+        const minutes = (totalMinutes % 60).toString().padStart(2, "0");
+
+        return {
+          ...slot,
+          time: `${hours}:${minutes}`,
+        };
+      });
+
+      return applyStructureToWeek(nextStructure, prev);
+    });
+  };
+
   const isRecipeCompatibleForSubstitute = (
     recipe: Pick<Recipe, "mealSection">,
     section: SubstituteMealSection,
@@ -2117,6 +2171,7 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
         draft.diet = content;
         localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
         syncSourceFoods(draft);
+        applyDietMacroTargets(draft);
 
         const targets = content.targets || content.nutritionalTargets || {};
         const calories = targets.calories || targets.targetCalories || 0;
@@ -2319,6 +2374,8 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
     handleMealCountChange,
     getSlotTypeFromMealSection,
     getSlotLabelFromMealSection,
+    parseDelimitedList,
+    isRecipeMealSectionCompatible,
     truncateText,
     getRecipeImage,
     handleSlotTimeDraftChange,
@@ -2361,5 +2418,6 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
     handleDiscardDraft,
     handleImportCreation,
     fetchPortalOverview,
+    buildPatientMeta,
   };
 }

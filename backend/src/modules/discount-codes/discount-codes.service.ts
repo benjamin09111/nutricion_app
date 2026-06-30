@@ -91,7 +91,7 @@ export class DiscountCodesService {
     return { total, data };
   }
 
-  async getCodeByCode(code: string) {
+  getCodeByCode(code: string) {
     const discountCodes = this.prisma.discountCode as any;
 
     return discountCodes.findUnique({
@@ -104,7 +104,7 @@ export class DiscountCodesService {
     });
   }
 
-  async getCodeById(id: string) {
+  getCodeById(id: string) {
     const discountCodes = this.prisma.discountCode as any;
 
     return discountCodes.findUnique({
@@ -138,7 +138,7 @@ export class DiscountCodesService {
     return discountCode;
   }
 
-  async markAsUsed(code: string, accountId: string, tx?: any) {
+  markAsUsed(code: string, accountId: string, tx?: any) {
     const client = tx || this.prisma;
     return client.discountCode.update({
       where: { code },

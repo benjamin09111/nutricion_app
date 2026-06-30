@@ -8,10 +8,7 @@ import { Reflector } from '@nestjs/core';
 
 @Injectable()
 export class HttpCacheInterceptor extends CacheInterceptor {
-  constructor(
-    @Inject(CACHE_MANAGER) cacheManager: any,
-    reflector: Reflector,
-  ) {
+  constructor(@Inject(CACHE_MANAGER) cacheManager: any, reflector: Reflector) {
     super(cacheManager, reflector);
   }
 

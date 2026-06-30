@@ -83,7 +83,6 @@ export function PatientGeneralTab({
   return (
     <div
       className="space-y-4 animate-in fade-in duration-500"
-      data-tutorial-id="patient-overview-section"
     >
       {/* 3-Column Layout for Primary Info */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">

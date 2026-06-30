@@ -11,8 +11,6 @@ import {
   DashboardShellProvider,
   useDashboardShell,
 } from "@/context/DashboardShellContext";
-import { TutorialProvider } from "@/context/TutorialContext";
-import { useTutorials } from "@/context/TutorialContext";
 import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
@@ -25,7 +23,6 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isSidebarCollapsed } = useDashboardShell();
   const { isDarkMode } = useTheme();
-  const { isIntroTutorialActive } = useTutorials();
   const pathname = usePathname();
   const isRecipesModule = pathname.startsWith("/dashboard/recetas");
   const isWelcomeRoute = pathname.startsWith("/dashboard/bienvenida");
@@ -36,10 +33,6 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
       </div>
     );
-  }
-
-  if (isIntroTutorialActive) {
-    return <div className="min-h-screen bg-white" />;
   }
 
   const dashboardShell = (
@@ -126,9 +119,7 @@ export default function DashboardLayout({
     <AdminProvider>
       <SubscriptionProvider>
         <DashboardShellProvider>
-          <TutorialProvider>
-            <DashboardContent>{children}</DashboardContent>
-          </TutorialProvider>
+          <DashboardContent>{children}</DashboardContent>
         </DashboardShellProvider>
       </SubscriptionProvider>
     </AdminProvider>

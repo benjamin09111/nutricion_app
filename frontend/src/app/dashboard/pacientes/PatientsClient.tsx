@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   X,
   Phone,
+  Link2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
@@ -36,6 +37,7 @@ import { formatRut } from "@/lib/rut-utils";
 import { getApiUrl } from "@/lib/api-base";
 import { PatientTab, usePatients } from "@/features/patients/hooks/usePatients";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { ShareFormModal } from "@/features/patients-intake/components/ShareFormModal";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -63,6 +65,7 @@ export default function PatientsClient() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<string | null>(null);
   const [patientPreview, setPatientPreview] = useState<Patient | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const { limit } = useSubscription();
 
   useEffect(() => {
@@ -112,10 +115,7 @@ export default function PatientsClient() {
   };
 
   const printJson = () => {
-    console.group("📊 PATIENTS DATA");
-    console.log("Pacientes:", patients);
-    console.groupEnd();
-    toast.info("JSON de pacientes impreso en consola.");
+    toast.info("Vista rápida de pacientes lista.");
   };
 
   const filteredPatients = patients;
@@ -148,8 +148,8 @@ export default function PatientsClient() {
       description="Gestiona a tus pacientes: puedes crear, ver su progreso a través del tiempo, crear un espacio de comunicación privado y mucho más."
       className="pb-8"
     >
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
-        <div className="flex p-1 bg-slate-100/80 rounded-2xl w-full lg:w-fit border border-slate-200/50 backdrop-blur-sm overflow-x-auto no-scrollbar scroll-smooth">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
+        <div className="flex p-1 bg-slate-100/80 rounded-2xl w-full lg:max-w-[42rem] border border-slate-200/50 backdrop-blur-sm overflow-x-auto no-scrollbar scroll-smooth">
           {tabs.map((tab) => (
             <button
               key={tab}
@@ -158,7 +158,7 @@ export default function PatientsClient() {
                 setPage(1);
               }}
               className={cn(
-                "px-4 py-2 text-sm transition-all duration-200 cursor-pointer whitespace-nowrap flex-1 lg:flex-none font-bold",
+                "px-4 py-2 text-sm transition-all duration-200 cursor-pointer whitespace-nowrap flex-1 min-w-0 lg:flex-none font-bold",
                 activeTab === tab
                   ? "text-indigo-700"
                   : "text-slate-500 hover:text-slate-800",
@@ -171,38 +171,49 @@ export default function PatientsClient() {
           ))}
         </div>
 
-        <Button
-          onClick={() => {
-            if (isPatientLimitReached) {
-              toast.error(
-                "Has alcanzado el límite de pacientes activos de tu plan.",
-              );
-              return;
-            }
-            router.push("/dashboard/pacientes/new");
-          }}
-          disabled={isPatientLimitReached}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-12 lg:h-10 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 w-full lg:w-fit group"
-        >
-          <Plus
-            className="h-5 w-5 lg:h-4 lg:w-4 group-hover:rotate-90 transition-transform"
-            aria-hidden="true"
-          />
-          <span className="text-sm">
-            {isPatientLimitReached ? "Límite alcanzado" : "Nuevo Paciente"}
-          </span>
-        </Button>
+        <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
+          <Button
+            variant="outline"
+            onClick={() => setIsShareModalOpen(true)}
+            className="h-11 lg:h-10 px-5 rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-medium transition-all flex items-center justify-center gap-2 w-full lg:w-fit order-2 lg:order-1"
+          >
+            <Link2 className="h-5 w-5 lg:h-4 lg:w-4" />
+            <span className="text-sm whitespace-nowrap">Compartir Formulario</span>
+          </Button>
 
-        <Button
-          variant="outline"
-          onClick={() => router.push("/dashboard/pacientes/seguimientos")}
-          className="h-12 lg:h-10 px-6 rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50 font-medium transition-all flex items-center justify-center gap-2 w-full lg:w-fit group"
-        >
-          <MessageSquareWarning className="h-5 w-5 lg:h-4 lg:w-4 group-hover:scale-110 transition-transform" />
-          <span className="text-sm whitespace-nowrap">
-            Visitar seguimientos de mis pacientes
-          </span>
-        </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push("/dashboard/pacientes/seguimientos")}
+            className="h-11 lg:h-10 px-6 rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50 font-medium transition-all flex items-center justify-center gap-2 w-full lg:w-fit group order-3 lg:order-2"
+          >
+            <MessageSquareWarning className="h-5 w-5 lg:h-4 lg:w-4 group-hover:scale-110 transition-transform" />
+            <span className="text-sm whitespace-nowrap">
+              Visitar seguimientos de mis pacientes
+            </span>
+          </Button>
+
+          <Button
+            onClick={() => {
+              if (isPatientLimitReached) {
+                toast.error(
+                  "Has alcanzado el límite de pacientes activos de tu plan.",
+                );
+                return;
+              }
+              router.push("/dashboard/pacientes/new");
+            }}
+            disabled={isPatientLimitReached}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-11 lg:h-10 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 w-full lg:w-fit group order-1 lg:order-3"
+          >
+            <Plus
+              className="h-5 w-5 lg:h-4 lg:w-4 group-hover:rotate-90 transition-transform"
+              aria-hidden="true"
+            />
+            <span className="text-sm">
+              {isPatientLimitReached ? "Límite alcanzado" : "Nuevo Paciente"}
+            </span>
+          </Button>
+        </div>
       </div>
 
       <div className="relative mb-8 group">
@@ -216,7 +227,7 @@ export default function PatientsClient() {
               <Input
                 type="search"
                 placeholder="Buscar por nombre, correo o documento..."
-                className="h-10 text-sm border border-slate-200 bg-white focus-visible:border-indigo-500 placeholder:text-slate-400 font-medium"
+                className="h-10 w-full max-w-[320px] text-sm border border-slate-200 bg-white focus-visible:border-indigo-500 placeholder:text-slate-400 font-medium"
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -962,6 +973,13 @@ export default function PatientsClient() {
             </div>
           </div>
         </div>
+      )}
+
+      {isShareModalOpen && (
+        <ShareFormModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+        />
       )}
     </ModuleLayout>
   );

@@ -2,16 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Cookies from "js-cookie";
 import { Loader2 } from "lucide-react";
 import { fetchApi } from "@/lib/api-base";
-import { normalizeTutorialStore, setTutorialStore } from "@/lib/tutorials";
-
-const storageOptions = {
-  expires: 30,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "strict" as const,
-};
+import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 
 const DRAFT_STORAGE_KEYS = [
   "nutri_active_draft",
@@ -36,22 +29,34 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
   const [message, setMessage] = useState(fallbackMessage || "Finalizando inicio de sesión...");
 
   useEffect(() => {
-    const token = params.get("token");
+    const ticket = params.get("ticket");
     const next = params.get("next") || "/dashboard";
 
-    if (!token) {
-      setMessage("No encontramos el token de autenticación.");
+    if (!ticket) {
+      setMessage("No encontramos el ticket de autenticación.");
       router.replace("/login");
       return;
     }
 
+    if (ticket) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+
     const hydrate = async () => {
       try {
-        const response = await fetchApi("/auth/me", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const sessionResponse = ticket
+          ? await fetchApi("/auth/oauth/exchange", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ticket }),
+            })
+          : null;
+
+        if (sessionResponse && !sessionResponse.ok) {
+          throw new Error("No pudimos validar el ticket de autenticación.");
+        }
+
+        const response = await fetchApi("/auth/me");
 
         if (!response.ok) {
           throw new Error("No pudimos completar la sesión.");
@@ -59,8 +64,7 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
 
         const data = await response.json();
         try {
-          const previousUserRaw = localStorage.getItem("user");
-          const previousUser = previousUserRaw ? JSON.parse(previousUserRaw) : null;
+          const previousUser = getCurrentUser();
           if (previousUser?.id && previousUser.id !== data.user?.id) {
             DRAFT_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
             SESSION_DRAFT_KEYS.forEach((key) => sessionStorage.removeItem(key));
@@ -68,11 +72,7 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
         } catch (error) {
           console.error("Error clearing stale draft storage", error);
         }
-        Cookies.set("auth_token", token, storageOptions);
-        Cookies.set("user", JSON.stringify(data.user), storageOptions);
-        localStorage.setItem("auth_token", token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        setTutorialStore(normalizeTutorialStore(data.user?.tutorialProgress));
+        setCurrentUser(data.user);
 
         router.replace(data.user?.requiresPlanSelection ? "/plan" : next);
       } catch (error) {

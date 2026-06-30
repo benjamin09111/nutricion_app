@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { fetchApi } from "@/lib/api-base";
+import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 
 type UserRole =
   | "ADMIN"
@@ -40,31 +41,17 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const syncRole = async () => {
-      const token = localStorage.getItem("auth_token");
-      const storedUser = localStorage.getItem("user");
+      const storedUser = getCurrentUser();
 
-      if (!token && !storedUser) {
+      if (!storedUser) {
         setIsLoading(false);
         return;
       }
 
-      if (!token) {
-        try {
-          const user = JSON.parse(storedUser || "null");
-          setRole(user?.role as UserRole | null);
-        } catch (error) {
-          console.error("Error parsing stored user:", error);
-          setRole(null);
-        } finally {
-          setIsLoading(false);
-        }
-        return;
-      }
+      setRole(storedUser?.role as UserRole | null);
 
       try {
-        const response = await fetchApi("/auth/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await fetchApi("/auth/me");
 
         if (!response.ok) {
           throw new Error("No se pudo sincronizar la sesión");
@@ -75,17 +62,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         setRole(user?.role as UserRole | null);
 
         if (user) {
-          localStorage.setItem("user", JSON.stringify(user));
+          setCurrentUser(user);
         }
       } catch (error) {
         console.error("Error syncing admin session:", error);
-        try {
-          const user = JSON.parse(storedUser || "null");
-          setRole(user?.role as UserRole | null);
-        } catch (parseError) {
-          console.error("Error parsing stored user:", parseError);
-          setRole(null);
-        }
+        setRole(storedUser?.role as UserRole | null);
       } finally {
         setIsLoading(false);
       }
