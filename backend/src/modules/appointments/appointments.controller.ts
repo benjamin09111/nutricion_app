@@ -262,13 +262,14 @@ export class AppointmentsController {
       return { authUrl: null };
     }
 
-    const authUrl =
-      await this.googleIntegrationService.buildGoogleCalendarConnectUrl({
+    const authUrl = this.googleIntegrationService.buildGoogleCalendarConnectUrl(
+      {
         accountId,
         nutritionistId,
         calendarId,
         next: '/dashboard/citas',
-      });
+      },
+    );
 
     return { authUrl };
   }

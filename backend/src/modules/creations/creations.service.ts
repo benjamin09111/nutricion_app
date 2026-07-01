@@ -1,5 +1,9 @@
 import { createHash } from 'crypto';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 import { CacheService } from '../../common/services/cache.service';
@@ -74,29 +78,42 @@ export class CreationsService {
     private readonly cacheService: CacheService,
   ) {}
 
-  async create(nutritionistId: string, data: any) {
+  async create(
+    accountId: string,
+    nutritionistId: string | undefined,
+    data: any,
+  ) {
     const { name, type, content, metadata, tags } = data;
 
-    if (!nutritionistId) {
-      throw new Error(
+    const resolvedNutritionistId =
+      nutritionistId ||
+      (
+        await this.prisma.nutritionist.findUnique({
+          where: { accountId },
+          select: { id: true },
+        })
+      )?.id;
+
+    if (!resolvedNutritionistId) {
+      throw new BadRequestException(
         'No se pudo identificar tu perfil de nutricionista. Asegúrate de tener una cuenta de nutricionista activa.',
       );
     }
 
     // Verificar si el nutricionista existe
     const nutritionist = await this.prisma.nutritionist.findUnique({
-      where: { id: nutritionistId },
+      where: { id: resolvedNutritionistId },
     });
 
     if (!nutritionist) {
-      throw new Error(
+      throw new BadRequestException(
         'Perfil de nutricionista no encontrado. Intenta cerrar sesión y volver a entrar.',
       );
     }
 
     // Validar que el nombre no esté vacío
     if (!name || name.trim() === '') {
-      throw new Error('El nombre de la creación es obligatorio');
+      throw new BadRequestException('El nombre de la creación es obligatorio');
     }
 
     const trimmedName = name.trim();
@@ -112,7 +129,7 @@ export class CreationsService {
 
     const existingCreations = await this.prisma.creation.findMany({
       where: {
-        nutritionistId,
+        nutritionistId: resolvedNutritionistId,
         type,
       },
       select: {
@@ -153,12 +170,12 @@ export class CreationsService {
         content,
         metadata: nextMetadata,
         tags: tags || [],
-        nutritionist: { connect: { id: nutritionistId } },
+        nutritionist: { connect: { id: resolvedNutritionistId } },
       },
     });
 
     await this.cacheService.invalidateNutritionistPrefix(
-      nutritionistId,
+      resolvedNutritionistId,
       'creations',
     );
     return {

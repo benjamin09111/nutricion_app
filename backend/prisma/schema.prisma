@@ -9,75 +9,76 @@ datasource db {
 }
 
 model Account {
-  id                         String           @id @default(uuid())
-  email                      String           @unique
-  password                   String?
-  googleSub                  String?          @unique @map("google_sub")
-  googleEmail                String?          @map("google_email")
-  googleAvatarUrl            String?          @map("google_avatar_url")
-  authProvider               String           @default("credentials") @map("auth_provider")
+  id              String  @id @default(uuid())
+  email           String  @unique
+  password        String?
+  googleSub       String? @unique @map("google_sub")
+  googleEmail     String? @map("google_email")
+  googleAvatarUrl String? @map("google_avatar_url")
+  authProvider    String  @default("credentials") @map("auth_provider")
 
-  role                       UserRole         @default(NUTRITIONIST)
-  status                     AccountStatus    @default(PENDING)
-  createdAt                  DateTime         @map("created_at")@default(now())
-  updatedAt                  DateTime         @updatedAt@map("updated_at")
-  plan                       SubscriptionPlan @default(FREE)
-  subscriptionEndsAt         DateTime?        @map("subscription_ends_at")
-  lastLoginAt                DateTime?        @map("last_login_at") @db.Timestamptz(6)
-  tutorialProgress           Json?            @default("{}") @map("tutorial_progress")
-  emailVerificationToken     String?          @unique @map("email_verification_token")
-  emailVerificationSentAt    DateTime?        @map("email_verification_sent_at") @db.Timestamptz(6)
-  emailVerifiedAt            DateTime?        @map("email_verified_at") @db.Timestamptz(6)
-  nutritionist               Nutritionist?
-  payments           Payment[]
-  subscription       Subscription?
-  planUsageCounters  PlanUsageCounter[]
-  notifications      Notification[]
+  role                      UserRole                   @default(NUTRITIONIST)
+  status                    AccountStatus              @default(PENDING)
+  createdAt                 DateTime                   @default(now()) @map("created_at")
+  updatedAt                 DateTime                   @updatedAt @map("updated_at")
+  plan                      SubscriptionPlan           @default(FREE)
+  subscriptionEndsAt        DateTime?                  @map("subscription_ends_at")
+  lastLoginAt               DateTime?                  @map("last_login_at") @db.Timestamptz(6)
+  emailVerificationToken    String?                    @unique @map("email_verification_token")
+  emailVerificationSentAt   DateTime?                  @map("email_verification_sent_at") @db.Timestamptz(6)
+  emailVerifiedAt           DateTime?                  @map("email_verified_at") @db.Timestamptz(6)
+  nutritionist              Nutritionist?
+  payments                  Payment[]
+  subscription              Subscription?
+  planUsageCounters         PlanUsageCounter[]
+  notifications             Notification[]
   googleCalendarConnections GoogleCalendarConnection[]
-  createdDiscountCodes DiscountCode[] @relation("DiscountCodeCreator")
-  usedDiscountCodes    DiscountCode[] @relation("DiscountCodeUser")
-  archivedDiscountCodes DiscountCode[] @relation("DiscountCodeArchiver")
+  createdDiscountCodes      DiscountCode[]             @relation("DiscountCodeCreator")
+  usedDiscountCodes         DiscountCode[]             @relation("DiscountCodeUser")
+  archivedDiscountCodes     DiscountCode[]             @relation("DiscountCodeArchiver")
 
   @@index([role, createdAt])
   @@map("accounts")
 }
 
 model Nutritionist {
-  id                    String                 @id @default(uuid())
-  accountId             String                 @unique
-  publicSlug            String?                @unique @map("public_slug")
-  publicProfileEnabled  Boolean                @default(false) @map("public_profile_enabled")
-  fullName              String                 @map("full_name")
-  professionalId        String?                @map("professional_id")
-  specialty             String?
-  phone                 String?
-  avatarUrl             String?                @map("avatar_url")
-  headline              String?
-  bio                   String?
-  consultationMode      String                 @default("online") @map("consultation_mode")
-  location              String?
-  settings              Json?                  @default("{}")
-  createdAt             DateTime               @map("created_at")@default(now())
-  updatedAt             DateTime               @updatedAt@map("updated_at")
-  consultations         Consultation[]
-  creations             Creation[]
-  ingredientGroups      IngredientGroup[]
-  ingredientPreferences IngredientPreference[]
-  customIngredients     Ingredient[]
-  metricDefinitions     MetricDefinition[]
-  account               Account                @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  patients              Patient[]
+  id                       String                    @id @default(uuid())
+  accountId                String                    @unique
+  publicSlug               String?                   @unique @map("public_slug")
+  publicProfileEnabled     Boolean                   @default(false) @map("public_profile_enabled")
+  fullName                 String                    @map("full_name")
+  professionalId           String?                   @map("professional_id")
+  specialty                String?
+  phone                    String?
+  avatarUrl                String?                   @map("avatar_url")
+  headline                 String?
+  bio                      String?
+  consultationMode         String                    @default("online") @map("consultation_mode")
+  location                 String?
+  settings                 Json?                     @default("{}")
+  createdAt                DateTime                  @default(now()) @map("created_at")
+  updatedAt                DateTime                  @updatedAt @map("updated_at")
+  consultations            Consultation[]
+  creations                Creation[]
+  ingredientGroups         IngredientGroup[]
+  ingredientPreferences    IngredientPreference[]
+  customIngredients        Ingredient[]
+  metricDefinitions        MetricDefinition[]
+  account                  Account                   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  patients                 Patient[]
   patientPortalInvitations PatientPortalInvitation[]
-  patientPortalEntries   PatientPortalEntry[]
-  patientPortalCheckIns  PatientPortalCheckIn[]
-  projects              Project[]
-  recipes               Recipe[]
-  savedRecipes          RecipeLibrary[]
-  resourceSections      ResourceSection[]
-  resources             Resource[]
-  substitutes           Substitute[]
-  createdTags           Tag[]
-  appointmentCalendars  AppointmentCalendar[]
+  patientPortalEntries     PatientPortalEntry[]
+  patientPortalCheckIns    PatientPortalCheckIn[]
+  projects                 Project[]
+  recipes                  Recipe[]
+  savedRecipes             RecipeLibrary[]
+  resourceSections         ResourceSection[]
+  resources                Resource[]
+  substitutes              Substitute[]
+  createdTags              Tag[]
+  appointmentCalendars     AppointmentCalendar[]
+  patientIntakeLinks       PatientIntakeLink[]
+  patientIntakeSubmissions PatientIntakeSubmission[]
 
   @@index([fullName])
   @@index([publicProfileEnabled, fullName])
@@ -99,8 +100,8 @@ model Substitute {
   id             String       @id @default(uuid())
   nutritionistId String       @map("nutritionist_id")
   content        Json
-  createdAt      DateTime     @map("created_at")@default(now())
-  updatedAt      DateTime     @updatedAt@map("updated_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
   nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
 
   @@index([nutritionistId])
@@ -116,8 +117,8 @@ model Creation {
   content                     Json
   metadata                    Json?
   tags                        String[]     @default([])
-  createdAt                   DateTime     @map("created_at")@default(now())
-  updatedAt                   DateTime     @updatedAt@map("updated_at")
+  createdAt                   DateTime     @default(now()) @map("created_at")
+  updatedAt                   DateTime     @updatedAt @map("updated_at")
   nutritionist                Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
   sourceProjectsAsCart        Project[]    @relation("ProjectCartCreation")
   sourceProjectsAsDeliverable Project[]    @relation("ProjectDeliverableCreation")
@@ -141,8 +142,8 @@ model Project {
   activeCartCreationId        String?      @map("active_cart_creation_id")
   activeDeliverableCreationId String?      @map("active_deliverable_creation_id")
   metadata                    Json?        @default("{}")
-  createdAt                   DateTime     @map("created_at")@default(now())
-  updatedAt                   DateTime     @updatedAt@map("updated_at")
+  createdAt                   DateTime     @default(now()) @map("created_at")
+  updatedAt                   DateTime     @updatedAt @map("updated_at")
   activeCartCreation          Creation?    @relation("ProjectCartCreation", fields: [activeCartCreationId], references: [id])
   activeDeliverableCreation   Creation?    @relation("ProjectDeliverableCreation", fields: [activeDeliverableCreationId], references: [id])
   activeDietCreation          Creation?    @relation("ProjectDietCreation", fields: [activeDietCreationId], references: [id])
@@ -156,39 +157,79 @@ model Project {
 }
 
 model Patient {
-  id               String         @id @default(uuid())
-  nutritionistId   String         @map("nutritionist_id")
-  fullName         String         @map("full_name")
-  email            String?
-  phone            String?
-  documentId       String?        @map("document_id")
-  age              Int?           @map("age")
-  birthDate        DateTime?      @map("birth_date")
-  gender           String?
-  height           Float?
-  weight           Float?
-  createdAt        DateTime       @map("created_at")@default(now())
-  updatedAt        DateTime       @updatedAt@map("updated_at")
-  dietRestrictions Json?          @default("[]") @map("diet_restrictions")
-  clinicalSummary  String?
-  customVariables  Json?          @default("[]") @map("custom_variables")
-  fitnessGoals     String?        @map("fitness_goals")
-  nutritionalFocus String?        @map("nutritional_focus")
-  status           String?        @default("Active")
-  activityLevel    String?        @map("activity_level")
-  tags             String[]       @default([])
-  likes            String?
-  consultations    Consultation[]
-  exams            PatientExam[]
+  id                String                    @id @default(uuid())
+  nutritionistId    String                    @map("nutritionist_id")
+  fullName          String                    @map("full_name")
+  email             String?
+  phone             String?
+  documentId        String?                   @map("document_id")
+  age               Int?                      @map("age")
+  birthDate         DateTime?                 @map("birth_date")
+  gender            String?
+  height            Float?
+  weight            Float?
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+  dietRestrictions  Json?                     @default("[]") @map("diet_restrictions")
+  clinicalSummary   String?
+  customVariables   Json?                     @default("[]") @map("custom_variables")
+  fitnessGoals      String?                   @map("fitness_goals")
+  nutritionalFocus  String?                   @map("nutritional_focus")
+  status            String?                   @default("Active")
+  activityLevel     String?                   @map("activity_level")
+  tags              String[]                  @default([])
+  likes             String?
+  consultations     Consultation[]
+  exams             PatientExam[]
   portalInvitations PatientPortalInvitation[]
   portalEntries     PatientPortalEntry[]
   portalCheckIns    PatientPortalCheckIn[]
-  nutritionist     Nutritionist   @relation(fields: [nutritionistId], references: [id])
-  projects         Project[]
-  appointments     Appointment[]
+  intakeSubmissions PatientIntakeSubmission[]
+  nutritionist      Nutritionist              @relation(fields: [nutritionistId], references: [id])
+  projects          Project[]
+  appointments      Appointment[]
 
   @@index([nutritionistId])
   @@map("patients")
+}
+
+model PatientIntakeLink {
+  id             String                    @id @default(uuid())
+  nutritionistId String                    @unique @map("nutritionist_id")
+  tokenVersion   Int                       @default(1) @map("token_version")
+  tokenHash      String                    @unique @map("token_hash")
+  status         String                    @default("ACTIVE")
+  expiresAt      DateTime?                 @map("expires_at")
+  createdAt      DateTime                  @default(now()) @map("created_at")
+  updatedAt      DateTime                  @updatedAt @map("updated_at")
+  nutritionist   Nutritionist              @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  submissions    PatientIntakeSubmission[]
+
+  @@index([nutritionistId])
+  @@index([tokenHash])
+  @@map("patient_intake_links")
+}
+
+model PatientIntakeSubmission {
+  id             String            @id @default(uuid())
+  linkId         String            @map("link_id")
+  nutritionistId String            @map("nutritionist_id")
+  patientId      String?           @map("patient_id")
+  payload        Json              @default("{}")
+  status         String            @default("PENDING")
+  reviewedAt     DateTime?         @map("reviewed_at")
+  reviewedBy     String?           @map("reviewed_by")
+  rejectReason   String?           @map("reject_reason")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  link           PatientIntakeLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  patient        Patient?          @relation(fields: [patientId], references: [id])
+  nutritionist   Nutritionist      @relation(fields: [nutritionistId], references: [id])
+
+  @@index([linkId])
+  @@index([status])
+  @@index([nutritionistId])
+  @@map("patient_intake_submissions")
 }
 
 model PatientExam {
@@ -198,8 +239,8 @@ model PatientExam {
   date       DateTime @default(now())
   fileUrl    String?  @map("file_url")
   notes      String?
-  createdAt  DateTime @map("created_at")@default(now())
-  updatedAt  DateTime @updatedAt@map("updated_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
   laboratory String?
   results    Json?    @default("{}")
   patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
@@ -216,8 +257,8 @@ model Consultation {
   title          String
   description    String?
   metrics        Json?        @default("[]")
-  createdAt      DateTime     @map("created_at")@default(now())
-  updatedAt      DateTime     @updatedAt@map("updated_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
   nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
   patient        Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
@@ -227,25 +268,25 @@ model Consultation {
 }
 
 model PatientPortalInvitation {
-  id          String     @id @default(uuid())
-  patientId   String     @map("patient_id")
-  nutritionistId String  @map("nutritionist_id")
-  email       String?
-  tokenHash   String     @unique @map("token_hash")
-  status      String     @default("ACTIVE")
-  expiresAt   DateTime   @map("expires_at")
-  revokedAt   DateTime?  @map("revoked_at")
-  blockedAt   DateTime?  @map("blocked_at")
-  verifiedAt  DateTime?  @map("verified_at")
-  lastSentAt  DateTime?  @map("last_sent_at")
-  resourceIds String[]   @default([]) @map("resource_ids")
-  deliverableCreationIds String[] @default([]) @map("deliverable_creation_ids")
-createdAt   DateTime   @map("created_at")@default(now())
-updatedAt   DateTime   @updatedAt@map("updated_at")
-patient     Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
-nutritionist Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
-entries     PatientPortalEntry[]
-  checkIns    PatientPortalCheckIn[]
+  id                     String                 @id @default(uuid())
+  patientId              String                 @map("patient_id")
+  nutritionistId         String                 @map("nutritionist_id")
+  email                  String?
+  tokenHash              String                 @unique @map("token_hash")
+  status                 String                 @default("ACTIVE")
+  expiresAt              DateTime               @map("expires_at")
+  revokedAt              DateTime?              @map("revoked_at")
+  blockedAt              DateTime?              @map("blocked_at")
+  verifiedAt             DateTime?              @map("verified_at")
+  lastSentAt             DateTime?              @map("last_sent_at")
+  resourceIds            String[]               @default([]) @map("resource_ids")
+  deliverableCreationIds String[]               @default([]) @map("deliverable_creation_ids")
+  createdAt              DateTime               @default(now()) @map("created_at")
+  updatedAt              DateTime               @updatedAt @map("updated_at")
+  patient                Patient                @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  nutritionist           Nutritionist           @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  entries                PatientPortalEntry[]
+  checkIns               PatientPortalCheckIn[]
 
   @@index([patientId])
   @@index([nutritionistId])
@@ -256,25 +297,25 @@ entries     PatientPortalEntry[]
 }
 
 model PatientPortalCheckIn {
-  id              String      @id @default(uuid())
-  patientId       String      @map("patient_id")
-  nutritionistId  String      @map("nutritionist_id")
-  invitationId    String?     @map("invitation_id")
-  checkInDate     DateTime    @default(now()) @map("check_in_date")
+  id              String                   @id @default(uuid())
+  patientId       String                   @map("patient_id")
+  nutritionistId  String                   @map("nutritionist_id")
+  invitationId    String?                  @map("invitation_id")
+  checkInDate     DateTime                 @default(now()) @map("check_in_date")
   weight          Float?
-  waterLiters     Float?      @map("water_liters")
-  activityMinutes Int?        @map("activity_minutes")
+  waterLiters     Float?                   @map("water_liters")
+  activityMinutes Int?                     @map("activity_minutes")
   mood            String?
   energy          String?
   hunger          String?
-  symptoms        Json        @default("[]")
-  meals           Json        @default("[]")
+  symptoms        Json                     @default("[]")
+  meals           Json                     @default("[]")
   notes           String?
-  photos          Json        @default("[]")
-  createdAt       DateTime    @map("created_at")@default(now())
-  updatedAt       DateTime    @updatedAt@map("updated_at")
-  patient         Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  nutritionist    Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  photos          Json                     @default("[]")
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @updatedAt @map("updated_at")
+  patient         Patient                  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  nutritionist    Nutritionist             @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
   invitation      PatientPortalInvitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
 
   @@index([patientId])
@@ -284,21 +325,21 @@ model PatientPortalCheckIn {
 }
 
 model PatientPortalEntry {
-  id              String                 @id @default(uuid())
-  patientId       String                 @map("patient_id")
-  nutritionistId  String                 @map("nutritionist_id")
-  invitationId    String?                @map("invitation_id")
-  replyToId       String?                @map("reply_to_id")
-  kind            String                 @default("QUESTION")
-  body            String?
-  payload         Json                   @default("{}")
-  createdAt       DateTime               @map("created_at")@default(now())
-  updatedAt       DateTime               @updatedAt@map("updated_at")
-  patient         Patient                @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  nutritionist    Nutritionist           @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
-  invitation      PatientPortalInvitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
-  replyTo         PatientPortalEntry?    @relation("PatientPortalEntryReplies", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies         PatientPortalEntry[]   @relation("PatientPortalEntryReplies")
+  id             String                   @id @default(uuid())
+  patientId      String                   @map("patient_id")
+  nutritionistId String                   @map("nutritionist_id")
+  invitationId   String?                  @map("invitation_id")
+  replyToId      String?                  @map("reply_to_id")
+  kind           String                   @default("QUESTION")
+  body           String?
+  payload        Json                     @default("{}")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+  patient        Patient                  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  nutritionist   Nutritionist             @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  invitation     PatientPortalInvitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+  replyTo        PatientPortalEntry?      @relation("PatientPortalEntryReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        PatientPortalEntry[]     @relation("PatientPortalEntryReplies")
 
   @@index([patientId])
   @@index([nutritionistId])
@@ -325,8 +366,8 @@ model Ingredient {
   isPublic          Boolean                @default(false) @map("is_public")
   verified          Boolean                @default(false)
   nutritionistId    String?                @map("nutritionist_id")
-  createdAt         DateTime               @map("created_at")@default(now())
-  updatedAt         DateTime               @updatedAt@map("updated_at")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
   brandId           String?                @map("brand_id")
   categoryId        String                 @map("category_id")
   groupEntries      IngredientGroupEntry[]
@@ -337,10 +378,10 @@ model Ingredient {
   recipeIngredients RecipeIngredient[]
   tags              Tag[]                  @relation("GlobalTags")
 
+  @@unique([name, brandId])
   @@index([name])
   @@index([isPublic, verified])
   @@index([nutritionistId])
-  @@unique([name, brandId])
   @@map("ingredients")
 }
 
@@ -380,8 +421,8 @@ model MetricDefinition {
   nutritionistId String?       @map("nutritionist_id")
   icon           String?       @default("Activity")
   color          String?       @default("#64748b")
-  createdAt      DateTime      @map("created_at")@default(now())
-  updatedAt      DateTime      @updatedAt@map("updated_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
   nutritionist   Nutritionist? @relation(fields: [nutritionistId], references: [id])
 
   @@map("metric_definitions")
@@ -408,8 +449,8 @@ model IngredientGroup {
   type           IngredientGroupType    @default(INGREDIENT)
   nutritionistId String                 @map("nutritionist_id")
   description    String?
-  createdAt      DateTime               @map("created_at")@default(now())
-  updatedAt      DateTime               @updatedAt@map("updated_at")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
   entries        IngredientGroupEntry[]
   nutritionist   Nutritionist           @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
   tags           Tag[]                  @relation("GroupTags")
@@ -457,7 +498,7 @@ model FoodPriceRecord {
   precioMin          Float    @map("precio_minimo")
   precioMax          Float    @map("precio_maximo")
   precioPromedio     Float    @map("precio_promedio")
-  createdAt          DateTime @map("created_at")@default(now())
+  createdAt          DateTime @default(now()) @map("created_at")
 
   @@index([producto])
   @@index([region])
@@ -471,8 +512,8 @@ model SupportRequest {
   message   String?
   type      SupportRequestType
   status    SupportRequestStatus @default(PENDING)
-  createdAt DateTime             @map("created_at")@default(now())
-  updatedAt DateTime             @updatedAt@map("updated_at")
+  createdAt DateTime             @default(now()) @map("created_at")
+  updatedAt DateTime             @updatedAt @map("updated_at")
 
   @@map("support_requests")
 }
@@ -487,8 +528,8 @@ model RegistrationRequest {
   message        String?
   status         RequestStatus @default(PENDING)
   adminNotes     String?       @map("admin_notes")
-  createdAt      DateTime      @map("created_at")@default(now())
-  updatedAt      DateTime      @updatedAt@map("updated_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
 
   @@map("registration_requests")
 }
@@ -508,8 +549,8 @@ model MembershipPlan {
   isPopular             Boolean             @default(false)
   isActive              Boolean             @default(true)
   displayOrder          Int                 @default(0)
-  createdAt             DateTime            @map("created_at")@default(now())
-  updatedAt             DateTime            @updatedAt@map("updated_at")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
   newSubscriptionEvents SubscriptionEvent[] @relation("NewPlan")
   oldSubscriptionEvents SubscriptionEvent[] @relation("OldPlan")
   subscriptions         Subscription[]
@@ -528,8 +569,8 @@ model Payment {
   idempotencyKey     String?             @unique @map("idempotency_key")
   metadata           Json?               @default("{}")
   paidAt             DateTime?           @map("paid_at")
-  createdAt          DateTime            @map("created_at")@default(now())
-  updatedAt          DateTime            @updatedAt@map("updated_at")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
   account            Account             @relation(fields: [accountId], references: [id])
   subscriptionEvents SubscriptionEvent[]
 
@@ -545,8 +586,8 @@ model Subscription {
   endDate           DateTime?           @map("end_date")
   cancelAtPeriodEnd Boolean             @default(false) @map("cancel_at_period_end")
   canceledAt        DateTime?           @map("canceled_at")
-  createdAt         DateTime            @map("created_at")@default(now())
-  updatedAt         DateTime            @updatedAt@map("updated_at")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
   events            SubscriptionEvent[]
   account           Account             @relation(fields: [accountId], references: [id])
   plan              MembershipPlan      @relation(fields: [planId], references: [id])
@@ -562,7 +603,7 @@ model SubscriptionEvent {
   oldPlanId      String?         @map("old_plan_id")
   newPlanId      String?         @map("new_plan_id")
   metadata       Json?           @default("{}")
-  createdAt      DateTime        @map("created_at")@default(now())
+  createdAt      DateTime        @default(now()) @map("created_at")
   newPlan        MembershipPlan? @relation("NewPlan", fields: [newPlanId], references: [id])
   oldPlan        MembershipPlan? @relation("OldPlan", fields: [oldPlanId], references: [id])
   payment        Payment?        @relation(fields: [paymentId], references: [id])
@@ -572,14 +613,14 @@ model SubscriptionEvent {
 }
 
 model PlanUsageCounter {
-  id          String   @id @default(uuid())
-  accountId   String   @map("account_id")
-  featureKey  String   @map("feature_key")
-  periodKey   String   @map("period_key")
-  usageCount  Int      @default(0) @map("usage_count")
-  createdAt   DateTime @map("created_at") @default(now())
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  accountId  String   @map("account_id")
+  featureKey String   @map("feature_key")
+  periodKey  String   @map("period_key")
+  usageCount Int      @default(0) @map("usage_count")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@unique([accountId, featureKey, periodKey])
   @@index([featureKey, periodKey])
@@ -587,20 +628,20 @@ model PlanUsageCounter {
 }
 
 model DiscountCode {
-  id               String           @id @default(uuid())
-  code             String           @unique
-  type             DiscountCodeType
-  discountPercent  Int              @map("discount_percent")
-  isUsed           Boolean          @default(false) @map("is_used")
-  usedByAccountId  String?          @map("used_by_account_id")
-  usedAt           DateTime?        @map("used_at")
-  createdByAdminId String           @map("created_by_admin_id")
-  archivedAt       DateTime?        @map("archived_at")
-  archivedByAdminId String?         @map("archived_by_admin_id")
-  createdAt        DateTime         @default(now()) @map("created_at")
+  id                String           @id @default(uuid())
+  code              String           @unique
+  type              DiscountCodeType
+  discountPercent   Int              @map("discount_percent")
+  isUsed            Boolean          @default(false) @map("is_used")
+  usedByAccountId   String?          @map("used_by_account_id")
+  usedAt            DateTime?        @map("used_at")
+  createdByAdminId  String           @map("created_by_admin_id")
+  archivedAt        DateTime?        @map("archived_at")
+  archivedByAdminId String?          @map("archived_by_admin_id")
+  createdAt         DateTime         @default(now()) @map("created_at")
 
-  usedBy    Account? @relation("DiscountCodeUser", fields: [usedByAccountId], references: [id])
-  createdBy Account  @relation("DiscountCodeCreator", fields: [createdByAdminId], references: [id])
+  usedBy     Account? @relation("DiscountCodeUser", fields: [usedByAccountId], references: [id])
+  createdBy  Account  @relation("DiscountCodeCreator", fields: [createdByAdminId], references: [id])
   archivedBy Account? @relation("DiscountCodeArchiver", fields: [archivedByAdminId], references: [id])
 
   @@index([code])
@@ -619,34 +660,34 @@ model DailyMetric {
   newUsers            Int      @default(0) @map("new_users")
   activeSubscriptions Int      @default(0) @map("active_subscriptions")
   churnRate           Float    @default(0) @map("churn_rate")
-  createdAt           DateTime @map("created_at")@default(now())
+  createdAt           DateTime @default(now()) @map("created_at")
 
   @@map("daily_metrics")
 }
 
 model Recipe {
-  id             String             @id @default(uuid())
+  id             String                 @id @default(uuid())
   name           String
   description    String?
   preparation    String?
-  portionSize    Float              @default(100) @map("portion_size")
-  portions       Int                @default(1)
-  calories       Float              @default(0)
-  proteins       Float              @default(0)
-  carbs          Float              @default(0)
-  lipids         Float              @default(0)
-  fiber          Float?             @default(0)
-  sodium         Float?             @default(0)
-  isPublic       Boolean            @default(false) @map("is_public")
-  nutritionistId String?            @map("nutritionist_id")
-  createdAt      DateTime           @map("createdAt") @default(now())
-  updatedAt      DateTime           @updatedAt @map("updatedAt")
-  imageUrl       String?            @map("image_url")
+  portionSize    Float                  @default(100) @map("portion_size")
+  portions       Int                    @default(1)
+  calories       Float                  @default(0)
+  proteins       Float                  @default(0)
+  carbs          Float                  @default(0)
+  lipids         Float                  @default(0)
+  fiber          Float?                 @default(0)
+  sodium         Float?                 @default(0)
+  isPublic       Boolean                @default(false) @map("is_public")
+  nutritionistId String?                @map("nutritionist_id")
+  createdAt      DateTime               @default(now()) @map("createdAt")
+  updatedAt      DateTime               @updatedAt @map("updatedAt")
+  imageUrl       String?                @map("image_url")
   metadata       Json?
   ingredients    RecipeIngredient[]
   groupEntries   IngredientGroupEntry[]
   savedBy        RecipeLibrary[]
-  nutritionist   Nutritionist?      @relation(fields: [nutritionistId], references: [id])
+  nutritionist   Nutritionist?          @relation(fields: [nutritionistId], references: [id])
 
   @@index([nutritionistId])
   @@map("recipes")
@@ -672,7 +713,7 @@ model RecipeLibrary {
   id             String       @id @default(uuid())
   nutritionistId String       @map("nutritionist_id")
   recipeId       String       @map("recipe_id")
-  createdAt      DateTime     @map("created_at")@default(now())
+  createdAt      DateTime     @default(now()) @map("created_at")
   nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
   recipe         Recipe       @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
@@ -690,8 +731,8 @@ model Announcement {
   link        String?
   targetRoles String[]
   isActive    Boolean  @default(true)
-  createdAt   DateTime @map("created_at")@default(now())
-  updatedAt   DateTime @updatedAt@map("updated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("announcements")
 }
@@ -701,24 +742,24 @@ model MessageTemplate {
   title     String
   payload   Json
   isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @map("created_at") @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("message_templates")
 }
 
 model Notification {
-  id        String   @id @default(uuid())
-  accountId String   @map("account_id")
+  id        String    @id @default(uuid())
+  accountId String    @map("account_id")
   title     String
   message   String
-  type      String   @default("info")
+  type      String    @default("info")
   link      String?
   readAt    DateTime? @map("read_at")
-  metadata  Json?    @default("{}")
-  createdAt DateTime  @map("created_at") @default(now())
+  metadata  Json?     @default("{}")
+  createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
-  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId, createdAt])
   @@index([accountId, readAt])
@@ -733,8 +774,8 @@ model Resource {
   category       String
   tags           String[]      @default([])
   isPublic       Boolean       @default(false) @map("is_public")
-  createdAt      DateTime      @map("created_at")@default(now())
-  updatedAt      DateTime      @updatedAt@map("updated_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
   images         Json?         @default("[]")
   format         String        @default("HTML")
   fileUrl        String?       @map("file_url")
@@ -753,8 +794,8 @@ model ResourceSection {
   icon           String?       @default("Layout")
   color          String?       @default("text-emerald-500")
   bg             String?       @default("bg-emerald-50")
-  createdAt      DateTime      @map("created_at")@default(now())
-  updatedAt      DateTime      @updatedAt@map("updated_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
   nutritionist   Nutritionist? @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
 
   @@index([nutritionistId])
@@ -839,32 +880,32 @@ enum DiscountCodeType {
 }
 
 model AppointmentCalendar {
-  id             String   @id @default(uuid())
-  nutritionistId String   @unique @map("nutritionist_id")
-  name           String   @default("Mi Agenda")
-  title          String   @default("Calendario de Citas")
-  description    String?
-  timeZone       String   @default("America/Santiago") @map("time_zone")
-  metadata       Json?    @default("{}")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
-  timeSlots      AppointmentTimeSlot[]
-  appointments   Appointment[]
-  bookingLinks   BookingLink[]
+  id                String                @id @default(uuid())
+  nutritionistId    String                @unique @map("nutritionist_id")
+  name              String                @default("Mi Agenda")
+  title             String                @default("Calendario de Citas")
+  description       String?
+  timeZone          String                @default("America/Santiago") @map("time_zone")
+  metadata          Json?                 @default("{}")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+  nutritionist      Nutritionist          @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  timeSlots         AppointmentTimeSlot[]
+  appointments      Appointment[]
+  bookingLinks      BookingLink[]
   availabilityRules AvailabilityRule[]
 
   @@map("appointment_calendars")
 }
 
 model AppointmentTimeSlot {
-  id          String   @id @default(uuid())
-  calendarId  String   @map("calendar_id")
-  dayOfWeek   Int      @map("day_of_week") // 0=Domingo, 6=Sábado
-  hour        Int      // 0-23
-  isAvailable Boolean  @default(true) @map("is_available")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id          String              @id @default(uuid())
+  calendarId  String              @map("calendar_id")
+  dayOfWeek   Int                 @map("day_of_week") // 0=Domingo, 6=Sábado
+  hour        Int // 0-23
+  isAvailable Boolean             @default(true) @map("is_available")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
   calendar    AppointmentCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
 
   @@unique([calendarId, dayOfWeek, hour])
@@ -873,25 +914,25 @@ model AppointmentTimeSlot {
 }
 
 model Appointment {
-  id          String   @id @default(uuid())
-  calendarId  String   @map("calendar_id")
-  patientId   String?  @map("patient_id")
-  patientName String?  @map("patient_name")
-  title       String
-  description String?
-  metadata    Json?    @default("{}")
-  startTime   DateTime @map("start_time")
-  endTime     DateTime @map("end_time")
-  status      AppointmentStatus @default(REQUESTED)
-  notes       String?
-  googleCalendarEventId  String?   @map("google_calendar_event_id")
-  googleCalendarHtmlLink String?   @map("google_calendar_html_link")
-  googleCalendarSyncedAt  DateTime? @map("google_calendar_synced_at")
-  googleCalendarSyncError String?   @map("google_calendar_sync_error")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  calendar    AppointmentCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
-  patient     Patient? @relation(fields: [patientId], references: [id])
+  id                      String              @id @default(uuid())
+  calendarId              String              @map("calendar_id")
+  patientId               String?             @map("patient_id")
+  patientName             String?             @map("patient_name")
+  title                   String
+  description             String?
+  metadata                Json?               @default("{}")
+  startTime               DateTime            @map("start_time")
+  endTime                 DateTime            @map("end_time")
+  status                  AppointmentStatus   @default(REQUESTED)
+  notes                   String?
+  googleCalendarEventId   String?             @map("google_calendar_event_id")
+  googleCalendarHtmlLink  String?             @map("google_calendar_html_link")
+  googleCalendarSyncedAt  DateTime?           @map("google_calendar_synced_at")
+  googleCalendarSyncError String?             @map("google_calendar_sync_error")
+  createdAt               DateTime            @default(now()) @map("created_at")
+  updatedAt               DateTime            @updatedAt @map("updated_at")
+  calendar                AppointmentCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  patient                 Patient?            @relation(fields: [patientId], references: [id])
 
   @@index([calendarId, startTime])
   @@index([calendarId, status, startTime])
@@ -902,19 +943,19 @@ model Appointment {
 }
 
 model GoogleCalendarConnection {
-  id                    String   @id @default(uuid())
-  accountId             String   @unique @map("account_id")
-  googleEmail           String   @map("google_email")
-  googleSub             String?  @map("google_sub")
-  accessTokenEncrypted  String?  @map("access_token_encrypted")
-  refreshTokenEncrypted String   @map("refresh_token_encrypted")
+  id                    String    @id @default(uuid())
+  accountId             String    @unique @map("account_id")
+  googleEmail           String    @map("google_email")
+  googleSub             String?   @map("google_sub")
+  accessTokenEncrypted  String?   @map("access_token_encrypted")
+  refreshTokenEncrypted String    @map("refresh_token_encrypted")
   tokenExpiry           DateTime? @map("token_expiry")
-  calendarId            String   @default("primary") @map("calendar_id")
+  calendarId            String    @default("primary") @map("calendar_id")
   scope                 String
-  connectedAt           DateTime @default(now()) @map("connected_at")
+  connectedAt           DateTime  @default(now()) @map("connected_at")
   disconnectedAt        DateTime? @map("disconnected_at")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
@@ -922,17 +963,17 @@ model GoogleCalendarConnection {
 }
 
 model BookingLink {
-  id          String   @id @default(uuid())
-  calendarId  String   @map("calendar_id")
-  token       String   @unique
+  id          String              @id @default(uuid())
+  calendarId  String              @map("calendar_id")
+  token       String              @unique
   url         String
-  isActive    Boolean  @default(true) @map("is_active")
-  allowedUses Int?     @map("allowed_uses")
-  useCount    Int      @default(0) @map("use_count")
-  expiresAt   DateTime? @map("expires_at")
-  metadata    Json?    @default("{}")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  isActive    Boolean             @default(true) @map("is_active")
+  allowedUses Int?                @map("allowed_uses")
+  useCount    Int                 @default(0) @map("use_count")
+  expiresAt   DateTime?           @map("expires_at")
+  metadata    Json?               @default("{}")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
   calendar    AppointmentCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
 
   @@index([calendarId])
@@ -940,17 +981,17 @@ model BookingLink {
 }
 
 model AvailabilityRule {
-  id          String   @id @default(uuid())
-  calendarId  String   @map("calendar_id")
-  name        String
-  ruleType    AvailabilityRuleType @map("rule_type")
-  dayOfWeek   Int?     @map("day_of_week")
-  startTime   String?  @map("start_time")
-  endTime     String?  @map("end_time")
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  calendar    AppointmentCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  id         String               @id @default(uuid())
+  calendarId String               @map("calendar_id")
+  name       String
+  ruleType   AvailabilityRuleType @map("rule_type")
+  dayOfWeek  Int?                 @map("day_of_week")
+  startTime  String?              @map("start_time")
+  endTime    String?              @map("end_time")
+  isActive   Boolean              @default(true) @map("is_active")
+  createdAt  DateTime             @default(now()) @map("created_at")
+  updatedAt  DateTime             @updatedAt @map("updated_at")
+  calendar   AppointmentCalendar  @relation(fields: [calendarId], references: [id], onDelete: Cascade)
 
   @@index([calendarId])
   @@map("availability_rules")

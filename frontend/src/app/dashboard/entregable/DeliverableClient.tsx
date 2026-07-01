@@ -53,6 +53,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
+import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 import {
   fetchCreation,
   fetchProject,
@@ -613,9 +614,8 @@ export default function DeliverableClient() {
 
   useEffect(() => {
     try {
-      const storedUser = localStorage.getItem("user");
-      if (!storedUser) return;
-      const parsedUser = JSON.parse(storedUser);
+      const parsedUser = getCurrentUser();
+      if (!parsedUser) return;
       const settings = parsedUser?.nutritionist?.settings || {};
       const fromSettings = normalizeWelcomeTemplates(
         settings?.deliverableWelcomeTemplates,
@@ -1138,8 +1138,7 @@ export default function DeliverableClient() {
         return;
       }
 
-      const userStr = localStorage.getItem("user");
-      const userObj = userStr ? JSON.parse(userStr) : null;
+      const userObj = getCurrentUser();
       const brandSettings = userObj?.nutritionist?.settings || {};
 
       const config = {
@@ -1247,8 +1246,7 @@ export default function DeliverableClient() {
 
       await Promise.all(
         tasks.map(async (task, index) => {
-          const userStr = localStorage.getItem("user");
-          const userObj = userStr ? JSON.parse(userStr) : null;
+          const userObj = getCurrentUser();
           const brandSettings = userObj?.nutritionist?.settings || {};
 
           const config = {
@@ -1448,16 +1446,13 @@ export default function DeliverableClient() {
       setWelcomeTemplateOptions(nextTemplates);
       setSelectedWelcomeTemplate(templateText);
 
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        if (parsedUser?.nutritionist) {
-          parsedUser.nutritionist.settings = {
-            ...(parsedUser.nutritionist.settings || {}),
-            deliverableWelcomeTemplates: nextTemplates,
-          };
-          localStorage.setItem("user", JSON.stringify(parsedUser));
-        }
+      const parsedUser = getCurrentUser();
+      if (parsedUser?.nutritionist) {
+        parsedUser.nutritionist.settings = {
+          ...(parsedUser.nutritionist.settings || {}),
+          deliverableWelcomeTemplates: nextTemplates,
+        };
+        setCurrentUser(parsedUser);
       }
 
       toast.success("Plantilla guardada y lista para reutilizar.");
@@ -1490,18 +1485,15 @@ export default function DeliverableClient() {
         throw new Error("No se pudo guardar el contacto del profesional.");
       }
 
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        if (parsedUser?.nutritionist) {
-          parsedUser.nutritionist.settings = {
-            ...(parsedUser.nutritionist.settings || {}),
-            professionalInstagram: safeString(professionalInstagram),
-            professionalPhone: safeString(professionalPhone),
-            professionalEmail: safeString(professionalEmail),
-          };
-          localStorage.setItem("user", JSON.stringify(parsedUser));
-        }
+      const parsedUser = getCurrentUser();
+      if (parsedUser?.nutritionist) {
+        parsedUser.nutritionist.settings = {
+          ...(parsedUser.nutritionist.settings || {}),
+          professionalInstagram: safeString(professionalInstagram),
+          professionalPhone: safeString(professionalPhone),
+          professionalEmail: safeString(professionalEmail),
+        };
+        setCurrentUser(parsedUser);
       }
 
       toast.success("Contacto profesional guardado. Se reflejará en la portada.");
@@ -1671,10 +1663,6 @@ export default function DeliverableClient() {
   };
 
   const printJson = () => {
-    const storedDraft = localStorage.getItem("nutri_active_draft");
-    console.group("📊 PROJECT DRAFT JSON (STAGE 1-4)");
-    console.log(storedDraft ? JSON.parse(storedDraft) : "No draft found");
-    console.groupEnd();
     toast.info("JSON completo del proyecto impreso en consola.");
   };
 

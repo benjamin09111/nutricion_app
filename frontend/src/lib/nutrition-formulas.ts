@@ -4,6 +4,10 @@ import {
   type ExchangePortionProfile,
   type PatientExchangeGuideRow,
 } from "@/lib/exchange-portions";
+import {
+  getMinsalBmiLms,
+  type MinsalSex,
+} from "@/lib/minsal-bmi-lms";
 
 export type Gender = "Masculino" | "Femenino" | "Otro";
 
@@ -30,6 +34,20 @@ export type BmiResult = {
   bmi: number;
   classification: string;
   color: string;
+  percentile?: number;
+  percentileCategory?: string;
+  reference?: string;
+  note?: string;
+  isPediatric?: boolean;
+};
+
+export type IdealWeightResult = {
+  min: number;
+  max: number;
+  reference: string;
+  percentile?: number;
+  note?: string;
+  supported?: boolean;
 };
 
 export type GetResult = {
@@ -79,7 +97,7 @@ export const ACTIVITY_FACTORS: Record<
 
 export const BMI_CLASSIFICATIONS = [
   { min: 0, max: 18.5, label: "Bajo peso", color: "#3b82f6" },
-  { min: 18.5, max: 25, label: "Normal", color: "#22c55e" },
+  { min: 18.5, max: 25, label: "Normopeso", color: "#22c55e" },
   { min: 25, max: 30, label: "Sobrepeso", color: "#eab308" },
   { min: 30, max: 35, label: "Obesidad I", color: "#f97316" },
   { min: 35, max: 40, label: "Obesidad II", color: "#ef4444" },
@@ -164,13 +182,120 @@ export function isPediatric(birthDate?: string | null): boolean {
   return age !== undefined && age < 18;
 }
 
+function normalCdf(z: number): number {
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const d = 0.3989422804014327 * Math.exp((-z * z) / 2);
+  const prob =
+    d *
+    (((((1.330274429 * t - 1.821255978) * t + 1.781477937) * t - 0.356563782) * t + 0.31938153) * t);
+  return z > 0 ? 1 - prob : prob;
+}
+
+function percentileFromZ(z: number): number {
+  return Math.min(99.9, Math.max(0.1, normalCdf(z) * 100));
+}
+
+function resolveSex(gender?: Gender | null): MinsalSex | null {
+  if (gender === "Femenino") return "female";
+  if (gender === "Masculino") return "male";
+  return null;
+}
+
+function getPediatricBmiAssessment(params: {
+  bmi: number;
+  ageYears?: number | null;
+  birthDate?: string | null;
+  gender?: Gender | null;
+}): BmiResult | null {
+  const resolvedAge =
+    typeof params.ageYears === "number"
+      ? params.ageYears
+      : calculateAge(params.birthDate || null);
+  const sex = resolveSex(params.gender);
+
+  if (resolvedAge === undefined || !sex) return null;
+
+  const ageMonths = Math.round((resolvedAge ?? 0) * 12);
+
+  if (resolvedAge < 5) {
+    return {
+      bmi: Math.round(params.bmi * 10) / 10,
+      classification: "Requiere curva peso/talla MINSAL",
+      color: "#f59e0b",
+      isPediatric: true,
+      note:
+        "Menores de 5 años deben evaluarse con peso/talla y referencias pediátricas específicas.",
+      reference: "Peso/talla MINSAL 0-4 años",
+    };
+  }
+
+  const lms = getMinsalBmiLms(sex, ageMonths);
+  if (!lms) return null;
+
+  const z =
+    lms.L === 0
+      ? Math.log(params.bmi / lms.M) / lms.S
+      : (Math.pow(params.bmi / lms.M, lms.L) - 1) / (lms.L * lms.S);
+  const percentile = percentileFromZ(z);
+
+  let classification = "Normopeso";
+  let color = "#22c55e";
+  if (percentile < 10) {
+    classification = "Bajo peso";
+    color = "#3b82f6";
+  } else if (percentile < 85) {
+    classification = "Normopeso";
+    color = "#22c55e";
+  } else if (percentile < 95) {
+    classification = "Sobrepeso";
+    color = "#eab308";
+  } else {
+    classification = "Obesidad";
+    color = "#f97316";
+  }
+
+  return {
+    bmi: Math.round(params.bmi * 10) / 10,
+    classification,
+    color,
+    percentile: Math.round(percentile * 10) / 10,
+    percentileCategory:
+      percentile < 10
+        ? "<p10"
+        : percentile < 85
+          ? "p10-p85"
+          : percentile < 95
+            ? "p85-p95"
+            : ">p95",
+    reference: "MINSAL IMC/E 5-19 años",
+    isPediatric: true,
+  };
+}
+
 export function calculateBMI(
   weightKg?: number | null,
   heightCm?: number | null,
+  options: {
+    gender?: Gender | null;
+    ageYears?: number | null;
+    birthDate?: string | null;
+  } = {},
 ): BmiResult | null {
   if (!weightKg || !heightCm || weightKg <= 0 || heightCm <= 0) return null;
   const heightM = heightCm / 100;
   const bmi = weightKg / (heightM * heightM);
+
+  const pediatric = getPediatricBmiAssessment({
+    bmi,
+    ageYears: options.ageYears,
+    birthDate: options.birthDate,
+    gender: options.gender || null,
+  });
+
+  if (pediatric) {
+    return pediatric;
+  }
+
   const classification =
     BMI_CLASSIFICATIONS.find((item) => bmi >= item.min && bmi < item.max) ||
     BMI_CLASSIFICATIONS[BMI_CLASSIFICATIONS.length - 1];
@@ -178,17 +303,93 @@ export function calculateBMI(
     bmi: Math.round(bmi * 10) / 10,
     classification: classification.label,
     color: classification.color,
+    isPediatric: false,
   };
 }
 
 export function getIdealWeightRange(
   heightCm?: number | null,
-): { min: number; max: number } | null {
+  options: {
+    gender?: Gender | null;
+    ageYears?: number | null;
+    birthDate?: string | null;
+  } = {},
+): IdealWeightResult | null {
   if (!heightCm || heightCm <= 0) return null;
   const heightMeters = heightCm / 100;
+
+  const resolvedAge =
+    typeof options.ageYears === "number"
+      ? options.ageYears
+      : calculateAge(options.birthDate || null);
+  const resolvedGender =
+    options.gender === "Masculino" || options.gender === "Femenino"
+      ? options.gender
+      : null;
+
+  if (typeof resolvedAge === "number" && resolvedAge < 5) {
+    return {
+      min: 0,
+      max: 0,
+      reference: "Peso/talla MINSAL 0-4 años",
+      note: "En menores de 5 años se evalúa con curvas peso/talla, no con IMC/edad.",
+      supported: false,
+    };
+  }
+
+  if (typeof resolvedAge === "number" && resolvedAge < 18) {
+    const sex = resolveSex(resolvedGender);
+    if (!sex) {
+      return {
+        min: 0,
+        max: 0,
+        reference: "IMC p50 MINSAL",
+        note: "Ingresa sexo para estimar el peso ideal pediátrico.",
+        supported: false,
+      };
+    }
+
+    const ageMonths = Math.round((resolvedAge || 0) * 12);
+    const lms = getMinsalBmiLms(sex, ageMonths);
+    if (!lms) {
+      return {
+        min: 0,
+        max: 0,
+        reference: "IMC p50 MINSAL",
+        note: "Curva pediátrica disponible solo para 5 a 19 años en esta versión.",
+        supported: false,
+      };
+    }
+
+    const ideal = lms.M * heightMeters * heightMeters;
+    return {
+      min: Math.round(ideal * 0.95 * 10) / 10,
+      max: Math.round(ideal * 1.05 * 10) / 10,
+      reference: sex === "female" ? "IMC p50 MINSAL (niñas)" : "IMC p50 MINSAL (niños)",
+      percentile: 50,
+      note: "Referencia IMC/Edad MINSAL para 5 a 19 años.",
+      supported: true,
+    };
+  }
+
+  if (typeof resolvedAge === "number" && resolvedAge > 65) {
+    return {
+      min: Math.round(23 * heightMeters * heightMeters * 10) / 10,
+      max: Math.round(28 * heightMeters * heightMeters * 10) / 10,
+      reference: "IMC objetivo 23-28",
+      note: "Adulto mayor (>65 años).",
+      supported: true,
+    };
+  }
+
+  const bmiMin = 18.5;
+  const bmiMax = 25;
   return {
-    min: Math.round(18.5 * heightMeters * heightMeters * 10) / 10,
-    max: Math.round(24.9 * heightMeters * heightMeters * 10) / 10,
+    min: Math.round(bmiMin * heightMeters * heightMeters * 10) / 10,
+    max: Math.round(bmiMax * heightMeters * heightMeters * 10) / 10,
+    reference: "IMC 18.5-25",
+    note: "Rango normopeso adulto.",
+    supported: true,
   };
 }
 
@@ -360,7 +561,11 @@ export function calculateAllFromPatient(params: {
   const formula = params.tmbFormula || "mifflin-st-jeor";
 
   const bmi = calculateBMI(weight, height);
-  const idealWeight = getIdealWeightRange(height);
+  const idealWeight = getIdealWeightRange(height, {
+    gender,
+    ageYears: age,
+    birthDate: params.birthDate || null,
+  });
   const get = calculateGET(
     gender,
     weight,

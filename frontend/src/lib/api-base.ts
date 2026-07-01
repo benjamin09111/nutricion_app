@@ -88,7 +88,9 @@ export async function fetchApi(
       const requestInit = {
         ...init,
         headers,
+        credentials: 'include' as RequestCredentials,
       };
+      headers.delete('Authorization');
       const responseWithTenant = await fetch(`${origin}${path}`, requestInit);
 
       if (responseWithTenant.status === 401 && typeof window !== "undefined" && window.location.pathname !== "/login") {
@@ -96,7 +98,6 @@ export async function fetchApi(
         if (!(window as any)._isRedirectingToLogin) {
           (window as any)._isRedirectingToLogin = true;
           import("js-cookie").then((m) => m.default.remove("auth_token"));
-          localStorage.removeItem("auth_token");
           import("sonner").then(({ toast }) => {
             toast.error("Tu sesión expiró. Por favor inicia sesión nuevamente.", { id: "session-expired", duration: 3000 });
           });

@@ -144,13 +144,13 @@ export default function FollowUpsClient() {
                       <h3 className="text-lg font-black text-slate-900">
                         {item.patient.fullName}
                       </h3>
-                      {item.hasAttention && (
-                        <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700">
-                          {item.pendingQuestions} pregunta
-                          {item.pendingQuestions === 1 ? "" : "s"} pendiente
-                          {item.pendingQuestions === 1 ? "" : "s"}
-                        </span>
-                      )}
+                        {item.hasAttention && (
+                          <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700">
+                            {item.pendingQuestions === 1
+                              ? "1 pregunta pendiente"
+                              : `${item.pendingQuestions} preguntas pendientes`}
+                          </span>
+                        )}
                       {item.patient.status && (
                         <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
                           {item.patient.status}

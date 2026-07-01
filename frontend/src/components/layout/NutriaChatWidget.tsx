@@ -8,7 +8,7 @@ import { ArrowRight, MessageCircle, Minus, Send, Sparkles, X } from "lucide-reac
 
 import chatContent from "@/content/nutria-chat.json";
 import { useTheme } from "@/context/ThemeContext";
-import { matchesPattern } from "@/lib/tutorials";
+import { matchesPattern } from "@/lib/route-matching";
 import { cn } from "@/lib/utils";
 
 type ChatLink = {

@@ -14,7 +14,7 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
 
-  async onModuleInit() {
+  onModuleInit() {
     this.validateDatabaseUrl();
     this.logger.log('Prisma initialized (lazy connection)');
   }

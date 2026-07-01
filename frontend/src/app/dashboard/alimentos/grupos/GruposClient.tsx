@@ -385,9 +385,11 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
 
   const applyCreateFilters = () => {
     setAppliedSearch(createSearchDraft.trim());
+    setAppliedCategory(createCategoryDraft);
     setAppliedFilters(
       createFilterDrafts.filter((filter) => filter.value.trim() !== ""),
     );
+    setCreateCurrentPage(1);
   };
 
   const handleCreateGroup = async () => {
@@ -710,7 +712,7 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
                     )}
                   >
                     <UtensilsCrossed size={14} />
-                    Ya seleccionados ({confirmedIngredientIds.size})
+                    Ya seleccionados ({totalSelectedCount})
                   </button>
                 </div>
 
@@ -723,7 +725,20 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
                       placeholder="Buscar en el catálogo..."
                       className="h-9 w-48 rounded-xl border-slate-200 text-xs focus:ring-emerald-500 lg:w-64"
                     />
+                    <select
+                      value={createCategoryDraft}
+                      onChange={(e) => setCreateCategoryDraft(e.target.value)}
+                      className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-600 focus:border-emerald-500 focus:outline-none"
+                    >
+                      <option value="ALL">Todas las categorías</option>
+                      {categories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
                     <Button
+                      type="button"
                       variant="outline"
                       size="sm"
                       onClick={applyCreateFilters}

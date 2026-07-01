@@ -1,4 +1,5 @@
 import { getAuthToken } from "@/lib/auth-token";
+import { getCurrentUser } from "@/lib/current-user";
 
 const APPOINTMENTS_PROXY_BASE = "/api/appointments";
 
@@ -134,17 +135,10 @@ const getAppointmentsAuthMode = () =>
 
 const getNutritionistId = (): string | null => {
   if (typeof window === "undefined") return null;
-  try {
-    const userStr = localStorage.getItem("user");
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      return (
-        user?.nutritionist?.id ||
-        user?.nutritionistId ||
-        null
-      );
-    }
-  } catch (e) { }
+  const user = getCurrentUser();
+  if (user) {
+    return user?.nutritionist?.id || user?.nutritionistId || null;
+  }
   return null;
 };
 

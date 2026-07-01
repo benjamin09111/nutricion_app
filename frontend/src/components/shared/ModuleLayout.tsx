@@ -17,6 +17,7 @@ interface ModuleLayoutProps {
   description: React.ReactNode;
   step?: StepIndicator;
   rightNavItems?: ActionDockItem[];
+  rightContent?: React.ReactNode;
   footer?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
@@ -27,6 +28,7 @@ export function ModuleLayout({
   description,
   step,
   rightNavItems,
+  rightContent,
   footer,
   children,
   className,
@@ -52,9 +54,12 @@ export function ModuleLayout({
               {step.icon && <step.icon className="h-3 w-3 ml-2" />}
             </div>
           )}
-          <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none">
-            {title}
-          </h1>
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none">
+              {title}
+            </h1>
+            {rightContent}
+          </div>
           <div className="text-sm sm:text-base text-slate-500 font-medium leading-relaxed">
             {description}
           </div>

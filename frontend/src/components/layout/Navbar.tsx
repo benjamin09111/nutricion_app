@@ -7,7 +7,6 @@ import {
   ChevronDown,
   Settings,
   Bell,
-  Sparkles,
   Menu,
   Moon,
   Sun,
@@ -23,12 +22,12 @@ import { authService } from "@/features/auth/services/auth.service";
 import { useNotifications } from "@/context/NotificationsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useFont } from "@/context/FontContext";
-import { useTutorials } from "@/context/TutorialContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { DeveloperPlanSwitcher } from "@/components/layout/DeveloperPlanSwitcher";
 import { FollowUpNotificationsMenu } from "@/components/layout/FollowUpNotificationsMenu";
+import { getCurrentUser } from "@/lib/current-user";
 
 function PlanBadge() {
   const { cancelAtPeriodEnd, currentPlan } = useSubscription();
@@ -63,17 +62,12 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
       return "usuario@demo.com";
     }
 
-    const storedUser = window.localStorage.getItem("user");
+    const storedUser = getCurrentUser();
     if (!storedUser) {
       return "usuario@demo.com";
     }
 
-    try {
-      const user = JSON.parse(storedUser);
-      return typeof user?.email === "string" ? user.email : "usuario@demo.com";
-    } catch {
-      return "usuario@demo.com";
-    }
+    return typeof storedUser?.email === "string" ? storedUser.email : "usuario@demo.com";
   });
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -85,8 +79,6 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
     useNotifications();
   const { isDarkMode, toggleTheme } = useTheme();
   const { fontPreference, setFontPreference } = useFont();
-  const { openCurrentTutorial, currentTutorial, isTutorialAvailable } =
-    useTutorials();
 
   const [isSecureSubModalOpen, setIsSecureSubModalOpen] = useState(false);
   const [isSecuringSub, setIsSecuringSub] = useState(false);
@@ -493,33 +485,6 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                     </Link>
                   </div>
                 </div>
-
-                {isTutorialAvailable && currentTutorial ? (
-                  <button
-                    type="button"
-                    data-tutorial-id="tutorial-trigger"
-                    onClick={() => {
-                      openCurrentTutorial();
-                      setIsProfileOpen(false);
-                    }}
-                    className={cn(
-                      "flex w-full items-center gap-2 px-4 py-2 text-left text-sm leading-6 transition-colors cursor-pointer",
-                      isDarkMode
-                        ? "text-emerald-100/85 hover:bg-emerald-500/8"
-                        : "text-slate-700 hover:bg-slate-50",
-                    )}
-                    role="menuitem"
-                    tabIndex={-1}
-                  >
-                    <Sparkles
-                      className={cn(
-                        "h-4 w-4",
-                        isDarkMode ? "text-emerald-100/55" : "text-slate-400",
-                      )}
-                    />
-                    Activar tutorial actual
-                  </button>
-                ) : null}
 
                 <button
                   type="button"

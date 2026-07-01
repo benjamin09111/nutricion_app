@@ -24,17 +24,28 @@ export class PaymentsController {
   ) {}
 
   @Get()
-  findAll() {
+  findAll(@Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException('Solo administradores pueden ver pagos');
+    }
     return this.paymentsService.findAll();
   }
 
   @Get('recent')
-  findRecent(@Query('limit') limit: string) {
+  findRecent(@Query('limit') limit: string, @Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException('Solo administradores pueden ver pagos');
+    }
     return this.paymentsService.findRecent(limit ? parseInt(limit) : 5);
   }
 
   @Get('stats')
-  getStats() {
+  getStats(@Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException(
+        'Solo administradores pueden ver estadísticas',
+      );
+    }
     return this.paymentsService.getRevenueStats();
   }
 
@@ -68,17 +79,12 @@ export class PaymentsController {
     @Request() req: any,
   ) {
     const accountId = req.user?.id;
-    const payerEmail = req.user?.email;
 
     if (!accountId) {
       throw new UnauthorizedException('Usuario no identificado');
     }
 
-    return this.paymentsService.membershipCheckout(
-      accountId,
-      body.planId,
-      payerEmail,
-    );
+    return this.paymentsService.membershipCheckout(accountId, body.planId);
   }
 
   // ─── Cancel / Resume ───────────────────────────────────────────────

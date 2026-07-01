@@ -26,6 +26,7 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
+import { getCurrentUser } from "@/lib/current-user";
 import { QRCodeSVG } from "qrcode.react";
 import { type Patient } from "@/features/patients";
 import {
@@ -614,10 +615,7 @@ const getStoredNutritionistProfile = () => {
   }
 
   try {
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) return null;
-
-    const user = JSON.parse(storedUser) as Record<string, unknown> & {
+    const user = getCurrentUser() as Record<string, unknown> & {
       id?: string;
       fullName?: string;
       name?: string;
@@ -628,6 +626,8 @@ const getStoredNutritionistProfile = () => {
         name?: string;
       } | null;
     };
+
+    if (!user) return null;
 
     const nutritionist = user.nutritionist || null;
     const nutritionistId = normalizeText(nutritionist?.id) || "";
@@ -1183,14 +1183,6 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
       canSyncGoogleCalendar: isGoogleCalendarConnected,
     });
 
-    console.log("[appointments][create] confirmation opened", {
-      calendarId,
-      patientId: patientId || null,
-      patientName,
-      patientEmail: patientEmail || null,
-      canNotifyPatientByEmail,
-      canSyncGoogleCalendar: isGoogleCalendarConnected,
-    });
   };
 
   const openAcceptAppointmentConfirmation = (appointment: AppointmentRequest) => {
@@ -1212,13 +1204,6 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
       canSyncGoogleCalendar: isGoogleCalendarConnected,
     });
 
-    console.log("[appointments][accept] confirmation opened", {
-      appointmentId: appointment.id,
-      patientName,
-      patientEmail: patientEmail || null,
-      canNotifyPatientByEmail,
-      canSyncGoogleCalendar: isGoogleCalendarConnected,
-    });
   };
 
   const handleConfirmAppointmentAction = async () => {
@@ -1234,8 +1219,6 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
       }
 
       if (pendingAppointmentConfirmation.kind === "create") {
-        console.log("[appointments][create] submitting", pendingAppointmentConfirmation);
-
         const createdAppointment = await createAppointment({
           calendarId,
           payload: {
@@ -1263,11 +1246,6 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
         const googleSyncedAt = normalizeText(createdRecord.googleCalendarSyncedAt);
         const googleError = normalizeText(createdRecord.googleCalendarSyncError);
 
-        console.log("[appointments][create] completed", {
-          googleSyncedAt: googleSyncedAt || null,
-          googleError: googleError || null,
-        });
-
         if (googleError) {
           toast.warning(`Cita creada, pero Google Calendar no la pudo sincronizar: ${googleError}`);
         } else if (googleSyncedAt) {
@@ -1280,8 +1258,6 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
         setCreateDraft(createAppointmentDraft());
         setSelectedPatient(null);
       } else {
-        console.log("[appointments][accept] submitting", pendingAppointmentConfirmation);
-
         await approveAppointment(
           pendingAppointmentConfirmation.appointmentId || "",
           pendingAppointmentConfirmation.canNotifyPatientByEmail
@@ -2115,7 +2091,7 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
                                       {start && end ? `${formatTimeInTimeZone(start, calendarTimeZone)} - ${formatTimeInTimeZone(end, calendarTimeZone)}` : "--"}
                                     </td>
                                     <td className="px-4 py-3 text-slate-600">{apt.patientName || "--"}</td>
-                                    <td className="px-4 py-3 text-slate-600">{apt.description || apt.title}</td>
+                                    <td className="px-4 py-3 text-slate-600">{apt.notes || apt.title}</td>
                                     <td className="px-4 py-3">
                                       <div className="flex gap-2">
                                          <Button size="sm" className="h-8 rounded-full bg-emerald-600 px-4 text-[9px] font-black uppercase tracking-widest text-white" onClick={() => openAcceptAppointmentConfirmation(apt)}>Aceptar</Button>
@@ -2153,7 +2129,7 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
                                     </span>
                                   ) : null}
                                 </div>
-                                <p className="text-sm font-bold text-slate-900">{apt.description || apt.title}</p>
+                                <p className="text-sm font-bold text-slate-900">{apt.notes || apt.title}</p>
                                 <p className="text-xs font-medium text-slate-500 mt-1">{apt.patientName || "Paciente"}</p>
                               <div className="flex gap-2 mt-3 pt-3 border-t border-amber-100">
                                 <Button size="sm" className="flex-1 h-9 rounded-xl bg-emerald-600 text-[10px] font-black uppercase tracking-widest text-white" onClick={() => openAcceptAppointmentConfirmation(apt)}>Aceptar</Button>

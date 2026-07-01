@@ -48,8 +48,10 @@ export class ResourcesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.resourcesService.findOne(id);
+  findOne(@Param('id') id: string, @Request() req: any) {
+    const nutritionistId = req.user.nutritionistId;
+    const isAdmin = isAdminRole(req.user.role);
+    return this.resourcesService.findOne(id, nutritionistId, isAdmin);
   }
 
   @Post()
@@ -60,7 +62,8 @@ export class ResourcesController {
         ? null
         : req.user.nutritionistId
       : req.user.nutritionistId;
-    const { isGlobal, ...restData } = data;
+    const restData = { ...data };
+    delete restData.isGlobal;
     return this.resourcesService.create(nutritionistId, restData);
   }
 
@@ -80,7 +83,8 @@ export class ResourcesController {
   update(@Param('id') id: string, @Request() req: any, @Body() data: any) {
     const nutritionistId = req.user.nutritionistId;
     const isAdmin = isAdminRole(req.user.role);
-    const { isGlobal, ...restData } = data;
+    const restData = { ...data };
+    delete restData.isGlobal;
     return this.resourcesService.update(id, nutritionistId, isAdmin, restData);
   }
 

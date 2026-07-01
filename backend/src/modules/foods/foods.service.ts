@@ -1,9 +1,11 @@
 import { Prisma } from '@prisma/client';
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { CreateFoodDto } from './dto/create-food.dto';
 import { UpdateFoodDto } from './dto/update-food.dto';
@@ -111,17 +113,14 @@ export class FoodsService {
     };
   }
 
-  private async resolveNutritionist(accountId?: string) {
+  private resolveNutritionist(accountId?: string) {
     if (!accountId) return null;
     return (this.prisma as any).nutritionist.findUnique({
       where: { accountId },
     });
   }
 
-  private async findIngredientWithRelations(
-    id: string,
-    nutritionistId?: string,
-  ) {
+  private findIngredientWithRelations(id: string, nutritionistId?: string) {
     return (this.prisma as any).ingredient.findUnique({
       where: { id },
       include: {
@@ -148,7 +147,7 @@ export class FoodsService {
     }
   }
 
-  private async getOrCreateBrand(name?: string) {
+  private getOrCreateBrand(name?: string) {
     if (!name) return null;
     const normalized = this.normalizeText(name);
     return (this.prisma as any).ingredientBrand.upsert({
@@ -158,7 +157,7 @@ export class FoodsService {
     });
   }
 
-  private async getOrCreateCategory(name: string) {
+  private getOrCreateCategory(name: string) {
     const normalized = this.normalizeText(name);
     return (this.prisma as any).ingredientCategory.upsert({
       where: { name: normalized },
@@ -182,7 +181,7 @@ export class FoodsService {
     return tags;
   }
 
-  private async findDuplicateIngredient(params: {
+  private findDuplicateIngredient(params: {
     name: string;
     brandId?: string | null;
     excludeIngredientId?: string;
@@ -242,7 +241,7 @@ export class FoodsService {
     });
 
     if (!nutritionist) {
-      throw new Error(
+      throw new BadRequestException(
         'Nutritionist profile required to create ingredients. Please ensure you are logged in as a Nutritionist.',
       );
     }
@@ -257,7 +256,7 @@ export class FoodsService {
       brandId: brandRecord?.id ?? null,
     });
     if (existing) {
-      throw new Error(
+      throw new ConflictException(
         `Ya existe un alimento llamado '${normalizedName}' para esa marca.`,
       );
     }
@@ -842,7 +841,7 @@ export class FoodsService {
     return result;
   }
 
-  async getMarketPrices(limit: number = 7): Promise<MarketPriceDto[]> {
+  getMarketPrices(limit: number = 7): MarketPriceDto[] {
     try {
       const filePath = path.resolve(
         process.cwd(),

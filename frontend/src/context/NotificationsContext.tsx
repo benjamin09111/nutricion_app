@@ -59,7 +59,7 @@ export function NotificationsProvider({
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const getToken = () => {
-    return Cookies.get("auth_token") || localStorage.getItem("auth_token");
+    return Cookies.get("auth_token") || "";
   };
 
   const persistNotifications = (value: Notification[]) => {

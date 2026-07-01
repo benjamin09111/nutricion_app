@@ -1,5 +1,6 @@
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { MarketPrice } from "@/features/foods";
+import { getCurrentUser } from "@/lib/current-user";
 
 export interface RestrictionConflict {
   foodId: string;
@@ -61,7 +62,7 @@ export const normalizeStringArray = (value: unknown): string[] => {
           .map((item) => item.trim())
           .filter(Boolean);
       }
-    } catch (_) {}
+    } catch {}
 
     return trimmedValue
       .split(",")
@@ -156,13 +157,8 @@ export const mapIngredientToMarketPrice = (
 
 export const getUserDraftKey = () => {
   if (typeof window === "undefined") return "NutriNet_diet_draft";
-  try {
-    const userStr = localStorage.getItem("user");
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      if (user && user.id) return `NutriNet_diet_draft_${user.id}`;
-    }
-  } catch (e) {}
+  const user = getCurrentUser();
+  if (user?.id) return `NutriNet_diet_draft_${user.id}`;
   return "NutriNet_diet_draft";
 };
 

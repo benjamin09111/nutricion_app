@@ -28,8 +28,11 @@ export class CreationsController {
 
   @Post()
   async create(@Request() req: any, @Body() data: any) {
-    const nutritionistId = req.user.nutritionistId;
-    return this.creationsService.create(nutritionistId, data);
+    return this.creationsService.create(
+      req.user.id,
+      req.user.nutritionistId,
+      data,
+    );
   }
 
   @Get()

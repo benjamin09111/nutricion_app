@@ -1,5 +1,5 @@
-import CreatePatientClient from "./CreatePatientClient";
+import { PatientFormPage } from "@/components/patient-form/PatientFormPage";
 
 export default function NewPatientPage() {
-  return <CreatePatientClient />;
+  return <PatientFormPage />;
 }

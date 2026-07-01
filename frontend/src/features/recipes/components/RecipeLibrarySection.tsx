@@ -363,17 +363,17 @@ export const RecipeLibrarySection: React.FC<RecipeLibrarySectionProps> = ({
                           </p>
                         </div>
                       ) : null}
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <span className="rounded-2xl bg-slate-100 px-2.5 py-2 text-center text-[9px] font-black uppercase tracking-widest text-slate-500">
                           {recipe.calories} kcal
                         </span>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                        <span className="rounded-2xl bg-slate-100 px-2.5 py-2 text-center text-[9px] font-black uppercase tracking-widest text-slate-500">
                           {recipe.protein}g prot
                         </span>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                        <span className="rounded-2xl bg-slate-100 px-2.5 py-2 text-center text-[9px] font-black uppercase tracking-widest text-slate-500">
                           {recipe.carbs}g cho
                         </span>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">
+                        <span className="rounded-2xl bg-slate-100 px-2.5 py-2 text-center text-[9px] font-black uppercase tracking-widest text-slate-500">
                           {recipe.fats}g lip
                         </span>
                       </div>

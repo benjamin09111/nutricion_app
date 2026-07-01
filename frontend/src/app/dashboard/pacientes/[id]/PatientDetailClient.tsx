@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Save,
@@ -53,10 +52,6 @@ interface PatientDetailClientProps {
 }
 
 export default function PatientDetailClient({ id }: PatientDetailClientProps) {
-  useEffect(() => {
-    console.log("!!! PatientDetailClient LOADED - VERSION 3 MODULAR !!!");
-  }, []);
-
   const router = useRouter();
   const state = usePatientDetailState({ id });
 
@@ -271,7 +266,6 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   state.setIsPortalInviteModalOpen(true);
                 }}
                 variant="outline"
-                data-tutorial-id="patient-portal-button"
                 className="h-9 px-4 rounded-2xl border-emerald-100 text-emerald-700 bg-emerald-50/70 hover:bg-emerald-50 font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Link2 className="w-3.5 h-3.5" />
@@ -420,15 +414,21 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             ? editForm.birthDate || patient.birthDate
             : patient.birthDate;
           const al = state.getCurrentActivityLevel();
-          const bmi = calculateBMI(w, h);
-          const idealWeight = getIdealWeightRange(h);
+          const bmi = calculateBMI(w, h, { gender: g === "Masculino" || g === "Femenino" ? g : null, ageYears: calculateAge(bd), birthDate: bd });
+          const ageYears = calculateAge(bd);
+          const idealWeight = getIdealWeightRange(h, {
+            gender: g === "Masculino" || g === "Femenino" ? g : null,
+            ageYears,
+            birthDate: bd,
+          });
+          const tmbFormula = ageYears !== undefined && ageYears < 18 ? "oms-fao" : "mifflin-st-jeor";
           const get = calculateGET(
             g === "Masculino" || g === "Femenino" ? g : "Femenino",
             w || 0,
             h || 0,
-            calculateAge(bd) || 30,
+            ageYears ?? 30,
             al,
-            "mifflin-st-jeor",
+            tmbFormula,
           );
           const isKid = isPediatric(bd);
           const factorLabel =
@@ -460,14 +460,35 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                     >
                       {bmi.classification}
                     </span>
-                    {idealWeight && (
-                      <p className="mt-2 text-[11px] text-slate-400">
-                        Rango ideal: {idealWeight.min} – {idealWeight.max} kg
+                    {typeof bmi.percentile === "number" && (
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        Percentil aprox. {bmi.percentile}
+                        {bmi.percentileCategory ? ` (${bmi.percentileCategory})` : ""}
+                      </p>
+                    )}
+                    {bmi.note && (
+                      <p className="mt-1 text-[11px] text-amber-600 font-medium">
+                        {bmi.note}
+                      </p>
+                    )}
+                    {idealWeight && idealWeight.supported !== false && (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-[11px] text-slate-400">
+                          Rango ideal: {idealWeight.min} – {idealWeight.max} kg
+                        </p>
+                        <p className="text-[10px] text-slate-300">
+                          {idealWeight.reference}{idealWeight.note ? ` · ${idealWeight.note}` : ""}
+                        </p>
+                      </div>
+                    )}
+                    {idealWeight?.supported === false && idealWeight.note && (
+                      <p className="mt-1 text-[11px] text-amber-600 font-medium">
+                        {idealWeight.note}
                       </p>
                     )}
                     {isKid && (
                       <p className="mt-1 text-[11px] text-amber-600 font-medium">
-                        Pediátrico — usar curvas OMS
+                        Pediátrico — referencia MINSAL
                       </p>
                     )}
                   </div>
@@ -670,17 +691,6 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         ).map((tab) => (
           <button
             key={tab.label}
-            data-tutorial-id={
-              tab.label === "General"
-                ? "patient-tab-general"
-                : tab.label === "Consultas"
-                  ? "patient-tab-consultations"
-                  : tab.label === "Creaciones"
-                    ? "patient-tab-creations"
-                    : tab.label === "Progreso"
-                      ? "patient-tab-progress"
-                      : undefined
-            }
             onClick={() => {
               if (!tab.disabled) state.setActiveTab(tab.label as TabType);
             }}

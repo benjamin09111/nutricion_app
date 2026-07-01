@@ -14,8 +14,6 @@ import {
   PaymentStatus,
   PaymentMethod,
   SubscriptionStatus,
-  SubscriptionPlan,
-  DiscountCodeType,
 } from '@prisma/client';
 import { DiscountCodesService } from '../discount-codes/discount-codes.service';
 import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
@@ -273,6 +271,7 @@ export class PaymentsService {
     planId: string,
     payerEmail?: string,
   ) {
+    void payerEmail;
     const plan = await this.prisma.membershipPlan.findUnique({
       where: { id: planId },
     });
@@ -694,13 +693,7 @@ export class PaymentsService {
     endDate.setDate(endDate.getDate() + days);
 
     return this.prisma.$transaction(async (tx) => {
-      const subscription = await this.upsertSubscription(
-        tx,
-        accountId,
-        plan,
-        startDate,
-        endDate,
-      );
+      await this.upsertSubscription(tx, accountId, plan, startDate, endDate);
       await this.updateAccountPlan(tx, accountId, plan, endDate);
       await this.createSubscriptionEvent(
         tx,
@@ -724,7 +717,7 @@ export class PaymentsService {
 
   // ─── Private Helpers ──────────────────────────────────────────────
 
-  private async upsertSubscription(
+  private upsertSubscription(
     tx: any,
     accountId: string,
     plan: any,
@@ -752,7 +745,7 @@ export class PaymentsService {
     });
   }
 
-  private async updateAccountPlan(
+  private updateAccountPlan(
     tx: any,
     accountId: string,
     plan: any,

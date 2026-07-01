@@ -2,16 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Cookies from "js-cookie";
 import { Loader2 } from "lucide-react";
 import { fetchApi } from "@/lib/api-base";
-import { normalizeTutorialStore, setTutorialStore } from "@/lib/tutorials";
+import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 
-const storageOptions = {
-  expires: 30,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "strict" as const,
-};
+const DRAFT_STORAGE_KEYS = [
+  "nutri_active_draft",
+  "nutri_patient",
+  "nutri_quick_deliverable_draft",
+  "nutri_quick_recipes_draft",
+  "nutri_pauta_alimentacion_draft",
+];
+
+const SESSION_DRAFT_KEYS = [
+  "nutri_cart_draft_decided",
+  "nutri_deliverable_draft_decided",
+];
 
 type Props = {
   fallbackMessage?: string;
@@ -23,33 +29,50 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
   const [message, setMessage] = useState(fallbackMessage || "Finalizando inicio de sesión...");
 
   useEffect(() => {
-    const token = params.get("token");
+    const ticket = params.get("ticket");
     const next = params.get("next") || "/dashboard";
 
-    if (!token) {
-      setMessage("No encontramos el token de autenticación.");
+    if (!ticket) {
+      setMessage("No encontramos el ticket de autenticación.");
       router.replace("/login");
       return;
     }
 
+    if (ticket) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+
     const hydrate = async () => {
       try {
-        const response = await fetchApi("/auth/me", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const sessionResponse = ticket
+          ? await fetchApi("/auth/oauth/exchange", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ticket }),
+            })
+          : null;
+
+        if (sessionResponse && !sessionResponse.ok) {
+          throw new Error("No pudimos validar el ticket de autenticación.");
+        }
+
+        const response = await fetchApi("/auth/me");
 
         if (!response.ok) {
           throw new Error("No pudimos completar la sesión.");
         }
 
         const data = await response.json();
-        Cookies.set("auth_token", token, storageOptions);
-        Cookies.set("user", JSON.stringify(data.user), storageOptions);
-        localStorage.setItem("auth_token", token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        setTutorialStore(normalizeTutorialStore(data.user?.tutorialProgress));
+        try {
+          const previousUser = getCurrentUser();
+          if (previousUser?.id && previousUser.id !== data.user?.id) {
+            DRAFT_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+            SESSION_DRAFT_KEYS.forEach((key) => sessionStorage.removeItem(key));
+          }
+        } catch (error) {
+          console.error("Error clearing stale draft storage", error);
+        }
+        setCurrentUser(data.user);
 
         router.replace(data.user?.requiresPlanSelection ? "/plan" : next);
       } catch (error) {

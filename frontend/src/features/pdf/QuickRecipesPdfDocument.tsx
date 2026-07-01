@@ -59,9 +59,9 @@ export interface QuickRecipesPdfData {
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 28,
-    paddingBottom: 36,
-    paddingHorizontal: 32,
+    paddingTop: 22,
+    paddingBottom: 28,
+    paddingHorizontal: 28,
     backgroundColor: "#ffffff",
     fontFamily: "Helvetica",
     color: "#0f172a",
@@ -69,8 +69,8 @@ const styles = StyleSheet.create({
     lineHeight: 1.4,
   },
   header: {
-    marginBottom: 14,
-    paddingBottom: 10,
+    marginBottom: 10,
+    paddingBottom: 8,
     borderBottom: "1px solid #cbd5e1",
   },
   brand: {
@@ -95,15 +95,15 @@ const styles = StyleSheet.create({
     color: "#64748b",
   },
   infoBox: {
-    marginBottom: 8,
-    padding: 8,
+    marginBottom: 6,
+    padding: 7,
     backgroundColor: "#f8fafc",
     border: "1px solid #e2e8f0",
     borderRadius: 4,
   },
   notesBox: {
-    marginBottom: 10,
-    padding: 8,
+    marginBottom: 8,
+    padding: 7,
     backgroundColor: "#fefce8",
     border: "1px solid #fde68a",
     borderRadius: 4,
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     lineHeight: 1.5,
   },
   dishCard: {
-    marginBottom: 14,
+    marginBottom: 10,
     border: "1px solid #e2e8f0",
     borderRadius: 6,
     overflow: "hidden",
@@ -164,12 +164,12 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   dishBody: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
   },
   dishImage: {
     width: "100%",
-    height: 130,
+    height: 108,
     objectFit: "cover",
     borderRadius: 6,
     marginBottom: 8,
@@ -177,8 +177,8 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 8.5,
     color: "#475569",
-    marginBottom: 6,
-    lineHeight: 1.5,
+    marginBottom: 4,
+    lineHeight: 1.45,
   },
   sectionLabel: {
     fontSize: 7,
@@ -186,8 +186,8 @@ const styles = StyleSheet.create({
     color: "#94a3b8",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    marginBottom: 3,
-    marginTop: 6,
+    marginBottom: 2,
+    marginTop: 4,
   },
   preparationText: {
     fontSize: 8.5,
@@ -196,9 +196,9 @@ const styles = StyleSheet.create({
   },
   macroRow: {
     flexDirection: "row",
-    gap: 6,
-    marginTop: 8,
-    marginBottom: 4,
+    gap: 4,
+    marginTop: 6,
+    marginBottom: 3,
   },
   macroBox: {
     flex: 1,
@@ -221,10 +221,10 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   ingredientsGrid: {
-    marginTop: 2,
+    marginTop: 1,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 4,
+    gap: 3,
   },
   ingredientChip: {
     paddingVertical: 2,
@@ -263,11 +263,8 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
   },
   footer: {
-    position: "absolute",
-    bottom: 16,
-    left: 32,
-    right: 32,
-    paddingTop: 7,
+    marginTop: 14,
+    paddingTop: 5,
     borderTop: "1px solid #e2e8f0",
     flexDirection: "row",
     justifyContent: "space-between",
@@ -363,7 +360,7 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
           <Text style={styles.muted}>Sin platos registrados.</Text>
         ) : (
           data.dishes.map((dish, index) => (
-            <View key={index} style={styles.dishCard} wrap={false}>
+            <View key={index} style={styles.dishCard}>
               <View style={styles.dishHeader}>
                 <Text style={styles.dishTitle}>{dish.title || `Plato ${index + 1}`}</Text>
                 {dish.mealSection ? (

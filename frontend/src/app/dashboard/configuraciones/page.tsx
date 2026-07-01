@@ -14,6 +14,7 @@ import { useFont } from "@/context/FontContext";
 import { cn } from "@/lib/utils";
 import { getPasswordRequirements, getPasswordStrength } from "@/lib/password-policy";
 import { MembershipPlanSection } from "./MembershipPlanSection";
+import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 
 function RoleBadge({ role }: { role?: string | null }) {
   const config: Record<string, { label: string; className: string }> = {
@@ -186,50 +187,45 @@ const [showPublicPhone, setShowPublicPhone] = useState(false);
   const { theme, setTheme } = useTheme();
   const { fontPreference, setFontPreference } = useFont();
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        const settings = (user.nutritionist?.settings || {}) as UserSettings;
-        setUserData({
-          email: user.email,
-          fullName: user.nutritionist?.fullName || "Profesional",
-          role: user.role || null,
-          googleAvatarUrl: user.googleAvatarUrl || null,
-          createdAt: user.createdAt || null,
-          settings,
-        });
-        setProfessionalInstagram(settings.professionalInstagram || "");
-        setProfessionalPhone(settings.professionalPhone || "");
-        setProfessionalEmail(settings.professionalEmail || "");
+    const user = getCurrentUser();
+    if (!user) return;
 
-        setPublicProfileEnabled(settings.publicProfileEnabled || false);
-        setPublicSlug(settings.publicSlug || "");
-        setPublishedPublicSlug(settings.publicSlug || "");
-        setHeadline(settings.headline || "");
-        setBio(settings.bio || "");
-        setConsultationMode(settings.consultationMode || "online");
-        setLocation(settings.location || "");
-        setPublicPhone(settings.publicPhone || "");
-        setPublicEmail(settings.publicEmail || "");
-        setBookingEnabled(settings.bookingEnabled !== false);
-        setShowPublicPhone(settings.showPublicPhone === true);
-        setShowPublicEmail(settings.showPublicEmail !== false);
-        setShowInstagram(settings.showInstagram === true);
-        setShowLinkedin(settings.showLinkedin === true);
-        setShowSchedule(settings.showSchedule !== false);
-        setConditionsTreated(settings.conditionsTreated || "");
-        setPatientTypes(settings.patientTypes || "");
-        setPrices(settings.prices || "");
-        setOfficeAddress(settings.officeAddress || "");
-        setPaymentMethods(settings.paymentMethods || "");
-        setAcceptedInsurance(settings.acceptedInsurance || "");
-        setLinkedin(settings.linkedin || "");
-        setCountry(settings.country || "Chile");
-      } catch (e) {
-        console.error("Error loading user data", e);
-      }
-    }
+    const settings = (user.nutritionist?.settings || {}) as UserSettings;
+    setUserData({
+      email: user.email || "",
+      fullName: user.nutritionist?.fullName || "Profesional",
+      role: user.role || null,
+      googleAvatarUrl: user.googleAvatarUrl || null,
+      createdAt: user.createdAt || null,
+      settings,
+    });
+    setProfessionalInstagram(settings.professionalInstagram || "");
+    setProfessionalPhone(settings.professionalPhone || "");
+    setProfessionalEmail(settings.professionalEmail || "");
+
+    setPublicProfileEnabled(settings.publicProfileEnabled || false);
+    setPublicSlug(settings.publicSlug || "");
+    setPublishedPublicSlug(settings.publicSlug || "");
+    setHeadline(settings.headline || "");
+    setBio(settings.bio || "");
+    setConsultationMode(settings.consultationMode || "online");
+    setLocation(settings.location || "");
+    setPublicPhone(settings.publicPhone || "");
+    setPublicEmail(settings.publicEmail || "");
+    setBookingEnabled(settings.bookingEnabled !== false);
+    setShowPublicPhone(settings.showPublicPhone === true);
+    setShowPublicEmail(settings.showPublicEmail !== false);
+    setShowInstagram(settings.showInstagram === true);
+    setShowLinkedin(settings.showLinkedin === true);
+    setShowSchedule(settings.showSchedule !== false);
+    setConditionsTreated(settings.conditionsTreated || "");
+    setPatientTypes(settings.patientTypes || "");
+    setPrices(settings.prices || "");
+    setOfficeAddress(settings.officeAddress || "");
+    setPaymentMethods(settings.paymentMethods || "");
+    setAcceptedInsurance(settings.acceptedInsurance || "");
+    setLinkedin(settings.linkedin || "");
+    setCountry(settings.country || "Chile");
   }, []);
 
   useEffect(() => {
@@ -297,12 +293,10 @@ const [showPublicPhone, setShowPublicPhone] = useState(false);
     e.preventDefault();
     setIsSavingProfessionalContact(true);
     try {
-      const token = localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/me/settings`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           professionalInstagram: professionalInstagram.trim(),
@@ -316,19 +310,15 @@ const [showPublicPhone, setShowPublicPhone] = useState(false);
       }
 
       toast.success("Contacto profesional guardado correctamente");
-
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const user = JSON.parse(storedUser);
-        if (user.nutritionist) {
-          user.nutritionist.settings = {
-            ...user.nutritionist.settings,
-            professionalInstagram: professionalInstagram.trim(),
-            professionalPhone: professionalPhone.trim(),
-            professionalEmail: professionalEmail.trim(),
-          };
-          localStorage.setItem("user", JSON.stringify(user));
-        }
+      const user = getCurrentUser();
+      if (user?.nutritionist) {
+        user.nutritionist.settings = {
+          ...user.nutritionist.settings,
+          professionalInstagram: professionalInstagram.trim(),
+          professionalPhone: professionalPhone.trim(),
+          professionalEmail: professionalEmail.trim(),
+        };
+        setCurrentUser(user);
       }
     } catch (error) {
       const message =
@@ -343,12 +333,10 @@ const [showPublicPhone, setShowPublicPhone] = useState(false);
     e.preventDefault();
     setIsSavingPublicProfile(true);
     try {
-      const token = localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/me/settings`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           publicProfileEnabled,
@@ -390,29 +378,25 @@ bio: bio.trim(),
       setPublishedPublicSlug(resolvedSlug);
 
       toast.success("Perfil público guardado correctamente");
-
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const user = JSON.parse(storedUser);
-        if (user.nutritionist) {
-          user.nutritionist.settings = {
-            ...user.nutritionist.settings,
-            publicProfileEnabled: Boolean(updatedNutritionist?.publicProfileEnabled ?? publicProfileEnabled),
-            publicSlug: resolvedSlug || undefined,
-            headline: headline.trim(),
-            bio: bio.trim(),
-            consultationMode,
-            location: location.trim(),
-            publicPhone: publicPhone.trim(),
-            publicEmail: publicEmail.trim(),
-            bookingEnabled,
-            showPublicPhone,
-            showPublicEmail,
-            showInstagram,
-            professionalInstagram: professionalInstagram.trim(),
-          };
-          localStorage.setItem("user", JSON.stringify(user));
-        }
+      const user = getCurrentUser();
+      if (user?.nutritionist) {
+        user.nutritionist.settings = {
+          ...user.nutritionist.settings,
+          publicProfileEnabled: Boolean(updatedNutritionist?.publicProfileEnabled ?? publicProfileEnabled),
+          publicSlug: resolvedSlug || undefined,
+          headline: headline.trim(),
+          bio: bio.trim(),
+          consultationMode,
+          location: location.trim(),
+          publicPhone: publicPhone.trim(),
+          publicEmail: publicEmail.trim(),
+          bookingEnabled,
+          showPublicPhone,
+          showPublicEmail,
+          showInstagram,
+          professionalInstagram: professionalInstagram.trim(),
+        };
+        setCurrentUser(user);
       }
     } catch (error) {
       const message =

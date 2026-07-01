@@ -1,9 +1,9 @@
 import { fetchApi } from "./api-base";
-import Cookies from "js-cookie";
+import { getAuthToken } from "./auth-token";
 
 export const api = {
   async get(path: string, options?: RequestInit) {
-    const token = typeof window !== 'undefined' ? (Cookies.get("auth_token") || localStorage.getItem("auth_token")) : null;
+    const token = typeof window !== 'undefined' ? getAuthToken() : null;
     const response = await fetchApi(path, {
       ...options,
       cache: options?.cache ?? "no-store",
@@ -18,7 +18,7 @@ export const api = {
   },
 
   async post(path: string, body?: any, options?: RequestInit) {
-    const token = typeof window !== 'undefined' ? (Cookies.get("auth_token") || localStorage.getItem("auth_token")) : null;
+    const token = typeof window !== 'undefined' ? getAuthToken() : null;
     const response = await fetchApi(path, {
       ...options,
       cache: options?.cache ?? "no-store",
@@ -34,7 +34,7 @@ export const api = {
   },
 
   async put(path: string, body?: any, options?: RequestInit) {
-    const token = typeof window !== 'undefined' ? (Cookies.get("auth_token") || localStorage.getItem("auth_token")) : null;
+    const token = typeof window !== 'undefined' ? getAuthToken() : null;
     const response = await fetchApi(path, {
       ...options,
       cache: options?.cache ?? "no-store",
@@ -50,7 +50,7 @@ export const api = {
   },
 
   async delete(path: string, options?: RequestInit) {
-    const token = typeof window !== 'undefined' ? (Cookies.get("auth_token") || localStorage.getItem("auth_token")) : null;
+    const token = typeof window !== 'undefined' ? getAuthToken() : null;
     const response = await fetchApi(path, {
       ...options,
       cache: options?.cache ?? "no-store",

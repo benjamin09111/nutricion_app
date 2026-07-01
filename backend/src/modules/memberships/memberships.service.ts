@@ -3,8 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import type { Prisma, MembershipPlan } from '@prisma/client';
 
 const normalizeMembershipFeature = (value: unknown): string => {
-  const feature =
-    typeof value === 'string' ? value.trim() : String(value ?? '').trim();
+  const feature = typeof value === 'string' ? value.trim() : '';
   if (!feature) return '';
 
   if (/^([✓✔Xx])\s*(.*)$/.test(feature)) {
@@ -20,7 +19,8 @@ const normalizeMembershipFeature = (value: unknown): string => {
 };
 
 const asStringArray = (value: Prisma.JsonValue): string[] => {
-  if (Array.isArray(value)) return value.map((v) => String(v));
+  if (Array.isArray(value))
+    return value.map((v) => (typeof v === 'string' ? v : ''));
   return [];
 };
 
