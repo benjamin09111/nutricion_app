@@ -40,7 +40,7 @@ interface Feedback {
 }
 
 export default function AdminFeedbackPage() {
-  const { isAdmin } = useAdmin();
+  const { isAdminView } = useAdmin();
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>("ALL");
@@ -68,7 +68,7 @@ export default function AdminFeedbackPage() {
       if (!response.ok) throw new Error("Error al cargar feedback");
 
       const data = await response.json();
-      setFeedbackList(data);
+      setFeedbackList(data.filter((item: Feedback) => item.type !== "CONTACT"));
     } catch (error) {
       console.error(error);
       toast.error("No se pudieron cargar los mensajes de feedback");
@@ -78,10 +78,10 @@ export default function AdminFeedbackPage() {
   };
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isAdminView) {
       fetchFeedback();
     }
-  }, [isAdmin]);
+  }, [isAdminView]);
 
   const handleResolve = async () => {
     if (!selectedFeedback) return;

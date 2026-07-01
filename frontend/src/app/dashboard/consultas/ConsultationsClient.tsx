@@ -1,42 +1,28 @@
-"use client";
+﻿"use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Eye,
   CalendarDays,
   User,
-  X,
   Plus,
-  RotateCcw,
   Trash2,
-  Edit2,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
 import {
   Consultation,
-  Metric,
   ConsultationsResponse,
 } from "@/features/consultations";
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { ActionDockItem } from "@/components/ui/ActionDock";
 import Cookies from "js-cookie";
 import { Pagination } from "@/components/ui/Pagination";
 import { fetchApi } from "@/lib/api-base";
 import { useSubscription } from "@/context/SubscriptionContext";
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 export default function ConsultationsClient() {
   const router = useRouter();
@@ -44,6 +30,7 @@ export default function ConsultationsClient() {
   const patientIdFromQuery = searchParams.get("patientId");
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -51,22 +38,25 @@ export default function ConsultationsClient() {
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, page: 1, lastPage: 1 });
 
-  const [selectedConsultation, setSelectedConsultation] =
-    useState<Consultation | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [consultationToDelete, setConsultationToDelete] = useState<
-    string | null
-  >(null);
+  const [consultationToDelete, setConsultationToDelete] = useState<string | null>(null);
   const { limit } = useSubscription();
   const consultationLimit = limit("consultations.monthly.limit");
 
+  useScrollLock(isDeleteModalOpen);
 
-  const isAnyModalOpen = !!selectedConsultation || isDeleteModalOpen;
-  useScrollLock(isAnyModalOpen);
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setDebouncedSearchTerm(searchTerm),
+      searchTerm ? 300 : 0,
+    );
 
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  /** Lee el token en el momento de la peticion para evitar valores obsoletos */
   const getAuthHeaders = () => {
-    const token =
-      Cookies.get("auth_token") || localStorage.getItem("auth_token");
+    const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
     return {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
@@ -80,7 +70,7 @@ export default function ConsultationsClient() {
         page: page.toString(),
         limit: "10",
         type: "CLINICAL",
-        ...(searchTerm && { search: searchTerm }),
+        ...(debouncedSearchTerm && { search: debouncedSearchTerm }),
         ...(patientIdFromQuery && { patientId: patientIdFromQuery }),
       });
 
@@ -95,38 +85,31 @@ export default function ConsultationsClient() {
       } else {
         toast.error("Error al cargar consultas");
       }
+      // Solo apagar el spinner tras exito o error HTTP controlado
+      setIsLoading(false);
     } catch (e) {
       if (retries > 0) {
+        // Reintentar sin apagar el spinner todavia
         setTimeout(() => fetchConsultations(retries - 1), 2000);
       } else {
-        toast.error("Error de conexión");
+        toast.error("Error de conexion");
+        setIsLoading(false);
       }
-    } finally {
-      setIsLoading(false);
     }
   };
 
-
   useEffect(() => {
     fetchConsultations();
-  }, [page, searchTerm, patientIdFromQuery]);
-
-  // We don't auto-fill the search term anymore as it's confusing
-  // when we are opening the creation modal directly.
-
-  // Create/Update functions removed (moved to dedicated page)
+  }, [page, debouncedSearchTerm, patientIdFromQuery]);
 
   const handleDelete = async () => {
     if (!consultationToDelete) return;
 
     try {
-      const response = await fetchApi(
-        `/consultations/${consultationToDelete}`,
-        {
-          method: "DELETE",
-          headers: getAuthHeaders(),
-        },
-      );
+      const response = await fetchApi(`/consultations/${consultationToDelete}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
 
       if (response.ok) {
         toast.success("Consulta eliminada");
@@ -137,24 +120,9 @@ export default function ConsultationsClient() {
         toast.error("Error al eliminar");
       }
     } catch (error) {
-      toast.error("Error de conexión");
+      toast.error("Error de conexion");
     }
   };
-
-  // Form helper functions removed (moved to dedicated page)
-
-  const actionDockItems: ActionDockItem[] = useMemo(
-    () => [
-      {
-        id: "refresh",
-        icon: RotateCcw,
-        label: "Refrescar",
-        variant: "rose",
-        onClick: () => fetchConsultations(),
-      },
-    ],
-    [],
-  );
 
   return (
     <ModuleLayout
@@ -166,8 +134,8 @@ export default function ConsultationsClient() {
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDelete}
-        title="¿Eliminar consulta?"
-        description="Esta acción no se puede deshacer."
+        title="Eliminar consulta?"
+        description="Esta accion no se puede deshacer."
         confirmText="Eliminar"
         cancelText="Cancelar"
         variant="destructive"
@@ -185,13 +153,16 @@ export default function ConsultationsClient() {
               placeholder="Buscar por nombre del paciente..."
               className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all"
               value={searchTerm}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
             />
           </div>
 
           <div className="flex gap-2 w-full md:w-auto">
             <div className="hidden md:flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500">
-              Límite mensual: {Number.isFinite(consultationLimit) ? consultationLimit : "Ilimitado"}
+              Limite mensual: {Number.isFinite(consultationLimit) ? consultationLimit : "Ilimitado"}
             </div>
             <button
               onClick={() => router.push("/dashboard/consultas/nueva")}
@@ -215,18 +186,10 @@ export default function ConsultationsClient() {
             <table className="min-w-full divide-y divide-slate-100">
               <thead className="bg-slate-50/50">
                 <tr>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-slate-500 uppercase tracking-tight">
-                    Paciente
-                  </th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-slate-500 uppercase tracking-tight">
-                    Fecha
-                  </th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-slate-500 uppercase tracking-tight">
-                    Sesión
-                  </th>
-                  <th className="px-6 py-5 text-right text-xs font-semibold text-slate-500 uppercase tracking-tight">
-                    Acciones
-                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-slate-500 uppercase tracking-tight">Paciente</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-slate-500 uppercase tracking-tight">Fecha</th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-slate-500 uppercase tracking-tight">Sesion</th>
+                  <th className="px-6 py-5 text-right text-xs font-semibold text-slate-500 uppercase tracking-tight">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -242,11 +205,10 @@ export default function ConsultationsClient() {
                           <User className="w-4 h-4 text-indigo-600" />
                         </div>
                         <button
-                          onClick={() =>
-                            router.push(
-                              `/dashboard/pacientes/${item.patientId}`,
-                            )
-                          }
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/dashboard/pacientes/${item.patientId}`);
+                          }}
                           className="text-sm font-semibold text-slate-700 hover:text-indigo-600 transition-colors text-left cursor-pointer"
                         >
                           {item.patientName}
@@ -322,7 +284,7 @@ export default function ConsultationsClient() {
           {meta.lastPage > 1 && (
             <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-tight">
-                Página {meta.page} de {meta.lastPage}
+                Pagina {meta.page} de {meta.lastPage}
               </p>
               <div className="flex gap-2">
                 <Pagination
@@ -334,95 +296,6 @@ export default function ConsultationsClient() {
             </div>
           )}
         </div>
-
-
-        {/* View Details Modal */}
-        {selectedConsultation && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300">
-              <div className="p-10 space-y-8">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-semibold uppercase tracking-tight border border-indigo-100">
-                        {new Date(selectedConsultation.date).toLocaleDateString(
-                          "es-ES",
-                          { day: "numeric", month: "short", year: "numeric" },
-                        )}
-                      </span>
-                    </div>
-                    <h2 className="text-3xl font-semibold text-slate-900 tracking-tight">
-                      {selectedConsultation.title}
-                    </h2>
-                    <button
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/pacientes/${selectedConsultation.patientId}`,
-                        )
-                      }
-                      className="flex items-center gap-2 text-slate-500 font-semibold uppercase text-xs tracking-tight hover:text-indigo-600 transition-colors cursor-pointer group"
-                    >
-                      <User className="w-4 h-4 text-indigo-500 group-hover:scale-110 transition-transform" />
-                      {selectedConsultation.patientName}
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => setSelectedConsultation(null)}
-                    className="p-4 bg-slate-50 rounded-2xl text-slate-400 hover:text-slate-900 transition-colors"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-tight ml-1">
-                    Observaciones Clínicas
-                  </h4>
-                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-slate-600 font-medium leading-relaxed">
-                    {selectedConsultation.description ||
-                      "Sin notas registradas."}
-                  </div>
-                </div>
-
-                {selectedConsultation.metrics &&
-                  selectedConsultation.metrics.length > 0 && (
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-tight ml-1">
-                        Métricas Clave
-                      </h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        {selectedConsultation.metrics.map((m, i) => (
-                          <div
-                            key={i}
-                            className="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow"
-                          >
-                            <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                              {m.label}
-                            </p>
-                            <p className="text-2xl font-semibold text-slate-900">
-                              {m.value}{" "}
-                              <span className="text-xs text-slate-400 uppercase tracking-tight ml-1">
-                                {m.unit}
-                              </span>
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                <div className="pt-6">
-                  <Button
-                    onClick={() => setSelectedConsultation(null)}
-                    className="w-full h-14 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-2xl shadow-lg active:scale-95 transition-all text-xs tracking-tight uppercase"
-                  >
-                    Cerrar Expediente
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </ModuleLayout>
   );

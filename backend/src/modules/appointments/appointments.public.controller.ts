@@ -23,7 +23,8 @@ export class AppointmentsPublicController {
       endAt: string;
     },
   ) {
-    const bookingLink = await this.appointmentsService.getBookingLinkByToken(token);
+    const bookingLink =
+      await this.appointmentsService.getBookingLinkByToken(token);
 
     const appointment = await this.appointmentsService.requestAppointment(
       bookingLink.nutritionistId,
@@ -43,7 +44,8 @@ export class AppointmentsPublicController {
     return {
       id: appointment.id,
       status: appointment.status,
-      message: 'Tu solicitud de cita ha sido enviada. El nutricionista la revisará pronto.',
+      message:
+        'Tu solicitud de cita ha sido enviada. El nutricionista la revisará pronto.',
     };
   }
 

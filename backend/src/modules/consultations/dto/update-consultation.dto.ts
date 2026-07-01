@@ -1,4 +1,33 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateConsultationDto } from './create-consultation.dto';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  IsDateString,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { ConsultationMetricDto } from './create-consultation.dto';
 
-export class UpdateConsultationDto extends PartialType(CreateConsultationDto) {}
+/**
+ * DTO de actualización de consulta.
+ * No se permite cambiar el patientId una vez creada la consulta.
+ */
+export class UpdateConsultationDto {
+  @IsDateString()
+  @IsOptional()
+  date?: string;
+
+  @IsString()
+  @IsOptional()
+  title?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ConsultationMetricDto)
+  @IsOptional()
+  metrics?: ConsultationMetricDto[];
+}

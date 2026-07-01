@@ -23,13 +23,14 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Consultation, Metric } from "@/features/consultations";
+import { Patient } from "@/features/patients";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { Button } from "@/components/ui/Button";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
+import Cookies from "js-cookie";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -95,36 +96,39 @@ interface Props {
 export default function ConsultationDetailClient({ id }: Props) {
   const router = useRouter();
   const [consultation, setConsultation] = useState<Consultation | null>(null);
-  const [patientData, setPatientData] = useState<any>(null);
+  const [patientData, setPatientData] = useState<Patient | null>(null);
   const [isPatientPanelOpen, setIsPatientPanelOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const token = typeof window !== "undefined"
-    ? (Cookies.get("auth_token") || localStorage.getItem("auth_token"))
-    : "";
+  /** Lee el token en el momento de la petición, no al montar */
+  const getAuthHeaders = () => {
+    const token =
+      Cookies.get("auth_token") ||
+      (typeof window !== "undefined" ? localStorage.getItem("auth_token") : "");
+    return { Authorization: `Bearer ${token}` };
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const cResponse = await fetchApi(`/consultations/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (cResponse.ok) {
-          const cData = await cResponse.json();
-          setConsultation(cData);
+        const headers = getAuthHeaders();
+        const cResponse = await fetchApi(`/consultations/${id}`, { headers });
 
-          // Fetch patient data
-          const pResponse = await fetchApi(`/patients/${cData.patientId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (pResponse.ok) {
-            const pData = await pResponse.json();
-            setPatientData(pData);
-          }
-        } else {
+        if (!cResponse.ok) {
           toast.error("Consulta no encontrada");
           router.push("/dashboard/consultas");
+          return;
+        }
+
+        const cData: Consultation = await cResponse.json();
+        setConsultation(cData);
+
+        // Fetch del paciente en paralelo — ya tenemos el patientId
+        const pResponse = await fetchApi(`/patients/${cData.patientId}`, { headers });
+        if (pResponse.ok) {
+          const pData: Patient = await pResponse.json();
+          setPatientData(pData);
         }
       } catch {
         toast.error("Error al cargar datos");
@@ -405,7 +409,7 @@ export default function ConsultationDetailClient({ id }: Props) {
                   </div>
                   <div className="bg-blue-50/30 rounded-2xl p-5 border border-blue-100/50">
                     <p className="text-sm font-medium text-slate-600 leading-relaxed italic">
-                      "{patientData.clinicalSummary}"
+                      &ldquo;{patientData.clinicalSummary}&rdquo;
                     </p>
                   </div>
                 </div>

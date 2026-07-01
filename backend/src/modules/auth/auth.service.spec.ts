@@ -15,7 +15,10 @@ describe('AuthService', () => {
         { provide: PrismaService, useValue: {} },
         { provide: JwtService, useValue: { sign: jest.fn() } },
         { provide: MailService, useValue: {} },
-        { provide: PermissionsService, useValue: { getAccessSnapshot: jest.fn() } },
+        {
+          provide: PermissionsService,
+          useValue: { getAccessSnapshot: jest.fn() },
+        },
       ],
     }).compile();
 

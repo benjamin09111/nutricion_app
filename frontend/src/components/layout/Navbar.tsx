@@ -7,11 +7,9 @@ import {
   ChevronDown,
   Settings,
   Bell,
-  Sparkles,
   Menu,
   Moon,
   Sun,
-  Globe,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -19,21 +17,20 @@ import { useAdmin } from "@/context/AdminContext";
 import { cn } from "@/lib/utils";
 import {
   useSubscription,
-  SubscriptionPlan,
 } from "@/context/SubscriptionContext";
 import { authService } from "@/features/auth/services/auth.service";
 import { useNotifications } from "@/context/NotificationsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useFont } from "@/context/FontContext";
-import { useTutorials } from "@/context/TutorialContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { DeveloperPlanSwitcher } from "@/components/layout/DeveloperPlanSwitcher";
 import { FollowUpNotificationsMenu } from "@/components/layout/FollowUpNotificationsMenu";
+import { getCurrentUser } from "@/lib/current-user";
 
 function PlanBadge() {
-  const { planName, cancelAtPeriodEnd, currentPlan } = useSubscription();
+  const { cancelAtPeriodEnd, currentPlan } = useSubscription();
   const { isDarkMode } = useTheme();
 
   if (!currentPlan) return null;
@@ -60,40 +57,28 @@ function PlanBadge() {
 export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isPortalMenuOpen, setIsPortalMenuOpen] = useState(false);
   const [userEmail] = useState<string>(() => {
     if (typeof window === "undefined") {
       return "usuario@demo.com";
     }
 
-    const storedUser = window.localStorage.getItem("user");
+    const storedUser = getCurrentUser();
     if (!storedUser) {
       return "usuario@demo.com";
     }
 
-    try {
-      const user = JSON.parse(storedUser);
-      return typeof user?.email === "string" ? user.email : "usuario@demo.com";
-    } catch {
-      return "usuario@demo.com";
-    }
+    return typeof storedUser?.email === "string" ? storedUser.email : "usuario@demo.com";
   });
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
-  const portalMenuRef = useRef<HTMLDivElement>(null);
 
-  const handlePortalMenuToggle = () => {
-    setIsPortalMenuOpen(!isPortalMenuOpen);
-  };
-  const { isAdmin, isAdminView, role } = useAdmin();
+  const { isAdminView } = useAdmin();
   const { planName } = useSubscription();
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
     useNotifications();
   const { isDarkMode, toggleTheme } = useTheme();
   const { fontPreference, setFontPreference } = useFont();
-  const { openCurrentTutorial, currentTutorial, isTutorialAvailable } =
-    useTutorials();
 
   const [isSecureSubModalOpen, setIsSecureSubModalOpen] = useState(false);
   const [isSecuringSub, setIsSecuringSub] = useState(false);
@@ -130,12 +115,6 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
       ) {
         setIsNotificationsOpen(false);
       }
-      if (
-        portalMenuRef.current &&
-        !portalMenuRef.current.contains(event.target as Node)
-      ) {
-        setIsPortalMenuOpen(false);
-      }
     }
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -146,15 +125,6 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
     authService.signOut();
     router.replace("/login");
   };
-
-  const adminRoleLabel =
-    role === "ADMIN_MASTER"
-      ? "Admin Master"
-      : role === "ADMIN_GENERAL"
-        ? "Admin General"
-        : role === "ADMIN"
-          ? "Admin"
-          : null;
 
   return (
     <div
@@ -460,7 +430,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                   role="menuitem"
                   tabIndex={-1}
                   onClick={() => setIsProfileOpen(false)}
-                >
+                  >
                   <Settings
                     className={cn(
                       "h-4 w-4",
@@ -470,32 +440,51 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                   Configuraciones
                 </Link>
 
-                {isTutorialAvailable && currentTutorial ? (
-                  <button
-                    type="button"
-                    data-tutorial-id="tutorial-trigger"
-                    onClick={() => {
-                      openCurrentTutorial();
-                      setIsProfileOpen(false);
-                    }}
+                <div
+                  className={cn(
+                    "border-t px-4 py-2",
+                    isDarkMode ? "border-emerald-400/10" : "border-slate-100",
+                  )}
+                >
+                  <p
                     className={cn(
-                      "flex w-full items-center gap-2 px-4 py-2 text-left text-sm leading-6 transition-colors cursor-pointer",
-                      isDarkMode
-                        ? "text-emerald-100/85 hover:bg-emerald-500/8"
-                        : "text-slate-700 hover:bg-slate-50",
+                      "mb-2 text-[10px] font-semibold uppercase tracking-wider",
+                      isDarkMode ? "text-emerald-100/50" : "text-slate-400",
                     )}
-                    role="menuitem"
-                    tabIndex={-1}
                   >
-                    <Sparkles
+                    Legal
+                  </p>
+                  <div className="space-y-1">
+                    <Link
+                      href="/terms"
                       className={cn(
-                        "h-4 w-4",
-                        isDarkMode ? "text-emerald-100/55" : "text-slate-400",
+                        "flex w-full cursor-pointer items-center rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                        isDarkMode
+                          ? "text-emerald-100/80 hover:bg-emerald-500/8"
+                          : "text-slate-700 hover:bg-slate-50",
                       )}
-                    />
-                    Activar tutorial actual
-                  </button>
-                ) : null}
+                      role="menuitem"
+                      tabIndex={-1}
+                      onClick={() => setIsProfileOpen(false)}
+                    >
+                      Términos de Servicio
+                    </Link>
+                    <Link
+                      href="/privacy-policy"
+                      className={cn(
+                        "flex w-full cursor-pointer items-center rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                        isDarkMode
+                          ? "text-emerald-100/80 hover:bg-emerald-500/8"
+                          : "text-slate-700 hover:bg-slate-50",
+                      )}
+                      role="menuitem"
+                      tabIndex={-1}
+                      onClick={() => setIsProfileOpen(false)}
+                    >
+                      Política de Privacidad
+                    </Link>
+                  </div>
+                </div>
 
                 <button
                   type="button"

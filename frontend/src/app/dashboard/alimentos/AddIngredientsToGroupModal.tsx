@@ -179,7 +179,7 @@ export default function AddIngredientsToGroupModal({
               variant="outline"
               onClick={onCreateNew}
               className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
-              title="Fabricar nuevo ingrediente"
+              title="Nuevo alimento"
             >
               <Plus size={18} />
             </Button>
@@ -202,7 +202,7 @@ export default function AddIngredientsToGroupModal({
                   className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 gap-2 mx-auto"
                 >
                   <Plus size={16} />
-                  Crear &quot;{searchTerm || "Nuevo"}&quot;
+                  Crear alimento &quot;{searchTerm || "Nuevo"}&quot;
                 </Button>
               )}
             </div>

@@ -33,13 +33,19 @@ export async function createAppointment(input: CreateAppointmentInput) {
         : "No se pudo crear la cita.";
     throw new Error(message);
   }
+
+  return fallbackResponse.json().catch(() => ({}));
 }
 
-export async function approveAppointment(appointmentId: string) {
+export async function approveAppointment(
+  appointmentId: string,
+  notifyPatientByEmail?: boolean,
+  syncGoogleCalendar?: boolean,
+) {
   const response = await fetchAppointmentsApi(`/calendars/appointments/${appointmentId}/approve`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ notifyPatientByEmail, syncGoogleCalendar }),
   });
 
   if (!response.ok) {

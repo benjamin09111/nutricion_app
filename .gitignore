@@ -48,6 +48,8 @@ Desktop.ini
 
 # TypeScript
 *.tsbuildinfo
+.gemini/
+.collab/
 
 # debug
 npm-debug.log*

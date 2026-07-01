@@ -4,10 +4,12 @@ import { PatientsController } from './patients.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { TagsModule } from '../tags/tags.module';
 import { MetricsModule } from '../metrics/metrics.module';
+import { PermissionsModule } from '../permissions/permissions.module';
 
 @Module({
-  imports: [PrismaModule, TagsModule, MetricsModule],
+  imports: [PrismaModule, TagsModule, MetricsModule, PermissionsModule],
   providers: [PatientsService],
   controllers: [PatientsController],
+  exports: [PatientsService],
 })
 export class PatientsModule {}

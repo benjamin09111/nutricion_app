@@ -1,19 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   UserPlus,
   Mail,
   Shield,
-  ShieldAlert,
   KeyRound,
   RefreshCw,
   User,
-  Users,
-  Edit,
   Trash2,
-  Save,
-  X,
   Calendar,
   CheckCircle2,
   UserX,
@@ -35,6 +30,7 @@ interface UserData {
     | "ADMIN_GENERAL"
     | "NUTRITIONIST"
     | "NUTRITIONIST_DEVELOPER"
+    | "WORKER"
     | "ORGANIZATION"
     | "SUPPLEMENT_STORE"
     | "SUPERMARKET";
@@ -43,6 +39,22 @@ interface UserData {
   subscriptionEndsAt: string | null;
   createdAt: string;
 }
+
+interface MembershipPlan {
+  id: string;
+  name: string;
+  billingPeriod: string;
+}
+
+type CreationRole =
+  | "ADMIN_MASTER"
+  | "ADMIN_GENERAL"
+  | "NUTRITIONIST"
+  | "NUTRITIONIST_DEVELOPER"
+  | "WORKER"
+  | "ORGANIZATION"
+  | "SUPPLEMENT_STORE"
+  | "SUPERMARKET";
 
 const ADMIN_ROLES = ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"] as const;
 const isAdminRole = (role: string) =>
@@ -55,6 +67,7 @@ const roleLabels: Record<string, string> = {
   ADMIN_GENERAL: "Admin General",
   NUTRITIONIST: "Nutricionista",
   NUTRITIONIST_DEVELOPER: "Nutri Dev QA",
+  WORKER: "Worker",
   ORGANIZATION: "Organización",
   SUPPLEMENT_STORE: "Tienda de Suplementos",
   SUPERMARKET: "Supermercado",
@@ -84,18 +97,18 @@ export default function AdminUsersPage() {
   // Create Account State
   const [creationEmail, setCreationEmail] = useState("");
   const [creationName, setCreationName] = useState("");
-  const [creationRole, setCreationRole] = useState<
-    | "ADMIN_MASTER"
-    | "ADMIN_GENERAL"
-    | "NUTRITIONIST"
-    | "NUTRITIONIST_DEVELOPER"
-    | "ORGANIZATION"
-    | "SUPPLEMENT_STORE"
-    | "SUPERMARKET"
-  >("NUTRITIONIST");
+  const [creationRole, setCreationRole] = useState<CreationRole>("NUTRITIONIST");
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
-  const [membershipPlans, setMembershipPlans] = useState<any[]>([]);
+  const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [pendingCreatePayload, setPendingCreatePayload] = useState<{
+    email: string;
+    fullName: string;
+    role: CreationRole;
+    planId?: string;
+  } | null>(null);
+  const [isCreateConflictModalOpen, setIsCreateConflictModalOpen] =
+    useState(false);
 
   // Reset Password State
   const [resetEmail, setResetEmail] = useState("");
@@ -115,14 +128,6 @@ export default function AdminUsersPage() {
     }
   }, []);
 
-  // Fetch users when on 'admins' tab
-  useEffect(() => {
-    fetchMembershipPlans();
-    if (activeTab === "admins") {
-      fetchUsers();
-    }
-  }, [activeTab, accountFilter]);
-
   const fetchMembershipPlans = async () => {
     try {
       const response = await fetchApi(`/memberships/active`);
@@ -137,7 +142,7 @@ export default function AdminUsersPage() {
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setIsLoadingUsers(true);
     try {
       const token =
@@ -161,7 +166,15 @@ export default function AdminUsersPage() {
     } finally {
       setIsLoadingUsers(false);
     }
-  };
+  }, [accountFilter]);
+
+  // Fetch users when on 'admins' tab
+  useEffect(() => {
+    fetchMembershipPlans();
+    if (activeTab === "admins") {
+      fetchUsers();
+    }
+  }, [activeTab, fetchUsers]);
 
   // Permission Helpers
   const isMaster = currentAdminRole === "ADMIN_MASTER";
@@ -246,9 +259,13 @@ export default function AdminUsersPage() {
       );
       setIsConfirmModalOpen(false);
       fetchUsers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      toast.error(error.message || "Hubo un error al procesar el cambio");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Hubo un error al procesar el cambio",
+      );
     } finally {
       setIsLoadingUsers(false);
       setSelectedUser(null);
@@ -256,17 +273,15 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleCreateAccount = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const isTargetAdmin = isAdminRole(creationRole);
-    if (isTargetAdmin && !isMaster) {
-      toast.error(
-        "Solo un Admin Master puede crear otras cuentas administrativas",
-      );
-      return;
-    }
-
+  const submitCreateAccount = async (
+    payload: {
+      email: string;
+      fullName: string;
+      role: CreationRole;
+      planId?: string;
+    },
+    forceRoleChange = false,
+  ) => {
     setIsCreatingAccount(true);
     try {
       const token =
@@ -278,29 +293,65 @@ export default function AdminUsersPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          email: creationEmail,
-          fullName: creationName,
-          role: creationRole,
-          planId:
-            creationRole === "NUTRITIONIST" || creationRole === "ORGANIZATION"
-              ? selectedPlanId
-              : undefined,
+          email: payload.email,
+          fullName: payload.fullName,
+          role: payload.role,
+          planId: payload.planId,
+          forceRoleChange,
         }),
       });
 
-      const data = await response.json();
-      if (!response.ok)
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        if (response.status === 409 && !forceRoleChange) {
+          setPendingCreatePayload(payload);
+          setIsCreateConflictModalOpen(true);
+          return;
+        }
+
         throw new Error(data.message || "Error al crear cuenta");
+      }
 
       setCreationEmail("");
       setCreationName("");
-      toast.success("Cuenta creada correctamente y bienvenida enviada");
+      toast.success(
+        forceRoleChange
+          ? "Se actualizó el acceso Google y el rol"
+          : "Acceso Google habilitado y notificado",
+      );
       setActiveTab("admins");
-    } catch (error: any) {
-      toast.error(error.message || "Error al crear la cuenta");
+      setPendingCreatePayload(null);
+      setIsCreateConflictModalOpen(false);
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error ? error.message : "Error al crear la cuenta",
+      );
     } finally {
       setIsCreatingAccount(false);
     }
+  };
+
+  const handleCreateAccount = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const isTargetAdmin = isAdminRole(creationRole);
+    if (isTargetAdmin && !isMaster) {
+      toast.error(
+        "Solo un Admin Master puede crear otras cuentas administrativas",
+      );
+      return;
+    }
+
+    void submitCreateAccount({
+      email: creationEmail,
+      fullName: creationName,
+      role: creationRole,
+      planId:
+        creationRole === "NUTRITIONIST" || creationRole === "ORGANIZATION"
+          ? selectedPlanId
+          : undefined,
+    });
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -316,13 +367,17 @@ export default function AdminUsersPage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Error al restablecer contraseña");
+        throw new Error(errorData.message || "Error al reenviar acceso");
       }
 
       setResetEmail("");
-      toast.success("Se ha enviado un correo para restablecer la contraseña");
-    } catch (error: any) {
-      toast.error(error.message);
+      toast.success("Se ha reenviado el acceso Google");
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Error al reenviar acceso",
+      );
     } finally {
       setIsResetting(false);
     }
@@ -372,7 +427,7 @@ export default function AdminUsersPage() {
           }`}
         >
           <KeyRound className="h-4 w-4" />
-          Restablecer Contraseña
+          Reenviar Acceso
         </button>
       </div>
 
@@ -605,22 +660,18 @@ export default function AdminUsersPage() {
                       </div>
                       <select
                         value={creationRole}
-                        onChange={(e) => setCreationRole(e.target.value as any)}
+                        onChange={(e) => setCreationRole(e.target.value as CreationRole)}
                         className="block w-full rounded-md border-0 py-2.5 pl-10 pr-4 text-slate-900 ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                       >
                         <option value="NUTRITIONIST">Nutricionista</option>
                         <option value="NUTRITIONIST_DEVELOPER">
                           Nutri Dev QA
                         </option>
+                        <option value="WORKER">Worker</option>
                         {isMaster && (
-                          <>
-                            <option value="ADMIN_MASTER">
-                              ADMIN MASTER (Control Total)
-                            </option>
-                            <option value="ADMIN_GENERAL">
-                              ADMIN GENERAL (Gestión)
-                            </option>
-                          </>
+                          <option value="ADMIN_GENERAL">
+                            ADMIN GENERAL (Gestión)
+                          </option>
                         )}
                         <option value="ORGANIZATION">
                           Organización / Clínica
@@ -676,7 +727,7 @@ export default function AdminUsersPage() {
                       isLoading={isCreatingAccount}
                       className="w-full bg-indigo-600 hover:bg-indigo-700"
                     >
-                      Generar Acceso y Notificar
+                      Habilitar Acceso con Google
                     </Button>
                   </div>
                 </form>
@@ -688,7 +739,7 @@ export default function AdminUsersPage() {
                 <div className="flex items-center gap-x-2">
                   <RefreshCw className="h-5 w-5 text-amber-600" />
                   <h2 className="font-semibold text-amber-900">
-                    Restablecimiento de Credenciales
+                    Reenvío de Acceso
                   </h2>
                 </div>
               </div>
@@ -703,7 +754,7 @@ export default function AdminUsersPage() {
                       required
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
-                      placeholder="correo-a-recuperar@ejemplo.com"
+                      placeholder="correo-a-reenviar@ejemplo.com"
                     />
                   </div>
                   <div className="pt-2">
@@ -712,7 +763,7 @@ export default function AdminUsersPage() {
                       isLoading={isResetting}
                       className="w-full bg-amber-600 hover:bg-amber-700"
                     >
-                      Generar Nueva Contraseña y Notificar
+                      Reenviar Acceso
                     </Button>
                   </div>
                 </form>
@@ -725,13 +776,31 @@ export default function AdminUsersPage() {
               Protocolo de Seguridad
             </h3>
             <p className="text-sm text-slate-600">
-              La creación de nuevos administradores está limitada por su rol.
-              Solo un <strong>Admin Master</strong> puede elevar otros usuarios
-              a su mismo nivel. Todos los accesos son auditados.
+              Todos los accesos se habilitan con Google. Si el correo ya existe,
+              puedes confirmar el cambio de rol o cancelar antes de sobrescribir
+              la cuenta.
             </p>
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={isCreateConflictModalOpen}
+        onClose={() => {
+          setIsCreateConflictModalOpen(false);
+          setPendingCreatePayload(null);
+        }}
+        onConfirm={() => {
+          if (!pendingCreatePayload) return;
+          void submitCreateAccount(pendingCreatePayload, true);
+        }}
+        isLoading={isCreatingAccount}
+        title="Correo ya registrado"
+        message={`Ese correo ya existe. Si continúas, se forzará el rol a ${roleLabels[pendingCreatePayload?.role || "ADMIN_GENERAL"] || "el rol seleccionado"} y se habilitará el acceso con Google.`}
+        confirmText="Forzar cambio"
+        cancelText="Cancelar"
+        variant="warning"
+      />
 
       <ConfirmModal
         isOpen={isConfirmModalOpen}

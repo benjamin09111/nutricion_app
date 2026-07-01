@@ -3,7 +3,6 @@ import {
   Post,
   Get,
   Body,
-  Param,
   Query,
   HttpCode,
   HttpStatus,
@@ -14,12 +13,9 @@ import {
   Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { MailService } from '../mail/mail.service';
 import { CreateAccountDto } from './dto/create-account.dto';
-import { LoginDto } from './dto/login.dto';
 import { AuthGuard } from './guards/auth.guard';
 import { UpdatePasswordDto } from './dto/update-password.dto';
-import { RegisterDto } from './dto/register.dto';
 import { isAdminRole } from '../permissions/permissions.constants';
 import { GoogleIntegrationService } from '../integrations/google-integration.service';
 import type { Response } from 'express';
@@ -28,16 +24,12 @@ import type { Response } from 'express';
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly mailService: MailService,
     private readonly googleIntegrationService: GoogleIntegrationService,
   ) {}
 
   @Get('google/start')
-  async googleStart(
-    @Query('next') next: string | undefined,
-    @Res() res: Response,
-  ) {
-    const authUrl = await this.googleIntegrationService.buildGoogleLoginUrl(
+  googleStart(@Query('next') next: string | undefined, @Res() res: Response) {
+    const authUrl = this.googleIntegrationService.buildGoogleLoginUrl(
       next || '/dashboard',
     );
     return res.redirect(authUrl);
@@ -53,14 +45,60 @@ export class AuthController {
       throw new BadRequestException('Callback de Google incompleto');
     }
 
-    const callback = await this.googleIntegrationService.handleGoogleLoginCallback(
-      code,
-      state,
-    );
+    const callback =
+      await this.googleIntegrationService.handleGoogleLoginCallback(
+        code,
+        state,
+      );
     const result = await this.authService.loginWithGoogle(callback.profile);
-    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
-    const targetUrl = `${frontendUrl}/auth/callback?token=${encodeURIComponent(result.access_token)}&next=${encodeURIComponent(callback.next || '/dashboard')}`;
+    const ticket = this.authService.createOAuthSessionTicket(result);
+    const frontendUrl = (
+      process.env.FRONTEND_URL || 'http://localhost:3000'
+    ).replace(/\/$/, '');
+    const targetUrl = `${frontendUrl}/auth/callback?ticket=${encodeURIComponent(ticket)}&next=${encodeURIComponent(callback.next || '/dashboard')}`;
     return res.redirect(targetUrl);
+  }
+
+  @Post('oauth/exchange')
+  @HttpCode(HttpStatus.OK)
+  exchangeOAuthTicket(
+    @Body() body: { ticket?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!body.ticket) {
+      throw new BadRequestException('Ticket de autenticación requerido');
+    }
+
+    const session = this.authService.consumeOAuthSessionTicket(body.ticket);
+
+    if (!session) {
+      throw new UnauthorizedException('Ticket inválido o expirado');
+    }
+
+    res.cookie('auth_token', 'session', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    res.cookie('auth_token_http', session.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    return { user: session.user };
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('auth_token', { path: '/' });
+    res.clearCookie('auth_token_http', { path: '/' });
+    res.clearCookie('auth_session', { path: '/' });
+    return { success: true };
   }
 
   @UseGuards(AuthGuard)
@@ -69,10 +107,11 @@ export class AuthController {
     return this.authService.getMe(req.user.id);
   }
 
+  @UseGuards(AuthGuard)
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  login() {
+    throw new BadRequestException('El acceso solo está disponible con Google');
   }
 
   @UseGuards(AuthGuard)
@@ -104,6 +143,7 @@ export class AuthController {
       createAccountDto.fullName,
       undefined,
       createAccountDto.planId,
+      createAccountDto.forceRoleChange === true,
     );
   }
 
@@ -133,24 +173,10 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
-  }
-
-  @Post('request-access')
-  @HttpCode(HttpStatus.OK)
-  async requestAccess(
-    @Body() body: { name: string; email: string; message?: string },
-  ) {
-    if (!body.name || !body.email) {
-      throw new BadRequestException('Nombre y correo son requeridos');
-    }
-    await this.mailService.sendRegistrationAlert(
-      body.name,
-      body.email,
-      body.message,
+  register() {
+    throw new BadRequestException(
+      'El registro solo está disponible con Google',
     );
-    return { success: true };
   }
 
   @Get('verify-email')

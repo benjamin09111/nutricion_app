@@ -123,14 +123,12 @@ export class MailService {
   async sendWelcomeEmail(
     email: string,
     fullName: string,
-    password: string,
+    loginUrl: string,
     validAdminMessage?: string,
   ): Promise<void> {
-    const loginUrl = `${this.frontendUrl}/login`;
     const { html, text } = buildWelcomeEmailTemplate({
       fullName,
       email,
-      password,
       loginUrl,
       adminMessage: validAdminMessage,
     });
@@ -304,34 +302,47 @@ export class MailService {
     message?: string;
     adminMessage?: string;
   }): Promise<void> {
+    const replyMessage =
+      data.adminMessage ||
+      'Hemos revisado tu mensaje y te responderemos pronto.';
+
+    await this.sendSupportReplyEmail({
+      email: data.email,
+      originalMessage: data.message,
+      type: data.type,
+      replyMessage,
+    });
+  }
+
+  async sendSupportReplyEmail(data: {
+    email: string;
+    originalMessage?: string;
+    type?: string;
+    replyMessage: string;
+  }): Promise<void> {
     const originalBlock =
-      data.type || data.message
-        ? `<div style="margin:20px 0;padding:16px 18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px"><div style="font-size:12px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em">Feedback original</div>${data.type ? `<div style="margin-top:8px"><strong>Tipo:</strong> ${this.escapeHtml(data.type)}</div>` : ''}${data.message ? `<div style="margin-top:8px"><strong>Mensaje:</strong><br>${this.escapeHtml(data.message).replace(/\n/g, '<br>')}</div>` : ''}</div>`
+      data.type || data.originalMessage
+        ? `<div style="margin:20px 0;padding:16px 18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px"><div style="font-size:12px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em">Mensaje original</div>${data.type ? `<div style="margin-top:8px"><strong>Tipo:</strong> ${this.escapeHtml(data.type)}</div>` : ''}${data.originalMessage ? `<div style="margin-top:8px"><strong>Mensaje:</strong><br>${this.escapeHtml(data.originalMessage).replace(/\n/g, '<br>')}</div>` : ''}</div>`
         : '';
 
-    const adminBlock = data.adminMessage
-      ? `<div style="margin:20px 0;padding:16px 18px;background:#ecfdf5;border:1px solid #a7f3d0;border-left:4px solid #10b981;border-radius:16px"><div style="font-size:12px;text-transform:uppercase;color:#047857;font-weight:700;letter-spacing:.08em">Mensaje adicional</div><div style="margin-top:8px;white-space:pre-line">${this.escapeHtml(data.adminMessage)}</div></div>`
-      : '';
-
     const html = this.wrapHtml(
-      'Tu feedback fue revisado',
-      `<p>Hola,</p><p>Gracias por compartir tu comentario con NutriNet. Lo hemos revisado y lo tendremos en cuenta para seguir mejorando la plataforma.</p><p>Valoramos mucho este tipo de observaciones porque nos ayudan a pulir la experiencia de uso.</p>${originalBlock}${adminBlock}<p style="color:#64748b;font-size:14px">Saludos,<br><strong>Equipo de soporte de NutriNet</strong></p>`,
+      'Tienes una respuesta de NutriNet',
+      `<p>Hola,</p><p>Gracias por escribirnos. Ya revisamos tu mensaje y aquí va nuestra respuesta.</p>${originalBlock}<div style="margin:20px 0;padding:16px 18px;background:#ecfdf5;border:1px solid #a7f3d0;border-left:4px solid #10b981;border-radius:16px"><div style="font-size:12px;text-transform:uppercase;color:#047857;font-weight:700;letter-spacing:.08em">Respuesta</div><div style="margin-top:8px;white-space:pre-line">${this.escapeHtml(data.replyMessage)}</div></div><p style="color:#64748b;font-size:14px">Saludos,<br><strong>Equipo de NutriNet</strong></p>`,
     );
 
     const text = [
-      'Tu feedback fue revisado en NutriNet.',
-      'Gracias por compartir tu comentario. Lo hemos tenido en cuenta para seguir mejorando la plataforma.',
+      'Hemos respondido tu mensaje en NutriNet.',
       data.type ? `Tipo original: ${data.type}` : null,
-      data.message ? `Mensaje original: ${data.message}` : null,
-      data.adminMessage ? `Mensaje adicional: ${data.adminMessage}` : null,
-      'Saludos, Equipo de soporte de NutriNet',
+      data.originalMessage ? `Mensaje original: ${data.originalMessage}` : null,
+      `Respuesta: ${data.replyMessage}`,
+      'Saludos, Equipo de NutriNet',
     ]
       .filter(Boolean)
       .join('\n\n');
 
     await this.sendEmail({
       to: data.email,
-      subject: 'Gracias por tu feedback en NutriNet',
+      subject: 'Hemos respondido tu mensaje en NutriNet',
       html,
       text,
       channel: 'support',
@@ -394,19 +405,18 @@ export class MailService {
   async sendPasswordResetEmail(
     email: string,
     fullName: string,
-    password: string,
+    loginUrl: string,
   ) {
-    const loginUrl = `${this.frontendUrl}/login`;
     const html = this.wrapHtml(
-      'Tu contraseña fue restablecida',
-      `<p>Hola <strong>${this.escapeHtml(fullName)}</strong>,</p><p>Restablecimos tu contraseña temporalmente.</p><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:16px 18px;margin:20px 0"><div style="font-size:12px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em">Contraseña temporal</div><div style="font-family:monospace;font-size:18px;font-weight:700">${this.escapeHtml(password)}</div></div><p><a href="${loginUrl}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 18px;border-radius:999px;font-weight:700">Ingresar</a></p><p style="color:#64748b;font-size:14px">Cámbiala apenas entres al sistema.</p>`,
+      'Tu acceso fue reenviado',
+      `<p>Hola <strong>${this.escapeHtml(fullName)}</strong>,</p><p>Tu acceso a NutriNet ya está habilitado para iniciar sesión con Google.</p><p><a href="${loginUrl}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 18px;border-radius:999px;font-weight:700">Iniciar con Google</a></p><p style="color:#64748b;font-size:14px">No necesitas contraseña para entrar.</p>`,
     );
 
     await this.sendEmail({
       to: email,
-      subject: 'Restablecimiento de contraseña en NutriNet',
+      subject: 'Tu acceso a NutriNet',
       html,
-      text: `Tu contraseña temporal es: ${password}. Inicia sesión en ${loginUrl}`,
+      text: `Tu acceso a NutriNet ya está habilitado. Inicia sesión con Google en ${loginUrl}`,
       channel: 'noReply',
     });
   }

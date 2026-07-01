@@ -4,12 +4,12 @@ import { useState, KeyboardEvent, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { X, Globe, User as UserIcon, Trash2 } from "lucide-react";
 import { Input } from "./Input";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { fetchApi } from "@/lib/api-base";
 import { useTheme } from "@/context/ThemeContext";
+import { getAuthToken } from "@/lib/auth-token";
 interface TagInputProps {
   value: string[];
   onChange: (tags: string[]) => void;
@@ -43,7 +43,7 @@ export function TagInput({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<string | null>(null);
 
-  const token = typeof window !== "undefined" ? (Cookies.get("auth_token") || localStorage.getItem("auth_token")) : "";
+  const token = typeof window !== "undefined" ? getAuthToken() : "";
 
   useEffect(() => {
     let isMounted = true;

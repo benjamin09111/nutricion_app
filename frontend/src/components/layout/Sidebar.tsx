@@ -69,7 +69,7 @@ const groups: SidebarGroup[] = [
       { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
       { name: "Entregable Personalizado", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
       { name: "Alimentos", isSubHeader: true },
-      { name: "Composición de alimentos", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
+      { name: "Tabla de composición", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
       { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos", hidden: true },
       { name: "Grupos", href: "/dashboard/alimentos/grupos", icon: FolderPlus },
     ],
@@ -118,9 +118,7 @@ export function Sidebar() {
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    "Nutrición y Dietética": true,
-  });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const toggleGroup = (title: string) => {
     if (isSidebarCollapsed) return;
@@ -152,7 +150,7 @@ export function Sidebar() {
     <div
       className={cn(
         "sidebar-scroll dashboard-sidebar-bg flex h-full grow flex-col gap-y-4 overflow-y-auto border-r pb-4 transition-all duration-300",
-        isSidebarCollapsed ? "px-2" : "px-4",
+        isSidebarCollapsed ? "px-2" : "px-3",
       )}
       style={{ scrollbarWidth: "thin" }}
     >
@@ -197,7 +195,7 @@ export function Sidebar() {
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-2">
           {visibleGroups.map((group) => {
-            const isOpen = openGroups[group.title] !== false;
+            const isOpen = openGroups[group.title] === true;
             const showItems = isSidebarCollapsed || isOpen;
 
             return (

@@ -21,8 +21,14 @@ import { IntegrationsModule } from '../integrations/integrations.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
+      useFactory: (configService: ConfigService) => ({
+        secret: (() => {
+          const secret = configService.get<string>('JWT_SECRET');
+          if (!secret) {
+            throw new Error('JWT_SECRET is required');
+          }
+          return secret;
+        })(),
         signOptions: { expiresIn: '7d' },
       }),
     }),

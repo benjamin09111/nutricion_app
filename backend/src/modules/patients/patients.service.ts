@@ -36,8 +36,7 @@ export class PatientsService {
     nutritionistId: string,
     createPatientDto: CreatePatientDto,
   ) {
-    const { recalculateNutrition, age, ...patientData } =
-      createPatientDto as any;
+    const { recalculateNutrition, ...patientData } = createPatientDto as any;
     const activePatients = await this.prisma.patient.count({
       where: { nutritionistId, status: 'Active' },
     });
@@ -84,7 +83,11 @@ export class PatientsService {
     startDate?: string,
     endDate?: string,
   ) {
-    const skip = (page - 1) * limit;
+    const safePage = Number.isFinite(page) ? Math.max(1, page) : 1;
+    const safeLimit = Number.isFinite(limit)
+      ? Math.min(Math.max(1, limit), 100)
+      : 20;
+    const skip = (safePage - 1) * safeLimit;
 
     if (!nutritionistId) {
       return {
@@ -94,7 +97,7 @@ export class PatientsService {
           filteredTotal: 0,
           activeCount: 0,
           inactiveCount: 0,
-          page,
+          page: safePage,
           lastPage: 0,
         },
       };
@@ -155,7 +158,7 @@ export class PatientsService {
       this.prisma.patient.findMany({
         where,
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { updatedAt: 'desc' },
       }),
     ]);
@@ -177,8 +180,8 @@ export class PatientsService {
         filteredTotal,
         activeCount,
         inactiveCount,
-        page,
-        lastPage: Math.ceil(filteredTotal / limit),
+        page: safePage,
+        lastPage: Math.ceil(filteredTotal / safeLimit),
       },
     };
   }
@@ -251,8 +254,7 @@ export class PatientsService {
     await this.assertOwnership(nutritionistId, id);
 
     const current = await this.prisma.patient.findUnique({ where: { id } });
-    const { recalculateNutrition, age, ...patientData } =
-      updatePatientDto as any;
+    const { recalculateNutrition, ...patientData } = updatePatientDto as any;
     const mergedForCalculation = { ...(current || {}), ...patientData };
     const customVariables = this.withAutomaticNutritionCalculations(
       patientData.customVariables ?? current?.customVariables,
@@ -310,14 +312,12 @@ export class PatientsService {
     // Lightweight ownership check
     await this.assertOwnership(nutritionistId, id);
 
-    const [, deleted] = await this.prisma.$transaction([
-      this.prisma.consultation.deleteMany({
-        where: { patientId: id, nutritionistId },
-      }),
-      this.prisma.patient.delete({
-        where: { id },
-      }),
-    ]);
+    const deleted = await this.prisma.patient.update({
+      where: { id },
+      data: {
+        status: 'Inactive',
+      },
+    });
 
     await this.cacheService.invalidateNutritionistPrefix(
       nutritionistId,
@@ -504,7 +504,7 @@ export class PatientsService {
 
   private classifyBmi(bmi: number) {
     if (bmi < 18.5) return 'Bajo peso';
-    if (bmi < 25) return 'Normal';
+    if (bmi < 25) return 'Normopeso';
     if (bmi < 30) return 'Sobrepeso';
     if (bmi < 35) return 'Obesidad I';
     if (bmi < 40) return 'Obesidad II';
@@ -516,6 +516,8 @@ export class PatientsService {
     return {
       min: this.round(18.5 * heightM * heightM, 1),
       max: this.round(24.9 * heightM * heightM, 1),
+      reference: 'Normopeso (IMC 18.5-24.9)',
+      note: 'Rango adulto de referencia.',
     };
   }
 
@@ -716,9 +718,14 @@ export class PatientsService {
   }
 
   private resolveProteinGramsPerKg(
-    category: { id: string; label: string; strategy: string },
+    category: {
+      id: string;
+      label: string;
+      strategy: string;
+    },
     weightKg: number,
   ) {
+    void weightKg;
     const map: Record<string, number> = {
       clinical_review_required: 1.0,
       metabolic_care: 1.2,
@@ -747,7 +754,6 @@ export class PatientsService {
     category: { id: string; label: string; strategy: string };
     proteinGramsPerKg: number;
   }) {
-    const proteinGrams = Math.round(input.proteinGramsPerKg * 70); // fallback, adjusted below
     const adjustedCalories = this.resolveTargetCalories(
       input.get,
       input.category,

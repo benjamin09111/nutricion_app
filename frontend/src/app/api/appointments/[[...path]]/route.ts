@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const getAppointmentsBaseUrl = () =>
-  (process.env.APPOINTMENTS_API_BASE_URL || "").replace(/\/$/, "");
+const getBackendBaseUrl = () =>
+  (process.env.BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
 
 const getTenantId = () =>
   process.env.TENANT_ID || process.env.NEXT_PUBLIC_TENANT_ID || "";
@@ -21,8 +21,7 @@ const resolveParams = async (context: ProxyContext) => {
 };
 
 const buildTargetUrl = (request: NextRequest, pathSegments?: string[]) => {
-  const baseUrl = getAppointmentsBaseUrl();
-  if (!baseUrl) return null;
+  const baseUrl = getBackendBaseUrl();
 
   const incomingUrl = new URL(request.url);
   const target = new URL(baseUrl);
@@ -37,13 +36,6 @@ const buildTargetUrl = (request: NextRequest, pathSegments?: string[]) => {
 async function proxyRequest(request: NextRequest, context: ProxyContext) {
   const params = await resolveParams(context);
   const target = buildTargetUrl(request, params.path);
-
-  if (!target) {
-    return NextResponse.json(
-      { message: "APPOINTMENTS_API_BASE_URL no está configurada." },
-      { status: 500 },
-    );
-  }
 
   const headers = new Headers(request.headers);
   const tenantId = getTenantId();

@@ -1,13 +1,8 @@
-"use client";
-
-import { useState } from "react";
 import Image from "next/image";
+import { Suspense } from "react";
 import LoginForm from "@/components/auth/LoginForm";
-import RegisterForm from "@/components/auth/RegisterForm";
 
 export default function LoginPage() {
-  const [view, setView] = useState<"login" | "register">("login");
-
   return (
     <main className="min-h-screen w-full bg-gradient-to-b from-slate-50 via-white to-emerald-50/30 lg:flex">
       <section className="relative flex items-center justify-center overflow-hidden bg-linear-to-br from-indigo-900 via-slate-950 to-emerald-900 px-6 py-8 text-white lg:w-1/2 lg:items-start lg:px-0 lg:py-0">
@@ -31,11 +26,11 @@ export default function LoginPage() {
             Acceso profesional
           </div>
           <h1 className="mb-4 mt-4 text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
-            Gestión Profesional para Nutricionistas
+            Gestión profesional con Google
           </h1>
           <p className="max-w-lg text-base leading-relaxed text-slate-200/90 sm:text-lg lg:text-xl">
-            Automatiza tu flujo de trabajo, gestiona pacientes y crea planes
-            personalizados con precisión clínica.
+            Accede con tu cuenta de Google, conecta Calendar y mantén tu flujo
+            profesional en un solo lugar.
           </p>
         </div>
       </section>
@@ -47,54 +42,29 @@ export default function LoginPage() {
               NutriNet
             </p>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
-              Ingresa a tu cuenta
+              Inicia sesión con Google
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Acceso rápido, seguro y pensado para jornadas largas de trabajo.
+              Sin contraseña, sin fricción y con tu correo profesional verificado.
             </p>
           </div>
 
-          {view === "login" ? (
-            <div className="animate-in fade-in slide-in-from-left-4 duration-300">
-              <div className="hidden lg:block">
-                <h2 className="text-3xl font-bold leading-tight tracking-tight text-slate-900">
-                Ingresa a tu cuenta
-                </h2>
-                <p className="mt-3 text-base leading-6 text-slate-500">
-                  Bienvenido de vuelta. Por favor ingresa tus credenciales.
-                </p>
-              </div>
-
-              <div className="mt-6 lg:mt-10">
-                <LoginForm />
-              </div>
-
-              <div className="relative mt-8 lg:mt-10">
-                <div
-                  className="absolute inset-0 flex items-center"
-                  aria-hidden="true"
-                >
-                  <div className="w-full border-t border-slate-200" />
-                </div>
-                <div className="relative flex justify-center text-sm font-medium leading-6 sm:text-base">
-                  <span className="bg-white px-4 text-slate-500 sm:px-6">
-                    ¿No tienes cuenta?
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <button
-                  onClick={() => setView("register")}
-                  className="flex w-full justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold leading-6 text-emerald-700 shadow-sm transition-all hover:border-emerald-300 hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 cursor-pointer sm:text-base"
-                >
-                  Solicitar Registro Profesional
-                </button>
-              </div>
+          <div className="animate-in fade-in slide-in-from-left-4 duration-300">
+            <div className="hidden lg:block">
+              <h2 className="text-3xl font-bold leading-tight tracking-tight text-slate-900">
+                Inicia sesión con Google
+              </h2>
+              <p className="mt-3 text-base leading-6 text-slate-500">
+                Tu correo de Google será tu acceso único a NutriNet.
+              </p>
             </div>
-          ) : (
-            <RegisterForm onBack={() => setView("login")} />
-          )}
+
+            <div className="mt-6 lg:mt-10">
+              <Suspense fallback={null}>
+                <LoginForm />
+              </Suspense>
+            </div>
+          </div>
         </div>
       </section>
     </main>
