@@ -47,6 +47,7 @@ export class FlowService {
     planId: string,
     payerEmail?: string,
     discountCode?: string,
+    returnPath?: string,
   ) {
     let discount: { code: string; percent: number; type: string } | undefined;
 
@@ -66,7 +67,7 @@ export class FlowService {
       discount,
     );
     const metadata = (pendingPayment.metadata as any) || {};
-    const commerceOrder = `membership_${pendingPayment.id}`;
+    const commerceOrder = `mem_${pendingPayment.id}`;
 
     const response = await this.createPayment({
       commerceOrder,
@@ -75,9 +76,9 @@ export class FlowService {
       currency: pendingPayment.currency,
       email: payerEmail || 'pagos@nutrinet.cl',
       urlConfirmation: this.getConfirmationUrl(),
-      urlReturn: `${this.getFrontendUrl()}/dashboard/bienvenida?payment=pending&plan=${encodeURIComponent(
-        metadata.planName || 'Plan',
-      )}&slug=${encodeURIComponent(metadata.planSlug || '')}`,
+      urlReturn: this.getReturnUrl(
+        returnPath || `/dashboard/bienvenida?plan=${encodeURIComponent(metadata.planName || 'Plan')}&slug=${encodeURIComponent(metadata.planSlug || '')}`
+      ),
       optional: JSON.stringify({
         paymentId: pendingPayment.id,
         accountId,
@@ -315,5 +316,11 @@ export class FlowService {
       return `${apiUrl.replace(/\/$/, '')}/payments/flow/confirmation`;
 
     return 'http://localhost:3001/payments/flow/confirmation';
+  }
+
+  private getReturnUrl(path: string) {
+    const apiUrl = this.configService.get<string>('API_URL');
+    const base = apiUrl ? apiUrl.replace(/\/$/, '') : 'http://localhost:3001';
+    return `${base}/payments/flow/return?path=${encodeURIComponent(path)}`;
   }
 }

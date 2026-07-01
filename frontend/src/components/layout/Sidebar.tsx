@@ -118,9 +118,7 @@ export function Sidebar() {
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    "Nutrición y Dietética": true,
-  });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const toggleGroup = (title: string) => {
     if (isSidebarCollapsed) return;
@@ -158,8 +156,8 @@ export function Sidebar() {
     >
       <div
         className={cn(
-          "flex h-16 shrink-0 items-center justify-between",
-          isSidebarCollapsed ? "flex-col gap-1 pt-2 pb-1 h-20" : "pl-2",
+          "flex h-16 shrink-0 items-center justify-between sticky top-0 z-10 dashboard-sidebar-bg",
+          isSidebarCollapsed ? "flex-col gap-1 pt-2 pb-1 h-20 -mx-2 px-2" : "-mx-4 px-4 pl-6",
         )}
       >
         <Link
@@ -197,8 +195,8 @@ export function Sidebar() {
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-2">
           {visibleGroups.map((group) => {
-            const isOpen = openGroups[group.title] !== false;
-            const showItems = isSidebarCollapsed || isOpen;
+            const isOpen = openGroups[group.title] === true;
+            const showItems = isOpen;
 
             return (
               <li key={group.title}>

@@ -191,8 +191,8 @@ export function AdminSidebar() {
     >
       <div
         className={cn(
-          "flex h-16 shrink-0 items-center",
-          isSidebarCollapsed ? "justify-center" : "pl-2",
+          "flex h-16 shrink-0 items-center sticky top-0 z-10 dashboard-sidebar-bg",
+          isSidebarCollapsed ? "justify-center -mx-2 px-2" : "-mx-4 px-4 pl-6",
         )}
       >
         <div className="flex items-center space-x-2">

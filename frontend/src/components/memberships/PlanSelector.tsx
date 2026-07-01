@@ -69,9 +69,10 @@ export function PlanSelector() {
     setSubmittingId(plan.id);
     try {
       if (mode === "real") {
+        const returnPath = window.location.pathname;
         const result = discountResult?.code
-          ? await membershipService.createFlowDiscountCheckout(plan.id, discountResult.code)
-          : await membershipService.createFlowCheckout(plan.id);
+          ? await membershipService.createFlowDiscountCheckout(plan.id, discountResult.code, returnPath)
+          : await membershipService.createFlowCheckout(plan.id, returnPath);
         if (result.paymentUrl) {
           window.location.href = result.paymentUrl;
           return;
@@ -133,7 +134,7 @@ export function PlanSelector() {
 
   const freePlan = plans.find((p) => Number(p.price) === 0);
   const paidPlans = plans.filter((p) => Number(p.price) > 0);
-  const allPlans = [...paidPlans, ...(freePlan ? [freePlan] : [])];
+  const allPlans = [...(freePlan ? [freePlan] : []), ...paidPlans];
 
   return (
     <div className="min-h-screen bg-white">
@@ -208,7 +209,7 @@ export function PlanSelector() {
 
         {/* All Plans Grid */}
         {allPlans.length > 0 && (
-          <div className="grid gap-6 mb-10 lg:grid-cols-3 max-w-5xl mx-auto">
+          <div className={cn("grid gap-6 mb-10 mx-auto", allPlans.length === 2 ? "lg:grid-cols-2 max-w-4xl" : "lg:grid-cols-3 max-w-5xl")}>
             {allPlans.map((plan) => {
               const isFree = Number(plan.price) === 0;
               const isPopular = plan.isPopular;
