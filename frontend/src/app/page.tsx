@@ -364,6 +364,15 @@ export default function LandingPage() {
                 {content.pricing.titleLine2} 🌱
               </span>
             </div>
+
+            {/* Launch Offer Banner */}
+            <div className="flex justify-center mb-10">
+              <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-3 text-sm font-bold text-white shadow-xl">
+                <Sparkles className="h-4 w-4" />
+                OFERTA DE LANZAMIENTO: $19.990/mes para las primeras 20 personas (Precio regular $25.000)
+              </div>
+            </div>
+
             <div
               className={cn(
                 "grid gap-6 xl:gap-8",
@@ -407,11 +416,18 @@ export default function LandingPage() {
                         >
                           {plan.name}
                         </h3>
-                        <div className="flex items-baseline justify-center gap-1">
-                          <span className="text-5xl font-black tracking-tight text-slate-900">
-                            ${Number(plan.price).toLocaleString("es-CL")}
-                          </span>
-                          <span className="text-slate-500 text-sm">/mes</span>
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          {plan.slug === "pro" && (
+                            <span className="text-sm font-semibold text-slate-400 line-through">
+                              $25.000 / mes
+                            </span>
+                          )}
+                          <div className="flex items-baseline justify-center gap-1">
+                            <span className="text-5xl font-black tracking-tight text-slate-900">
+                              ${Number(plan.price).toLocaleString("es-CL")}
+                            </span>
+                            <span className="text-slate-500 text-sm">/mes</span>
+                          </div>
                         </div>
                         {plan.description && (
                           <p className="mt-3 text-sm text-slate-500">

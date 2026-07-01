@@ -12,6 +12,7 @@ import {
   type AnnouncementSenderEmail,
   type EmailChannel,
 } from './email-identities';
+import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 
 type SupportEmailRequestData = {
   fullName?: string;
@@ -31,10 +32,10 @@ export class MailService {
     DEFAULT_REPLY_TO ||
     process.env.ADMIN_EMAIL?.trim() ||
     'contacto@nutrinet.cl';
-  private readonly frontendUrl = (this.isProduction
-    ? process.env.FRONTEND_URL || 'https://nutrinet.cl'
-    : 'http://localhost:3000'
-  ).replace(/\/$/, '');
+  private readonly frontendUrl = resolveRequiredUrl(
+    process.env.FRONTEND_URL,
+    process.env.NEXT_PUBLIC_FRONTEND_URL,
+  );
   private readonly adminEmail =
     process.env.ADMIN_EMAIL?.trim() || this.replyTo || 'contacto@nutrinet.cl';
 

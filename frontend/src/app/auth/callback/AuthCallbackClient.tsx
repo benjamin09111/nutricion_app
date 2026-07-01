@@ -74,7 +74,15 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
         }
         setCurrentUser(data.user);
 
-        router.replace(data.user?.requiresPlanSelection ? "/plan" : next);
+        const postRutNext = data.user?.requiresPlanSelection ? "/plan" : next;
+        if (!data.user?.rut) {
+          router.replace(
+            `/onboarding/rut?next=${encodeURIComponent(postRutNext)}`,
+          );
+          return;
+        }
+
+        router.replace(postRutNext);
       } catch (error) {
         console.error("Auth callback error:", error);
         setMessage("No pudimos completar el inicio de sesión con Google.");

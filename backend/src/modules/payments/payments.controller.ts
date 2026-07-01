@@ -7,7 +7,9 @@ import {
   Query,
   Request,
   UnauthorizedException,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { PaymentsService } from './payments.service';
 import { FlowService } from './flow.service';
 import { DiscountCodesService } from '../discount-codes/discount-codes.service';
@@ -47,6 +49,22 @@ export class PaymentsController {
       );
     }
     return this.paymentsService.getRevenueStats();
+  }
+
+  @Get('export-accounting')
+  async exportAccounting(@Request() req: any, @Res() res: Response) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException('Solo administradores pueden exportar pagos');
+    }
+
+    const report = await this.paymentsService.exportAccountingWorkbook();
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
+    return res.send(report.buffer);
   }
 
   // ─── Membership Status ─────────────────────────────────────────────
@@ -177,6 +195,35 @@ export class PaymentsController {
     }
 
     return this.paymentsService.devSwitchPlan(accountId, body.planId);
+  }
+
+  // ─── Manual Bank Transfer Payment ─────────────────────────────────
+
+  @Post('manual')
+  async createManualPayment(
+    @Body()
+    body: {
+      planId: string;
+      nutritionistEmail?: string;
+      nutritionistName?: string;
+    },
+    @Request() req: any,
+  ) {
+    const accountId = req.user?.id;
+    if (!accountId) {
+      throw new UnauthorizedException('Usuario no identificado');
+    }
+    return this.paymentsService.createManualTransferPayment(
+      accountId,
+      body.planId,
+      body.nutritionistEmail,
+      body.nutritionistName,
+    );
+  }
+
+  @Get('bank-data')
+  getBankData() {
+    return this.paymentsService.getBankTransferData();
   }
 
   // ─── Simulate Payment (Admin Only) ─────────────────────────────────

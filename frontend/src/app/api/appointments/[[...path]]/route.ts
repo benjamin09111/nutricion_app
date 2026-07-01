@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveRequiredUrl } from "@/lib/runtime-url.util";
 
 const getBackendBaseUrl = () =>
-  (process.env.BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
+  resolveRequiredUrl(
+    process.env.BACKEND_URL,
+    process.env.NEXT_PUBLIC_API_URL,
+    process.env.NEXT_PUBLIC_BACKEND_URL,
+  );
 
 const getTenantId = () =>
   process.env.TENANT_ID || process.env.NEXT_PUBLIC_TENANT_ID || "";

@@ -178,28 +178,36 @@ export default function AdminPaymentsPage() {
     }
   };
 
-  const exportCSV = () => {
-    const rows = filteredTransactions.map((trx) => ({
-      ID: trx.id,
-      Nutricionista: trx.account.nutritionist?.fullName || "N/A",
-      Email: trx.account.email,
-      Plan: trx.metadata?.planName || trx.account.subscription?.plan?.name || "N/A",
-      Metodo: trx.method,
-      Monto: Number(trx.amount),
-      Estado: trx.status,
-      Mock: trx.metadata?.mock || trx.metadata?.isSimulation ? "Si" : "No",
-      Fecha: new Date(trx.createdAt).toLocaleDateString("es-CL"),
-    }));
-    const header = Object.keys(rows[0] || {}).join(",");
-    const csv = [header, ...rows.map((r) => Object.values(r).join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `pagos_${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Reporte descargado");
+  const exportAccounting = async () => {
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi("/payments/export-accounting", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo generar el reporte");
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition") || "";
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      const filename =
+        filenameMatch?.[1] ||
+        `nutrinet_contabilidad_${new Date().toISOString().split("T")[0]}.xlsx`;
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Reporte contable descargado");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al exportar contabilidad");
+    }
   };
 
   const statusBadge = (status: string) => {
@@ -258,12 +266,9 @@ export default function AdminPaymentsPage() {
             <DollarSign className="h-4 w-4" />
             Simular Pago
           </Button>
-          <Button
-            onClick={exportCSV}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-          >
+          <Button onClick={exportAccounting} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
             <Download className="h-4 w-4" />
-            Exportar CSV
+            Exportar Excel
           </Button>
         </div>
       </div>

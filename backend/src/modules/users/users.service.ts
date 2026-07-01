@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 const normalizeCalendarTimeZone = (timeZone?: string | null) =>
   !timeZone || timeZone === 'UTC' ? 'America/Santiago' : timeZone;
 import { AccountStatus, SubscriptionPlan, UserRole } from '@prisma/client';
@@ -230,6 +231,7 @@ export class UsersService {
       id: acc.id,
       email: acc.email,
       role: acc.role,
+      rut: acc.rut || null,
       status: acc.status,
       plan: acc.plan,
       subscriptionEndsAt: acc.subscriptionEndsAt,
@@ -431,9 +433,10 @@ export class UsersService {
       },
     });
 
-    const frontendUrl = (
-      process.env.FRONTEND_URL || 'https://nutrinet.cl'
-    ).replace(/\/$/, '');
+    const frontendUrl = resolveRequiredUrl(
+      process.env.FRONTEND_URL,
+      process.env.NEXT_PUBLIC_FRONTEND_URL,
+    );
     const publicUrl = `${frontendUrl}/nutricionistas/${nutritionist.publicSlug || this.generateSlug(nutritionist.fullName, accountId)}`;
 
     this.mailService

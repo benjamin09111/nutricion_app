@@ -12,6 +12,7 @@ model Account {
   id              String  @id @default(uuid())
   email           String  @unique
   password        String?
+  rut             String? @unique @map("rut")
   googleSub       String? @unique @map("google_sub")
   googleEmail     String? @map("google_email")
   googleAvatarUrl String? @map("google_avatar_url")

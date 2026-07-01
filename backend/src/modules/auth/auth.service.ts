@@ -13,7 +13,9 @@ import { LoginDto } from './dto/login.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { MailService } from '../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
+import { normalizeRut, isValidRut } from '../../common/utils/rut';
 import { PermissionsService } from '../permissions/permissions.service';
+import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 
 import {
   Prisma,
@@ -65,10 +67,10 @@ const buildPublicSlug = (fullName: string, id: string) => {
 const buildVerificationToken = () => crypto.randomBytes(32).toString('hex');
 
 const getFrontendUrl = () =>
-  (process.env.NODE_ENV === 'production'
-    ? process.env.FRONTEND_URL || 'https://nutrinet.cl'
-    : 'http://localhost:3000'
-  ).replace(/\/$/, '');
+  resolveRequiredUrl(
+    process.env.FRONTEND_URL,
+    process.env.NEXT_PUBLIC_FRONTEND_URL,
+  );
 
 @Injectable()
 export class AuthService {
@@ -114,6 +116,7 @@ export class AuthService {
     id: string;
     email: string;
     role: UserRole;
+    rut?: string | null;
     plan: SubscriptionPlan;
     createdAt: Date;
     googleAvatarUrl?: string | null;
@@ -171,6 +174,7 @@ export class AuthService {
         id: account.id,
         email: account.email,
         role: account.role,
+        rut: account.rut || null,
         plan: effectivePlan,
         planName,
         createdAt: account.createdAt?.toISOString() ?? null,
@@ -591,6 +595,7 @@ export class AuthService {
           id: account.id,
           email: account.email,
           role: account.role,
+          rut: account.rut || null,
           plan: effectivePlan,
           planName,
           requiresPlanSelection: accessSnapshot?.requiresPlanSelection ?? true,
@@ -642,6 +647,7 @@ export class AuthService {
             password: null,
             role: existingByGoogle.role,
             plan: resolvePlanForRole(existingByGoogle.role),
+            rut: existingByGoogle.rut,
             googleEmail: normalizedEmail,
             googleAvatarUrl:
               profile.picture || existingByGoogle.googleAvatarUrl,
@@ -671,6 +677,7 @@ export class AuthService {
             password: null,
             role: existingByEmail.role,
             plan: resolvePlanForRole(existingByEmail.role),
+            rut: existingByEmail.rut,
             googleSub: profile.sub,
             googleEmail: normalizedEmail,
             googleAvatarUrl: profile.picture || existingByEmail.googleAvatarUrl,
@@ -722,6 +729,7 @@ export class AuthService {
         data: {
           email: normalizedEmail,
           password: null,
+          rut: null,
           googleSub: profile.sub,
           googleEmail: normalizedEmail,
           googleAvatarUrl: profile.picture || null,
@@ -793,6 +801,71 @@ export class AuthService {
     }
 
     return this.buildSessionPayload(account as any);
+  }
+
+  async completeRut(userId: string, rut: string) {
+    const normalizedRut = normalizeRut(rut);
+
+    if (!isValidRut(normalizedRut)) {
+      throw new BadRequestException('El RUT ingresado no es válido');
+    }
+
+    const account = await this.prisma.account.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        rut: true,
+        email: true,
+        role: true,
+        plan: true,
+        createdAt: true,
+        googleAvatarUrl: true,
+        nutritionist: {
+          select: { id: true, fullName: true },
+        },
+        subscription: {
+          include: {
+            plan: true,
+          },
+        },
+      },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    if (account.rut) {
+      throw new ConflictException(
+        'El RUT ya fue registrado y no puede editarse',
+      );
+    }
+
+    const rutOwner = await this.prisma.account.findUnique({
+      where: { rut: normalizedRut },
+      select: { id: true },
+    });
+
+    if (rutOwner && rutOwner.id !== userId) {
+      throw new ConflictException(
+        'Este RUT ya está asociado a otra cuenta. Contacta soporte si crees que es un error.',
+      );
+    }
+
+    await this.prisma.account.update({
+      where: { id: userId },
+      data: { rut: normalizedRut },
+    });
+
+    const refreshedAccount = await this.prisma.account.findUniqueOrThrow({
+      where: { id: userId },
+      include: {
+        nutritionist: true,
+        subscription: { include: { plan: true } },
+      },
+    });
+
+    return this.buildSessionPayload(refreshedAccount as any);
   }
 
   async validateUser(payload: any) {
