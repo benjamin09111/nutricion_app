@@ -298,22 +298,6 @@ export function Sidebar() {
           })}
         </ul>
       </nav>
-
-      <style jsx>{`
-        .sidebar-scroll::-webkit-scrollbar {
-          width: 6px;
-        }
-        .sidebar-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .sidebar-scroll::-webkit-scrollbar-thumb {
-          background: rgba(148, 163, 184, 0.35);
-          border-radius: 999px;
-        }
-        .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-          background: rgba(100, 116, 139, 0.45);
-        }
-      `}</style>
     </div>
   );
 }

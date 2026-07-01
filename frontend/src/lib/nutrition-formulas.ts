@@ -382,13 +382,13 @@ export function getIdealWeightRange(
     };
   }
 
-  const targetBmi = resolvedGender === "Masculino" ? 22.5 : 21.5;
-  const ideal = targetBmi * heightMeters * heightMeters;
+  const bmiMin = 18.5;
+  const bmiMax = 25;
   return {
-    min: Math.round(ideal * 0.97 * 10) / 10,
-    max: Math.round(ideal * 1.03 * 10) / 10,
-    reference: resolvedGender === "Masculino" ? "IMC 22.5" : "IMC 21.5",
-    note: "Rango estimado para adulto.",
+    min: Math.round(bmiMin * heightMeters * heightMeters * 10) / 10,
+    max: Math.round(bmiMax * heightMeters * heightMeters * 10) / 10,
+    reference: "IMC 18.5-25",
+    note: "Rango normopeso adulto.",
     supported: true,
   };
 }
