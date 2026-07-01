@@ -28,7 +28,6 @@ import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
-import { getCurrentUser } from "@/lib/current-user";
 
 import { DEFAULT_CONSTRAINTS, DEFAULT_METRICS } from "@/lib/constants";
 
@@ -115,9 +114,9 @@ export default function DetailsClient() {
   useEffect(() => {
     fetchTags();
     fetchMetrics();
-    const user = getCurrentUser();
-    if (user) {
-      setCurrentUser(user);
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setCurrentUser(JSON.parse(storedUser));
     }
   }, []);
 

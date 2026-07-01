@@ -8,7 +8,6 @@ import {
   UseGuards,
   Request,
   Delete,
-  UnauthorizedException,
 } from '@nestjs/common';
 import type { Request as ExpressRequest } from 'express';
 import { SupportService } from './support.service';
@@ -16,10 +15,7 @@ import { CreateSupportRequestDto } from './dto/create-support-request.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
-import {
-  SPECIAL_FEATURES,
-  isStaffRole,
-} from '../permissions/permissions.constants';
+import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 
 type JwtRequest = ExpressRequest & {
   user: {
@@ -72,11 +68,7 @@ export class SupportController {
   @UseGuards(AuthGuard, PermissionsGuard)
   @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   @Get()
-  findAll(@Request() req: JwtRequest) {
-    if (!isStaffRole((req as any).user?.role)) {
-      throw new UnauthorizedException('No tienes permisos para ver feedback');
-    }
-
+  findAll() {
     return this.supportService.findAll();
   }
 
@@ -87,44 +79,15 @@ export class SupportController {
   resolve(
     @Param('id') id: string,
     @Body() body: { adminMessage?: string } | undefined,
-    @Request() req: JwtRequest,
   ) {
-    if (!isStaffRole((req as any).user?.role)) {
-      throw new UnauthorizedException(
-        'No tienes permisos para resolver feedback',
-      );
-    }
-
     return this.supportService.resolve(id, body?.adminMessage);
-  }
-
-  // Admin Only: Reply to a support message
-  @UseGuards(AuthGuard, PermissionsGuard)
-  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
-  @Patch(':id/reply')
-  reply(
-    @Param('id') id: string,
-    @Body() body: { message: string },
-    @Request() req: JwtRequest,
-  ) {
-    if (!isStaffRole((req as any).user?.role)) {
-      throw new UnauthorizedException('No tienes permisos para responder');
-    }
-
-    return this.supportService.reply(id, body.message);
   }
 
   // Admin Only: Delete all resolved requests
   @UseGuards(AuthGuard, PermissionsGuard)
   @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   @Delete('resolved')
-  removeResolved(@Request() req: JwtRequest) {
-    if (!isStaffRole((req as any).user?.role)) {
-      throw new UnauthorizedException(
-        'No tienes permisos para limpiar feedback',
-      );
-    }
-
+  removeResolved() {
     return this.supportService.removeResolved();
   }
 
@@ -132,13 +95,7 @@ export class SupportController {
   @UseGuards(AuthGuard, PermissionsGuard)
   @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   @Delete(':id')
-  remove(@Param('id') id: string, @Request() req: JwtRequest) {
-    if (!isStaffRole((req as any).user?.role)) {
-      throw new UnauthorizedException(
-        'No tienes permisos para eliminar feedback',
-      );
-    }
-
+  remove(@Param('id') id: string) {
     return this.supportService.remove(id);
   }
 }

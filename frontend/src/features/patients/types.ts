@@ -16,7 +16,7 @@ export interface Patient {
     key: string;
     label: string;
     unit?: string;
-    value?: string | number | boolean | Record<string, unknown>;
+    value?: string | number | Record<string, unknown>;
   }[];
   exams?: PatientExam[];
   createdAt: string;
@@ -25,15 +25,13 @@ export interface Patient {
   nutritionalFocus?: string;
   fitnessGoals?: string;
   likes?: string;
-  activityLevel?: ActivityLevel;
+  activityLevel?: "sedentario" | "ligero" | "moderado" | "activo" | "muy_activo";
 
   // UI specific/Legacy fields
   status?: "Active" | "Inactive";
   lastVisit?: string;
   projects?: PatientProject[];
 }
-
-export type ActivityLevel = "sedentario" | "ligero" | "moderado" | "activo" | "muy_activo";
 
 export interface PatientProject {
   id: string;

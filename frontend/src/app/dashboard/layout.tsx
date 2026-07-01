@@ -11,6 +11,8 @@ import {
   DashboardShellProvider,
   useDashboardShell,
 } from "@/context/DashboardShellContext";
+import { TutorialProvider } from "@/context/TutorialContext";
+import { useTutorials } from "@/context/TutorialContext";
 import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
@@ -23,6 +25,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isSidebarCollapsed } = useDashboardShell();
   const { isDarkMode } = useTheme();
+  const { isIntroTutorialActive } = useTutorials();
   const pathname = usePathname();
   const isRecipesModule = pathname.startsWith("/dashboard/recetas");
   const isWelcomeRoute = pathname.startsWith("/dashboard/bienvenida");
@@ -33,6 +36,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
       </div>
     );
+  }
+
+  if (isIntroTutorialActive) {
+    return <div className="min-h-screen bg-white" />;
   }
 
   const dashboardShell = (
@@ -67,7 +74,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
       <div
         className={`hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300 ${
-          isSidebarCollapsed ? "lg:w-20" : "lg:w-60"
+          isSidebarCollapsed ? "lg:w-20" : "lg:w-72"
         }`}
       >
         {isAdminView ? <AdminSidebar /> : <Sidebar />}
@@ -75,23 +82,21 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
       <div
         className={`h-full min-h-screen flex flex-col transition-all duration-300 ${
-          isSidebarCollapsed ? "lg:pl-20" : "lg:pl-60"
+          isSidebarCollapsed ? "lg:pl-20" : "lg:pl-72"
         }`}
       >
         <Navbar onMenuClick={() => setSidebarOpen(true)} />
         <main
           className={cn(
-            isAdminView ? "flex-1 py-4 lg:py-4 xl:py-5" : "flex-1 py-6 lg:py-4 xl:py-8",
+            "flex-1 py-6 lg:py-10",
             isAdminView && !isDarkMode && "bg-indigo-50/10",
           )}
         >
           <div
             className={`mx-auto w-full ${
-              isAdminView
-                ? "max-w-[96rem] px-3 sm:px-4 lg:px-4 xl:px-6"
-                : isRecipesModule
-                ? "max-w-[120rem] px-3 sm:px-5 lg:px-4 xl:px-6"
-                : "max-w-7xl px-4 sm:px-4 lg:px-4 xl:px-8"
+              isRecipesModule
+                ? "max-w-[120rem] px-3 sm:px-5 lg:px-6"
+                : "max-w-7xl px-4 sm:px-6 lg:px-8"
             }`}
           >
             {children}
@@ -119,7 +124,9 @@ export default function DashboardLayout({
     <AdminProvider>
       <SubscriptionProvider>
         <DashboardShellProvider>
-          <DashboardContent>{children}</DashboardContent>
+          <TutorialProvider>
+            <DashboardContent>{children}</DashboardContent>
+          </TutorialProvider>
         </DashboardShellProvider>
       </SubscriptionProvider>
     </AdminProvider>

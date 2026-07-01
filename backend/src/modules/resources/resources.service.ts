@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+const pdf = require('pdf-parse');
 import * as fs from 'fs';
 import { join } from 'path';
 
@@ -39,7 +40,6 @@ export class ResourcesService {
   }
 
   async findAll(nutritionistId: string, isAdmin: boolean) {
-    void isAdmin;
     const resources = await this.prisma.resource.findMany({
       where: {
         OR: [
@@ -59,19 +59,9 @@ export class ResourcesService {
     );
   }
 
-  async findOne(id: string, nutritionistId: string, isAdmin: boolean) {
-    void isAdmin;
-    const ownershipFilters = [
-      { nutritionistId: null },
-      { isPublic: true },
-      ...(nutritionistId ? [{ nutritionistId }] : []),
-    ];
-
-    const resource = await this.prisma.resource.findFirst({
-      where: {
-        id,
-        OR: ownershipFilters,
-      },
+  async findOne(id: string) {
+    const resource = await this.prisma.resource.findUnique({
+      where: { id },
     });
     if (!resource) return null;
     return this.enrichWithVariables(resource);
@@ -197,9 +187,7 @@ export class ResourcesService {
       }
 
       const dataBuffer = fs.readFileSync(filePath);
-      const { PDFParse } = await import('pdf-parse');
-      const parser = new PDFParse({ data: dataBuffer });
-      const data = await parser.getText();
+      const data = await pdf(dataBuffer);
 
       // Clean text
       const cleanText = data.text
@@ -220,6 +208,8 @@ export class ResourcesService {
       return {
         text: cleanText,
         html: htmlContent,
+        pages: data.numpages,
+        info: data.info,
       };
     } catch (error) {
       console.error('Error in PDF extraction:', error);

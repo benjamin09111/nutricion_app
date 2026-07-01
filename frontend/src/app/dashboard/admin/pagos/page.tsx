@@ -506,7 +506,7 @@ export default function AdminPaymentsPage() {
               onChange={(e) => setPaymentMethod(e.target.value)}
             >
               <option value="BANK_TRANSFER">Transferencia Bancaria</option>
-              <option value="FLOW">Flow</option>
+              <option value="MERCADOPAGO">Mercado Pago</option>
               <option value="MANUAL">Manual</option>
               <option value="WEBPAY">Webpay</option>
             </select>

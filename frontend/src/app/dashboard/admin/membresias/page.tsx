@@ -40,12 +40,21 @@ const FEATURE_PREFIX_INCLUDED = "✓";
 const FEATURE_PREFIX_EXCLUDED = "X";
 
 const parseFeatureDraft = (value: string): FeatureDraft => {
-  const featureDisplay = getMembershipFeatureDisplay(value);
+  const normalized = value.trim();
+  const markerMatch = normalized.match(/^(✓|X)\s+(.*)$/);
+
+  if (markerMatch) {
+    return {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      text: markerMatch[2].trim(),
+      isExcluded: markerMatch[1] === FEATURE_PREFIX_EXCLUDED,
+    };
+  }
 
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    text: featureDisplay.label,
-    isExcluded: featureDisplay.isExcluded,
+    text: normalized,
+    isExcluded: false,
   };
 };
 

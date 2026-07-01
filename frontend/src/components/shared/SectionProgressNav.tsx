@@ -1,5 +1,4 @@
-import { CheckCircle2, Circle, EyeOff, AlertCircle, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CheckCircle2, Circle, EyeOff, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type SectionProgressStatus = "complete" | "pending" | "hidden";
@@ -48,89 +47,64 @@ export function SectionProgressNav({
   items,
   className,
 }: SectionProgressNavProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setIsCollapsed(window.innerWidth <= 1024);
-  }, []);
-
   return (
     <aside
       className={cn(
-        "rounded-[28px] border border-slate-200/80 bg-white/92 p-4 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.35)] backdrop-blur transition-all duration-300",
-        isCollapsed ? "w-16" : "w-52",
+        "w-52 rounded-[28px] border border-slate-200/80 bg-white/92 p-4 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.35)] backdrop-blur",
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <p className={cn("text-[11px] font-black uppercase tracking-[0.22em] text-slate-400", isCollapsed && "sr-only")}>
-          {title}
-        </p>
-        <button
-          type="button"
-          onClick={() => setIsCollapsed((prev) => !prev)}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900"
-          aria-label={isCollapsed ? "Mostrar índice" : "Ocultar índice"}
-          title={isCollapsed ? "Mostrar índice" : "Ocultar índice"}
-        >
-          {isCollapsed ? (
-            <PanelLeftOpen className="h-4 w-4" />
-          ) : (
-            <PanelLeftClose className="h-4 w-4" />
-          )}
-        </button>
-      </div>
-      {!isCollapsed ? (
-        <div className="mt-4 space-y-1">
-          {items.map((item, index) => {
-            const status = statusStyles[item.status];
-            const StatusIcon = status.icon;
+      <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">
+        {title}
+      </p>
+      <div className="mt-4 space-y-1">
+        {items.map((item, index) => {
+          const status = statusStyles[item.status];
+          const StatusIcon = status.icon;
 
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={item.onClick}
-                className={cn(
-                  "group flex w-full items-start gap-3 rounded-2xl px-3 py-2.5 text-left transition-all",
-                  item.active
-                    ? "bg-slate-900 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
-                )}
-              >
-                <div className="flex min-h-8 w-5 justify-center pt-0.5">
-                  <div className="flex flex-col items-center">
-                    <span
-                      className={cn(
-                        "h-2.5 w-2.5 rounded-full transition-colors",
-                        item.active ? "bg-white" : status.dot,
-                      )}
-                    />
-                    {index < items.length - 1 ? (
-                      <span className="mt-2 h-8 w-px bg-slate-200" />
-                    ) : null}
-                  </div>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[13px] font-bold leading-tight">
-                      {item.label}
-                    </span>
-                    {item.active ? (
-                      <Circle className="h-3.5 w-3.5 shrink-0 fill-current text-white" />
-                    ) : (
-                      <StatusIcon
-                        className={cn("h-3.5 w-3.5 shrink-0", status.text)}
-                      />
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={item.onClick}
+              className={cn(
+                "group flex w-full items-start gap-3 rounded-2xl px-3 py-2.5 text-left transition-all",
+                item.active
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+              )}
+            >
+              <div className="flex min-h-8 w-5 justify-center pt-0.5">
+                <div className="flex flex-col items-center">
+                  <span
+                    className={cn(
+                      "h-2.5 w-2.5 rounded-full transition-colors",
+                      item.active ? "bg-white" : status.dot,
                     )}
-                  </div>
+                  />
+                  {index < items.length - 1 ? (
+                    <span className="mt-2 h-8 w-px bg-slate-200" />
+                  ) : null}
                 </div>
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-bold leading-tight">
+                    {item.label}
+                  </span>
+                  {item.active ? (
+                    <Circle className="h-3.5 w-3.5 shrink-0 fill-current text-white" />
+                  ) : (
+                    <StatusIcon
+                      className={cn("h-3.5 w-3.5 shrink-0", status.text)}
+                    />
+                  )}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </aside>
   );
 }

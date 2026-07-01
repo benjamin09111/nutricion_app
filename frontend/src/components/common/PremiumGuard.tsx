@@ -1,7 +1,7 @@
 "use client";
 
 import { useSubscription } from "@/context/SubscriptionContext";
-import { Crown } from "lucide-react";
+import { Lock, Crown } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 
@@ -18,7 +18,7 @@ export function PremiumGuard({
   fallback,
   showLockIcon = true,
 }: PremiumGuardProps) {
-  const { features } = useSubscription();
+  const { features, plan } = useSubscription();
 
   const isAllowed = features[feature];
 

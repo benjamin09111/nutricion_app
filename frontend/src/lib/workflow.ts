@@ -39,7 +39,7 @@ export const getWorkflowApiUrl = () =>
 export const getWorkflowAuthHeaders = (
   extraHeaders: Record<string, string> = {},
 ) => {
-  const token = Cookies.get("auth_token") || "";
+  const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
   return {
     Authorization: `Bearer ${token}`,
     ...extraHeaders,

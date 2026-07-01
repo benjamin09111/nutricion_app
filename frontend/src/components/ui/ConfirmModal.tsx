@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { X, AlertTriangle } from "lucide-react";
 import { Button } from "./Button";
 import { useScrollLock } from "@/hooks/useScrollLock";

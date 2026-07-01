@@ -9,18 +9,18 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAdminView, isLoading } = useAdmin();
+  const { isAdmin } = useAdmin();
   const router = useRouter();
 
   useEffect(() => {
     // Simple client-side protection
     // In a real app, Middleware (server-side) should handle this for better security
-    if (!isAdminView) {
+    if (!isAdmin) {
       router.push("/dashboard");
     }
-  }, [isAdminView, router]);
+  }, [isAdmin, router]);
 
-  if (isLoading || !isAdminView) {
+  if (!isAdmin) {
     return null; // Or a loading spinner
   }
 

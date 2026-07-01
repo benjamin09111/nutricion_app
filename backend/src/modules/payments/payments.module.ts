@@ -2,15 +2,14 @@ import { Module } from '@nestjs/common';
 import { PaymentsController } from './payments.controller';
 import { PaymentsWebhookController } from './payments.webhook.controller';
 import { PaymentsService } from './payments.service';
-import { FlowService } from './flow.service';
+import { MercadoPagoService } from './mercadopago.service';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { PermissionsModule } from '../permissions/permissions.module';
-import { DiscountCodesModule } from '../discount-codes/discount-codes.module';
 
 @Module({
-  imports: [PrismaModule, PermissionsModule, DiscountCodesModule],
+  imports: [PrismaModule, PermissionsModule],
   controllers: [PaymentsController, PaymentsWebhookController],
-  providers: [PaymentsService, FlowService],
+  providers: [PaymentsService, MercadoPagoService],
   exports: [PaymentsService],
 })
 export class PaymentsModule {}

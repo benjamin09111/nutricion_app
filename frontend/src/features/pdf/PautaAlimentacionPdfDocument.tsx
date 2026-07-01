@@ -3,7 +3,6 @@ import { Document, Page, StyleSheet, Text, View, Image } from "@react-pdf/render
 
 export interface PautaParagraphData {
   title: string;
-  subtitle?: string;
   foods: string[];
   imagePath: string | null;
 }
@@ -34,18 +33,18 @@ export interface PautaAlimentacionPdfData {
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 22,
-    paddingBottom: 24,
-    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 30,
+    paddingHorizontal: 30,
     backgroundColor: "#ffffff",
     fontFamily: "Helvetica",
     color: "#0f172a",
-    fontSize: 9.5,
-    lineHeight: 1.35,
+    fontSize: 10,
+    lineHeight: 1.4,
   },
   header: {
-    marginBottom: 10,
-    paddingBottom: 8,
+    marginBottom: 14,
+    paddingBottom: 10,
     borderBottom: "1px solid #cbd5e1",
   },
   brand: {
@@ -65,11 +64,11 @@ const styles = StyleSheet.create({
   },
   restrictionBadge: {
     backgroundColor: "#ecfdf5",
-    paddingVertical: 3,
+    paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 4,
     alignSelf: "flex-start",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   restrictionText: {
     fontSize: 11,
@@ -78,7 +77,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   section: {
-    marginTop: 10,
+    marginTop: 12,
   },
   sectionTitle: {
     fontSize: 11,
@@ -88,8 +87,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   patientCard: {
-    marginTop: 6,
-    padding: 8,
+    marginTop: 8,
+    padding: 10,
     backgroundColor: "#f8fafc",
     border: "1px solid #e2e8f0",
     borderRadius: 6,
@@ -101,7 +100,7 @@ const styles = StyleSheet.create({
   },
   patientItem: {
     width: "48%",
-    marginBottom: 3,
+    marginBottom: 4,
   },
   patientLabel: {
     fontSize: 7,
@@ -119,70 +118,45 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   paragraphContainer: {
-    marginTop: 8,
-    padding: 8,
+    marginTop: 12,
+    padding: 10,
     border: "1px solid #e2e8f0",
     borderRadius: 6,
     backgroundColor: "#fafafa",
   },
   paragraphTitle: {
-    fontSize: 10.2,
+    fontSize: 11,
     fontFamily: "Helvetica-Bold",
     color: "#0f172a",
-    textAlign: "left",
-    marginBottom: 4,
-    paddingBottom: 4,
+    textAlign: "center",
+    marginBottom: 10,
+    paddingBottom: 6,
     borderBottom: "1px solid #e2e8f0",
-  },
-  paragraphSubtitle: {
-    fontSize: 8.6,
-    color: "#475569",
-    marginBottom: 6,
   },
   paragraphContent: {
     flexDirection: "row",
-    gap: 8,
-    alignItems: "flex-start",
-  },
-  paragraphColumns: {
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "flex-start",
-  },
-  paragraphColumn: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-    border: "1px solid #e2e8f0",
-    borderRadius: 4,
-    padding: 6,
-  },
-  columnTitle: {
-    fontSize: 7.5,
-    fontFamily: "Helvetica-Bold",
-    color: "#334155",
-    textTransform: "uppercase",
-    marginBottom: 4,
+    gap: 10,
   },
   foodList: {
     flex: 1,
   },
   foodItem: {
-    fontSize: 8.6,
+    fontSize: 9,
     color: "#334155",
-    marginBottom: 2,
+    marginBottom: 3,
     paddingLeft: 4,
   },
   imageContainer: {
-    width: 48,
+    width: 60,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#f1f5f9",
     borderRadius: 4,
-    padding: 2,
+    padding: 4,
   },
   categoryImage: {
-    width: 42,
-    height: 42,
+    width: 50,
+    height: 50,
     objectFit: "contain",
   },
   placeholderText: {
@@ -191,8 +165,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   resourceSection: {
-    marginTop: 10,
-    padding: 8,
+    marginTop: 12,
+    padding: 10,
     backgroundColor: "#f0fdf4",
     border: "1px solid #bbf7d0",
     borderRadius: 6,
@@ -209,8 +183,8 @@ const styles = StyleSheet.create({
     lineHeight: 1.5,
   },
   footer: {
-    marginTop: 14,
-    paddingTop: 6,
+    marginTop: 20,
+    paddingTop: 8,
     borderTop: "1px solid #e2e8f0",
     flexDirection: "row",
     justifyContent: "space-between",
@@ -225,15 +199,6 @@ const styles = StyleSheet.create({
     marginVertical: 12,
   },
 });
-
-const splitIntoColumns = (items: string[]) => {
-  if (items.length <= 1) {
-    return [items, []];
-  }
-
-  const midpoint = Math.ceil(items.length / 2);
-  return [items.slice(0, midpoint), items.slice(midpoint)];
-};
 
 export const PautaAlimentacionPdfDocument: React.FC<{ data: PautaAlimentacionPdfData }> = ({ data }) => {
   return (
@@ -310,40 +275,20 @@ export const PautaAlimentacionPdfDocument: React.FC<{ data: PautaAlimentacionPdf
           {data.paragraphs.map((paragraph, index) => (
             <View key={index} style={styles.paragraphContainer}>
               <Text style={styles.paragraphTitle}>{paragraph.title}</Text>
-              {paragraph.subtitle ? (
-                <Text style={styles.paragraphSubtitle}>{paragraph.subtitle}</Text>
-              ) : null}
-              {paragraph.foods.length > 1 ? (
-                <View style={styles.paragraphColumns}>
-                  {splitIntoColumns(paragraph.foods).map((column, columnIndex) => (
-                    <View key={columnIndex} style={styles.paragraphColumn}>
-                      <Text style={styles.columnTitle}>Opción {columnIndex + 1}</Text>
-                      <View style={styles.foodList}>
-                        {column.map((food, foodIndex) => (
-                          <Text key={foodIndex} style={styles.foodItem}>
-                            • {food}
-                          </Text>
-                        ))}
-                      </View>
-                    </View>
+              <View style={styles.paragraphContent}>
+                <View style={styles.foodList}>
+                  {paragraph.foods.map((food, foodIndex) => (
+                    <Text key={foodIndex} style={styles.foodItem}>
+                      • {food}
+                    </Text>
                   ))}
                 </View>
-              ) : (
-                <View style={styles.paragraphContent}>
-                  <View style={styles.foodList}>
-                    {paragraph.foods.map((food, foodIndex) => (
-                      <Text key={foodIndex} style={styles.foodItem}>
-                        • {food}
-                      </Text>
-                    ))}
+                {paragraph.imagePath && (
+                  <View style={styles.imageContainer}>
+                    <Image src={paragraph.imagePath} style={styles.categoryImage} />
                   </View>
-                </View>
-              )}
-              {paragraph.imagePath && (
-                <View style={{ marginTop: 6 }}>
-                  <Image src={paragraph.imagePath} style={styles.categoryImage} />
-                </View>
-              )}
+                )}
+              </View>
             </View>
           ))}
         </View>

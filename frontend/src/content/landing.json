@@ -4,7 +4,7 @@
     "titleLine1": "GESTIONA",
     "titleLine2": "Tu consulta nutricional.",
     "description": "NutriNet es la plataforma todo-en-uno para nutricionistas en Chile: gestiona pacientes, automatiza dietas y organiza tu consulta profesional.",
-    "ctaButton": "Inicia con Google"
+    "ctaButton": "Empieza Gratis"
   },
   "features": {
     "cards": [
@@ -33,16 +33,18 @@
     "titleLine2": "Pensados para tu crecimiento"
   },
   "registration": {
-    "titleLine1": "INICIA SESIÓN",
-    "titleLine2": "CON TU CUENTA DE GOOGLE",
-    "subtitle": "Acceso único, verificado y listo para Google Calendar",
-    "paragraph1": "Inicia con tu correo de Google para entrar sin contraseñas y mantener tu cuenta profesional alineada con tu agenda real.",
-    "paragraph2": "Cada acceso crea o reutiliza tu cuenta automáticamente y deja tu sesión lista para el trabajo diario.",
-    "paragraph3": "Si todavía tienes una duda, escríbenos desde el formulario y te respondemos por correo.",
-    "formTitle": "MENSAJE RÁPIDO:",
-    "formEmail": "TU CORREO:",
-    "formSubmit": "Enviar mensaje",
-    "encryptionText": "Tu mensaje llegará a contacto@nutrinet.cl."
+    "titleLine1": "¿ERES NUTRICIONISTA?",
+    "titleLine2": "Crea tu cuenta ahora.",
+    "subtitle": "Empieza a trabajar de forma más eficiente",
+    "paragraph1": "Únete a NutriNet, la plataforma que automatiza tus procesos, organiza toda tu información y optimiza tu tiempo profesional.",
+    "paragraph2": "Regístrate hoy para acceder a todas las funcionalidades de forma gratuita y comienza a gestionar tus pacientes de manera profesional.",
+    "paragraph3": "Configura tu perfil profesional en segundos y empieza a usar todas las herramientas de NutriNet de inmediato.",
+    "formTitle": "NOMBRE COMPLETO:",
+    "formEmail": "CORREO PROFESIONAL:",
+    "formPassword": "CONTRASEÑA DE ACCESO:",
+    "formMessage": "¿TIENES ALGUNA CONSULTA? (OPCIONAL)",
+    "formSubmit": "Crear mi cuenta",
+    "encryptionText": "Tu cuenta y datos están protegidos por encriptación de grado bancario."
   },
 
   "footer": {

@@ -1,17 +1,7 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, AppointmentStatus } from '@prisma/client';
-import {
-  createCipheriv,
-  createDecipheriv,
-  createHash,
-  randomBytes,
-} from 'crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -41,8 +31,7 @@ type GoogleTokenPayload = {
   token_type?: string;
 };
 
-type GoogleCalendarConnectionRecord =
-  Prisma.GoogleCalendarConnectionGetPayload<Prisma.GoogleCalendarConnectionDefaultArgs>;
+type GoogleCalendarConnectionRecord = Prisma.GoogleCalendarConnectionGetPayload<{}>;
 
 type GoogleBusyRange = {
   start: Date;
@@ -51,18 +40,11 @@ type GoogleBusyRange = {
 
 const GOOGLE_AUTH_BASE = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const GOOGLE_REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
 const GOOGLE_USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo';
 const GOOGLE_EVENTS_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
-const REQUIRED_GOOGLE_CALENDAR_SCOPES = [
-  'https://www.googleapis.com/auth/calendar.events',
-  'https://www.googleapis.com/auth/calendar.readonly',
-];
 
 @Injectable()
 export class GoogleIntegrationService {
-  private readonly logger = new Logger(GoogleIntegrationService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
@@ -77,13 +59,7 @@ export class GoogleIntegrationService {
   }
 
   private getAppSecret() {
-    const secret = this.configService.get<string>('JWT_SECRET');
-
-    if (!secret) {
-      throw new Error('JWT_SECRET is required');
-    }
-
-    return secret;
+    return this.configService.get<string>('JWT_SECRET') || 'secret';
   }
 
   private getGoogleClientId() {
@@ -120,10 +96,7 @@ export class GoogleIntegrationService {
   private encrypt(value: string) {
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', this.getEncryptionKey(), iv);
-    const encrypted = Buffer.concat([
-      cipher.update(value, 'utf8'),
-      cipher.final(),
-    ]);
+    const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
     const tag = cipher.getAuthTag();
     return `${iv.toString('base64url')}.${tag.toString('base64url')}.${encrypted.toString('base64url')}`;
   }
@@ -145,51 +118,6 @@ export class GoogleIntegrationService {
       decipher.final(),
     ]);
     return decrypted.toString('utf8');
-  }
-
-  private parseScopes(scope?: string | null) {
-    return new Set(
-      (scope || '')
-        .split(' ')
-        .map((value) => value.trim())
-        .filter(Boolean),
-    );
-  }
-
-  private hasRequiredCalendarScopes(scope?: string | null) {
-    const scopes = this.parseScopes(scope);
-    return REQUIRED_GOOGLE_CALENDAR_SCOPES.every((required) =>
-      scopes.has(required),
-    );
-  }
-
-  private async invalidateCalendarConnection(
-    accountId: string,
-    reason: string,
-  ) {
-    this.logger.warn(
-      `Invalidating Google Calendar connection for account ${accountId}: ${reason}`,
-    );
-    await this.prisma.googleCalendarConnection.deleteMany({
-      where: { accountId },
-    });
-  }
-
-  private async revokeGoogleToken(token: string) {
-    const response = await fetch(
-      `${GOOGLE_REVOKE_URL}?token=${encodeURIComponent(token)}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      },
-    );
-
-    if (!response.ok) {
-      const raw = await response.text().catch(() => '');
-      this.logger.warn(
-        `Google token revocation returned ${response.status}: ${raw || 'no body'}`,
-      );
-    }
   }
 
   private signState(state: GoogleState) {
@@ -219,7 +147,7 @@ export class GoogleIntegrationService {
     return `${GOOGLE_AUTH_BASE}?${query.toString()}`;
   }
 
-  buildGoogleLoginUrl(next = '/dashboard') {
+  async buildGoogleLoginUrl(next = '/dashboard') {
     return this.buildGoogleAuthUrl({
       state: { mode: 'login', next },
       redirectUri: this.getGoogleAuthRedirectUri(),
@@ -227,7 +155,7 @@ export class GoogleIntegrationService {
     });
   }
 
-  buildGoogleCalendarConnectUrl(input: {
+  async buildGoogleCalendarConnectUrl(input: {
     accountId: string;
     nutritionistId: string;
     calendarId: string;
@@ -274,9 +202,7 @@ export class GoogleIntegrationService {
 
     const tokens = (await tokenResponse.json()) as GoogleTokenPayload;
     if (!tokens.access_token) {
-      throw new BadRequestException(
-        'Google no devolvió un access token válido',
-      );
+      throw new BadRequestException('Google no devolvió un access token válido');
     }
 
     const profileResponse = await fetch(GOOGLE_USERINFO_URL, {
@@ -357,12 +283,6 @@ export class GoogleIntegrationService {
       );
     }
 
-    if (!this.hasRequiredCalendarScopes(input.tokens.scope)) {
-      throw new BadRequestException(
-        'Google no autorizó los permisos de calendario requeridos. Vuelve a conectar y acepta el acceso a Google Calendar.',
-      );
-    }
-
     const tokenExpiry = input.tokens.expires_in
       ? new Date(Date.now() + input.tokens.expires_in * 1000)
       : null;
@@ -377,7 +297,7 @@ export class GoogleIntegrationService {
         refreshTokenEncrypted: this.encrypt(refreshToken),
         tokenExpiry,
         calendarId: 'primary',
-        scope: input.tokens.scope || REQUIRED_GOOGLE_CALENDAR_SCOPES.join(' '),
+        scope: input.tokens.scope || '',
       },
       update: {
         googleEmail: input.profile.email,
@@ -386,7 +306,7 @@ export class GoogleIntegrationService {
         refreshTokenEncrypted: this.encrypt(refreshToken),
         tokenExpiry,
         calendarId: 'primary',
-        scope: input.tokens.scope || REQUIRED_GOOGLE_CALENDAR_SCOPES.join(' '),
+        scope: input.tokens.scope || existing?.scope || '',
         disconnectedAt: null,
       },
     });
@@ -400,72 +320,22 @@ export class GoogleIntegrationService {
 
   async getConnectionStatus(accountId: string) {
     const connection = await this.getCalendarConnectionByAccountId(accountId);
-    const connectionScope = connection?.scope || null;
-
-    if (
-      connection &&
-      !connection.disconnectedAt &&
-      !this.hasRequiredCalendarScopes(connectionScope)
-    ) {
-      await this.invalidateCalendarConnection(
-        accountId,
-        'missing required Google Calendar scopes',
-      );
-      return {
-        connected: false,
-        googleEmail: connection.googleEmail || null,
-        calendarId: connection.calendarId || 'primary',
-        scope: connectionScope,
-        tokenExpiry: connection.tokenExpiry || null,
-        disconnectedAt: new Date(),
-        missingScopes: REQUIRED_GOOGLE_CALENDAR_SCOPES,
-        requiresReconnect: true,
-      };
-    }
-
     return {
       connected: Boolean(connection && !connection.disconnectedAt),
       googleEmail: connection?.googleEmail || null,
       calendarId: connection?.calendarId || 'primary',
-      scope: connectionScope,
+      scope: connection?.scope || null,
       tokenExpiry: connection?.tokenExpiry || null,
       disconnectedAt: connection?.disconnectedAt || null,
-      missingScopes:
-        connection && !this.hasRequiredCalendarScopes(connectionScope)
-          ? REQUIRED_GOOGLE_CALENDAR_SCOPES
-          : [],
-      requiresReconnect:
-        Boolean(connection) &&
-        !connection?.disconnectedAt &&
-        !this.hasRequiredCalendarScopes(connectionScope),
     };
   }
 
   async disconnectCalendarConnection(accountId: string) {
-    const connection = await this.prisma.googleCalendarConnection.findUnique({
+    await this.prisma.googleCalendarConnection.updateMany({
       where: { accountId },
-    });
-
-    if (connection) {
-      const refreshToken = connection.refreshTokenEncrypted
-        ? this.decrypt(connection.refreshTokenEncrypted)
-        : null;
-      const accessToken = connection.accessTokenEncrypted
-        ? this.decrypt(connection.accessTokenEncrypted)
-        : null;
-
-      const tokenToRevoke = refreshToken || accessToken;
-      if (tokenToRevoke) {
-        await this.revokeGoogleToken(tokenToRevoke).catch((error) => {
-          this.logger.warn(
-            `Google token revocation failed for account ${accountId}: ${error instanceof Error ? error.message : String(error)}`,
-          );
-        });
-      }
-    }
-
-    await this.prisma.googleCalendarConnection.deleteMany({
-      where: { accountId },
+      data: {
+        disconnectedAt: new Date(),
+      },
     });
 
     return { success: true };
@@ -473,9 +343,7 @@ export class GoogleIntegrationService {
 
   private async refreshAccessToken(connection: GoogleCalendarConnectionRecord) {
     if (!connection.refreshTokenEncrypted) {
-      throw new BadRequestException(
-        'La conexión con Google no tiene refresh token',
-      );
+      throw new BadRequestException('La conexión con Google no tiene refresh token');
     }
 
     const refreshToken = this.decrypt(connection.refreshTokenEncrypted);
@@ -496,9 +364,7 @@ export class GoogleIntegrationService {
 
     const token = (await response.json()) as GoogleTokenPayload;
     if (!token.access_token) {
-      throw new BadRequestException(
-        'Google no devolvió un access token válido',
-      );
+      throw new BadRequestException('Google no devolvió un access token válido');
     }
 
     const tokenExpiry = token.expires_in
@@ -518,9 +384,7 @@ export class GoogleIntegrationService {
     return token.access_token;
   }
 
-  private async getValidAccessToken(
-    connection: GoogleCalendarConnectionRecord,
-  ) {
+  private async getValidAccessToken(connection: GoogleCalendarConnectionRecord) {
     const token = connection.accessTokenEncrypted
       ? this.decrypt(connection.accessTokenEncrypted)
       : null;
@@ -529,10 +393,7 @@ export class GoogleIntegrationService {
       return this.refreshAccessToken(connection);
     }
 
-    if (
-      connection.tokenExpiry &&
-      connection.tokenExpiry.getTime() <= Date.now() + 60_000
-    ) {
+    if (connection.tokenExpiry && connection.tokenExpiry.getTime() <= Date.now() + 60_000) {
       return this.refreshAccessToken(connection);
     }
 
@@ -559,14 +420,6 @@ export class GoogleIntegrationService {
     });
 
     if (!connection || connection.disconnectedAt) {
-      return [] as GoogleBusyRange[];
-    }
-
-    if (!this.hasRequiredCalendarScopes(connection.scope)) {
-      await this.invalidateCalendarConnection(
-        accountId,
-        'insufficient Google Calendar scopes while reading busy events',
-      );
       return [] as GoogleBusyRange[];
     }
 
@@ -601,10 +454,7 @@ export class GoogleIntegrationService {
     };
 
     return (payload.items || [])
-      .filter(
-        (item) =>
-          item.status !== 'cancelled' && item.transparency !== 'transparent',
-      )
+      .filter((item) => item.status !== 'cancelled' && item.transparency !== 'transparent')
       .map((item) => {
         const startIso = item.start?.dateTime || item.start?.date;
         const endIso = item.end?.dateTime || item.end?.date;
@@ -654,21 +504,12 @@ export class GoogleIntegrationService {
       return { synced: false };
     }
 
-    if (!this.hasRequiredCalendarScopes(connection.scope)) {
-      await this.invalidateCalendarConnection(
-        connection.accountId,
-        'insufficient Google Calendar scopes while syncing appointment',
-      );
-      return { synced: false };
-    }
-
     const accessToken = await this.getValidAccessToken(connection);
     const attendees = input.inviteEmail
       ? [
           {
             email: input.inviteEmail,
-            displayName:
-              input.inviteName || input.appointment.patientName || 'Paciente',
+            displayName: input.inviteName || input.appointment.patientName || 'Paciente',
           },
         ]
       : undefined;
@@ -682,21 +523,13 @@ export class GoogleIntegrationService {
       ]
         .filter(Boolean)
         .join('\n'),
-      start: {
-        dateTime: input.appointment.startTime.toISOString(),
-        timeZone: calendar.timeZone,
-      },
-      end: {
-        dateTime: input.appointment.endTime.toISOString(),
-        timeZone: calendar.timeZone,
-      },
+      start: { dateTime: input.appointment.startTime.toISOString(), timeZone: calendar.timeZone },
+      end: { dateTime: input.appointment.endTime.toISOString(), timeZone: calendar.timeZone },
       attendees,
       reminders: { useDefault: true },
     };
 
-    const eventId =
-      input.appointment.googleCalendarEventId ||
-      `nutri-${input.appointment.id}`;
+    const eventId = input.appointment.googleCalendarEventId || `nutri-${input.appointment.id}`;
     const baseUrl = `${GOOGLE_EVENTS_BASE}/primary/events`;
     const eventUrl = input.appointment.googleCalendarEventId
       ? `${baseUrl}/${encodeURIComponent(eventId)}`
@@ -717,23 +550,10 @@ export class GoogleIntegrationService {
 
     if (!response.ok) {
       const raw = await response.text().catch(() => '');
-      this.logger.error(
-        `Google Calendar sync failed for appointment ${input.appointment.id} (calendar ${input.calendarId}) with status ${response.status}: ${raw || 'No se pudo sincronizar con Google Calendar'}`,
-      );
-      if (
-        response.status === 403 &&
-        /insufficientPermissions|ACCESS_TOKEN_SCOPE_INSUFFICIENT/i.test(raw)
-      ) {
-        await this.invalidateCalendarConnection(
-          calendar.nutritionist.account.id,
-          'Google rejected the token with insufficient permissions',
-        );
-      }
       await this.prisma.appointment.update({
         where: { id: input.appointment.id },
         data: {
-          googleCalendarSyncError:
-            raw || 'No se pudo sincronizar con Google Calendar',
+          googleCalendarSyncError: raw || 'No se pudo sincronizar con Google Calendar',
         },
       });
       return { synced: false, error: raw };
@@ -754,15 +574,7 @@ export class GoogleIntegrationService {
       },
     });
 
-    this.logger.log(
-      `Google Calendar sync completed for appointment ${input.appointment.id} (calendar ${input.calendarId}) -> event ${event.id || eventId}`,
-    );
-
-    return {
-      synced: true,
-      eventId: event.id || eventId,
-      htmlLink: event.htmlLink || null,
-    };
+    return { synced: true, eventId: event.id || eventId, htmlLink: event.htmlLink || null };
   }
 
   async deleteAppointmentFromGoogle(input: {
@@ -787,32 +599,26 @@ export class GoogleIntegrationService {
       return { deleted: false };
     }
 
-    if (!this.hasRequiredCalendarScopes(connection.scope)) {
-      await this.invalidateCalendarConnection(
-        connection.accountId,
-        'insufficient Google Calendar scopes while deleting appointment',
-      );
-      return { deleted: false };
-    }
-
     const accessToken = await this.getValidAccessToken(connection);
     const deleteUrl = new URL(
       `${GOOGLE_EVENTS_BASE}/primary/events/${encodeURIComponent(input.googleCalendarEventId)}`,
     );
     deleteUrl.searchParams.set('sendUpdates', 'all');
 
-    const response = await fetch(deleteUrl.toString(), {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const response = await fetch(
+      deleteUrl.toString(),
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
 
     if (!response.ok && response.status !== 404) {
       const raw = await response.text().catch(() => '');
       await this.prisma.appointment.update({
         where: { id: input.appointmentId },
         data: {
-          googleCalendarSyncError:
-            raw || 'No se pudo cancelar en Google Calendar',
+          googleCalendarSyncError: raw || 'No se pudo cancelar en Google Calendar',
         },
       });
       return { deleted: false, error: raw };
@@ -835,9 +641,7 @@ export class GoogleIntegrationService {
     const appointments = await this.prisma.appointment.findMany({
       where: {
         calendarId,
-        status: {
-          in: [AppointmentStatus.CONFIRMED, AppointmentStatus.SCHEDULED],
-        },
+        status: { in: [AppointmentStatus.CONFIRMED, AppointmentStatus.SCHEDULED] },
       },
       orderBy: { startTime: 'asc' },
       select: {

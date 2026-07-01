@@ -14,25 +14,6 @@ import { useFont } from "@/context/FontContext";
 import { cn } from "@/lib/utils";
 import { getPasswordRequirements, getPasswordStrength } from "@/lib/password-policy";
 import { MembershipPlanSection } from "./MembershipPlanSection";
-import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
-
-function RoleBadge({ role }: { role?: string | null }) {
-  const config: Record<string, { label: string; className: string }> = {
-    ADMIN_MASTER: { label: "Admin Master", className: "bg-rose-50 text-rose-700 ring-rose-600/20" },
-    ADMIN_GENERAL: { label: "Admin General", className: "bg-rose-50 text-rose-700 ring-rose-600/20" },
-    ADMIN: { label: "Admin", className: "bg-rose-50 text-rose-700 ring-rose-600/20" },
-    WORKER: { label: "Worker", className: "bg-amber-50 text-amber-700 ring-amber-600/20" },
-    NUTRITIONIST_DEVELOPER: { label: "Nutricionista", className: "bg-emerald-50 text-emerald-700 ring-emerald-600/20" },
-    NUTRITIONIST: { label: "Nutricionista", className: "bg-emerald-50 text-emerald-700 ring-emerald-600/20" },
-  };
-  const c = role ? config[role] : undefined;
-  if (!c) return null;
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-widest ring-1 ring-inset ${c.className}`}>
-      {c.label}
-    </span>
-  );
-}
 
 interface UserSettings {
   professionalInstagram?: string;
@@ -147,9 +128,6 @@ export default function SettingsPage() {
   const [userData, setUserData] = useState<{
     email: string;
     fullName?: string;
-    role?: string | null;
-    googleAvatarUrl?: string | null;
-    createdAt?: string | null;
     settings?: UserSettings;
   } | null>(null);
 
@@ -187,45 +165,47 @@ const [showPublicPhone, setShowPublicPhone] = useState(false);
   const { theme, setTheme } = useTheme();
   const { fontPreference, setFontPreference } = useFont();
   useEffect(() => {
-    const user = getCurrentUser();
-    if (!user) return;
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        const settings = (user.nutritionist?.settings || {}) as UserSettings;
+        setUserData({
+          email: user.email,
+          fullName: user.nutritionist?.fullName || "Profesional",
+          settings,
+        });
+        setProfessionalInstagram(settings.professionalInstagram || "");
+        setProfessionalPhone(settings.professionalPhone || "");
+        setProfessionalEmail(settings.professionalEmail || "");
 
-    const settings = (user.nutritionist?.settings || {}) as UserSettings;
-    setUserData({
-      email: user.email || "",
-      fullName: user.nutritionist?.fullName || "Profesional",
-      role: user.role || null,
-      googleAvatarUrl: user.googleAvatarUrl || null,
-      createdAt: user.createdAt || null,
-      settings,
-    });
-    setProfessionalInstagram(settings.professionalInstagram || "");
-    setProfessionalPhone(settings.professionalPhone || "");
-    setProfessionalEmail(settings.professionalEmail || "");
-
-    setPublicProfileEnabled(settings.publicProfileEnabled || false);
-    setPublicSlug(settings.publicSlug || "");
-    setPublishedPublicSlug(settings.publicSlug || "");
-    setHeadline(settings.headline || "");
-    setBio(settings.bio || "");
-    setConsultationMode(settings.consultationMode || "online");
-    setLocation(settings.location || "");
-    setPublicPhone(settings.publicPhone || "");
-    setPublicEmail(settings.publicEmail || "");
-    setBookingEnabled(settings.bookingEnabled !== false);
-    setShowPublicPhone(settings.showPublicPhone === true);
-    setShowPublicEmail(settings.showPublicEmail !== false);
-    setShowInstagram(settings.showInstagram === true);
-    setShowLinkedin(settings.showLinkedin === true);
-    setShowSchedule(settings.showSchedule !== false);
-    setConditionsTreated(settings.conditionsTreated || "");
-    setPatientTypes(settings.patientTypes || "");
-    setPrices(settings.prices || "");
-    setOfficeAddress(settings.officeAddress || "");
-    setPaymentMethods(settings.paymentMethods || "");
-    setAcceptedInsurance(settings.acceptedInsurance || "");
-    setLinkedin(settings.linkedin || "");
-    setCountry(settings.country || "Chile");
+        setPublicProfileEnabled(settings.publicProfileEnabled || false);
+        setPublicSlug(settings.publicSlug || "");
+        setPublishedPublicSlug(settings.publicSlug || "");
+        setHeadline(settings.headline || "");
+        setBio(settings.bio || "");
+        setConsultationMode(settings.consultationMode || "online");
+        setLocation(settings.location || "");
+        setPublicPhone(settings.publicPhone || "");
+        setPublicEmail(settings.publicEmail || "");
+        setBookingEnabled(settings.bookingEnabled !== false);
+        setShowPublicPhone(settings.showPublicPhone === true);
+        setShowPublicEmail(settings.showPublicEmail !== false);
+        setShowInstagram(settings.showInstagram === true);
+        setShowLinkedin(settings.showLinkedin === true);
+        setShowSchedule(settings.showSchedule !== false);
+        setConditionsTreated(settings.conditionsTreated || "");
+        setPatientTypes(settings.patientTypes || "");
+        setPrices(settings.prices || "");
+        setOfficeAddress(settings.officeAddress || "");
+        setPaymentMethods(settings.paymentMethods || "");
+        setAcceptedInsurance(settings.acceptedInsurance || "");
+        setLinkedin(settings.linkedin || "");
+        setCountry(settings.country || "Chile");
+      } catch (e) {
+        console.error("Error loading user data", e);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -293,10 +273,12 @@ const [showPublicPhone, setShowPublicPhone] = useState(false);
     e.preventDefault();
     setIsSavingProfessionalContact(true);
     try {
+      const token = localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/me/settings`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           professionalInstagram: professionalInstagram.trim(),
@@ -310,15 +292,19 @@ const [showPublicPhone, setShowPublicPhone] = useState(false);
       }
 
       toast.success("Contacto profesional guardado correctamente");
-      const user = getCurrentUser();
-      if (user?.nutritionist) {
-        user.nutritionist.settings = {
-          ...user.nutritionist.settings,
-          professionalInstagram: professionalInstagram.trim(),
-          professionalPhone: professionalPhone.trim(),
-          professionalEmail: professionalEmail.trim(),
-        };
-        setCurrentUser(user);
+
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        if (user.nutritionist) {
+          user.nutritionist.settings = {
+            ...user.nutritionist.settings,
+            professionalInstagram: professionalInstagram.trim(),
+            professionalPhone: professionalPhone.trim(),
+            professionalEmail: professionalEmail.trim(),
+          };
+          localStorage.setItem("user", JSON.stringify(user));
+        }
       }
     } catch (error) {
       const message =
@@ -333,10 +319,12 @@ const [showPublicPhone, setShowPublicPhone] = useState(false);
     e.preventDefault();
     setIsSavingPublicProfile(true);
     try {
+      const token = localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/me/settings`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           publicProfileEnabled,
@@ -378,25 +366,29 @@ bio: bio.trim(),
       setPublishedPublicSlug(resolvedSlug);
 
       toast.success("Perfil público guardado correctamente");
-      const user = getCurrentUser();
-      if (user?.nutritionist) {
-        user.nutritionist.settings = {
-          ...user.nutritionist.settings,
-          publicProfileEnabled: Boolean(updatedNutritionist?.publicProfileEnabled ?? publicProfileEnabled),
-          publicSlug: resolvedSlug || undefined,
-          headline: headline.trim(),
-          bio: bio.trim(),
-          consultationMode,
-          location: location.trim(),
-          publicPhone: publicPhone.trim(),
-          publicEmail: publicEmail.trim(),
-          bookingEnabled,
-          showPublicPhone,
-          showPublicEmail,
-          showInstagram,
-          professionalInstagram: professionalInstagram.trim(),
-        };
-        setCurrentUser(user);
+
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        if (user.nutritionist) {
+          user.nutritionist.settings = {
+            ...user.nutritionist.settings,
+            publicProfileEnabled: Boolean(updatedNutritionist?.publicProfileEnabled ?? publicProfileEnabled),
+            publicSlug: resolvedSlug || undefined,
+            headline: headline.trim(),
+            bio: bio.trim(),
+            consultationMode,
+            location: location.trim(),
+            publicPhone: publicPhone.trim(),
+            publicEmail: publicEmail.trim(),
+            bookingEnabled,
+            showPublicPhone,
+            showPublicEmail,
+            showInstagram,
+            professionalInstagram: professionalInstagram.trim(),
+          };
+          localStorage.setItem("user", JSON.stringify(user));
+        }
       }
     } catch (error) {
       const message =
@@ -467,18 +459,9 @@ bio: bio.trim(),
           </div>
           <div className="p-6">
             <div className="flex items-center gap-x-4 mb-6 font-bold">
-              {userData?.googleAvatarUrl ? (
-                <img
-                  src={userData.googleAvatarUrl}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                  className="h-16 w-16 rounded-full border-2 border-emerald-200 object-cover"
-                />
-              ) : (
-                <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 border border-emerald-200 text-2xl font-bold">
-                  {userData?.fullName?.charAt(0) || "U"}
-                </div>
-              )}
+              <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 border border-emerald-200 text-2xl font-bold">
+                {userData?.fullName?.charAt(0) || "U"}
+              </div>
               <div>
                 <h3 className="font-bold text-slate-900">
                   {userData?.fullName || "Cargando..."}
@@ -486,18 +469,8 @@ bio: bio.trim(),
                 <p className="text-sm font-medium text-slate-500">
                   {userData?.email || "..."}
                 </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <RoleBadge role={userData?.role} />
-                  {userData?.createdAt && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">
-                      <Calendar className="h-3 w-3" />
-                      Miembro desde{" "}
-                      {new Date(userData.createdAt).toLocaleDateString("es-CL", {
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </span>
-                  )}
+                <div className="mt-1 inline-flex items-center rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                  Perfil Profesional
                 </div>
               </div>
             </div>

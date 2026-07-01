@@ -16,11 +16,12 @@ export class LoggingInterceptor implements NestInterceptor {
     const ctx = context.switchToHttp();
     const request = ctx.getRequest();
     const { method, url, body, ip } = request;
+    const userAgent = request.get('user-agent') || '';
 
     const now = Date.now();
 
     // Mask sensitive data in logs
-    this.maskSensitiveData(body);
+    const maskedBody = this.maskSensitiveData(body);
 
     const userId = request.user ? `[User: ${request.user.id}]` : '[Guest]';
 
@@ -58,7 +59,7 @@ export class LoggingInterceptor implements NestInterceptor {
 
     const mask = (obj: any) => {
       for (const key in obj) {
-        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        if (obj.hasOwnProperty(key)) {
           if (sensitiveKeys.some((k) => key.toLowerCase().includes(k))) {
             obj[key] = '*****';
           } else if (typeof obj[key] === 'object' && obj[key] !== null) {

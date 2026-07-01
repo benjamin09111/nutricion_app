@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
   Param,
   Query,
@@ -68,11 +67,10 @@ export class AppointmentsController {
       throw new BadRequestException('Callback de Google Calendar incompleto');
     }
 
-    const callback =
-      await this.googleIntegrationService.handleGoogleCalendarCallback(
-        code,
-        state,
-      );
+    const callback = await this.googleIntegrationService.handleGoogleCalendarCallback(
+      code,
+      state,
+    );
 
     await this.googleIntegrationService.upsertCalendarConnection({
       accountId: callback.accountId,
@@ -80,12 +78,8 @@ export class AppointmentsController {
       tokens: callback.tokens,
     });
 
-    const frontendUrl = (
-      process.env.FRONTEND_URL || 'http://localhost:3000'
-    ).replace(/\/$/, '');
-    return res.redirect(
-      `${frontendUrl}${callback.next || '/dashboard/citas'}?googleCalendar=connected`,
-    );
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    return res.redirect(`${frontendUrl}${callback.next || '/dashboard/citas'}?googleCalendar=connected`);
   }
 
   @Post('me/default-schedule')
@@ -262,14 +256,12 @@ export class AppointmentsController {
       return { authUrl: null };
     }
 
-    const authUrl = this.googleIntegrationService.buildGoogleCalendarConnectUrl(
-      {
-        accountId,
-        nutritionistId,
-        calendarId,
-        next: '/dashboard/citas',
-      },
-    );
+    const authUrl = await this.googleIntegrationService.buildGoogleCalendarConnectUrl({
+      accountId,
+      nutritionistId,
+      calendarId,
+      next: '/dashboard/citas',
+    });
 
     return { authUrl };
   }
@@ -315,28 +307,6 @@ export class AppointmentsController {
     return this.googleIntegrationService.resyncAppointments(calendarId);
   }
 
-  @Delete(':id/google/disconnect')
-  async disconnectGoogleCalendar(
-    @Param('id') calendarId: string,
-    @Request() request: AppointmentRequest,
-  ) {
-    const nutritionistId = await resolveNutritionistIdFromRequest(
-      request,
-      this.prisma,
-    );
-
-    await this.appointmentsService.getCalendarById(calendarId, nutritionistId);
-
-    const accountId = (request as any).user?.id as string | undefined;
-    if (!accountId) {
-      throw new BadRequestException('No se pudo identificar la cuenta');
-    }
-
-    await this.googleIntegrationService.disconnectCalendarConnection(accountId);
-
-    return { success: true };
-  }
-
   @Patch(':id/google/integration')
   async updateGoogleIntegration(
     @Param('id') calendarId: string,
@@ -354,9 +324,7 @@ export class AppointmentsController {
     );
 
     const currentMetadata =
-      calendar.metadata &&
-      typeof calendar.metadata === 'object' &&
-      !Array.isArray(calendar.metadata)
+      calendar.metadata && typeof calendar.metadata === 'object' && !Array.isArray(calendar.metadata)
         ? (calendar.metadata as Record<string, unknown>)
         : {};
 
@@ -366,9 +334,7 @@ export class AppointmentsController {
         metadata: {
           ...currentMetadata,
           googleIntegration: {
-            ...(currentMetadata.googleIntegration as
-              | Record<string, unknown>
-              | undefined),
+            ...(currentMetadata.googleIntegration as Record<string, unknown> | undefined),
             ...body,
           },
         } as any,
@@ -408,13 +374,7 @@ export class AppointmentsController {
   async approveAppointment(
     @Param('appointmentId') appointmentId: string,
     @Request() request: AppointmentRequest,
-    @Body()
-    body: {
-      startTime?: string;
-      endTime?: string;
-      notifyPatientByEmail?: boolean;
-      syncGoogleCalendar?: boolean;
-    },
+    @Body() body: { startTime?: string; endTime?: string },
   ) {
     const nutritionistId = await resolveNutritionistIdFromRequest(
       request,
@@ -425,8 +385,6 @@ export class AppointmentsController {
       appointmentId,
       body.startTime,
       body.endTime,
-      body.notifyPatientByEmail,
-      body.syncGoogleCalendar,
     );
   }
 

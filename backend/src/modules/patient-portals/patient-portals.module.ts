@@ -15,7 +15,7 @@ import { PatientPortalAuthGuard } from './guards/patient-portal.guard';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
+      useFactory: async (configService: ConfigService) => ({
         secret:
           configService.get<string>('PORTAL_JWT_SECRET') ||
           configService.get<string>('JWT_SECRET') ||

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { usePaymentMode } from "@/hooks/usePaymentMode";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
-import { membershipService, type MembershipPlan, type DiscountValidationResult } from "@/features/memberships/services/membership.service";
+import { membershipService, type MembershipPlan } from "@/features/memberships/services/membership.service";
 import { syncMembershipToStoredUser } from "@/lib/membership-session";
 import { goToMembershipWelcome } from "@/lib/membership-navigation";
 
@@ -79,9 +79,6 @@ export function MembershipPlanSection() {
   const [availablePlans, setAvailablePlans] = useState<MembershipPlan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [upgradingPlanId, setUpgradingPlanId] = useState<string | null>(null);
-  const [discountCode, setDiscountCode] = useState("");
-  const [discountResults, setDiscountResults] = useState<Map<string, DiscountValidationResult>>(new Map());
-  const [validatingPlanId, setValidatingPlanId] = useState<string | null>(null);
 
   const currentPrice = Number(currentPlan?.price || 0);
   const nextPaymentLabel = useMemo(() => {
@@ -374,7 +371,7 @@ export function MembershipPlanSection() {
                           ? "Down plan"
                           : "Cambiar";
 
-return (
+                  return (
                     <div key={plan.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -386,78 +383,10 @@ return (
                         </span>
                       </div>
 
-                      {targetPrice > 0 && (
-                        <div className="mt-3 space-y-2">
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              placeholder="Codigo de descuento"
-                              value={discountCode}
-                              onChange={(e) => {
-                                setDiscountCode(e.target.value);
-                                setDiscountResults((prev) => {
-                                  const next = new Map(prev);
-                                  next.delete(plan.id);
-                                  return next;
-                                });
-                              }}
-                              className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 placeholder-slate-400"
-                            />
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (!discountCode.trim()) return;
-                                setValidatingPlanId(plan.id);
-                                try {
-                                  const result = await membershipService.validateDiscount(plan.id, discountCode.trim());
-                                  setDiscountResults((prev) => {
-                                    const next = new Map(prev);
-                                    next.set(plan.id, result);
-                                    return next;
-                                  });
-                                  toast.success(`Codigo aplicado: ${result.discountPercent}% descuento`);
-                                } catch (e: any) {
-                                  toast.error(e?.message || "Codigo invalido");
-                                } finally {
-                                  setValidatingPlanId(null);
-                                }
-                              }}
-                              disabled={validatingPlanId === plan.id || !discountCode.trim()}
-                              className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-[10px] font-bold text-indigo-600 transition-colors hover:bg-indigo-100 disabled:opacity-50 cursor-pointer"
-                            >
-                              {validatingPlanId === plan.id ? "..." : "Aplicar"}
-                            </button>
-                          </div>
-                          {discountResults.has(plan.id) && (
-                            <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-2 text-[10px] space-y-0.5">
-                              <div className="flex justify-between text-slate-500">
-                                <span>Original</span>
-                                <span>{money(discountResults.get(plan.id)!.originalPrice)}</span>
-                              </div>
-                              {discountResults.get(plan.id)!.proratedCredit > 0 && (
-                                <div className="flex justify-between text-slate-500">
-                                  <span>Credito</span>
-                                  <span>-{money(discountResults.get(plan.id)!.proratedCredit)}</span>
-                                </div>
-                              )}
-                              <div className="flex justify-between text-emerald-700 font-bold">
-                                <span>-{discountResults.get(plan.id)!.discountPercent}%</span>
-                                <span>-{money(discountResults.get(plan.id)!.basePrice - discountResults.get(plan.id)!.finalPrice)}</span>
-                              </div>
-                              <div className="flex justify-between text-slate-900 font-black pt-1 border-t border-emerald-200">
-                                <span>Total</span>
-                                <span>{money(discountResults.get(plan.id)!.finalPrice)}</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
                       <div className="mt-4 flex justify-end">
                         <button
                           onClick={async () => {
                             setUpgradingPlanId(plan.id);
-                            const planDiscount = discountResults.get(plan.id);
                             try {
                               if (targetPrice === 0) {
                                 const result = await membershipService.selectFreePlan(plan.id);
@@ -470,11 +399,9 @@ return (
                               }
 
                               if (mode === "real") {
-                                const result = planDiscount?.code
-                                  ? await membershipService.createFlowDiscountCheckout(plan.id, planDiscount.code)
-                                  : await membershipService.createFlowCheckout(plan.id);
-                                if (result.paymentUrl) {
-                                  window.location.href = result.paymentUrl;
+                                const result = await membershipService.createPreference(plan.id);
+                                if (result.init_point) {
+                                  window.location.href = result.init_point;
                                   return;
                                 }
                                 throw new Error("No se obtuvo link de pago");

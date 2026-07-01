@@ -17,23 +17,25 @@ const wrapEmail = (params: {
 export function buildWelcomeEmailTemplate(params: {
   fullName: string;
   email: string;
+  password: string;
   loginUrl: string;
   adminMessage?: string;
 }) {
   const html = wrapEmail({
-    title: 'Tu acceso fue habilitado',
-    body: `<p>Hola <strong>${escapeHtml(params.fullName)}</strong>,</p><p>Tu acceso profesional en NutriNet ya está listo. Ingresa con tu cuenta de Google para comenzar a usar la plataforma.</p><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:18px 20px;margin:20px 0"><div style="font-size:12px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em">Correo</div><div style="font-size:18px;font-weight:700">${escapeHtml(params.email)}</div></div>${params.adminMessage ? `<p style="padding:12px 14px;background:#ecfdf5;border-left:4px solid #10b981;border-radius:12px"><strong>Mensaje del administrador:</strong><br>${escapeHtml(params.adminMessage)}</p>` : ''}<p style="margin-top:24px;color:#64748b;font-size:14px">No necesitas contraseña. Solo usa Google para entrar.</p>`,
-    ctaLabel: 'Iniciar con Google',
+    title: 'Tu cuenta fue creada',
+    body: `<p>Hola <strong>${escapeHtml(params.fullName)}</strong>,</p><p>Tu cuenta profesional en NutriNet fue creada correctamente.</p><div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:18px 20px;margin:20px 0"><div style="font-size:12px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em">Correo</div><div style="font-size:18px;font-weight:700;margin-bottom:12px">${escapeHtml(params.email)}</div><div style="font-size:12px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.08em">Contraseña temporal</div><div style="font-family:monospace;font-size:18px;font-weight:700">${escapeHtml(params.password)}</div></div>${params.adminMessage ? `<p style="padding:12px 14px;background:#ecfdf5;border-left:4px solid #10b981;border-radius:12px"><strong>Mensaje del administrador:</strong><br>${escapeHtml(params.adminMessage)}</p>` : ''}<p style="margin-top:24px;color:#64748b;font-size:14px">Cambia tu contraseña apenas ingreses.</p>`,
+    ctaLabel: 'Iniciar sesión',
     ctaUrl: params.loginUrl,
   });
 
   const text = [
-    `Tu acceso fue habilitado en NutriNet.`,
+    `Tu cuenta fue creada en NutriNet.`,
     `Correo: ${params.email}`,
+    `Contraseña temporal: ${params.password}`,
     params.adminMessage
       ? `Mensaje del administrador: ${params.adminMessage}`
       : null,
-    `Iniciar con Google: ${params.loginUrl}`,
+    `Iniciar sesión: ${params.loginUrl}`,
   ]
     .filter(Boolean)
     .join('\n');

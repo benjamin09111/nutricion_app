@@ -1,4 +1,8 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../../common/services/cache.service';
 import {
@@ -6,7 +10,7 @@ import {
   PaymentStatus,
   SubscriptionStatus,
 } from '@prisma/client';
-import { STAFF_ROLES } from '../permissions/permissions.constants';
+import { ADMIN_ROLES } from '../permissions/permissions.constants';
 
 @Injectable()
 export class MetricsService {
@@ -121,7 +125,7 @@ export class MetricsService {
   }
 
   private ensureAdmin(role?: string) {
-    if (!role || !STAFF_ROLES.includes(role as any)) {
+    if (!role || !ADMIN_ROLES.includes(role as any)) {
       throw new ForbiddenException(
         'No tienes permisos para acceder a esta sección',
       );
@@ -204,11 +208,9 @@ export class MetricsService {
               ? 'Admin General'
               : acc.role === 'ADMIN'
                 ? 'Administrador (Legado)'
-                : String(acc.role) === 'WORKER'
-                  ? 'Worker'
-                  : acc.role === 'NUTRITIONIST_DEVELOPER'
-                    ? 'Nutricionista Developer'
-                    : acc.email.split('@')[0]),
+                : acc.role === 'NUTRITIONIST_DEVELOPER'
+                  ? 'Nutricionista Developer'
+                  : acc.email.split('@')[0]),
         email: acc.email,
         role: acc.role,
         joinedAt: acc.createdAt,

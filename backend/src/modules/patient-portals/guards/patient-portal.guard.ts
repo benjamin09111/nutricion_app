@@ -70,7 +70,7 @@ export class PatientPortalAuthGuard implements CanActivate {
 
       request.portalSession = payload;
       return true;
-    } catch {
+    } catch (error) {
       throw new UnauthorizedException(
         'La sesión del portal expiró o es inválida',
       );

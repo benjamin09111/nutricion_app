@@ -1,6 +1,7 @@
 import {
   IsEmail,
   IsNotEmpty,
+  IsOptional,
   IsString,
   MinLength,
   Matches,
@@ -37,4 +38,8 @@ export class RegisterDto {
     message: 'La contraseña no debe contener espacios',
   })
   password: string;
+
+  @IsString({ message: 'El mensaje debe ser texto' })
+  @IsOptional()
+  message?: string;
 }

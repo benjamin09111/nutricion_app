@@ -1,5 +1,4 @@
 import { getAuthToken } from "@/lib/auth-token";
-import { getCurrentUser } from "@/lib/current-user";
 
 const APPOINTMENTS_PROXY_BASE = "/api/appointments";
 
@@ -68,16 +67,12 @@ export type AppointmentEvent = {
   notes?: string;
   color?: string;
   allDay?: boolean;
-  googleCalendarHtmlLink?: string | null;
-  googleCalendarSyncedAt?: string | null;
-  googleCalendarSyncError?: string | null;
 };
 
 export type AppointmentRequest = {
   id: string;
   title: string;
   patientName?: string;
-  patientEmail?: string;
   start: string;
   end: string;
   requestedAt: string;
@@ -135,10 +130,17 @@ const getAppointmentsAuthMode = () =>
 
 const getNutritionistId = (): string | null => {
   if (typeof window === "undefined") return null;
-  const user = getCurrentUser();
-  if (user) {
-    return user?.nutritionist?.id || user?.nutritionistId || null;
-  }
+  try {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      return (
+        user?.nutritionist?.id ||
+        user?.nutritionistId ||
+        null
+      );
+    }
+  } catch (e) { }
   return null;
 };
 
@@ -281,12 +283,6 @@ export async function getGoogleStatus(calendarId: string) {
 export async function resyncGoogleCalendar(calendarId: string) {
   return fetchAppointmentsJson<unknown>(`/calendars/${calendarId}/google/resync`, {
     method: "POST",
-  });
-}
-
-export async function disconnectGoogleCalendar(calendarId: string) {
-  return fetchAppointmentsJson<unknown>(`/calendars/${calendarId}/google/disconnect`, {
-    method: "DELETE",
   });
 }
 

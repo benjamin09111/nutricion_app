@@ -1,64 +1,51 @@
 # NutriNet
 
-NutriNet es una plataforma SaaS para nutricionistas en Chile. El producto automatiza el trabajo clínico diario: pacientes, consultas, dietas, recetas, entregables y herramientas de apoyo.
+NutriNet es una plataforma para nutricionistas. Su foco es acelerar la consulta clínica, organizar pacientes y consultas, crear dietas y recetas, y exportar entregables profesionales con soporte para recursos educativos y catálogos personalizados.
 
-## Leer primero
+## Qué resuelve
 
-1. `.agents/rules/core.md`
-2. `.agents/entrypoint.md`
-3. `.agents/context/product.md`
-4. `.agents/context/architecture.md`
-5. `docs/README.md`
+- Gestión de pacientes y consultas clínicas.
+- Construcción de dietas y porciones.
+- Generación de recetas, carrito y entregable PDF.
+- Reutilización de contenidos y recursos educativos.
+- Panel admin para soporte, pagos, membresías y peticiones.
 
-## Estructura del repo
-
-- `frontend/`: app Next.js 16.
-- `backend/`: API NestJS + Prisma.
-- `docs/`: documentación técnica y de dominio.
-- `.agents/`: reglas y contexto para agentes.
-
-## Flujo clínico principal
+## Flujo principal
 
 1. `Dieta`
 2. `Recetas y Porciones`
 3. `Carrito`
 4. `Entregable`
 
-## Inicio rápido
+También existe modo independiente para usar módulos sueltos, por ejemplo un entregable rápido, recursos, recetas o creación de contenido sin arrancar un caso clínico completo.
 
-No hay `package.json` en el root. Trabaja dentro de cada paquete:
+## Cómo está organizado
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+- `frontend/`: app Next.js 16 con el dashboard y las pantallas de trabajo.
+- `backend/`: API NestJS + Prisma con los módulos de dominio.
+- `.agent/`: reglas, roadmap, flujos y specs internas del proyecto.
 
-```bash
-cd backend
-npm install
-npm run start:dev
-```
+## Dónde leer primero
 
-## Comandos útiles
-
-- Frontend: `npm run build`, `npm run start`, `npm run lint`
-- Backend: `npm run build`, `npm run test`, `npm run test:e2e`, `npm run lint`
-
-## Convenciones del proyecto
-
-- UI en español.
-- Código y comentarios en inglés.
-- Light mode only.
-- Cambios pequeños y modulares.
-- No hacer migraciones destructivas.
+1. [ARCHITECTURE.md](/Users/juako/Code/nutricion_app/ARCHITECTURE.md)
+2. [docs/README.md](/Users/juako/Code/nutricion_app/docs/README.md)
+3. [.agent/rules/product-context.md](/Users/juako/Code/nutricion_app/.agent/rules/product-context.md)
+4. [.agent/APPLICATION_FLOW.md](/Users/juako/Code/nutricion_app/.agent/APPLICATION_FLOW.md)
+5. [.agent/roadmap.md](/Users/juako/Code/nutricion_app/.agent/roadmap.md)
 
 ## Documentación por paquete
 
-- `frontend/README.md`
-- `backend/README.md`
-- `backend/scripts/README.md`
+- [frontend/README.md](/Users/juako/Code/nutricion_app/frontend/README.md)
+- [backend/README.md](/Users/juako/Code/nutricion_app/backend/README.md)
+- [backend/scripts/README.md](/Users/juako/Code/nutricion_app/backend/scripts/README.md)
 
-## Para agentes
+## Estado de la documentación
 
-Si eres un agente, sigue `.agents/entrypoint.md` antes de modificar código. Si el cambio afecta un flujo clínico o una integración, actualiza también la documentación correspondiente en `docs/`.
+- `README.md`: entrada principal del proyecto.
+- `ARCHITECTURE.md`: mapa funcional y técnico de alto nivel.
+- `docs/README.md`: índice de documentación.
+- `.agent/*`: contexto interno, reglas y roadmap vivo.
+
+## Nota
+
+Si cambias un flujo importante del producto, actualiza también el workflow correspondiente en `.agent/workflows/` para que la documentación operativa no se quede atrás.

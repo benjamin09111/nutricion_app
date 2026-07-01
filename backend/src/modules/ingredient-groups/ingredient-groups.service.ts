@@ -19,8 +19,7 @@ export class IngredientGroupsService {
   ) {}
 
   async create(nutritionistId: string, createDto: CreateIngredientGroupDto) {
-    const { tags, ingredients, recipeIds, type, ...data } = createDto;
-    const isRecipeGroup = type === 'RECIPE';
+    const { tags, ingredients, type, ...data } = createDto;
 
     // Resolve tags (create if not exists)
     const tagRecords =
@@ -38,24 +37,16 @@ export class IngredientGroupsService {
         tags: {
           connect: tagRecords.map((t: Tag) => ({ id: t.id })),
         },
-        entries: isRecipeGroup
-          ? recipeIds?.length
-            ? {
-                create: recipeIds.map((recipeId) => ({
-                  recipeId,
-                })),
-              }
-            : undefined
-          : ingredients
-            ? {
-                create: ingredients.map((ing) => ({
-                  ingredientId: ing.id,
-                  brandSuggestion: ing.brandSuggestion,
-                  amount: ing.amount,
-                  unit: ing.unit,
-                })),
-              }
-            : undefined,
+        entries: ingredients
+          ? {
+              create: ingredients.map((ing) => ({
+                ingredientId: ing.id,
+                brandSuggestion: ing.brandSuggestion,
+                amount: ing.amount,
+                unit: ing.unit,
+              })),
+            }
+          : undefined,
       },
       include: {
         tags: true,
@@ -198,8 +189,7 @@ export class IngredientGroupsService {
   ) {
     await this.validateGroupOwnership(id, nutritionistId);
 
-    const { tags, ingredients, recipeIds, type, ...data } = updateDto;
-    const isRecipeGroup = type === 'RECIPE';
+    const { tags, ingredients, ...data } = updateDto;
 
     const tagRecords = tags
       ? await Promise.all(tags.map((name) => this.getOrCreateTag(name)))
@@ -213,14 +203,7 @@ export class IngredientGroupsService {
       };
     }
 
-    if (isRecipeGroup && recipeIds) {
-      updateData.entries = {
-        deleteMany: {},
-        create: recipeIds.map((recipeId) => ({
-          recipeId,
-        })),
-      };
-    } else if (ingredients) {
+    if (ingredients) {
       updateData.entries = {
         deleteMany: {}, // Clear existing
         create: ingredients.map((ing) => ({

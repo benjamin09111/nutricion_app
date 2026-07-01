@@ -38,10 +38,6 @@ export class CreatePatientDto {
   @IsString()
   gender?: string;
 
-  @IsOptional()
-  @IsNumber({}, { message: 'La edad debe ser un número entero' })
-  age?: number;
-
   // Anthropometry (Initial values)
   @IsOptional()
   @IsNumber({}, { message: 'La altura debe ser un número (cm)' })
@@ -89,12 +85,7 @@ export class CreatePatientDto {
 
   @IsOptional()
   @IsArray()
-  customVariables?: {
-    key: string;
-    label: string;
-    unit: string;
-    value?: string | number | boolean | Record<string, unknown>;
-  }[];
+  customVariables?: { key: string; label: string; unit: string }[];
 
   @IsOptional()
   @IsBoolean()

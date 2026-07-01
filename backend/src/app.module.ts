@@ -9,6 +9,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { MailModule } from './modules/mail/mail.module';
 import { UsersModule } from './modules/users/users.module';
 import { SupportModule } from './modules/support/support.module';
+import { RequestsModule } from './modules/requests/requests.module';
 import { PatientsModule } from './modules/patients/patients.module';
 import { MembershipsModule } from './modules/memberships/memberships.module';
 import { PaymentsModule } from './modules/payments/payments.module';
@@ -32,11 +33,9 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
 import { PatientPortalsModule } from './modules/patient-portals/patient-portals.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { PautasModule } from './modules/pautas/pautas.module';
-import { PatientIntakeModule } from './modules/patient-intake/patient-intake.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { MessageTemplatesModule } from './modules/message-templates/message-templates.module';
-import { DiscountCodesModule } from './modules/discount-codes/discount-codes.module';
 
 @Module({
   imports: [
@@ -50,6 +49,7 @@ import { DiscountCodesModule } from './modules/discount-codes/discount-codes.mod
     MailModule,
     UsersModule,
     SupportModule,
+    RequestsModule,
     PatientsModule,
     MembershipsModule,
     PaymentsModule,
@@ -91,11 +91,9 @@ import { DiscountCodesModule } from './modules/discount-codes/discount-codes.mod
     PatientPortalsModule,
     AppointmentsModule,
     PautasModule,
-    PatientIntakeModule,
     NotificationsModule,
     AnnouncementsModule,
     MessageTemplatesModule,
-    DiscountCodesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

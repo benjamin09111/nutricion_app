@@ -62,8 +62,4 @@ export class CreateAppointmentDto {
   @IsOptional()
   @IsBoolean()
   notifyPatientByEmail?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  syncGoogleCalendar?: boolean;
 }

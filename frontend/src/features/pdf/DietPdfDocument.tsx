@@ -446,7 +446,7 @@ function FoodTablePage({
             {Object.entries(grouped).map(([grupo, foods]) => {
                 const dotColor = getGroupColor(grupo);
                 return (
-                    <View key={grupo}>
+                    <View key={grupo} wrap={false}>
                         {/* Group header */}
                         <View style={S.groupHeader}>
                             <View style={{ ...S.groupDot, backgroundColor: dotColor }} />
@@ -555,7 +555,7 @@ function FoodTablePage({
             {/* Footnote */}
             <View style={{ marginTop: 20, paddingTop: 12, borderTop: `1px solid ${colors.slate100}` }}>
                 <Text style={{ fontSize: 7, color: colors.slate500, fontStyle: "italic" }}>
-                    * Valores nutricionales por 100 g / 100 ml de alimento. Generado por NutriNet.
+                    * Valores nutricionales por 100g de alimento. Generado por NutriNet.
                 </Text>
             </View>
 

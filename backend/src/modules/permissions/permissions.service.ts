@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   EntitlementMap,
-  isStaffRole,
+  isAdminRole,
   normalizeEntitlementMap,
   SPECIAL_FEATURES,
 } from './permissions.constants';
@@ -11,7 +11,6 @@ import {
   getMembershipPlanKey,
   normalizeMembershipPlanKey,
 } from '../memberships/plan-entitlements';
-import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['ACTIVE', 'TRIALING']);
 
@@ -19,7 +18,7 @@ const isSubscriptionSelectable = (account: {
   role: string;
   subscription: { status: string; endDate: Date | null } | null;
 }) => {
-  if (isStaffRole(account.role)) {
+  if (isAdminRole(account.role)) {
     return true;
   }
 
@@ -53,33 +52,20 @@ export class PermissionsService {
       return null;
     }
 
-    const subscriptionSelectable = isSubscriptionSelectable({
-      role: account.role,
-      subscription: account.subscription
-        ? {
-            status: account.subscription.status,
-            endDate: account.subscription.endDate,
-          }
-        : null,
-    });
-
-    const currentPlan =
-      subscriptionSelectable && account.subscription?.plan
-        ? {
-            id: account.subscription.plan.id,
-            name: account.subscription.plan.name,
-            slug: account.subscription.plan.slug,
-            key: getMembershipPlanKey(account.subscription.plan),
-            price: Number(account.subscription.plan.price),
-            features: account.subscription.plan.features,
-            entitlements: normalizeEntitlementMap(
-              (account.subscription.plan as any).entitlements ||
-                getMembershipPlanEntitlementsFromPlan(
-                  account.subscription.plan,
-                ),
-            ),
-          }
-        : null;
+    const currentPlan = account.subscription?.plan
+      ? {
+          id: account.subscription.plan.id,
+          name: account.subscription.plan.name,
+          slug: account.subscription.plan.slug,
+          key: getMembershipPlanKey(account.subscription.plan),
+          price: Number(account.subscription.plan.price),
+          features: account.subscription.plan.features,
+          entitlements: normalizeEntitlementMap(
+            (account.subscription.plan as any).entitlements ||
+              getMembershipPlanEntitlementsFromPlan(account.subscription.plan),
+          ),
+        }
+      : null;
 
     const requiresPlanSelection = !isSubscriptionSelectable({
       role: account.role,
@@ -97,14 +83,6 @@ export class PermissionsService {
       currentPlan,
       requiresPlanSelection,
       entitlements: this.buildEntitlements(account, currentPlan),
-      accountPlan:
-        subscriptionSelectable && account.subscription?.plan
-          ? resolveAccountPlanFromMembershipPlan(
-              account.subscription.plan.slug || account.subscription.plan.name,
-            )
-          : isStaffRole(account.role)
-            ? account.plan
-            : 'FREE',
     };
   }
 
@@ -116,7 +94,7 @@ export class PermissionsService {
       entitlements: EntitlementMap;
     } | null,
   ): EntitlementMap {
-    if (isStaffRole(account.role)) {
+    if (isAdminRole(account.role)) {
       return { [SPECIAL_FEATURES.MEMBERSHIP_SELECTED]: true };
     }
 
@@ -141,7 +119,7 @@ export class PermissionsService {
       snapshot;
 
     return {
-      accountPlan: snapshot.accountPlan,
+      accountPlan: account.plan,
       role: account.role,
       currentPlanKey: currentPlan ? currentPlan.key || null : null,
       requiresPlanSelection,
@@ -187,7 +165,7 @@ export class PermissionsService {
 
     const { account, entitlements } = snapshot;
 
-    if (isStaffRole(account.role)) {
+    if (isAdminRole(account.role)) {
       return true;
     }
 
@@ -202,7 +180,7 @@ export class PermissionsService {
     const snapshot = await this.getAccountAccess(accountId);
 
     if (!snapshot) return 0;
-    if (isStaffRole(snapshot.role)) return Infinity;
+    if (isAdminRole(snapshot.role)) return Infinity;
 
     const value = snapshot.entitlements[limitKey];
     if (typeof value !== 'number') return 0;

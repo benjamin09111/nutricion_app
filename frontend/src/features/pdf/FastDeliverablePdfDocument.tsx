@@ -39,9 +39,9 @@ export interface FastDeliverablePdfData {
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 22,
-    paddingBottom: 24,
-    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 30,
+    paddingHorizontal: 30,
     backgroundColor: "#ffffff",
     fontFamily: "Helvetica",
     color: "#0f172a",
@@ -49,8 +49,8 @@ const styles = StyleSheet.create({
     lineHeight: 1.35,
   },
   header: {
-    marginBottom: 10,
-    paddingBottom: 8,
+    marginBottom: 14,
+    paddingBottom: 10,
     borderBottom: "1px solid #cbd5e1",
   },
   brand: {
@@ -69,18 +69,18 @@ const styles = StyleSheet.create({
     color: "#475569",
   },
   section: {
-    marginTop: 8,
+    marginTop: 10,
   },
   sectionTitle: {
     fontSize: 10,
     fontFamily: "Helvetica-Bold",
     color: "#111827",
-    marginBottom: 4,
+    marginBottom: 6,
     textTransform: "uppercase",
   },
   patientCard: {
-    marginTop: 8,
-    padding: 8,
+    marginTop: 10,
+    padding: 10,
     backgroundColor: "#f8fafc",
     border: "1px solid #e2e8f0",
     borderRadius: 8,
@@ -88,11 +88,11 @@ const styles = StyleSheet.create({
   patientGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
+    gap: 8,
   },
   patientItem: {
     width: "48%",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   patientLabel: {
     fontSize: 7,
@@ -109,16 +109,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "#ecfdf5",
     border: "1px solid #a7f3d0",
-    paddingVertical: 4,
-    paddingHorizontal: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 6,
   },
   tableRow: {
     flexDirection: "row",
     borderLeft: "1px solid #e2e8f0",
     borderRight: "1px solid #e2e8f0",
     borderBottom: "1px solid #e2e8f0",
-    paddingVertical: 4,
-    paddingHorizontal: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 6,
   },
   cellTime: {
     width: "18%",
@@ -147,11 +147,11 @@ const styles = StyleSheet.create({
   chipWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 4,
+    gap: 6,
   },
   chip: {
-    paddingVertical: 3,
-    paddingHorizontal: 7,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     backgroundColor: "#fff7ed",
     border: "1px solid #fdba74",
     borderRadius: 999,
@@ -168,8 +168,8 @@ const styles = StyleSheet.create({
   portionRow: {
     flexDirection: "row",
     borderBottom: "1px solid #e2e8f0",
-    paddingVertical: 4,
-    paddingHorizontal: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 6,
   },
   portionCategory: {
     width: "40%",
@@ -179,8 +179,8 @@ const styles = StyleSheet.create({
     width: "60%",
   },
   resourceCard: {
-    marginBottom: 5,
-    padding: 6,
+    marginBottom: 6,
+    padding: 7,
     backgroundColor: "#f8fafc",
     border: "1px solid #e2e8f0",
     borderRadius: 6,
@@ -190,8 +190,11 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   footer: {
-    marginTop: 14,
-    paddingTop: 5,
+    position: "absolute",
+    bottom: 18,
+    left: 30,
+    right: 30,
+    paddingTop: 8,
     borderTop: "1px solid #e2e8f0",
     flexDirection: "row",
     justifyContent: "space-between",

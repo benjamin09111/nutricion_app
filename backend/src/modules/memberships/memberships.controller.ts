@@ -7,12 +7,9 @@ import {
   Param,
   Delete,
   UseGuards,
-  Request,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { MembershipsService } from './memberships.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
-import { isAdminRole } from '../permissions/permissions.constants';
 
 @Controller('memberships')
 export class MembershipsController {
@@ -32,67 +29,37 @@ export class MembershipsController {
    */
   @UseGuards(AuthGuard)
   @Get()
-  findAll(@Request() req: any) {
-    if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException(
-        'Solo administradores pueden ver membresías',
-      );
-    }
+  findAll() {
     return this.membershipsService.findAll();
   }
 
   @UseGuards(AuthGuard)
   @Get(':id')
-  findOne(@Param('id') id: string, @Request() req: any) {
-    if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException(
-        'Solo administradores pueden ver membresías',
-      );
-    }
+  findOne(@Param('id') id: string) {
     return this.membershipsService.findOne(id);
   }
 
   @UseGuards(AuthGuard)
   @Post()
-  create(@Body() createDto: any, @Request() req: any) {
-    if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException(
-        'Solo administradores pueden crear membresías',
-      );
-    }
+  create(@Body() createDto: any) {
     return this.membershipsService.create(createDto);
   }
 
   @UseGuards(AuthGuard)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDto: any, @Request() req: any) {
-    if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException(
-        'Solo administradores pueden editar membresías',
-      );
-    }
+  update(@Param('id') id: string, @Body() updateDto: any) {
     return this.membershipsService.update(id, updateDto);
   }
 
   @UseGuards(AuthGuard)
   @Patch(':id/toggle-active')
-  toggleActive(@Param('id') id: string, @Request() req: any) {
-    if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException(
-        'Solo administradores pueden editar membresías',
-      );
-    }
+  toggleActive(@Param('id') id: string) {
     return this.membershipsService.toggleActive(id);
   }
 
   @UseGuards(AuthGuard)
   @Delete(':id')
-  remove(@Param('id') id: string, @Request() req: any) {
-    if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException(
-        'Solo administradores pueden eliminar membresías',
-      );
-    }
+  remove(@Param('id') id: string) {
     return this.membershipsService.remove(id);
   }
 }

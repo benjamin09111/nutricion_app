@@ -3,13 +3,6 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
-import type { Request } from 'express';
-
-const extractTokenFromCookie = (request: Request) => {
-  const cookieHeader = request.headers.cookie || '';
-  const match = cookieHeader.match(/(?:^|;\s*)auth_token_http=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
-};
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -17,18 +10,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    const secret = configService.get<string>('JWT_SECRET');
-    if (!secret) {
-      throw new Error('JWT_SECRET is required');
-    }
-
     super({
-      jwtFromRequest: ExtractJwt.fromExtractors([
-        extractTokenFromCookie,
-        ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ]),
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: secret,
+      secretOrKey: configService.get<string>('JWT_SECRET') || 'secret',
     });
   }
 
@@ -36,14 +21,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // Verify the account still exists and is active in the database
     const account = await this.prisma.account.findUnique({
       where: { id: payload.sub },
-      select: {
-        status: true,
-        role: true,
-        email: true,
-        nutritionist: {
-          select: { id: true },
-        },
-      },
+      select: { status: true },
     });
 
     if (
@@ -56,9 +34,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     return {
       id: payload.sub,
-      email: account.email,
-      role: account.role,
-      nutritionistId: account.nutritionist?.id,
+      email: payload.email,
+      role: payload.role,
+      nutritionistId: payload.nutritionistId,
     };
   }
 }

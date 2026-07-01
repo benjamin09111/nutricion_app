@@ -51,5 +51,6 @@ npm run lint
 
 ## Documentación relacionada
 
-- [../README.md](../README.md)
-- [../docs/README.md](../docs/README.md)
+- [../README.md](/Users/juako/Code/nutricion_app/README.md)
+- [../ARCHITECTURE.md](/Users/juako/Code/nutricion_app/ARCHITECTURE.md)
+- [../docs/README.md](/Users/juako/Code/nutricion_app/docs/README.md)

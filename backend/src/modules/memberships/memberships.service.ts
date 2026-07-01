@@ -1,64 +1,56 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import type { Prisma, MembershipPlan } from '@prisma/client';
-
-const normalizeMembershipFeature = (value: unknown): string => {
-  const feature = typeof value === 'string' ? value.trim() : '';
-  if (!feature) return '';
-
-  if (/^([✓✔Xx])\s*(.*)$/.test(feature)) {
-    return feature;
-  }
-
-  const excludedMatch = feature.match(/^sin\s+(.*)$/i);
-  if (excludedMatch) {
-    return `X ${excludedMatch[1].trim()}`;
-  }
-
-  return `✓ ${feature}`;
-};
-
-const asStringArray = (value: Prisma.JsonValue): string[] => {
-  if (Array.isArray(value))
-    return value.map((v) => (typeof v === 'string' ? v : ''));
-  return [];
-};
-
-type PlanRow = MembershipPlan;
-
-const normalizeMembershipPlan = (plan: PlanRow) => ({
-  ...plan,
-  price: Number(plan.price),
-  features: asStringArray(plan.features).map(normalizeMembershipFeature),
-});
 
 @Injectable()
 export class MembershipsService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Get all membership plans (active and inactive)
+   * For admin panel management
+   */
   async findAll() {
     const plans = await this.prisma.membershipPlan.findMany({
       orderBy: { displayOrder: 'asc' },
     });
-    return plans.map(normalizeMembershipPlan);
+    return plans.map((plan) => ({
+      ...plan,
+      price: Number(plan.price),
+    }));
   }
 
+  /**
+   * Get only active plans
+   * For landing page display
+   */
   async findActive() {
     const plans = await this.prisma.membershipPlan.findMany({
       where: { isActive: true },
       orderBy: { displayOrder: 'asc' },
     });
-    return plans.map(normalizeMembershipPlan);
+    return plans.map((plan) => ({
+      ...plan,
+      price: Number(plan.price),
+    }));
   }
 
+  /**
+   * Get a single plan by ID
+   */
   async findOne(id: string) {
     const plan = await this.prisma.membershipPlan.findUnique({
       where: { id },
     });
     if (!plan) return null;
-    return normalizeMembershipPlan(plan);
+    return {
+      ...plan,
+      price: Number(plan.price),
+    };
   }
 
+  /**
+   * Create a new membership plan
+   */
   async create(data: {
     name: string;
     slug: string;
@@ -76,11 +68,14 @@ export class MembershipsService {
     return this.prisma.membershipPlan.create({
       data: {
         ...data,
-        features: (data.features || []).map(normalizeMembershipFeature),
+        features: data.features || [],
       },
     });
   }
 
+  /**
+   * Update an existing membership plan
+   */
   async update(
     id: string,
     data: {
@@ -100,25 +95,24 @@ export class MembershipsService {
   ) {
     return this.prisma.membershipPlan.update({
       where: { id },
-      data: {
-        ...data,
-        ...(data.features
-          ? { features: data.features.map(normalizeMembershipFeature) }
-          : {}),
-      },
+      data,
     });
   }
 
+  /**
+   * Delete a membership plan
+   */
   async remove(id: string) {
     return this.prisma.membershipPlan.delete({
       where: { id },
     });
   }
 
+  /**
+   * Toggle plan active status
+   */
   async toggleActive(id: string) {
-    const plan = await this.prisma.membershipPlan.findUnique({
-      where: { id },
-    });
+    const plan = await this.findOne(id);
     if (!plan) throw new Error('Plan not found');
 
     return this.prisma.membershipPlan.update({

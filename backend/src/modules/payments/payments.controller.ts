@@ -9,8 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
-import { FlowService } from './flow.service';
-import { DiscountCodesService } from '../discount-codes/discount-codes.service';
+import { MercadoPagoService } from './mercadopago.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { isAdminRole } from '../permissions/permissions.constants';
 
@@ -19,33 +18,21 @@ import { isAdminRole } from '../permissions/permissions.constants';
 export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,
-    private readonly flowService: FlowService,
-    private readonly discountCodesService: DiscountCodesService,
+    private readonly mercadopagoService: MercadoPagoService,
   ) {}
 
   @Get()
-  findAll(@Request() req: any) {
-    if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException('Solo administradores pueden ver pagos');
-    }
+  findAll() {
     return this.paymentsService.findAll();
   }
 
   @Get('recent')
-  findRecent(@Query('limit') limit: string, @Request() req: any) {
-    if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException('Solo administradores pueden ver pagos');
-    }
+  findRecent(@Query('limit') limit: string) {
     return this.paymentsService.findRecent(limit ? parseInt(limit) : 5);
   }
 
   @Get('stats')
-  getStats(@Request() req: any) {
-    if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException(
-        'Solo administradores pueden ver estadísticas',
-      );
-    }
+  getStats() {
     return this.paymentsService.getRevenueStats();
   }
 
@@ -79,12 +66,17 @@ export class PaymentsController {
     @Request() req: any,
   ) {
     const accountId = req.user?.id;
+    const payerEmail = req.user?.email;
 
     if (!accountId) {
       throw new UnauthorizedException('Usuario no identificado');
     }
 
-    return this.paymentsService.membershipCheckout(accountId, body.planId);
+    return this.paymentsService.membershipCheckout(
+      accountId,
+      body.planId,
+      payerEmail,
+    );
   }
 
   // ─── Cancel / Resume ───────────────────────────────────────────────
@@ -107,10 +99,10 @@ export class PaymentsController {
     return this.paymentsService.resumeSubscription(accountId);
   }
 
-  // ─── Flow Checkout ─────────────────────────────────────────────────
+  // ─── Create Preference (Mercado Pago direct) ───────────────────────
 
-  @Post('flow/checkout')
-  async createFlowCheckout(
+  @Post('create-preference')
+  async createPreference(
     @Body() body: { planId: string },
     @Request() req: any,
   ) {
@@ -121,50 +113,10 @@ export class PaymentsController {
       throw new UnauthorizedException('Usuario no identificado');
     }
 
-    return this.flowService.createMembershipCheckout(
-      accountId,
+    return this.mercadopagoService.createPreference(
       body.planId,
+      accountId,
       payerEmail,
-    );
-  }
-
-  // ─── Discount Validation ─────────────────────────────────────────
-
-  @Post('validate-discount')
-  async validateDiscount(
-    @Body() body: { code: string; planId: string },
-    @Request() req: any,
-  ) {
-    const accountId = req.user?.id;
-    if (!accountId) {
-      throw new UnauthorizedException('Usuario no identificado');
-    }
-    return this.paymentsService.validateDiscount(
-      accountId,
-      body.planId,
-      body.code,
-    );
-  }
-
-  // ─── Flow Checkout with Discount ─────────────────────────────────
-
-  @Post('flow/discount-checkout')
-  async createFlowDiscountCheckout(
-    @Body() body: { planId: string; discountCode?: string },
-    @Request() req: any,
-  ) {
-    const accountId = req.user?.id;
-    const payerEmail = req.user?.email;
-
-    if (!accountId) {
-      throw new UnauthorizedException('Usuario no identificado');
-    }
-
-    return this.flowService.createMembershipCheckout(
-      accountId,
-      body.planId,
-      payerEmail,
-      body.discountCode || undefined,
     );
   }
 

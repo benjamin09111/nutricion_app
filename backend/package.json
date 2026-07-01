@@ -7,6 +7,9 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "db:target": "node scripts/db-target.js",
+    "db:use:local": "node scripts/switch-db-profile.js --profile=localdev",
+    "db:use:testing": "node scripts/switch-db-profile.js --profile=testing",
     "db:migrate:safe": "node scripts/safe-migrate.js",
     "db:seed:catalog:safe": "node scripts/safe-seed-catalog.js",
     "db:cleanup:ingredient-duplicates": "node scripts/cleanup-duplicate-ingredients.js",
@@ -46,6 +49,7 @@
     "express-rate-limit": "^8.2.1",
     "handlebars": "^4.7.8",
     "helmet": "^8.1.0",
+    "mercadopago": "^3.1.0",
     "ms": "^2.1.3",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",

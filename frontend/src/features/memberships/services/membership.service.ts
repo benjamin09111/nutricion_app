@@ -1,14 +1,5 @@
 import { api } from "@/lib/api";
 
-async function readJsonResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({} as { message?: string }));
-    throw new Error(errorData?.message || "Error al procesar la solicitud");
-  }
-
-  return res.json() as Promise<T>;
-}
-
 export interface MembershipStatus {
   requiresPlanSelection: boolean;
   accountPlan: string;
@@ -62,17 +53,9 @@ export interface CheckoutResult {
   mock: boolean;
   success: boolean;
   redirectUrl?: string;
-  paymentUrl?: string;
+  init_point?: string;
   proratedCredit?: number;
   chargedAmount?: number;
-}
-
-export interface FlowCheckoutResult {
-  provider: "FLOW";
-  paymentUrl: string;
-  token: string;
-  flowOrder: number;
-  paymentId: string;
 }
 
 export interface MembershipActivationSnapshot {
@@ -90,34 +73,6 @@ export interface FreePlanSelectionResult {
   payment: unknown;
   plan: { id: string; name: string; slug: string };
   membershipStatus: MembershipActivationSnapshot | null;
-}
-
-export interface DiscountValidationResult {
-  valid: boolean;
-  code: string;
-  type: string;
-  discountPercent: number;
-  originalPrice: number;
-  proratedCredit: number;
-  basePrice: number;
-  finalPrice: number;
-  currency: string;
-}
-
-export interface DiscountCodeAdmin {
-  id: string;
-  code: string;
-  type: string;
-  discountPercent: number;
-  isUsed: boolean;
-  usedByAccountId: string | null;
-  usedAt: string | null;
-  archivedAt?: string | null;
-  archivedByAdminId?: string | null;
-  createdAt: string;
-  createdBy: { email: string };
-  usedBy?: { email: string } | null;
-  archivedBy?: { email: string } | null;
 }
 
 export const membershipService = {
@@ -146,18 +101,8 @@ export const membershipService = {
     return res.json();
   },
 
-  async createFlowCheckout(planId: string): Promise<FlowCheckoutResult> {
-    const res = await api.post("/payments/flow/checkout", { planId });
-    return res.json();
-  },
-
-  async validateDiscount(planId: string, code: string): Promise<DiscountValidationResult> {
-    const res = await api.post("/payments/validate-discount", { planId, code });
-    return res.json();
-  },
-
-  async createFlowDiscountCheckout(planId: string, discountCode: string): Promise<FlowCheckoutResult> {
-    const res = await api.post("/payments/flow/discount-checkout", { planId, discountCode });
+  async createPreference(planId: string): Promise<{ init_point: string; sandbox_init_point?: string }> {
+    const res = await api.post("/payments/create-preference", { planId });
     return res.json();
   },
 
@@ -174,34 +119,5 @@ export const membershipService = {
   async consumeQuota(featureKey: string, amount = 1): Promise<{ usageCount: number | null; limit: number }> {
     const res = await api.post("/permissions/consume", { featureKey, amount });
     return res.json();
-  },
-
-  // ─── Discount Codes (Admin) ────────────────────────────────────
-
-  async generateDiscountCodes(type: string, count: number): Promise<DiscountCodeAdmin[]> {
-    const res = await api.post("/discount-codes/generate", { type, count });
-    return readJsonResponse<DiscountCodeAdmin[]>(res);
-  },
-
-  async listDiscountCodes(params?: {
-    type?: string;
-    isUsed?: boolean;
-    start?: number;
-    limit?: number;
-    includeArchived?: boolean;
-  }): Promise<{ total: number; data: DiscountCodeAdmin[] }> {
-    const query = new URLSearchParams();
-    if (params?.type) query.set("type", params.type);
-    if (params?.isUsed !== undefined) query.set("isUsed", String(params.isUsed));
-    if (params?.start !== undefined) query.set("start", String(params.start));
-    if (params?.limit !== undefined) query.set("limit", String(params.limit));
-    if (params?.includeArchived !== undefined) query.set("includeArchived", String(params.includeArchived));
-    const res = await api.get(`/discount-codes?${query}`);
-    return readJsonResponse<{ total: number; data: DiscountCodeAdmin[] }>(res);
-  },
-
-  async archiveUsedDiscountCodes(): Promise<{ archivedCount: number; archivedAt: string }> {
-    const res = await api.post("/discount-codes/archive-used");
-    return readJsonResponse<{ archivedCount: number; archivedAt: string }>(res);
   },
 };

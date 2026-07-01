@@ -394,23 +394,7 @@ export default function PautasAlimentacionClient() {
       name: `${title} - ${selectedRestriction}`,
       restriction: selectedRestriction,
       patient: selectedPatient.fullName.trim() ? { name: selectedPatient.fullName, ageYears: patientAge, weight: patientWeight, height: patientHeight, bmi: calculatedBmi, bloodPressure: (isManualPatientExpanded && manualPatientData.bloodPressure.trim()) ? manualPatientData.bloodPressure : (selectedPatient.bloodPressure ?? null), nextControl: null } : null,
-      paragraphs: validParagraphs.map((p) => ({
-        title: p.category.trim(),
-        subtitle: [
-          p.portionsPerDay.trim() ? `Tiempo de alimentación: ${p.portionsPerDay.trim()}` : null,
-          p.categoryOptional.trim() ? `Alternativa clínica: ${p.categoryOptional.trim()}` : null,
-        ].filter(Boolean).join(" · "),
-        foods: p.foods
-          .map((f) => {
-            const food = f.food.trim();
-            if (!food) return "";
-
-            const portion = f.portion.trim();
-            return `${portion ? `${portion} de ` : "1 unidad de "}${food}`;
-          })
-          .filter(Boolean),
-        imagePath: p.imagePath,
-      })),
+      paragraphs: validParagraphs.map((p) => ({ title: `${p.category.trim()}${p.categoryOptional.trim() ? ` y ${p.categoryOptional.trim()}` : ""} (${p.portionsPerDay.trim()})`.trim(), foods: p.foods.map((f) => `${f.portion.trim() ? `${f.portion.trim()} de ` : ""}${f.food.trim()}`).filter(Boolean), imagePath: p.imagePath })),
       resource: educationalContent.trim() ? { title: `Información educativa - ${selectedRestriction}`, content: educationalContent } : null,
       generatedAt: new Date().toLocaleDateString("es-CL"),
     };
@@ -505,10 +489,7 @@ export default function PautasAlimentacionClient() {
       toast.success("Pautas guardadas.");
       setIsSaveCreationModalOpen(false);
       setCreationDescription("");
-    } catch (error: unknown) {
-      console.error(error);
-      toast.error(error instanceof Error ? error.message : "Error al guardar.");
-    }
+    } catch (error) { console.error(error); toast.error("Error al guardar."); }
     finally { setIsSaving(false); }
   };
 

@@ -320,19 +320,12 @@ const buildQuickNutritionalTargets = (
   if (weight <= 0 || height <= 0) return null;
 
   const gender = normalizeQuickPatientGender(patient.gender);
-  const ageYears = calculateAge(patient.birthDate) ?? 30;
+  const ageYears = calculateAge(patient.birthDate) || 30;
   const activityLevel = "moderado" as NutritionActivityLevel;
-  const get = calculateGET(
-    gender,
-    weight,
-    height,
-    ageYears,
-    activityLevel,
-    ageYears < 18 ? "oms-fao" : "mifflin-st-jeor",
-  );
+  const get = calculateGET(gender, weight, height, ageYears, activityLevel);
   if (!get) return null;
 
-    const bmi = calculateBMI(weight, height, { gender, ageYears, birthDate: patient.birthDate });
+  const bmi = calculateBMI(weight, height);
 
   return {
     dailyCalories: Math.round(get.macros.calories),
@@ -841,11 +834,7 @@ export default function QuickRecipesClient() {
         : undefined;
       const patientBmi =
         selectedPatient?.weight && selectedPatient?.height
-          ? calculateBMI(Number(selectedPatient.weight) || 0, Number(selectedPatient.height) || 0, {
-              gender: normalizeQuickPatientGender(selectedPatient.gender),
-              ageYears: calculateAge(selectedPatient.birthDate) || undefined,
-              birthDate: selectedPatient.birthDate,
-            })
+          ? calculateBMI(Number(selectedPatient.weight) || 0, Number(selectedPatient.height) || 0)
           : null;
 
       const baseExistingDishes = dishes

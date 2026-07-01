@@ -14,7 +14,7 @@ import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import {
   SPECIAL_FEATURES,
-  isStaffRole,
+  isAdminRole,
 } from '../permissions/permissions.constants';
 
 @Controller('announcements')
@@ -29,8 +29,8 @@ export class AnnouncementsController {
     @Body() createAnnouncementDto: CreateAnnouncementDto,
   ) {
     const user = req.user;
-    // Allow privileged staff roles
-    if (!isStaffRole(user.role)) {
+    // Allow any admin role
+    if (!isAdminRole(user.role)) {
       throw new UnauthorizedException('No tienes permisos para crear anuncios');
     }
     return this.announcementsService.create(createAnnouncementDto);

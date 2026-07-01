@@ -61,6 +61,27 @@ interface MessageTemplate {
   lastUsed?: string;
 }
 
+const DEFAULT_MESSAGE_TEMPLATES: MessageTemplate[] = [
+  {
+    id: "template-welcome",
+    title: "Bienvenida Estándar",
+    subject: "¡Bienvenido(a) a la familia NutriNet!",
+    content:
+      "Estamos muy felices de tenerte con nosotros. Tu cuenta ya está activa y puedes empezar a gestionar tus pacientes de inmediato.",
+    fromEmail: "notificaciones@nutrinet.cl",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "template-maintenance",
+    title: "Aviso de Mantenimiento",
+    subject: "Aviso Importante: Mantenimiento Programado",
+    content:
+      "Realizaremos mejoras técnicas este domingo. El sistema podría presentar intermitencias por 1 hora.",
+    fromEmail: "info@nutrinet.cl",
+    createdAt: new Date(Date.now() - 172800000).toISOString(),
+  },
+];
+
 export default function MessagesPage() {
   const [activeTab, setActiveTab] = useState<Tab>("templates");
   const { register, handleSubmit, watch, setValue, reset, control } =
@@ -85,7 +106,7 @@ export default function MessagesPage() {
   const [isLoadingNutris, setIsLoadingNutris] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [templates, setTemplates] = useState<MessageTemplate[]>(DEFAULT_MESSAGE_TEMPLATES);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
@@ -153,27 +174,36 @@ export default function MessagesPage() {
         }
 
         const data = (await res.json()) as MessageTemplate[];
-        setTemplates(data);
+        setTemplates(data.length > 0 ? data : DEFAULT_MESSAGE_TEMPLATES);
       } catch (error) {
         console.error("Error fetching templates:", error);
-        setTemplates([]);
+        setTemplates(DEFAULT_MESSAGE_TEMPLATES);
       }
     };
 
     fetchTemplates();
   }, [activeTab]);
 
-  const [history, setHistory] = useState<
+  const [history, setHistory] = useState([
     {
-      id: number;
-      subject: string;
-      sentAt: string;
-      recipientCount: number;
-      status: string;
-      type: CommunicationType;
-      target: RecipientType;
-    }[]
-  >([]);
+      id: 1,
+      subject: "Bienvenida a NutriNet",
+      sentAt: new Date().toISOString(),
+      recipientCount: 15,
+      status: "completed",
+      type: "email",
+      target: "nutri",
+    },
+    {
+      id: 2,
+      subject: "Aviso Mantenimiento Servidor",
+      sentAt: new Date(Date.now() - 3600000).toISOString(),
+      recipientCount: 2,
+      status: "completed",
+      type: "announcement",
+      target: "admin",
+    },
+  ]);
 
   const onSubmit = async (data: MessageForm) => {
     setIsSending(true);
@@ -187,7 +217,7 @@ export default function MessagesPage() {
       const recipientType: RecipientType = activeTab === "admin" ? "admin" : "nutri";
       const targetRoles =
         recipientType === "admin"
-          ? ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL", "WORKER"]
+          ? ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"]
           : ["NUTRITIONIST"];
 
       const res = await fetchApi("/announcements", {
@@ -420,73 +450,67 @@ export default function MessagesPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {templates.length > 0 ? (
-              templates.map((template) => (
-                <div
-                  key={template.id}
-                  className="bg-white border-2 border-slate-100 rounded-2xl p-6 hover:border-indigo-600 hover:shadow-xl hover:shadow-indigo-50 transition-all cursor-pointer group flex flex-col justify-between h-full"
-                  onClick={() => handleSelectTemplate(template)}
-                >
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-start">
-                      <div className="h-10 w-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                        <FileText className="h-5 w-5" />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        Plantilla
-                      </span>
+            {templates.map((template) => (
+              <div
+                key={template.id}
+                className="bg-white border-2 border-slate-100 rounded-2xl p-6 hover:border-indigo-600 hover:shadow-xl hover:shadow-indigo-50 transition-all cursor-pointer group flex flex-col justify-between h-full"
+                onClick={() => handleSelectTemplate(template)}
+              >
+                <div className="space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div className="h-10 w-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                      <FileText className="h-5 w-5" />
                     </div>
-                    <div>
-                      <h3 className="font-black text-slate-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
-                        {template.title}
-                      </h3>
-                      <p className="text-xs text-slate-500 font-bold mt-1 line-clamp-1">
-                        {template.subject}
-                      </p>
-                      <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mt-2">
-                        Remitente: {template.fromEmail}
-                      </p>
-                    </div>
-                    <p className="text-sm text-slate-600 line-clamp-3 font-medium leading-relaxed italic">
-                      &quot;{template.content}&quot;
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Plantilla
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
+                      {template.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-bold mt-1 line-clamp-1">
+                      {template.subject}
+                    </p>
+                    <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mt-2">
+                      Remitente: {template.fromEmail}
                     </p>
                   </div>
-                  <div className="mt-6 pt-4 border-t border-slate-50 flex flex-wrap items-center justify-between gap-3">
-                    <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1 uppercase tracking-tighter">
-                      <Clock className="h-3 w-3" />
-                      Usado:{" "}
-                      {new Intl.DateTimeFormat("es-CL").format(
-                        new Date(
-                          template.lastUsed ||
-                            template.updatedAt ||
-                            template.createdAt ||
-                            Date.now(),
-                        ),
-                      )}
+                  <p className="text-sm text-slate-600 line-clamp-3 font-medium leading-relaxed italic">
+                    &quot;{template.content}&quot;
+                  </p>
+                </div>
+                <div className="mt-6 pt-4 border-t border-slate-50 flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1 uppercase tracking-tighter">
+                    <Clock className="h-3 w-3" />
+                    Usado:{" "}
+                    {new Intl.DateTimeFormat("es-CL").format(
+                      new Date(
+                        template.lastUsed ||
+                          template.updatedAt ||
+                          template.createdAt ||
+                          Date.now(),
+                      ),
+                    )}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openEditTemplateModal(template);
+                      }}
+                      className="text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      Editar
+                    </button>
+                    <span className="text-indigo-600 font-black text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 translate-x-1 group-hover:translate-x-0 transition-all">
+                      Usar ahora →
                     </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          openEditTemplateModal(template);
-                        }}
-                        className="text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-                      >
-                        Editar
-                      </button>
-                      <span className="text-indigo-600 font-black text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 translate-x-1 group-hover:translate-x-0 transition-all">
-                        Usar ahora →
-                      </span>
-                    </div>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center text-sm text-slate-500">
-                Aún no hay mensajes guardados.
               </div>
-            )}
+            ))}
           </div>
         </div>
       )}
@@ -827,53 +851,45 @@ export default function MessagesPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y">
-                {history.length > 0 ? (
-                  history.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50">
-                      <td className="px-6 py-4 text-sm font-bold text-slate-900">
-                        {item.subject}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter ${item.target === "admin" ? "bg-amber-100 text-amber-700 border border-amber-200" : "bg-green-100 text-green-700 border border-green-200"}`}
-                        >
-                          {item.target === "admin"
-                            ? "Equipo Admin"
-                            : "Nutricionistas"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${item.type === "email" ? "bg-blue-100 text-blue-700" : "bg-indigo-100 text-indigo-700"}`}
-                        >
-                          {item.type === "email" ? (
-                            <Mail className="h-3 w-3" />
-                          ) : (
-                            <Bell className="h-3 w-3" />
-                          )}
-                          {item.type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-xs font-medium text-slate-500 uppercase">
-                        {new Intl.DateTimeFormat("es-CL", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }).format(new Date(item.sentAt))}
-                      </td>
-                      <td className="px-6 py-4 text-emerald-600 font-bold text-[10px] uppercase tracking-widest">
-                        Completado
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">
-                      No hay mensajes enviados todavía.
+                {history.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50">
+                    <td className="px-6 py-4 text-sm font-bold text-slate-900">
+                      {item.subject}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter ${item.target === "admin" ? "bg-amber-100 text-amber-700 border border-amber-200" : "bg-green-100 text-green-700 border border-green-200"}`}
+                      >
+                        {item.target === "admin"
+                          ? "Equipo Admin"
+                          : "Nutricionistas"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${item.type === "email" ? "bg-blue-100 text-blue-700" : "bg-indigo-100 text-indigo-700"}`}
+                      >
+                        {item.type === "email" ? (
+                          <Mail className="h-3 w-3" />
+                        ) : (
+                          <Bell className="h-3 w-3" />
+                        )}
+                        {item.type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-xs font-medium text-slate-500 uppercase">
+                      {new Intl.DateTimeFormat("es-CL", {
+                        day: "2-digit",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }).format(new Date(item.sentAt))}
+                    </td>
+                    <td className="px-6 py-4 text-emerald-600 font-bold text-[10px] uppercase tracking-widest">
+                      Completado
                     </td>
                   </tr>
-                )}
+                ))}
               </tbody>
             </table>
           </div>

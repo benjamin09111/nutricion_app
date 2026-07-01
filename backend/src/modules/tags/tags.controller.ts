@@ -7,6 +7,7 @@ import {
   UseGuards,
   Delete,
   Param,
+  UseInterceptors,
   Request,
 } from '@nestjs/common';
 import { TagsService } from './tags.service';

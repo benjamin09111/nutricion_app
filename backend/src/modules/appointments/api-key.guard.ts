@@ -9,28 +9,20 @@ import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
-  private readonly jwtSecret = process.env.JWT_SECRET;
-  private readonly apiKey = process.env.APPOINTMENTS_API_KEY;
+  private readonly jwtSecret = process.env.JWT_SECRET || 'change_me_local';
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-    const path = ((request as any).originalUrl || request.url || '').split(
-      '?',
-    )[0];
-
-    if (path === '/calendars/google/callback') {
-      return true;
-    }
 
     const apiKey = request.headers['x-api-key'] as string;
     const nutritionistId = request.headers['x-nutritionist-id'] as string;
     const authHeader = request.headers['authorization'] as string;
 
-    if (apiKey && nutritionistId && this.apiKey && apiKey === this.apiKey) {
+    if (apiKey && nutritionistId) {
       return true;
     }
 
-    if (authHeader?.startsWith('Bearer ') && this.jwtSecret) {
+    if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       try {
         const decoded = jwt.verify(token, this.jwtSecret) as jwt.JwtPayload & {
@@ -64,7 +56,7 @@ export class ApiKeyGuard implements CanActivate {
     }
 
     throw new UnauthorizedException(
-      'Se requiere una clave de API válida o un JWT válido en Authorization',
+      'Se requiere X-Api-Key y X-Nutritionist-Id, o un JWT válido en Authorization',
     );
   }
 }

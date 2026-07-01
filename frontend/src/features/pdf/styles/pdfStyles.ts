@@ -1,4 +1,4 @@
-import { StyleSheet } from "@react-pdf/renderer";
+import { StyleSheet, Font } from "@react-pdf/renderer";
 
 // -- Color Palette --
 export const colors = {
@@ -25,17 +25,17 @@ export const shared = StyleSheet.create({
     page: {
         backgroundColor: colors.white,
         fontFamily: "Helvetica",
-        paddingTop: 30,
-        paddingBottom: 48,
-        paddingHorizontal: 32,
+        paddingTop: 40,
+        paddingBottom: 60,
+        paddingHorizontal: 40,
     },
     // Header band at top of each page
     pageHeader: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 16,
-        paddingBottom: 8,
+        marginBottom: 24,
+        paddingBottom: 12,
         borderBottom: `2px solid ${colors.primaryLight}`,
     },
     pageHeaderTitle: {
@@ -53,14 +53,14 @@ export const shared = StyleSheet.create({
     // Footer
     pageFooter: {
         position: "absolute",
-        bottom: 18,
-        left: 32,
-        right: 32,
+        bottom: 24,
+        left: 40,
+        right: 40,
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
         borderTop: `1px solid ${colors.slate300}`,
-        paddingTop: 6,
+        paddingTop: 8,
     },
     pageFooterText: {
         fontSize: 8,
@@ -76,8 +76,8 @@ export const shared = StyleSheet.create({
         fontSize: 13,
         fontFamily: "Helvetica-Bold",
         color: colors.slate900,
-        marginBottom: 8,
-        marginTop: 14,
+        marginBottom: 10,
+        marginTop: 20,
     },
     sectionSubtitle: {
         fontSize: 10,
@@ -121,7 +121,7 @@ export const shared = StyleSheet.create({
     // Row / Col helpers
     row: {
         flexDirection: "row",
-        gap: 6,
+        gap: 8,
     },
     // Table
     tableHeader: {

@@ -17,7 +17,6 @@ import { toast } from "sonner";
 import {
   membershipService,
   type MembershipPlan,
-  type DiscountValidationResult,
 } from "@/features/memberships/services/membership.service";
 import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -30,10 +29,6 @@ export function PlanSelector() {
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
-  const [discountCode, setDiscountCode] = useState("");
-  const [discountResult, setDiscountResult] = useState<DiscountValidationResult | null>(null);
-  const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
-  const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const { refreshSubscription } = useSubscription();
   const router = useRouter();
   const { mode, toggle: toggleMode } = usePaymentMode();
@@ -69,11 +64,9 @@ export function PlanSelector() {
     setSubmittingId(plan.id);
     try {
       if (mode === "real") {
-        const result = discountResult?.code
-          ? await membershipService.createFlowDiscountCheckout(plan.id, discountResult.code)
-          : await membershipService.createFlowCheckout(plan.id);
-        if (result.paymentUrl) {
-          window.location.href = result.paymentUrl;
+        const result = await membershipService.createPreference(plan.id);
+        if (result.init_point) {
+          window.location.href = result.init_point;
           return;
         }
         throw new Error("No se obtuvo link de pago");
@@ -102,22 +95,6 @@ export function PlanSelector() {
     }
   };
 
-  const handleValidateDiscount = async (plan: MembershipPlan) => {
-    if (!discountCode.trim()) return;
-    setIsValidatingDiscount(true);
-    setActivePlanId(plan.id);
-    try {
-      const result = await membershipService.validateDiscount(plan.id, discountCode.trim());
-      setDiscountResult(result);
-      toast.success(`Codigo aplicado: ${result.discountPercent}% descuento`);
-    } catch (error: unknown) {
-      setDiscountResult(null);
-      toast.error(error instanceof Error ? error.message : "Codigo invalido");
-    } finally {
-      setIsValidatingDiscount(false);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -133,7 +110,6 @@ export function PlanSelector() {
 
   const freePlan = plans.find((p) => Number(p.price) === 0);
   const paidPlans = plans.filter((p) => Number(p.price) > 0);
-  const allPlans = [...paidPlans, ...(freePlan ? [freePlan] : [])];
 
   return (
     <div className="min-h-screen bg-white">
@@ -206,78 +182,24 @@ export function PlanSelector() {
           </div>
         )}
 
-        {/* All Plans Grid */}
-        {allPlans.length > 0 && (
-          <div className="grid gap-6 mb-10 lg:grid-cols-3 max-w-5xl mx-auto">
-            {allPlans.map((plan) => {
-              const isFree = Number(plan.price) === 0;
+        {/* Paid Plans Grid */}
+        {paidPlans.length > 0 && (
+          <div
+            className={`grid gap-6 mb-10 ${
+              paidPlans.length === 1
+                ? "max-w-md mx-auto"
+                : paidPlans.length === 2
+                  ? "md:grid-cols-2 max-w-3xl mx-auto"
+                  : "lg:grid-cols-3 max-w-5xl mx-auto"
+            }`}
+          >
+            {paidPlans.map((plan) => {
               const isPopular = plan.isPopular;
               const features = Array.isArray(plan.features)
                 ? plan.features
                 : typeof plan.features === "string"
                   ? JSON.parse(plan.features)
                   : [];
-
-              if (isFree) {
-                return (
-                  <div
-                    key={plan.id}
-                    className="relative flex flex-col rounded-3xl border-2 border-dashed border-emerald-300 bg-emerald-50/30 transition-all duration-300 hover:shadow-md"
-                  >
-                    <div className="flex flex-col flex-1 p-6 sm:p-8 text-center">
-                      <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-xs font-bold text-emerald-700 mb-4 mx-auto">
-                        <Sparkles className="h-3.5 w-3.5" />
-                        Plan gratuito
-                      </div>
-                      <h3 className="text-xl font-bold text-slate-900 mb-2">
-                        {plan.name}
-                      </h3>
-                      <div className="flex items-baseline justify-center gap-1 mb-4">
-                        <span className="text-4xl font-black tracking-tight text-slate-900">
-                          $0
-                        </span>
-                        <span className="text-slate-500 text-sm">/mes</span>
-                      </div>
-                      {plan.description && (
-                        <p className="text-sm text-slate-500 mb-4">
-                          {plan.description}
-                        </p>
-                      )}
-                      <ul className="mb-8 space-y-3 text-left flex-1">
-                        {features.map((feature: string, idx: number) => {
-                          const fd = getMembershipFeatureDisplay(feature);
-                          return (
-                            <li key={idx} className="flex items-start gap-3">
-                              <div className={`mt-0.5 rounded-full p-0.5 ${fd.isExcluded ? "bg-red-100" : "bg-emerald-100"}`}>
-                                {fd.isExcluded ? (
-                                  <X className="h-3.5 w-3.5 text-red-500" />
-                                ) : (
-                                  <Check className="h-3.5 w-3.5 text-emerald-600" />
-                                )}
-                              </div>
-                              <span className="text-sm text-slate-700">{fd.label}</span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                      <Button
-                        onClick={() => handleSelectFree(plan)}
-                        disabled={submittingId === plan.id}
-                        className="w-full cursor-pointer bg-white border-2 border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50 text-emerald-700 font-semibold py-3 rounded-2xl transition-all duration-300 text-base"
-                      >
-                        {submittingId === plan.id ? (
-                          <span className="flex items-center justify-center gap-2">
-                            <span className="h-4 w-4 border-2 border-emerald-300 border-t-emerald-600 rounded-full animate-spin" />
-                            Activando...
-                          </span>
-                        ) : (
-                          "Activar plan gratis"
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                );
-              }
 
               return (
                 <div
@@ -355,54 +277,6 @@ export function PlanSelector() {
                       })}
                     </ul>
 
-                    <div className="mb-4">
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="Codigo de descuento"
-                          value={activePlanId === plan.id ? discountCode : ""}
-                          onChange={(e) => {
-                            setActivePlanId(plan.id);
-                            setDiscountCode(e.target.value);
-                            setDiscountResult(null);
-                          }}
-                          className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder-slate-400"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleValidateDiscount(plan)}
-                          disabled={isValidatingDiscount || !discountCode.trim()}
-                          className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-600 transition-colors hover:bg-indigo-100 disabled:opacity-50 cursor-pointer"
-                        >
-                          {isValidatingDiscount && activePlanId === plan.id
-                            ? "..."
-                            : "Aplicar"}
-                        </button>
-                      </div>
-                      {discountResult && activePlanId === plan.id && (
-                        <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-xs space-y-1">
-                          <div className="flex justify-between text-slate-500">
-                            <span>Precio original</span>
-                            <span>${discountResult.originalPrice.toLocaleString("es-CL")}</span>
-                          </div>
-                          {discountResult.proratedCredit > 0 && (
-                            <div className="flex justify-between text-slate-500">
-                              <span>Credito prorrateado</span>
-                              <span>-${discountResult.proratedCredit.toLocaleString("es-CL")}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between text-emerald-700 font-bold">
-                            <span>Descuento {discountResult.discountPercent}%</span>
-                            <span>-${(discountResult.basePrice - discountResult.finalPrice).toLocaleString("es-CL")}</span>
-                          </div>
-                          <div className="flex justify-between text-slate-900 font-black text-sm pt-1 border-t border-emerald-200">
-                            <span>Total a pagar</span>
-                            <span>${discountResult.finalPrice.toLocaleString("es-CL")}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
                     <Button
                       onClick={() => handleCheckout(plan)}
                       disabled={submittingId === plan.id}
@@ -432,7 +306,40 @@ export function PlanSelector() {
           </div>
         )}
 
-        {allPlans.length === 0 && !isLoading && (
+        {/* Free Plan */}
+        {freePlan && (
+          <div className="max-w-md mx-auto">
+            <div className="rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 sm:p-8 text-center">
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-xs font-bold text-emerald-700 mb-4">
+                <Sparkles className="h-3.5 w-3.5" />
+                Plan gratuito
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">
+                {freePlan.name}
+              </h3>
+              <p className="text-sm text-slate-500 mb-6">
+                Comienza sin costo. Acceso limitado por 30 días. Ideal para
+                probar la plataforma.
+              </p>
+              <Button
+                onClick={() => handleSelectFree(freePlan)}
+                disabled={submittingId === freePlan.id}
+                className="w-full cursor-pointer bg-white border-2 border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50 text-emerald-700 font-semibold py-3 rounded-2xl transition-all duration-300 text-base"
+              >
+                {submittingId === freePlan.id ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="h-4 w-4 border-2 border-emerald-300 border-t-emerald-600 rounded-full animate-spin" />
+                    Activando...
+                  </span>
+                ) : (
+                  "Activar plan gratis"
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {plans.length === 0 && !isLoading && (
           <div className="text-center py-12">
             <p className="text-slate-500">
               No hay planes disponibles en este momento.
@@ -443,7 +350,7 @@ export function PlanSelector() {
         {/* Footer note */}
         <p className="text-center text-sm text-slate-400 mt-12">
           {mode === "real"
-            ? "Pago seguro con Flow · Facturación en CLP · Cancela cuando quieras"
+            ? "Pago seguro con Mercado Pago · Facturación en CLP · Cancela cuando quieras"
             : "Modo prueba — los pagos se confirman automáticamente"}
         </p>
       </div>

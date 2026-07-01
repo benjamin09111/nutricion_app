@@ -246,6 +246,7 @@ export const extractCalendarCandidate = (payload: unknown): Record<string, unkno
 
 export const normalizeAvailabilityRules = (payload: unknown): WeekRule[] => {
   const items = extractAvailabilityRules(payload);
+  console.log("[appointments] normalizeAvailabilityRules raw items:", items);
   if (!items.length) {
     return [];
   }
@@ -253,6 +254,7 @@ export const normalizeAvailabilityRules = (payload: unknown): WeekRule[] => {
   const parsed = items
     .map(parseAvailabilityRuleItem)
     .filter((item): item is WeekRule => item !== null);
+  console.log("[appointments] normalizeAvailabilityRules parsed:", parsed);
 
   if (!parsed.length) {
     return [];
@@ -322,12 +324,6 @@ export const normalizeCalendar = (payload: unknown): AppointmentCalendar | null 
           : typeof cal.isGoogleConnected === "boolean"
             ? cal.isGoogleConnected
             : undefined,
-    googleCalendarEmail:
-      normalizeText(cal.googleCalendarEmail) || normalizeText(cal.googleEmail),
-    googleCalendarStatus:
-      cal.googleCalendarStatus && typeof cal.googleCalendarStatus === "object" && !Array.isArray(cal.googleCalendarStatus)
-        ? (cal.googleCalendarStatus as Record<string, unknown>)
-        : null,
     metadata:
       cal.metadata && typeof cal.metadata === "object" && !Array.isArray(cal.metadata)
         ? (cal.metadata as Record<string, unknown>)
@@ -364,9 +360,6 @@ export const normalizeEvents = (payload: unknown): AppointmentEvent[] =>
         notes: normalizeText(record.notes),
         color: normalizeText(record.color),
         allDay: typeof record.allDay === "boolean" ? record.allDay : false,
-        googleCalendarHtmlLink: normalizeText(record.googleCalendarHtmlLink),
-        googleCalendarSyncedAt: normalizeText(record.googleCalendarSyncedAt),
-        googleCalendarSyncError: normalizeText(record.googleCalendarSyncError),
       };
     })
     .filter(isDefined);
@@ -388,11 +381,6 @@ export const normalizeRequests = (payload: unknown): AppointmentRequest[] =>
           normalizeText(record.patientName) ||
           normalizeText((record.patient as Record<string, unknown> | undefined)?.fullName) ||
           normalizeText((record.patient as Record<string, unknown> | undefined)?.name),
-        patientEmail:
-          normalizeText(record.patientEmail) ||
-          normalizeText((record.patient as Record<string, unknown> | undefined)?.email) ||
-          normalizeText((record.metadata as Record<string, unknown> | undefined)?.guestEmail) ||
-          normalizeText((record.metadata as Record<string, unknown> | undefined)?.patientEmail),
         start,
         end: normalizeText(record.end || record.endAt),
         requestedAt: normalizeText(record.requestedAt) || start,
@@ -533,40 +521,44 @@ export const createAppointmentDraft = () => ({
 export const formatTimeInput = (date: Date) =>
   `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 
-import { getCurrentUser } from "@/lib/current-user";
-
 export const getStoredNutritionistProfile = () => {
   if (typeof window === "undefined") {
     return null;
   }
 
-  const user = getCurrentUser() as Record<string, unknown> & {
-    id?: string;
-    fullName?: string;
-    name?: string;
-    email?: string;
-    nutritionist?: {
+  try {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) return null;
+
+    const user = JSON.parse(storedUser) as Record<string, unknown> & {
       id?: string;
       fullName?: string;
       name?: string;
-    } | null;
-  } | null;
+      email?: string;
+      nutritionist?: {
+        id?: string;
+        fullName?: string;
+        name?: string;
+      } | null;
+    };
 
-  if (!user) return null;
+    const nutritionist = user.nutritionist || null;
+    const nutritionistId = normalizeText(nutritionist?.id) || "";
+    const nutritionistName =
+      normalizeText(nutritionist?.fullName) ||
+      normalizeText(nutritionist?.name) ||
+      normalizeText(user.fullName) ||
+      normalizeText(user.name) ||
+      normalizeText(user.email) ||
+      "Nutricionista";
 
-  const nutritionist = user.nutritionist || null;
-  const nutritionistId = normalizeText(nutritionist?.id) || "";
-  const nutritionistName =
-    normalizeText(nutritionist?.fullName) ||
-    normalizeText(nutritionist?.name) ||
-    normalizeText(user.fullName) ||
-    normalizeText(user.name) ||
-    normalizeText(user.email) ||
-    "Nutricionista";
-
-  return {
-    nutritionistId,
-    nutritionistName,
-  };
+    return {
+      nutritionistId,
+      nutritionistName,
+    };
+  } catch (error) {
+    console.error("Error reading stored user for appointments share link", error);
+    return null;
+  }
 };
 export type TabKey = "calendar" | "upcoming" | "past" | "requests";
