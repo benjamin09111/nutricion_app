@@ -574,34 +574,34 @@ export default function CreatePatientClient() {
               </div>
 
               {suggestionCard.category && suggestionCard.bmi ? (
-                <div className="bg-gradient-to-br from-amber-50 to-emerald-50 rounded-xl p-4 border border-amber-100 space-y-3">
+                <div className="bg-gradient-to-br from-amber-50 to-emerald-50 dark:from-slate-800 dark:to-slate-900 rounded-xl p-4 border border-amber-100 dark:border-slate-700 space-y-3">
                   <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center">
-                      <Zap className="h-4 w-4 text-amber-600" />
+                    <div className="h-8 w-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                      <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div>
-                      <p className="text-xs font-black text-slate-800">Clasificado como:</p>
-                      <p className="text-sm font-bold text-amber-700">{suggestionCard.category.label}</p>
+                      <p className="text-xs font-black text-slate-800 dark:text-slate-200">Clasificado como:</p>
+                      <p className="text-sm font-bold text-amber-700 dark:text-amber-400">{suggestionCard.category.label}</p>
                     </div>
                   </div>
                   <p className="text-[10px] text-slate-500 leading-relaxed">{suggestionCard.category.strategy}</p>
                   <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="bg-white/80 rounded-lg p-2">
+                    <div className="bg-white/80 dark:bg-slate-800/80 rounded-lg p-2">
                       <p className="text-[9px] font-black uppercase text-slate-400">IMC</p>
-                      <p className="text-sm font-black text-slate-900">{suggestionCard.bmi.bmi}</p>
+                      <p className="text-sm font-black text-slate-900 dark:text-slate-100">{suggestionCard.bmi.bmi}</p>
                       <p className="text-[8px] font-bold" style={{ color: suggestionCard.bmi.color }}>{suggestionCard.bmi.classification}</p>
                     </div>
                     {suggestionCard.get && (
-                      <div className="bg-white/80 rounded-lg p-2">
+                      <div className="bg-white/80 dark:bg-slate-800/80 rounded-lg p-2">
                         <p className="text-[9px] font-black uppercase text-slate-400">GET</p>
-                        <p className="text-sm font-black text-emerald-700">{suggestionCard.get.get}</p>
+                        <p className="text-sm font-black text-emerald-700 dark:text-emerald-400">{suggestionCard.get.get}</p>
                         <p className="text-[8px] text-emerald-500">kcal/día</p>
                       </div>
                     )}
                     {suggestionCard.idealWeight && (
-                      <div className="bg-white/80 rounded-lg p-2">
+                      <div className="bg-white/80 dark:bg-slate-800/80 rounded-lg p-2">
                         <p className="text-[9px] font-black uppercase text-slate-400">Peso ideal</p>
-                        <p className="text-sm font-black text-blue-700">{suggestionCard.idealWeight.min}–{suggestionCard.idealWeight.max}</p>
+                        <p className="text-sm font-black text-blue-700 dark:text-blue-400">{suggestionCard.idealWeight.min}–{suggestionCard.idealWeight.max}</p>
                         <p className="text-[8px] text-blue-400">kg</p>
                       </div>
                     )}

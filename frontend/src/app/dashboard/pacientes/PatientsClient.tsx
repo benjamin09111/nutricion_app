@@ -559,12 +559,14 @@ export default function PatientsClient() {
                             <button
                               onClick={() => openPatientPreview(patient)}
                               className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                              title="Ver detalles"
                             >
                               <Eye className="w-4.5 h-4.5" />
                             </button>
                             <button
                               onClick={() => handleTogglePatientStatus(patient)}
                               className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
+                              title={patient.status === "Active" ? "Inhabilitar paciente" : "Habilitar paciente"}
                             >
                               {patient.status === "Active" ? (
                                 <Ban className="w-4.5 h-4.5 text-emerald-600" />
@@ -576,6 +578,7 @@ export default function PatientsClient() {
                               type="button"
                               disabled
                               className="group relative p-2.5 text-slate-300 bg-slate-50 rounded-xl transition-all cursor-not-allowed"
+                              title="Descargar ficha"
                             >
                               <Download className="w-4.5 h-4.5" />
                             </button>
@@ -585,6 +588,7 @@ export default function PatientsClient() {
                                 setIsDeleteConfirmOpen(true);
                               }}
                               className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                              title="Eliminar paciente"
                             >
                               <Trash2 className="w-4.5 h-4.5" />
                             </button>

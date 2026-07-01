@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import {
   type TutorialDefinition,
@@ -304,6 +304,25 @@ function IntroBetaTutorial({
             <div className="space-y-4 text-base leading-7 text-slate-600 sm:leading-8">
               {renderStructuredText(step.body)}
             </div>
+
+            {step.id === "intro-profile" && (
+              <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 flex items-center justify-between shadow-sm max-w-sm">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">QA</div>
+                  <span className="text-sm font-semibold text-slate-700">Perfil y Configuración</span>
+                </div>
+                <ChevronDown className="h-4 w-4 text-slate-400" />
+              </div>
+            )}
+
+            {step.id === "intro-nutria" && (
+              <div className="mt-6 flex justify-end w-full">
+                <div className="relative h-16 w-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/30 flex items-center justify-center">
+                   <Image src="/nutria.webp" alt="Nati" width={36} height={36} className="object-contain" />
+                   <div className="absolute top-0 right-0 h-4 w-4 rounded-full bg-emerald-500 border-2 border-white" />
+                </div>
+              </div>
+            )}
 
             {step.requireCheckbox && step.checkboxLabel ? (
               <label className="mt-6 flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 text-sm font-semibold text-slate-700">

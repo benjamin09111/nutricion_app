@@ -28,7 +28,7 @@ export const authService = {
       const cookieOptions = {
         expires: credentials.rememberMe ? 30 : 1, // 30 days or 1 day
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict" as const,
+        sameSite: "lax" as const,
       };
 
       Cookies.set("auth_token", data.access_token, cookieOptions);
