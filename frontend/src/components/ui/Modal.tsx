@@ -64,7 +64,7 @@ export function Modal({
         ref={modalRef}
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "flex w-full max-w-md max-h-[90vh] overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl relative animate-in zoom-in-95 duration-200",
+          "flex w-full max-w-md max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl relative animate-in zoom-in-95 duration-200",
           className,
         )}
       >
@@ -87,7 +87,7 @@ export function Modal({
             </button>
           </div>
         )}
-        <div className="flex-1 overflow-y-auto bg-white p-8 text-slate-900">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto bg-white p-8 text-slate-900">{children}</div>
       </div>
     </div>
   );

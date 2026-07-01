@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { AlertCircle, Download, Plus, ChefHat, RotateCcw, Save, Trash2, User, X, Check, Search, Sparkles, Loader2 } from "lucide-react";
 import Cookies from "js-cookie";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -12,12 +13,11 @@ import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
-import { SectionProgressNav, type SectionProgressStatus } from "@/components/shared/SectionProgressNav";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
+import { WizardTabs } from "@/components/shared/WizardTabs";
 import { type ActionDockItem } from "@/components/ui/ActionDock";
 import { fetchApi } from "@/lib/api-base";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
-import { EXCHANGE_PORTION_PROFILES } from "@/lib/exchange-portions";
 import { fetchCreation, fetchProject, saveCreation } from "@/lib/workflow";
 import { downloadPautaAlimentacionPdf } from "@/features/pdf/pautaAlimentacionPdfExport";
 import { useDashboardShell } from "@/context/DashboardShellContext";
@@ -60,8 +60,30 @@ const createEmptyPatient = (): PautaPatient => ({ fullName: "", email: null, age
 const createFoodItem = (): PautaFoodItem => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, portion: "", food: "" });
 const createParagraph = (): PautaParagraph => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, category: "", categoryOptional: "", portionsPerDay: "", foods: [createFoodItem()], imagePath: null });
 
+const WIZARD_STEPS = [
+  { label: "General", description: "Título y restricción clínica." },
+  { label: "Paciente", description: "Importación o carga manual." },
+  { label: "Recurso", description: "Contenido educativo asociado." },
+  { label: "Párrafos", description: "Bloques de pauta y alimentos." },
+];
+
+const formatPautaFoodLabel = (portion: string, food: string) => {
+  const cleanFood = food.trim();
+  const cleanPortion = portion.trim();
+
+  if (!cleanFood) return "";
+  if (!cleanPortion) return cleanFood;
+
+  if (/^\d+(?:[.,]\d+)?$/.test(cleanPortion)) {
+    const numericPortion = cleanPortion.replace(",", ".");
+    return `${numericPortion} porción${Number(numericPortion) === 1 ? "" : "es"} de ${cleanFood}`;
+  }
+
+  return `${cleanPortion} de ${cleanFood}`;
+};
+
 export default function PautasAlimentacionClient() {
-  const { setSidebarCollapsed, isSidebarCollapsed } = useDashboardShell();
+  const { setSidebarCollapsed } = useDashboardShell();
   const searchParams = useSearchParams();
   const creationId = searchParams.get("creationId");
   const projectId = searchParams.get("project");
@@ -95,7 +117,7 @@ export default function PautasAlimentacionClient() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [activeSection, setActiveSection] = useState("general");
+  const [currentStep, setCurrentStep] = useState(0);
 
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isImageSelectorOpen, setIsImageSelectorOpen] = useState(false);
@@ -104,6 +126,18 @@ export default function PautasAlimentacionClient() {
   const [aiAllowedFoods, setAiAllowedFoods] = useState("");
   const [aiRestrictedFoods, setAiRestrictedFoods] = useState("");
   const [aiSelectedCategories, setAiSelectedCategories] = useState<string[]>([]);
+
+  const goToStep = useCallback((step: number) => {
+    setCurrentStep(Math.max(0, Math.min(step, WIZARD_STEPS.length - 1)));
+  }, []);
+
+  const goBack = useCallback(() => {
+    setCurrentStep((prev) => Math.max(0, prev - 1));
+  }, []);
+
+  const goNext = useCallback(() => {
+    setCurrentStep((prev) => Math.min(WIZARD_STEPS.length - 1, prev + 1));
+  }, []);
 
   const identitySectionRef = useRef<HTMLElement | null>(null);
   const patientDivRef = useRef<HTMLDivElement | null>(null);
@@ -261,7 +295,7 @@ export default function PautasAlimentacionClient() {
     "Platos Preparados",
   ];
 
-  const exchangeCategories = useMemo(() => FOOD_CATEGORIES, []);
+  const exchangeCategories = FOOD_CATEGORIES;
   const usedCategories = useMemo(() => paragraphs.flatMap(p => [p.category, p.categoryOptional]).filter(c => c.trim()), [paragraphs]);
   const filteredCategories = useMemo(() => {
     if (!categorySearch.trim()) return exchangeCategories;
@@ -281,42 +315,6 @@ export default function PautasAlimentacionClient() {
   }, [patients, patientSearch]);
 
   const validParagraphs = useMemo(() => paragraphs.filter((p) => p.category.trim() || p.foods.some((f) => f.food.trim())), [paragraphs]);
-
-  const getSectionStatus = (isVisible: boolean, isComplete: boolean): SectionProgressStatus => {
-    if (!isVisible) return "hidden";
-    return isComplete ? "complete" : "pending";
-  };
-
-  const guideSections = useMemo(() => [
-    { id: "general", label: "Información general", status: getSectionStatus(true, selectedRestriction.trim().length > 0), ref: identitySectionRef },
-    { id: "patient", label: "Datos del paciente", status: getSectionStatus(true, true), ref: patientDivRef },
-    { id: "resource", label: "Recurso educativo", status: getSectionStatus(true, educationalMode === 'manual' ? educationalContent.trim().length > 0 : true), ref: resourceDivRef },
-    { id: "paragraphs", label: "Párrafos", status: getSectionStatus(true, validParagraphs.length > 0), ref: paragraphsSectionRef },
-  ], [selectedRestriction, educationalMode, educationalContent, validParagraphs.length]);
-
-  const scrollToGuideSection = (sectionId: string) => {
-    const target = guideSections.find(s => s.id === sectionId);
-    target?.ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  useEffect(() => {
-    const updateActiveSection = () => {
-      const viewportOffset = 180;
-      let nextSection = guideSections[0]?.id ?? "general";
-      guideSections.forEach((section) => {
-        const top = section.ref.current?.getBoundingClientRect().top;
-        if (typeof top === "number" && top - viewportOffset <= 0) nextSection = section.id;
-      });
-      setActiveSection(nextSection);
-    };
-    updateActiveSection();
-    window.addEventListener("scroll", updateActiveSection, { passive: true });
-    window.addEventListener("resize", updateActiveSection);
-    return () => {
-      window.removeEventListener("scroll", updateActiveSection);
-      window.removeEventListener("resize", updateActiveSection);
-    };
-  }, [guideSections]);
 
   const openPatientModal = async () => {
     try {
@@ -395,18 +393,14 @@ export default function PautasAlimentacionClient() {
       restriction: selectedRestriction,
       patient: selectedPatient.fullName.trim() ? { name: selectedPatient.fullName, ageYears: patientAge, weight: patientWeight, height: patientHeight, bmi: calculatedBmi, bloodPressure: (isManualPatientExpanded && manualPatientData.bloodPressure.trim()) ? manualPatientData.bloodPressure : (selectedPatient.bloodPressure ?? null), nextControl: null } : null,
       paragraphs: validParagraphs.map((p) => ({
-        title: p.category.trim(),
+        title: p.portionsPerDay.trim() ? `Tiempo de alimentación ${p.portionsPerDay.trim()}` : "Tiempo de alimentación",
         subtitle: [
-          p.portionsPerDay.trim() ? `Tiempo de alimentación: ${p.portionsPerDay.trim()}` : null,
+          p.category.trim() ? `Grupo clínico: ${p.category.trim()}` : null,
           p.categoryOptional.trim() ? `Alternativa clínica: ${p.categoryOptional.trim()}` : null,
         ].filter(Boolean).join(" · "),
         foods: p.foods
           .map((f) => {
-            const food = f.food.trim();
-            if (!food) return "";
-
-            const portion = f.portion.trim();
-            return `${portion ? `${portion} de ` : "1 unidad de "}${food}`;
+            return formatPautaFoodLabel(f.portion, f.food);
           })
           .filter(Boolean),
         imagePath: p.imagePath,
@@ -531,296 +525,304 @@ export default function PautasAlimentacionClient() {
 
   return (
     <>
-      <ModuleLayout title="Pautas de Alimentación" description="Crea guías alimenticias para restricciones clínicas." step={{ number: "Pautas", label: "Pautas", icon: Check, color: "text-emerald-600" }} rightNavItems={actionDockItems} className="max-w-[68rem]" footer={<ModuleFooter><div className="flex flex-col sm:flex-row items-center gap-4"><Button variant="outline" className="h-11 rounded-2xl border-slate-200" onClick={() => setIsSaveCreationModalOpen(true)}><Save className="mr-2 h-4 w-4" />Guardar</Button><Button className="h-11 rounded-2xl bg-slate-900 px-6 text-white hover:bg-slate-800" onClick={handleExportPdf} disabled={isExportingPdf}><Download className="mr-2 h-4 w-4" />{isExportingPdf ? "Generando..." : "Descargar PDF"}</Button></div></ModuleFooter>}>
+      <ModuleLayout
+        title="Pautas de Alimentación"
+        description="Crea guías alimenticias para restricciones clínicas."
+        rightNavItems={actionDockItems}
+        className="max-w-[68rem]"
+        footer={
+          <ModuleFooter>
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <Button variant="outline" className="h-11 rounded-2xl border-slate-200" onClick={() => setIsSaveCreationModalOpen(true)}>
+                <Save className="mr-2 h-4 w-4" />
+                Guardar
+              </Button>
+              <Button className="h-11 rounded-2xl bg-slate-900 px-6 text-white hover:bg-slate-800" onClick={handleExportPdf} disabled={isExportingPdf}>
+                <Download className="mr-2 h-4 w-4" />
+                {isExportingPdf ? "Generando..." : "Descargar PDF"}
+              </Button>
+            </div>
+          </ModuleFooter>
+        }
+      >
         <WorkflowContextBanner projectName={currentProjectName} patientName={selectedPatient?.fullName || null} mode={currentProjectMode} moduleLabel="Pautas" />
 
         <div className="mt-10 space-y-8 xl:px-4">
           <div className="rounded-3xl border border-emerald-200 bg-emerald-50/70 px-5 py-4 text-sm text-emerald-900">
             <div className="flex items-start gap-3">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <p>Este módulo crea <strong>pautas de alimentación</strong> para una restricción clínica. Todo en una sola sección.</p>
+              <p>
+                Este módulo crea <strong>pautas de alimentación</strong> para una restricción clínica.
+              </p>
             </div>
           </div>
 
-          <div className="relative">
-            {isSidebarCollapsed && (
-              <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
-                <SectionProgressNav
-                  items={guideSections.map((section) => ({
-                    id: section.id,
-                    label: section.label,
-                    status: section.status,
-                    active: activeSection === section.id,
-                    onClick: () => scrollToGuideSection(section.id),
-                  }))}
-                />
-              </div>
-            )}
-          </div>
+          <WizardTabs steps={WIZARD_STEPS} currentStep={currentStep} onStepChange={goToStep} />
 
-          <section ref={identitySectionRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
-            <div className="space-y-8">
-              {/* Título y Restricción */}
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-2">
-                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Título</p>
-                  <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-12 rounded-2xl border-slate-200 bg-slate-50 text-base font-semibold" placeholder={DEFAULT_TITLE} />
+          {currentStep === 0 && (
+            <section ref={identitySectionRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+              <div className="space-y-8">
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Título</p>
+                    <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-12 rounded-2xl border-slate-200 bg-slate-50 text-base font-semibold" placeholder={DEFAULT_TITLE} />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Restricción clínica *</p>
+                    {selectedRestriction ? (
+                      <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3">
+                        <span className="flex-1 font-semibold text-emerald-900">{selectedRestriction}</span>
+                        <button type="button" onClick={() => { setSelectedRestriction(""); setRestrictionSearch(""); }} className="rounded-full p-1 text-emerald-600 hover:bg-emerald-100"><X className="h-4 w-4" /></button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative">
+                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <input type="text" value={restrictionSearch} onChange={(e) => setSelectedRestriction(e.target.value)} placeholder="Buscar o Escribir" className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 text-base font-medium" />
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {filteredRestrictions.slice(0, 6).map((r) => (
+                            <button key={r} type="button" onClick={() => { setSelectedRestriction(r); setRestrictionSearch(""); }} className="rounded-full px-4 py-2 text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">
+                              {r}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
+              </div>
+            </section>
+          )}
+
+          {currentStep === 1 && (
+            <section ref={patientDivRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+              <div className="space-y-8">
                 <div className="space-y-2">
-                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Restricción clínica *</p>
-                  {selectedRestriction ? (
-                    <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3">
-                      <span className="flex-1 font-semibold text-emerald-900">{selectedRestriction}</span>
-                      <button type="button" onClick={() => { setSelectedRestriction(""); setRestrictionSearch(""); }} className="rounded-full p-1 text-emerald-600 hover:bg-emerald-100"><X className="h-4 w-4" /></button>
+                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Datos del paciente</p>
+                  {!isManualPatientExpanded && (
+                    <div className="flex flex-col gap-3 md:flex-row md:items-end">
+                      {selectedPatient.fullName ? (
+                        <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 px-4 py-3">
+                          <User className="h-5 w-5 text-emerald-600" />
+                          <div>
+                            <p className="font-semibold text-emerald-900">{selectedPatient.fullName}</p>
+                            <div className="flex gap-3 text-sm text-emerald-700">
+                              {selectedPatient.ageYears && <span>{selectedPatient.ageYears} años</span>}
+                              {selectedPatient.weight && <span>{selectedPatient.weight} kg</span>}
+                              {selectedPatient.height && <span>{selectedPatient.height} cm</span>}
+                              {calculatedBmi && <span>IMC: {calculatedBmi}</span>}
+                            </div>
+                          </div>
+                          <button type="button" onClick={clearSelectedPatient} className="rounded-full p-2 text-rose-500 hover:bg-rose-50"><X className="h-4 w-4" /></button>
+                        </div>
+                      ) : (
+                        <Button variant="outline" onClick={openPatientModal} className="h-12 rounded-2xl border-slate-200 font-bold"><User className="mr-2 h-4 w-4" />Importar paciente</Button>
+                      )}
+                      <button type="button" onClick={() => { setSelectedPatient(createEmptyPatient()); setIsManualPatientExpanded(true); }} className="text-left text-sm font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800">O completa manualmente sin reutilizar uno existente.</button>
                     </div>
-                  ) : (
-                    <>
-                      <div className="relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <input type="text" value={restrictionSearch} onChange={(e) => { setSelectedRestriction(e.target.value); }} placeholder="Buscar o Escribir" className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 text-base font-medium" />
+                  )}
+                  {isManualPatientExpanded && (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
+                      <div className="flex flex-col gap-4 md:flex-row md:items-end">
+                        <div className="flex-1 space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nombre</p>
+                          <Input value={selectedPatient.fullName} onChange={(e) => setSelectedPatient((p) => ({ ...p, fullName: e.target.value }))} placeholder="Nombre y apellido" className="h-11 rounded-xl border-slate-200" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Edad</p>
+                          <Input type="number" min={0} value={manualPatientData.ageYears} onChange={(e) => setManualPatientData((d) => ({ ...d, ageYears: e.target.value }))} placeholder="Ej: 42" className="h-11 rounded-xl border-slate-200 w-24" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Peso (kg)</p>
+                          <Input type="number" min={0} step="0.1" value={manualPatientData.weight} onChange={(e) => setManualPatientData((d) => ({ ...d, weight: e.target.value }))} placeholder="Ej: 70" className="h-11 rounded-xl border-slate-200 w-24" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Talla (cm)</p>
+                          <Input type="number" min={0} value={manualPatientData.height} onChange={(e) => setManualPatientData((d) => ({ ...d, height: e.target.value }))} placeholder="Ej: 170" className="h-11 rounded-xl border-slate-200 w-24" />
+                        </div>
+                        <button type="button" onClick={() => { setIsManualPatientExpanded(false); setSelectedPatient(createEmptyPatient()); }} className="text-sm font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800">Importar paciente</button>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {filteredRestrictions.slice(0, 6).map((r) => (<button key={r} type="button" onClick={() => { setSelectedRestriction(r); setRestrictionSearch(""); }} className="rounded-full px-4 py-2 text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">{r}</button>))}
-                      </div>
-                    </>
+                      {calculatedBmi !== null && (
+                        <div className="mt-4 inline-block rounded-lg bg-emerald-50 px-4 py-2">
+                          <span className="text-sm font-semibold text-emerald-700">IMC:</span>{" "}
+                          <span className="text-base font-bold text-emerald-800">{calculatedBmi}</span>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
+            </section>
+          )}
 
-              {/* Paciente */}
-              <div ref={patientDivRef} className="space-y-2">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Datos del paciente</p>
-                {!isManualPatientExpanded && (
-                  <div className="flex flex-col gap-3 md:flex-row md:items-end">
-                    {selectedPatient.fullName ? (
-                      <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 px-4 py-3">
-                        <User className="h-5 w-5 text-emerald-600" />
-                        <div>
-                          <p className="font-semibold text-emerald-900">{selectedPatient.fullName}</p>
-                          <div className="flex gap-3 text-sm text-emerald-700">
-                            {selectedPatient.ageYears && <span>{selectedPatient.ageYears} años</span>}
-                            {selectedPatient.weight && <span>{selectedPatient.weight} kg</span>}
-                            {selectedPatient.height && <span>{selectedPatient.height} cm</span>}
-                            {calculatedBmi && <span>IMC: {calculatedBmi}</span>}
-                          </div>
+          {currentStep === 2 && (
+            <section ref={resourceDivRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+              <div className="space-y-8">
+                <div className="space-y-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Recurso educativo</p>
+                  <div className="flex items-center gap-4">
+                    <button type="button" onClick={() => setEducationalMode('auto')} className={cn("px-4 py-2 rounded-full text-sm font-semibold transition-colors", educationalMode === 'auto' ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}>Automático</button>
+                    <button type="button" onClick={() => setEducationalMode('manual')} className={cn("px-4 py-2 rounded-full text-sm font-semibold transition-colors", educationalMode === 'manual' ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}>Manual</button>
+                  </div>
+                  {educationalMode === 'manual' ? (
+                    <div className="space-y-3">
+                      {savedDescriptions.filter(d => !selectedRestriction || d.restriction.toLowerCase() === selectedRestriction.toLowerCase()).length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          <p className="w-full text-xs text-slate-500">Usar descripción guardada:</p>
+                          {savedDescriptions.filter(d => !selectedRestriction || d.restriction.toLowerCase() === selectedRestriction.toLowerCase()).map(desc => (
+                            <button key={desc.id} type="button" onClick={() => setEducationalContent(desc.content)} className="rounded-full px-3 py-1.5 text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">{desc.restriction}</button>
+                          ))}
                         </div>
-                        <button type="button" onClick={clearSelectedPatient} className="rounded-full p-2 text-rose-500 hover:bg-rose-50"><X className="h-4 w-4" /></button>
-                      </div>
-                    ) : (
-                      <Button variant="outline" onClick={openPatientModal} className="h-12 rounded-2xl border-slate-200 font-bold"><User className="mr-2 h-4 w-4" />Importar paciente</Button>
-                    )}
-                    <button type="button" onClick={() => { setSelectedPatient(createEmptyPatient()); setIsManualPatientExpanded(true); }} className="text-left text-sm font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800">O completa manualmente sin reutilizar uno existente.</button>
-                  </div>
-                )}
-                {isManualPatientExpanded && (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-end">
-                      <div className="flex-1 space-y-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nombre</p>
-                        <Input value={selectedPatient.fullName} onChange={(e) => setSelectedPatient((p) => ({ ...p, fullName: e.target.value }))} placeholder="Nombre y apellido" className="h-11 rounded-xl border-slate-200" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Edad</p>
-                        <Input type="number" min={0} value={manualPatientData.ageYears} onChange={(e) => setManualPatientData((d) => ({ ...d, ageYears: e.target.value }))} placeholder="Ej: 42" className="h-11 rounded-xl border-slate-200 w-24" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Peso (kg)</p>
-                        <Input type="number" min={0} step="0.1" value={manualPatientData.weight} onChange={(e) => setManualPatientData((d) => ({ ...d, weight: e.target.value }))} placeholder="Ej: 70" className="h-11 rounded-xl border-slate-200 w-24" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Talla (cm)</p>
-                        <Input type="number" min={0} value={manualPatientData.height} onChange={(e) => setManualPatientData((d) => ({ ...d, height: e.target.value }))} placeholder="Ej: 170" className="h-11 rounded-xl border-slate-200 w-24" />
-                      </div>
-                      <button type="button" onClick={() => { setIsManualPatientExpanded(false); setSelectedPatient(createEmptyPatient()); }} className="text-sm font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800">Importar paciente</button>
-                    </div>
-                    {calculatedBmi !== null && (
-                      <div className="mt-4 rounded-lg bg-emerald-50 px-4 py-2 inline-block">
-                        <span className="text-sm font-semibold text-emerald-700">IMC:</span>{" "}
-                        <span className="text-base font-bold text-emerald-800">{calculatedBmi}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Recurso educativo */}
-              <div ref={resourceDivRef} className="space-y-3">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Recurso educativo</p>
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setEducationalMode('auto')}
-                    className={cn(
-                      "px-4 py-2 rounded-full text-sm font-semibold transition-colors",
-                      educationalMode === 'auto'
-                        ? "bg-emerald-600 text-white"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    )}
-                  >
-                    Automático
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEducationalMode('manual')}
-                    className={cn(
-                      "px-4 py-2 rounded-full text-sm font-semibold transition-colors",
-                      educationalMode === 'manual'
-                        ? "bg-emerald-600 text-white"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    )}
-                  >
-                    Manual
-                  </button>
-                </div>
-                {educationalMode === 'manual' ? (
-                  <div className="space-y-3">
-                    {savedDescriptions.filter(d => !selectedRestriction || d.restriction.toLowerCase() === selectedRestriction.toLowerCase()).length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        <p className="text-xs text-slate-500 w-full">Usar descripción guardada:</p>
-                        {savedDescriptions.filter(d => !selectedRestriction || d.restriction.toLowerCase() === selectedRestriction.toLowerCase()).map(desc => (
-                          <button key={desc.id} type="button" onClick={() => setEducationalContent(desc.content)} className="rounded-full px-3 py-1.5 text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">
-                            {desc.restriction}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <textarea value={educationalContent} onChange={(e) => setEducationalContent(e.target.value)} placeholder="Escribe información educativa..." className="min-h-[120px] w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-base" />
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" onClick={() => {
-                        if (!selectedRestriction.trim() || !educationalContent.trim()) { toast.error("Selecciona una restricción y escribe el contenido."); return; }
-                        const newDesc = { id: `desc_${Date.now()}`, restriction: selectedRestriction, content: educationalContent };
-                        const updated = [...savedDescriptions, newDesc];
-                        setSavedDescriptions(updated);
-                        localStorage.setItem("nutri_descriptions", JSON.stringify(updated));
-                        toast.success("Descripción guardada.");
-                      }} className="h-9 rounded-xl text-xs">Guardar descripción</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {savedDescriptions.filter(d => !selectedRestriction || d.restriction.toLowerCase() === selectedRestriction.toLowerCase()).length > 0 && selectedRestriction && (
-                      <div className="flex flex-wrap gap-2">
-                        <p className="text-xs text-slate-500 w-full">Descripciones guardadas:</p>
-                        {savedDescriptions.filter(d => !selectedRestriction || d.restriction.toLowerCase() === selectedRestriction.toLowerCase()).map(desc => (
-                          <button key={desc.id} type="button" onClick={() => setEducationalContent(desc.content)} className="rounded-full px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200">
-                            {desc.restriction}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <div className="rounded-2xl bg-emerald-50 px-4 py-3">
-                      {selectedRestriction ? (
-                        hasAutoMatch && autoEducationalContent ? (
-                          <p className="text-sm text-emerald-800">Se incluirá automáticamente el recurso de: <span className="font-semibold">{selectedRestriction}</span></p>
-                        ) : savedDescriptions.filter(d => d.restriction.toLowerCase() === selectedRestriction.toLowerCase()).length > 0 ? (
-                          <p className="text-sm text-emerald-800">Usa una de las <span className="font-semibold">{savedDescriptions.filter(d => d.restriction.toLowerCase() === selectedRestriction.toLowerCase()).length}</span> descripciones guardadas, o cambia a modo manual.</p>
-                        ) : (
-                          <p className="text-sm text-amber-700">No hay coincidencias para <span className="font-semibold">{selectedRestriction}</span>, crea la información de forma manual.</p>
-                        )
-                      ) : (
-                        <p className="text-sm text-slate-600">Selecciona una restricción para agregar su información automáticamente.</p>
                       )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* Párrafos */}
-          <section ref={paragraphsSectionRef} className="relative rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
-            {!selectedRestriction.trim() && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-3xl bg-white/90 backdrop-blur-sm">
-                <div className="text-center">
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-                    <AlertCircle className="h-8 w-8 text-slate-400" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-slate-700">Selecciona una restricción clínica</h3>
-                  <p className="mt-2 max-w-sm text-sm text-slate-500">Para crear los párrafos de pautas, primero debes seleccionar una restricción clínica en la sección de Información general.</p>
-                </div>
-              </div>
-            )}
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Párrafos de pautas *</p>
-                  <p className="text-xs text-slate-500 mt-1">Crea un título seleccionando 1-2 categorías de alimentos + porciones. Ej: "Lácteos (2 porciones diarias)" o "Cereales y Lácteos (2 porciones diarias)"</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={addParagraph} disabled={!selectedRestriction.trim()} className="h-10 rounded-2xl border-slate-200"><Plus className="mr-2 h-4 w-4" />Agregar</Button>
-                  <Button variant="outline" onClick={() => setIsAiModalOpen(true)} disabled={!selectedRestriction.trim()} title={!selectedRestriction.trim() ? "Selecciona una restricción clínica primero" : "Generar párrafos con IA"} className="h-10 rounded-2xl border-emerald-200 text-emerald-700 hover:bg-emerald-50"><Sparkles className="mr-2 h-4 w-4" />Generar con IA</Button>
-                </div>
-              </div>
-              <div className="space-y-6">
-                {paragraphs.map((paragraph) => (
-                  <div key={paragraph.id} className="relative rounded-2xl border border-slate-200 bg-slate-50/50 p-6">
-                    {paragraphs.length > 1 && <button type="button" onClick={() => removeParagraph(paragraph.id)} disabled={!selectedRestriction.trim()} className="absolute right-4 top-4 rounded-full p-2 text-rose-500 hover:bg-rose-50 disabled:opacity-30"><Trash2 className="h-4 w-4" /></button>}
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Categoría 1 *</p>
-                        <div className="relative category-dropdown">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                          <input type="text" value={paragraph.category} onChange={(e) => { updateParagraph(paragraph.id, "category", e.target.value); setShowCategoryDropdown(`${paragraph.id}-1`); setCategorySearch(e.target.value); }} onFocus={() => setShowCategoryDropdown(`${paragraph.id}-1`)} placeholder="Buscar..." disabled={!selectedRestriction.trim()} className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm disabled:bg-slate-100 disabled:text-slate-400" />
-                          {showCategoryDropdown === `${paragraph.id}-1` && (
-                            <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-40 overflow-y-auto category-dropdown">
-                              {filteredCategories.filter(c => !usedCategories.includes(c) || c === paragraph.category || c === paragraph.categoryOptional).map(c => (<button key={c} type="button" onClick={() => { updateParagraph(paragraph.id, "category", c); setShowCategoryDropdown(null); }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-slate-50">{c}</button>))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Categoría 2</p>
-                        <div className="relative category-dropdown">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                          <input type="text" value={paragraph.categoryOptional} onChange={(e) => { updateParagraph(paragraph.id, "categoryOptional", e.target.value); setShowCategoryDropdown(`${paragraph.id}-2`); setCategorySearch(e.target.value); }} onFocus={() => setShowCategoryDropdown(`${paragraph.id}-2`)} placeholder="Buscar..." disabled={!selectedRestriction.trim()} className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm disabled:bg-slate-100 disabled:text-slate-400" />
-                          {showCategoryDropdown === `${paragraph.id}-2` && (
-                            <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-40 overflow-y-auto category-dropdown">
-                              {filteredCategories.filter(c => !usedCategories.includes(c) || c === paragraph.categoryOptional || c === paragraph.category).map(c => (<button key={c} type="button" onClick={() => { updateParagraph(paragraph.id, "categoryOptional", c); setShowCategoryDropdown(null); }} className="w-full text-left px-3 py-2.5 text-sm hover:bg-slate-50">{c}</button>))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Porciones al día</p>
-                        <Input value={paragraph.portionsPerDay} onChange={(e) => updateParagraph(paragraph.id, "portionsPerDay", e.target.value)} placeholder="Ej: 2 porciones al día" disabled={!selectedRestriction.trim()} className="h-11 rounded-xl border-slate-200" />
+                      <textarea value={educationalContent} onChange={(e) => setEducationalContent(e.target.value)} placeholder="Escribe información educativa..." className="min-h-[120px] w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-base" />
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={() => {
+                          if (!selectedRestriction.trim() || !educationalContent.trim()) { toast.error("Selecciona una restricción y escribe el contenido."); return; }
+                          const newDesc = { id: `desc_${Date.now()}`, restriction: selectedRestriction, content: educationalContent };
+                          const updated = [...savedDescriptions, newDesc];
+                          setSavedDescriptions(updated);
+                          localStorage.setItem("nutri_descriptions", JSON.stringify(updated));
+                          toast.success("Descripción guardada.");
+                        }} className="h-9 rounded-xl text-xs">Guardar descripción</Button>
                       </div>
                     </div>
-                    <div className="mt-4 grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Alimentos</p>
-                        {paragraph.foods.map((food) => (
-                          <div key={food.id} className="flex gap-2">
-                            <Input value={food.portion} onChange={(e) => updateFoodItem(paragraph.id, food.id, "portion", e.target.value)} placeholder="Porción" disabled={!selectedRestriction.trim()} className="h-10 rounded-lg border-slate-200 flex-1" />
-                            <Input value={food.food} onChange={(e) => updateFoodItem(paragraph.id, food.id, "food", e.target.value)} placeholder="Alimento" disabled={!selectedRestriction.trim()} className="h-10 rounded-lg border-slate-200 flex-[2]" />
-                            {paragraph.foods.length > 1 && <button type="button" onClick={() => removeFoodItem(paragraph.id, food.id)} disabled={!selectedRestriction.trim()} className="rounded-full p-2 text-rose-500 hover:bg-rose-50 disabled:opacity-50"><Trash2 className="h-4 w-4" /></button>}
-                          </div>
-                        ))}
-                        <Button type="button" variant="ghost" onClick={() => addFoodItem(paragraph.id)} disabled={!selectedRestriction.trim()} className="text-sm text-emerald-600 hover:text-emerald-700 disabled:text-slate-400"><Plus className="mr-1 h-4 w-4" />Agregar alimento</Button>
-                      </div>
-                      <button type="button" onClick={() => openImageSelector(paragraph.id)} disabled={!selectedRestriction.trim()} className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-white py-3 px-2 transition-all hover:border-emerald-300 hover:bg-emerald-50/50 disabled:opacity-50 disabled:cursor-not-allowed">
-                        {paragraph.imagePath ? (
-                          <div className="relative w-full">
-                            <img src={paragraph.imagePath} alt="Imagen de categoría" className="mx-auto h-20 w-auto rounded-lg object-contain" />
-                            <button type="button" onClick={(e) => { e.stopPropagation(); updateParagraphImage(paragraph.id, null); }} className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 text-white shadow-md hover:bg-rose-600">
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {savedDescriptions.filter(d => !selectedRestriction || d.restriction.toLowerCase() === selectedRestriction.toLowerCase()).length > 0 && selectedRestriction && (
+                        <div className="flex flex-wrap gap-2">
+                          <p className="w-full text-xs text-slate-500">Descripciones guardadas:</p>
+                          {savedDescriptions.filter(d => !selectedRestriction || d.restriction.toLowerCase() === selectedRestriction.toLowerCase()).map(desc => (
+                            <button key={desc.id} type="button" onClick={() => setEducationalContent(desc.content)} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">{desc.restriction}</button>
+                          ))}
+                        </div>
+                      )}
+                      <div className="rounded-2xl bg-emerald-50 px-4 py-3">
+                        {selectedRestriction ? (
+                          hasAutoMatch && autoEducationalContent ? (
+                            <p className="text-sm text-emerald-800">Se incluirá automáticamente el recurso de: <span className="font-semibold">{selectedRestriction}</span></p>
+                          ) : savedDescriptions.filter(d => d.restriction.toLowerCase() === selectedRestriction.toLowerCase()).length > 0 ? (
+                            <p className="text-sm text-emerald-800">Usa una de las <span className="font-semibold">{savedDescriptions.filter(d => d.restriction.toLowerCase() === selectedRestriction.toLowerCase()).length}</span> descripciones guardadas, o cambia a modo manual.</p>
+                          ) : (
+                            <p className="text-sm text-amber-700">No hay coincidencias para <span className="font-semibold">{selectedRestriction}</span>, crea la información de forma manual.</p>
+                          )
                         ) : (
-                          <div className="flex h-20 w-full items-center justify-center">
-                            <div className="text-center">
-                              <ChefHat className="mx-auto h-8 w-8 text-slate-300" />
-                              <p className="mt-1 text-xs text-slate-400">Seleccionar</p>
-                            </div>
-                          </div>
+                          <p className="text-sm text-slate-600">Selecciona una restricción para agregar su información automáticamente.</p>
                         )}
-                        <p className="mt-1 text-[10px] text-slate-400">Click para {paragraph.imagePath ? 'cambiar' : 'agregar'}</p>
-                      </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )}
+                </div>
               </div>
+            </section>
+          )}
+
+          {currentStep === 3 && (
+            <section ref={paragraphsSectionRef} className="relative rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+              {!selectedRestriction.trim() && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-3xl bg-white/90 backdrop-blur-sm">
+                  <div className="text-center">
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+                      <AlertCircle className="h-8 w-8 text-slate-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-700">Selecciona una restricción clínica</h3>
+                    <p className="mt-2 max-w-sm text-sm text-slate-500">Para crear los párrafos de pautas, primero debes seleccionar una restricción clínica en la sección de Información general.</p>
+                  </div>
+                </div>
+              )}
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Párrafos de pautas *</p>
+                    <p className="mt-1 text-xs text-slate-500">Crea un título seleccionando 1-2 categorías de alimentos + porciones.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={addParagraph} disabled={!selectedRestriction.trim()} className="h-10 rounded-2xl border-slate-200"><Plus className="mr-2 h-4 w-4" />Agregar</Button>
+                    <Button variant="outline" onClick={() => setIsAiModalOpen(true)} disabled={!selectedRestriction.trim()} title={!selectedRestriction.trim() ? "Selecciona una restricción clínica primero" : "Generar párrafos con IA"} className="h-10 rounded-2xl border-emerald-200 text-emerald-700 hover:bg-emerald-50"><Sparkles className="mr-2 h-4 w-4" />Generar con IA</Button>
+                  </div>
+                </div>
+                <div className="space-y-6">
+                  {paragraphs.map((paragraph) => (
+                    <div key={paragraph.id} className="relative rounded-2xl border border-slate-200 bg-slate-50/50 p-6">
+                      {paragraphs.length > 1 && <button type="button" onClick={() => removeParagraph(paragraph.id)} disabled={!selectedRestriction.trim()} className="absolute right-4 top-4 rounded-full p-2 text-rose-500 hover:bg-rose-50 disabled:opacity-30"><Trash2 className="h-4 w-4" /></button>}
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Categoría 1 *</p>
+                          <div className="relative category-dropdown">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <input type="text" value={paragraph.category} onChange={(e) => { updateParagraph(paragraph.id, "category", e.target.value); setShowCategoryDropdown(`${paragraph.id}-1`); setCategorySearch(e.target.value); }} onFocus={() => setShowCategoryDropdown(`${paragraph.id}-1`)} placeholder="Buscar..." disabled={!selectedRestriction.trim()} className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm disabled:bg-slate-100 disabled:text-slate-400" />
+                            {showCategoryDropdown === `${paragraph.id}-1` && (
+                              <div className="absolute z-10 top-full left-0 right-0 mt-1 max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg category-dropdown">
+                                {filteredCategories.filter(c => !usedCategories.includes(c) || c === paragraph.category || c === paragraph.categoryOptional).map(c => (<button key={c} type="button" onClick={() => { updateParagraph(paragraph.id, "category", c); setShowCategoryDropdown(null); }} className="w-full px-3 py-2.5 text-left text-sm hover:bg-slate-50">{c}</button>))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Categoría 2</p>
+                          <div className="relative category-dropdown">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <input type="text" value={paragraph.categoryOptional} onChange={(e) => { updateParagraph(paragraph.id, "categoryOptional", e.target.value); setShowCategoryDropdown(`${paragraph.id}-2`); setCategorySearch(e.target.value); }} onFocus={() => setShowCategoryDropdown(`${paragraph.id}-2`)} placeholder="Buscar..." disabled={!selectedRestriction.trim()} className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm disabled:bg-slate-100 disabled:text-slate-400" />
+                            {showCategoryDropdown === `${paragraph.id}-2` && (
+                              <div className="absolute z-10 top-full left-0 right-0 mt-1 max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg category-dropdown">
+                                {filteredCategories.filter(c => !usedCategories.includes(c) || c === paragraph.categoryOptional || c === paragraph.category).map(c => (<button key={c} type="button" onClick={() => { updateParagraph(paragraph.id, "categoryOptional", c); setShowCategoryDropdown(null); }} className="w-full px-3 py-2.5 text-left text-sm hover:bg-slate-50">{c}</button>))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Porciones al día</p>
+                          <Input value={paragraph.portionsPerDay} onChange={(e) => updateParagraph(paragraph.id, "portionsPerDay", e.target.value)} placeholder="Ej: 2 porciones al día" disabled={!selectedRestriction.trim()} className="h-11 rounded-xl border-slate-200" />
+                        </div>
+                      </div>
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Alimentos</p>
+                          {paragraph.foods.map((food) => (
+                            <div key={food.id} className="flex gap-2">
+                              <Input value={food.portion} onChange={(e) => updateFoodItem(paragraph.id, food.id, "portion", e.target.value)} placeholder="Porción" disabled={!selectedRestriction.trim()} className="h-10 flex-1 rounded-lg border-slate-200" />
+                              <Input value={food.food} onChange={(e) => updateFoodItem(paragraph.id, food.id, "food", e.target.value)} placeholder="Alimento" disabled={!selectedRestriction.trim()} className="h-10 flex-[2] rounded-lg border-slate-200" />
+                              {paragraph.foods.length > 1 && <button type="button" onClick={() => removeFoodItem(paragraph.id, food.id)} disabled={!selectedRestriction.trim()} className="rounded-full p-2 text-rose-500 hover:bg-rose-50 disabled:opacity-50"><Trash2 className="h-4 w-4" /></button>}
+                            </div>
+                          ))}
+                          <Button type="button" variant="ghost" onClick={() => addFoodItem(paragraph.id)} disabled={!selectedRestriction.trim()} className="text-sm text-emerald-600 hover:text-emerald-700 disabled:text-slate-400"><Plus className="mr-1 h-4 w-4" />Agregar alimento</Button>
+                        </div>
+                        <button type="button" onClick={() => openImageSelector(paragraph.id)} disabled={!selectedRestriction.trim()} className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-white px-2 py-3 transition-all hover:border-emerald-300 hover:bg-emerald-50/50 disabled:cursor-not-allowed disabled:opacity-50">
+                          {paragraph.imagePath ? (
+                            <div className="relative w-full">
+                              <Image src={paragraph.imagePath} alt="Imagen de categoría" width={160} height={160} className="mx-auto h-20 w-auto rounded-lg object-contain" />
+                              <button type="button" onClick={(e) => { e.stopPropagation(); updateParagraphImage(paragraph.id, null); }} className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 text-white shadow-md hover:bg-rose-600">
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex h-20 w-full items-center justify-center">
+                              <div className="text-center">
+                                <ChefHat className="mx-auto h-8 w-8 text-slate-300" />
+                                <p className="mt-1 text-xs text-slate-400">Seleccionar</p>
+                              </div>
+                            </div>
+                          )}
+                          <p className="mt-1 text-[10px] text-slate-400">Click para {paragraph.imagePath ? "cambiar" : "agregar"}</p>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          <div className="flex items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Navegación por etapas</p>
+              <p className="text-sm font-medium text-slate-600">Cambia entre secciones sin perder el contexto.</p>
             </div>
-          </section>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={goBack} disabled={currentStep === 0} className="h-10 rounded-xl border-slate-200 px-4 font-semibold text-slate-600 cursor-pointer">Anterior</Button>
+              <Button type="button" onClick={goNext} disabled={currentStep === WIZARD_STEPS.length - 1} className="h-10 rounded-xl bg-indigo-600 px-4 font-semibold text-white hover:bg-indigo-700 cursor-pointer">Siguiente</Button>
+            </div>
+          </div>
         </div>
       </ModuleLayout>
 
@@ -983,11 +985,12 @@ export default function PautasAlimentacionClient() {
                         : "border-slate-200 hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-100 hover:scale-[1.02]"
                     )}
                   >
-                    <img
+                    <Image
                       src={imagePath}
                       alt={`Imagen ${idx + 1}`}
+                      width={160}
+                      height={160}
                       className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-110"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                     {isSelected && (
                       <div className="absolute inset-0 flex items-center justify-center bg-emerald-500/30 backdrop-blur-sm">

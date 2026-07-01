@@ -1,5 +1,6 @@
 import React from "react";
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { splitIntoColumns } from "./pdfFormatters";
 
 export interface FastMealPlanItem {
   id: string;
@@ -165,6 +166,15 @@ const styles = StyleSheet.create({
     border: "1px solid #e2e8f0",
     borderBottom: "none",
   },
+  portionColumns: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  portionColumn: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+  },
   portionRow: {
     flexDirection: "row",
     borderBottom: "1px solid #e2e8f0",
@@ -179,7 +189,8 @@ const styles = StyleSheet.create({
     width: "60%",
   },
   resourceCard: {
-    marginBottom: 5,
+    width: "48%",
+    marginBottom: 6,
     padding: 6,
     backgroundColor: "#f8fafc",
     border: "1px solid #e2e8f0",
@@ -205,54 +216,6 @@ export function FastDeliverablePdfDocument({
 }: {
   data: FastDeliverablePdfData;
 }) {
-  const patientFields = data.patient
-    ? [
-      {
-        label: "Nombre",
-        value: data.patient.name?.trim() || "",
-      },
-      {
-        label: "Edad",
-        value:
-          data.patient.ageYears !== null && data.patient.ageYears !== undefined
-            ? `${data.patient.ageYears} años`
-            : "",
-      },
-      {
-        label: "Sexo",
-        value: data.patient.gender?.trim() || "",
-      },
-      {
-        label: "Origen",
-        value:
-          data.patient.source === "imported"
-            ? "Paciente importado"
-            : data.patient.source === "manual"
-              ? "Datos manuales"
-              : "",
-      },
-      {
-        label: "Enfoque",
-        value: data.patient.nutritionalFocus?.trim() || "",
-      },
-      {
-        label: "Metas",
-        value: data.patient.fitnessGoals?.trim() || "",
-      },
-      {
-        label: "Restricciones",
-        value: (data.patient.restrictions || [])
-          .map((restriction) => restriction.trim())
-          .filter(Boolean)
-          .join(", "),
-      },
-      {
-        label: "Gustos",
-        value: data.patient.likes?.trim() || "",
-      },
-    ].filter((item) => item.value.trim().length > 0)
-    : [];
-
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -374,11 +337,17 @@ export function FastDeliverablePdfDocument({
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Guía rápida de porciones</Text>
-          <View style={styles.portionGrid}>
-            {data.portionGuide.map((item) => (
-              <View key={item.category} style={styles.portionRow}>
-                <Text style={styles.portionCategory}>{item.category}</Text>
-                <Text style={styles.portionValue}>{item.portion}</Text>
+          <View style={styles.portionColumns}>
+            {splitIntoColumns(data.portionGuide, 2).map((column, columnIndex) => (
+              <View key={columnIndex} style={styles.portionColumn}>
+                <View style={styles.portionGrid}>
+                  {column.map((item) => (
+                    <View key={item.category} style={styles.portionRow}>
+                      <Text style={styles.portionCategory}>{item.category}</Text>
+                      <Text style={styles.portionValue}>{item.portion}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
             ))}
           </View>
@@ -394,12 +363,18 @@ export function FastDeliverablePdfDocument({
         {data.resources.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recursos específicos</Text>
-            {data.resources.slice(0, 3).map((resource, index) => (
-              <View key={`${resource.resourceId}-${index}`} style={styles.resourceCard}>
-                <Text style={styles.resourceTitle}>{resource.title}</Text>
-                <Text>{resource.content}</Text>
-              </View>
-            ))}
+            <View style={styles.portionColumns}>
+              {splitIntoColumns(data.resources.slice(0, 4), 2).map((column, columnIndex) => (
+                <View key={columnIndex} style={styles.portionColumn}>
+                  {column.map((resource, index) => (
+                    <View key={`${resource.resourceId}-${index}`} style={styles.resourceCard}>
+                      <Text style={styles.resourceTitle}>{resource.title}</Text>
+                      <Text>{resource.content}</Text>
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </View>
           </View>
         ) : null}
 

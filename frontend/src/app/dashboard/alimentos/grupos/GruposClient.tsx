@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/Input";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { TagInput } from "@/components/ui/TagInput";
-import { fetchApi, getApiUrl } from "@/lib/api-base";
+import { fetchApi } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/hooks/useScrollLock";
@@ -149,6 +149,7 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
   const [appliedSearch, setAppliedSearch] = useState("");
   const [appliedCategory, setAppliedCategory] = useState("ALL");
   const [appliedFilters, setAppliedFilters] = useState<FilterDraft[]>([]);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [createCurrentPage, setCreateCurrentPage] = useState(1);
   const [selectedCurrentPage, setSelectedCurrentPage] = useState(1);
   const [isCreateSubmitting, setIsCreateSubmitting] = useState(false);
@@ -211,6 +212,7 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
 
   const totalSelectedCount = confirmedIngredientIds.size + stagedIngredientIds.size;
   const stagedCount = stagedIngredientIds.size;
+  const activeFiltersCount = appliedFilters.length + (appliedSearch ? 1 : 0) + (appliedCategory !== "ALL" ? 1 : 0);
 
   const selectedIngredients = useMemo(
     () =>
@@ -357,6 +359,7 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
     setAppliedSearch("");
     setAppliedCategory("ALL");
     setAppliedFilters([]);
+    setIsFiltersOpen(false);
   };
 
   const handleResetCreate = () => {
@@ -390,6 +393,35 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
       createFilterDrafts.filter((filter) => filter.value.trim() !== ""),
     );
     setCreateCurrentPage(1);
+  };
+
+  const handleApplyFilters = () => {
+    applyCreateFilters();
+    setIsFiltersOpen(false);
+  };
+
+  const updateFilterDraft = (draftId: string, patch: Partial<FilterDraft>) => {
+    setCreateFilterDrafts((prev) =>
+      prev.map((draft) =>
+        draft.id === draftId
+          ? {
+              ...draft,
+              ...patch,
+            }
+          : draft,
+      ),
+    );
+  };
+
+  const addFilterDraft = () => {
+    setCreateFilterDrafts((prev) => [...prev, createFilterDraft()]);
+  };
+
+  const removeFilterDraft = (draftId: string) => {
+    setCreateFilterDrafts((prev) => {
+      if (prev.length === 1) return prev;
+      return prev.filter((draft) => draft.id !== draftId);
+    });
   };
 
   const handleCreateGroup = async () => {
@@ -712,7 +744,10 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
                     )}
                   >
                     <UtensilsCrossed size={14} />
-                    Ya seleccionados ({totalSelectedCount})
+                    <span>Ya seleccionados</span>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-indigo-700 shadow-sm">
+                      {totalSelectedCount}
+                    </span>
                   </button>
                 </div>
 
@@ -721,7 +756,7 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
                     <Input
                       value={createSearchDraft}
                       onChange={(e) => setCreateSearchDraft(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && applyCreateFilters()}
+                      onKeyDown={(e) => e.key === "Enter" && handleApplyFilters()}
                       placeholder="Buscar en el catálogo..."
                       className="h-9 w-48 rounded-xl border-slate-200 text-xs focus:ring-emerald-500 lg:w-64"
                     />
@@ -741,15 +776,89 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={applyCreateFilters}
+                      onClick={() => setIsFiltersOpen((prev) => !prev)}
                       className="h-9 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
                     >
                       <Filter size={14} className="mr-2" />
-                      Filtros
+                      Filtros{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ""}
                     </Button>
                   </div>
                 )}
               </div>
+
+              {createViewTab === "alimentos" && isFiltersOpen && (
+                <div className="border-b border-slate-100 px-5 py-4">
+                  <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                    {createFilterDrafts.map((draft) => {
+                      const nutrient = nutrientOptions.find((option) => option.value === draft.nutrient);
+
+                      return (
+                        <div key={draft.id} className="grid gap-2 md:grid-cols-[1.2fr_120px_120px_auto] md:items-center">
+                          <select
+                            value={draft.nutrient}
+                            onChange={(e) => updateFilterDraft(draft.id, { nutrient: e.target.value as NutrientKey })}
+                            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                          >
+                            {nutrientOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+
+                          <select
+                            value={draft.comparator}
+                            onChange={(e) => updateFilterDraft(draft.id, { comparator: e.target.value as Comparator })}
+                            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                          >
+                            <option value="gte">Mayor o igual</option>
+                            <option value="lte">Menor o igual</option>
+                          </select>
+
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            value={draft.value}
+                            onChange={(e) => updateFilterDraft(draft.id, { value: e.target.value })}
+                            placeholder={nutrient ? nutrient.unit : "Valor"}
+                            className="h-10 rounded-xl border-slate-200 text-sm focus:border-emerald-500 focus:ring-emerald-500/20"
+                          />
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => removeFilterDraft(draft.id)}
+                            disabled={createFilterDrafts.length === 1}
+                            className="h-10 rounded-xl px-3 text-slate-500 hover:bg-white hover:text-slate-700"
+                          >
+                            <X size={14} />
+                          </Button>
+                        </div>
+                      );
+                    })}
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={addFilterDraft}
+                        className="rounded-xl border-slate-200 text-slate-600 hover:bg-white"
+                      >
+                        <Plus size={14} className="mr-2" />
+                        Agregar filtro
+                      </Button>
+
+                      <Button
+                        type="button"
+                        onClick={handleApplyFilters}
+                        className="rounded-xl bg-emerald-600 px-4 text-white hover:bg-emerald-700"
+                      >
+                        Aplicar filtros
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">

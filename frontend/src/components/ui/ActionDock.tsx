@@ -41,7 +41,7 @@ export function ActionDock({ items, className }: ActionDockProps) {
   return (
     <div
       className={cn(
-        "fixed right-8 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-50 animate-in slide-in-from-right duration-500",
+        "fixed right-4 top-24 z-50 flex flex-col gap-3 animate-in slide-in-from-right duration-500 xl:right-8 xl:top-1/2 xl:-translate-y-1/2",
         className,
       )}
     >
