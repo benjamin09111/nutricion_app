@@ -129,7 +129,7 @@ export class PaymentsController {
 
   @Post('flow/checkout')
   async createFlowCheckout(
-    @Body() body: { planId: string },
+    @Body() body: { planId: string; returnPath?: string },
     @Request() req: any,
   ) {
     const accountId = req.user?.id;
@@ -143,6 +143,8 @@ export class PaymentsController {
       accountId,
       body.planId,
       payerEmail,
+      undefined,
+      body.returnPath,
     );
   }
 
@@ -168,7 +170,7 @@ export class PaymentsController {
 
   @Post('flow/discount-checkout')
   async createFlowDiscountCheckout(
-    @Body() body: { planId: string; discountCode?: string },
+    @Body() body: { planId: string; discountCode?: string; returnPath?: string },
     @Request() req: any,
   ) {
     const accountId = req.user?.id;
@@ -183,6 +185,7 @@ export class PaymentsController {
       body.planId,
       payerEmail,
       body.discountCode || undefined,
+      body.returnPath,
     );
   }
 

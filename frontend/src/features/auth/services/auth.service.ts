@@ -24,8 +24,19 @@ export const authService = {
       throw new Error(message);
     }
 
-    if (data.user) {
-      setCurrentUser(data.user);
+    if (data.access_token) {
+      const cookieOptions = {
+        expires: credentials.rememberMe ? 30 : 1,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax" as const,
+      };
+
+      Cookies.set("auth_token", data.access_token, cookieOptions);
+      localStorage.setItem("auth_token", data.access_token);
+
+      if (data.user) {
+        setCurrentUser(data.user);
+      }
     }
 
     return data;

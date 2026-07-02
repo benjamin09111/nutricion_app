@@ -47,7 +47,7 @@ export default function WelcomeMembershipClient({
         if (active) {
           setIsChecking(false);
           if (interval) clearInterval(interval);
-          timer = setTimeout(() => goToDashboard(), 3200);
+          // Auto-redirect removed per user request
         }
       } catch {
         // Keep polling a little while in case the webhook is still processing.
@@ -65,12 +65,7 @@ export default function WelcomeMembershipClient({
   }, [payment]);
 
   useEffect(() => {
-    if (payment === "success" || payment === "pending" || payment === "failure") {
-      return;
-    }
-
-    const timer = setTimeout(() => goToDashboard(), 4500);
-    return () => clearTimeout(timer);
+    // Auto-redirect removed per user request
   }, [payment]);
 
   const handleEnterDashboard = () => {
@@ -78,9 +73,9 @@ export default function WelcomeMembershipClient({
   };
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.12),transparent_36%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] px-4 py-10 text-slate-900">
+    <main className="min-h-screen dark:bg-slate-950 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.12),transparent_36%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] dark:bg-none px-4 py-10 text-slate-900 dark:text-slate-100">
       <section className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-5xl items-center justify-center">
-        <div className="grid w-full gap-8 rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_30px_80px_rgba(15,23,42,0.08)] lg:grid-cols-[1.2fr_0.8fr] lg:p-10">
+        <div className="grid w-full gap-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 shadow-[0_30px_80px_rgba(15,23,42,0.08)] dark:shadow-none lg:grid-cols-[1.2fr_0.8fr] lg:p-10">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-black uppercase tracking-[0.24em] text-emerald-700">
               <BadgeCheck className="h-4 w-4" />
@@ -88,10 +83,10 @@ export default function WelcomeMembershipClient({
             </div>
 
             <div className="space-y-4">
-              <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
+              <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-slate-100 sm:text-5xl">
                 {title}, bienvenido a NutriNet!
               </h1>
-              <p className="max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
+              <p className="max-w-xl text-base leading-7 text-slate-600 dark:text-slate-400 sm:text-lg">
                 Ya puedes comenzar. Te llevaremos a tu dashboard para que sigas con tu flujo sin fricción.
               </p>
             </div>
@@ -104,7 +99,7 @@ export default function WelcomeMembershipClient({
               ].map((item) => (
                 <div
                   key={item}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700"
+                  className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300"
                 >
                   {item}
                 </div>
@@ -121,7 +116,7 @@ export default function WelcomeMembershipClient({
               </Button>
               <Button
                 variant="outline"
-                className="h-12 rounded-full px-6 text-sm font-bold"
+                className="h-12 rounded-full px-6 text-sm font-bold dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                 onClick={() => router.push("/dashboard/configuraciones")}
               >
                 Ver plan
