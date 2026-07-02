@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Patient } from "../types";
 
 const STORAGE_KEY = "NutriNet_patient_creation_draft";
@@ -44,16 +44,16 @@ export function usePatientDraft() {
     }
   }, [draft, isLoaded]);
 
-  const updateDraft = (updates: Partial<Patient>) => {
+  const updateDraft = useCallback((updates: Partial<Patient>) => {
     setDraft((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
-  const clearDraft = () => {
+  const clearDraft = useCallback(() => {
     setDraft(INITIAL_STATE);
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_KEY);
     }
-  };
+  }, []);
 
   return {
     draft,

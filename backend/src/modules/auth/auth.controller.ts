@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Query,
   HttpCode,
@@ -16,9 +17,11 @@ import { AuthService } from './auth.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { AuthGuard } from './guards/auth.guard';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import { CompleteRutDto } from './dto/complete-rut.dto';
 import { isAdminRole } from '../permissions/permissions.constants';
 import { GoogleIntegrationService } from '../integrations/google-integration.service';
 import type { Response } from 'express';
+import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 
 @Controller('auth')
 export class AuthController {
@@ -52,9 +55,10 @@ export class AuthController {
       );
     const result = await this.authService.loginWithGoogle(callback.profile);
     const ticket = this.authService.createOAuthSessionTicket(result);
-    const frontendUrl = (
-      process.env.FRONTEND_URL || 'http://localhost:3000'
-    ).replace(/\/$/, '');
+    const frontendUrl = resolveRequiredUrl(
+      process.env.FRONTEND_URL,
+      process.env.NEXT_PUBLIC_FRONTEND_URL,
+    );
     const targetUrl = `${frontendUrl}/auth/callback?ticket=${encodeURIComponent(ticket)}&next=${encodeURIComponent(callback.next || '/dashboard')}`;
     return res.redirect(targetUrl);
   }
@@ -105,6 +109,13 @@ export class AuthController {
   @Get('me')
   async me(@Request() req: any) {
     return this.authService.getMe(req.user.id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Patch('me/rut')
+  @HttpCode(HttpStatus.OK)
+  completeRut(@Request() req: any, @Body() body: CompleteRutDto) {
+    return this.authService.completeRut(req.user.id, body.rut);
   }
 
   @UseGuards(AuthGuard)

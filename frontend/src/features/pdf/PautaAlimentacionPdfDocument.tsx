@@ -1,5 +1,6 @@
 import React from "react";
 import { Document, Page, StyleSheet, Text, View, Image } from "@react-pdf/renderer";
+import { splitIntoColumns } from "./pdfFormatters";
 
 export interface PautaParagraphData {
   title: string;
@@ -119,8 +120,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   paragraphContainer: {
-    marginTop: 8,
-    padding: 8,
+    marginTop: 7,
+    padding: 7,
     border: "1px solid #e2e8f0",
     borderRadius: 6,
     backgroundColor: "#fafafa",
@@ -147,10 +148,13 @@ const styles = StyleSheet.create({
   paragraphColumns: {
     flexDirection: "row",
     gap: 8,
-    alignItems: "flex-start",
+    alignItems: "stretch",
+    justifyContent: "space-between",
   },
   paragraphColumn: {
     flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
     backgroundColor: "#ffffff",
     border: "1px solid #e2e8f0",
     borderRadius: 4,
@@ -169,7 +173,7 @@ const styles = StyleSheet.create({
   foodItem: {
     fontSize: 8.6,
     color: "#334155",
-    marginBottom: 2,
+    marginBottom: 1.5,
     paddingLeft: 4,
   },
   imageContainer: {
@@ -225,15 +229,6 @@ const styles = StyleSheet.create({
     marginVertical: 12,
   },
 });
-
-const splitIntoColumns = (items: string[]) => {
-  if (items.length <= 1) {
-    return [items, []];
-  }
-
-  const midpoint = Math.ceil(items.length / 2);
-  return [items.slice(0, midpoint), items.slice(midpoint)];
-};
 
 export const PautaAlimentacionPdfDocument: React.FC<{ data: PautaAlimentacionPdfData }> = ({ data }) => {
   return (
@@ -341,7 +336,7 @@ export const PautaAlimentacionPdfDocument: React.FC<{ data: PautaAlimentacionPdf
               )}
               {paragraph.imagePath && (
                 <View style={{ marginTop: 6 }}>
-                  <Image src={paragraph.imagePath} style={styles.categoryImage} />
+                  <Image src={paragraph.imagePath} alt="" style={styles.categoryImage} />
                 </View>
               )}
             </View>

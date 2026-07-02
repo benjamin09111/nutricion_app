@@ -4,23 +4,20 @@ import { useEffect, useState } from "react";
 import {
   Search,
   User,
-  Calendar,
   Mail,
   Heart,
   Plus,
-  RotateCcw,
   ArrowRight,
   MessageSquareWarning,
   Eye,
   Trash2,
-  ChevronDown,
-  ChevronUp,
   Download,
   Ban,
   CheckCircle2,
   X,
   Phone,
   Link2,
+  Circle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
@@ -33,9 +30,8 @@ import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
-import { formatRut } from "@/lib/rut-utils";
 import { getApiUrl } from "@/lib/api-base";
-import { PatientTab, usePatients } from "@/features/patients/hooks/usePatients";
+import { usePatients } from "@/features/patients/hooks/usePatients";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { ShareFormModal } from "@/features/patients-intake/components/ShareFormModal";
 
@@ -54,12 +50,9 @@ function formatRestrictions(restrictions?: string[]) {
 export default function PatientsClient() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
-  const [documentIdFilter, setDocumentIdFilter] = useState("");
   const [classificationTags, setClassificationTags] = useState<string[]>([]);
-  const [startDateFilter, setStartDateFilter] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
   const [page, setPage] = useState(1);
-  const [activeTab, setActiveTab] = useState<PatientTab>("Activos");
   const router = useRouter();
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -83,10 +76,9 @@ export default function PatientsClient() {
     usePatients({
       page,
       searchTerm: debouncedSearchTerm,
-      activeTab,
-      documentIdFilter,
+      activeTab: showInactive ? "Todos" : "Activos",
       classificationTags,
-      startDateFilter,
+      startDateFilter: "",
     });
 
   const handleDeleteConfirmed = async () => {
@@ -124,16 +116,11 @@ export default function PatientsClient() {
     Number.isFinite(activePatientLimit) &&
     meta.activeCount >= activePatientLimit;
 
-  const tabs: PatientTab[] = ["Todos", "Activos", "Inactivos"];
-
   const resetPatients = () => {
     setSearchTerm("");
     setDebouncedSearchTerm("");
-    setShowFilters(false);
-    setDocumentIdFilter("");
     setClassificationTags([]);
-    setStartDateFilter("");
-    setActiveTab("Activos");
+    setShowInactive(false);
     setPage(1);
     toast.info("Lista de pacientes reiniciada.");
   };
@@ -146,42 +133,59 @@ export default function PatientsClient() {
     <ModuleLayout
       title="Mis Pacientes"
       description="Gestiona a tus pacientes: puedes crear, ver su progreso a través del tiempo, crear un espacio de comunicación privado y mucho más."
+      rightContent={
+        <Button
+          variant="outline"
+          onClick={() => router.push("/dashboard/pacientes/seguimientos")}
+          className="h-10 px-5 rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50 font-medium transition-all flex items-center gap-2"
+        >
+          <MessageSquareWarning className="h-4 w-4" />
+          <span className="text-sm whitespace-nowrap">Seguimiento</span>
+        </Button>
+      }
       className="pb-8"
     >
-      <div className="flex flex-col gap-3 mb-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-          <div className="flex p-1 bg-slate-100/80 rounded-2xl w-full lg:w-fit border border-slate-200/50 backdrop-blur-sm overflow-x-auto no-scrollbar scroll-smooth shrink-0">
-            {tabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => {
-                  setActiveTab(tab);
+      <div className="space-y-4 mb-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-1 items-center gap-3 min-w-0">
+            <div className="pl-2 shrink-0">
+              <Search className="h-5 w-5 text-slate-400" />
+            </div>
+            <Input
+              type="search"
+              placeholder="Buscar por nombre, rut o correo..."
+              className="h-10 text-sm border border-slate-200 bg-white focus-visible:border-indigo-500 placeholder:text-slate-400 font-medium"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            <div className="w-full sm:w-[12rem] lg:w-[14rem]">
+              <TagInput
+                value={classificationTags}
+                onChange={(tags) => {
+                  setClassificationTags(tags);
                   setPage(1);
                 }}
-                className={cn(
-                  "px-4 py-2 text-sm transition-all duration-200 cursor-pointer whitespace-nowrap flex-1 min-w-0 lg:flex-none font-bold",
-                  activeTab === tab
-                    ? "text-indigo-700"
-                    : "text-slate-500 hover:text-slate-800",
-                )}
-              >
-                {tab === "Todos" && `Todos (${meta.total})`}
-                {tab === "Activos" && `Activos (${meta.activeCount})`}
-                {tab === "Inactivos" && `Inactivos (${meta.inactiveCount})`}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 lg:items-center lg:justify-end">
+                fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                placeholder="Etiquetas"
+                className="h-10 rounded-xl bg-white border border-slate-200 text-sm"
+              />
+            </div>
+
             <Button
               variant="outline"
               onClick={() => setIsShareModalOpen(true)}
-              className="h-11 lg:h-10 px-5 rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-medium transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
+              className="h-10 px-5 rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-medium transition-all gap-2"
             >
-              <Link2 className="h-5 w-5 lg:h-4 lg:w-4" />
-              <span className="text-sm whitespace-nowrap">
-                Compartir Formulario
-              </span>
+              <Link2 className="h-4 w-4" />
+              <span className="text-sm whitespace-nowrap">Compartir formulario</span>
             </Button>
+
             <Button
               onClick={() => {
                 if (isPatientLimitReached) {
@@ -193,279 +197,277 @@ export default function PatientsClient() {
                 router.push("/dashboard/pacientes/new");
               }}
               disabled={isPatientLimitReached}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-11 lg:h-10 px-6 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 w-full sm:w-auto group"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-10 px-6 rounded-xl shadow-sm transition-all gap-2"
             >
               <Plus
-                className="h-5 w-5 lg:h-4 lg:w-4 group-hover:rotate-90 transition-transform"
+                className="h-4 w-4 group-hover:rotate-90 transition-transform"
                 aria-hidden="true"
               />
-              <span className="text-sm whitespace-nowrap">
-                {isPatientLimitReached ? "Límite alcanzado" : "Nuevo Paciente"}
+              <span className="text-sm">
+                {isPatientLimitReached ? "Límite alcanzado" : "Crear paciente"}
               </span>
             </Button>
           </div>
         </div>
-        <div className="w-full flex justify-left">
-          <Button
-            variant="outline"
-            onClick={() => router.push("/dashboard/pacientes/seguimientos")}
-            className="h-11 lg:h-10 px-6 rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50 font-medium transition-all flex items-center justify-center gap-2 w-full lg:w-auto group"
-          >
-            <MessageSquareWarning className="h-5 w-5 lg:h-4 lg:w-4 group-hover:scale-110 transition-transform" />
-            <span className="text-sm whitespace-nowrap">
-              Visitar seguimientos de mis pacientes
+
+        <div className="flex items-center justify-between gap-4 px-1 py-2 sm:px-3">
+          <p className="text-xs font-medium text-slate-500 flex items-center gap-2 min-w-0">
+            <User className="h-4 w-4 shrink-0" />
+            <span className="whitespace-nowrap">Total:</span>
+            <span className="text-indigo-600 font-semibold whitespace-nowrap">
+              {meta.total}
             </span>
-          </Button>
-        </div>
-      </div>
+            <span className="whitespace-nowrap">pacientes registrados</span>
+          </p>
 
-      <div className="relative mb-8 group">
-        <div className="absolute inset-0 bg-linear-to-r from-indigo-500/6 to-blue-500/5 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <div className="relative bg-white p-3 lg:p-4 rounded-3xl shadow-sm border border-slate-200">
-          <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between gap-4 w-full">
-            <div className="flex w-full items-center justify-between gap-4">
-              <div className="relative w-full max-w-[420px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-
-                <Input
-                  type="search"
-                  placeholder="Buscar por nombre, correo o documento..."
-                  className="h-10 w-full pl-10 pr-10 text-sm border border-slate-200 bg-white focus-visible:border-indigo-500 placeholder:text-slate-400 font-medium"
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setPage(1);
-                  }}
-                />
-
-                {isLoading && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <RotateCcw className="h-4 w-4 text-indigo-500 animate-spin" />
-                  </div>
-                )}
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowFilters((current) => !current)}
-                className="h-10 shrink-0 rounded-xl border-slate-200 px-4 text-xs font-black uppercase tracking-wider text-slate-600 hover:bg-slate-50"
-              >
-                {showFilters ? "Cerrar filtros" : "Abrir filtros"}
-                {showFilters ? (
-                  <ChevronUp className="ml-2 h-4 w-4" />
-                ) : (
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 animate-in slide-in-from-top-2 duration-300">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
-                  Rut / ID
-                </label>
-                <Input
-                  type="text"
-                  placeholder="Ej: 12.345.678-9"
-                  value={documentIdFilter}
-                  onChange={(e) => {
-                    setDocumentIdFilter(formatRut(e.target.value));
-                    setPage(1);
-                  }}
-                  className="h-10 rounded-xl bg-slate-50 border-slate-200 text-sm font-semibold"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
-                  Fecha Desde
-                </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <Input
-                    type="date"
-                    value={startDateFilter}
-                    onChange={(e) => {
-                      setStartDateFilter(e.target.value);
-                      setPage(1);
-                    }}
-                    className="h-10 pl-10 rounded-xl bg-slate-50 border-slate-200 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1">
-                  Clasificación
-                </label>
-                <TagInput
-                  value={classificationTags}
-                  onChange={(tags) => {
-                    setClassificationTags(tags);
-                    setPage(1);
-                  }}
-                  fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                  placeholder="Etiquetas..."
-                  className="rounded-xl bg-slate-50 border-slate-200 h-10 text-sm"
-                />
-              </div>
-
-              <div className="space-y-1.5 flex flex-col justify-end pb-1.5">
-                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1 mb-2">
-                  Mostrar Inhabilitados
-                </label>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newStatus =
-                        activeTab === "Inactivos" ? "Activos" : "Inactivos";
-                      setActiveTab(newStatus);
-                      setPage(1);
-                    }}
-                    className={cn(
-                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
-                      activeTab === "Inactivos"
-                        ? "bg-emerald-500"
-                        : "bg-slate-300",
-                    )}
-                    role="switch"
-                    aria-checked={activeTab === "Inactivos"}
-                  >
-                    <span
-                      className={cn(
-                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
-                        activeTab === "Inactivos"
-                          ? "translate-x-5"
-                          : "translate-x-0",
-                      )}
-                    />
-                  </button>
-                  <span
-                    className={cn(
-                      "text-xs font-bold",
-                      activeTab === "Inactivos"
-                        ? "text-emerald-700"
-                        : "text-slate-500",
-                    )}
-                  >
-                    {activeTab === "Inactivos"
-                      ? "Inhabilitados"
-                      : "Solo Habilitados"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {(searchTerm ||
-            documentIdFilter ||
-            startDateFilter ||
-            classificationTags.length > 0) && (
-            <div className="flex justify-end pt-1">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={resetPatients}
-                className="h-8 px-3 rounded-lg text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 text-[11px] font-semibold uppercase tracking-wider"
-              >
-                <RotateCcw className="h-3 w-3 mr-1.5" />
-                Limpiar filtros
-              </Button>
-            </div>
-          )}
+          <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-600 cursor-pointer select-none whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => {
+                setShowInactive(e.target.checked);
+                setPage(1);
+              }}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <span>Mostrar inactivos</span>
+          </label>
         </div>
       </div>
 
       <div className="space-y-4">
-        <div className="flex justify-between items-center px-1">
-          <p className="text-xs font-medium text-slate-500 flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Total:{" "}
-            <span className="text-indigo-600 font-semibold">
-              {meta.total}
-            </span>{" "}
-            pacientes registrados
-          </p>
-        </div>
-
         {/* Desktop Table View */}
         <div className="hidden lg:block bg-white shadow-xl shadow-slate-200/50 border border-slate-200 rounded-2xl overflow-hidden">
-  <div className="overflow-x-auto max-h-[calc(100vh-380px)] custom-scrollbar">
-    <table className="w-full table-fixed divide-y divide-slate-100">
-      <colgroup>
-        <col className="w-[28%]" />
-        <col className="w-[16%]" />
-        <col className="w-[24%]" />
-        <col className="w-[14%]" />
-        <col className="w-[18%]" />
-      </colgroup>
-      <thead className="bg-slate-50/50">
-        <tr>
-          <th scope="col" className="px-4 lg:px-3 xl:px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Datos del Paciente
-          </th>
-          <th scope="col" className="px-4 lg:px-3 xl:px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Documento / Id
-          </th>
-          <th scope="col" className="px-4 lg:px-3 xl:px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Restricciones Médicas
-          </th>
-          <th scope="col" className="px-4 lg:px-3 xl:px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Estado
-          </th>
-          <th scope="col" className="px-4 lg:px-3 xl:px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Acciones
-          </th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-50 bg-white">
-        {isLoading ? (
-          [1, 2, 3, 4, 5].map((i) => (
-            <tr key={i} className="animate-pulse border-b border-slate-50 last:border-0">
-              <td className="px-4 lg:px-3 xl:px-6 py-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-slate-100 rounded-full shrink-0" />
-                  <div className="space-y-2 min-w-0">
-                    <div className="h-4 w-24 bg-slate-100 rounded" />
-                    <div className="h-3 w-32 bg-slate-50 rounded" />
-                  </div>
-                </div>
-              </td>
-              <td className="px-4 lg:px-3 xl:px-6 py-6">
-                <div className="h-4 w-20 bg-slate-100 rounded" />
-              </td>
-              <td className="px-4 lg:px-3 xl:px-6 py-6">
-                <div className="h-8 w-32 bg-slate-100 rounded-2xl" />
-              </td>
-              <td className="px-4 lg:px-3 xl:px-6 py-6">
-                <div className="h-6 w-16 bg-slate-100 rounded-full mx-auto" />
-              </td>
-              <td className="px-4 lg:px-3 xl:px-6 py-6">
-                <div className="h-8 w-8 bg-slate-100 rounded-lg ml-auto" />
-              </td>
-            </tr>
-          ))
-        ) : filteredPatients.length > 0 ? (
-          filteredPatients.map((patient) => {
-            const restrictions = formatRestrictions(patient.dietRestrictions);
-            const visibleRestrictions = restrictions.slice(0, 1);
-            const remainingRestrictions = restrictions.length - visibleRestrictions.length;
+          <div className="overflow-x-auto max-h-[calc(100vh-380px)] custom-scrollbar">
+            <table className="min-w-full divide-y divide-slate-100">
+              <thead className="bg-slate-50/50">
+                <tr>
+                  <th
+                    scope="col"
+                    className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                  >
+                    Identidad del Paciente
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                  >
+                    Documento / Id
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                  >
+                    Restricciones Médicas
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                  >
+                    Estado
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                  >
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 bg-white">
+                {isLoading ? (
+                  [1, 2, 3, 4, 5].map((i) => (
+                    <tr
+                      key={i}
+                      className="animate-pulse border-b border-slate-50 last:border-0"
+                    >
+                      <td className="px-6 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-slate-100 rounded-full" />
+                          <div className="space-y-2">
+                            <div className="h-4 w-32 bg-slate-100 rounded" />
+                            <div className="h-3 w-48 bg-slate-50 rounded" />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-6">
+                        <div className="h-4 w-24 bg-slate-100 rounded" />
+                      </td>
+                      <td className="px-6 py-6">
+                        <div className="h-10 w-44 bg-slate-100 rounded-2xl" />
+                      </td>
+                      <td className="px-6 py-6">
+                        <div className="h-6 w-20 bg-slate-100 rounded-full mx-auto" />
+                      </td>
+                      <td className="px-6 py-6">
+                        <div className="h-8 w-8 bg-slate-100 rounded-lg ml-auto" />
+                      </td>
+                    </tr>
+                  ))
+                ) : filteredPatients.length > 0 ? (
+                  filteredPatients.map((patient) => {
+                    const restrictions = formatRestrictions(
+                      patient.dietRestrictions,
+                    );
+                    const visibleRestrictions = restrictions.slice(0, 2);
+                    const remainingRestrictions =
+                      restrictions.length - visibleRestrictions.length;
 
-            return (
-              <tr
-                key={patient.id}
-                onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
-                className="hover:bg-slate-50 transition-colors group cursor-pointer"
-              >
-                <td className="px-4 lg:px-3 xl:px-6 py-4">
-                  <div className="flex items-center min-w-0">
-                    <div className="h-9 w-9 shrink-0">
-                      <div className="h-9 w-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-semibold border border-indigo-100 shadow-sm">
-                        {patient.fullName.charAt(0)}
+                    return (
+                      <tr
+                        key={patient.id}
+                        onClick={() =>
+                          router.push(`/dashboard/pacientes/${patient.id}`)
+                        }
+                        className="hover:bg-slate-50 transition-colors group cursor-pointer"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center">
+                            <div className="h-10 w-10 shrink-0">
+                              <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-semibold border border-indigo-100 shadow-sm">
+                                {patient.fullName.charAt(0)}
+                              </div>
+                            </div>
+                            <div className="ml-4 min-w-0">
+                              <div className="text-sm font-semibold text-slate-900 leading-none mb-1 truncate">
+                                {patient.fullName}
+                              </div>
+                              <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5 min-w-0">
+                                <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                                <span className="truncate">
+                                  {patient.email || "Sin correo"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center text-sm font-medium text-slate-600">
+                            {patient.documentId || "---"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {restrictions.length > 0 ? (
+                            <div className="flex flex-wrap items-center gap-2 max-w-[280px]">
+                              {visibleRestrictions.map((restriction) => (
+                                <span
+                                  key={restriction}
+                                  className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
+                                >
+                                  <Heart className="h-3 w-3 text-emerald-600" />
+                                  <span className="truncate max-w-[180px]">
+                                    {restriction}
+                                  </span>
+                                </span>
+                              ))}
+                              {remainingRestrictions > 0 && (
+                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
+                                  +{remainingRestrictions}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs font-medium text-slate-400">
+                              Sin restricciones
+                            </span>
+                          )}
+                        </td>
+                        <td
+                          className="px-6 py-4 text-center"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePatientStatus(patient)}
+                              className={cn(
+                                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
+                                patient.status !== "Inactive"
+                                  ? "bg-indigo-500"
+                                  : "bg-slate-300",
+                              )}
+                              role="switch"
+                              aria-checked={patient.status !== "Inactive"}
+                            >
+                              <span
+                                className={cn(
+                                  "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
+                                  patient.status !== "Inactive"
+                                    ? "translate-x-4"
+                                    : "translate-x-0",
+                                )}
+                              />
+                            </button>
+                            <span
+                              className={cn(
+                                "text-xs font-medium w-12 text-left",
+                                patient.status !== "Inactive"
+                                  ? "text-indigo-700"
+                                  : "text-slate-500",
+                              )}
+                            >
+                              {patient.status !== "Inactive"
+                                ? "Activo"
+                                : "Inactivo"}
+                            </span>
+                          </div>
+                        </td>
+                        <td
+                          className="px-6 py-4 text-right"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => openPatientPreview(patient)}
+                              className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                              title="Ver detalles"
+                            >
+                              <Eye className="w-4.5 h-4.5" />
+                            </button>
+                            <button
+                              onClick={() => handleTogglePatientStatus(patient)}
+                              className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
+                              title={patient.status === "Active" ? "Inhabilitar paciente" : "Habilitar paciente"}
+                            >
+                              {patient.status === "Active" ? (
+                                <Ban className="w-4.5 h-4.5 text-emerald-600" />
+                              ) : (
+                                <CheckCircle2 className="w-4.5 h-4.5 text-indigo-600" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              disabled
+                              className="group relative p-2.5 text-slate-300 bg-slate-50 rounded-xl transition-all cursor-not-allowed"
+                              title="Descargar ficha"
+                            >
+                              <Download className="w-4.5 h-4.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setPatientToDelete(patient.id);
+                                setIsDeleteConfirmOpen(true);
+                              }}
+                              className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                              title="Eliminar paciente"
+                            >
+                              <Trash2 className="w-4.5 h-4.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="text-center py-20">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100">
+                          <User className="h-8 w-8 text-slate-300" />
+                        </div>
+                        <p className="text-slate-500 font-medium">
+                          Sin pacientes registrados
+                        </p>
                       </div>
                     </div>
                     <div className="ml-3 min-w-0">
@@ -956,3 +958,4 @@ export default function PatientsClient() {
     </ModuleLayout>
   );
 }
+

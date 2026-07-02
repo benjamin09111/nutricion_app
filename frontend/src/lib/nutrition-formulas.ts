@@ -372,23 +372,23 @@ export function getIdealWeightRange(
     };
   }
 
-  if (typeof resolvedAge === "number" && resolvedAge > 65) {
+  if (typeof resolvedAge === "number" && resolvedAge >= 65) {
     return {
       min: Math.round(23 * heightMeters * heightMeters * 10) / 10,
       max: Math.round(28 * heightMeters * heightMeters * 10) / 10,
-      reference: "IMC objetivo 23-28",
-      note: "Adulto mayor (>65 años).",
+      reference: "IMC 23-28 (Lipschitz)",
+      note: `Peso óptimo central: ${Math.round(25.5 * heightMeters * heightMeters * 10) / 10} kg.`,
       supported: true,
     };
   }
 
-  const targetBmi = resolvedGender === "Masculino" ? 22.5 : 21.5;
-  const ideal = targetBmi * heightMeters * heightMeters;
+  const targetBmi = resolvedGender === "Masculino" ? 22.5 : resolvedGender === "Femenino" ? 21.5 : 22.0;
+  const idealWeight = targetBmi * heightMeters * heightMeters;
   return {
-    min: Math.round(ideal * 0.97 * 10) / 10,
-    max: Math.round(ideal * 1.03 * 10) / 10,
-    reference: resolvedGender === "Masculino" ? "IMC 22.5" : "IMC 21.5",
-    note: "Rango estimado para adulto.",
+    min: Math.round(18.5 * heightMeters * heightMeters * 10) / 10,
+    max: Math.round(24.9 * heightMeters * heightMeters * 10) / 10,
+    reference: `Objetivo IMC ${targetBmi} (${resolvedGender === "Masculino" ? "Hombres" : "Mujeres"})`,
+    note: `Peso óptimo central: ${Math.round(idealWeight * 10) / 10} kg.`,
     supported: true,
   };
 }

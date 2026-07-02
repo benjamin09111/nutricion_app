@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 
-type AiProvider = 'deepseek' | 'abacus' | 'openai';
+type AiProvider = 'deepseek' | 'openai';
 
 type AiConfig = {
   provider: AiProvider;
@@ -25,17 +25,6 @@ export class AiService {
         apiKey,
         model: process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash',
         baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
-      };
-    }
-
-    if (provider === 'abacus') {
-      const apiKey = process.env.ABACUS_API_KEY;
-      if (!apiKey) return null;
-      return {
-        provider,
-        apiKey,
-        model: process.env.ABACUS_MODEL || 'route-llm',
-        baseUrl: process.env.ABACUS_BASE_URL || 'https://routellm.abacus.ai/v1',
       };
     }
 
@@ -140,7 +129,7 @@ export class AiService {
     systemInstruction: string,
     userPrompt: string,
   ): Promise<string> {
-    const providers: AiProvider[] = ['deepseek', 'abacus', 'openai'];
+    const providers: AiProvider[] = ['deepseek', 'openai'];
     const errors: string[] = [];
 
     for (const provider of providers) {

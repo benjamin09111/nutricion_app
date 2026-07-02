@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -1502,13 +1503,13 @@ export class PatientPortalsService {
   }
 
   private buildPortalUrl(token: string) {
-    const baseUrl =
-      this.configService.get<string>('PORTAL_BASE_URL') ||
-      this.configService.get<string>('FRONTEND_URL') ||
-      this.configService.get<string>('APP_URL') ||
-      'http://localhost:3000';
+    const baseUrl = resolveRequiredUrl(
+      this.configService.get<string>('PORTAL_BASE_URL'),
+      this.configService.get<string>('FRONTEND_URL'),
+      this.configService.get<string>('APP_URL'),
+    );
 
-    return `${baseUrl.replace(/\/$/, '')}/portal/${token}`;
+    return `${baseUrl}/portal/${token}`;
   }
 
   private hashToken(token: string) {

@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Download,
-  NotebookText,
   Plus,
   ChefHat,
   Sparkles,
@@ -29,7 +28,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
-import { SectionProgressNav, type SectionProgressStatus } from "@/components/shared/SectionProgressNav";
+import { WizardTabs } from "@/components/shared/WizardTabs";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { type ActionDockItem } from "@/components/ui/ActionDock";
 import { fetchApi } from "@/lib/api-base";
@@ -69,14 +68,6 @@ type QuickWeekDay =
 type QuickPlanMode = "single" | "weekly";
 
 type QuickAiMode = "ai" | "library";
-
-type QuickGuideSectionId =
-  | "general"
-  | "meals"
-  | "avoidFoods"
-  | "resources"
-  | "portions"
-  | "summary";
 
 type QuickAvoidFoodRow = {
   id: string;
@@ -185,6 +176,15 @@ const QUICK_PORTION_GUIDE = [
 
 const DEFAULT_TITLE = "Entregable rápido";
 
+const WIZARD_STEPS = [
+  { label: "General", description: "Identidad y paciente." },
+  { label: "Comidas", description: "Tabla de comidas." },
+  { label: "Evitar", description: "Alimentos y restricciones." },
+  { label: "Recursos", description: "Material breve." },
+  { label: "Porciones", description: "Guía resumida." },
+  { label: "Resumen", description: "Cierre express." },
+];
+
 const createMeal = (section: QuickSection | "" = ""): QuickMeal => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   section,
@@ -260,7 +260,7 @@ function getResolvedResourceKey(resource: ResolvedResourcePage, index: number): 
 }
 
 export default function QuickDeliverableClient() {
-  const { setSidebarCollapsed, isSidebarCollapsed } = useDashboardShell();
+  const { setSidebarCollapsed } = useDashboardShell();
   const searchParams = useSearchParams();
   const creationId = searchParams.get("creationId");
   const projectId = searchParams.get("project");
@@ -313,13 +313,25 @@ export default function QuickDeliverableClient() {
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [showValidationHighlights, setShowValidationHighlights] = useState(false);
-  const [activeGuideSection, setActiveGuideSection] = useState<QuickGuideSectionId>("general");
+  const [currentStep, setCurrentStep] = useState(0);
   const identitySectionRef = useRef<HTMLElement | null>(null);
   const mealsSectionRef = useRef<HTMLElement | null>(null);
   const avoidFoodsSectionRef = useRef<HTMLElement | null>(null);
   const resourcesSectionRef = useRef<HTMLElement | null>(null);
   const portionsSectionRef = useRef<HTMLElement | null>(null);
   const summarySectionRef = useRef<HTMLElement | null>(null);
+
+  const goToStep = useCallback((step: number) => {
+    setCurrentStep(Math.max(0, Math.min(step, WIZARD_STEPS.length - 1)));
+  }, []);
+
+  const goBack = useCallback(() => {
+    setCurrentStep((prev) => Math.max(0, prev - 1));
+  }, []);
+
+  const goNext = useCallback(() => {
+    setCurrentStep((prev) => Math.min(WIZARD_STEPS.length - 1, prev + 1));
+  }, []);
 
   useEffect(() => {
     setSidebarCollapsed(true);
@@ -597,114 +609,6 @@ export default function QuickDeliverableClient() {
       ).length,
     [portionGuideRows],
   );
-
-  const hasMealsContent = useMemo(
-    () =>
-      planMode === "single"
-        ? meals.some((meal) => meal.mealText.trim().length > 0)
-        : meals.some((meal) =>
-            QUICK_WEEK_DAYS.some(
-              (day) => (meal.weeklyMealTexts?.[day] || "").trim().length > 0,
-            ),
-          ),
-    [meals, planMode],
-  );
-
-  const getSectionStatus = (
-    isVisible: boolean,
-    isComplete: boolean,
-  ): SectionProgressStatus => {
-    if (!isVisible) return "hidden";
-    return isComplete ? "complete" : "pending";
-  };
-
-  const quickGuideSections = useMemo(
-    () => [
-      {
-        id: "general" as QuickGuideSectionId,
-        label: "Informacion general",
-        status: getSectionStatus(true, title.trim().length > 0),
-        ref: identitySectionRef,
-      },
-      {
-        id: "meals" as QuickGuideSectionId,
-        label: "Tabla de comidas",
-        status: getSectionStatus(includeMeals, hasMealsContent),
-        ref: mealsSectionRef,
-      },
-      {
-        id: "avoidFoods" as QuickGuideSectionId,
-        label: "Alimentos a evitar",
-        status: getSectionStatus(includeAvoidFoods, validAvoidFoods.length > 0),
-        ref: avoidFoodsSectionRef,
-      },
-      {
-        id: "resources" as QuickGuideSectionId,
-        label: "Recursos",
-        status: getSectionStatus(includeResources, selectedResolvedResources.length > 0),
-        ref: resourcesSectionRef,
-      },
-      {
-        id: "portions" as QuickGuideSectionId,
-        label: "Porciones",
-        status: getSectionStatus(includePortionGuide, portionGuideCount > 0),
-        ref: portionsSectionRef,
-      },
-      {
-        id: "summary" as QuickGuideSectionId,
-        label: "Resumen",
-        status: getSectionStatus(
-          true,
-          hasMealsContent ||
-            validAvoidFoods.length > 0 ||
-            selectedResolvedResources.length > 0 ||
-            (includePortionGuide && portionGuideCount > 0),
-        ),
-        ref: summarySectionRef,
-      },
-    ],
-    [
-      title,
-      includeMeals,
-      hasMealsContent,
-      includeAvoidFoods,
-      validAvoidFoods.length,
-      includeResources,
-      selectedResolvedResources.length,
-      includePortionGuide,
-      portionGuideCount,
-    ],
-  );
-
-  const scrollToGuideSection = (sectionId: QuickGuideSectionId) => {
-    const targetSection = quickGuideSections.find((section) => section.id === sectionId);
-    targetSection?.ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  useEffect(() => {
-    const updateActiveSection = () => {
-      const viewportOffset = 180;
-      let nextSection = quickGuideSections[0]?.id ?? "general";
-
-      quickGuideSections.forEach((section) => {
-        const top = section.ref.current?.getBoundingClientRect().top;
-        if (typeof top === "number" && top - viewportOffset <= 0) {
-          nextSection = section.id;
-        }
-      });
-
-      setActiveGuideSection(nextSection);
-    };
-
-    updateActiveSection();
-    window.addEventListener("scroll", updateActiveSection, { passive: true });
-    window.addEventListener("resize", updateActiveSection);
-
-    return () => {
-      window.removeEventListener("scroll", updateActiveSection);
-      window.removeEventListener("resize", updateActiveSection);
-    };
-  }, [quickGuideSections]);
 
   const quickAiMealTargets = useMemo(() => {
     const counts = new Map<string, number>();
@@ -1478,7 +1382,6 @@ export default function QuickDeliverableClient() {
       <ModuleLayout
         title="Entregable Rápido"
         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
-        step={{ number: "Express", label: "Entregable rápido", icon: NotebookText, color: "text-slate-600" }}
         rightNavItems={actionDockItems}
         className="max-w-[68rem]"
         footer={
@@ -1519,25 +1422,11 @@ export default function QuickDeliverableClient() {
             Los campos con <strong>*</strong> son obligatorios para generar el PDF. El paciente es opcional en este modo.
           </div>
 
-          <div className="relative">
-            {isSidebarCollapsed && (
-              <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
-                <div>
-                  <SectionProgressNav
-                    items={quickGuideSections.map((section) => ({
-                      id: section.id,
-                      label: section.label,
-                      status: section.status,
-                      active: activeGuideSection === section.id,
-                      onClick: () => scrollToGuideSection(section.id),
-                    }))}
-                  />
-                </div>
-              </div>
-            )}
+          <WizardTabs steps={WIZARD_STEPS} currentStep={currentStep} onStepChange={goToStep} />
 
           <div className="grid gap-7 xl:grid-cols-[1.35fr,0.8fr]">
             <div className="space-y-8">
+              {currentStep === 0 && (
               <section
                 ref={identitySectionRef}
                 className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm"
@@ -1732,7 +1621,9 @@ export default function QuickDeliverableClient() {
                 )}
                 </div>
               </section>
+              )}
 
+              {currentStep === 1 && (
               <section
                 ref={mealsSectionRef}
                 className={cn(
@@ -2044,7 +1935,9 @@ export default function QuickDeliverableClient() {
                 )}
                 </div>
               </section>
+              )}
 
+              {currentStep === 2 && (
               <section
                 ref={avoidFoodsSectionRef}
                 className={cn(
@@ -2144,9 +2037,11 @@ export default function QuickDeliverableClient() {
                   </table>
                 </div>
               </section>
+              )}
             </div>
 
             <div className="space-y-6">
+              {currentStep === 3 && (
               <section
                 ref={resourcesSectionRef}
                 className={cn(
@@ -2331,7 +2226,9 @@ export default function QuickDeliverableClient() {
                   )}
                 </div>
               </section>
+              )}
 
+              {currentStep === 4 && (
               <section ref={portionsSectionRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -2447,7 +2344,9 @@ export default function QuickDeliverableClient() {
                   </table>
                 </div>
               </section>
+              )}
 
+              {currentStep === 5 && (
               <section ref={summarySectionRef} className="rounded-3xl border border-slate-200 bg-slate-900 p-10 text-white shadow-sm">
                 <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">
                   Resumen express
@@ -2485,8 +2384,18 @@ export default function QuickDeliverableClient() {
                   </div>
                 </div>
               </section>
+              )}
             </div>
           </div>
+          <div className="flex items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Navegación por etapas</p>
+              <p className="text-sm font-medium text-slate-600">Cambia entre secciones sin perder contexto.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={goBack} disabled={currentStep === 0} className="h-10 rounded-xl border-slate-200 px-4 font-semibold text-slate-600 cursor-pointer">Anterior</Button>
+              <Button type="button" onClick={goNext} disabled={currentStep === WIZARD_STEPS.length - 1} className="h-10 rounded-xl bg-indigo-600 px-4 font-semibold text-white hover:bg-indigo-700 cursor-pointer">Siguiente</Button>
+            </div>
           </div>
         </div>
       </ModuleLayout>

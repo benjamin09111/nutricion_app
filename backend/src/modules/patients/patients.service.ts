@@ -10,6 +10,7 @@ import { CreateExamDto } from './dto/create-exam.dto';
 
 import { CacheService } from '../../common/services/cache.service';
 import { PermissionsService } from '../permissions/permissions.service';
+import { CalculationsService } from '../calculations/calculations.service';
 
 const AUTOMATIC_NUTRITION_KEY = 'automaticNutritionCalculations';
 
@@ -29,6 +30,7 @@ export class PatientsService {
     private prisma: PrismaService,
     private cacheService: CacheService,
     private permissionsService: PermissionsService,
+    private calculationsService: CalculationsService,
   ) {}
 
   async create(
@@ -389,7 +391,7 @@ export class PatientsService {
         )
       : [];
 
-    const calculations = this.buildAutomaticNutritionCalculations(patient);
+    const calculations = this.buildAutomaticNutritionCalculations(patient, customVariables);
     if (!calculations) return variables as any;
 
     return [
@@ -405,59 +407,107 @@ export class PatientsService {
 
   private buildAutomaticNutritionCalculations(
     patient: NutritionCalculationInput,
+    customVariables: any,
   ) {
-    const weight = this.toPositiveNumber(patient.weight);
-    const height = this.toPositiveNumber(patient.height);
-    const age = this.calculateAge(patient.birthDate);
-    if (!weight || !height || age === null) return null;
+    const customVars = Array.isArray(customVariables) ? customVariables : [];
+    const findVar = (key: string) => {
+      const found = customVars.find((v: any) => v?.key === key);
+      return found ? found.value : null;
+    };
 
+    const kneeHeight = this.toPositiveNumber(findVar('alturaRodilla'));
+    const calfCircumference = this.toPositiveNumber(findVar('circunferenciaPantorrilla'));
+    const armCircumference = this.toPositiveNumber(findVar('circunferenciaBraquial'));
+    const waistCircumference = this.toPositiveNumber(findVar('circunferenciaCintura'));
+    const hipCircumference = this.toPositiveNumber(findVar('circunferenciaCadera'));
+    const tricipitalFold = this.toPositiveNumber(findVar('pliegueTricipital'));
+    const bicipitalFold = this.toPositiveNumber(findVar('pliegueBicipital'));
+    const subescapularFold = this.toPositiveNumber(findVar('pliegueSubescapular'));
+    const suprailiacoFold = this.toPositiveNumber(findVar('pliegueSuprailiaco'));
+
+    const resolvedAge = this.calculateAge(patient.birthDate);
     const gender = this.normalizeGender(patient.gender);
     const activity = this.normalizeActivityLevel(patient.activityLevel);
-    const bmi = this.round(weight / Math.pow(height / 100, 2), 1);
-    const classification = this.classifyBmi(bmi);
-    const tmb = this.calculateMifflinStJeor(gender, weight, height, age);
-    const activityFactor = this.getActivityFactor(activity);
-    const get = Math.round(tmb * activityFactor);
-    const macros = this.calculateMacros(get);
-    const portionProfile = this.resolvePortionProfile({
-      calories: get,
-      bmi,
+
+    const calcResult = this.calculationsService.calculateAll({
+      gender,
+      weight: this.toPositiveNumber(patient.weight),
+      height: this.toPositiveNumber(patient.height),
+      birthDate: patient.birthDate,
+      ageYears: resolvedAge,
       activityLevel: activity,
-      nutritionalFocus: patient.nutritionalFocus,
+      kneeHeight,
+      calfCircumference,
+      armCircumference,
+      waistCircumference,
+      hipCircumference,
+      tricipitalFold,
+      bicipitalFold,
+      subescapularFold,
+      suprailiacoFold,
     });
+
+    if (!calcResult.bmi) return null;
+    const bmiVal = calcResult.bmi.bmi;
+    const classification = calcResult.bmi.classification;
+
     const category = this.resolvePatientNutritionCategory({
-      bmi,
+      bmi: bmiVal,
       classification,
       activityLevel: activity,
       nutritionalFocus: patient.nutritionalFocus,
       fitnessGoals: patient.fitnessGoals,
     });
-    const dailyTargets = this.buildSuggestedDailyTargets({
-      get,
-      macros,
-      category,
-      proteinGramsPerKg: this.resolveProteinGramsPerKg(category, weight),
+
+    const proteinGramsPerKg = this.resolveProteinGramsPerKg(category, calcResult.inputs.weight || 0);
+
+    const energy = calcResult.energy;
+    if (!energy) return null;
+
+    const dailyTargets = {
+      calories: this.resolveTargetCalories(energy.get, category),
+      protein: Math.round((this.resolveTargetCalories(energy.get, category) * (energy.macros.proteinPercent / 100)) / 4),
+      carbs: Math.round((this.resolveTargetCalories(energy.get, category) * (energy.macros.carbsPercent / 100)) / 4),
+      fats: Math.round((this.resolveTargetCalories(energy.get, category) * (energy.macros.fatsPercent / 100)) / 9),
+      proteinPercent: energy.macros.proteinPercent,
+      carbsPercent: energy.macros.carbsPercent,
+      fatsPercent: energy.macros.fatsPercent,
+      proteinPerKg: proteinGramsPerKg,
+      formula: category.strategy,
+    };
+
+    const portionProfile = this.resolvePortionProfile({
+      calories: energy.get,
+      bmi: bmiVal,
+      activityLevel: activity,
+      nutritionalFocus: patient.nutritionalFocus,
     });
 
     return {
-      version: '2026-05-29-v1',
+      version: '2026-07-01-v2',
       calculatedAt: new Date().toISOString(),
-      source: 'OMS IMC + Mifflin-St Jeor + factores de actividad estándar',
+      source: 'Motor Centralizado de Cálculos Nutricionales',
       status: 'SUGGESTED_REVIEW_REQUIRED',
       note: 'Valores orientativos para apoyo clínico. Deben ser revisados y ajustados por el nutricionista tratante.',
-      inputs: { weight, height, age, gender, activityLevel: activity },
-      bmi: { value: bmi, classification },
-      idealWeight: this.getIdealWeightRange(height),
+      inputs: calcResult.inputs,
+      bmi: calcResult.bmi,
+      idealWeight: calcResult.idealWeight,
+      adjustedWeight: calcResult.adjustedWeight,
+      estimatedHeight: calcResult.estimatedHeight,
+      estimatedWeight: calcResult.estimatedWeight,
+      armComposition: calcResult.armComposition,
+      cardiovascularRisk: calcResult.cardiovascularRisk,
       energy: {
-        tmb: Math.round(tmb),
-        get,
-        activityFactor,
-        formula: 'Mifflin-St Jeor',
+        tmb: energy.tmb,
+        get: energy.get,
+        activityFactor: energy.activityFactor,
+        formula: energy.formula,
       },
-      macros,
+      macros: energy.macros,
       category,
       dailyTargets,
       portionProfile,
+      exchangePortions: calcResult.exchangePortions,
     };
   }
 
@@ -475,50 +525,6 @@ export class PatientsService {
       age -= 1;
     }
     return age >= 0 ? age : null;
-  }
-
-  private calculateMifflinStJeor(
-    gender: 'Masculino' | 'Femenino',
-    weight: number,
-    height: number,
-    age: number,
-  ) {
-    const base = 10 * weight + 6.25 * height - 5 * age;
-    return gender === 'Masculino' ? base + 5 : base - 161;
-  }
-
-  private calculateMacros(calories: number) {
-    const carbsPercent = 55;
-    const proteinPercent = 20;
-    const fatsPercent = 25;
-    return {
-      calories,
-      carbs: Math.round((calories * (carbsPercent / 100)) / 4),
-      protein: Math.round((calories * (proteinPercent / 100)) / 4),
-      fats: Math.round((calories * (fatsPercent / 100)) / 9),
-      carbsPercent,
-      proteinPercent,
-      fatsPercent,
-    };
-  }
-
-  private classifyBmi(bmi: number) {
-    if (bmi < 18.5) return 'Bajo peso';
-    if (bmi < 25) return 'Normopeso';
-    if (bmi < 30) return 'Sobrepeso';
-    if (bmi < 35) return 'Obesidad I';
-    if (bmi < 40) return 'Obesidad II';
-    return 'Obesidad III';
-  }
-
-  private getIdealWeightRange(height: number) {
-    const heightM = height / 100;
-    return {
-      min: this.round(18.5 * heightM * heightM, 1),
-      max: this.round(24.9 * heightM * heightM, 1),
-      reference: 'Normopeso (IMC 18.5-24.9)',
-      note: 'Rango adulto de referencia.',
-    };
   }
 
   private resolvePortionProfile(input: {

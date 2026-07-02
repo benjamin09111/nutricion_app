@@ -10,6 +10,7 @@ import {
   Tag,
   BadgeCheck,
   Scale,
+  BookOpen,
   Plus,
   Check,
   X,
@@ -306,6 +307,10 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         ...prev.filter((ingredient) => ingredient.id !== newIngredient.id),
       ]);
     }
+    setSelectedCategory("Todos");
+    setSelectedTag("Todos");
+    setSearchTerm("");
+    setCurrentPage(1);
     setActiveTab("Mis creaciones");
     await Promise.all([fetchIngredients(), fetchCatalogPool()]);
   };
@@ -581,9 +586,16 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                       ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200"
                       : "text-slate-500 hover:text-slate-700",
                   )}
-                >
+                  >
                   <Users size={14} />
                   🌍 Comunidad Nutris
+                </button>
+                <button
+                  onClick={() => router.push("/dashboard/herramientas/porciones-intercambio")}
+                  className="px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2 text-slate-500 hover:text-slate-700 hover:bg-white/70 cursor-pointer"
+                >
+                  <BookOpen size={14} />
+                  Jury-G. Urteaga-C. 1999
                 </button>
               </div>
               {baseTab === "community" && (

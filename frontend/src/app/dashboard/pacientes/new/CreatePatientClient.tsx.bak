@@ -17,6 +17,7 @@ import {
   Target,
   Edit3,
   Zap,
+  ChevronDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -172,6 +173,7 @@ export default function CreatePatientClient() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showPliegues, setShowPliegues] = useState(false);
   const selectedActivityLevel = normalizeActivityLevel(draft.activityLevel);
   const patientLimit = limit("patients.active.limit");
 
@@ -236,6 +238,31 @@ export default function CreatePatientClient() {
   );
 
   const getCustomVariableValue = (key: string) => customVariableMap.get(key)?.value;
+
+  const grasaPorcentaje = useMemo(() => {
+    const tricipital = customVariableMap.get("pliegueTricipital")?.value as number | undefined;
+    const bicipital = customVariableMap.get("pliegueBicipital")?.value as number | undefined;
+    const subescapular = customVariableMap.get("pliegueSubescapular")?.value as number | undefined;
+    const suprailiaco = customVariableMap.get("pliegueSuprailiaco")?.value as number | undefined;
+
+    if (!tricipital || !bicipital || !subescapular || !suprailiaco) return null;
+    if (tricipital <= 0 || bicipital <= 0 || subescapular <= 0 || suprailiaco <= 0) return null;
+
+    const sum = tricipital + bicipital + subescapular + suprailiaco;
+    const age = calculatedAge ?? 30;
+    const gender = draft.gender === "Masculino" ? "Masculino" : "Femenino";
+
+    let dc: number;
+    if (gender === "Masculino") {
+      dc = 1.10938 - (0.0008267 * sum) + (0.0000016 * sum * sum) - (0.0002574 * age);
+    } else {
+      dc = 1.0994921 - (0.0009929 * sum) + (0.0000023 * sum * sum) - (0.0001392 * age);
+    }
+
+    if (dc <= 0) return null;
+    const bf = (495 / dc) - 450;
+    return Math.round(bf * 10) / 10;
+  }, [customVariableMap, calculatedAge, draft.gender]);
 
   const setCustomVariableValue = (
     key: string,
@@ -415,8 +442,108 @@ export default function CreatePatientClient() {
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               Acceso Rápido Lateral Activo
             </div>
-          </div>
-        </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowPliegues(!showPliegues)}
+                className="w-full flex items-center justify-between py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+              >
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pliegues cutáneos (opcional)</span>
+                <ChevronDown className={cn("h-4 w-4 text-slate-400 transition-transform", showPliegues && "rotate-180")} />
+              </button>
+
+              {showPliegues && (
+                <div className="grid grid-cols-2 gap-3 pt-2 animate-in slide-in-from-top-2 duration-200">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase text-slate-400">Tricipital (mm)</label>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      className="h-10 rounded-xl bg-slate-50 border-transparent text-center font-bold text-sm"
+                      value={draft.customVariables?.find(v => v.key === "pliegueTricipital")?.value ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(",", ".");
+                        const pliegues = (draft.customVariables || []).filter(v => !["pliegueTricipital", "pliegueBicipital", "pliegueSubescapular", "pliegueSuprailiaco", "grasaPorcentaje"].includes(v.key));
+                        if (val) {
+                          pliegues.push({ key: "pliegueTricipital", label: "Pliegue tricipital", unit: "mm", value: parseFloat(val) });
+                        }
+                        updateDraft({ customVariables: pliegues });
+                      }}
+                      placeholder="12"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase text-slate-400">Bicipital (mm)</label>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      className="h-10 rounded-xl bg-slate-50 border-transparent text-center font-bold text-sm"
+                      value={draft.customVariables?.find(v => v.key === "pliegueBicipital")?.value ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(",", ".");
+                        const pliegues = (draft.customVariables || []).filter(v => !["pliegueTricipital", "pliegueBicipital", "pliegueSubescapular", "pliegueSuprailiaco", "grasaPorcentaje"].includes(v.key));
+                        if (val) {
+                          pliegues.push({ key: "pliegueBicipital", label: "Pliegue bicipital", unit: "mm", value: parseFloat(val) });
+                        }
+                        updateDraft({ customVariables: pliegues });
+                      }}
+                      placeholder="8"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase text-slate-400">Subescapular (mm)</label>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      className="h-10 rounded-xl bg-slate-50 border-transparent text-center font-bold text-sm"
+                      value={draft.customVariables?.find(v => v.key === "pliegueSubescapular")?.value ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(",", ".");
+                        const pliegues = (draft.customVariables || []).filter(v => !["pliegueTricipital", "pliegueBicipital", "pliegueSubescapular", "pliegueSuprailiaco", "grasaPorcentaje"].includes(v.key));
+                        if (val) {
+                          pliegues.push({ key: "pliegueSubescapular", label: "Pliegue subescapular", unit: "mm", value: parseFloat(val) });
+                        }
+                        updateDraft({ customVariables: pliegues });
+                      }}
+                      placeholder="14"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase text-slate-400">Suprailiaco (mm)</label>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      className="h-10 rounded-xl bg-slate-50 border-transparent text-center font-bold text-sm"
+                      value={draft.customVariables?.find(v => v.key === "pliegueSuprailiaco")?.value ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(",", ".");
+                        const pliegues = (draft.customVariables || []).filter(v => !["pliegueTricipital", "pliegueBicipital", "pliegueSubescapular", "pliegueSuprailiaco", "grasaPorcentaje"].includes(v.key));
+                        if (val) {
+                          pliegues.push({ key: "pliegueSuprailiaco", label: "Pliegue suprailiaco", unit: "mm", value: parseFloat(val) });
+                        }
+                        updateDraft({ customVariables: pliegues });
+                      }}
+                      placeholder="10"
+                    />
+                  </div>
+
+                  {grasaPorcentaje !== null && (
+                    <div className="col-span-2 mt-1">
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100 text-center">
+                        <p className="text-[9px] font-black uppercase text-blue-500 tracking-widest">% Grasa (Jackson-Pollock 4 sitios)</p>
+                        <p className="text-xl font-black text-blue-700">{grasaPorcentaje}%</p>
+                        <p className="text-[8px] text-blue-400">
+                          {grasaPorcentaje < 10 ? "Bajo" : grasaPorcentaje < 20 ? "Normal" : grasaPorcentaje < 30 ? "Alto" : "Muy alto"}
+                          {" · "}
+                          {draft.gender === "Masculino" ? "Referencia: 10-20%" : "Referencia: 18-28%"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
         {/* Main Branding Banner */}
         <div className="bg-slate-900 rounded-2xl p-4 lg:p-6 relative overflow-hidden shadow-2xl border border-slate-800">
@@ -658,21 +785,21 @@ export default function CreatePatientClient() {
               </div>
 
               {suggestionCard.category && suggestionCard.bmi ? (
-                <div className="bg-gradient-to-br from-amber-50 to-emerald-50 rounded-xl p-4 border border-amber-100 space-y-3">
+                <div className="bg-gradient-to-br from-amber-50 to-emerald-50 dark:from-slate-800 dark:to-slate-900 rounded-xl p-4 border border-amber-100 dark:border-slate-700 space-y-3">
                   <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center">
-                      <Zap className="h-4 w-4 text-amber-600" />
+                    <div className="h-8 w-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                      <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div>
-                      <p className="text-xs font-black text-slate-800">Clasificado como:</p>
-                      <p className="text-sm font-bold text-amber-700">{suggestionCard.category.label}</p>
+                      <p className="text-xs font-black text-slate-800 dark:text-slate-200">Clasificado como:</p>
+                      <p className="text-sm font-bold text-amber-700 dark:text-amber-400">{suggestionCard.category.label}</p>
                     </div>
                   </div>
                   <p className="text-[10px] text-slate-500 leading-relaxed">{suggestionCard.category.strategy}</p>
                   <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="bg-white/80 rounded-lg p-2">
+                    <div className="bg-white/80 dark:bg-slate-800/80 rounded-lg p-2">
                       <p className="text-[9px] font-black uppercase text-slate-400">IMC</p>
-                      <p className="text-sm font-black text-slate-900">{suggestionCard.bmi.bmi}</p>
+                      <p className="text-sm font-black text-slate-900 dark:text-slate-100">{suggestionCard.bmi.bmi}</p>
                       <p className="text-[8px] font-bold" style={{ color: suggestionCard.bmi.color }}>{suggestionCard.bmi.classification}</p>
                       {suggestionCard.bmi.percentile !== undefined && (
                         <p className="text-[8px] text-slate-400">p{suggestionCard.bmi.percentile}</p>
@@ -682,23 +809,23 @@ export default function CreatePatientClient() {
                       )}
                     </div>
                     {suggestionCard.get && (
-                      <div className="bg-white/80 rounded-lg p-2">
+                      <div className="bg-white/80 dark:bg-slate-800/80 rounded-lg p-2">
                         <p className="text-[9px] font-black uppercase text-slate-400">GET</p>
-                        <p className="text-sm font-black text-emerald-700">{suggestionCard.get.get}</p>
+                        <p className="text-sm font-black text-emerald-700 dark:text-emerald-400">{suggestionCard.get.get}</p>
                         <p className="text-[8px] text-emerald-500">kcal/día</p>
                       </div>
                     )}
                     {suggestionCard.idealWeight && suggestionCard.idealWeight.supported !== false && (
-                      <div className="bg-white/80 rounded-lg p-2">
-                        <p className="text-[9px] font-black uppercase text-slate-400">Peso ideal</p>
-                        <p className="text-sm font-black text-blue-700">{suggestionCard.idealWeight.min}–{suggestionCard.idealWeight.max}</p>
-                        <p className="text-[8px] text-blue-400">kg · {suggestionCard.idealWeight.reference}</p>
+                      <div className="bg-white/80 dark:bg-slate-800/80 rounded-lg p-2">
+                        <p className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-300">Normopeso</p>
+                        <p className="text-sm font-black text-blue-700 dark:text-blue-400">{suggestionCard.idealWeight.min}–{suggestionCard.idealWeight.max}</p>
+                        <p className="text-[8px] text-blue-400 dark:text-blue-300">kg · {suggestionCard.idealWeight.reference}</p>
                       </div>
                     )}
                     {suggestionCard.idealWeight?.supported === false && suggestionCard.idealWeight.note && (
-                      <div className="bg-white/80 rounded-lg p-2">
-                        <p className="text-[9px] font-black uppercase text-slate-400">Peso ideal</p>
-                        <p className="text-[8px] text-blue-500">{suggestionCard.idealWeight.note}</p>
+                      <div className="bg-white/80 dark:bg-slate-800/80 rounded-lg p-2">
+                        <p className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-300">Peso ideal</p>
+                        <p className="text-[8px] text-blue-500 dark:text-blue-300">{suggestionCard.idealWeight.note}</p>
                       </div>
                     )}
                   </div>

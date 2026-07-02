@@ -146,8 +146,8 @@ export const membershipService = {
     return res.json();
   },
 
-  async createFlowCheckout(planId: string): Promise<FlowCheckoutResult> {
-    const res = await api.post("/payments/flow/checkout", { planId });
+  async createFlowCheckout(planId: string, returnPath?: string): Promise<FlowCheckoutResult> {
+    const res = await api.post("/payments/flow/checkout", { planId, returnPath });
     return res.json();
   },
 
@@ -156,8 +156,8 @@ export const membershipService = {
     return res.json();
   },
 
-  async createFlowDiscountCheckout(planId: string, discountCode: string): Promise<FlowCheckoutResult> {
-    const res = await api.post("/payments/flow/discount-checkout", { planId, discountCode });
+  async createFlowDiscountCheckout(planId: string, discountCode: string, returnPath?: string): Promise<FlowCheckoutResult> {
+    const res = await api.post("/payments/flow/discount-checkout", { planId, discountCode, returnPath });
     return res.json();
   },
 

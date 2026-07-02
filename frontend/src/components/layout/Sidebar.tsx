@@ -56,7 +56,7 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Pacientes", href: "/dashboard/pacientes", icon: Users, tutorialPath: "/dashboard/pacientes" },
       { name: "Consultas", href: "/dashboard/consultas", icon: CalendarDays, tutorialPath: "/dashboard/consultas" },
-      { name: "Fichas clínicas", href: "/dashboard/fichas-clinicas", icon: FileText },
+      { name: "Fichas clínicas", href: "/dashboard/fichas-clinicas", icon: FileText, hidden: true },
       { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, tutorialPath: "/dashboard/citas" },
     ],
   },
@@ -156,8 +156,8 @@ export function Sidebar() {
     >
       <div
         className={cn(
-          "flex h-16 shrink-0 items-center justify-between",
-          isSidebarCollapsed ? "flex-col gap-1 pt-2 pb-1 h-20" : "pl-2",
+          "flex h-16 shrink-0 items-center justify-between sticky top-0 z-10 dashboard-sidebar-bg",
+          isSidebarCollapsed ? "flex-col gap-1 pt-2 pb-1 h-20 -mx-2 px-2" : "-mx-4 px-4 pl-6",
         )}
       >
         <Link
@@ -196,7 +196,7 @@ export function Sidebar() {
         <ul role="list" className="flex flex-1 flex-col gap-y-2">
           {visibleGroups.map((group) => {
             const isOpen = openGroups[group.title] === true;
-            const showItems = isSidebarCollapsed || isOpen;
+            const showItems = isOpen;
 
             return (
               <li key={group.title}>
@@ -296,22 +296,6 @@ export function Sidebar() {
           })}
         </ul>
       </nav>
-
-      <style jsx>{`
-        .sidebar-scroll::-webkit-scrollbar {
-          width: 6px;
-        }
-        .sidebar-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .sidebar-scroll::-webkit-scrollbar-thumb {
-          background: rgba(148, 163, 184, 0.35);
-          border-radius: 999px;
-        }
-        .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-          background: rgba(100, 116, 139, 0.45);
-        }
-      `}</style>
     </div>
   );
 }

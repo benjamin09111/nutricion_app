@@ -231,17 +231,37 @@ export function PatientGeneralTab({
                 <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
                   Peso (kg)
                 </label>
-                <div className="h-10 flex items-center justify-center bg-slate-50 rounded-xl text-sm font-black text-indigo-700 px-3 border border-indigo-100">
-                  {patient.weight ?? "---"}
-                </div>
+                {isEditing ? (
+                  <Input
+                    type="number"
+                    step="0.1"
+                    className="h-10 rounded-xl bg-slate-50 border-transparent text-center font-bold text-sm"
+                    value={editForm.weight !== undefined ? editForm.weight : (patient.weight ?? "")}
+                    onChange={(e) => updateField("weight", e.target.value ? parseFloat(e.target.value) : undefined)}
+                  />
+                ) : (
+                  <div className="h-10 flex items-center justify-center bg-slate-50 rounded-xl text-sm font-black text-indigo-700 px-3 border border-indigo-100">
+                    {patient.weight ?? "---"}
+                  </div>
+                )}
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
                   Altura (cm)
                 </label>
-                <div className="h-10 flex items-center justify-center bg-slate-50 rounded-xl text-sm font-black text-emerald-600 px-3 border border-emerald-100">
-                  {patient.height ?? "---"}
-                </div>
+                {isEditing ? (
+                  <Input
+                    type="number"
+                    step="0.1"
+                    className="h-10 rounded-xl bg-slate-50 border-transparent text-center font-bold text-sm"
+                    value={editForm.height !== undefined ? editForm.height : (patient.height ?? "")}
+                    onChange={(e) => updateField("height", e.target.value ? parseFloat(e.target.value) : undefined)}
+                  />
+                ) : (
+                  <div className="h-10 flex items-center justify-center bg-slate-50 rounded-xl text-sm font-black text-emerald-600 px-3 border border-emerald-100">
+                    {patient.height ?? "---"}
+                  </div>
+                )}
               </div>
             </div>
             <div className="space-y-2">
@@ -299,6 +319,92 @@ export function PatientGeneralTab({
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Complementary Measurements Card */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-2 border-b border-slate-50 pb-3">
+              <div className="p-1.5 bg-blue-50 rounded-lg">
+                <Ruler className="w-4 h-4 text-blue-600" />
+              </div>
+              <h2 className="text-base font-bold text-slate-800">
+                Medidas Complementarias
+              </h2>
+            </div>
+            {(() => {
+              const dataSource = isEditing
+                ? editForm.customVariables
+                : patient.customVariables;
+              const vars = Array.isArray(dataSource)
+                ? (dataSource as any[])
+                : [];
+              const getCV = (key: string) =>
+                vars.find((v) => v.key === key)?.value || "";
+              const updateCV = (
+                key: string,
+                label: string,
+                value: any,
+                unit: string,
+              ) => {
+                if (!isEditing) return;
+                const prev = Array.isArray(editForm.customVariables)
+                  ? [...(editForm.customVariables as any[])]
+                  : [];
+                const idx = prev.findIndex((v) => v.key === key);
+                const numericVal = value === "" ? undefined : parseFloat(value);
+                if (idx >= 0) {
+                  if (numericVal === undefined) {
+                    prev.splice(idx, 1);
+                  } else {
+                    prev[idx] = { key, label, value: numericVal, unit };
+                  }
+                } else if (numericVal !== undefined) {
+                  prev.push({ key, label, value: numericVal, unit });
+                }
+                updateField("customVariables", prev);
+              };
+
+              const fields = [
+                { key: "alturaRodilla", label: "Altura rodilla (cm)", unit: "cm" },
+                { key: "circunferenciaPantorrilla", label: "Circ. pantorrilla (cm)", unit: "cm" },
+                { key: "circunferenciaBraquial", label: "Circ. braquial (cm)", unit: "cm" },
+                { key: "circunferenciaCintura", label: "Circ. cintura (cm)", unit: "cm" },
+                { key: "circunferenciaCadera", label: "Circ. cadera (cm)", unit: "cm" },
+                { key: "pliegueTricipital", label: "Pliegue Tricipital (mm)", unit: "mm" },
+                { key: "pliegueBicipital", label: "Pliegue Bicipital (mm)", unit: "mm" },
+                { key: "pliegueSubescapular", label: "Pliegue Subescapular (mm)", unit: "mm" },
+                { key: "pliegueSuprailiaco", label: "Pliegue Suprailíaco (mm)", unit: "mm" },
+              ];
+
+              return (
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {fields.map((f) => (
+                    <div key={f.key} className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">
+                        {f.label}
+                      </label>
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={getCV(f.key)}
+                          onChange={(e) =>
+                            updateCV(f.key, f.label, e.target.value, f.unit)
+                          }
+                          className="h-8 font-semibold bg-white rounded-lg text-xs border-transparent focus:ring-2 focus:ring-slate-200 transition-all text-center"
+                          placeholder="--"
+                        />
+                      ) : (
+                        <div className="h-8 flex items-center justify-center rounded-lg font-bold text-xs bg-slate-50 text-slate-700">
+                          {getCV(f.key) || "---"}
+                          {getCV(f.key) ? <span className="text-[8px] ml-0.5 opacity-60">{f.unit}</span> : ""}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
 
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4 flex-1 hover:shadow-md transition-shadow">
@@ -363,10 +469,10 @@ export function PatientGeneralTab({
                             value={getCV(`target${f.id}`)}
                             onChange={(e) =>
                               updateCV(
-                                `target${f.id}`,
-                                `${f.label} Meta`,
-                                e.target.value,
-                                f.unit,
+                                  `target${f.id}`,
+                                  `${f.label} Meta`,
+                                  e.target.value,
+                                  f.unit,
                               )
                             }
                             className={cn(

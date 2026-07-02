@@ -68,7 +68,7 @@ const plans = [
     name: 'Pro',
     slug: 'pro',
     description: 'Plan profesional completo para automatizar y crecer.',
-    price: 39990,
+    price: 19990,
     currency: 'CLP',
     billingPeriod: 'monthly',
     features: [

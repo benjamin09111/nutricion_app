@@ -37,6 +37,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { MessageTemplatesModule } from './modules/message-templates/message-templates.module';
 import { DiscountCodesModule } from './modules/discount-codes/discount-codes.module';
+import { CalculationsModule } from './modules/calculations/calculations.module';
 
 @Module({
   imports: [
@@ -96,6 +97,7 @@ import { DiscountCodesModule } from './modules/discount-codes/discount-codes.mod
     AnnouncementsModule,
     MessageTemplatesModule,
     DiscountCodesModule,
+    CalculationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

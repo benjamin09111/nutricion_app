@@ -24,6 +24,7 @@ import type { AppointmentRequest } from './appointments.types';
 import { resolveNutritionistIdFromRequest } from './appointments-auth';
 import { GoogleIntegrationService } from '../integrations/google-integration.service';
 import type { Response } from 'express';
+import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 
 @Controller('calendars')
 @UseGuards(ApiKeyGuard)
@@ -80,9 +81,10 @@ export class AppointmentsController {
       tokens: callback.tokens,
     });
 
-    const frontendUrl = (
-      process.env.FRONTEND_URL || 'http://localhost:3000'
-    ).replace(/\/$/, '');
+    const frontendUrl = resolveRequiredUrl(
+      process.env.FRONTEND_URL,
+      process.env.NEXT_PUBLIC_FRONTEND_URL,
+    );
     return res.redirect(
       `${frontendUrl}${callback.next || '/dashboard/citas'}?googleCalendar=connected`,
     );

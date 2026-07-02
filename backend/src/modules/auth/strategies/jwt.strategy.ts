@@ -40,6 +40,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         status: true,
         role: true,
         email: true,
+        rut: true,
         nutritionist: {
           select: { id: true },
         },
@@ -58,6 +59,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       id: payload.sub,
       email: account.email,
       role: account.role,
+      rut: account.rut,
       nutritionistId: account.nutritionist?.id,
     };
   }

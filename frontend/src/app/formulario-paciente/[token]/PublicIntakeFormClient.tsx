@@ -73,6 +73,7 @@ export default function PublicIntakeFormClient() {
   const [nutritionistName, setNutritionistName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [showComplementary, setShowComplementary] = useState(false);
 
   const {
     register,
@@ -94,6 +95,15 @@ export default function PublicIntakeFormClient() {
       documentId: '',
       birthDate: '',
       likes: '',
+      kneeHeight: '',
+      calfCircumference: '',
+      armCircumference: '',
+      waistCircumference: '',
+      hipCircumference: '',
+      pliegueTricipital: '',
+      pliegueBicipital: '',
+      pliegueSubescapular: '',
+      pliegueSuprailiaco: '',
     },
   });
 
@@ -141,6 +151,15 @@ export default function PublicIntakeFormClient() {
         fitnessGoals: data.fitnessGoals || undefined,
         dietRestrictions: data.dietRestrictions || [],
         likes: data.likes || undefined,
+        kneeHeight: data.kneeHeight || undefined,
+        calfCircumference: data.calfCircumference || undefined,
+        armCircumference: data.armCircumference || undefined,
+        waistCircumference: data.waistCircumference || undefined,
+        hipCircumference: data.hipCircumference || undefined,
+        pliegueTricipital: data.pliegueTricipital || undefined,
+        pliegueBicipital: data.pliegueBicipital || undefined,
+        pliegueSubescapular: data.pliegueSubescapular || undefined,
+        pliegueSuprailiaco: data.pliegueSuprailiaco || undefined,
       };
 
       const response = await submitPublicIntakeForm(token, cleanData);
@@ -360,6 +379,58 @@ export default function PublicIntakeFormClient() {
                   </p>
                 )}
               </div>
+            </div>
+
+            {/* Optional measurements section */}
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowComplementary(!showComplementary)}
+                className="flex items-center justify-between w-full text-xs font-bold text-slate-500 hover:text-slate-700 cursor-pointer"
+              >
+                <span>{showComplementary ? "▲ Ocultar" : "▼ Mostrar"} mediciones opcionales (Pliegues y Perímetros)</span>
+              </button>
+
+              {showComplementary && (
+                <div className="mt-4 grid grid-cols-2 gap-4 border-t border-slate-50 pt-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Altura de rodilla (cm)</label>
+                    <Input {...register('kneeHeight')} placeholder="AR (cm)" className="h-9 rounded-xl bg-slate-50 border-transparent text-center text-xs font-semibold" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Circ. pantorrilla (cm)</label>
+                    <Input {...register('calfCircumference')} placeholder="CP (cm)" className="h-9 rounded-xl bg-slate-50 border-transparent text-center text-xs font-semibold" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Circ. braquial (cm)</label>
+                    <Input {...register('armCircumference')} placeholder="CB (cm)" className="h-9 rounded-xl bg-slate-50 border-transparent text-center text-xs font-semibold" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Circ. cintura (cm)</label>
+                    <Input {...register('waistCircumference')} placeholder="Cintura" className="h-9 rounded-xl bg-slate-50 border-transparent text-center text-xs font-semibold" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Circ. cadera (cm)</label>
+                    <Input {...register('hipCircumference')} placeholder="Cadera" className="h-9 rounded-xl bg-slate-50 border-transparent text-center text-xs font-semibold" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Pliegue Tricipital (mm)</label>
+                    <Input {...register('pliegueTricipital')} placeholder="Tricipital" className="h-9 rounded-xl bg-slate-50 border-transparent text-center text-xs font-semibold" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Pliegue Bicipital (mm)</label>
+                    <Input {...register('pliegueBicipital')} placeholder="Bicipital" className="h-9 rounded-xl bg-slate-50 border-transparent text-center text-xs font-semibold" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Pliegue Subescapular (mm)</label>
+                    <Input {...register('pliegueSubescapular')} placeholder="Subescapular" className="h-9 rounded-xl bg-slate-50 border-transparent text-center text-xs font-semibold" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">Pliegue Suprailíaco (mm)</label>
+                    <Input {...register('pliegueSuprailiaco')} placeholder="Suprailíaco" className="h-9 rounded-xl bg-slate-50 border-transparent text-center text-xs font-semibold" />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

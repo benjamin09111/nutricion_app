@@ -1,5 +1,6 @@
 import React from "react";
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { formatIngredientQuantityLabel } from "./pdfFormatters";
 
 export interface QuickRecipeIngredientPdf {
   name: string;
@@ -369,7 +370,7 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
               </View>
 
               <View style={styles.dishBody}>
-                <Image src={dish.imageUrl || DEFAULT_DISH_IMAGE} style={styles.dishImage} />
+                <Image src={dish.imageUrl || DEFAULT_DISH_IMAGE} alt="" style={styles.dishImage} />
 
                 {dish.description?.trim() ? (
                   <Text style={styles.description}>{dish.description}</Text>
@@ -407,14 +408,22 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
                     <View style={styles.ingredientsGrid}>
                       {dish.ingredients
                         .filter((ingredient) => ingredient.name?.trim())
-                        .map((ingredient, ingredientIndex) => (
-                          <View key={ingredientIndex} style={styles.ingredientChip}>
-                            <Text style={styles.ingredientName}>{ingredient.name}</Text>
-                            {ingredient.quantity?.trim() ? (
-                              <Text style={styles.ingredientQty}>· {ingredient.quantity}</Text>
-                            ) : null}
-                          </View>
-                        ))}
+                        .map((ingredient, ingredientIndex) => {
+                          const quantityLabel = formatIngredientQuantityLabel(
+                            ingredient.quantity,
+                            ingredient.amount,
+                            ingredient.unit,
+                          );
+
+                          return (
+                            <View key={ingredientIndex} style={styles.ingredientChip}>
+                              <Text style={styles.ingredientName}>{ingredient.name}</Text>
+                              {quantityLabel ? (
+                                <Text style={styles.ingredientQty}>· {quantityLabel}</Text>
+                              ) : null}
+                            </View>
+                          );
+                        })}
                     </View>
                   </>
                 ) : null}

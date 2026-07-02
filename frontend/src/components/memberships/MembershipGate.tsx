@@ -1,10 +1,12 @@
 "use client";
 
 import { useSubscription } from "@/context/SubscriptionContext";
-import { PlanSelector } from "./PlanSelector";
+import { OnboardingWizard } from "@/components/pagos/OnboardingWizard";
+import { getCurrentUser } from "@/lib/current-user";
 
 export function MembershipGate({ children }: { children: React.ReactNode }) {
   const { requiresPlanSelection, isLoading } = useSubscription();
+  const user = getCurrentUser();
 
   if (isLoading) {
     return (
@@ -20,7 +22,12 @@ export function MembershipGate({ children }: { children: React.ReactNode }) {
   }
 
   if (requiresPlanSelection) {
-    return <PlanSelector />;
+    return (
+      <OnboardingWizard
+        nutritionistEmail={user?.email || ""}
+        nutritionistName={user?.nutritionist?.fullName}
+      />
+    );
   }
 
   return <>{children}</>;
