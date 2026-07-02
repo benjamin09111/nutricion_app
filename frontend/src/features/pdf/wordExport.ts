@@ -1,4 +1,5 @@
 import type { DietPdfData, DietFood } from "./DietPdfDocument";
+import { formatNutritionBasisLabel } from "./pdfFormatters";
 
 /**
  * Generates and downloads a Diet Word (.docx) document on the client side.
@@ -41,7 +42,7 @@ export async function downloadDietDocx(data: DietPdfData): Promise<void> {
     const createFoodTable = (foods: DietFood[]) => {
         const headerRow = new TableRow({
             tableHeader: true,
-            children: ["Alimento", "Unidad", "Calorías", "Proteínas", "Carbos", "Grasas"].map(
+            children: ["Alimento", "Unidad", "Base", "Calorías", "Proteínas", "Carbos", "Grasas"].map(
                 (text) =>
                     new TableCell({
                         shading: { type: ShadingType.SOLID, color: "10b981" },
@@ -71,6 +72,9 @@ export async function downloadDietDocx(data: DietPdfData): Promise<void> {
                     }),
                     new TableCell({
                         children: [new Paragraph({ children: [new TextRun({ text: food.unidad ?? "—", size: 18 })] })],
+                    }),
+                    new TableCell({
+                        children: [new Paragraph({ children: [new TextRun({ text: formatNutritionBasisLabel(food.unidad), size: 18 })] })],
                     }),
                     new TableCell({
                         children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: food.calorias ? `${Math.round(food.calorias)}` : "—", size: 18 })] })],
@@ -184,7 +188,7 @@ export async function downloadDietDocx(data: DietPdfData): Promise<void> {
     children.push(
         new Paragraph({
             children: [
-                new TextRun({ text: "* Valores nutricionales por 100g de alimento. ", size: 16, italics: true, color: "94A3B8" }),
+                new TextRun({ text: "* Valores nutricionales por 100 g / 100 ml de alimento. ", size: 16, italics: true, color: "94A3B8" }),
                 new TextRun({ text: "Generado por NutriNet.", size: 16, bold: true, color: "10B981" }),
             ],
             spacing: { before: 400 },

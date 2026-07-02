@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import GoogleButton from "@/components/auth/GoogleButton";
+import { resolveRequiredUrl } from "@/lib/runtime-url.util";
 
 export default function LoginForm() {
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
@@ -13,9 +14,10 @@ export default function LoginForm() {
     if (isGoogleSigningIn) return;
 
     setIsGoogleSigningIn(true);
-    const backendUrl =
-      process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, "") ||
-      "http://localhost:3001";
+    const backendUrl = resolveRequiredUrl(
+      process.env.NEXT_PUBLIC_BACKEND_URL,
+      process.env.NEXT_PUBLIC_API_URL,
+    );
     const next = searchParams.get("callbackUrl") || "/dashboard";
 
     window.location.href = `${backendUrl}/auth/google/start?next=${encodeURIComponent(next)}`;
@@ -32,7 +34,8 @@ export default function LoginForm() {
           Inicia sesión con tu cuenta de Google
         </h2>
         <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">
-          Sin contraseñas. Tu correo verificado y Google Calendar quedan listos desde el primer acceso.
+          Sin contraseñas. Tu correo verificado y Google Calendar quedan listos
+          desde el primer acceso.
         </p>
       </div>
 
@@ -45,7 +48,8 @@ export default function LoginForm() {
       <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
         <p>
-          Usa tu correo profesional de Google para entrar y conectar tu agenda altiro.
+          Usa tu correo profesional de Google para entrar y conectar tu agenda
+          altiro.
         </p>
       </div>
 

@@ -17,6 +17,7 @@ import {
 } from '@prisma/client';
 import { DiscountCodesService } from '../discount-codes/discount-codes.service';
 import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
+import * as XLSX from 'xlsx';
 
 @Injectable()
 export class PaymentsService {
@@ -118,6 +119,155 @@ export class PaymentsService {
       completedCount,
       activeSubscriptions,
       currency: 'CLP',
+    };
+  }
+
+  async exportAccountingWorkbook() {
+    const payments = await this.prisma.payment.findMany({
+      where: { status: PaymentStatus.COMPLETED },
+      include: {
+        account: {
+          select: {
+            id: true,
+            email: true,
+            createdAt: true,
+            nutritionist: {
+              select: { fullName: true },
+            },
+            subscription: {
+              select: {
+                status: true,
+                startDate: true,
+                endDate: true,
+                cancelAtPeriodEnd: true,
+                plan: {
+                  select: { id: true, name: true, slug: true },
+                },
+              },
+            },
+          },
+        },
+        subscriptionEvents: {
+          select: { eventType: true, createdAt: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const toIso = (value: Date | string | null | undefined) =>
+      value ? new Date(value).toISOString() : '';
+
+    const toClDateTime = (value: Date | string | null | undefined) =>
+      value
+        ? new Date(value).toLocaleString('es-CL', {
+            timeZone: 'America/Santiago',
+          })
+        : '';
+
+    const paymentRows = payments.map((payment) => {
+      const metadata = (payment.metadata as Record<string, any>) || {};
+      const subscription = payment.account.subscription;
+
+      return {
+        payment_id: payment.id,
+        account_id: payment.accountId,
+        email: payment.account.email,
+        nutritionist_name: payment.account.nutritionist?.fullName || '',
+        plan_name: metadata.planName || subscription?.plan?.name || '',
+        plan_slug: metadata.planSlug || subscription?.plan?.slug || '',
+        method: payment.method,
+        status: payment.status,
+        amount_clp: Number(payment.amount),
+        currency: payment.currency,
+        full_price_clp: Number(metadata.fullPrice ?? payment.amount),
+        prorated_credit_clp: Number(metadata.proratedCredit ?? 0),
+        charged_amount_clp: Number(metadata.chargedAmount ?? payment.amount),
+        discount_code: metadata.discountCode || '',
+        discount_percent: metadata.discountPercent ?? '',
+        provider: metadata.provider || '',
+        source: metadata.source || metadata.type || '',
+        is_mock: Boolean(metadata.mock || metadata.isSimulation),
+        transaction_id: payment.transactionId || '',
+        paid_at_iso: toIso(payment.paidAt),
+        paid_at_cl: toClDateTime(payment.paidAt),
+        created_at_iso: toIso(payment.createdAt),
+        created_at_cl: toClDateTime(payment.createdAt),
+        updated_at_iso: toIso(payment.updatedAt),
+        subscription_status: subscription?.status || '',
+        subscription_start_iso: toIso(subscription?.startDate),
+        subscription_end_iso: toIso(subscription?.endDate),
+        cancel_at_period_end: subscription?.cancelAtPeriodEnd ? 'SI' : 'NO',
+        subscription_event: payment.subscriptionEvents?.[0]?.eventType || '',
+        account_created_iso: toIso(payment.account.createdAt),
+      };
+    });
+
+    const transferRows = paymentRows.filter((row) => row.method === 'BANK_TRANSFER');
+
+    const totalRevenue = paymentRows.reduce((sum, row) => sum + Number(row.amount_clp || 0), 0);
+    const bankRevenue = transferRows.reduce((sum, row) => sum + Number(row.amount_clp || 0), 0);
+    const flowRevenue = paymentRows
+      .filter((row) => row.method === 'FLOW')
+      .reduce((sum, row) => sum + Number(row.amount_clp || 0), 0);
+    const manualRevenue = paymentRows
+      .filter((row) => row.method === 'MANUAL')
+      .reduce((sum, row) => sum + Number(row.amount_clp || 0), 0);
+
+    const workbook = XLSX.utils.book_new();
+
+    const summarySheet = XLSX.utils.aoa_to_sheet([
+      ['NutriNet - Resumen Contable'],
+      ['Generado el', toClDateTime(new Date())],
+      [],
+      ['Indicador', 'Valor'],
+      ['Ventas totales (CLP)', totalRevenue],
+      ['Pagos completados', paymentRows.length],
+      ['Transferencias aceptadas', transferRows.length],
+      ['Ingresos por transferencia (CLP)', bankRevenue],
+      ['Ingresos por Flow (CLP)', flowRevenue],
+      ['Ingresos manuales (CLP)', manualRevenue],
+    ]);
+
+    const salesSheet = XLSX.utils.json_to_sheet(paymentRows);
+    const transfersSheet = XLSX.utils.json_to_sheet(transferRows);
+
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen');
+    XLSX.utils.book_append_sheet(workbook, salesSheet, 'Ventas completadas');
+    XLSX.utils.book_append_sheet(workbook, transfersSheet, 'Transferencias aceptadas');
+
+    summarySheet['!cols'] = [{ wch: 32 }, { wch: 28 }];
+    salesSheet['!cols'] = [
+      { wch: 36 },
+      { wch: 36 },
+      { wch: 30 },
+      { wch: 28 },
+      { wch: 24 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 12 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 20 },
+    ];
+    transfersSheet['!cols'] = salesSheet['!cols'];
+
+    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+
+    return {
+      buffer,
+      filename: `nutrinet_contabilidad_${new Date().toISOString().slice(0, 10)}.xlsx`,
     };
   }
 
@@ -603,6 +753,94 @@ export class PaymentsService {
     });
 
     return { success: true, endDate: updated.endDate };
+  }
+
+  // ─── Manual Bank Transfer Payment ─────────────────────────────────
+
+  async createManualTransferPayment(
+    accountId: string,
+    planId: string,
+    nutritionistEmail?: string,
+    nutritionistName?: string,
+  ) {
+    const plan = await this.prisma.membershipPlan.findUnique({
+      where: { id: planId },
+    });
+
+    if (!plan || !plan.isActive) {
+      throw new NotFoundException('Plan no encontrado o inactivo');
+    }
+
+    const price = Number(plan.price);
+    if (price === 0) {
+      throw new BadRequestException(
+        'Este plan es gratuito. Usa el endpoint de plan gratis.',
+      );
+    }
+
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      include: { nutritionist: true },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Cuenta no encontrada');
+    }
+
+    const payment = await this.prisma.payment.create({
+      data: {
+        accountId,
+        amount: price,
+        currency: plan.currency,
+        status: PaymentStatus.PENDING,
+        method: PaymentMethod.BANK_TRANSFER,
+        metadata: {
+          type: 'MEMBERSHIP_PLAN',
+          provider: 'MANUAL_TRANSFER',
+          planId: plan.id,
+          planName: plan.name,
+          planSlug: plan.slug,
+          fullPrice: price,
+          nutritionistEmail: nutritionistEmail || account.email,
+          nutritionistName:
+            nutritionistName ||
+            account.nutritionist?.fullName ||
+            'No especificado',
+          requestedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    return {
+      paymentId: payment.id,
+      plan: {
+        id: plan.id,
+        name: plan.name,
+        slug: plan.slug,
+        price: price,
+        currency: plan.currency,
+      },
+      status: 'PENDING',
+      message:
+        'Solicitud de pago registrada. Un administrador revisará tu transferencia.',
+    };
+  }
+
+  // ─── Get Bank Transfer Data ────────────────────────────────────────
+
+  getBankTransferData() {
+    return {
+      bankName: this.configService.get<string>('BANK_NAME') || 'Banco de Chile',
+      accountType:
+        this.configService.get<string>('BANK_ACCOUNT_TYPE') ||
+        'Cuenta Corriente',
+      accountNumber:
+        this.configService.get<string>('BANK_ACCOUNT_NUMBER') || '',
+      rut: this.configService.get<string>('BANK_RUT') || '',
+      email: this.configService.get<string>('BANK_EMAIL') || '',
+      beneficiary:
+        this.configService.get<string>('BANK_BENEFICIARY') || 'NutriNet SpA',
+    };
   }
 
   // ─── Simulate Payment (Admin) ─────────────────────────────────────

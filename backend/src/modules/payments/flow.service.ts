@@ -11,6 +11,7 @@ import { createHmac } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaymentsService } from './payments.service';
 import { DiscountCodesService } from '../discount-codes/discount-codes.service';
+import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 
 type FlowParams = Record<string, string | number | boolean | null | undefined>;
 
@@ -302,9 +303,10 @@ export class FlowService {
   }
 
   private getFrontendUrl() {
-    return (
-      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000'
-    ).replace(/\/$/, '');
+    return resolveRequiredUrl(
+      this.configService.get<string>('FRONTEND_URL'),
+      this.configService.get<string>('NEXT_PUBLIC_FRONTEND_URL'),
+    );
   }
 
   private getConfirmationUrl() {
@@ -315,7 +317,7 @@ export class FlowService {
     if (apiUrl)
       return `${apiUrl.replace(/\/$/, '')}/payments/flow/confirmation`;
 
-    return 'http://localhost:3001/payments/flow/confirmation';
+    throw new Error('FLOW_CONFIRMATION_URL or API_URL is required');
   }
 
   private getReturnUrl(path: string) {

@@ -7,6 +7,7 @@ import {
     StyleSheet,
 } from "@react-pdf/renderer";
 import { colors, shared } from "./styles/pdfStyles";
+import { formatNutritionBasisLabel } from "./pdfFormatters";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -201,6 +202,11 @@ const S = StyleSheet.create({
     },
     statLabel: {
         ...shared.statLabel,
+    },
+    tableNote: {
+        fontSize: 8,
+        color: colors.slate500,
+        marginBottom: 10,
     },
 
     // --- Group header ---
@@ -441,6 +447,9 @@ function FoodTablePage({
             <Text style={{ ...shared.sectionSubtitle, marginBottom: 12 }}>
                 {dietName} · Clasificación por categorías alimenticias
             </Text>
+            <Text style={S.tableNote}>
+                Valores nutricionales expresados por 100 g / 100 ml del alimento.
+            </Text>
 
             {/* Tables per group */}
             {Object.entries(grouped).map(([grupo, foods]) => {
@@ -458,6 +467,7 @@ function FoodTablePage({
                         <View style={S.tableHeader}>
                             <Text style={{ ...S.tableHeaderCell, flex: 3 }}>Alimento</Text>
                             <Text style={{ ...S.tableHeaderCell, flex: 1 }}>Unidad</Text>
+                            <Text style={{ ...S.tableHeaderCell, flex: 1 }}>Base</Text>
                             <Text
                                 style={{
                                     ...S.tableHeaderCell,
@@ -507,6 +517,9 @@ function FoodTablePage({
                                 </Text>
                                 <Text style={{ ...S.tableCell, flex: 1 }}>
                                     {food.unidad ?? "—"}
+                                </Text>
+                                <Text style={{ ...S.tableCell, flex: 1 }}>
+                                    {formatNutritionBasisLabel(food.unidad)}
                                 </Text>
                                 <Text
                                     style={{

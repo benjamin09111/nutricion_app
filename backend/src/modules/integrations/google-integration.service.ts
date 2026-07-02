@@ -14,6 +14,7 @@ import {
 } from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '../../prisma/prisma.service';
+import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 
 type GoogleMode = 'login' | 'calendar';
 
@@ -69,11 +70,10 @@ export class GoogleIntegrationService {
   ) {}
 
   private getFrontendUrl() {
-    return (
-      this.configService.get<string>('FRONTEND_URL') ||
-      this.configService.get<string>('NEXT_PUBLIC_FRONTEND_URL') ||
-      'http://localhost:3000'
-    ).replace(/\/$/, '');
+    return resolveRequiredUrl(
+      this.configService.get<string>('FRONTEND_URL'),
+      this.configService.get<string>('NEXT_PUBLIC_FRONTEND_URL'),
+    );
   }
 
   private getAppSecret() {
@@ -95,16 +95,22 @@ export class GoogleIntegrationService {
   }
 
   private getGoogleAuthRedirectUri() {
-    return (
-      this.configService.get<string>('GOOGLE_AUTH_REDIRECT_URI') ||
-      'http://localhost:3001/auth/google/callback'
+    const apiUrl = this.configService
+      .get<string>('API_URL')
+      ?.replace(/\/$/, '');
+    return resolveRequiredUrl(
+      this.configService.get<string>('GOOGLE_AUTH_REDIRECT_URI'),
+      apiUrl ? `${apiUrl}/auth/google/callback` : undefined,
     );
   }
 
   private getGoogleCalendarRedirectUri() {
-    return (
-      this.configService.get<string>('GOOGLE_CALENDAR_REDIRECT_URI') ||
-      'http://localhost:3001/calendars/google/callback'
+    const apiUrl = this.configService
+      .get<string>('API_URL')
+      ?.replace(/\/$/, '');
+    return resolveRequiredUrl(
+      this.configService.get<string>('GOOGLE_CALENDAR_REDIRECT_URI'),
+      apiUrl ? `${apiUrl}/calendars/google/callback` : undefined,
     );
   }
 

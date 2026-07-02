@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { SanitizationPipe } from './common/pipes/sanitization.pipe';
 import * as dns from 'dns';
+import { normalizeUrl } from './common/utils/runtime-url.util';
 
 // Force IPv4 preference for DNS resolution to avoid ENETUNREACH on IPv6-only cloud networks
 dns.setDefaultResultOrder('ipv4first');
@@ -23,10 +24,9 @@ async function bootstrap() {
       process.env.FRONTEND_URL,
       process.env.NEXT_PUBLIC_FRONTEND_URL,
       process.env.CORS_ORIGIN,
-      'http://localhost:3000',
     ]
       .filter(Boolean)
-      .map((origin) => origin!.replace(/\/$/, '')),
+      .map((origin) => normalizeUrl(origin!)),
   );
   app.enableCors({
     origin: (

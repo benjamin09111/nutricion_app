@@ -1,74 +1,27 @@
-const LOCAL_DEV_API_ORIGINS = [
-  "http://127.0.0.1:3001",
-  "http://localhost:3001",
-  "http://127.0.0.1:3002",
-  "http://localhost:3002",
-];
+import { resolveRequiredUrl, normalizeUrl } from "./runtime-url.util";
 
 let preferredApiOrigin: string | null = null;
 
-const normalizeOrigin = (origin: string) => origin.replace(/\/$/, "");
-const isProductionBuild = process.env.NODE_ENV === "production";
-
 const getTenantId = () =>
-  process.env.NEXT_PUBLIC_TENANT_ID ||
-  process.env.TENANT_ID ||
-  "";
+  process.env.NEXT_PUBLIC_TENANT_ID || process.env.TENANT_ID || "";
 
-const isLoopbackHost = (host: string) =>
-  host === "localhost" || host === "127.0.0.1" || host === "::1";
-
-const isLoopbackOrigin = (origin: string) => {
-  try {
-    const parsed = new URL(origin);
-    return isLoopbackHost(parsed.hostname);
-  } catch {
-    return false;
-  }
-};
-
-const isLocalDevRuntime = () => {
-  const isDev = process.env.NODE_ENV !== "production";
-
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname;
-    const isLocalHost = host === "localhost" || host === "127.0.0.1";
-    return isDev || isLocalHost;
-  }
-
-  return isDev;
-};
-
-const getSameOriginCandidate = () =>
-  typeof window !== "undefined" && window.location?.origin
-    ? normalizeOrigin(window.location.origin)
-    : null;
+const getConfiguredApiUrl = () =>
+  resolveRequiredUrl(
+    process.env.NEXT_PUBLIC_API_URL,
+    process.env.NEXT_PUBLIC_BACKEND_URL,
+  );
 
 export const getApiOriginCandidates = () => {
-  const configuredOrigin = process.env.NEXT_PUBLIC_API_URL;
-  const safeConfiguredOrigin =
-    configuredOrigin &&
-    !(isProductionBuild && isLoopbackOrigin(configuredOrigin))
-      ? normalizeOrigin(configuredOrigin)
-      : null;
-  const sameOrigin = getSameOriginCandidate();
-  const localDevOrigins = isLocalDevRuntime() ? LOCAL_DEV_API_ORIGINS : [];
   const candidates = [
-    safeConfiguredOrigin,
-    sameOrigin,
+    process.env.NEXT_PUBLIC_API_URL,
+    process.env.NEXT_PUBLIC_BACKEND_URL,
     preferredApiOrigin,
-    ...localDevOrigins,
   ].filter((origin): origin is string => Boolean(origin));
 
-  return Array.from(new Set(candidates.map(normalizeOrigin)));
+  return Array.from(new Set(candidates.map((origin) => normalizeUrl(origin))));
 };
 
-export const getApiUrl = () =>
-  preferredApiOrigin ||
-  (process.env.NEXT_PUBLIC_API_URL &&
-  !(isProductionBuild && isLoopbackOrigin(process.env.NEXT_PUBLIC_API_URL))
-    ? normalizeOrigin(process.env.NEXT_PUBLIC_API_URL)
-    : getSameOriginCandidate() || (isLocalDevRuntime() ? LOCAL_DEV_API_ORIGINS[0] : ""));
+export const getApiUrl = () => preferredApiOrigin || getConfiguredApiUrl();
 
 export async function fetchApi(
   path: string,
@@ -88,18 +41,25 @@ export async function fetchApi(
       const requestInit = {
         ...init,
         headers,
-        credentials: 'include' as RequestCredentials,
+        credentials: "include" as RequestCredentials,
       };
-      headers.delete('Authorization');
+      headers.delete("Authorization");
       const responseWithTenant = await fetch(`${origin}${path}`, requestInit);
 
-      if (responseWithTenant.status === 401 && typeof window !== "undefined" && window.location.pathname !== "/login") {
+      if (
+        responseWithTenant.status === 401 &&
+        typeof window !== "undefined" &&
+        window.location.pathname !== "/login"
+      ) {
         // Prevent multiple toasts/redirects if there are concurrent requests
         if (!(window as any)._isRedirectingToLogin) {
           (window as any)._isRedirectingToLogin = true;
           import("js-cookie").then((m) => m.default.remove("auth_token"));
           import("sonner").then(({ toast }) => {
-            toast.error("Tu sesión expiró. Por favor inicia sesión nuevamente.", { id: "session-expired", duration: 3000 });
+            toast.error(
+              "Tu sesión expiró. Por favor inicia sesión nuevamente.",
+              { id: "session-expired", duration: 3000 },
+            );
           });
           setTimeout(() => {
             window.location.href = "/login";
@@ -110,7 +70,10 @@ export async function fetchApi(
         return new Promise(() => {});
       }
 
-      if (responseWithTenant.ok || ![404, 502, 503, 504].includes(responseWithTenant.status)) {
+      if (
+        responseWithTenant.ok ||
+        ![404, 502, 503, 504].includes(responseWithTenant.status)
+      ) {
         preferredApiOrigin = origin;
         return responseWithTenant;
       }

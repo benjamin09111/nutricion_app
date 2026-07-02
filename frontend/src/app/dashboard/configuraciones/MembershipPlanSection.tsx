@@ -1,15 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Crown, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Crown, ShieldCheck, Sparkles, X, Zap, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
-import { usePaymentMode } from "@/hooks/usePaymentMode";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
-import { Modal } from "@/components/ui/Modal";
-import { membershipService, type MembershipPlan, type DiscountValidationResult } from "@/features/memberships/services/membership.service";
+import { TransferPaymentModal } from "@/components/pagos/TransferPaymentModal";
+import { membershipService, type MembershipPlan } from "@/features/memberships/services/membership.service";
 import { syncMembershipToStoredUser } from "@/lib/membership-session";
 import { goToMembershipWelcome } from "@/lib/membership-navigation";
+import { getCurrentUser } from "@/lib/current-user";
+import { cn } from "@/lib/utils";
 
 const FEATURE_LABELS: Record<string, string> = {
   "patients.active.limit": "Pacientes activos",
@@ -72,7 +73,6 @@ export function MembershipPlanSection() {
     usage,
     billing,
   } = useSubscription();
-  const { mode, toggle: togglePaymentMode } = usePaymentMode();
   const [isCanceling, setIsCanceling] = useState(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [isResuming, setIsResuming] = useState(false);
@@ -80,9 +80,10 @@ export function MembershipPlanSection() {
   const [availablePlans, setAvailablePlans] = useState<MembershipPlan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [upgradingPlanId, setUpgradingPlanId] = useState<string | null>(null);
-  const [discountCode, setDiscountCode] = useState("");
-  const [discountResults, setDiscountResults] = useState<Map<string, DiscountValidationResult>>(new Map());
-  const [validatingPlanId, setValidatingPlanId] = useState<string | null>(null);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradePlans, setUpgradePlans] = useState<MembershipPlan[]>([]);
+  const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<MembershipPlan | null>(null);
+  const [isLoadingUpgradePlans, setIsLoadingUpgradePlans] = useState(false);
 
   const currentPrice = Number(currentPlan?.price || 0);
   const nextPaymentLabel = useMemo(() => {
@@ -189,28 +190,6 @@ export function MembershipPlanSection() {
               </div>
             </div>
           </div>
-
-          <div className="w-full max-w-sm rounded-[1.75rem] border border-slate-100 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Modo de pago</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{mode === "mock" ? "Prueba" : "Real"}</p>
-              </div>
-              <button
-                onClick={togglePaymentMode}
-                aria-label="Cambiar modo de pago"
-                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 cursor-pointer"
-              >
-                Cambiar
-              </button>
-            </div>
-
-            <div className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs text-slate-500">
-              {mode === "mock"
-                ? "Los pagos se aprueban automáticamente en modo prueba."
-                : "Pagos procesados por Mercado Pago."}
-            </div>
-          </div>
         </div>
       </div>
 
@@ -296,6 +275,34 @@ export function MembershipPlanSection() {
             >
               Cambiar plan
             </button>
+            {currentPrice === 0 && (
+              <button
+                onClick={async () => {
+                  setIsLoadingUpgradePlans(true);
+                  try {
+                    const plans = await membershipService.getActivePlans();
+                    const paidPlans = plans.filter((p) => Number(p.price) > 0);
+                    setUpgradePlans(paidPlans);
+                    if (paidPlans.length === 1) {
+                      setSelectedUpgradePlan(paidPlans[0]);
+                    }
+                    setIsUpgradeModalOpen(true);
+                  } catch {
+                    toast.error("No se pudieron cargar los planes");
+                  } finally {
+                    setIsLoadingUpgradePlans(false);
+                  }
+                }}
+                className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 text-sm font-semibold transition-colors cursor-pointer flex items-center gap-2"
+              >
+                <Zap className="h-4 w-4" />
+                {isLoadingUpgradePlans ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Hacer upgrade"
+                )}
+              </button>
+            )}
           </div>
 
           <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 p-4">
@@ -351,6 +358,14 @@ export function MembershipPlanSection() {
             </div>
           )}
 
+          {/* Launch Offer Banner */}
+          <div className="mt-4 flex justify-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 text-xs font-bold text-white shadow-lg">
+              <Sparkles className="h-3.5 w-3.5" />
+              OFERTA DE LANZAMIENTO: $19.990/mes para las primeras 20 personas (Precio regular $25.000)
+            </div>
+          </div>
+
           <div className="mt-5">
             {isLoadingPlans ? (
               <p className="text-sm text-slate-500">Cargando planes...</p>
@@ -374,6 +389,9 @@ export function MembershipPlanSection() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-bold text-slate-900">{plan.name}</p>
+                          {plan.slug === "pro" && (
+                            <p className="mt-1 text-xs font-semibold text-slate-400 line-through">$25.000 / mes</p>
+                          )}
                           <p className="mt-1 text-xs text-slate-500">{money(targetPrice)} / mes</p>
                         </div>
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-slate-600">
@@ -381,78 +399,10 @@ export function MembershipPlanSection() {
                         </span>
                       </div>
 
-                      {targetPrice > 0 && (
-                        <div className="mt-3 space-y-2">
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              placeholder="Codigo de descuento"
-                              value={discountCode}
-                              onChange={(e) => {
-                                setDiscountCode(e.target.value);
-                                setDiscountResults((prev) => {
-                                  const next = new Map(prev);
-                                  next.delete(plan.id);
-                                  return next;
-                                });
-                              }}
-                              className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 placeholder-slate-400"
-                            />
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (!discountCode.trim()) return;
-                                setValidatingPlanId(plan.id);
-                                try {
-                                  const result = await membershipService.validateDiscount(plan.id, discountCode.trim());
-                                  setDiscountResults((prev) => {
-                                    const next = new Map(prev);
-                                    next.set(plan.id, result);
-                                    return next;
-                                  });
-                                  toast.success(`Codigo aplicado: ${result.discountPercent}% descuento`);
-                                } catch (e: any) {
-                                  toast.error(e?.message || "Codigo invalido");
-                                } finally {
-                                  setValidatingPlanId(null);
-                                }
-                              }}
-                              disabled={validatingPlanId === plan.id || !discountCode.trim()}
-                              className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-[10px] font-bold text-indigo-600 transition-colors hover:bg-indigo-100 disabled:opacity-50 cursor-pointer"
-                            >
-                              {validatingPlanId === plan.id ? "..." : "Aplicar"}
-                            </button>
-                          </div>
-                          {discountResults.has(plan.id) && (
-                            <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-2 text-[10px] space-y-0.5">
-                              <div className="flex justify-between text-slate-500">
-                                <span>Original</span>
-                                <span>{money(discountResults.get(plan.id)!.originalPrice)}</span>
-                              </div>
-                              {discountResults.get(plan.id)!.proratedCredit > 0 && (
-                                <div className="flex justify-between text-slate-500">
-                                  <span>Credito</span>
-                                  <span>-{money(discountResults.get(plan.id)!.proratedCredit)}</span>
-                                </div>
-                              )}
-                              <div className="flex justify-between text-emerald-700 font-bold">
-                                <span>-{discountResults.get(plan.id)!.discountPercent}%</span>
-                                <span>-{money(discountResults.get(plan.id)!.basePrice - discountResults.get(plan.id)!.finalPrice)}</span>
-                              </div>
-                              <div className="flex justify-between text-slate-900 font-black pt-1 border-t border-emerald-200">
-                                <span>Total</span>
-                                <span>{money(discountResults.get(plan.id)!.finalPrice)}</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
                       <div className="mt-4 flex justify-end">
                         <button
                           onClick={async () => {
                             setUpgradingPlanId(plan.id);
-                            const planDiscount = discountResults.get(plan.id);
                             try {
                               if (targetPrice === 0) {
                                 const result = await membershipService.selectFreePlan(plan.id);
@@ -462,18 +412,6 @@ export function MembershipPlanSection() {
                                 setIsChangingPlan(false);
                                 goToMembershipWelcome({ planName: plan.name, planSlug: plan.slug });
                                 return;
-                              }
-
-                              if (mode === "real") {
-                                const returnPath = window.location.pathname;
-                                const result = planDiscount?.code
-                                  ? await membershipService.createFlowDiscountCheckout(plan.id, planDiscount.code, returnPath)
-                                  : await membershipService.createFlowCheckout(plan.id, returnPath);
-                                if (result.paymentUrl) {
-                                  window.location.href = result.paymentUrl;
-                                  return;
-                                }
-                                throw new Error("No se obtuvo link de pago");
                               }
 
                               const result = await membershipService.checkout(plan.id);
@@ -528,6 +466,112 @@ export function MembershipPlanSection() {
         cancelText="Volver"
         isLoading={isCanceling}
       />
+
+      {isUpgradeModalOpen && upgradePlans.length > 1 && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="fixed inset-0" onClick={() => setIsUpgradeModalOpen(false)} />
+          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+            <div className="p-8 space-y-6">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-r from-indigo-100 to-purple-100 border-2 border-indigo-200 mb-4">
+                  <Zap className="h-8 w-8 text-indigo-600" />
+                </div>
+                <h3 className="text-2xl font-black tracking-tight text-slate-900">
+                  Hacer upgrade
+                </h3>
+                <p className="mt-2 text-sm text-slate-500">
+                  Selecciona el plan que mejor se adapte a tus necesidades
+                </p>
+              </div>
+
+              <div className="grid gap-4">
+                {upgradePlans.map((plan) => {
+                  const isPopular = plan.isPopular;
+                  return (
+                    <div
+                      key={plan.id}
+                      onClick={() => setSelectedUpgradePlan(plan)}
+                      className={`relative flex flex-col rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
+                        isPopular
+                          ? "border-indigo-500 shadow-[0_10px_40px_rgba(99,102,241,0.15)]"
+                          : selectedUpgradePlan?.id === plan.id
+                            ? "border-indigo-400 bg-indigo-50"
+                            : "border-slate-200 hover:border-slate-300 bg-white"
+                      }`}
+                    >
+                      {isPopular && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow">
+                          Más Popular
+                        </div>
+                      )}
+                      <div className={cn("p-4", isPopular && "pt-6")}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className={cn("font-bold text-lg", isPopular ? "text-indigo-700" : "text-slate-900")}>
+                              {plan.name}
+                            </p>
+                            {plan.slug === "pro" && (
+                              <p className="text-sm font-semibold text-slate-400 line-through">$25.000 /mes</p>
+                            )}
+                            <p className="text-2xl font-black text-slate-900">
+                              ${Number(plan.price).toLocaleString("es-CL")}
+                              <span className="text-sm font-normal text-slate-400">/mes</span>
+                            </p>
+                          </div>
+                          <div className={cn(
+                            "w-6 h-6 rounded-full border-2 flex items-center justify-center",
+                            selectedUpgradePlan?.id === plan.id
+                              ? "bg-indigo-600 border-indigo-600"
+                              : "border-slate-300"
+                          )}>
+                            {selectedUpgradePlan?.id === plan.id && (
+                              <Check className="h-4 w-4 text-white" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setIsUpgradeModalOpen(false)}
+                  className="flex-1 h-12 rounded-xl font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => setIsUpgradeModalOpen(false)}
+                  disabled={!selectedUpgradePlan}
+                  className="flex-1 h-12 rounded-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Continuar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedUpgradePlan && (
+        <TransferPaymentModal
+          isOpen={!!selectedUpgradePlan && (isUpgradeModalOpen || true)}
+          onClose={() => {
+            setSelectedUpgradePlan(null);
+            setIsUpgradeModalOpen(false);
+          }}
+          planId={selectedUpgradePlan.id}
+          planName={selectedUpgradePlan.name}
+          planPrice={Number(selectedUpgradePlan.price)}
+          nutritionistEmail={getCurrentUser()?.email || ""}
+          nutritionistName={getCurrentUser()?.nutritionist?.fullName}
+          onSuccess={async () => {
+            await refreshSubscription();
+          }}
+        />
+      )}
     </div>
   );
 }

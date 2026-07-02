@@ -668,6 +668,108 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 </p>
               </div>
             </div>
+
+            {/* Extended Clinical Details Grid */}
+            <div className="mt-4 border-t border-amber-100/60 pt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Estimas (Chumlea) */}
+              <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3.5 ring-1 ring-amber-100/50 space-y-2">
+                <p className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  Estimaciones Chumlea
+                </p>
+                <div className="space-y-1.5 text-xs text-slate-600 font-medium">
+                  <div>
+                    <span className="text-slate-400 font-bold">Talla Estimada: </span>
+                    <span className="font-bold text-slate-800">
+                      {state.automaticNutritionCalculations.estimatedHeight?.height
+                        ? `${state.automaticNutritionCalculations.estimatedHeight.height} cm`
+                        : "---"}
+                    </span>
+                    {state.automaticNutritionCalculations.estimatedHeight?.equation && (
+                      <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                        Eq: {state.automaticNutritionCalculations.estimatedHeight.equation}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-bold">Peso Estimado: </span>
+                    <span className="font-bold text-slate-800">
+                      {state.automaticNutritionCalculations.estimatedWeight?.weight
+                        ? `${state.automaticNutritionCalculations.estimatedWeight.weight} kg`
+                        : "---"}
+                    </span>
+                    {state.automaticNutritionCalculations.estimatedWeight?.equation && (
+                      <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                        Eq: {state.automaticNutritionCalculations.estimatedWeight.equation}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Composición Braquial (Frisancho) */}
+              <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3.5 ring-1 ring-amber-100/50 space-y-2">
+                <p className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  Composición de Brazo (Frisancho)
+                </p>
+                {state.automaticNutritionCalculations.armComposition ? (
+                  <div className="space-y-1 text-[11px] text-slate-600 font-medium">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">C. Músculo (CMB):</span>
+                      <span className="font-bold text-slate-800">{state.automaticNutritionCalculations.armComposition.cmb} cm</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Á. Músculo (AMB):</span>
+                      <span className="font-bold text-slate-800">{state.automaticNutritionCalculations.armComposition.amb} cm²</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Á. Grasa (AGB):</span>
+                      <span className="font-bold text-slate-800">{state.automaticNutritionCalculations.armComposition.agb} cm²</span>
+                    </div>
+                    <div className="flex justify-between border-t border-slate-100 pt-1 mt-1">
+                      <span className="text-slate-400">Grasa Estimada:</span>
+                      <span className="font-bold text-slate-800">{state.automaticNutritionCalculations.armComposition.fatAreaPercent} %</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 font-semibold italic">Requiere Pliegue Tricipital y Circ. Braquial</p>
+                )}
+              </div>
+
+              {/* Riesgo Cardiovascular */}
+              <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3.5 ring-1 ring-amber-100/50 space-y-2">
+                <p className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-500" />
+                  Riesgo Cardiovascular
+                </p>
+                {state.automaticNutritionCalculations.cardiovascularRisk ? (
+                  <div className="space-y-1.5 text-xs text-slate-600 font-medium">
+                    <div>
+                      <span className="text-slate-400 font-bold">Índice Cintura-Cadera: </span>
+                      <span className="font-bold text-slate-800">
+                        {state.automaticNutritionCalculations.cardiovascularRisk.icc !== null
+                          ? state.automaticNutritionCalculations.cardiovascularRisk.icc
+                          : "---"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-bold">Clasif. Cintura: </span>
+                      <span className="font-bold text-slate-800">
+                        {state.automaticNutritionCalculations.cardiovascularRisk.waistClassification || "---"}
+                      </span>
+                    </div>
+                    {state.automaticNutritionCalculations.cardiovascularRisk.riskLevel && (
+                      <div className="inline-block px-2 py-0.5 text-[10px] font-black uppercase tracking-widest bg-rose-50 text-rose-700 rounded border border-rose-100 mt-1">
+                        Riesgo: {state.automaticNutritionCalculations.cardiovascularRisk.riskLevel}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 font-semibold italic">Requiere perímetros de cintura/cadera</p>
+                )}
+              </div>
+            </div>
           </div>
         </section>
       )}

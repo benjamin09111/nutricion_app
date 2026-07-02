@@ -5,6 +5,7 @@ export type CurrentUser = {
   id?: string;
   email?: string;
   role?: string;
+  rut?: string | null;
   googleAvatarUrl?: string | null;
   createdAt?: string | null;
   nutritionist?: {

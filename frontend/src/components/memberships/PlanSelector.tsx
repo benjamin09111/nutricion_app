@@ -17,7 +17,6 @@ import { toast } from "sonner";
 import {
   membershipService,
   type MembershipPlan,
-  type DiscountValidationResult,
 } from "@/features/memberships/services/membership.service";
 import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -30,10 +29,6 @@ export function PlanSelector() {
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
-  const [discountCode, setDiscountCode] = useState("");
-  const [discountResult, setDiscountResult] = useState<DiscountValidationResult | null>(null);
-  const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
-  const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const { refreshSubscription } = useSubscription();
   const router = useRouter();
   const { mode, toggle: toggleMode } = usePaymentMode();
@@ -69,10 +64,7 @@ export function PlanSelector() {
     setSubmittingId(plan.id);
     try {
       if (mode === "real") {
-        const returnPath = window.location.pathname;
-        const result = discountResult?.code
-          ? await membershipService.createFlowDiscountCheckout(plan.id, discountResult.code, returnPath)
-          : await membershipService.createFlowCheckout(plan.id, returnPath);
+        const result = await membershipService.createFlowCheckout(plan.id);
         if (result.paymentUrl) {
           window.location.href = result.paymentUrl;
           return;
@@ -100,22 +92,6 @@ export function PlanSelector() {
       toast.error(error instanceof Error ? error.message : "Error al procesar el pago");
     } finally {
       setSubmittingId(null);
-    }
-  };
-
-  const handleValidateDiscount = async (plan: MembershipPlan) => {
-    if (!discountCode.trim()) return;
-    setIsValidatingDiscount(true);
-    setActivePlanId(plan.id);
-    try {
-      const result = await membershipService.validateDiscount(plan.id, discountCode.trim());
-      setDiscountResult(result);
-      toast.success(`Codigo aplicado: ${result.discountPercent}% descuento`);
-    } catch (error: unknown) {
-      setDiscountResult(null);
-      toast.error(error instanceof Error ? error.message : "Codigo invalido");
-    } finally {
-      setIsValidatingDiscount(false);
     }
   };
 
@@ -206,6 +182,14 @@ export function PlanSelector() {
             </div>
           </div>
         )}
+
+        {/* Launch Offer Banner */}
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 text-xs font-bold text-white shadow-lg">
+            <Sparkles className="h-3.5 w-3.5" />
+            OFERTA DE LANZAMIENTO: $19.990/mes para las primeras 20 personas (Precio regular $25.000)
+          </div>
+        </div>
 
         {/* All Plans Grid */}
         {allPlans.length > 0 && (
@@ -308,11 +292,18 @@ export function PlanSelector() {
                       >
                         {plan.name}
                       </h3>
-                      <div className="flex items-baseline justify-center gap-1">
-                        <span className="text-4xl font-black tracking-tight text-slate-900">
-                          ${Number(plan.price).toLocaleString("es-CL")}
-                        </span>
-                        <span className="text-slate-500 text-sm">/mes</span>
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        {plan.slug === "pro" && (
+                          <span className="text-sm font-semibold text-slate-400 line-through">
+                            $25.000 /mes
+                          </span>
+                        )}
+                        <div className="flex items-baseline justify-center gap-1">
+                          <span className="text-4xl font-black tracking-tight text-slate-900">
+                            ${Number(plan.price).toLocaleString("es-CL")}
+                          </span>
+                          <span className="text-slate-500 text-sm">/mes</span>
+                        </div>
                       </div>
                       {plan.description && (
                         <p className="mt-2 text-sm text-slate-500">
@@ -355,54 +346,6 @@ export function PlanSelector() {
                         );
                       })}
                     </ul>
-
-                    <div className="mb-4">
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="Codigo de descuento"
-                          value={activePlanId === plan.id ? discountCode : ""}
-                          onChange={(e) => {
-                            setActivePlanId(plan.id);
-                            setDiscountCode(e.target.value);
-                            setDiscountResult(null);
-                          }}
-                          className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder-slate-400"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleValidateDiscount(plan)}
-                          disabled={isValidatingDiscount || !discountCode.trim()}
-                          className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-600 transition-colors hover:bg-indigo-100 disabled:opacity-50 cursor-pointer"
-                        >
-                          {isValidatingDiscount && activePlanId === plan.id
-                            ? "..."
-                            : "Aplicar"}
-                        </button>
-                      </div>
-                      {discountResult && activePlanId === plan.id && (
-                        <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-xs space-y-1">
-                          <div className="flex justify-between text-slate-500">
-                            <span>Precio original</span>
-                            <span>${discountResult.originalPrice.toLocaleString("es-CL")}</span>
-                          </div>
-                          {discountResult.proratedCredit > 0 && (
-                            <div className="flex justify-between text-slate-500">
-                              <span>Credito prorrateado</span>
-                              <span>-${discountResult.proratedCredit.toLocaleString("es-CL")}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between text-emerald-700 font-bold">
-                            <span>Descuento {discountResult.discountPercent}%</span>
-                            <span>-${(discountResult.basePrice - discountResult.finalPrice).toLocaleString("es-CL")}</span>
-                          </div>
-                          <div className="flex justify-between text-slate-900 font-black text-sm pt-1 border-t border-emerald-200">
-                            <span>Total a pagar</span>
-                            <span>${discountResult.finalPrice.toLocaleString("es-CL")}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
 
                     <Button
                       onClick={() => handleCheckout(plan)}

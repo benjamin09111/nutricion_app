@@ -2038,14 +2038,21 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
     const savedCreation = await saveCreation(buildRecipesPayload(description));
 
     if (currentProjectId) {
-      await updateProject(currentProjectId, {
-        activeRecipeCreationId: savedCreation.id,
-        patientId: selectedPatient?.importedPatientId || undefined,
-        metadata: {
-          sourceModule: "recipes",
-          recipeDays: Object.keys(weekSlots || {}).length,
-        },
-      });
+      try {
+        await updateProject(currentProjectId, {
+          activeRecipeCreationId: savedCreation.id,
+          patientId: selectedPatient?.importedPatientId || undefined,
+          metadata: {
+            sourceModule: "recipes",
+            recipeDays: Object.keys(weekSlots || {}).length,
+          },
+        });
+      } catch (error) {
+        console.error("Error updating recipe project linkage", error);
+        toast.warning(
+          "Las recetas se guardaron, pero no se pudo actualizar el proyecto.",
+        );
+      }
     }
 
     return savedCreation;

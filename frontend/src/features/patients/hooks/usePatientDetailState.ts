@@ -1524,6 +1524,8 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
           ? new Date(editForm.birthDate).toISOString()
           : undefined,
         gender: editForm.gender || undefined,
+        weight: editForm.weight !== undefined && editForm.weight !== null ? Number(editForm.weight) : undefined,
+        height: editForm.height !== undefined && editForm.height !== null ? Number(editForm.height) : undefined,
         dietRestrictions: editForm.dietRestrictions || [],
         clinicalSummary: editForm.clinicalSummary || undefined,
         nutritionalFocus: editForm.nutritionalFocus || undefined,

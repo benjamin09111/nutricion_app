@@ -329,6 +329,26 @@ export class PatientIntakeService {
       throw new NotFoundException('Nutricionista no encontrado');
     }
 
+    const customVariables: any[] = [];
+    const addCustomVar = (key: string, label: string, value: any, unit: string) => {
+      if (value !== undefined && value !== null && value !== '') {
+        const num = Number(value);
+        if (!isNaN(num)) {
+          customVariables.push({ key, label, value: num, unit });
+        }
+      }
+    };
+
+    addCustomVar('alturaRodilla', 'Altura de rodilla', payload.kneeHeight, 'cm');
+    addCustomVar('circunferenciaPantorrilla', 'Circ. pantorrilla', payload.calfCircumference, 'cm');
+    addCustomVar('circunferenciaBraquial', 'Circ. braquial', payload.armCircumference, 'cm');
+    addCustomVar('circunferenciaCintura', 'Circ. cintura (cardio)', payload.waistCircumference, 'cm');
+    addCustomVar('circunferenciaCadera', 'Circ. cadera (cardio)', payload.hipCircumference, 'cm');
+    addCustomVar('pliegueTricipital', 'Tricipital', payload.pliegueTricipital, 'mm');
+    addCustomVar('pliegueBicipital', 'Bicipital', payload.pliegueBicipital, 'mm');
+    addCustomVar('pliegueSubescapular', 'Subescapular', payload.pliegueSubescapular, 'mm');
+    addCustomVar('pliegueSuprailiaco', 'Suprailiaco', payload.pliegueSuprailiaco, 'mm');
+
     const createPatientDto: CreatePatientDto = {
       fullName: payload.fullName,
       email: payload.email || undefined,
@@ -343,8 +363,9 @@ export class PatientIntakeService {
       fitnessGoals: payload.fitnessGoals || undefined,
       dietRestrictions: payload.dietRestrictions || [],
       likes: payload.likes || undefined,
+      customVariables: customVariables.length > 0 ? customVariables : undefined,
       recalculateNutrition: true,
-    };
+    } as any;
 
     const patient = await this.patientsService.create(
       nutritionist.accountId,

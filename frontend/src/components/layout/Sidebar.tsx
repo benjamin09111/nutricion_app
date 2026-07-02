@@ -56,7 +56,7 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Pacientes", href: "/dashboard/pacientes", icon: Users, tutorialPath: "/dashboard/pacientes" },
       { name: "Consultas", href: "/dashboard/consultas", icon: CalendarDays, tutorialPath: "/dashboard/consultas" },
-      { name: "Fichas clínicas", href: "/dashboard/fichas-clinicas", icon: FileText },
+      { name: "Fichas clínicas", href: "/dashboard/fichas-clinicas", icon: FileText, hidden: true },
       { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, tutorialPath: "/dashboard/citas" },
     ],
   },

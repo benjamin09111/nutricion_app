@@ -404,7 +404,36 @@ export function PatientFormPage({ onBack, onSave }: PatientFormPageProps) {
                         value={getCustomVariableValue(key) ?? ""}
                         onChange={(e) => {
                           const val = e.target.value.replace(",", ".");
-                          setCustomVariableValue(key, key, val ? parseFloat(val) : undefined, "mm");
+                          setCustomVariableValue(key, label, val ? parseFloat(val) : undefined, "mm");
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection title="Mediciones Complementarias (Chumlea / Perímetros)" defaultOpen={false}>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { key: "alturaRodilla", label: "Altura de rodilla", unit: "cm" },
+                    { key: "circunferenciaPantorrilla", label: "Circ. pantorrilla", unit: "cm" },
+                    { key: "circunferenciaBraquial", label: "Circ. braquial", unit: "cm" },
+                    { key: "circunferenciaCintura", label: "Circ. cintura (cardio)", unit: "cm" },
+                    { key: "circunferenciaCadera", label: "Circ. cadera (cardio)", unit: "cm" },
+                  ].map(({ key, label, unit }) => (
+                    <div key={key} className="space-y-1.5">
+                      <label className="text-xs font-medium text-slate-500">
+                        {label} ({unit})
+                      </label>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="--"
+                        className="h-10 rounded-xl bg-slate-50 border-transparent text-center font-semibold text-sm"
+                        value={getCustomVariableValue(key) ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(",", ".");
+                          setCustomVariableValue(key, label, val ? parseFloat(val) : undefined, unit);
                         }}
                       />
                     </div>
