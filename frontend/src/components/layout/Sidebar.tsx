@@ -150,7 +150,7 @@ export function Sidebar() {
     <div
       className={cn(
         "sidebar-scroll dashboard-sidebar-bg flex h-full grow flex-col gap-y-4 overflow-y-auto border-r pb-4 transition-all duration-300",
-        isSidebarCollapsed ? "px-2" : "px-4",
+        isSidebarCollapsed ? "px-2" : "px-3",
       )}
       style={{ scrollbarWidth: "thin" }}
     >

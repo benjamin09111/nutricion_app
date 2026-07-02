@@ -94,7 +94,7 @@ export function PatientGeneralTab({
                 <User className="w-4 h-4 text-emerald-600" />
               </div>
               <h2 className="text-base font-bold text-slate-800">
-                Identidad
+                Datos del paciente
               </h2>
             </div>
 
