@@ -561,15 +561,13 @@ export class UsersService {
     recordPayment = false,
   ) {
     const normalizedPlan = normalizeMembershipPlanKey(String(plan));
-    const accountForPayment = recordPayment
-      ? await this.prisma.account.findUnique({
-          where: { id: userId },
-          select: {
-            email: true,
-            nutritionist: { select: { fullName: true } },
-          },
-        })
-      : null;
+    const accountForPayment = await this.prisma.account.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        nutritionist: { select: { fullName: true } },
+      },
+    });
 
     if (recordPayment && !accountForPayment) {
       throw new NotFoundException('Cuenta no encontrada');
@@ -585,12 +583,34 @@ export class UsersService {
         if (subscriptions.length > 0) {
           await tx.subscriptionEvent.deleteMany({
             where: {
-              subscriptionId: { in: subscriptions.map((subscription) => subscription.id) },
+              subscriptionId: {
+                in: subscriptions.map((subscription) => subscription.id),
+              },
             },
           });
         }
 
         await tx.subscription.deleteMany({ where: { accountId: userId } });
+
+        if (accountForPayment?.email) {
+          void this.mailService
+            .sendAnnouncementEmail({
+              email: accountForPayment.email,
+              name: accountForPayment.nutritionist?.fullName,
+              title: 'Tu plan fue actualizado a Gratuito',
+              message:
+                `Hola${accountForPayment.nutritionist?.fullName ? ` ${accountForPayment.nutritionist.fullName}` : ''},\n\n` +
+                `Tu plan en NutriNet fue actualizado a Plan Gratuito.\n` +
+                `Para ver los cambios, cierra sesión y vuelve a iniciar sesión.\n\n` +
+                `Gracias por confiar en NutriNet.`,
+            })
+            .catch((error) => {
+              this.logger.error(
+                `No se pudo enviar el correo de cambio de plan a ${accountForPayment.email}`,
+                error instanceof Error ? error.stack : String(error),
+              );
+            });
+        }
 
         return tx.account.update({
           where: { id: userId },
@@ -674,8 +694,10 @@ export class UsersService {
 
       if (pendingTransfer) {
         const discountCode =
-          (pendingTransfer.metadata as Record<string, any> | null)?.discountCode ||
-          (pendingTransfer.metadata as Record<string, any> | null)?.discount?.code;
+          (pendingTransfer.metadata as Record<string, any> | null)
+            ?.discountCode ||
+          (pendingTransfer.metadata as Record<string, any> | null)?.discount
+            ?.code;
 
         await tx.payment.update({
           where: { id: pendingTransfer.id },
@@ -742,7 +764,7 @@ export class UsersService {
         });
       }
 
-      if (normalizedPlan !== 'free' && accountForPayment?.email) {
+      if (accountForPayment?.email) {
         const planLabel = accountPlan;
         void this.mailService
           .sendAnnouncementEmail({
