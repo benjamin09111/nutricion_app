@@ -166,7 +166,11 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
             {!isAdminView && currentPlan?.key === "free" && (
               <button
                 type="button"
-                onClick={() => router.push("/dashboard/configuraciones?tab=membership")}
+                onClick={() =>
+                  router.push(
+                    "/dashboard/configuraciones?tab=membership&openPlanModal=1",
+                  )
+                }
                 className={cn(
                   "inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all",
                   isDarkMode

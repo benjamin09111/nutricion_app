@@ -267,6 +267,7 @@ export class AuthService {
             role === 'NUTRITIONIST' || isNutritionist
               ? subscriptionPlan
               : SubscriptionPlan.ENTERPRISE,
+          membershipSelectedAt: targetPlanId ? new Date() : null,
           status: 'ACTIVE' as AccountStatus,
           emailVerifiedAt: new Date(),
           emailVerificationToken: null,
@@ -364,6 +365,7 @@ export class AuthService {
             password: hashedPassword,
             role: 'NUTRITIONIST',
             plan: 'FREE',
+            membershipSelectedAt: null,
             status: 'PENDING',
             emailVerificationToken: verificationToken,
             emailVerificationSentAt: new Date(),

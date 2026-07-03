@@ -25,7 +25,7 @@ import {
 } from "@/features/memberships/services/membership.service";
 import { cn } from "@/lib/utils";
 import { TransferPaymentModal } from "./TransferPaymentModal";
-import { goToMembershipWelcome } from "@/lib/membership-navigation";
+import { goToDashboard } from "@/lib/membership-navigation";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { syncMembershipToStoredUser } from "@/lib/membership-session";
 
@@ -114,10 +114,7 @@ export function OnboardingWizard({ nutritionistEmail, nutritionistName }: Onboar
       syncMembershipToStoredUser(result.membershipStatus, plan);
       toast.success(`Plan ${plan.name} activado correctamente`);
       await refreshSubscription();
-      goToMembershipWelcome({
-        planName: plan.name,
-        planSlug: plan.slug,
-      });
+      goToDashboard();
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Error al activar plan");
     } finally {

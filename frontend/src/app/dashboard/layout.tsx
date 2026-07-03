@@ -25,7 +25,6 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const { isDarkMode } = useTheme();
   const pathname = usePathname();
   const isRecipesModule = pathname.startsWith("/dashboard/recetas");
-  const isWelcomeRoute = pathname.startsWith("/dashboard/bienvenida");
 
   if (isLoading) {
     return (
@@ -103,7 +102,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     </div>
   );
 
-  if (isAdminView || isWelcomeRoute) {
+  if (isAdminView) {
     return dashboardShell;
   }
 

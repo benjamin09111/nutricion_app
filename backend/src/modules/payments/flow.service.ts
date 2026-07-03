@@ -79,7 +79,7 @@ export class FlowService {
       urlConfirmation: this.getConfirmationUrl(),
       urlReturn: this.getReturnUrl(
         returnPath ||
-          `/dashboard/bienvenida?plan=${encodeURIComponent(metadata.planName || 'Plan')}&slug=${encodeURIComponent(metadata.planSlug || '')}`,
+          '/dashboard',
       ),
       optional: JSON.stringify({
         paymentId: pendingPayment.id,

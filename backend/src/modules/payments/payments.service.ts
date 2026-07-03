@@ -753,8 +753,20 @@ export class PaymentsService {
         },
       });
 
+      const discountCode =
+        (metadata?.discountCode as string | undefined) ||
+        (metadata?.discount?.code as string | undefined);
+
+      if (discountCode) {
+        await this.discountCodesService.markAsUsed(discountCode, accountId, tx);
+      }
+
       await this.upsertSubscription(tx, accountId, plan, startDate, endDate);
       await this.updateAccountPlan(tx, accountId, plan, endDate);
+      await tx.account.update({
+        where: { id: accountId },
+        data: { lastLoginAt: new Date() },
+      });
       await this.createSubscriptionEvent(
         tx,
         accountId,
@@ -1041,6 +1053,10 @@ export class PaymentsService {
 
       await this.upsertSubscription(tx, userId, plan, startDate, endDate);
       await this.updateAccountPlan(tx, userId, plan, endDate);
+      await tx.account.update({
+        where: { id: userId },
+        data: { lastLoginAt: new Date() },
+      });
       await this.createSubscriptionEvent(
         tx,
         userId,
@@ -1234,6 +1250,7 @@ export class PaymentsService {
       data: {
         plan: accountPlan,
         subscriptionEndsAt: endDate,
+        membershipSelectedAt: new Date(),
       },
     });
   }

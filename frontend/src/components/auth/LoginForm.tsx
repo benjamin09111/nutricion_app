@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import GoogleButton from "@/components/auth/GoogleButton";
 import { resolveRequiredUrl } from "@/lib/runtime-url.util";
 
-export default function LoginForm() {
+export default function LoginForm({ autoStart = false }: { autoStart?: boolean }) {
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
   const searchParams = useSearchParams();
 
@@ -22,6 +22,15 @@ export default function LoginForm() {
 
     window.location.href = `${backendUrl}/auth/google/start?next=${encodeURIComponent(next)}`;
   };
+
+  useEffect(() => {
+    if (!autoStart || isGoogleSigningIn) return;
+    handleGoogleLogin();
+  }, [autoStart, isGoogleSigningIn]);
+
+  if (autoStart) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">

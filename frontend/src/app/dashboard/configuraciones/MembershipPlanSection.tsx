@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Crown, ShieldCheck, Sparkles, Check, X, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Crown, ShieldCheck, Sparkles, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
@@ -10,7 +10,7 @@ import { TransferPaymentModal } from "@/components/pagos/TransferPaymentModal";
 import { membershipService, type MembershipPlan } from "@/features/memberships/services/membership.service";
 import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
 import { syncMembershipToStoredUser } from "@/lib/membership-session";
-import { goToMembershipWelcome } from "@/lib/membership-navigation";
+import { goToDashboard } from "@/lib/membership-navigation";
 import { getCurrentUser } from "@/lib/current-user";
 import { cn } from "@/lib/utils";
 
@@ -82,7 +82,11 @@ const formatDate = (value?: string | null) => {
   });
 };
 
-export function MembershipPlanSection() {
+export function MembershipPlanSection({
+  autoOpenChangePlan = false,
+}: {
+  autoOpenChangePlan?: boolean;
+}) {
   const {
     currentPlan,
     subscriptionEndsAt,
@@ -100,6 +104,7 @@ export function MembershipPlanSection() {
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<MembershipPlan | null>(null);
   const [pendingPaidPlan, setPendingPaidPlan] = useState<MembershipPlan | null>(null);
+  const [hasAutoOpenedChangePlan, setHasAutoOpenedChangePlan] = useState(false);
 
   const currentPrice = Number(currentPlan?.price || 0);
   const nextPaymentLabel = useMemo(() => {
@@ -137,6 +142,26 @@ export function MembershipPlanSection() {
     () => getPlanAttributeRows(currentPlan),
     [currentPlan],
   );
+
+  const loadAvailablePlans = async () => {
+    setIsChangingPlan(true);
+    setIsLoadingPlans(true);
+    try {
+      const plans = await membershipService.getActivePlans();
+      setAvailablePlans(plans.filter((p) => p.id !== currentPlan?.id));
+    } catch {
+      toast.error("No se pudieron cargar los planes");
+    } finally {
+      setIsLoadingPlans(false);
+    }
+  };
+
+  useEffect(() => {
+    if (autoOpenChangePlan && !hasAutoOpenedChangePlan) {
+      setHasAutoOpenedChangePlan(true);
+      void loadAvailablePlans();
+    }
+  }, [autoOpenChangePlan, hasAutoOpenedChangePlan]);
 
   if (!currentPlan) {
     return (
@@ -242,18 +267,7 @@ export function MembershipPlanSection() {
               <h3 className="mt-1 text-lg font-bold text-slate-900">Gestión de suscripción</h3>
             </div>
             <button
-              onClick={async () => {
-                setIsChangingPlan(true);
-                setIsLoadingPlans(true);
-                try {
-                  const plans = await membershipService.getActivePlans();
-                  setAvailablePlans(plans.filter((p) => p.id !== currentPlan?.id));
-                } catch {
-                  toast.error("No se pudieron cargar los planes");
-                } finally {
-                  setIsLoadingPlans(false);
-                }
-              }}
+              onClick={loadAvailablePlans}
               className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-sm font-semibold transition-colors cursor-pointer"
             >
               Cambiar mi plan
@@ -327,12 +341,6 @@ export function MembershipPlanSection() {
             <h3 className="text-xl font-black tracking-tight text-slate-900">Cambiar de plan</h3>
             <p className="text-sm text-slate-500 mt-1">Selecciona el plan que se ajuste a tus necesidades</p>
           </div>
-          <button
-            onClick={() => { setIsChangingPlan(false); setSelectedPlan(null); }}
-            className="p-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
-          >
-            <X className="h-5 w-5 text-slate-400" />
-          </button>
         </div>
 
         {isLoadingPlans ? (
@@ -445,7 +453,7 @@ export function MembershipPlanSection() {
                             await refreshSubscription();
                             setIsChangingPlan(false);
                             setSelectedPlan(null);
-                            goToMembershipWelcome({ planName: plan.name, planSlug: plan.slug });
+                            goToDashboard();
                           } catch (e: any) {
                             toast.error(e?.message || "Error al cambiar plan");
                           }

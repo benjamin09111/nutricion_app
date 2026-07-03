@@ -167,9 +167,10 @@ export function SubscriptionProvider({
       const nextPlan = String(data.accountPlan || key || "").toLowerCase();
 
       if (previousUser && previousPlan && nextPlan && previousPlan !== nextPlan) {
+        const email = encodeURIComponent(previousUser.email || "");
         await authService.signOut();
         if (typeof window !== "undefined") {
-          window.location.assign("/login?reason=plan-updated");
+          window.location.assign(`/sesion-actualizada?email=${email}`);
         }
         return;
       }

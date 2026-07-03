@@ -575,6 +575,19 @@ export class UsersService {
 
     return this.prisma.$transaction(async (tx) => {
       if (normalizedPlan === 'free') {
+        const subscriptions = await tx.subscription.findMany({
+          where: { accountId: userId },
+          select: { id: true },
+        });
+
+        if (subscriptions.length > 0) {
+          await tx.subscriptionEvent.deleteMany({
+            where: {
+              subscriptionId: { in: subscriptions.map((subscription) => subscription.id) },
+            },
+          });
+        }
+
         await tx.subscription.deleteMany({ where: { accountId: userId } });
 
         return tx.account.update({
@@ -582,6 +595,7 @@ export class UsersService {
           data: {
             plan: SubscriptionPlan.FREE,
             subscriptionEndsAt: null,
+            membershipSelectedAt: new Date(),
             lastLoginAt: new Date(),
           },
         });
@@ -743,6 +757,7 @@ export class UsersService {
         data: {
           plan: accountPlan,
           subscriptionEndsAt: endDate,
+          membershipSelectedAt: new Date(),
           lastLoginAt: new Date(),
         },
       });

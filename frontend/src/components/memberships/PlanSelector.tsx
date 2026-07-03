@@ -22,7 +22,7 @@ import { getMembershipFeatureDisplay } from "@/features/memberships/utils/featur
 import { useSubscription } from "@/context/SubscriptionContext";
 import { usePaymentMode } from "@/hooks/usePaymentMode";
 import { cn } from "@/lib/utils";
-import { goToMembershipWelcome } from "@/lib/membership-navigation";
+import { goToDashboard } from "@/lib/membership-navigation";
 import { syncMembershipToStoredUser } from "@/lib/membership-session";
 
 export function PlanSelector() {
@@ -49,10 +49,7 @@ export function PlanSelector() {
       toast.success(`Plan ${plan.name} activado correctamente`);
       await refreshSubscription();
       router.refresh();
-      goToMembershipWelcome({
-        planName: plan.name,
-        planSlug: plan.slug,
-      });
+      goToDashboard();
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Error al activar plan");
     } finally {
@@ -83,11 +80,7 @@ export function PlanSelector() {
         toast.success(`Plan ${plan.name} activado correctamente`);
       }
       await refreshSubscription();
-      goToMembershipWelcome({
-        planName: plan.name,
-        planSlug: plan.slug,
-        payment: "success",
-      });
+      goToDashboard();
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Error al procesar el pago");
     } finally {

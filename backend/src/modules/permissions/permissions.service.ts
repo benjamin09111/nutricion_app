@@ -46,6 +46,10 @@ export class PermissionsService {
         subscription: {
           include: { plan: true },
         },
+        payments: {
+          take: 1,
+          select: { id: true },
+        },
       },
     });
 
@@ -63,6 +67,22 @@ export class PermissionsService {
         : null,
     });
 
+    const hasPlanSelectionHistory =
+      Boolean(account.membershipSelectedAt) ||
+      account.plan !== 'FREE' ||
+      account.payments.length > 0 ||
+      subscriptionSelectable;
+
+    const freeMembershipPlan = await this.prisma.membershipPlan.findFirst({
+      where: {
+        isActive: true,
+        OR: [
+          { price: 0 },
+          { slug: { contains: 'free', mode: 'insensitive' } },
+        ],
+      },
+    });
+
     const currentPlan =
       subscriptionSelectable && account.subscription?.plan
         ? {
@@ -74,22 +94,27 @@ export class PermissionsService {
             features: account.subscription.plan.features,
             entitlements: normalizeEntitlementMap(
               (account.subscription.plan as any).entitlements ||
-                getMembershipPlanEntitlementsFromPlan(
+              getMembershipPlanEntitlementsFromPlan(
                   account.subscription.plan,
                 ),
             ),
           }
+        : account.plan === 'FREE' && freeMembershipPlan
+          ? {
+              id: freeMembershipPlan.id,
+              name: freeMembershipPlan.name,
+              slug: freeMembershipPlan.slug,
+              key: getMembershipPlanKey(freeMembershipPlan),
+              price: Number(freeMembershipPlan.price),
+              features: freeMembershipPlan.features,
+              entitlements: normalizeEntitlementMap(
+                (freeMembershipPlan as any).entitlements ||
+                  getMembershipPlanEntitlementsFromPlan(freeMembershipPlan),
+              ),
+            }
         : null;
 
-    const requiresPlanSelection = !isSubscriptionSelectable({
-      role: account.role,
-      subscription: account.subscription
-        ? {
-            status: account.subscription.status,
-            endDate: account.subscription.endDate,
-          }
-        : null,
-    });
+    const requiresPlanSelection = !hasPlanSelectionHistory;
 
     return {
       account,
@@ -102,6 +127,8 @@ export class PermissionsService {
           ? resolveAccountPlanFromMembershipPlan(
               account.subscription.plan.slug || account.subscription.plan.name,
             )
+          : account.plan === 'FREE'
+            ? 'FREE'
           : isStaffRole(account.role)
             ? account.plan
             : 'FREE',
@@ -120,7 +147,13 @@ export class PermissionsService {
       return { [SPECIAL_FEATURES.MEMBERSHIP_SELECTED]: true };
     }
 
-    if (!currentPlan || !isSubscriptionSelectable(account)) {
+    const hasPlanSelectionHistory =
+      Boolean(account.membershipSelectedAt) ||
+      account.plan !== 'FREE' ||
+      Boolean(account.payments?.length) ||
+      isSubscriptionSelectable(account);
+
+    if (!currentPlan || !hasPlanSelectionHistory) {
       return {};
     }
 

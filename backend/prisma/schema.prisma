@@ -24,6 +24,7 @@ model Account {
   updatedAt                 DateTime                   @updatedAt @map("updated_at")
   plan                      SubscriptionPlan           @default(FREE)
   subscriptionEndsAt        DateTime?                  @map("subscription_ends_at")
+  membershipSelectedAt      DateTime?                  @map("membership_selected_at")
   lastLoginAt               DateTime?                  @map("last_login_at") @db.Timestamptz(6)
   emailVerificationToken    String?                    @unique @map("email_verification_token")
   emailVerificationSentAt   DateTime?                  @map("email_verification_sent_at") @db.Timestamptz(6)

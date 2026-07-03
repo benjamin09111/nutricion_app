@@ -82,6 +82,18 @@ export default function AdminClientsPage() {
     return plan.slug.toUpperCase();
   };
 
+  const normalizePlanKeyValue = (value?: string | null) => {
+    const normalized = String(value || "").trim().toLowerCase();
+
+    if (!normalized) return "FREE";
+    if (normalized.includes("free") || normalized.includes("gratis")) return "FREE";
+    if (normalized.includes("pro") || normalized.includes("premium")) return "PRO";
+    if (normalized.includes("enterprise")) return "ENTERPRISE";
+    if (normalized.includes("iniciante") || normalized.includes("starter")) return "INICIANTE";
+
+    return normalized.toUpperCase();
+  };
+
   const getFreePlanValue = (plans: MembershipPlan[]) => {
     const freePlan = plans.find(
       (plan) => plan.price === 0 || plan.slug.toLowerCase().includes("free"),
@@ -125,7 +137,7 @@ export default function AdminClientsPage() {
   const getSelectedPlanValue = (clientPlan?: string | null) => {
     if (!clientPlan) return getFreePlanValue(membershipPlans);
 
-    const normalized = clientPlan.toUpperCase();
+    const normalized = normalizePlanKeyValue(clientPlan);
     const matchingPlan = membershipPlans.find(
       (plan) => normalizePlanValue(plan) === normalized,
     );
@@ -133,8 +145,25 @@ export default function AdminClientsPage() {
     return matchingPlan ? normalizePlanValue(matchingPlan) : getFreePlanValue(membershipPlans);
   };
 
+  const getPlanByValue = (planValue?: string | null) =>
+    membershipPlans.find((plan) => normalizePlanValue(plan) === normalizePlanKeyValue(planValue)) || null;
+
+  const getPlanLabelByValue = (planValue?: string | null) => {
+    const plan = getPlanByValue(planValue);
+    if (plan) return getPlanLabel(plan);
+
+    return normalizePlanKeyValue(planValue) === "FREE"
+      ? "Gratis"
+      : String(planValue || "Sin plan");
+  };
+
   const getSelectedMembershipPlan = () =>
     membershipPlans.find((plan) => normalizePlanValue(plan) === selectedPlan) || null;
+
+  const selectedMembershipPlan = getPlanByValue(selectedPlan);
+  const currentUserPlanValue = getSelectedPlanValue(selectedUser?.plan);
+  const currentMembershipPlan = getPlanByValue(selectedUser?.plan);
+  const isSelectedPlanUnchanged = selectedPlan === currentUserPlanValue;
 
   useEffect(() => {
     fetchMembershipPlans();
@@ -294,16 +323,21 @@ export default function AdminClientsPage() {
     void fetchClients(page);
   };
 
-  const handlePlanChange = (user: any, newPlan: string) => {
-    setSelectedUser(user);
-    setSelectedPlan(newPlan);
-    setShowConfigModal(true);
-  };
-
-  const handleManualConfig = async (recordPayment = false) => {
+  const handleManualConfig = async (
+    recordPayment = false,
+    force = false,
+    planOverride?: string,
+  ) => {
     if (!selectedUser || !selectedPlan) return;
 
-    const membershipPlan = getSelectedMembershipPlan();
+    const targetPlan = planOverride || selectedPlan;
+    const currentPlanValue = getSelectedPlanValue(selectedUser.plan);
+    if (!force && targetPlan === currentPlanValue) {
+      toast.error("Ese usuario ya tiene ese plan");
+      return;
+    }
+
+    const membershipPlan = getPlanByValue(targetPlan);
     if (membershipPlan && membershipPlan.price > 0 && !recordPayment) {
       setShowPaymentConfirmModal(true);
       return;
@@ -320,7 +354,7 @@ export default function AdminClientsPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          plan: selectedPlan,
+          plan: targetPlan,
           days: durationDays,
           recordPayment,
         }),
@@ -487,6 +521,14 @@ export default function AdminClientsPage() {
     } finally {
       setIsResendingVerification(false);
     }
+  };
+
+  const handleForceFreePlan = async () => {
+    if (!selectedUser) return;
+
+    const freePlanValue = getFreePlanValue(membershipPlans);
+    setSelectedPlan(freePlanValue);
+    await handleManualConfig(false, true, freePlanValue);
   };
 
   const getMenuPosition = (button: HTMLButtonElement) => {
@@ -704,36 +746,31 @@ export default function AdminClientsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <select
-                          value={getSelectedPlanValue(client.plan)}
-                          onChange={(e) =>
-                            handlePlanChange(client, e.target.value)
-                          }
-                          className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset cursor-pointer border-none outline-none ${
-                            client.plan === "ENTERPRISE"
-                              ? "bg-purple-50 text-purple-700 ring-purple-600/20"
-                              : client.plan === "PRO"
-                                ? "bg-indigo-50 text-indigo-700 ring-indigo-600/20"
-                                : "bg-slate-50 text-slate-700 ring-slate-600/20"
-                          }`}
-                        >
-                          {membershipPlans.length > 0 ? (
-                            membershipPlans.map((plan) => (
-                              <option
-                                key={plan.id}
-                                value={normalizePlanValue(plan)}
-                              >
-                                {getPlanLabel(plan)}
-                              </option>
-                            ))
-                          ) : (
-                            <>
-                              <option value="FREE">Gratis</option>
-                              <option value="PRO">PRO</option>
-                              <option value="ENTERPRISE">ENTERPRISE</option>
-                            </>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedUser(client);
+                            setSelectedPlan(getSelectedPlanValue(client.plan));
+                            setDurationDays(30);
+                            setShowConfigModal(true);
+                            setOpenMenuId(null);
+                            setMenuPosition(null);
+                          }}
+                          className={cn(
+                            "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ring-1 ring-inset transition-colors cursor-pointer",
+                            normalizePlanKeyValue(client.plan) === "PRO"
+                              ? "bg-indigo-50 text-indigo-700 ring-indigo-200 hover:bg-indigo-100"
+                              : normalizePlanKeyValue(client.plan) === "ENTERPRISE"
+                                ? "bg-purple-50 text-purple-700 ring-purple-200 hover:bg-purple-100"
+                                : "bg-slate-50 text-slate-700 ring-slate-200 hover:bg-slate-100",
                           )}
-                        </select>
+                          aria-label="Cambiar plan"
+                        >
+                          <span>{getPlanLabelByValue(client.plan)}</span>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-current/60">
+                            Cambiar
+                          </span>
+                        </button>
                       </td>
                       <td className="px-6 py-4">
                         <span
@@ -888,113 +925,205 @@ export default function AdminClientsPage() {
           onClick={() => setShowConfigModal(false)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+            className="flex w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200 max-h-[calc(100dvh-4rem)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  Configurar Acceso
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5 sm:px-8">
+              <div className="space-y-1">
+                <div className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-indigo-700">
+                  Configurar acceso
+                </div>
+                <h2 className="text-2xl font-black tracking-tight text-slate-900">
+                  Cambiar plan
                 </h2>
-                <p className="text-sm text-slate-500 mt-1">
-                  Trial personalizado para{" "}
-                  <strong>
-                    {selectedUser?.fullName || selectedUser?.email}
-                  </strong>
+                <p className="text-sm text-slate-500">
+                  {selectedUser?.fullName || selectedUser?.email}
                 </p>
               </div>
               <button
                 onClick={() => setShowConfigModal(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Cerrar"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-6 space-y-5">
-              <div>
-                <label className="block text-xs uppercase tracking-widest font-black text-slate-500 mb-2">
-                  Membresía a Asignar
-                </label>
-                <select
-                  value={selectedPlan}
-                  onChange={(e) => setSelectedPlan(e.target.value)}
-                  className="w-full rounded-xl border-2 border-slate-200 py-3.5 px-4 text-base font-bold text-slate-900 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 outline-none bg-white shadow-sm transition-all cursor-pointer"
-                >
-                  {membershipPlans.length > 0 ? (
-                    membershipPlans.map((plan) => (
-                      <option
-                        key={plan.id}
-                        value={normalizePlanValue(plan)}
-                        className="text-slate-900 font-bold py-2"
-                      >
-                        {getPlanLabel(plan)} —{" "}
-                        {plan.billingPeriod === "monthly"
-                          ? "Ciclo Mensual"
-                          : "Ciclo Anual"}
-                      </option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="FREE" className="text-slate-900 font-bold">
-                        Gratis (Plan Básico)
-                      </option>
-                      <option value="PRO" className="text-slate-900 font-bold">
-                        PRO (Plan Premium)
-                      </option>
-                      <option
-                        value="ENTERPRISE"
-                        className="text-slate-900 font-bold"
-                      >
-                        ENTERPRISE (Plan Corporativo)
-                      </option>
-                    </>
-                  )}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs uppercase tracking-widest font-black text-slate-500 mb-2">
-                  Días de Trial / Cortesía
-                </label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={durationDays}
-                  onChange={(e) =>
-                    setDurationDays(parseInt(e.target.value) || 0)
-                  }
-                  className="h-12 text-lg font-black text-indigo-900 border-2 border-slate-200 focus:border-indigo-600 rounded-xl"
-                  placeholder="Ej: 30"
-                />
-                <div className="mt-3 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
-                  <p className="text-xs font-bold text-indigo-700 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    Vence el:{" "}
-                    {new Date(
-                      new Date().setDate(new Date().getDate() + durationDays),
-                    ).toLocaleDateString("es-CL", {
-                      day: "2-digit",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
-                </div>
-                <p className="text-[10px] text-slate-400 mt-2 font-medium italic">
-                  * El usuario volverá al plan FREE automáticamente tras expirar
-                  este periodo.
-                </p>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8">
+              <div className="grid gap-6 lg:grid-cols-[0.94fr_1.06fr]">
+                <section className="rounded-[1.75rem] border border-slate-200 bg-slate-50/70 p-5 sm:p-6">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                        Plan actual
+                      </p>
+                      <h3 className="mt-1 text-lg font-bold text-slate-900">
+                        {currentMembershipPlan?.name || "Sin plan"}
+                      </h3>
+                    </div>
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">
+                      Actual
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-500">Plan vigente</p>
+                        <p className="mt-1 text-2xl font-black text-slate-900">
+                          {getPlanLabelByValue(selectedUser?.plan)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                          Estado
+                        </p>
+                        <p className="mt-1 text-sm font-bold text-slate-700">
+                          {selectedUser?.status || "Activo"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl bg-slate-50 p-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                          Días de cortesía
+                        </p>
+                        <p className="mt-1 text-lg font-black text-slate-900">
+                          {durationDays}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                          Vence el
+                        </p>
+                        <p className="mt-1 text-sm font-bold text-slate-900">
+                          {new Date(
+                            new Date().setDate(new Date().getDate() + durationDays),
+                          ).toLocaleDateString("es-CL", {
+                            day: "2-digit",
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900">
+                    Si eliges el mismo plan actual, no se aplicarán cambios.
+                  </div>
+                </section>
+
+                <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                        Nuevo plan
+                      </p>
+                      <h3 className="mt-1 text-lg font-bold text-slate-900">
+                        Selecciona una membresía
+                      </h3>
+                    </div>
+                    <span className="rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-700">
+                      {selectedMembershipPlan?.name || "Selecciona"}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-3">
+                    {membershipPlans.length > 0 ? (
+                      membershipPlans.map((plan) => {
+                        const value = normalizePlanValue(plan);
+                        const isSelected = selectedPlan === value;
+                        const isCurrent = currentUserPlanValue === value;
+
+                        return (
+                          <button
+                            key={plan.id}
+                            type="button"
+                            onClick={() => setSelectedPlan(value)}
+                            className={cn(
+                              "rounded-2xl border-2 p-4 text-left transition-all cursor-pointer",
+                              isSelected
+                                ? "border-indigo-600 bg-indigo-50 shadow-sm"
+                                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50",
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-black text-slate-900">{plan.name}</p>
+                                <p className="mt-1 text-sm text-slate-500">
+                                  {getPlanLabel(plan)} · {plan.billingPeriod === "monthly" ? "Mensual" : "Anual"}
+                                </p>
+                              </div>
+                              {isSelected && <CheckCircle2 className="h-5 w-5 text-indigo-600" />}
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {isCurrent && (
+                                <span className="inline-flex rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-700">
+                                  Plan actual
+                                </span>
+                              )}
+                              {plan.price === 0 && (
+                                <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-slate-600">
+                                  Gratuito
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                        No hay planes activos disponibles.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-5 space-y-2">
+                    <label className="block text-xs uppercase tracking-widest font-black text-slate-500">
+                      Días de Trial / Cortesía
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={durationDays}
+                      onChange={(e) =>
+                        setDurationDays(parseInt(e.target.value) || 0)
+                      }
+                      className="h-12 rounded-2xl border-slate-200 text-base font-bold text-slate-900 focus:border-indigo-600"
+                      placeholder="30"
+                    />
+                  </div>
+                </section>
               </div>
             </div>
-            <div className="p-4 bg-slate-50 flex justify-end gap-3 border-t border-slate-100">
-              <Button variant="ghost" onClick={() => setShowConfigModal(false)}>
-                Cancelar
-              </Button>
-              <Button
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                onClick={() => void handleManualConfig()}
-                isLoading={isUpdating}
-              >
-                Aplicar Configuración
-              </Button>
+
+            <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/80 px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+              <div className="text-xs text-slate-500">
+                * El usuario volverá al plan FREE automáticamente tras expirar este periodo.
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <Button variant="ghost" onClick={() => setShowConfigModal(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                  onClick={() => void handleForceFreePlan()}
+                  isLoading={isUpdating}
+                >
+                  Forzar plan gratis
+                </Button>
+                <Button
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  onClick={() => void handleManualConfig()}
+                  isLoading={isUpdating}
+                  disabled={isSelectedPlanUnchanged}
+                >
+                  Aplicar Configuración
+                </Button>
+              </div>
             </div>
           </div>
         </div>

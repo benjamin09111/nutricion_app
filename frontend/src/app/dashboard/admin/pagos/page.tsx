@@ -5,6 +5,7 @@ import {
   Download,
   Search,
   CheckCircle2,
+  BadgeCheck,
   XCircle,
   CircleX,
   Clock,
@@ -12,7 +13,6 @@ import {
   Filter,
   RefreshCw,
   Trash2,
-  TicketPercent,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -426,8 +426,9 @@ export default function AdminPaymentsPage() {
                                 }}
                                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
                                 aria-label="Aprobar pago"
+                                title="Aprobar pago"
                               >
-                                <TicketPercent className="h-4 w-4" />
+                                <BadgeCheck className="h-4 w-4" />
                               </button>
                               <button
                                 type="button"
@@ -437,6 +438,7 @@ export default function AdminPaymentsPage() {
                                 }}
                                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700 cursor-pointer"
                                 aria-label="Rechazar pago"
+                                title="Rechazar pago"
                               >
                                 <CircleX className="h-4 w-4" />
                               </button>
@@ -450,6 +452,7 @@ export default function AdminPaymentsPage() {
                             }}
                             className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700 cursor-pointer"
                             aria-label="Eliminar registro"
+                            title="Eliminar pago"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>

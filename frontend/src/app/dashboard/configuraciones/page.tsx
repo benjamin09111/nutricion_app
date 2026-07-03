@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { User, Lock, Crown, Save, Sun, Moon, Type, Calendar, Pencil, Globe } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -206,7 +207,9 @@ function FieldSwitch({
 }
 
 export default function SettingsPage() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<"profile" | "account" | "membership">("profile");
+  const openPlanModal = searchParams.get("openPlanModal") === "1";
 
   const [userData, setUserData] = useState<{
     email: string;
@@ -245,6 +248,12 @@ export default function SettingsPage() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const { theme, setTheme } = useTheme();
   const { fontPreference, setFontPreference } = useFont();
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "membership") {
+      setActiveTab("membership");
+    }
+  }, [searchParams]);
   useEffect(() => {
     const user = getCurrentUser();
     if (!user) return;
@@ -910,9 +919,9 @@ export default function SettingsPage() {
       </div>
 
       {/* Membresía Tab */}
-      <div className={`space-y-6 ${activeTab === "membership" ? "" : "hidden"}`}>
-        <MembershipPlanSection />
-      </div>
+        <div className={`space-y-6 ${activeTab === "membership" ? "" : "hidden"}`}>
+          <MembershipPlanSection autoOpenChangePlan={openPlanModal} />
+        </div>
     </div>
   );
 }
