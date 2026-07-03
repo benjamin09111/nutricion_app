@@ -54,7 +54,9 @@ export class PaymentsController {
   @Get('export-accounting')
   async exportAccounting(@Request() req: any, @Res() res: Response) {
     if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException('Solo administradores pueden exportar pagos');
+      throw new UnauthorizedException(
+        'Solo administradores pueden exportar pagos',
+      );
     }
 
     const report = await this.paymentsService.exportAccountingWorkbook();
@@ -63,7 +65,10 @@ export class PaymentsController {
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
-    res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${report.filename}"`,
+    );
     return res.send(report.buffer);
   }
 
@@ -170,7 +175,8 @@ export class PaymentsController {
 
   @Post('flow/discount-checkout')
   async createFlowDiscountCheckout(
-    @Body() body: { planId: string; discountCode?: string; returnPath?: string },
+    @Body()
+    body: { planId: string; discountCode?: string; returnPath?: string },
     @Request() req: any,
   ) {
     const accountId = req.user?.id;
@@ -209,6 +215,8 @@ export class PaymentsController {
       planId: string;
       nutritionistEmail?: string;
       nutritionistName?: string;
+      discountCode?: string;
+      amount?: number;
     },
     @Request() req: any,
   ) {
@@ -221,6 +229,8 @@ export class PaymentsController {
       body.planId,
       body.nutritionistEmail,
       body.nutritionistName,
+      body.discountCode,
+      body.amount,
     );
   }
 

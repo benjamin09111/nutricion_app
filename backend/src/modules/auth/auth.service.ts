@@ -10,7 +10,6 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { LoginDto } from './dto/login.dto';
-import { UpdatePasswordDto } from './dto/update-password.dto';
 import { MailService } from '../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
 import { normalizeRut, isValidRut } from '../../common/utils/rut';
@@ -928,38 +927,5 @@ export class AuthService {
       console.error('Error resetting access:', error);
       throw new BadRequestException('Error al reenviar el acceso.');
     }
-  }
-
-  async updatePassword(userId: string, updatePasswordDto: UpdatePasswordDto) {
-    const { currentPassword, newPassword } = updatePasswordDto;
-
-    const account = await this.prisma.account.findUnique({
-      where: { id: userId },
-    });
-
-    if (!account || !account.password) {
-      throw new UnauthorizedException('Usuario no encontrado');
-    }
-
-    const isPasswordValid = await bcrypt.compare(
-      currentPassword,
-      account.password,
-    );
-
-    if (!isPasswordValid) {
-      throw new BadRequestException('La contraseña actual es incorrecta');
-    }
-
-    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-
-    await this.prisma.account.update({
-      where: { id: userId },
-      data: { password: hashedNewPassword },
-    });
-
-    return {
-      success: true,
-      message: 'Contraseña actualizada correctamente',
-    };
   }
 }

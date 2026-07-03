@@ -187,7 +187,8 @@ export function TransferPaymentModal({
               ¡Gracias por tu suscripción!
             </h3>
             <p className="text-slate-500 max-w-sm mx-auto">
-              En breve tu plan será cambiado. Te notificaremos cuando esté listo.
+              En breve tu plan será cambiado. Mientras revisamos tu transferencia,
+              seguirás usando tu plan gratuito.
             </p>
             <Button
               onClick={onClose}

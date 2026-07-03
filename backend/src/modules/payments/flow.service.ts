@@ -78,7 +78,8 @@ export class FlowService {
       email: payerEmail || 'pagos@nutrinet.cl',
       urlConfirmation: this.getConfirmationUrl(),
       urlReturn: this.getReturnUrl(
-        returnPath || `/dashboard/bienvenida?plan=${encodeURIComponent(metadata.planName || 'Plan')}&slug=${encodeURIComponent(metadata.planSlug || '')}`
+        returnPath ||
+          `/dashboard/bienvenida?plan=${encodeURIComponent(metadata.planName || 'Plan')}&slug=${encodeURIComponent(metadata.planSlug || '')}`,
       ),
       optional: JSON.stringify({
         paymentId: pendingPayment.id,

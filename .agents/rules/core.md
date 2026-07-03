@@ -5,6 +5,8 @@ Mission: High-quality, maintainable, atomic code for Nutritionist SaaS.
 
 ## Golden Rules
 - **No Regressions**: Do not break existing behavior.
+- **Scope Lock**: Change only what the user explicitly asked for. If anything is unclear, stop and ask before editing.
+- **No Terminal Without Permission**: Do not use terminal/console commands unless the user explicitly asks for them.
 - **Minimal Edits**: Touch only necessary files. Small patches.
 - **DB Safety**: NO destructive migrations. Production data is sacred.
 - **UTF-8**: Preserve Spanish characters (ñ, á, etc.). No artifacts (Ã).

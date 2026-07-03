@@ -41,6 +41,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         role: true,
         email: true,
         rut: true,
+        lastLoginAt: true,
         nutritionist: {
           select: { id: true },
         },
@@ -53,6 +54,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       account.status === 'DELETED'
     ) {
       throw new UnauthorizedException('Sesión inválida');
+    }
+
+    if (
+      account.lastLoginAt &&
+      typeof payload?.iat === 'number' &&
+      Math.floor(account.lastLoginAt.getTime() / 1000) > payload.iat
+    ) {
+      throw new UnauthorizedException(
+        `Su plan ha sido actualizado ${payload.email}, por favor, vuelva a iniciar sesión por seguridad.`,
+      );
     }
 
     return {

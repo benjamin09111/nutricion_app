@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { User, Lock, Crown, Save, Sun, Moon, Type, Calendar, Pencil, Globe } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -461,9 +462,11 @@ export default function SettingsPage() {
             <div className="space-y-6 p-6">
               <div className="flex items-center gap-x-4 font-bold">
                 {userData?.googleAvatarUrl ? (
-                  <img
+                  <Image
                     src={userData.googleAvatarUrl}
                     alt=""
+                    width={64}
+                    height={64}
                     referrerPolicy="no-referrer"
                     className="h-16 w-16 rounded-full border-2 border-emerald-200 object-cover"
                   />

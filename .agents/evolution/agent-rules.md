@@ -5,6 +5,8 @@ These rules are for future coding sessions in NutriNet.
 ## Default Behavior
 - Read the relevant files before editing.
 - Keep changes small and focused.
+- Never modify unrelated code or files; if the requested scope is unclear, ask before editing.
+- Do not open or use terminal commands unless the user explicitly asks for them.
 - Prefer fixing the root cause over adding guards or wrappers.
 - Do not refactor unrelated code while cleaning warnings.
 

@@ -225,7 +225,13 @@ export default function AdminClientsPage() {
       if (searchTerm.trim()) params.set("search", searchTerm.trim());
       if (planFilter !== "all") params.set("plan", planFilter);
       if (statusFilter !== "all") params.set("status", statusFilter);
-      if (paymentFilter !== "all") params.set("payment", paymentFilter);
+      if (paymentFilter !== "all") {
+        if (paymentFilter === "pending_transfer") {
+          params.set("verification", "pending_transfer");
+        } else {
+          params.set("payment", paymentFilter);
+        }
+      }
 
       const response = await fetchApi(`/users?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -385,6 +391,14 @@ export default function AdminClientsPage() {
   ];
 
   const getPaymentStatus = (client: any) => {
+    if (client.verification === "pending_transfer") {
+      return {
+        label: "Transferencia pendiente",
+        color: "text-amber-700 bg-amber-50",
+        icon: AlertCircle,
+      };
+    }
+
     if (client.paymentState === "free") {
       return {
         label: "Gratis",
@@ -592,6 +606,7 @@ export default function AdminClientsPage() {
           <option value="all">Todos los pagos</option>
           <option value="free">Gratis</option>
           <option value="paid">Solo realizados</option>
+          <option value="pending_transfer">Transferencias pendientes</option>
           <option value="expired">Vencido</option>
           <option value="none">Sin pago</option>
         </select>

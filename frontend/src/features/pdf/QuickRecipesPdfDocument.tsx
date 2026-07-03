@@ -370,7 +370,7 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
               </View>
 
               <View style={styles.dishBody}>
-                <Image src={dish.imageUrl || DEFAULT_DISH_IMAGE} alt="" style={styles.dishImage} />
+                <Image src={dish.imageUrl || DEFAULT_DISH_IMAGE} style={styles.dishImage} />
 
                 {dish.description?.trim() ? (
                   <Text style={styles.description}>{dish.description}</Text>

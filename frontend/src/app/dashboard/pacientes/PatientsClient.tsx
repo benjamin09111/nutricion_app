@@ -17,7 +17,6 @@ import {
   X,
   Phone,
   Link2,
-  Circle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
@@ -86,7 +85,7 @@ export default function PatientsClient() {
     try {
       await deletePatient(patientToDelete);
       toast.success("Paciente eliminado");
-    } catch (error) {
+    } catch {
       toast.error("Error al eliminar");
     } finally {
       setIsDeleteConfirmOpen(false);
@@ -101,13 +100,9 @@ export default function PatientsClient() {
       toast.success(
         `Estado actualizado a ${newStatus === "Active" ? "Activo" : "Inactivo"}`,
       );
-    } catch (e) {
+    } catch {
       toast.error("Error al actualizar estado");
     }
-  };
-
-  const printJson = () => {
-    toast.info("Vista rápida de pacientes lista.");
   };
 
   const filteredPatients = patients;
@@ -115,15 +110,6 @@ export default function PatientsClient() {
   const isPatientLimitReached =
     Number.isFinite(activePatientLimit) &&
     meta.activeCount >= activePatientLimit;
-
-  const resetPatients = () => {
-    setSearchTerm("");
-    setDebouncedSearchTerm("");
-    setClassificationTags([]);
-    setShowInactive(false);
-    setPage(1);
-    toast.info("Lista de pacientes reiniciada.");
-  };
 
   const openPatientPreview = (patient: Patient) => {
     setPatientPreview(patient);
@@ -469,129 +455,9 @@ export default function PatientsClient() {
                           Sin pacientes registrados
                         </p>
                       </div>
-                    </div>
-                    <div className="ml-3 min-w-0">
-                      <div className="text-sm font-semibold text-slate-900 leading-none mb-1 truncate">
-                        {patient.fullName}
-                      </div>
-                      <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5 min-w-0">
-                        <Mail className="w-3 h-3 text-slate-400 shrink-0" />
-                        <span className="truncate">
-                          {patient.email || "Sin correo"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 lg:px-3 xl:px-6 py-4">
-                  <span className="inline-flex items-center text-sm font-medium text-slate-600 truncate">
-                    {patient.documentId || "---"}
-                  </span>
-                </td>
-                <td className="px-4 lg:px-3 xl:px-6 py-4">
-                  {restrictions.length > 0 ? (
-                    <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                      {visibleRestrictions.map((restriction) => (
-                        <span
-                          key={restriction}
-                          className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2 py-1 text-[11px] font-semibold text-indigo-700 max-w-full"
-                        >
-                          <Heart className="h-3 w-3 text-emerald-600 shrink-0" />
-                          <span className="truncate">{restriction}</span>
-                        </span>
-                      ))}
-                      {remainingRestrictions > 0 && (
-                        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-500 shrink-0">
-                          +{remainingRestrictions}
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-xs font-medium text-slate-400">
-                      Sin restricciones
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 lg:px-3 xl:px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex flex-col items-center gap-1 xl:flex-row xl:gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleTogglePatientStatus(patient)}
-                      className={cn(
-                        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
-                        patient.status !== "Inactive" ? "bg-indigo-500" : "bg-slate-300",
-                      )}
-                      role="switch"
-                      aria-checked={patient.status !== "Inactive"}
-                    >
-                      <span
-                        className={cn(
-                          "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
-                          patient.status !== "Inactive" ? "translate-x-4" : "translate-x-0",
-                        )}
-                      />
-                    </button>
-                    <span
-                      className={cn(
-                        "text-xs font-medium",
-                        patient.status !== "Inactive" ? "text-indigo-700" : "text-slate-500",
-                      )}
-                    >
-                      {patient.status !== "Inactive" ? "Activo" : "Inactivo"}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-2 lg:px-1 xl:px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-end gap-0.5 xl:gap-1">
-                    <button
-                      onClick={() => openPatientPreview(patient)}
-                      className="group relative p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleTogglePatientStatus(patient)}
-                      className="group relative p-2 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
-                    >
-                      {patient.status === "Active" ? (
-                        <Ban className="w-4 h-4 text-emerald-600" />
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4 text-indigo-600" />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      disabled
-                      className="group relative p-2 text-slate-300 bg-slate-50 rounded-xl transition-all cursor-not-allowed"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setPatientToDelete(patient.id);
-                        setIsDeleteConfirmOpen(true);
-                      }}
-                      className="group relative p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })
-        ) : (
-          <tr>
-            <td colSpan={5} className="text-center py-20">
-              <div className="flex flex-col items-center gap-4">
-                <div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100">
-                  <User className="h-8 w-8 text-slate-300" />
-                </div>
-                <p className="text-slate-500 font-medium">Sin pacientes registrados</p>
-              </div>
-            </td>
-          </tr>
-        )}
+                    </td>
+                  </tr>
+            )}
       </tbody>
     </table>
   </div>

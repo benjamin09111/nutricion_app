@@ -391,7 +391,10 @@ export class PatientsService {
         )
       : [];
 
-    const calculations = this.buildAutomaticNutritionCalculations(patient, customVariables);
+    const calculations = this.buildAutomaticNutritionCalculations(
+      patient,
+      customVariables,
+    );
     if (!calculations) return variables as any;
 
     return [
@@ -416,14 +419,26 @@ export class PatientsService {
     };
 
     const kneeHeight = this.toPositiveNumber(findVar('alturaRodilla'));
-    const calfCircumference = this.toPositiveNumber(findVar('circunferenciaPantorrilla'));
-    const armCircumference = this.toPositiveNumber(findVar('circunferenciaBraquial'));
-    const waistCircumference = this.toPositiveNumber(findVar('circunferenciaCintura'));
-    const hipCircumference = this.toPositiveNumber(findVar('circunferenciaCadera'));
+    const calfCircumference = this.toPositiveNumber(
+      findVar('circunferenciaPantorrilla'),
+    );
+    const armCircumference = this.toPositiveNumber(
+      findVar('circunferenciaBraquial'),
+    );
+    const waistCircumference = this.toPositiveNumber(
+      findVar('circunferenciaCintura'),
+    );
+    const hipCircumference = this.toPositiveNumber(
+      findVar('circunferenciaCadera'),
+    );
     const tricipitalFold = this.toPositiveNumber(findVar('pliegueTricipital'));
     const bicipitalFold = this.toPositiveNumber(findVar('pliegueBicipital'));
-    const subescapularFold = this.toPositiveNumber(findVar('pliegueSubescapular'));
-    const suprailiacoFold = this.toPositiveNumber(findVar('pliegueSuprailiaco'));
+    const subescapularFold = this.toPositiveNumber(
+      findVar('pliegueSubescapular'),
+    );
+    const suprailiacoFold = this.toPositiveNumber(
+      findVar('pliegueSuprailiaco'),
+    );
 
     const resolvedAge = this.calculateAge(patient.birthDate);
     const gender = this.normalizeGender(patient.gender);
@@ -459,16 +474,31 @@ export class PatientsService {
       fitnessGoals: patient.fitnessGoals,
     });
 
-    const proteinGramsPerKg = this.resolveProteinGramsPerKg(category, calcResult.inputs.weight || 0);
+    const proteinGramsPerKg = this.resolveProteinGramsPerKg(
+      category,
+      calcResult.inputs.weight || 0,
+    );
 
     const energy = calcResult.energy;
     if (!energy) return null;
 
     const dailyTargets = {
       calories: this.resolveTargetCalories(energy.get, category),
-      protein: Math.round((this.resolveTargetCalories(energy.get, category) * (energy.macros.proteinPercent / 100)) / 4),
-      carbs: Math.round((this.resolveTargetCalories(energy.get, category) * (energy.macros.carbsPercent / 100)) / 4),
-      fats: Math.round((this.resolveTargetCalories(energy.get, category) * (energy.macros.fatsPercent / 100)) / 9),
+      protein: Math.round(
+        (this.resolveTargetCalories(energy.get, category) *
+          (energy.macros.proteinPercent / 100)) /
+          4,
+      ),
+      carbs: Math.round(
+        (this.resolveTargetCalories(energy.get, category) *
+          (energy.macros.carbsPercent / 100)) /
+          4,
+      ),
+      fats: Math.round(
+        (this.resolveTargetCalories(energy.get, category) *
+          (energy.macros.fatsPercent / 100)) /
+          9,
+      ),
       proteinPercent: energy.macros.proteinPercent,
       carbsPercent: energy.macros.carbsPercent,
       fatsPercent: energy.macros.fatsPercent,

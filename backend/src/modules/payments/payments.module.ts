@@ -6,9 +6,15 @@ import { FlowService } from './flow.service';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { DiscountCodesModule } from '../discount-codes/discount-codes.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [PrismaModule, PermissionsModule, DiscountCodesModule],
+  imports: [
+    PrismaModule,
+    PermissionsModule,
+    DiscountCodesModule,
+    NotificationsModule,
+  ],
   controllers: [PaymentsController, PaymentsWebhookController],
   providers: [PaymentsService, FlowService],
   exports: [PaymentsService],

@@ -53,6 +53,7 @@ export class UsersController {
     @Query('plan') plan?: string,
     @Query('status') status?: string,
     @Query('payment') payment?: string,
+    @Query('verification') verification?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -92,6 +93,7 @@ export class UsersController {
       plan,
       status,
       payment,
+      verification,
       page ? Number(page) : undefined,
       limit ? Number(limit) : undefined,
     );
@@ -158,6 +160,19 @@ export class UsersController {
       );
     }
     return this.usersService.updatePlan(id, body.plan as any, body.days);
+  }
+
+  @Post(':id/notify-transfer')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
+  notifyTransfer(@Param('id') id: string, @Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException(
+        'Solo el administrador puede enviar este aviso',
+      );
+    }
+
+    return this.usersService.sendTransferNotification(id);
   }
 
   @Patch(':id/public-profile')

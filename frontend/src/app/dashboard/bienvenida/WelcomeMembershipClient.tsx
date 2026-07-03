@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ArrowRight, Sparkles, Loader2, BadgeCheck } from "lucide-react";
+import { ArrowRight, Sparkles, Loader2, BadgeCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { membershipService } from "@/features/memberships/services/membership.service";
-import { goToDashboard } from "@/lib/membership-navigation";
 
 type Props = {
   initialPlan: string | null;
@@ -19,7 +18,7 @@ export default function WelcomeMembershipClient({
   payment,
 }: Props) {
   const router = useRouter();
-  const [planName, setPlanName] = useState(initialPlan || "tu plan");
+  const [planName] = useState(initialPlan || "tu plan");
   const [isChecking, setIsChecking] = useState(payment === "success");
 
   const title = useMemo(() => {
@@ -87,7 +86,7 @@ export default function WelcomeMembershipClient({
                 {title}, bienvenido a NutriNet!
               </h1>
               <p className="max-w-xl text-base leading-7 text-slate-600 dark:text-slate-400 sm:text-lg">
-                Ya puedes comenzar. Te llevaremos a tu dashboard para que sigas con tu flujo sin fricción.
+                Ya puedes comenzar. Si tu pago quedó pendiente de revisión, seguirás con acceso al plan gratuito mientras se aprueba.
               </p>
             </div>
 

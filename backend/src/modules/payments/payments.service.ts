@@ -17,6 +17,8 @@ import {
 } from '@prisma/client';
 import { DiscountCodesService } from '../discount-codes/discount-codes.service';
 import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
+import { WhatsAppService } from '../notifications/whatsapp.service';
+import { MailService } from '../mail/mail.service';
 import * as XLSX from 'xlsx';
 
 @Injectable()
@@ -29,6 +31,8 @@ export class PaymentsService {
     private readonly permissionsService: PermissionsService,
     private readonly planUsageService: PlanUsageService,
     private readonly discountCodesService: DiscountCodesService,
+    private readonly whatsappService: WhatsAppService,
+    private readonly mailService: MailService,
   ) {}
 
   private isMockMode(): boolean {
@@ -202,10 +206,18 @@ export class PaymentsService {
       };
     });
 
-    const transferRows = paymentRows.filter((row) => row.method === 'BANK_TRANSFER');
+    const transferRows = paymentRows.filter(
+      (row) => row.method === 'BANK_TRANSFER',
+    );
 
-    const totalRevenue = paymentRows.reduce((sum, row) => sum + Number(row.amount_clp || 0), 0);
-    const bankRevenue = transferRows.reduce((sum, row) => sum + Number(row.amount_clp || 0), 0);
+    const totalRevenue = paymentRows.reduce(
+      (sum, row) => sum + Number(row.amount_clp || 0),
+      0,
+    );
+    const bankRevenue = transferRows.reduce(
+      (sum, row) => sum + Number(row.amount_clp || 0),
+      0,
+    );
     const flowRevenue = paymentRows
       .filter((row) => row.method === 'FLOW')
       .reduce((sum, row) => sum + Number(row.amount_clp || 0), 0);
@@ -233,7 +245,11 @@ export class PaymentsService {
 
     XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen');
     XLSX.utils.book_append_sheet(workbook, salesSheet, 'Ventas completadas');
-    XLSX.utils.book_append_sheet(workbook, transfersSheet, 'Transferencias aceptadas');
+    XLSX.utils.book_append_sheet(
+      workbook,
+      transfersSheet,
+      'Transferencias aceptadas',
+    );
 
     summarySheet['!cols'] = [{ wch: 32 }, { wch: 28 }];
     salesSheet['!cols'] = [
@@ -762,6 +778,8 @@ export class PaymentsService {
     planId: string,
     nutritionistEmail?: string,
     nutritionistName?: string,
+    discountCode?: string,
+    amount?: number,
   ) {
     const plan = await this.prisma.membershipPlan.findUnique({
       where: { id: planId },
@@ -787,29 +805,102 @@ export class PaymentsService {
       throw new NotFoundException('Cuenta no encontrada');
     }
 
-    const payment = await this.prisma.payment.create({
-      data: {
-        accountId,
-        amount: price,
-        currency: plan.currency,
-        status: PaymentStatus.PENDING,
-        method: PaymentMethod.BANK_TRANSFER,
-        metadata: {
-          type: 'MEMBERSHIP_PLAN',
-          provider: 'MANUAL_TRANSFER',
-          planId: plan.id,
-          planName: plan.name,
-          planSlug: plan.slug,
-          fullPrice: price,
-          nutritionistEmail: nutritionistEmail || account.email,
-          nutritionistName:
-            nutritionistName ||
-            account.nutritionist?.fullName ||
-            'No especificado',
-          requestedAt: new Date().toISOString(),
-        },
+    const freePlan = await this.prisma.membershipPlan.findFirst({
+      where: {
+        isActive: true,
+        OR: [{ price: 0 }, { slug: { contains: 'free', mode: 'insensitive' } }],
       },
     });
+
+    if (!freePlan) {
+      throw new NotFoundException('No se encontró un plan gratuito activo');
+    }
+
+    const payment = await this.prisma.$transaction(async (tx) => {
+      const createdPayment = await tx.payment.create({
+        data: {
+          accountId,
+          amount: amount ?? price,
+          currency: plan.currency,
+          status: PaymentStatus.PENDING,
+          method: PaymentMethod.BANK_TRANSFER,
+          metadata: {
+            type: 'MEMBERSHIP_PLAN',
+            provider: 'MANUAL_TRANSFER',
+            planId: plan.id,
+            planName: plan.name,
+            planSlug: plan.slug,
+            fullPrice: price,
+            chargedAmount: amount ?? price,
+            ...(discountCode
+              ? {
+                  discountCode: discountCode,
+                }
+              : {}),
+            nutritionistEmail: nutritionistEmail || account.email,
+            nutritionistName:
+              nutritionistName ||
+              account.nutritionist?.fullName ||
+              'No especificado',
+            requestedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + 1);
+
+      await this.upsertSubscription(
+        tx,
+        accountId,
+        freePlan,
+        startDate,
+        endDate,
+      );
+      await this.updateAccountPlan(tx, accountId, freePlan, endDate);
+      await this.createSubscriptionEvent(
+        tx,
+        accountId,
+        createdPayment.id,
+        'ACTIVATED',
+        freePlan.id,
+      );
+
+      return createdPayment;
+    });
+
+    const nameForNotification =
+      nutritionistName || account.nutritionist?.fullName || 'No especificado';
+    const emailForNotification = nutritionistEmail || account.email;
+
+    this.whatsappService
+      .notifyOwnerOfTransfer({
+        nutritionistName: nameForNotification,
+        nutritionistEmail: emailForNotification,
+        planName: plan.name,
+        amount: amount ?? price,
+        paymentId: payment.id,
+      })
+      .catch((err) => {
+        this.logger.error(
+          '[Payments] Error enviando notificación WhatsApp:',
+          err,
+        );
+      });
+
+    this.mailService
+      .sendTransferNotification({
+        nutritionistName: nameForNotification,
+        nutritionistEmail: emailForNotification,
+        planName: plan.name,
+        amount: amount ?? price,
+        paymentId: payment.id,
+        source: 'payments.manual-transfer',
+      })
+      .catch((err) => {
+        this.logger.error('[Payments] Error enviando notificación email:', err);
+      });
 
     return {
       paymentId: payment.id,

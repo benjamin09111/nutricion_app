@@ -238,6 +238,45 @@ export class MailService {
     });
   }
 
+  async sendTransferNotification(data: {
+    nutritionistName: string;
+    nutritionistEmail: string;
+    planName?: string;
+    amount?: number;
+    paymentId?: string;
+    source?: string;
+  }): Promise<void> {
+    const amountLabel =
+      typeof data.amount === 'number'
+        ? new Intl.NumberFormat('es-CL', {
+            style: 'currency',
+            currency: 'CLP',
+            maximumFractionDigits: 0,
+          }).format(data.amount)
+        : 'N/D';
+
+    const html = this.wrapHtml(
+      'Transferencia informada',
+      `<p>Un nutricionista indicó que ya realizó una transferencia.</p><ul style="line-height:1.9;padding-left:18px"><li><strong>Nombre:</strong> ${this.escapeHtml(data.nutritionistName)}</li><li><strong>Correo:</strong> ${this.escapeHtml(data.nutritionistEmail)}</li><li><strong>Plan:</strong> ${this.escapeHtml(data.planName || 'N/D')}</li><li><strong>Monto:</strong> ${this.escapeHtml(amountLabel)}</li><li><strong>ID pago:</strong> ${this.escapeHtml(data.paymentId || 'N/D')}</li><li><strong>Origen:</strong> ${this.escapeHtml(data.source || 'N/D')}</li></ul>`,
+    );
+
+    await this.sendEmail({
+      to: this.adminEmail,
+      subject: 'Nutri informó una transferencia',
+      html,
+      text: [
+        'Un nutricionista indicó que ya realizó una transferencia.',
+        `Nombre: ${data.nutritionistName}`,
+        `Correo: ${data.nutritionistEmail}`,
+        `Plan: ${data.planName || 'N/D'}`,
+        `Monto: ${amountLabel}`,
+        `ID pago: ${data.paymentId || 'N/D'}`,
+        `Origen: ${data.source || 'N/D'}`,
+      ].join('\n'),
+      channel: 'notifications',
+    });
+  }
+
   async sendAnnouncementEmail(data: {
     email: string;
     name?: string;

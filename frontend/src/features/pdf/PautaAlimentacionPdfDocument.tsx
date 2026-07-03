@@ -336,7 +336,7 @@ export const PautaAlimentacionPdfDocument: React.FC<{ data: PautaAlimentacionPdf
               )}
               {paragraph.imagePath && (
                 <View style={{ marginTop: 6 }}>
-                  <Image src={paragraph.imagePath} alt="" style={styles.categoryImage} />
+                  <Image src={paragraph.imagePath} style={styles.categoryImage} />
                 </View>
               )}
             </View>

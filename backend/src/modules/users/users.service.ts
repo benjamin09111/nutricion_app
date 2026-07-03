@@ -1,9 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 const normalizeCalendarTimeZone = (timeZone?: string | null) =>
   !timeZone || timeZone === 'UTC' ? 'America/Santiago' : timeZone;
-import { AccountStatus, SubscriptionPlan, UserRole } from '@prisma/client';
+import {
+  AccountStatus,
+  SubscriptionPlan,
+  UserRole,
+  PaymentMethod,
+  PaymentStatus,
+} from '@prisma/client';
 import { MailService } from '../mail/mail.service';
 import { ADMIN_ROLES } from '../permissions/permissions.constants';
 import { normalizeMembershipPlanKey } from '../memberships/plan-entitlements';
@@ -31,6 +37,7 @@ export class UsersService {
     plan?: string,
     status?: string,
     payment?: string,
+    verification?: string,
     page?: number,
     limit?: number,
   ) {
@@ -145,6 +152,20 @@ export class UsersService {
       }
     }
 
+    if (verification === 'pending_transfer') {
+      where.AND = [
+        ...(where.AND || []),
+        {
+          payments: {
+            some: {
+              status: 'PENDING',
+              method: 'BANK_TRANSFER',
+            },
+          },
+        },
+      ];
+    }
+
     const normalizedPage = Math.max(1, Math.trunc(page || 1));
     const normalizedLimit = Math.min(50, Math.max(1, Math.trunc(limit || 10)));
     const hasPagination = page !== undefined || limit !== undefined;
@@ -164,6 +185,17 @@ export class UsersService {
               _count: {
                 select: { patients: true },
               },
+            },
+          },
+          payments: {
+            where: {
+              status: 'PENDING',
+              method: 'BANK_TRANSFER',
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: {
+              id: true,
             },
           },
           subscription: {
@@ -199,6 +231,17 @@ export class UsersService {
             _count: {
               select: { patients: true },
             },
+          },
+        },
+        payments: {
+          where: {
+            status: 'PENDING',
+            method: 'BANK_TRANSFER',
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
           },
         },
         subscription: {
@@ -268,6 +311,7 @@ export class UsersService {
       consultationMode: acc.nutritionist?.consultationMode || null,
       location: acc.nutritionist?.location || null,
       avatarUrl: acc.nutritionist?.avatarUrl || null,
+      verification: acc.payments?.length ? 'pending_transfer' : 'none',
     };
   }
 
@@ -297,6 +341,55 @@ export class UsersService {
       where: { id },
       include: { nutritionist: true },
     });
+  }
+
+  async sendTransferNotification(id: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id },
+      select: {
+        email: true,
+        plan: true,
+        nutritionist: {
+          select: {
+            fullName: true,
+          },
+        },
+        payments: {
+          where: {
+            status: PaymentStatus.PENDING,
+            method: PaymentMethod.BANK_TRANSFER,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            amount: true,
+            metadata: true,
+          },
+        },
+      },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const latestPayment = account.payments[0];
+    const metadata = (latestPayment?.metadata as Record<string, any>) || {};
+
+    await this.mailService.sendTransferNotification({
+      nutritionistName: account.nutritionist?.fullName || 'No especificado',
+      nutritionistEmail: account.email,
+      planName: metadata.planName || account.plan,
+      amount: latestPayment ? Number(latestPayment.amount) : undefined,
+      paymentId: latestPayment?.id,
+      source: 'users.admin-panel',
+    });
+
+    return {
+      success: true,
+      message: 'Aviso de transferencia enviado a contacto@nutrinet.cl',
+    };
   }
 
   async update(
@@ -471,6 +564,7 @@ export class UsersService {
           data: {
             plan: SubscriptionPlan.FREE,
             subscriptionEndsAt: null,
+            lastLoginAt: new Date(),
           },
         });
       }
@@ -515,11 +609,37 @@ export class UsersService {
         },
       });
 
+      const pendingTransfer = await tx.payment.findFirst({
+        where: {
+          accountId: userId,
+          status: PaymentStatus.PENDING,
+          method: PaymentMethod.BANK_TRANSFER,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (pendingTransfer) {
+        await tx.payment.update({
+          where: { id: pendingTransfer.id },
+          data: {
+            status: PaymentStatus.COMPLETED,
+            paidAt: new Date(),
+            metadata: {
+              ...(pendingTransfer.metadata as Record<string, any>),
+              approvedByAdmin: true,
+              approvedAt: new Date().toISOString(),
+              approvalSource: 'users.updatePlan',
+            },
+          },
+        });
+      }
+
       return tx.account.update({
         where: { id: userId },
         data: {
           plan: accountPlan,
           subscriptionEndsAt: endDate,
+          lastLoginAt: new Date(),
         },
       });
     });

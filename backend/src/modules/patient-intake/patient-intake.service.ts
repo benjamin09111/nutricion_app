@@ -330,7 +330,12 @@ export class PatientIntakeService {
     }
 
     const customVariables: any[] = [];
-    const addCustomVar = (key: string, label: string, value: any, unit: string) => {
+    const addCustomVar = (
+      key: string,
+      label: string,
+      value: any,
+      unit: string,
+    ) => {
       if (value !== undefined && value !== null && value !== '') {
         const num = Number(value);
         if (!isNaN(num)) {
@@ -339,15 +344,60 @@ export class PatientIntakeService {
       }
     };
 
-    addCustomVar('alturaRodilla', 'Altura de rodilla', payload.kneeHeight, 'cm');
-    addCustomVar('circunferenciaPantorrilla', 'Circ. pantorrilla', payload.calfCircumference, 'cm');
-    addCustomVar('circunferenciaBraquial', 'Circ. braquial', payload.armCircumference, 'cm');
-    addCustomVar('circunferenciaCintura', 'Circ. cintura (cardio)', payload.waistCircumference, 'cm');
-    addCustomVar('circunferenciaCadera', 'Circ. cadera (cardio)', payload.hipCircumference, 'cm');
-    addCustomVar('pliegueTricipital', 'Tricipital', payload.pliegueTricipital, 'mm');
-    addCustomVar('pliegueBicipital', 'Bicipital', payload.pliegueBicipital, 'mm');
-    addCustomVar('pliegueSubescapular', 'Subescapular', payload.pliegueSubescapular, 'mm');
-    addCustomVar('pliegueSuprailiaco', 'Suprailiaco', payload.pliegueSuprailiaco, 'mm');
+    addCustomVar(
+      'alturaRodilla',
+      'Altura de rodilla',
+      payload.kneeHeight,
+      'cm',
+    );
+    addCustomVar(
+      'circunferenciaPantorrilla',
+      'Circ. pantorrilla',
+      payload.calfCircumference,
+      'cm',
+    );
+    addCustomVar(
+      'circunferenciaBraquial',
+      'Circ. braquial',
+      payload.armCircumference,
+      'cm',
+    );
+    addCustomVar(
+      'circunferenciaCintura',
+      'Circ. cintura (cardio)',
+      payload.waistCircumference,
+      'cm',
+    );
+    addCustomVar(
+      'circunferenciaCadera',
+      'Circ. cadera (cardio)',
+      payload.hipCircumference,
+      'cm',
+    );
+    addCustomVar(
+      'pliegueTricipital',
+      'Tricipital',
+      payload.pliegueTricipital,
+      'mm',
+    );
+    addCustomVar(
+      'pliegueBicipital',
+      'Bicipital',
+      payload.pliegueBicipital,
+      'mm',
+    );
+    addCustomVar(
+      'pliegueSubescapular',
+      'Subescapular',
+      payload.pliegueSubescapular,
+      'mm',
+    );
+    addCustomVar(
+      'pliegueSuprailiaco',
+      'Suprailiaco',
+      payload.pliegueSuprailiaco,
+      'mm',
+    );
 
     const createPatientDto: CreatePatientDto = {
       fullName: payload.fullName,

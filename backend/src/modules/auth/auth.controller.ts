@@ -16,7 +16,6 @@ import {
 import { AuthService } from './auth.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { AuthGuard } from './guards/auth.guard';
-import { UpdatePasswordDto } from './dto/update-password.dto';
 import { CompleteRutDto } from './dto/complete-rut.dto';
 import { isAdminRole } from '../permissions/permissions.constants';
 import { GoogleIntegrationService } from '../integrations/google-integration.service';
@@ -170,16 +169,6 @@ export class AuthController {
       console.error('Error in reset-password controller:', error);
       throw error;
     }
-  }
-
-  @UseGuards(AuthGuard)
-  @Post('update-password')
-  @HttpCode(HttpStatus.OK)
-  updatePassword(
-    @Request() req: any,
-    @Body() updatePasswordDto: UpdatePasswordDto,
-  ) {
-    return this.authService.updatePassword(req.user.id, updatePasswordDto);
   }
 
   @Post('register')

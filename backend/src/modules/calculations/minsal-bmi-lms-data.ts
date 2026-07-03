@@ -1,5 +1,10 @@
 export type MinsalSex = 'female' | 'male';
-export type MinsalBmiLmsRow = { ageMonths: number; L: number; M: number; S: number };
+export type MinsalBmiLmsRow = {
+  ageMonths: number;
+  L: number;
+  M: number;
+  S: number;
+};
 
 export const MINSAL_BMI_LMS: Record<MinsalSex, MinsalBmiLmsRow[]> = {
   female: [

@@ -8,7 +8,13 @@ import { PermissionsModule } from '../permissions/permissions.module';
 import { CalculationsModule } from '../calculations/calculations.module';
 
 @Module({
-  imports: [PrismaModule, TagsModule, MetricsModule, PermissionsModule, CalculationsModule],
+  imports: [
+    PrismaModule,
+    TagsModule,
+    MetricsModule,
+    PermissionsModule,
+    CalculationsModule,
+  ],
   providers: [PatientsService],
   controllers: [PatientsController],
   exports: [PatientsService],

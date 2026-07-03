@@ -1,8 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { MINSAL_BMI_LMS, MinsalSex, MinsalBmiLmsRow } from './minsal-bmi-lms-data';
+import {
+  MINSAL_BMI_LMS,
+  MinsalSex,
+  MinsalBmiLmsRow,
+} from './minsal-bmi-lms-data';
 
 export type Gender = 'Masculino' | 'Femenino' | 'Otro';
-export type ActivityLevel = 'sedentario' | 'ligero' | 'moderado' | 'activo' | 'muy_activo';
+export type ActivityLevel =
+  | 'sedentario'
+  | 'ligero'
+  | 'moderado'
+  | 'activo'
+  | 'muy_activo';
 export type TmbFormula = 'mifflin-st-jeor' | 'harris-benedict' | 'oms-fao';
 
 export interface CalculationInputs {
@@ -64,14 +73,70 @@ export interface GetResult {
 }
 
 const EXCHANGE_PROFILES = {
-  cereales_tuberculos: { label: 'Cereales, panes y tubérculos', portion: '1/2 taza cocida, 1 rebanada de pan o 1 papa pequeña', cho: 30, protein: 3, fat: 1, kcal: 140 },
-  legumbres_secas: { label: 'Legumbres', portion: '3/4 taza cocida', cho: 30, protein: 12, fat: 1, kcal: 180 },
-  frutas: { label: 'Frutas', portion: '1 unidad mediana o 1 taza picada', cho: 15, protein: 0, fat: 0, kcal: 60 },
-  verduras_bajas: { label: 'Verduras de bajo aporte', portion: '2 tazas crudas o 1 taza cocida', cho: 5, protein: 2, fat: 0, kcal: 25 },
-  proteina_magra: { label: 'Proteína magra', portion: '50 g cocidos o 1/2 pechuga pequeña', cho: 0, protein: 11, fat: 2, kcal: 65 },
-  lacteos_descremados: { label: 'Lácteos descremados', portion: '1 taza de leche o yogurt descremado', cho: 12, protein: 8, fat: 0, kcal: 80 },
-  grasas_saludables: { label: 'Grasas y aceites', portion: '1 cucharada de aceite o 1/4 de palta', cho: 0, protein: 0, fat: 20, kcal: 180 },
-  azucares_extras: { label: 'Azúcares y extras', portion: '1 cucharadita a 1 cucharada', cho: 5, protein: 0, fat: 0, kcal: 20 },
+  cereales_tuberculos: {
+    label: 'Cereales, panes y tubérculos',
+    portion: '1/2 taza cocida, 1 rebanada de pan o 1 papa pequeña',
+    cho: 30,
+    protein: 3,
+    fat: 1,
+    kcal: 140,
+  },
+  legumbres_secas: {
+    label: 'Legumbres',
+    portion: '3/4 taza cocida',
+    cho: 30,
+    protein: 12,
+    fat: 1,
+    kcal: 180,
+  },
+  frutas: {
+    label: 'Frutas',
+    portion: '1 unidad mediana o 1 taza picada',
+    cho: 15,
+    protein: 0,
+    fat: 0,
+    kcal: 60,
+  },
+  verduras_bajas: {
+    label: 'Verduras de bajo aporte',
+    portion: '2 tazas crudas o 1 taza cocida',
+    cho: 5,
+    protein: 2,
+    fat: 0,
+    kcal: 25,
+  },
+  proteina_magra: {
+    label: 'Proteína magra',
+    portion: '50 g cocidos o 1/2 pechuga pequeña',
+    cho: 0,
+    protein: 11,
+    fat: 2,
+    kcal: 65,
+  },
+  lacteos_descremados: {
+    label: 'Lácteos descremados',
+    portion: '1 taza de leche o yogurt descremado',
+    cho: 12,
+    protein: 8,
+    fat: 0,
+    kcal: 80,
+  },
+  grasas_saludables: {
+    label: 'Grasas y aceites',
+    portion: '1 cucharada de aceite o 1/4 de palta',
+    cho: 0,
+    protein: 0,
+    fat: 20,
+    kcal: 180,
+  },
+  azucares_extras: {
+    label: 'Azúcares y extras',
+    portion: '1 cucharadita a 1 cucharada',
+    cho: 5,
+    protein: 0,
+    fat: 0,
+    kcal: 20,
+  },
 };
 
 @Injectable()
@@ -87,7 +152,11 @@ export class CalculationsService {
   /**
    * Helper to validate inputs within biological limits
    */
-  validateInput(val: number | null | undefined, min: number, max: number): number | null {
+  validateInput(
+    val: number | null | undefined,
+    min: number,
+    max: number,
+  ): number | null {
     if (val === undefined || val === null) return null;
     const num = Number(val);
     if (Number.isFinite(num) && num >= min && num <= max) {
@@ -106,7 +175,10 @@ export class CalculationsService {
     const today = new Date();
     let age = today.getFullYear() - date.getFullYear();
     const monthDiff = today.getMonth() - date.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < date.getDate())
+    ) {
       age -= 1;
     }
     return age >= 0 ? age : null;
@@ -115,7 +187,11 @@ export class CalculationsService {
   /**
    * Chumlea stature (height) estimation in cm
    */
-  estimateStatureChumlea(gender: Gender, ageYears: number, kneeHeight: number): number | null {
+  estimateStatureChumlea(
+    gender: Gender,
+    ageYears: number,
+    kneeHeight: number,
+  ): number | null {
     const age = this.validateInput(ageYears, 0, 120);
     const kh = this.validateInput(kneeHeight, 20, 85);
     if (age === null || kh === null) return null;
@@ -150,13 +226,19 @@ export class CalculationsService {
     if (kh === null || cb === null || cp === null || pse === null) return null;
 
     if (gender === 'Masculino') {
-      return this.round(1.73 * cb + 0.98 * cp + 0.37 * pse + 1.16 * kh - 81.69, 2);
+      return this.round(
+        1.73 * cb + 0.98 * cp + 0.37 * pse + 1.16 * kh - 81.69,
+        2,
+      );
     } else if (gender === 'Femenino') {
-      return this.round(0.98 * cb + 1.27 * cp + 0.40 * pse + 0.87 * kh - 62.35, 2);
+      return this.round(
+        0.98 * cb + 1.27 * cp + 0.4 * pse + 0.87 * kh - 62.35,
+        2,
+      );
     } else {
       // Fallback mean
       const mVal = 1.73 * cb + 0.98 * cp + 0.37 * pse + 1.16 * kh - 81.69;
-      const fVal = 0.98 * cb + 1.27 * cp + 0.40 * pse + 0.87 * kh - 62.35;
+      const fVal = 0.98 * cb + 1.27 * cp + 0.4 * pse + 0.87 * kh - 62.35;
       return this.round((mVal + fVal) / 2, 2);
     }
   }
@@ -169,7 +251,11 @@ export class CalculationsService {
     const d = 0.3989422804014327 * Math.exp((-z * z) / 2);
     const prob =
       d *
-      (((((1.330274429 * t - 1.821255978) * t + 1.781477937) * t - 0.356563782) * t + 0.31938153) * t);
+      (((((1.330274429 * t - 1.821255978) * t + 1.781477937) * t -
+        0.356563782) *
+        t +
+        0.31938153) *
+        t);
     return z > 0 ? 1 - prob : prob;
   }
 
@@ -180,7 +266,10 @@ export class CalculationsService {
   /**
    * Retrieves getMinsalBmiLms equivalent row
    */
-  private getMinsalBmiLms(sex: MinsalSex, ageMonths: number): MinsalBmiLmsRow | null {
+  private getMinsalBmiLms(
+    sex: MinsalSex,
+    ageMonths: number,
+  ): MinsalBmiLmsRow | null {
     const rows = MINSAL_BMI_LMS[sex];
     if (!rows || rows.length === 0) return null;
     const clampedMonths = Math.min(
@@ -210,7 +299,11 @@ export class CalculationsService {
   /**
    * Pediatric growth curves BMI assessment
    */
-  getPediatricBmiAssessment(bmi: number, gender: Gender, ageYears: number): BmiResult | null {
+  getPediatricBmiAssessment(
+    bmi: number,
+    gender: Gender,
+    ageYears: number,
+  ): BmiResult | null {
     const sex: MinsalSex | null =
       gender === 'Femenino' ? 'female' : gender === 'Masculino' ? 'male' : null;
 
@@ -262,10 +355,10 @@ export class CalculationsService {
         percentile < 10
           ? '<p10'
           : percentile < 85
-          ? 'p10-p85'
-          : percentile < 95
-          ? 'p85-p95'
-          : '>p95',
+            ? 'p10-p85'
+            : percentile < 95
+              ? 'p85-p95'
+              : '>p95',
       reference: 'MINSAL IMC/E 5-19 años',
       isPediatric: true,
     };
@@ -274,7 +367,12 @@ export class CalculationsService {
   /**
    * Calculates BMI and classifies it accordingly
    */
-  calculateBMI(weightKg: number, heightCm: number, gender: Gender, ageYears: number | null): BmiResult {
+  calculateBMI(
+    weightKg: number,
+    heightCm: number,
+    gender: Gender,
+    ageYears: number | null,
+  ): BmiResult {
     const heightM = heightCm / 100;
     const bmi = weightKg / (heightM * heightM);
 
@@ -345,7 +443,11 @@ export class CalculationsService {
   /**
    * Estimates Ideal Weight Range based on validations
    */
-  getIdealWeightRange(heightCm: number, gender: Gender, ageYears: number | null): IdealWeightResult {
+  getIdealWeightRange(
+    heightCm: number,
+    gender: Gender,
+    ageYears: number | null,
+  ): IdealWeightResult {
     const heightM = heightCm / 100;
 
     if (ageYears !== null && ageYears < 5) {
@@ -360,7 +462,11 @@ export class CalculationsService {
 
     if (ageYears !== null && ageYears < 18) {
       const sex: MinsalSex | null =
-        gender === 'Femenino' ? 'female' : gender === 'Masculino' ? 'male' : null;
+        gender === 'Femenino'
+          ? 'female'
+          : gender === 'Masculino'
+            ? 'male'
+            : null;
       if (!sex) {
         return {
           min: 0,
@@ -387,7 +493,10 @@ export class CalculationsService {
       return {
         min: this.round(ideal * 0.95, 1),
         max: this.round(ideal * 1.05, 1),
-        reference: sex === 'female' ? 'IMC p50 MINSAL (niñas)' : 'IMC p50 MINSAL (niños)',
+        reference:
+          sex === 'female'
+            ? 'IMC p50 MINSAL (niñas)'
+            : 'IMC p50 MINSAL (niños)',
         percentile: 50,
         note: 'Referencia IMC/Edad MINSAL para 5 a 19 años.',
         supported: true,
@@ -406,7 +515,8 @@ export class CalculationsService {
 
     // Adult criteria
     // Hombres IMC 22.5, Mujeres IMC 21.5
-    const targetBmi = gender === 'Masculino' ? 22.5 : gender === 'Femenino' ? 21.5 : 22.0;
+    const targetBmi =
+      gender === 'Masculino' ? 22.5 : gender === 'Femenino' ? 21.5 : 22.0;
     const idealWeight = targetBmi * heightM * heightM;
 
     return {
@@ -545,8 +655,14 @@ export class CalculationsService {
   /**
    * Exchange food portions suggestions
    */
-  buildSuggestedExchangeRows(calories: number, carbs: number, protein: number, fats: number) {
-    const roundToSingle = (value: number) => Math.round(Math.max(0, value) * 10) / 10;
+  buildSuggestedExchangeRows(
+    calories: number,
+    carbs: number,
+    protein: number,
+    fats: number,
+  ) {
+    const roundToSingle = (value: number) =>
+      Math.round(Math.max(0, value) * 10) / 10;
 
     const rows: Array<{ profileId: string; portions: number }> = [
       {
@@ -624,7 +740,11 @@ export class CalculationsService {
     // Stature & Weight Estimation (Chumlea)
     let estimatedHeight = null;
     if (inputs.kneeHeight && resolvedAge !== null) {
-      estimatedHeight = this.estimateStatureChumlea(gender, resolvedAge, inputs.kneeHeight);
+      estimatedHeight = this.estimateStatureChumlea(
+        gender,
+        resolvedAge,
+        inputs.kneeHeight,
+      );
     }
 
     let estimatedWeight = null;
@@ -663,21 +783,28 @@ export class CalculationsService {
           resolvedAge !== null && resolvedAge >= 65
             ? 25.5
             : gender === 'Masculino'
-            ? 22.5
-            : gender === 'Femenino'
-            ? 21.5
-            : 22.0;
+              ? 22.5
+              : gender === 'Femenino'
+                ? 21.5
+                : 22.0;
         const targetIdealWeight = targetBmi * Math.pow(height / 100, 2);
 
         // Adjust if actual weight deviates drastically (e.g. Obese or BMI > target + 5)
-        adjustedWeight = this.round(targetIdealWeight + 0.25 * (weight - targetIdealWeight), 1);
+        adjustedWeight = this.round(
+          targetIdealWeight + 0.25 * (weight - targetIdealWeight),
+          1,
+        );
       }
     }
 
     // Composición Brazo (Frisancho)
     let armComposition = null;
     if (inputs.armCircumference && tricipital) {
-      armComposition = this.calculateArmComposition(gender, inputs.armCircumference, tricipital);
+      armComposition = this.calculateArmComposition(
+        gender,
+        inputs.armCircumference,
+        tricipital,
+      );
     }
 
     // Cardiovascular Risk
@@ -696,7 +823,13 @@ export class CalculationsService {
     if (weight && height && resolvedAge !== null) {
       const activityLevel = inputs.activityLevel || 'sedentario';
       const formula = (inputs.tmbFormula as TmbFormula) || 'mifflin-st-jeor';
-      const tmb = this.calculateTMB(gender, weight, height, resolvedAge, formula);
+      const tmb = this.calculateTMB(
+        gender,
+        weight,
+        height,
+        resolvedAge,
+        formula,
+      );
 
       if (tmb !== null) {
         const baseFactors: Record<string, number> = {
@@ -720,7 +853,12 @@ export class CalculationsService {
 
         energy = {
           tmb: Math.round(tmb),
-          formula: formula === 'mifflin-st-jeor' ? 'Mifflin-St Jeor' : formula === 'harris-benedict' ? 'Harris-Benedict' : 'OMS/FAO',
+          formula:
+            formula === 'mifflin-st-jeor'
+              ? 'Mifflin-St Jeor'
+              : formula === 'harris-benedict'
+                ? 'Harris-Benedict'
+                : 'OMS/FAO',
           get: getVal,
           activityFactor: factor,
           macros: {
@@ -734,7 +872,12 @@ export class CalculationsService {
           },
         };
 
-        exchangePortions = this.buildSuggestedExchangeRows(getVal, carbsGrams, proteinGrams, fatsGrams);
+        exchangePortions = this.buildSuggestedExchangeRows(
+          getVal,
+          carbsGrams,
+          proteinGrams,
+          fatsGrams,
+        );
       }
     }
 
