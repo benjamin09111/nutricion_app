@@ -11,6 +11,7 @@ import React, {
 import { toast } from "sonner";
 import { membershipService } from "@/features/memberships/services/membership.service";
 import { fetchApi } from "@/lib/api-base";
+import { authService } from "@/features/auth/services/auth.service";
 import { getAuthToken } from "@/lib/auth-token";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 
@@ -155,10 +156,24 @@ export function SubscriptionProvider({
 
   const refreshSubscription = useCallback(async () => {
     let resolvedRole: string | null = null;
+    const previousUser = getCurrentUser();
 
     try {
       const data = await membershipService.getStatus();
       const key = computePlan(data.currentPlan, data.accountPlan);
+      const previousPlan = String(
+        previousUser?.plan || previousUser?.currentPlan?.key || previousUser?.currentPlan?.slug || "",
+      ).toLowerCase();
+      const nextPlan = String(data.accountPlan || key || "").toLowerCase();
+
+      if (previousUser && previousPlan && nextPlan && previousPlan !== nextPlan) {
+        await authService.signOut();
+        if (typeof window !== "undefined") {
+          window.location.assign("/login?reason=plan-updated");
+        }
+        return;
+      }
+
       setPlan(key as SubscriptionPlan);
       setPlanName(data.currentPlan?.name || "Plan Gratuito");
       setStatus(data.subscription?.status || null);

@@ -152,12 +152,19 @@ export function TransferPaymentModal({
       }
 
       setPhase("success");
-      onSuccess?.();
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Error al enviar solicitud");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleClose = () => {
+    if (phase === "success") {
+      onSuccess?.();
+    }
+
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -166,22 +173,22 @@ export function TransferPaymentModal({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300 min-h-screen">
-      <div className="fixed inset-0" onClick={onClose} />
+      <div className="fixed inset-0" onClick={handleClose} />
       <div className="relative w-full max-w-5xl max-h-[calc(100dvh-2rem)] overflow-y-auto overflow-x-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
         {phase === "success" ? (
           <div className="p-8 space-y-6 text-center">
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-100 border-4 border-emerald-200 mb-4">
               <Check className="h-10 w-10 text-emerald-600" />
             </div>
-            <h3 className="text-2xl font-black tracking-tight text-slate-900">
-              ¡Gracias por tu suscripción!
+              <h3 className="text-2xl font-black tracking-tight text-slate-900">
+              ¡Gracias! Tu solicitud quedó registrada
             </h3>
             <p className="text-slate-500 max-w-sm mx-auto">
-              En breve tu plan será cambiado. Mientras revisamos tu transferencia,
-              seguirás usando tu plan gratuito.
+              En breve tu plan será actualizado. Te avisaremos por correo cuando quede activo.
+              Luego deberás iniciar sesión nuevamente para ver el cambio.
             </p>
             <Button
-              onClick={onClose}
+              onClick={handleClose}
               className="h-12 px-8 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
             >
               Cerrar
@@ -204,7 +211,7 @@ export function TransferPaymentModal({
                 </div>
               </div>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="p-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5 text-slate-400" />

@@ -717,6 +717,27 @@ export class UsersService {
         });
       }
 
+      if (normalizedPlan !== 'free' && accountForPayment?.email) {
+        const planLabel = accountPlan;
+        void this.mailService
+          .sendAnnouncementEmail({
+            email: accountForPayment.email,
+            name: accountForPayment.nutritionist?.fullName,
+            title: `Tu plan fue actualizado a ${planLabel}`,
+            message:
+              `Hola${accountForPayment.nutritionist?.fullName ? ` ${accountForPayment.nutritionist.fullName}` : ''},\n\n` +
+              `Tu plan en NutriNet fue actualizado a ${planLabel}.\n` +
+              `Para ver los cambios, cierra sesión y vuelve a iniciar sesión.\n\n` +
+              `Gracias por confiar en NutriNet.`,
+          })
+          .catch((error) => {
+            this.logger.error(
+              `No se pudo enviar el correo de cambio de plan a ${accountForPayment.email}`,
+              error instanceof Error ? error.stack : String(error),
+            );
+          });
+      }
+
       return tx.account.update({
         where: { id: userId },
         data: {

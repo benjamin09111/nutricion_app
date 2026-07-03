@@ -623,6 +623,8 @@ export class AuthService {
     picture?: string;
   }) {
     const normalizedEmail = profile.email.toLowerCase().trim();
+    let shouldSendWelcomeEmail = false;
+    let welcomeFullName = profile.name || 'Usuario';
 
     if (!profile.email_verified) {
       throw new BadRequestException(
@@ -670,6 +672,12 @@ export class AuthService {
       });
 
       if (existingByEmail) {
+        shouldSendWelcomeEmail =
+          existingByEmail.authProvider !== 'google' ||
+          !existingByEmail.googleSub;
+        welcomeFullName =
+          existingByEmail.nutritionist?.fullName || welcomeFullName;
+
         const updated = await tx.account.update({
           where: { id: existingByEmail.id },
           data: {
@@ -724,6 +732,8 @@ export class AuthService {
         return updated;
       }
 
+      shouldSendWelcomeEmail = true;
+
       const newAccount = await tx.account.create({
         data: {
           email: normalizedEmail,
@@ -771,6 +781,21 @@ export class AuthService {
         },
       });
     });
+
+    if (shouldSendWelcomeEmail) {
+      try {
+        await this.mailService.sendWelcomeEmail(
+          normalizedEmail,
+          welcomeFullName,
+          `${getFrontendUrl()}/login`,
+        );
+      } catch (mailError) {
+        console.error(
+          'Error sending welcome email after Google login:',
+          mailError,
+        );
+      }
+    }
 
     const { user } = await this.buildSessionPayload(account as any);
     const payload = {

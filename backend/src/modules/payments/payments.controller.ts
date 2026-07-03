@@ -83,6 +83,24 @@ export class PaymentsController {
     return this.paymentsService.deletePayment(id);
   }
 
+  @Post(':id/approve')
+  async approvePayment(@Param('id') id: string, @Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException('Solo administradores pueden aprobar pagos');
+    }
+
+    return this.paymentsService.approvePayment(id);
+  }
+
+  @Post(':id/reject')
+  async rejectPayment(@Param('id') id: string, @Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException('Solo administradores pueden rechazar pagos');
+    }
+
+    return this.paymentsService.rejectPayment(id);
+  }
+
   // ─── Membership Status ─────────────────────────────────────────────
 
   @Get('membership-status')

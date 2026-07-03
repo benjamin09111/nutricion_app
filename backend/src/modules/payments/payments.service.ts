@@ -513,27 +513,14 @@ export class PaymentsService {
       throw new BadRequestException('Plan no encontrado o inactivo');
     }
 
-    const price = Number(plan.price);
-    if (price === 0) {
-      throw new BadRequestException(
-        'Este plan es gratuito. Usa el endpoint de plan gratis.',
-      );
-    }
-
-    const credit = await this.calculateProratedCredit(accountId);
-    let chargeAmount = Math.max(0, price - credit);
-
-    if (discount) {
-      chargeAmount = Math.max(
-        0,
-        Math.round(chargeAmount * (1 - discount.percent / 100)),
-      );
-    }
+    const pricing = await this.calculateMembershipCharge(accountId, plan, {
+      discount,
+    });
 
     return this.prisma.payment.create({
       data: {
         accountId,
-        amount: chargeAmount,
+        amount: pricing.finalPrice,
         currency: plan.currency,
         status: PaymentStatus.PENDING,
         method: PaymentMethod.FLOW,
@@ -544,14 +531,14 @@ export class PaymentsService {
           planId: plan.id,
           planName: plan.name,
           planSlug: plan.slug,
-          fullPrice: price,
-          proratedCredit: credit,
-          chargedAmount: chargeAmount,
-          ...(discount
+          fullPrice: pricing.price,
+          proratedCredit: pricing.credit,
+          chargedAmount: pricing.finalPrice,
+          ...(pricing.discount
             ? {
-                discountCode: discount.code,
-                discountPercent: discount.percent,
-                discountType: discount.type,
+                discountCode: pricing.discount.code,
+                discountPercent: pricing.discount.discountPercent,
+                discountType: pricing.discount.type,
               }
             : {}),
         },
@@ -568,25 +555,23 @@ export class PaymentsService {
       throw new BadRequestException('Plan no encontrado o inactivo');
     }
 
-    const discountCode =
-      await this.discountCodesService.validateAndGetDiscount(code);
-    const price = Number(plan.price);
-    const credit = await this.calculateProratedCredit(accountId);
-    const base = Math.max(0, price - credit);
-    const finalPrice = Math.max(
-      0,
-      Math.round(base * (1 - discountCode.discountPercent / 100)),
-    );
+    const pricing = await this.calculateMembershipCharge(accountId, plan, {
+      discountCode: code,
+    });
+
+    if (!pricing.discount) {
+      throw new BadRequestException('Código de descuento inválido.');
+    }
 
     return {
       valid: true,
-      code: discountCode.code,
-      type: discountCode.type,
-      discountPercent: discountCode.discountPercent,
-      originalPrice: price,
-      proratedCredit: credit,
-      basePrice: base,
-      finalPrice,
+      code: pricing.discount.code,
+      type: pricing.discount.type,
+      discountPercent: pricing.discount.discountPercent,
+      originalPrice: pricing.price,
+      proratedCredit: pricing.credit,
+      basePrice: pricing.basePrice,
+      finalPrice: pricing.finalPrice,
       currency: plan.currency,
     };
   }
@@ -620,6 +605,55 @@ export class PaymentsService {
     const credit = Math.round(dailyRate * daysRemaining);
 
     return credit;
+  }
+
+  private async calculateMembershipCharge(
+    accountId: string,
+    plan: { price: unknown; currency: string },
+    options?: {
+      discount?: { code: string; percent: number; type: string };
+      discountCode?: string;
+    },
+  ) {
+    const price = Number(plan.price);
+    if (price === 0) {
+      throw new BadRequestException(
+        'Este plan es gratuito. Usa el endpoint de plan gratis.',
+      );
+    }
+
+    const credit = await this.calculateProratedCredit(accountId);
+    const basePrice = Math.max(0, price - credit);
+
+    let discount = options?.discount;
+    if (!discount && options?.discountCode) {
+      const discountCode = await this.discountCodesService.validateAndGetDiscount(
+        options.discountCode,
+      );
+      discount = {
+        code: discountCode.code,
+        percent: discountCode.discountPercent,
+        type: discountCode.type,
+      };
+    }
+
+    const finalPrice = discount
+      ? Math.max(0, Math.round(basePrice * (1 - discount.percent / 100)))
+      : basePrice;
+
+    return {
+      price,
+      credit,
+      basePrice,
+      finalPrice,
+      discount: discount
+        ? {
+            code: discount.code,
+            discountPercent: discount.percent,
+            type: discount.type,
+          }
+        : null,
+    };
   }
 
   private async mockCheckout(
@@ -812,13 +846,6 @@ export class PaymentsService {
       throw new NotFoundException('Plan no encontrado o inactivo');
     }
 
-    const price = Number(plan.price);
-    if (price === 0) {
-      throw new BadRequestException(
-        'Este plan es gratuito. Usa el endpoint de plan gratis.',
-      );
-    }
-
     const account = await this.prisma.account.findUnique({
       where: { id: accountId },
       include: { nutritionist: true },
@@ -839,11 +866,16 @@ export class PaymentsService {
       throw new NotFoundException('No se encontró un plan gratuito activo');
     }
 
+    const pricing = await this.calculateMembershipCharge(accountId, plan, {
+      discountCode,
+    });
+    const paymentAmount = discountCode ? pricing.finalPrice : amount ?? pricing.finalPrice;
+
     const payment = await this.prisma.$transaction(async (tx) => {
       const createdPayment = await tx.payment.create({
         data: {
           accountId,
-          amount: amount ?? price,
+          amount: paymentAmount,
           currency: plan.currency,
           status: PaymentStatus.PENDING,
           method: PaymentMethod.BANK_TRANSFER,
@@ -853,11 +885,14 @@ export class PaymentsService {
             planId: plan.id,
             planName: plan.name,
             planSlug: plan.slug,
-            fullPrice: price,
-            chargedAmount: amount ?? price,
-            ...(discountCode
+            fullPrice: pricing.price,
+            proratedCredit: pricing.credit,
+            chargedAmount: paymentAmount,
+            ...(pricing.discount
               ? {
-                  discountCode: discountCode,
+                  discountCode: pricing.discount.code,
+                  discountPercent: pricing.discount.discountPercent,
+                  discountType: pricing.discount.type,
                 }
               : {}),
             nutritionistEmail: nutritionistEmail || account.email,
@@ -902,7 +937,7 @@ export class PaymentsService {
         nutritionistName: nameForNotification,
         nutritionistEmail: emailForNotification,
         planName: plan.name,
-        amount: amount ?? price,
+        amount: paymentAmount,
         paymentId: payment.id,
       })
       .catch((err) => {
@@ -917,7 +952,7 @@ export class PaymentsService {
         nutritionistName: nameForNotification,
         nutritionistEmail: emailForNotification,
         planName: plan.name,
-        amount: amount ?? price,
+        amount: paymentAmount,
         paymentId: payment.id,
         source: 'payments.manual-transfer',
       })
@@ -931,7 +966,7 @@ export class PaymentsService {
         id: plan.id,
         name: plan.name,
         slug: plan.slug,
-        price: price,
+        price: pricing.price,
         currency: plan.currency,
       },
       status: 'PENDING',
@@ -1019,6 +1054,47 @@ export class PaymentsService {
     });
   }
 
+  async approvePayment(paymentId: string) {
+    const result = await this.activateMembershipFromPayment(paymentId);
+
+    if (result.processed) {
+      await this.sendPaymentStatusEmail(paymentId, 'approved');
+    }
+
+    return result;
+  }
+
+  async rejectPayment(paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        account: {
+          select: {
+            email: true,
+            nutritionist: { select: { fullName: true } },
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Pago no encontrado');
+    }
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      return { processed: false, reason: 'not_pending' };
+    }
+
+    await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: PaymentStatus.FAILED },
+    });
+
+    await this.sendPaymentStatusEmail(paymentId, 'rejected', payment.account);
+
+    return { processed: true, status: 'FAILED' };
+  }
+
   async devSwitchPlan(accountId: string, planId: string) {
     const account = await this.prisma.account.findUnique({
       where: { id: accountId },
@@ -1064,6 +1140,52 @@ export class PaymentsService {
         plan: { id: plan.id, name: plan.name, slug: plan.slug },
         membershipStatus,
       };
+    });
+  }
+
+  private async sendPaymentStatusEmail(
+    paymentId: string,
+    status: 'approved' | 'rejected',
+    accountOverride?: { email: string; nutritionist?: { fullName: string | null } | null },
+  ) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        account: {
+          select: {
+            email: true,
+            nutritionist: { select: { fullName: true } },
+          },
+        },
+      },
+    });
+
+    if (!payment) return;
+
+    const metadata = (payment.metadata as Record<string, any>) || {};
+    const planName = metadata.planName || 'tu plan';
+    const recipient = accountOverride || payment.account;
+    const fullName = recipient.nutritionist?.fullName || undefined;
+
+    if (status === 'approved') {
+      await this.mailService.sendAnnouncementEmail({
+        email: recipient.email,
+        name: fullName,
+        title: `Tu plan fue actualizado a ${planName}`,
+        message:
+          `Tu pago fue aprobado y tu plan ya quedó activo en NutriNet.\n\n` +
+          `Cierra sesión y vuelve a ingresar para ver los cambios.`,
+      });
+      return;
+    }
+
+    await this.mailService.sendAnnouncementEmail({
+      email: recipient.email,
+      name: fullName,
+      title: 'Tu pago fue rechazado',
+      message:
+        `No pudimos aprobar tu pago para ${planName}.\n\n` +
+        `Si crees que esto es un error, vuelve a registrar la transferencia o contacta al equipo de soporte.`,
     });
   }
 

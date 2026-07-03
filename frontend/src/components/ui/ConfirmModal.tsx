@@ -16,6 +16,7 @@ interface ConfirmModalProps {
   cancelText?: string;
   variant?: "danger" | "warning" | "info";
   isLoading?: boolean;
+  size?: "sm" | "md" | "lg" | "xl";
 }
 
 export function ConfirmModal({
@@ -28,6 +29,7 @@ export function ConfirmModal({
   cancelText = "Cancelar",
   variant = "warning",
   isLoading = false,
+  size = "md",
 }: ConfirmModalProps) {
   useScrollLock(isOpen);
   const { isDarkMode } = useTheme();
@@ -51,11 +53,19 @@ export function ConfirmModal({
 
   const styles = variantStyles[variant];
 
+  const maxWidthClass = {
+    sm: "max-w-sm",
+    md: "max-w-md",
+    lg: "max-w-2xl",
+    xl: "max-w-3xl",
+  }[size];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div
         className={cn(
-          "w-full max-w-md overflow-hidden rounded-xl bg-white shadow-xl animate-in zoom-in-95 duration-200",
+          "w-full overflow-hidden rounded-xl bg-white shadow-xl animate-in zoom-in-95 duration-200",
+          maxWidthClass,
           isDarkMode && "dashboard-surface-strong border border-slate-200",
         )}
       >

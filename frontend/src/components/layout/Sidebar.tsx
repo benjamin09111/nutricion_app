@@ -151,7 +151,7 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        "sidebar-scroll dashboard-sidebar-bg flex h-full grow flex-col gap-y-4 overflow-y-auto border-r pb-4 transition-all duration-300",
+        "sidebar-scroll dashboard-sidebar-bg flex h-full grow flex-col gap-y-4 overflow-y-auto overflow-x-hidden border-r pb-4 transition-all duration-300",
         isSidebarCollapsed ? "px-2" : "px-3",
       )}
       style={{ scrollbarWidth: "thin" }}
@@ -164,7 +164,7 @@ export function Sidebar() {
       >
         <Link
           href="/dashboard"
-          className="flex items-center rounded-xl transition-colors hover:opacity-90"
+          className="flex min-w-0 items-center rounded-xl transition-colors hover:opacity-90"
           aria-label="Ir al dashboard"
           title="Ir al dashboard"
         >
@@ -229,7 +229,7 @@ export function Sidebar() {
                         return (
                           <li key={item.name} className="mt-4 mb-1 px-3">
                             <div className={cn(
-                              "text-[10px] font-bold uppercase tracking-widest",
+                              "px-3 text-[10px] font-bold uppercase tracking-widest",
                               isDarkMode ? "text-indigo-300/40" : "text-slate-400/80"
                             )}>
                               {item.name}
@@ -262,7 +262,7 @@ export function Sidebar() {
                                   ? "text-indigo-100/72 hover:bg-indigo-500/8 hover:text-indigo-50 font-medium"
                                   : "text-slate-600 hover:text-indigo-600 hover:bg-slate-50 font-medium",
                               isLocked && "cursor-not-allowed grayscale opacity-50",
-                              "group flex cursor-pointer items-center gap-x-2 rounded-md p-2 leading-5 transition-colors",
+                              "group flex min-w-0 cursor-pointer items-center gap-x-2 rounded-md p-2 leading-5 transition-colors",
                               isSidebarCollapsed && "justify-center",
                               !isSidebarCollapsed && group.title === "Nutrición y Dietética" && "pl-4"
                             )}
@@ -285,7 +285,7 @@ export function Sidebar() {
                                 />
                               )}
                             </span>
-                            {!isSidebarCollapsed && <span className="flex-1">{item.name}</span>}
+                            {!isSidebarCollapsed && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
                             {isLocked && <Lock className={cn("h-3 w-3", isDarkMode ? "text-indigo-100/35" : "text-slate-400")} />}
                           </Link>
                         </li>

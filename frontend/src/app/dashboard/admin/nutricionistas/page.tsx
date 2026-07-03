@@ -421,7 +421,7 @@ export default function AdminClientsPage() {
 
     if (client.paymentState === "paid") {
       return {
-        label: "Realizado",
+        label: "Aprobado",
         color: "text-green-700 bg-green-50",
         icon: CheckCircle2,
       };
@@ -446,7 +446,7 @@ export default function AdminClientsPage() {
 
     if (endDate > now) {
       return {
-        label: "Realizado",
+        label: "Aprobado",
         color: "text-green-700 bg-green-50",
         icon: CheckCircle2,
       };

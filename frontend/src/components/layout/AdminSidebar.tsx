@@ -220,7 +220,7 @@ export function AdminSidebar() {
                   {group.title}
                 </div>
               )}
-              <ul role="list" className="-mx-2 space-y-0.5">
+                <ul role="list" className="-mx-2 space-y-0.5">
                 {group.items.map((item) => {
                   const isActive =
                     pathname === item.href || pathname.startsWith(item.href);
@@ -240,7 +240,7 @@ export function AdminSidebar() {
                             : isDarkMode
                               ? "text-indigo-100/75 hover:bg-indigo-500/8 hover:text-indigo-50"
                               : "text-slate-600 hover:text-indigo-700 hover:bg-indigo-50",
-                          "group flex gap-x-2 rounded-md p-2 leading-5 font-medium transition-colors items-center cursor-pointer",
+                          "group flex min-w-0 gap-x-2 rounded-md p-2 leading-5 font-medium transition-colors items-center cursor-pointer",
                           "relative",
                           isSidebarCollapsed && "justify-center",
                         )}
@@ -259,7 +259,7 @@ export function AdminSidebar() {
                           )}
                           aria-hidden="true"
                         />
-                        {!isSidebarCollapsed && <span>{item.name}</span>}
+                        {!isSidebarCollapsed && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
                         {itemBadge && (
                           <span
                             className={cn(
