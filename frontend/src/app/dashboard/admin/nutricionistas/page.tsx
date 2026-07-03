@@ -63,6 +63,7 @@ export default function AdminClientsPage() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [durationDays, setDurationDays] = useState<number>(30);
@@ -131,6 +132,9 @@ export default function AdminClientsPage() {
 
     return matchingPlan ? normalizePlanValue(matchingPlan) : getFreePlanValue(membershipPlans);
   };
+
+  const getSelectedMembershipPlan = () =>
+    membershipPlans.find((plan) => normalizePlanValue(plan) === selectedPlan) || null;
 
   useEffect(() => {
     fetchMembershipPlans();
@@ -296,8 +300,14 @@ export default function AdminClientsPage() {
     setShowConfigModal(true);
   };
 
-  const handleManualConfig = async () => {
+  const handleManualConfig = async (recordPayment = false) => {
     if (!selectedUser || !selectedPlan) return;
+
+    const membershipPlan = getSelectedMembershipPlan();
+    if (membershipPlan && membershipPlan.price > 0 && !recordPayment) {
+      setShowPaymentConfirmModal(true);
+      return;
+    }
 
     setIsUpdating(true);
     try {
@@ -312,6 +322,7 @@ export default function AdminClientsPage() {
         body: JSON.stringify({
           plan: selectedPlan,
           days: durationDays,
+          recordPayment,
         }),
       });
 
@@ -321,6 +332,7 @@ export default function AdminClientsPage() {
         `Configuración aplicada a ${selectedUser.fullName || selectedUser.email}`,
       );
       setShowConfigModal(false);
+      setShowPaymentConfirmModal(false);
       fetchClients();
     } catch (error) {
       console.error(error);
@@ -978,7 +990,7 @@ export default function AdminClientsPage() {
               </Button>
               <Button
                 className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                onClick={handleManualConfig}
+                onClick={() => void handleManualConfig()}
                 isLoading={isUpdating}
               >
                 Aplicar Configuración
@@ -1010,6 +1022,18 @@ export default function AdminClientsPage() {
         confirmText="Eliminar Cuenta"
         cancelText="Cancelar"
         variant="danger"
+        isLoading={isUpdating}
+      />
+
+      <ConfirmModal
+        isOpen={showPaymentConfirmModal}
+        onClose={() => setShowPaymentConfirmModal(false)}
+        onConfirm={() => void handleManualConfig(true)}
+        title="Registrar pago"
+        message={`El plan ${getSelectedMembershipPlan()?.name || selectedPlan} es pagado. Al confirmar, se registrará como ganancia y quedará guardado en pagos para ${selectedUser?.fullName || selectedUser?.email}.`}
+        confirmText="Confirmar y guardar"
+        cancelText="Cancelar"
+        variant="info"
         isLoading={isUpdating}
       />
     </div>

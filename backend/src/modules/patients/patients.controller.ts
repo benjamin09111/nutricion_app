@@ -15,6 +15,7 @@ import { PatientsService } from './patients.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateExamDto } from './dto/create-exam.dto';
+import { UpdateClinicalRecordDto } from './dto/update-clinical-record.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
 import { CacheTTL } from '@nestjs/cache-manager';
@@ -105,6 +106,24 @@ export class PatientsController {
       req.user.nutritionistId,
       patientId,
       createExamDto,
+    );
+  }
+
+  @Get(':id/clinical-record')
+  getClinicalRecord(@Request() req: any, @Param('id') id: string) {
+    return this.patientsService.getClinicalRecord(req.user.nutritionistId, id);
+  }
+
+  @Patch(':id/clinical-record')
+  updateClinicalRecord(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() updateClinicalRecordDto: UpdateClinicalRecordDto,
+  ) {
+    return this.patientsService.updateClinicalRecord(
+      req.user.nutritionistId,
+      id,
+      updateClinicalRecordDto,
     );
   }
 }

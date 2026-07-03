@@ -552,8 +552,26 @@ export class UsersService {
   /**
    * Update user's subscription plan
    */
-  async updatePlan(userId: string, plan: SubscriptionPlan, days?: number) {
+  async updatePlan(
+    userId: string,
+    plan: SubscriptionPlan,
+    days?: number,
+    recordPayment = false,
+  ) {
     const normalizedPlan = normalizeMembershipPlanKey(String(plan));
+    const accountForPayment = recordPayment
+      ? await this.prisma.account.findUnique({
+          where: { id: userId },
+          select: {
+            email: true,
+            nutritionist: { select: { fullName: true } },
+          },
+        })
+      : null;
+
+    if (recordPayment && !accountForPayment) {
+      throw new NotFoundException('Cuenta no encontrada');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       if (normalizedPlan === 'free') {
@@ -583,14 +601,16 @@ export class UsersService {
         throw new Error('Plan de membresía no encontrado');
       }
 
+      const planPrice = Number(membershipPlan.price);
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + (days && days > 0 ? days : 30));
+      const shouldRecordPayment = recordPayment && planPrice > 0;
 
       const accountPlan = resolveAccountPlanFromMembershipPlan(
         membershipPlan.slug || membershipPlan.name,
       );
 
-      await tx.subscription.upsert({
+      const subscription = await tx.subscription.upsert({
         where: { accountId: userId },
         update: {
           planId: membershipPlan.id,
@@ -618,6 +638,24 @@ export class UsersService {
         orderBy: { createdAt: 'desc' },
       });
 
+      const upsertDailyMetric = async (amount: number) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        await tx.dailyMetric.upsert({
+          where: { date: today },
+          update: { totalRevenue: { increment: amount } },
+          create: {
+            date: today,
+            totalRevenue: amount,
+            activeSubscriptions: 1,
+            totalUsers: await tx.account.count(),
+          },
+        });
+      };
+
+      let paymentId: string | null = pendingTransfer?.id || null;
+
       if (pendingTransfer) {
         await tx.payment.update({
           where: { id: pendingTransfer.id },
@@ -629,6 +667,51 @@ export class UsersService {
               approvedByAdmin: true,
               approvedAt: new Date().toISOString(),
               approvalSource: 'users.updatePlan',
+            },
+          },
+        });
+        await upsertDailyMetric(Number(pendingTransfer.amount));
+      } else if (shouldRecordPayment) {
+        const createdPayment = await tx.payment.create({
+          data: {
+            accountId: userId,
+            amount: planPrice,
+            currency: membershipPlan.currency,
+            status: PaymentStatus.COMPLETED,
+            method: PaymentMethod.BANK_TRANSFER,
+            paidAt: new Date(),
+            metadata: {
+              type: 'MEMBERSHIP_PLAN',
+              source: 'ADMIN_PLAN_CHANGE',
+              adminConfirmed: true,
+              approvedByAdmin: true,
+              approvedAt: new Date().toISOString(),
+              planId: membershipPlan.id,
+              planName: membershipPlan.name,
+              planSlug: membershipPlan.slug,
+              fullPrice: planPrice,
+              chargedAmount: planPrice,
+              nutritionistEmail: accountForPayment?.email,
+              nutritionistName:
+                accountForPayment?.nutritionist?.fullName || 'No especificado',
+            },
+          },
+        });
+
+        paymentId = createdPayment.id;
+        await upsertDailyMetric(planPrice);
+      }
+
+      if (paymentId) {
+        await tx.subscriptionEvent.create({
+          data: {
+            subscriptionId: subscription.id,
+            eventType: 'ACTIVATED',
+            paymentId,
+            newPlanId: membershipPlan.id,
+            metadata: {
+              source: 'users.updatePlan',
+              recordPayment: shouldRecordPayment || Boolean(pendingTransfer),
             },
           },
         });

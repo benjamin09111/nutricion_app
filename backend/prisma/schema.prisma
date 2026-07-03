@@ -186,12 +186,29 @@ model Patient {
   portalEntries     PatientPortalEntry[]
   portalCheckIns    PatientPortalCheckIn[]
   intakeSubmissions PatientIntakeSubmission[]
+  clinicalRecord    ClinicalRecord?
   nutritionist      Nutritionist              @relation(fields: [nutritionistId], references: [id])
   projects          Project[]
   appointments      Appointment[]
 
   @@index([nutritionistId])
   @@map("patients")
+}
+
+model ClinicalRecord {
+  id                    String   @id @default(uuid())
+  patientId             String   @unique @map("patient_id")
+  vitalHistory          Json?    @default("{}") @map("vital_history")
+  gynecoObstetric       Json?    @default("{}") @map("gyneco_obstetric")
+  nutritionalAnamnesis  Json?    @default("{}") @map("nutritional_anamnesis")
+  anthropometry         Json?    @default("{}")
+  dataSources           Json?    @default("{}") @map("data_sources")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  patient               Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("clinical_records")
 }
 
 model PatientIntakeLink {

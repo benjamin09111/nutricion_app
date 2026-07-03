@@ -151,7 +151,7 @@ export class UsersController {
   @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   updatePlan(
     @Param('id') id: string,
-    @Body() body: { plan: string; days?: number },
+    @Body() body: { plan: string; days?: number; recordPayment?: boolean },
     @Request() req: any,
   ) {
     if (!isAdminRole(req.user.role)) {
@@ -159,7 +159,12 @@ export class UsersController {
         'Solo el administrador puede cambiar planes',
       );
     }
-    return this.usersService.updatePlan(id, body.plan as any, body.days);
+    return this.usersService.updatePlan(
+      id,
+      body.plan as any,
+      body.days,
+      body.recordPayment,
+    );
   }
 
   @Post(':id/notify-transfer')

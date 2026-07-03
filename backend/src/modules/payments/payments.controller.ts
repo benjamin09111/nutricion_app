@@ -2,7 +2,9 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
+  Param,
   UseGuards,
   Query,
   Request,
@@ -70,6 +72,15 @@ export class PaymentsController {
       `attachment; filename="${report.filename}"`,
     );
     return res.send(report.buffer);
+  }
+
+  @Delete(':id')
+  async deletePayment(@Param('id') id: string, @Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException('Solo administradores pueden eliminar pagos');
+    }
+
+    return this.paymentsService.deletePayment(id);
   }
 
   // ─── Membership Status ─────────────────────────────────────────────

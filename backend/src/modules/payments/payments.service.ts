@@ -83,6 +83,29 @@ export class PaymentsService {
     });
   }
 
+  async deletePayment(paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      select: { id: true },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Pago no encontrado');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.subscriptionEvent.deleteMany({
+        where: { paymentId },
+      });
+
+      await tx.payment.delete({
+        where: { id: paymentId },
+      });
+
+      return { success: true, id: paymentId };
+    });
+  }
+
   async getRevenueStats() {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);

@@ -120,7 +120,7 @@ export default function UpdatesPage() {
   return (
     <div className="min-h-screen bg-slate-50 pb-16">
       <section className="border-b border-slate-200 bg-white/90">
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-3 py-12 sm:px-6 lg:px-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-indigo-700">
             <Sparkles className="h-3.5 w-3.5" />
             Futuras funciones y actualizaciones
@@ -137,8 +137,8 @@ export default function UpdatesPage() {
         </div>
       </section>
 
-      <main className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 lg:px-8">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <main className="mx-auto max-w-7xl px-3 pt-8 sm:px-6 lg:px-8">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {updates.map((item) => {
             const styles = toneStyles[item.tone];
 
@@ -146,7 +146,7 @@ export default function UpdatesPage() {
               <article
                 key={item.title}
                 className={cn(
-                  "group rounded-3xl border bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md",
+                  "group rounded-3xl border bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md",
                   styles.ring,
                 )}
               >
@@ -161,11 +161,11 @@ export default function UpdatesPage() {
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-3">
-                      <h2 className="text-sm font-semibold text-slate-900">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                      <h2 className="min-w-0 text-sm font-semibold leading-6 text-slate-900">
                         {item.title}
                       </h2>
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                      <span className="inline-flex w-fit shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                         Próximo
                       </span>
                     </div>

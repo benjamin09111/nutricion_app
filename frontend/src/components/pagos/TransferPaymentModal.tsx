@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Copy, Check, Loader2, Building2, CreditCard, User, Mail, AlertCircle, X, Tag, Sparkles } from "lucide-react";
+import { Copy, Check, Loader2, Building2, AlertCircle, X, Tag, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
@@ -65,8 +65,8 @@ export function TransferPaymentModal({
   const [bankData, setBankData] = useState<BankData | null>(null);
   const [isLoadingBankData, setIsLoadingBankData] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("transfer");
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   
   const [discountCode, setDiscountCode] = useState("");
   const [isValidating, setIsValidating] = useState(false);
@@ -98,16 +98,6 @@ export function TransferPaymentModal({
 
     loadBankData();
   }, [isOpen]);
-
-  const handleCopy = async (value: string, field: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedField(field);
-      setTimeout(() => setCopiedField(null), 2000);
-    } catch {
-      toast.error("No se pudo copiar al portapapeles");
-    }
-  };
 
   const handleValidateDiscount = async () => {
     if (!discountCode.trim()) {
@@ -318,25 +308,25 @@ export function TransferPaymentModal({
                   <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
                 </div>
               ) : bankData ? (
-                <div className="space-y-4 min-w-0">
-                  <div className="flex justify-end">
+                <div className="space-y-4 min-w-0 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Building2 className="h-4 w-4 text-slate-400 shrink-0" />
+                      <span className="text-sm font-semibold text-slate-900">Datos bancarios</span>
+                    </div>
                     <button
+                      type="button"
                       onClick={async () => {
-                        const text = `Nombre: ${bankData.beneficiary}
-RUT: ${bankData.rut}
-Banco: ${bankData.bankName}
-Tipo de cuenta: ${bankData.accountType}
-Numero de cuenta: ${bankData.accountNumber}
-Correo: ${bankData.email}`;
-                      try {
-                        await navigator.clipboard.writeText(text);
-                        setCopiedField("all");
-                        setTimeout(() => setCopiedField(null), 2000);
-                      } catch {
-                        toast.error("No se pudo copiar al portapapeles");
-                      }
-                    }}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer text-sm font-semibold text-slate-700"
+                        const text = `Nombre: ${bankData.beneficiary}\nRUT: ${bankData.rut}\nBanco: ${bankData.bankName}\nTipo de cuenta: ${bankData.accountType}\nNumero de cuenta: ${bankData.accountNumber}\nCorreo: ${bankData.email}`;
+                        try {
+                          await navigator.clipboard.writeText(text);
+                          setCopiedField("all");
+                          setTimeout(() => setCopiedField(null), 2000);
+                        } catch {
+                          toast.error("No se pudo copiar al portapapeles");
+                        }
+                      }}
+                      className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 cursor-pointer"
                     >
                       {copiedField === "all" ? (
                         <>
@@ -346,109 +336,50 @@ Correo: ${bankData.email}`;
                       ) : (
                         <>
                           <Copy className="h-4 w-4" />
-                          Copiar datos de transferencia
+                          Copiar todo
                         </>
                       )}
                     </button>
                   </div>
+
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3 sm:col-span-2">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Building2 className="h-4 w-4 text-slate-400 shrink-0" />
-                        <span className="text-sm text-slate-600 shrink-0">Banco</span>
-                      </div>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-slate-900 text-right break-words">{bankData.bankName}</span>
-                        <button
-                          onClick={() => handleCopy(bankData.bankName, "bank")}
-                          className="p-1 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer shrink-0"
-                        >
-                          {copiedField === "bank" ? (
-                            <Check className="h-4 w-4 text-emerald-500" />
-                          ) : (
-                            <Copy className="h-4 w-4 text-slate-400" />
-                          )}
-                        </button>
-                      </div>
+                    <div className="rounded-xl bg-white p-3 min-w-0">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Banco</div>
+                      <div className="mt-1 break-words text-sm font-semibold text-slate-900">{bankData.bankName}</div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3 min-w-0">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <CreditCard className="h-4 w-4 text-slate-400 shrink-0" />
-                        <span className="text-sm text-slate-600 shrink-0">Tipo</span>
-                      </div>
-                      <span className="font-semibold text-slate-900 text-right break-words">{bankData.accountType}</span>
+                    <div className="rounded-xl bg-white p-3 min-w-0">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Tipo</div>
+                      <div className="mt-1 break-words text-sm font-semibold text-slate-900">{bankData.accountType}</div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3 min-w-0">
-                      <span className="text-sm text-slate-600 shrink-0">Número de cuenta</span>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-slate-900 text-right break-words">{bankData.accountNumber}</span>
-                        <button
-                          onClick={() => handleCopy(bankData.accountNumber, "account")}
-                          className="p-1 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer shrink-0"
-                        >
-                          {copiedField === "account" ? (
-                            <Check className="h-4 w-4 text-emerald-500" />
-                          ) : (
-                            <Copy className="h-4 w-4 text-slate-400" />
-                          )}
-                        </button>
-                      </div>
+                    <div className="rounded-xl bg-white p-3 min-w-0 sm:col-span-2">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Número de cuenta</div>
+                      <div className="mt-1 break-words text-sm font-semibold text-slate-900">{bankData.accountNumber}</div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3 min-w-0">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <User className="h-4 w-4 text-slate-400 shrink-0" />
-                        <span className="text-sm text-slate-600 shrink-0">RUT</span>
-                      </div>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-slate-900 text-right break-words">{bankData.rut}</span>
-                        <button
-                          onClick={() => handleCopy(bankData.rut, "rut")}
-                          className="p-1 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer shrink-0"
-                        >
-                          {copiedField === "rut" ? (
-                            <Check className="h-4 w-4 text-emerald-500" />
-                          ) : (
-                            <Copy className="h-4 w-4 text-slate-400" />
-                          )}
-                        </button>
-                      </div>
+                    <div className="rounded-xl bg-white p-3 min-w-0">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">RUT</div>
+                      <div className="mt-1 break-words text-sm font-semibold text-slate-900">{bankData.rut}</div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3 min-w-0">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Mail className="h-4 w-4 text-slate-400 shrink-0" />
-                        <span className="text-sm text-slate-600 shrink-0">Email</span>
-                      </div>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-slate-900 text-right break-words">{bankData.email}</span>
-                        <button
-                          onClick={() => handleCopy(bankData.email, "email")}
-                          className="p-1 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer shrink-0"
-                        >
-                          {copiedField === "email" ? (
-                            <Check className="h-4 w-4 text-emerald-500" />
-                          ) : (
-                            <Copy className="h-4 w-4 text-slate-400" />
-                          )}
-                        </button>
-                      </div>
+                    <div className="rounded-xl bg-white p-3 min-w-0">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Email</div>
+                      <div className="mt-1 break-words text-sm font-semibold text-slate-900">{bankData.email}</div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3 sm:col-span-2 min-w-0">
-                      <span className="text-sm text-slate-600 shrink-0">Beneficiario</span>
-                      <span className="font-semibold text-slate-900 text-right break-words">{bankData.beneficiary}</span>
+                    <div className="rounded-xl bg-white p-3 min-w-0 sm:col-span-2">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Beneficiario</div>
+                      <div className="mt-1 break-words text-sm font-semibold text-slate-900">{bankData.beneficiary}</div>
                     </div>
                   </div>
 
                   <div className="flex items-start gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3">
                     <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
                     <p className="text-xs text-amber-800">
-                      <strong>Importante:</strong> Tu correo de nutricionista es{" "}
-                      <strong>{nutritionistEmail}</strong>. Usa este email como referencia en la
-                      transferencia para que podamos identificar tu pago.
+                      <strong>Importante:</strong> Si utilizas un correo distinto en la transferencia,
+                      asegurate de colocar en la descripción de la transferencia el correo{" "}
+                      <strong>{nutritionistEmail}</strong> para identificar tu pago.
                     </p>
                   </div>
                 </div>

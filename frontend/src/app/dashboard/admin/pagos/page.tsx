@@ -10,12 +10,14 @@ import {
   DollarSign,
   Filter,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { fetchApi } from "@/lib/api-base";
 import { cn } from "@/lib/utils";
 
@@ -75,6 +77,8 @@ export default function AdminPaymentsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [detailPayment, setDetailPayment] = useState<Transaction | null>(null);
+  const [paymentToDelete, setPaymentToDelete] = useState<Transaction | null>(null);
+  const [isDeletingPayment, setIsDeletingPayment] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -141,6 +145,33 @@ export default function AdminPaymentsPage() {
     setSelectedPlanId(planId);
     const plan = plans.find((p) => p.id === planId);
     if (plan) setCustomAmount(plan.price);
+  };
+
+  const handleDeletePayment = async () => {
+    if (!paymentToDelete) return;
+
+    setIsDeletingPayment(true);
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(`/payments/${paymentToDelete.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || "Error al eliminar pago");
+      }
+
+      toast.success("Registro de pago eliminado");
+      setPaymentToDelete(null);
+      setDetailPayment(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al eliminar pago");
+    } finally {
+      setIsDeletingPayment(false);
+    }
   };
 
   const handleSimulatePayment = async (e: React.FormEvent) => {
@@ -449,6 +480,16 @@ export default function AdminPaymentsPage() {
               <p className="text-xs font-medium text-slate-900">{detailPayment.account.nutritionist?.fullName || "N/A"}</p>
               <p className="text-[10px] text-slate-500">{detailPayment.account.email}</p>
             </div>
+            <div className="flex justify-end pt-2">
+              <Button
+                variant="ghost"
+                className="gap-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 cursor-pointer"
+                onClick={() => setPaymentToDelete(detailPayment)}
+              >
+                <Trash2 className="h-4 w-4" />
+                Eliminar registro
+              </Button>
+            </div>
           </div>
         )}
       </Modal>
@@ -531,6 +572,18 @@ export default function AdminPaymentsPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        isOpen={!!paymentToDelete}
+        onClose={() => setPaymentToDelete(null)}
+        onConfirm={handleDeletePayment}
+        title="Eliminar registro de pago"
+        message={`¿Deseas eliminar el pago de ${paymentToDelete?.account.nutritionist?.fullName || paymentToDelete?.account.email || "este registro"}? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+        isLoading={isDeletingPayment}
+      />
     </div>
   );
 }

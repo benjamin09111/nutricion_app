@@ -425,10 +425,10 @@ export default function SettingsPage() {
       </div>
 
       <form onSubmit={handleSaveProfile} className="space-y-6">
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div className="grid items-stretch gap-6 xl:grid-cols-2">
           {/* Profile Information */}
-          <div className={`relative h-full rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "profile" ? "" : "hidden"}`}>
-            <div className="relative border-b border-slate-200 px-6 py-4">
+          <div className={`relative flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "profile" ? "" : "hidden"}`}>
+            <div className="relative flex min-h-[76px] items-start justify-between border-b border-slate-200 px-6 py-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-x-2">
                   <User className="h-5 w-5 text-emerald-600" />
@@ -603,8 +603,8 @@ export default function SettingsPage() {
           </div>
 
           {/* Additional Information */}
-          <div className={`relative h-full rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "profile" ? "" : "hidden"}`}>
-            <div className="relative border-b border-slate-200 px-6 py-4 pr-14">
+          <div className={`relative flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "profile" ? "" : "hidden"}`}>
+            <div className="relative flex min-h-[76px] items-start justify-between border-b border-slate-200 px-6 py-4 pr-14">
               <div className="flex items-center gap-x-2">
                 <Globe className="h-5 w-5 text-emerald-600" />
                 <h2 className="font-semibold text-slate-900">

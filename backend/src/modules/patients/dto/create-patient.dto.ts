@@ -8,6 +8,7 @@ import {
   IsEnum,
   IsArray,
   IsBoolean,
+  IsObject,
 } from 'class-validator';
 
 export class CreatePatientDto {
@@ -86,6 +87,16 @@ export class CreatePatientDto {
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
+
+  @IsOptional()
+  @IsObject()
+  clinicalRecord?: {
+    vitalHistory?: Record<string, unknown>;
+    gynecoObstetric?: Record<string, unknown>;
+    nutritionalAnamnesis?: Record<string, unknown>;
+    anthropometry?: Record<string, unknown>;
+    dataSources?: Record<string, unknown>;
+  };
 
   @IsOptional()
   @IsArray()

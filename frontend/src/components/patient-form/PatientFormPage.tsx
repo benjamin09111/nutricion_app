@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import Cookies from "js-cookie";
+import { toast } from "sonner";
 import { User, Mail, Phone, Calendar, Activity, AlertCircle, Ruler, Target, Activity as ActivityIcon, HeartPulse, Dumbbell, Calculator, FileText, ChevronRight } from "lucide-react";
 import { FormStepCard } from "@/components/patient-form/FormStepCard";
 import { FormNavigationFooter } from "@/components/patient-form/FormNavigationFooter";
@@ -13,10 +16,11 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { TagInput } from "@/components/ui/TagInput";
 import { usePatientDraft } from "@/features/patients/hooks/usePatientDraft";
+import { buildClinicalRecordFromPatientDraft } from "@/features/patients/clinical-record";
 import { cn } from "@/lib/utils";
 import { calculateBMI, calculateGET, getIdealWeightRange, calculateAge } from "@/lib/nutrition-formulas";
-import { formatRut } from "@/lib/rut-utils";
-import { getApiUrl } from "@/lib/api-base";
+import { formatRut, validateRut } from "@/lib/rut-utils";
+import { fetchApi, getApiUrl } from "@/lib/api-base";
 
 const STEPS = [
   "Identificación",
@@ -66,14 +70,15 @@ const FITNESS_GOALS_OPTIONS = [
 
 interface PatientFormPageProps {
   onBack?: () => void;
-  onSave?: () => void;
 }
 
-export function PatientFormPage({ onBack, onSave }: PatientFormPageProps) {
-  const { draft, updateDraft, isLoaded } = usePatientDraft();
+export function PatientFormPage({ onBack }: PatientFormPageProps) {
+  const router = useRouter();
+  const { draft, updateDraft, clearDraft, isLoaded } = usePatientDraft();
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   const customVariableMap = useMemo(
     () => new Map((draft.customVariables || []).map((item) => [item.key, item])),
@@ -158,15 +163,74 @@ export function PatientFormPage({ onBack, onSave }: PatientFormPageProps) {
     return errors;
   }, [currentStep, draft.fullName, draft.email, draft.birthDate, draft.weight, draft.height]);
 
+  async function handleSave() {
+    const errors = validateCurrentStep();
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+
+    if (!draft.fullName?.trim() || !draft.email?.trim()) {
+      toast.error("Por favor completa Nombre y Email.");
+      return;
+    }
+
+    if (draft.documentId && !validateRut(draft.documentId)) {
+      toast.error("El RUT ingresado no es válido.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const payload: Record<string, unknown> = {
+        fullName: draft.fullName,
+        email: draft.email || undefined,
+        phone: draft.phone || undefined,
+        documentId: draft.documentId || undefined,
+        birthDate: draft.birthDate ? new Date(draft.birthDate).toISOString() : undefined,
+        age: calculatedAge ?? undefined,
+        gender: draft.gender || undefined,
+        height: draft.height ? Number(String(draft.height).replace(",", ".")) : undefined,
+        weight: draft.weight ? Number(String(draft.weight).replace(",", ".")) : undefined,
+        dietRestrictions: draft.dietRestrictions || [],
+        clinicalSummary: draft.clinicalSummary || undefined,
+        nutritionalFocus: draft.nutritionalFocus || undefined,
+        fitnessGoals: draft.fitnessGoals || undefined,
+        likes: draft.likes || undefined,
+        activityLevel: (draft.activityLevel as string) || "sedentario",
+        clinicalRecord: buildClinicalRecordFromPatientDraft(draft),
+        recalculateNutrition: true,
+      };
+
+      const response = await fetchApi("/patients", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || "Error al guardar el paciente");
+      }
+
+      const savedPatient = await response.json();
+      clearDraft();
+      toast.success("Paciente registrado con éxito.");
+      router.push(`/dashboard/pacientes/${savedPatient.id}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error de conexión con el servidor");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   const goNext = useCallback(() => {
     if (currentStep === STEPS.length - 1) {
-      const errors = validateCurrentStep();
-      if (errors.length > 0) {
-        setValidationErrors(errors);
-        return;
-      }
-      setValidationErrors([]);
-      onSave?.();
+      void handleSave();
     } else {
       const errors = validateCurrentStep();
       if (errors.length > 0) {
@@ -177,7 +241,7 @@ export function PatientFormPage({ onBack, onSave }: PatientFormPageProps) {
       setCompletedSteps(prev => [...new Set([...prev, currentStep])]);
       setCurrentStep(prev => prev + 1);
     }
-  }, [currentStep, onSave, validateCurrentStep]);
+  }, [currentStep, handleSave, validateCurrentStep]);
 
   const goBack = useCallback(() => {
     setValidationErrors([]);
@@ -666,7 +730,8 @@ export function PatientFormPage({ onBack, onSave }: PatientFormPageProps) {
           onBack={goBack}
           onNext={goNext}
           isFirstStep={currentStep === 0}
-          nextLabel={currentStep === STEPS.length - 1 ? "Guardar" : "Continuar"}
+          nextDisabled={isSaving}
+          nextLabel={currentStep === STEPS.length - 1 ? (isSaving ? "Guardando..." : "Guardar") : "Continuar"}
         />
       </div>
     </div>

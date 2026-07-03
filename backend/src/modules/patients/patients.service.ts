@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateExamDto } from './dto/create-exam.dto';
+import { UpdateClinicalRecordDto } from './dto/update-clinical-record.dto';
 
 import { CacheService } from '../../common/services/cache.service';
 import { PermissionsService } from '../permissions/permissions.service';
@@ -22,6 +23,7 @@ type NutritionCalculationInput = {
   activityLevel?: string | null;
   nutritionalFocus?: string | null;
   fitnessGoals?: string | null;
+  clinicalRecord?: any;
 };
 
 @Injectable()
@@ -38,7 +40,12 @@ export class PatientsService {
     nutritionistId: string,
     createPatientDto: CreatePatientDto,
   ) {
-    const { recalculateNutrition, ...patientData } = createPatientDto as any;
+    const { recalculateNutrition, clinicalRecord, ...patientData } = createPatientDto as any;
+    const clinicalRecordData = clinicalRecord;
+    const patientForCalculations = {
+      ...patientData,
+      clinicalRecord: clinicalRecordData,
+    };
     const activePatients = await this.prisma.patient.count({
       where: { nutritionistId, status: 'Active' },
     });
@@ -51,16 +58,31 @@ export class PatientsService {
 
     const customVariables = this.withAutomaticNutritionCalculations(
       patientData.customVariables,
-      patientData,
+      patientForCalculations,
       recalculateNutrition !== false,
     );
 
-    const patient = await this.prisma.patient.create({
-      data: {
-        ...patientData,
-        customVariables,
-        nutritionistId,
-      },
+    const patient = await this.prisma.$transaction(async (tx) => {
+      const createdPatient = await tx.patient.create({
+        data: {
+          ...patientData,
+          customVariables,
+          nutritionistId,
+        },
+      });
+
+      await tx.clinicalRecord.create({
+        data: {
+          patientId: createdPatient.id,
+          vitalHistory: clinicalRecordData?.vitalHistory || {},
+          gynecoObstetric: clinicalRecordData?.gynecoObstetric || {},
+          nutritionalAnamnesis: clinicalRecordData?.nutritionalAnamnesis || {},
+          anthropometry: clinicalRecordData?.anthropometry || {},
+          dataSources: clinicalRecordData?.dataSources || {},
+        },
+      });
+
+      return createdPatient;
     });
 
     await this.cacheService.invalidateNutritionistPrefix(
@@ -255,8 +277,11 @@ export class PatientsService {
     // Lightweight ownership check — does NOT load consultations, exams, or projects
     await this.assertOwnership(nutritionistId, id);
 
-    const current = await this.prisma.patient.findUnique({ where: { id } });
-    const { recalculateNutrition, ...patientData } = updatePatientDto as any;
+    const current = await this.prisma.patient.findUnique({
+      where: { id },
+      include: { clinicalRecord: true },
+    });
+    const { recalculateNutrition, clinicalRecord, ...patientData } = updatePatientDto as any;
     const mergedForCalculation = { ...(current || {}), ...patientData };
     const customVariables = this.withAutomaticNutritionCalculations(
       patientData.customVariables ?? current?.customVariables,
@@ -272,6 +297,14 @@ export class PatientsService {
       },
     });
 
+    if (clinicalRecord) {
+      await this.prisma.clinicalRecord.upsert({
+        where: { patientId: id },
+        update: clinicalRecord,
+        create: { patientId: id, ...clinicalRecord },
+      });
+    }
+
     await this.cacheService.invalidateNutritionistPrefix(
       nutritionistId,
       'patients',
@@ -285,15 +318,18 @@ export class PatientsService {
 
   async recalculateAutomaticNutrition(nutritionistId: string, id: string) {
     await this.assertOwnership(nutritionistId, id);
-    const current = await this.prisma.patient.findUnique({ where: { id } });
-    if (!current) throw new NotFoundException('Paciente no encontrado');
+    const currentWithClinicalRecord = await this.prisma.patient.findUnique({
+      where: { id },
+      include: { clinicalRecord: true },
+    });
+    if (!currentWithClinicalRecord) throw new NotFoundException('Paciente no encontrado');
 
     const patient = await this.prisma.patient.update({
       where: { id },
       data: {
         customVariables: this.withAutomaticNutritionCalculations(
-          current.customVariables,
-          current,
+          currentWithClinicalRecord.customVariables,
+          currentWithClinicalRecord,
           true,
         ),
       },
@@ -350,6 +386,35 @@ export class PatientsService {
       'patients',
     );
     return exam;
+  }
+
+  async getClinicalRecord(nutritionistId: string, patientId: string) {
+    await this.assertOwnership(nutritionistId, patientId);
+
+    return this.prisma.clinicalRecord.upsert({
+      where: { patientId },
+      update: {},
+      create: { patientId },
+    });
+  }
+
+  async updateClinicalRecord(
+    nutritionistId: string,
+    patientId: string,
+    dto: UpdateClinicalRecordDto,
+  ) {
+    await this.assertOwnership(nutritionistId, patientId);
+
+    const data = this.buildClinicalRecordPayload(dto);
+
+    return this.prisma.clinicalRecord.upsert({
+      where: { patientId },
+      update: data,
+      create: {
+        patientId,
+        ...data,
+      },
+    });
   }
 
   /**
@@ -413,32 +478,33 @@ export class PatientsService {
     customVariables: any,
   ) {
     const customVars = Array.isArray(customVariables) ? customVariables : [];
+    const clinical = patient.clinicalRecord || {};
+    const anthropometry = clinical.anthropometry || {};
     const findVar = (key: string) => {
       const found = customVars.find((v: any) => v?.key === key);
       return found ? found.value : null;
     };
 
-    const kneeHeight = this.toPositiveNumber(findVar('alturaRodilla'));
-    const calfCircumference = this.toPositiveNumber(
-      findVar('circunferenciaPantorrilla'),
-    );
-    const armCircumference = this.toPositiveNumber(
-      findVar('circunferenciaBraquial'),
-    );
-    const waistCircumference = this.toPositiveNumber(
-      findVar('circunferenciaCintura'),
-    );
-    const hipCircumference = this.toPositiveNumber(
-      findVar('circunferenciaCadera'),
-    );
-    const tricipitalFold = this.toPositiveNumber(findVar('pliegueTricipital'));
-    const bicipitalFold = this.toPositiveNumber(findVar('pliegueBicipital'));
-    const subescapularFold = this.toPositiveNumber(
-      findVar('pliegueSubescapular'),
-    );
-    const suprailiacoFold = this.toPositiveNumber(
-      findVar('pliegueSuprailiaco'),
-    );
+    const resolveValue = (key: string, path: string[]) => {
+      const custom = findVar(key);
+      if (custom !== null && custom !== undefined && custom !== '') return custom;
+
+      let current: any = anthropometry;
+      for (const segment of path) {
+        current = current?.[segment];
+      }
+      return current ?? null;
+    };
+
+    const kneeHeight = this.toPositiveNumber(resolveValue('alturaRodilla', ['circumferences', 'kneeHeight']));
+    const calfCircumference = this.toPositiveNumber(resolveValue('circunferenciaPantorrilla', ['circumferences', 'calfCircumference']));
+    const armCircumference = this.toPositiveNumber(resolveValue('circunferenciaBraquial', ['circumferences', 'armCircumference']));
+    const waistCircumference = this.toPositiveNumber(resolveValue('circunferenciaCintura', ['circumferences', 'waistCircumference']));
+    const hipCircumference = this.toPositiveNumber(resolveValue('circunferenciaCadera', ['circumferences', 'hipCircumference']));
+    const tricipitalFold = this.toPositiveNumber(resolveValue('pliegueTricipital', ['skinfolds', 'tricipital']));
+    const bicipitalFold = this.toPositiveNumber(resolveValue('pliegueBicipital', ['skinfolds', 'bicipital']));
+    const subescapularFold = this.toPositiveNumber(resolveValue('pliegueSubescapular', ['skinfolds', 'subescapular']));
+    const suprailiacoFold = this.toPositiveNumber(resolveValue('pliegueSuprailiaco', ['skinfolds', 'suprailiac']));
 
     const resolvedAge = this.calculateAge(patient.birthDate);
     const gender = this.normalizeGender(patient.gender);
@@ -641,6 +707,19 @@ export class PatientsService {
   private toPositiveNumber(value: unknown) {
     const number = Number(value);
     return Number.isFinite(number) && number > 0 ? number : null;
+  }
+
+  private buildClinicalRecordPayload(dto: UpdateClinicalRecordDto) {
+    const payload: Record<string, unknown> = {};
+
+    if (dto.vitalHistory) payload.vitalHistory = dto.vitalHistory;
+    if (dto.gynecoObstetric) payload.gynecoObstetric = dto.gynecoObstetric;
+    if (dto.nutritionalAnamnesis)
+      payload.nutritionalAnamnesis = dto.nutritionalAnamnesis;
+    if (dto.anthropometry) payload.anthropometry = dto.anthropometry;
+    if (dto.dataSources) payload.dataSources = dto.dataSources;
+
+    return payload;
   }
 
   private resolvePatientNutritionCategory(input: {

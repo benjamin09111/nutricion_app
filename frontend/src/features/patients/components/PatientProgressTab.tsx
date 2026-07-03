@@ -10,7 +10,6 @@ import {
   Trash2 as TrashIcon,
   AlertCircle,
   Globe,
-  Zap,
   Save,
 } from "lucide-react";
 import {
@@ -55,6 +54,10 @@ interface PatientProgressTabProps {
   setIsOverwriteConfirmOpen: (open: boolean) => void;
   isExportModalOpen: boolean;
   setIsExportModalOpen: (open: boolean) => void;
+  exportIncludeClinicalRecord: boolean;
+  setExportIncludeClinicalRecord: (open: boolean) => void;
+  exportIncludeProgress: boolean;
+  setExportIncludeProgress: (open: boolean) => void;
   isExporting: boolean;
 
   // Form states and actions
@@ -81,6 +84,7 @@ interface PatientProgressTabProps {
   removeMetricFromForm: (index: number) => void;
   handleDeleteEntireMetric: () => Promise<void>;
   handleExportPDF: () => Promise<void>;
+  openProgressExportModal: () => void;
 }
 
 export function PatientProgressTab({
@@ -104,6 +108,10 @@ export function PatientProgressTab({
   setIsOverwriteConfirmOpen,
   isExportModalOpen,
   setIsExportModalOpen,
+  exportIncludeClinicalRecord,
+  setExportIncludeClinicalRecord,
+  exportIncludeProgress,
+  setExportIncludeProgress,
   isExporting,
 
   // States
@@ -129,6 +137,7 @@ export function PatientProgressTab({
   removeMetricFromForm,
   handleDeleteEntireMetric,
   handleExportPDF,
+  openProgressExportModal,
   registeredMetricKeys,
 }: PatientProgressTabProps) {
   return (
@@ -145,7 +154,7 @@ export function PatientProgressTab({
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <button
-            onClick={() => setIsExportModalOpen(true)}
+            onClick={openProgressExportModal}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white text-emerald-600 font-black rounded-xl border border-emerald-100 hover:bg-emerald-50 transition-all cursor-pointer group/pdf shadow-sm hover:shadow-md"
           >
             <FileText className="w-4 h-4 text-emerald-500" />
@@ -828,22 +837,29 @@ export function PatientProgressTab({
       <Modal
         isOpen={isExportModalOpen}
         onClose={() => !isExporting && setIsExportModalOpen(false)}
-        title="Exportar Informe de Progreso"
+        title="Exportar expediente"
       >
         <div className="space-y-6 pt-2">
-          <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex gap-4 items-start">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-              <Zap className="w-6 h-6 animate-pulse" />
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">
-                Próximamente: Análisis por IA
-              </h4>
-              En futuras actualizaciones, nuestro motor de IA realizará un
-              análisis automático de estas tendencias para identificar patrones
-              de éxito y áreas de mejora en el tratamiento de{" "}
-              <strong>{patient?.fullName || "Paciente"}</strong>.
-            </div>
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+            <p className="text-sm font-bold text-slate-900">Selecciona qué incluir</p>
+            <label className="flex items-center gap-3 text-sm font-medium text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={exportIncludeClinicalRecord}
+                onChange={(e) => setExportIncludeClinicalRecord(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+              />
+              Ficha clínica
+            </label>
+            <label className="flex items-center gap-3 text-sm font-medium text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={exportIncludeProgress}
+                onChange={(e) => setExportIncludeProgress(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+              />
+              Progreso del paciente
+            </label>
           </div>
 
           <div className="space-y-3">
@@ -866,7 +882,11 @@ export function PatientProgressTab({
                   Contenido
                 </p>
                 <p className="text-xs font-bold text-slate-700">
-                  Resumen textual + Gráficos de tendencia
+                  {exportIncludeClinicalRecord && exportIncludeProgress
+                    ? "Ficha clínica + evolución"
+                    : exportIncludeClinicalRecord
+                      ? "Ficha clínica"
+                      : "Resumen textual + gráficos de tendencia"}
                 </p>
               </div>
             </div>

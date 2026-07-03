@@ -26,11 +26,53 @@ export interface Patient {
   fitnessGoals?: string;
   likes?: string;
   activityLevel?: ActivityLevel;
+  clinicalRecord?: ClinicalRecord | null;
 
   // UI specific/Legacy fields
   status?: "Active" | "Inactive";
   lastVisit?: string;
   projects?: PatientProject[];
+}
+
+export interface ClinicalRecord {
+  id: string;
+  patientId: string;
+  vitalHistory?: {
+    occupation?: string;
+    workSchedule?: string;
+    medications?: string;
+    supplementsOrDrugs?: string;
+    diagnosedPathologies?: string;
+  };
+  gynecoObstetric?: {
+    isPregnant?: boolean;
+    pregnancyWeeks?: number;
+    pregestationalWeight?: number;
+  };
+  nutritionalAnamnesis?: {
+    foodFrequency?: string;
+    recall24h?: string;
+    eatingPreferences?: string;
+    clinicalObservations?: string;
+  };
+  anthropometry?: {
+    skinfolds?: {
+      tricipital?: number;
+      bicipital?: number;
+      subescapular?: number;
+      suprailiac?: number;
+    };
+    circumferences?: {
+      kneeHeight?: number;
+      calfCircumference?: number;
+      armCircumference?: number;
+      waistCircumference?: number;
+      hipCircumference?: number;
+    };
+  };
+  dataSources?: Record<string, "patient" | "nutritionist" | "calculated">;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type ActivityLevel = "sedentario" | "ligero" | "moderado" | "activo" | "muy_activo";

@@ -41,6 +41,7 @@ import {
 import { Patient } from "@/features/patients";
 import { usePatientDetailState, TabType } from "@/features/patients/hooks/usePatientDetailState";
 import { PatientGeneralTab, ACTIVITY_LEVEL_OPTIONS } from "@/features/patients/components/PatientGeneralTab";
+import { PatientClinicalRecordTab } from "@/features/patients/components/PatientClinicalRecordTab";
 import { PatientConsultationsTab } from "@/features/patients/components/PatientConsultationsTab";
 import { PatientProgressTab } from "@/features/patients/components/PatientProgressTab";
 import { PatientAcompanamientoTab } from "@/features/patients/components/PatientAcompanamientoTab";
@@ -137,13 +138,11 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   Subir examen
                 </span>
               </button>
-              <button
-                onClick={() => {
-                  toast.info("Ficha clínica - Próximamente disponible");
-                }}
-                className="group relative p-4 bg-indigo-50 text-indigo-500 rounded-[24px] hover:bg-indigo-100 transition-all hover:scale-110 active:scale-95 shadow-sm cursor-pointer"
-                title="Descargar Ficha Clínica"
-              >
+                <button
+                  onClick={state.openClinicalRecordExportModal}
+                  className="group relative p-4 bg-indigo-50 text-indigo-500 rounded-[24px] hover:bg-indigo-100 transition-all hover:scale-110 active:scale-95 shadow-sm cursor-pointer"
+                  title="Descargar Ficha Clínica"
+                >
                 <FileText className="w-6 h-6" />
                 <span className="pointer-events-none absolute right-full top-1/2 mr-4 -translate-y-1/2 rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 whitespace-nowrap">
                   Ficha clínica
@@ -273,9 +272,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               </Button>
 
               <Button
-                onClick={() => {
-                  toast.info("Ficha clínica - Próximamente disponible");
-                }}
+                onClick={state.openClinicalRecordExportModal}
                 variant="outline"
                 className="h-9 px-4 rounded-2xl border-indigo-100 text-indigo-700 bg-indigo-50/70 hover:bg-indigo-50 font-semibold text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
               >
@@ -779,6 +776,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         {(
           [
             { label: "General", disabled: false },
+            { label: "Ficha clínica", disabled: false },
             { label: "Consultas", disabled: false },
             { label: "Creaciones", disabled: false },
             { label: "Progreso", disabled: false },
@@ -832,6 +830,17 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         />
       )}
 
+      {state.activeTab === "Ficha clínica" && (
+        <PatientClinicalRecordTab
+          patient={patient}
+          draft={state.clinicalRecordDraft}
+          setDraft={state.setClinicalRecordDraft}
+          isLoading={state.isClinicalRecordLoading}
+          isSaving={state.isClinicalRecordSaving}
+          onSave={state.saveClinicalRecord}
+        />
+      )}
+
       {state.activeTab === "Consultas" && (
         <PatientConsultationsTab
           patient={patient}
@@ -873,6 +882,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           setIsOverwriteConfirmOpen={state.setIsOverwriteConfirmOpen}
           isExportModalOpen={state.isExportModalOpen}
           setIsExportModalOpen={state.setIsExportModalOpen}
+          exportIncludeClinicalRecord={state.exportIncludeClinicalRecord}
+          setExportIncludeClinicalRecord={state.setExportIncludeClinicalRecord}
+          exportIncludeProgress={state.exportIncludeProgress}
+          setExportIncludeProgress={state.setExportIncludeProgress}
           isExporting={state.isExporting}
           metricForm={state.metricForm}
           setMetricForm={state.setMetricForm}
@@ -895,6 +908,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           removeMetricFromForm={state.removeMetricFromForm}
           handleDeleteEntireMetric={state.handleDeleteEntireMetric}
           handleExportPDF={state.handleExportPDF}
+          openProgressExportModal={state.openProgressExportModal}
         />
       )}
 

@@ -291,7 +291,7 @@ export function MembershipPlanSection() {
                 return false;
               })
               .map((feature) => (
-                <div key={feature.key} className="flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-2.5">
+                <div key={feature.key} className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-2.5">
                   <span className="text-sm font-medium text-slate-700">{feature.label}</span>
                   <span className="text-sm font-semibold text-emerald-700">{formatEntitlementValue(feature.value)}</span>
                 </div>
