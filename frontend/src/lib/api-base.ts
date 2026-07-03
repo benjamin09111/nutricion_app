@@ -1,4 +1,5 @@
 import { resolveRequiredUrl, normalizeUrl } from "./runtime-url.util";
+import { clearCurrentUser } from "./current-user";
 
 let preferredApiOrigin: string | null = null;
 
@@ -51,15 +52,31 @@ export async function fetchApi(
         typeof window !== "undefined" &&
         window.location.pathname !== "/login"
       ) {
+        const errorMessage = await responseWithTenant
+          .clone()
+          .json()
+          .then((data) => {
+            const message = data?.message;
+            if (Array.isArray(message)) return message.join(" ");
+            if (typeof message === "string") return message;
+            return "Tu sesión expiró. Por favor inicia sesión nuevamente.";
+          })
+          .catch(async () => {
+            const text = await responseWithTenant.clone().text().catch(() => "");
+            return text || "Tu sesión expiró. Por favor inicia sesión nuevamente.";
+          });
+
         // Prevent multiple toasts/redirects if there are concurrent requests
         if (!(window as any)._isRedirectingToLogin) {
           (window as any)._isRedirectingToLogin = true;
-          import("js-cookie").then((m) => m.default.remove("auth_token"));
+          import("js-cookie").then((m) => {
+            m.default.remove("auth_token");
+            m.default.remove("auth_token_http");
+            m.default.remove("user");
+          });
+          clearCurrentUser();
           import("sonner").then(({ toast }) => {
-            toast.error(
-              "Tu sesión expiró. Por favor inicia sesión nuevamente.",
-              { id: "session-expired", duration: 3000 },
-            );
+            toast.error(errorMessage, { id: "session-expired", duration: 3000 });
           });
           setTimeout(() => {
             window.location.href = "/login";

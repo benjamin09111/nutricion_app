@@ -1,179 +1,208 @@
 "use client";
 
-import React from "react";
 import {
-    Sparkles,
-    Bot,
-    Dumbbell,
-    Zap,
-    ChevronRight,
-    MessageSquare,
-    ShieldCheck,
-    Globe,
-    Rocket
+  Sparkles,
+  Bot,
+  Dumbbell,
+  ReceiptText,
+  ShoppingCart,
+  Pill,
+  CalendarClock,
+  Users,
+  Wallet,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 const updates = [
-    {
-        category: "Agentes & IA",
-        icon: Bot,
-        color: "text-indigo-600",
-        bg: "bg-indigo-50",
-        items: [
-            {
-                title: "Chatbots de Acompañamiento",
-                description: "Asistentes virtuales 24/7 para tus pacientes via WhatsApp para resolver dudas rápidas sobre su dieta.",
-                status: "En desarrollo",
-            },
-            {
-                title: "Análisis Predictivo de Progreso",
-                description: "IA que predice estancamientos y sugiere ajustes automáticos basados en la curva de peso.",
-                status: "Próximamente",
-            }
-        ]
-    },
-    {
-        category: "Zona FITNESS Especializada",
-        icon: Dumbbell,
-        color: "text-rose-600",
-        bg: "bg-rose-50",
-        items: [
-            {
-                title: "Generador de Rutinas Inteligentes",
-                description: "Integración total entre el gasto energético del entrenamiento y la ingesta calórica de la dieta.",
-                status: "Planificado",
-            },
-            {
-                title: "Biblioteca de Ejercicios en Video",
-                description: "Más de 500 ejercicios con técnica correcta para incluir en los entregables.",
-                status: "Próximamente",
-            }
-        ]
-    },
-    {
-        category: "Inteligencia Artificial Pro",
-        icon: Zap,
-        color: "text-amber-600",
-        bg: "bg-amber-50",
-        items: [
-            {
-                title: "Soporte de IA Clínico",
-                description: "Consultas rápidas sobre patologías y contraindicaciones alimentarias basadas en papers científicos.",
-                status: "Próximamente",
-            },
-            {
-                title: "Escaneo de Comidas por Foto",
-                description: "Tus pacientes podrán subir fotos de sus platos y la IA estimará macros automáticamente.",
-                status: "Investigación",
-            }
-        ]
-    },
-    {
-        category: "Ecosistema & Alianzas",
-        icon: Globe,
-        color: "text-emerald-600",
-        bg: "bg-emerald-50",
-        items: [
-            {
-                title: "Compra en un Clic",
-                description: "Integración con supermercados líderes para convertir la lista de compras en un pedido real.",
-                status: "En negociación",
-            },
-            {
-                title: "Store de Suplementos",
-                description: "Prescribe suplementos y permite que tus pacientes los compren directamente con descuentos.",
-                status: "Planificado",
-            }
-        ]
-    }
-];
+  {
+    title: "Portal de nutricionistas",
+    description:
+      "Un espacio dedicado para gestionar pacientes, seguimiento y trabajo diario con más velocidad.",
+    icon: Users,
+    tone: "indigo",
+  },
+  {
+    title: "Boletas SII",
+    description:
+      "Emisión y orden tributario desde el flujo profesional, sin salir del dashboard.",
+    icon: ReceiptText,
+    tone: "emerald",
+  },
+  {
+    title: "Deporte y ejercicio",
+    description:
+      "Rutinas, recomendaciones y apoyo para integrar actividad física al plan nutricional.",
+    icon: Dumbbell,
+    tone: "rose",
+  },
+  {
+    title: "Pagos por consultas",
+    description: "Cobros y pagos a nutricionistas más claros, simples y trazables.",
+    icon: Wallet,
+    tone: "amber",
+  },
+  {
+    title: "Chatbot para pacientes",
+    description:
+      "Respuestas rápidas para dudas frecuentes y acompañamiento entre consultas.",
+    icon: Bot,
+    tone: "violet",
+  },
+  {
+    title: "Integración con supermercados",
+    description:
+      "Precios, stock y lista de compras conectados con supermercados aliados.",
+    icon: ShoppingCart,
+    tone: "teal",
+  },
+  {
+    title: "Suplementos de salud y fitness",
+    description:
+      "Catálogo curado para recomendar suplementos con foco clínico y deportivo.",
+    icon: Pill,
+    tone: "sky",
+  },
+  {
+    title: "Citas con Google Calendar",
+    description:
+      "Agenda coordinada para organizar controles y recordatorios automáticamente.",
+    icon: CalendarClock,
+    tone: "slate",
+  },
+] as const;
+
+const toneStyles: Record<string, { bg: string; icon: string; ring: string }> = {
+  indigo: {
+    bg: "bg-indigo-50",
+    icon: "text-indigo-600",
+    ring: "border-indigo-100 hover:border-indigo-200",
+  },
+  emerald: {
+    bg: "bg-emerald-50",
+    icon: "text-emerald-600",
+    ring: "border-emerald-100 hover:border-emerald-200",
+  },
+  rose: {
+    bg: "bg-rose-50",
+    icon: "text-rose-600",
+    ring: "border-rose-100 hover:border-rose-200",
+  },
+  amber: {
+    bg: "bg-amber-50",
+    icon: "text-amber-600",
+    ring: "border-amber-100 hover:border-amber-200",
+  },
+  violet: {
+    bg: "bg-violet-50",
+    icon: "text-violet-600",
+    ring: "border-violet-100 hover:border-violet-200",
+  },
+  teal: {
+    bg: "bg-teal-50",
+    icon: "text-teal-600",
+    ring: "border-teal-100 hover:border-teal-200",
+  },
+  sky: {
+    bg: "bg-sky-50",
+    icon: "text-sky-600",
+    ring: "border-sky-100 hover:border-sky-200",
+  },
+  slate: {
+    bg: "bg-slate-50",
+    icon: "text-slate-600",
+    ring: "border-slate-200 hover:border-slate-300",
+  },
+};
 
 export default function UpdatesPage() {
-    return (
-        <div className="min-h-screen bg-slate-50/50 pb-20">
-            {/* Hero Section */}
-            <div className="bg-white border-b border-slate-200 pt-12 pb-16">
-                <div className="max-w-5xl mx-auto px-4 text-center">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-semibold uppercase tracking-widest mb-6">
-                        <Rocket className="h-4 w-4" />
-                        Hoja de Ruta NutriNet
-                    </div>
-                    <h1 className="text-4xl md:text-5xl font-semibold text-slate-900 mb-6 tracking-tight">
-                        El futuro de la Nutrición <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-400">
-                            se construye hoy
-                        </span>
-                    </h1>
-                    <p className="text-slate-500 max-w-2xl mx-auto font-medium text-lg leading-relaxed">
-                        Estamos trabajando constantemente para darte las herramientas más potentes del mercado.
-                        Aquí puedes ver lo que viene en camino.
-                    </p>
-                </div>
-            </div>
+  return (
+    <div className="min-h-screen bg-slate-50 pb-16">
+      <section className="border-b border-slate-200 bg-white/90">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-indigo-700">
+            <Sparkles className="h-3.5 w-3.5" />
+            Futuras funciones y actualizaciones
+          </div>
 
-            {/* Grid of Updates */}
-            <div className="max-w-5xl mx-auto px-4 -mt-8">
-                <div className="grid md:grid-cols-2 gap-6">
-                    {updates.map((group) => (
-                        <div key={group.category} className="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-8 hover:shadow-xl hover:border-indigo-200 transition-all group">
-                            <div className="flex items-center gap-4 mb-8">
-                                <div className={cn("p-3 rounded-2xl", group.bg)}>
-                                    <group.icon className={cn("h-6 w-6", group.color)} />
-                                </div>
-                                <h3 className="text-xl font-semibold text-slate-900 tracking-tight">
-                                    {group.category}
-                                </h3>
-                            </div>
-
-                            <div className="space-y-6">
-                                {group.items.map((item) => (
-                                    <div key={item.title} className="relative pl-6 border-l-2 border-slate-100 hover:border-indigo-300 transition-colors">
-                                        <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-slate-200 group-hover:bg-indigo-400" />
-                                        <div className="flex justify-between items-start mb-1">
-                                            <h4 className="font-semibold text-slate-800 text-sm">
-                                                {item.title}
-                                            </h4>
-                                            <span className={cn(
-                                                "text-[9px] font-semibold uppercase px-2 py-0.5 rounded-full border",
-                                                item.status === "En desarrollo" ? "bg-indigo-50 text-indigo-600 border-indigo-100" :
-                                                    item.status === "Próximamente" ? "bg-indigo-50 text-indigo-600 border-indigo-100" :
-                                                        "bg-slate-50 text-slate-500 border-slate-100"
-                                            )}>
-                                                {item.status}
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                                            {item.description}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Call to Action */}
-                <div className="mt-16 bg-gradient-to-br from-indigo-600 to-indigo-900 rounded-[2.5rem] p-12 text-center text-white shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl" />
-                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/20 rounded-full -ml-32 -mb-32 blur-3xl" />
-
-                    <MessageSquare className="h-12 w-12 mx-auto mb-6 text-indigo-200" />
-                    <h2 className="text-3xl font-semibold mb-4">¿Tienes una idea brillante?</h2>
-                    <p className="text-indigo-100 max-w-xl mx-auto mb-8 font-medium">
-                        La mayoría de nuestras mejores funciones nacen de las sugerencias de nuestros nutricionistas.
-                        ¡Escríbenos y ayúdanos a priorizar el próximo módulo!
-                    </p>
-                    <Link
-                        href="/dashboard/feedback"
-                        className="inline-flex items-center gap-2 bg-white text-indigo-900 px-8 py-4 rounded-[1.5rem] font-semibold hover:bg-indigo-50 transition-all active:scale-95 shadow-lg"
-                    >
-                        Enviar sugerencia
-                        <ChevronRight className="h-5 w-5" />
-                    </Link>
-                </div>
-            </div>
+          <div className="mt-5 max-w-2xl">
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+              Lo que viene para tu flujo clínico
+            </h1>
+            <p className="mt-4 text-sm leading-7 text-slate-500 sm:text-base">
+              Estamos construyendo nuevas herramientas para ahorrar tiempo, automatizar tareas y hacer tu trabajo diario más fluido.
+            </p>
+          </div>
         </div>
-    );
+      </section>
+
+      <main className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 lg:px-8">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {updates.map((item) => {
+            const styles = toneStyles[item.tone];
+
+            return (
+              <article
+                key={item.title}
+                className={cn(
+                  "group rounded-3xl border bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md",
+                  styles.ring,
+                )}
+              >
+                <div className="flex items-start gap-4">
+                  <div
+                    className={cn(
+                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
+                      styles.bg,
+                    )}
+                  >
+                    <item.icon className={cn("h-5 w-5", styles.icon)} />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="text-sm font-semibold text-slate-900">
+                        {item.title}
+                      </h2>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                        Próximo
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      {item.description}
+                    </p>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <section className="mt-8 rounded-[2rem] border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-emerald-50 p-6 shadow-sm sm:p-8">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-indigo-500">
+                Priorización continua
+              </p>
+              <h3 className="mt-2 text-xl font-semibold text-slate-900">
+                Tus ideas ayudan a definir lo siguiente
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Si quieres sugerir una función nueva, déjala en feedback y la priorizamos con el equipo.
+              </p>
+            </div>
+
+            <Link
+              href="/dashboard/feedback"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            >
+              Enviar sugerencia
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
 }

@@ -183,11 +183,11 @@ export function RutOnboardingClient() {
           <div className="mt-8 grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
               <Sparkles className="mb-2 h-4 w-4 text-indigo-600" />
-              Protege el plan gratuito contra cuentas duplicadas.
+              Por tu seguridad y protección, una comunidad de nutricionistas
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
               <CheckCircle2 className="mb-2 h-4 w-4 text-emerald-600" />
-              Si hay un error, soporte puede ayudarte con la corrección.
+              Si ingresas un rut incorrecto, tu cuenta será bloqueada
             </div>
           </div>
         </div>

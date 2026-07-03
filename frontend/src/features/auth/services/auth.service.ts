@@ -51,22 +51,4 @@ export const authService = {
     Cookies.remove("auth_token_http");
     clearCurrentUser();
   },
-
-  async updatePassword(data: { currentPassword: string; newPassword: string }) {
-    const response = await fetchApi(`/auth/update-password`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.message || "Error al actualizar la contraseña");
-    }
-
-    return result;
-  },
 };

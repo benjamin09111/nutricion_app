@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import {
   User,
   LogOut,
@@ -10,6 +11,8 @@ import {
   Menu,
   Moon,
   Sun,
+  Crown,
+  Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -25,34 +28,8 @@ import { useFont } from "@/context/FontContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import { DeveloperPlanSwitcher } from "@/components/layout/DeveloperPlanSwitcher";
 import { FollowUpNotificationsMenu } from "@/components/layout/FollowUpNotificationsMenu";
 import { getCurrentUser } from "@/lib/current-user";
-
-function PlanBadge() {
-  const { cancelAtPeriodEnd, currentPlan } = useSubscription();
-  const { isDarkMode } = useTheme();
-
-  if (!currentPlan) return null;
-
-  return (
-    <div
-      className={cn(
-        "ml-2 flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold",
-        cancelAtPeriodEnd
-          ? isDarkMode
-            ? "border-amber-400/20 bg-amber-500/10 text-amber-300"
-            : "border-amber-200 bg-amber-50 text-amber-700"
-          : isDarkMode
-            ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-300"
-            : "border-emerald-200 bg-emerald-50 text-emerald-700",
-      )}
-    >
-      <span className="capitalize">{currentPlan.name}</span>
-      {cancelAtPeriodEnd && <span className="opacity-75">· cancelado</span>}
-    </div>
-  );
-}
 
 export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -69,12 +46,24 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
     return typeof storedUser?.email === "string" ? storedUser.email : "usuario@demo.com";
   });
+  const [userAvatarUrl] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const storedUser = getCurrentUser();
+    if (!storedUser) {
+      return null;
+    }
+
+    return storedUser?.googleAvatarUrl || null;
+  });
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
 
   const { isAdminView } = useAdmin();
-  const { planName } = useSubscription();
+  const { planName, currentPlan } = useSubscription();
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
     useNotifications();
   const { isDarkMode, toggleTheme } = useTheme();
@@ -155,40 +144,70 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
         />
       </button>
 
-      <div className="flex flex-1 items-center gap-x-4 lg:gap-x-6">
-        <div className="flex flex-1 items-center justify-end gap-x-6 lg:gap-x-8">
-          {!isAdminView && <PlanBadge />}
-          <DeveloperPlanSwitcher />
-          <FollowUpNotificationsMenu />
-
-          <div className="relative" ref={notificationRef}>
-            <button
-              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-              className={cn(
-                "relative rounded-full p-2 transition-all outline-none",
-                isDarkMode
-                  ? "text-emerald-100/70 hover:bg-emerald-500/10 hover:text-emerald-50"
-                  : "text-slate-400 hover:bg-slate-50 hover:text-emerald-600",
-              )}
-            >
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
-                </span>
-              )}
-            </button>
-
-            {isNotificationsOpen && (
-              <div
+        <div className="flex flex-1 items-center gap-x-4 lg:gap-x-6">
+          <div className="flex flex-1 items-center justify-end gap-x-3 sm:gap-x-4 lg:gap-x-8">
+            {!isAdminView && (
+              <Link
+                href="/dashboard/actualizaciones"
                 className={cn(
-                  "absolute right-0 z-20 mt-2.5 w-80 origin-top-right overflow-hidden rounded-xl border shadow-xl ring-1 animate-in fade-in zoom-in-95 duration-100 focus:outline-none sm:w-96",
+                  "inline-flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold transition-all",
                   isDarkMode
-                    ? "border-emerald-400/14 bg-slate-950/96 ring-black/20"
-                    : "border-slate-100 bg-white ring-slate-900/5",
+                    ? "border-indigo-400/20 bg-indigo-500/10 text-indigo-100 hover:bg-indigo-500/15"
+                    : "border-indigo-100 bg-indigo-50 text-indigo-700 hover:bg-indigo-100",
                 )}
               >
+                <Sparkles className="h-4 w-4" />
+                Futuras funciones
+              </Link>
+            )}
+
+            <FollowUpNotificationsMenu title="Seguimiento de pacientes" />
+
+            {!isAdminView && currentPlan?.key === "free" && (
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard/configuraciones?tab=membership")}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all",
+                  isDarkMode
+                    ? "border border-amber-400/30 bg-gradient-to-r from-amber-500/20 to-amber-600/20 text-amber-300 hover:from-amber-500/30 hover:to-amber-600/30"
+                    : "border border-amber-200 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 hover:from-amber-100 hover:to-amber-200 shadow-sm",
+                )}
+              >
+                <Crown className="h-4 w-4" />
+                Ascender a Pro
+              </button>
+            )}
+
+            <div className="relative" ref={notificationRef}>
+              <button
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                className={cn(
+                  "relative rounded-full p-2 transition-all outline-none",
+                  isDarkMode
+                    ? "text-emerald-100/70 hover:bg-emerald-500/10 hover:text-emerald-50"
+                    : "text-slate-400 hover:bg-slate-50 hover:text-emerald-600",
+                )}
+                title="Notificaciones"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+                  </span>
+                )}
+              </button>
+
+              {isNotificationsOpen && (
+                <div
+                  className={cn(
+                    "absolute right-0 z-20 mt-2.5 w-80 origin-top-right overflow-hidden rounded-xl border shadow-xl ring-1 animate-in fade-in zoom-in-95 duration-100 focus:outline-none sm:w-96",
+                    isDarkMode
+                      ? "border-emerald-400/14 bg-slate-950/96 ring-black/20"
+                      : "border-slate-100 bg-white ring-slate-900/5",
+                  )}
+                >
                 <div
                   className={cn(
                     "flex items-center justify-between border-b px-4 py-3",
@@ -353,13 +372,25 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
               <span className="sr-only">Abrir menú de usuario</span>
               <div
                 className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-full border text-white shadow-sm transition-transform active:scale-95",
+                  "flex h-9 w-9 items-center justify-center rounded-full border overflow-hidden shadow-sm transition-transform active:scale-95",
                   isAdminView
                     ? "border-indigo-200 bg-indigo-600"
                     : "border-emerald-300/20 bg-emerald-500",
                 )}
               >
-                {isAdminView ? "A" : <User className="h-4.5 w-4.5" />}
+                {isAdminView ? (
+                  <span className="text-white font-bold text-sm">A</span>
+                ) : userAvatarUrl ? (
+                  <Image
+                    src={userAvatarUrl}
+                    alt="Perfil"
+                    width={36}
+                    height={36}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <User className="h-4.5 w-4.5 text-white" />
+                )}
               </div>
               <span className="hidden lg:flex lg:items-center whitespace-nowrap">
                 <span

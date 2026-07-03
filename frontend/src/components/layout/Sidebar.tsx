@@ -57,7 +57,7 @@ const groups: SidebarGroup[] = [
       { name: "Pacientes", href: "/dashboard/pacientes", icon: Users, tutorialPath: "/dashboard/pacientes" },
       { name: "Consultas", href: "/dashboard/consultas", icon: CalendarDays, tutorialPath: "/dashboard/consultas" },
       { name: "Fichas clínicas", href: "/dashboard/fichas-clinicas", icon: FileText, hidden: true },
-      { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, tutorialPath: "/dashboard/citas" },
+      { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, locked: true },
     ],
   },
   {
@@ -118,7 +118,9 @@ export function Sidebar() {
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    "Administración": true,
+  });
 
   const toggleGroup = (title: string) => {
     if (isSidebarCollapsed) return;

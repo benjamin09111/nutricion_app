@@ -123,9 +123,9 @@ export default function DashboardHomeClient() {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto space-y-10 pb-20 px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto h-[calc(100vh-8rem)] overflow-y-auto px-4 sm:px-6">
         {/* Header Section */}
-        <header className="pt-4">
+        <header className="pt-4 pb-6">
           <div className="flex flex-col gap-4">
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-indigo-600">
               Panel de Control
@@ -140,7 +140,7 @@ export default function DashboardHomeClient() {
         </header>
 
         {/* Key Metrics - 3 Columns */}
-        <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <section className="grid grid-cols-1 gap-6 md:grid-cols-3 pb-6">
           {/* Patients Metric */}
           <Card className="group overflow-hidden rounded-[2rem] border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
             <CardContent className="p-8">
@@ -220,7 +220,7 @@ export default function DashboardHomeClient() {
         </section>
 
         {/* Recent Activity / Projects List */}
-        <section className="space-y-6">
+        <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Proyectos Recientes</h2>
             <Button

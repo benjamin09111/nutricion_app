@@ -22,11 +22,11 @@ const DashboardShellContext = createContext<DashboardShellContextValue | null>(
 
 const STORAGE_KEY = "nutri_dashboard_sidebar_collapsed";
 
-const getInitialSidebarCollapsed = () => {
-  if (typeof window === "undefined") return true;
+  const getInitialSidebarCollapsed = () => {
+  if (typeof window === "undefined") return false;
 
   const storedValue = localStorage.getItem(STORAGE_KEY);
-  if (storedValue === null) return true;
+  if (storedValue === null) return false;
 
   return storedValue === "true";
 };

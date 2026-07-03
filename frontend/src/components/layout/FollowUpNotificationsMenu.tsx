@@ -28,7 +28,7 @@ async function fetchFollowUpNotifications() {
   return response.json() as Promise<PatientPortalFollowUpsResponse>;
 }
 
-export function FollowUpNotificationsMenu() {
+export function FollowUpNotificationsMenu({ title }: { title?: string }) {
   const router = useRouter();
   const { isDarkMode } = useTheme();
   const { isAdminView } = useAdmin();
@@ -74,6 +74,7 @@ export function FollowUpNotificationsMenu() {
             : "text-slate-400 hover:bg-slate-50 hover:text-emerald-600",
         )}
         aria-label="Ver seguimientos pendientes"
+        title={title || "Seguimiento de pacientes"}
       >
         <MessageSquareWarning className="h-5 w-5" />
         {pendingCount > 0 && (

@@ -135,7 +135,7 @@ export default function AdminClientsPage() {
   useEffect(() => {
     fetchMembershipPlans();
     fetchClients(1);
-  }, [activeTab]);
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -204,27 +204,23 @@ export default function AdminClientsPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      let role = "ALL_NUTRITIONISTS";
-
-      switch (activeTab) {
-        case "Organizaciones":
-          role = "ORGANIZATION";
-          break;
-        case "Suplementos fitness":
-          role = "SUPPLEMENT_STORE";
-          break;
-        case "Supermercados":
-          role = "SUPERMARKET";
-          break;
-        default:
-          role = "ALL_NUTRITIONISTS";
-      }
-
       const params = new URLSearchParams({
-        role,
+        role: "ALL_NUTRITIONISTS",
         page: String(pageArg),
         limit: "10",
       });
+
+      switch (activeTab) {
+        case "Organizaciones":
+          params.set("role", "ORGANIZATION");
+          break;
+        case "Suplementos fitness":
+          params.set("role", "SUPPLEMENT_STORE");
+          break;
+        case "Supermercados":
+          params.set("role", "SUPERMARKET");
+          break;
+      }
 
       if (searchTerm.trim()) params.set("search", searchTerm.trim());
       if (planFilter !== "all") params.set("plan", planFilter);
@@ -286,22 +282,6 @@ export default function AdminClientsPage() {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     void fetchClients(page);
-  };
-
-  const formatPlanName = (planValue?: string | null) => {
-    if (!planValue) return "Gratis";
-
-    const normalized = planValue.toUpperCase();
-    const matchedPlan = membershipPlans.find(
-      (plan) => normalizePlanValue(plan) === normalized,
-    );
-
-    if (matchedPlan) {
-      return matchedPlan.price === 0 ? "Gratis" : matchedPlan.name;
-    }
-
-    if (normalized === "FREE") return "Gratis";
-    return normalized;
   };
 
   const handlePlanChange = (user: any, newPlan: string) => {
@@ -415,7 +395,7 @@ export default function AdminClientsPage() {
 
     if (client.paymentState === "paid") {
       return {
-        label: "Al día",
+        label: "Realizado",
         color: "text-green-700 bg-green-50",
         icon: CheckCircle2,
       };
@@ -431,7 +411,7 @@ export default function AdminClientsPage() {
 
     if (!client.subscriptionEndsAt)
       return {
-        label: "Sin Pago",
+        label: "Sin pago",
         color: "text-slate-500 bg-slate-100",
         icon: AlertCircle,
       };
@@ -440,7 +420,7 @@ export default function AdminClientsPage() {
 
     if (endDate > now) {
       return {
-        label: "Al día",
+        label: "Realizado",
         color: "text-green-700 bg-green-50",
         icon: CheckCircle2,
       };
@@ -611,7 +591,7 @@ export default function AdminClientsPage() {
         >
           <option value="all">Todos los pagos</option>
           <option value="free">Gratis</option>
-          <option value="paid">Al día</option>
+          <option value="paid">Solo realizados</option>
           <option value="expired">Vencido</option>
           <option value="none">Sin pago</option>
         </select>

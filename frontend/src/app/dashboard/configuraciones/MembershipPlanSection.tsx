@@ -1,48 +1,68 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Crown, ShieldCheck, Sparkles, X, Zap, Loader2, Check } from "lucide-react";
+import { Crown, ShieldCheck, Sparkles, Check, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { Modal } from "@/components/ui/Modal";
 import { TransferPaymentModal } from "@/components/pagos/TransferPaymentModal";
 import { membershipService, type MembershipPlan } from "@/features/memberships/services/membership.service";
+import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
 import { syncMembershipToStoredUser } from "@/lib/membership-session";
 import { goToMembershipWelcome } from "@/lib/membership-navigation";
 import { getCurrentUser } from "@/lib/current-user";
 import { cn } from "@/lib/utils";
 
-const FEATURE_LABELS: Record<string, string> = {
-  "patients.active.limit": "Pacientes activos",
-  "consultations.monthly.limit": "Consultas mensuales",
-  "pdf.monthly.limit": "PDFs mensuales",
-  "followups.private.active.limit": "Seguimientos privados",
-  "ingredients.base.read": "Base de ingredientes",
-  "clinical_calculator.access": "Calculadora clínica",
-  "food_groups.access": "Grupos de alimentos",
-  "ai.calls.limit": "Llamadas a IA",
-  "ai.autofill.access": "Relleno automático IA",
-  "appointments.access": "Gestión de citas",
-  "google_calendar.sync": "Google Calendar",
-  "nutritionist_portal.access": "Portal nutricionista",
-  "sii_invoices.access": "Boletas SII",
+type AttributeRow = {
+  key: string;
+  label: string;
+  value: boolean | number;
 };
 
-const FEATURE_ORDER = [
-  "patients.active.limit",
-  "consultations.monthly.limit",
-  "pdf.monthly.limit",
-  "followups.private.active.limit",
-  "ai.calls.limit",
-  "ingredients.base.read",
-  "clinical_calculator.access",
-  "food_groups.access",
-  "ai.autofill.access",
-  "appointments.access",
-  "google_calendar.sync",
-  "nutritionist_portal.access",
-  "sii_invoices.access",
-];
+const formatEntitlementValue = (value: boolean | number) => {
+  if (typeof value === "boolean") {
+    return value ? "Sí" : "—";
+  }
+
+  if (value < 0) {
+    return "Ilimitado";
+  }
+
+  return value > 0 ? "Sí" : "—";
+};
+
+const getPlanAttributeRows = (
+  plan?: Pick<MembershipPlan, "features" | "entitlements"> | null,
+): AttributeRow[] => {
+  const featureRows = (plan?.features ?? [])
+    .map((feature, index) => {
+      const display = getMembershipFeatureDisplay(feature);
+
+      return {
+        key: `feature-${index}-${display.label}`,
+        label: display.label,
+        value: display.isExcluded ? false : true,
+      };
+    })
+    .filter((row) => row.label.length > 0);
+
+  if (featureRows.length > 0) {
+    return featureRows;
+  }
+
+  return Object.entries(plan?.entitlements ?? {})
+    .map(([key, value]) => ({
+      key,
+      label: key
+        .split(/[._-]+/)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" "),
+      value,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, "es-CL"));
+};
 
 const money = (value: number) =>
   new Intl.NumberFormat("es-CL", {
@@ -75,15 +95,11 @@ export function MembershipPlanSection() {
   } = useSubscription();
   const [isCanceling, setIsCanceling] = useState(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
-  const [isResuming, setIsResuming] = useState(false);
   const [isChangingPlan, setIsChangingPlan] = useState(false);
   const [availablePlans, setAvailablePlans] = useState<MembershipPlan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
-  const [upgradingPlanId, setUpgradingPlanId] = useState<string | null>(null);
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [upgradePlans, setUpgradePlans] = useState<MembershipPlan[]>([]);
-  const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<MembershipPlan | null>(null);
-  const [isLoadingUpgradePlans, setIsLoadingUpgradePlans] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<MembershipPlan | null>(null);
+  const [pendingPaidPlan, setPendingPaidPlan] = useState<MembershipPlan | null>(null);
 
   const currentPrice = Number(currentPlan?.price || 0);
   const nextPaymentLabel = useMemo(() => {
@@ -118,12 +134,7 @@ export function MembershipPlanSection() {
   );
 
   const featureRows = useMemo(
-    () =>
-      FEATURE_ORDER.map((key) => ({
-        key,
-        label: FEATURE_LABELS[key] || key,
-        value: currentPlan?.entitlements?.[key],
-      })),
+    () => getPlanAttributeRows(currentPlan),
     [currentPlan],
   );
 
@@ -148,7 +159,7 @@ export function MembershipPlanSection() {
   return (
     <div className="space-y-6">
       <div className="rounded-[2rem] border border-indigo-100 bg-linear-to-br from-white via-white to-indigo-50/40 p-6 lg:p-8 shadow-sm">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-indigo-700 shadow-sm">
               <Sparkles className="h-3.5 w-3.5" />
@@ -174,20 +185,20 @@ export function MembershipPlanSection() {
                 </p>
               </div>
             </div>
+          </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Días restantes</p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{daysRemaining ?? "-"}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vence</p>
-                <p className="mt-2 text-sm font-semibold text-slate-900">{formatDate(subscriptionEndsAt?.toISOString() || null)}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monto próximo</p>
-                <p className="mt-2 text-sm font-semibold text-slate-900">{renewalText}</p>
-              </div>
+          <div className="flex items-stretch gap-3">
+            <div className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Días restantes</p>
+              <p className="mt-2 text-2xl font-bold text-slate-900">{daysRemaining ?? "-"}</p>
+            </div>
+            <div className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vence</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">{formatDate(subscriptionEndsAt?.toISOString() || null)}</p>
+            </div>
+            <div className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monto próximo</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">{renewalText}</p>
             </div>
           </div>
         </div>
@@ -230,34 +241,6 @@ export function MembershipPlanSection() {
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Acciones</p>
               <h3 className="mt-1 text-lg font-bold text-slate-900">Gestión de suscripción</h3>
             </div>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            {!cancelAtPeriodEnd && currentPrice > 0 && (
-              <button onClick={() => setIsCancelConfirmOpen(true)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer">
-                Cancelar plan
-              </button>
-            )}
-            {cancelAtPeriodEnd && (
-              <button
-                onClick={async () => {
-                  setIsResuming(true);
-                  try {
-                    await membershipService.resumeSubscription();
-                    toast.success("Plan reanudado correctamente");
-                    await refreshSubscription();
-                  } catch (e: any) {
-                    toast.error(e?.message || "Error al reanudar plan");
-                  } finally {
-                    setIsResuming(false);
-                  }
-                }}
-                disabled={isResuming}
-                className="rounded-xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {isResuming ? "Reanudando..." : "Reanudar plan"}
-              </button>
-            )}
             <button
               onClick={async () => {
                 setIsChangingPlan(true);
@@ -273,36 +256,8 @@ export function MembershipPlanSection() {
               }}
               className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-sm font-semibold transition-colors cursor-pointer"
             >
-              Cambiar plan
+              Cambiar mi plan
             </button>
-            {currentPrice === 0 && (
-              <button
-                onClick={async () => {
-                  setIsLoadingUpgradePlans(true);
-                  try {
-                    const plans = await membershipService.getActivePlans();
-                    const paidPlans = plans.filter((p) => Number(p.price) > 0);
-                    setUpgradePlans(paidPlans);
-                    if (paidPlans.length === 1) {
-                      setSelectedUpgradePlan(paidPlans[0]);
-                    }
-                    setIsUpgradeModalOpen(true);
-                  } catch {
-                    toast.error("No se pudieron cargar los planes");
-                  } finally {
-                    setIsLoadingUpgradePlans(false);
-                  }
-                }}
-                className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 text-sm font-semibold transition-colors cursor-pointer flex items-center gap-2"
-              >
-                <Zap className="h-4 w-4" />
-                {isLoadingUpgradePlans ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Hacer upgrade"
-                )}
-              </button>
-            )}
           </div>
 
           <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 p-4">
@@ -323,125 +278,193 @@ export function MembershipPlanSection() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Características</p>
-            <h3 className="mt-1 text-lg font-bold text-slate-900">Restricciones incluidas</h3>
+            <h3 className="mt-1 text-lg font-bold text-slate-900">Atributos del plan</h3>
           </div>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {featureRows.map((feature) => (
-            <div key={feature.key} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">{feature.label}</p>
-              <p className="mt-2 text-sm font-semibold text-slate-900">
-                {typeof feature.value === "boolean"
-                  ? feature.value ? "Incluido" : "No incluido"
-                  : typeof feature.value === "number"
-                    ? feature.value < 0 ? "Ilimitado" : feature.value
-                    : "-"}
-              </p>
-            </div>
-          ))}
+        <div className="mt-5 grid gap-6 sm:grid-cols-2">
+          <div className="space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">Incluidas</p>
+            {featureRows
+              .filter((f) => {
+                if (typeof f.value === "boolean") return f.value === true;
+                if (typeof f.value === "number") return f.value > 0;
+                return false;
+              })
+              .map((feature) => (
+                <div key={feature.key} className="flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-2.5">
+                  <span className="text-sm font-medium text-slate-700">{feature.label}</span>
+                  <span className="text-sm font-semibold text-emerald-700">{formatEntitlementValue(feature.value)}</span>
+                </div>
+              ))}
+          </div>
+          <div className="space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">No incluidas</p>
+            {featureRows
+              .filter((f) => {
+                if (typeof f.value === "boolean") return f.value === false;
+                if (typeof f.value === "number") return f.value === 0;
+                return true;
+              })
+              .map((feature) => (
+                <div key={feature.key} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-2.5">
+                  <span className="text-sm font-medium text-slate-500">{feature.label}</span>
+                  <span className="text-sm font-semibold text-slate-400">—</span>
+                </div>
+              ))}
+          </div>
         </div>
       </div>
 
       <Modal
         isOpen={isChangingPlan}
-        onClose={() => setIsChangingPlan(false)}
+        onClose={() => { setIsChangingPlan(false); setSelectedPlan(null); }}
         closeOnEscape
         closeOnBackdropClick
-        className="max-w-5xl"
-        title="Comparar y elegir"
+        className="max-w-4xl"
       >
-        <div className="mt-2">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-xl font-black tracking-tight text-slate-900">Cambiar de plan</h3>
+            <p className="text-sm text-slate-500 mt-1">Selecciona el plan que se ajuste a tus necesidades</p>
+          </div>
+          <button
+            onClick={() => { setIsChangingPlan(false); setSelectedPlan(null); }}
+            className="p-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+          >
+            <X className="h-5 w-5 text-slate-400" />
+          </button>
+        </div>
 
-          {currentPrice > 0 && daysRemaining && daysRemaining > 0 && (
-            <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
-              Tienes {daysRemaining} días restantes de tu plan actual ({currentPlan.name}). Se aplicará el crédito proporcional al nuevo plan.
-            </div>
-          )}
+        {isLoadingPlans ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          </div>
+        ) : availablePlans.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-slate-500">No hay otros planes disponibles.</p>
+          </div>
+        ) : (
+          <>
+            {currentPrice > 0 && daysRemaining && daysRemaining > 0 && (
+              <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
+                Tienes {daysRemaining} días restantes de tu plan actual ({currentPlan.name}). Se aplicará el crédito proporcional al nuevo plan.
+              </div>
+            )}
 
-          {/* Launch Offer Banner */}
-          <div className="mt-4 flex justify-center">
-            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 text-xs font-bold text-white shadow-lg">
+            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 text-xs font-bold text-white shadow-lg mb-6">
               <Sparkles className="h-3.5 w-3.5" />
               OFERTA DE LANZAMIENTO: $19.990/mes para las primeras 20 personas (Precio regular $25.000)
             </div>
-          </div>
 
-          <div className="mt-5">
-            {isLoadingPlans ? (
-              <p className="text-sm text-slate-500">Cargando planes...</p>
-            ) : availablePlans.length === 0 ? (
-              <p className="text-sm text-slate-500">No hay otros planes disponibles.</p>
-            ) : (
-              <div className="grid gap-4 xl:grid-cols-3">
-                {availablePlans.map((plan) => {
-                  const targetPrice = Number(plan.price || 0);
-                  const actionLabel =
-                    targetPrice === 0
-                      ? "Downgrade a Free"
-                      : targetPrice > currentPrice
-                        ? "Upgrade"
-                        : targetPrice < currentPrice
-                          ? "Down plan"
-                          : "Cambiar";
+            <div className="grid grid-cols-2 gap-6">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Mi plan actual</span>
+                </div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-200 text-slate-600">
+                    <Crown className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-lg text-slate-900">{currentPlan.name}</p>
+                    <p className="text-sm text-slate-500">{currentPrice > 0 ? money(currentPrice) : "Gratuito"} /mes</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {featureRows.slice(0, 5).map((feature) => (
+                    <div key={feature.key} className="flex items-center gap-2 text-sm">
+                      <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <span className="text-slate-600">{feature.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-                  return (
-                    <div key={plan.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-bold text-slate-900">{plan.name}</p>
-                          {plan.slug === "pro" && (
-                            <p className="mt-1 text-xs font-semibold text-slate-400 line-through">$25.000 / mes</p>
-                          )}
-                          <p className="mt-1 text-xs text-slate-500">{money(targetPrice)} / mes</p>
-                        </div>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-slate-600">
-                          {actionLabel}
-                        </span>
+              {availablePlans.map((plan) => {
+                const isPopular = plan.isPopular;
+                const planFeatureRows = getPlanAttributeRows(plan);
+
+                return (
+                  <div
+                    key={plan.id}
+                    className={cn(
+                      "rounded-2xl border-2 p-6 transition-all",
+                      isPopular
+                        ? "border-indigo-500 shadow-[0_10px_40px_rgba(99,102,241,0.15)] bg-white"
+                        : "border-indigo-200 bg-indigo-50/50"
+                    )}
+                  >
+                    {isPopular && (
+                      <div className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-[10px] font-bold px-3 py-1 mb-4">
+                        <Sparkles className="h-3 w-3" />
+                        Más Popular
                       </div>
-
-                      <div className="mt-4 flex justify-end">
-                        <button
-                          onClick={async () => {
-                            setUpgradingPlanId(plan.id);
-                            try {
-                              if (targetPrice === 0) {
-                                const result = await membershipService.selectFreePlan(plan.id);
-                                syncMembershipToStoredUser(result.membershipStatus, plan);
-                                toast.success(`Cambiado a ${plan.name}`);
-                                await refreshSubscription();
-                                setIsChangingPlan(false);
-                                goToMembershipWelcome({ planName: plan.name, planSlug: plan.slug });
-                                return;
-                              }
-
-                              const result = await membershipService.checkout(plan.id);
-                              if (result.proratedCredit && result.proratedCredit > 0) {
-                                toast.success(`Plan ${plan.name} activado. Se descontaron ${money(result.proratedCredit)} por los días no usados de tu plan anterior.`, { duration: 6000 });
-                              } else {
-                                toast.success(`Plan ${plan.name} activado`);
-                              }
-                              goToMembershipWelcome({ planName: plan.name, planSlug: plan.slug, payment: "success" });
-                              await refreshSubscription();
-                              setIsChangingPlan(false);
-                            } catch (e: any) {
-                              toast.error(e?.message || "Error al cambiar plan");
-                            } finally {
-                              setUpgradingPlanId(null);
-                            }
-                          }}
-                          disabled={upgradingPlanId === plan.id}
-                          className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white transition-colors hover:bg-indigo-700 cursor-pointer disabled:opacity-50"
-                        >
-                          {upgradingPlanId === plan.id ? "..." : actionLabel}
-                        </button>
+                    )}
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600">Nuevo plan</span>
+                    </div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={cn(
+                        "flex h-12 w-12 items-center justify-center rounded-xl",
+                        isPopular ? "bg-indigo-600 text-white" : "bg-indigo-100 text-indigo-600"
+                      )}>
+                        <Crown className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className={cn("font-bold text-lg", isPopular ? "text-indigo-700" : "text-slate-900")}>
+                          {plan.name}
+                        </p>
+                        <div className="flex items-baseline gap-2">
+                          {plan.slug === "pro" && (
+                            <p className="text-sm font-semibold text-slate-400 line-through">$25.000</p>
+                          )}
+                          <p className={cn("font-black text-xl", isPopular ? "text-indigo-600" : "text-slate-900")}>
+                            ${Number(plan.price).toLocaleString("es-CL")}
+                            <span className="text-sm font-normal text-slate-400">/mes</span>
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
+                    <div className="space-y-2 mb-6">
+                      {planFeatureRows.slice(0, 5).map((feature) => (
+                        <div key={feature.key} className="flex items-center gap-2 text-sm">
+                          <Check className="h-4 w-4 text-indigo-500 shrink-0" />
+                          <span className="text-slate-600">{feature.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const targetPrice = Number(plan.price || 0);
+
+                        if (targetPrice === 0) {
+                          try {
+                            const result = await membershipService.selectFreePlan(plan.id);
+                            syncMembershipToStoredUser(result.membershipStatus, plan);
+                            toast.success(`Cambiado a ${plan.name}`);
+                            await refreshSubscription();
+                            setIsChangingPlan(false);
+                            setSelectedPlan(null);
+                            goToMembershipWelcome({ planName: plan.name, planSlug: plan.slug });
+                          } catch (e: any) {
+                            toast.error(e?.message || "Error al cambiar plan");
+                          }
+                          return;
+                        }
+
+                        setIsChangingPlan(false);
+                        setPendingPaidPlan(plan);
+                      }}
+                      className="w-full h-12 rounded-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg transition-all cursor-pointer"
+                    >
+                      Cambiar mi plan mensual
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </Modal>
 
       <ConfirmationModal
@@ -467,107 +490,23 @@ export function MembershipPlanSection() {
         isLoading={isCanceling}
       />
 
-      {isUpgradeModalOpen && upgradePlans.length > 1 && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="fixed inset-0" onClick={() => setIsUpgradeModalOpen(false)} />
-          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
-            <div className="p-8 space-y-6">
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-r from-indigo-100 to-purple-100 border-2 border-indigo-200 mb-4">
-                  <Zap className="h-8 w-8 text-indigo-600" />
-                </div>
-                <h3 className="text-2xl font-black tracking-tight text-slate-900">
-                  Hacer upgrade
-                </h3>
-                <p className="mt-2 text-sm text-slate-500">
-                  Selecciona el plan que mejor se adapte a tus necesidades
-                </p>
-              </div>
-
-              <div className="grid gap-4">
-                {upgradePlans.map((plan) => {
-                  const isPopular = plan.isPopular;
-                  return (
-                    <div
-                      key={plan.id}
-                      onClick={() => setSelectedUpgradePlan(plan)}
-                      className={`relative flex flex-col rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
-                        isPopular
-                          ? "border-indigo-500 shadow-[0_10px_40px_rgba(99,102,241,0.15)]"
-                          : selectedUpgradePlan?.id === plan.id
-                            ? "border-indigo-400 bg-indigo-50"
-                            : "border-slate-200 hover:border-slate-300 bg-white"
-                      }`}
-                    >
-                      {isPopular && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow">
-                          Más Popular
-                        </div>
-                      )}
-                      <div className={cn("p-4", isPopular && "pt-6")}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className={cn("font-bold text-lg", isPopular ? "text-indigo-700" : "text-slate-900")}>
-                              {plan.name}
-                            </p>
-                            {plan.slug === "pro" && (
-                              <p className="text-sm font-semibold text-slate-400 line-through">$25.000 /mes</p>
-                            )}
-                            <p className="text-2xl font-black text-slate-900">
-                              ${Number(plan.price).toLocaleString("es-CL")}
-                              <span className="text-sm font-normal text-slate-400">/mes</span>
-                            </p>
-                          </div>
-                          <div className={cn(
-                            "w-6 h-6 rounded-full border-2 flex items-center justify-center",
-                            selectedUpgradePlan?.id === plan.id
-                              ? "bg-indigo-600 border-indigo-600"
-                              : "border-slate-300"
-                          )}>
-                            {selectedUpgradePlan?.id === plan.id && (
-                              <Check className="h-4 w-4 text-white" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setIsUpgradeModalOpen(false)}
-                  className="flex-1 h-12 rounded-xl font-bold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => setIsUpgradeModalOpen(false)}
-                  disabled={!selectedUpgradePlan}
-                  className="flex-1 h-12 rounded-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Continuar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {selectedUpgradePlan && (
+      {pendingPaidPlan && (
         <TransferPaymentModal
-          isOpen={!!selectedUpgradePlan && (isUpgradeModalOpen || true)}
+          isOpen={!!pendingPaidPlan}
           onClose={() => {
-            setSelectedUpgradePlan(null);
-            setIsUpgradeModalOpen(false);
+            setPendingPaidPlan(null);
+            setSelectedPlan(null);
           }}
-          planId={selectedUpgradePlan.id}
-          planName={selectedUpgradePlan.name}
-          planPrice={Number(selectedUpgradePlan.price)}
+          planId={pendingPaidPlan.id}
+          planName={pendingPaidPlan.name}
+          planPrice={Number(pendingPaidPlan.price)}
+          currentPlanName={currentPlan.name}
+          currentPlanPrice={currentPrice}
           nutritionistEmail={getCurrentUser()?.email || ""}
           nutritionistName={getCurrentUser()?.nutritionist?.fullName}
           onSuccess={async () => {
+            setPendingPaidPlan(null);
+            setSelectedPlan(null);
             await refreshSubscription();
           }}
         />
