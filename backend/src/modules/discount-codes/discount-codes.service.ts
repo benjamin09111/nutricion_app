@@ -177,10 +177,11 @@ export class DiscountCodesService {
     });
   }
 
-  markAsUsed(code: string, accountId: string, tx?: any) {
+  async markAsUsed(code: string, accountId: string, tx?: any) {
     const client = (tx || this.prisma).discountCode;
-    return client.update({
-      where: { code },
+
+    const result = await client.updateMany({
+      where: { code, isUsed: false },
       data: {
         status: 'EXPIRED',
         isUsed: true,
@@ -188,6 +189,12 @@ export class DiscountCodesService {
         usedAt: new Date(),
       },
     });
+
+    if (result.count === 0) {
+      throw new BadRequestException('Codigo expirado.');
+    }
+
+    return result;
   }
 
   async archiveUsedCodes(adminId: string) {
