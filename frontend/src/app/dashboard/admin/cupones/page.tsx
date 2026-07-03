@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Copy } from "lucide-react";
+import { Copy, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
 import { cn } from "@/lib/utils";
 import {
@@ -23,11 +24,13 @@ export default function AdminCuponesPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [genType, setGenType] = useState<"NUTRI" | "BETA">("NUTRI");
   const [genCount, setGenCount] = useState(1);
-  const [filterType, setFilterType] = useState<string>("");
   const [filterUsed, setFilterUsed] = useState<string>("");
   const [showArchived, setShowArchived] = useState(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  const [updatingCodeId, setUpdatingCodeId] = useState<string | null>(null);
+  const [selectedCode, setSelectedCode] = useState<DiscountCodeAdmin | null>(null);
+  const [statusCode, setStatusCode] = useState<DiscountCodeAdmin | null>(null);
 
   const clampCount = (value: number) => Math.min(100, Math.max(1, value));
 
@@ -35,13 +38,14 @@ export default function AdminCuponesPage() {
     setIsLoading(true);
     try {
       const result = await membershipService.listDiscountCodes({
-        type: filterType || undefined,
-        isUsed:
-          filterUsed === "true"
-            ? true
-            : filterUsed === "false"
-              ? false
-              : undefined,
+        status:
+          filterUsed === "shared"
+            ? "SHARED"
+            : filterUsed === "expired"
+              ? "EXPIRED"
+              : filterUsed === "active"
+                ? "ACTIVE"
+                : undefined,
         start: (pageArg - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
         includeArchived: showArchived,
@@ -54,7 +58,7 @@ export default function AdminCuponesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, filterType, filterUsed, showArchived]);
+  }, [currentPage, filterUsed, showArchived]);
 
   useEffect(() => {
     loadCodes();
@@ -89,11 +93,6 @@ export default function AdminCuponesPage() {
   const decrementCount = () => setGenCount((current) => clampCount(current - 1));
   const incrementCount = () => setGenCount((current) => clampCount(current + 1));
 
-  const handleFilterTypeChange = (value: string) => {
-    setFilterType(value);
-    setCurrentPage(1);
-  };
-
   const handleFilterUsedChange = (value: string) => {
     setFilterUsed(value);
     setCurrentPage(1);
@@ -107,6 +106,15 @@ export default function AdminCuponesPage() {
   const handleCopy = (code: string) => {
     navigator.clipboard.writeText(code);
     toast.success("Copiado al portapapeles");
+  };
+
+  const getCodeStatus = (code: DiscountCodeAdmin) =>
+    code.archivedAt ? "ARCHIVED" : code.status || (code.isUsed ? "EXPIRED" : "ACTIVE");
+
+  const truncateLabel = (value?: string | null) => {
+    const text = value || "—";
+    if (text === "—") return text;
+    return text.length > 9 ? `${text.slice(0, 9)}...` : text;
   };
 
   const handleArchiveUsed = async () => {
@@ -124,6 +132,20 @@ export default function AdminCuponesPage() {
       toast.error(e?.message || "Error al archivar cupones");
     } finally {
       setIsArchiving(false);
+    }
+  };
+
+  const handleSetCodeStatus = async (codeId: string, status: "SHARED" | "EXPIRED") => {
+    setUpdatingCodeId(codeId);
+    try {
+      await membershipService.setDiscountCodeStatus(codeId, status);
+      setStatusCode(null);
+      await loadCodes(currentPage);
+      toast.success(status === "SHARED" ? "Cupón marcado como compartido" : "Cupón expirado correctamente");
+    } catch (e: any) {
+      toast.error(e?.message || "Error al actualizar cupón");
+    } finally {
+      setUpdatingCodeId(null);
     }
   };
 
@@ -203,25 +225,14 @@ export default function AdminCuponesPage() {
 
       <div className="shrink-0 flex flex-wrap items-center gap-3">
         <select
-          value={filterType}
-          onChange={(e) => handleFilterTypeChange(e.target.value)}
-          className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600"
-        >
-          <option value="">Todos los tipos</option>
-          {DISCOUNT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.shortLabel}
-            </option>
-          ))}
-        </select>
-        <select
           value={filterUsed}
           onChange={(e) => handleFilterUsedChange(e.target.value)}
           className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600"
         >
           <option value="">Todos los estados</option>
-          <option value="false">Activo</option>
-          <option value="true">Usado</option>
+          <option value="active">Activo</option>
+          <option value="shared">Compartido</option>
+          <option value="expired">Expirado</option>
         </select>
         <button
           type="button"
@@ -259,9 +270,6 @@ export default function AdminCuponesPage() {
                   Codigo
                 </th>
                 <th className="px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-400">
-                  Tipo
-                </th>
-                <th className="px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-400">
                   Descuento
                 </th>
                 <th className="px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-400">
@@ -284,19 +292,19 @@ export default function AdminCuponesPage() {
             <tbody className="divide-y divide-slate-50">
               {isLoading ? (
                 <tr>
-                  <td
-                    colSpan={8}
-                    className="px-4 py-8 text-center text-sm text-slate-400"
-                  >
+                    <td
+                      colSpan={7}
+                      className="px-4 py-8 text-center text-sm text-slate-400"
+                    >
                     Cargando codigos...
                   </td>
                 </tr>
               ) : codes.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={8}
-                    className="px-4 py-8 text-center text-sm text-slate-400"
-                  >
+                    <td
+                      colSpan={7}
+                      className="px-4 py-8 text-center text-sm text-slate-400"
+                    >
                     No hay codigos. Genera el primero arriba.
                   </td>
                 </tr>
@@ -315,40 +323,47 @@ export default function AdminCuponesPage() {
                         {c.code}
                       </code>
                     </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest",
-                          c.type === "NUTRI"
-                            ? "bg-indigo-50 text-indigo-600"
-                            : "bg-amber-50 text-amber-700",
-                        )}
-                      >
-                        {c.type}
-                      </span>
-                    </td>
                     <td className="px-4 py-3 font-bold text-slate-700">
                       {c.discountPercent}%
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest",
-                          c.archivedAt
-                            ? "bg-slate-100 text-slate-500"
-                            : c.isUsed
-                              ? "bg-slate-100 text-slate-400"
-                              : "bg-emerald-50 text-emerald-600",
-                        )}
-                      >
-                        {c.archivedAt ? "Archivado" : c.isUsed ? "Usado" : "Activo"}
+                      {getCodeStatus(c) === "ARCHIVED" ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          Archivado
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setStatusCode(c)}
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer",
+                            getCodeStatus(c) === "SHARED"
+                              ? "bg-sky-50 text-sky-700 hover:bg-sky-100"
+                              : getCodeStatus(c) === "EXPIRED"
+                                ? "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+                          )}
+                          title="Cambiar estado"
+                        >
+                          {updatingCodeId === c.id
+                            ? "Guardando..."
+                            : getCodeStatus(c) === "SHARED"
+                              ? "Compartido"
+                              : getCodeStatus(c) === "EXPIRED"
+                                ? "Expirado"
+                                : "Activo"}
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-600">
+                      <span title={c.createdBy?.email || "—"}>
+                        {truncateLabel(c.createdBy?.email)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-600">
-                      {c.createdBy?.email || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-600">
-                      {c.usedBy?.email || "—"}
+                      <span title={c.usedBy?.email || "—"}>
+                        {truncateLabel(c.usedBy?.email)}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-400">
                       {c.usedAt
@@ -360,13 +375,24 @@ export default function AdminCuponesPage() {
                         : "—"}
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => handleCopy(c.code)}
-                        className="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-colors hover:bg-indigo-50 hover:text-indigo-600"
-                      >
-                        <Copy className="h-3 w-3" />
-                        Copiar
-                      </button>
+                      <div className="inline-flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleCopy(c.code)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer"
+                          aria-label="Copiar cupón"
+                          title="Copiar"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setSelectedCode(c)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 hover:text-slate-900 cursor-pointer"
+                          aria-label="Ver detalle"
+                          title="Ver detalle"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -395,6 +421,97 @@ export default function AdminCuponesPage() {
         variant="warning"
         isLoading={isArchiving}
       />
+
+      <Modal
+        isOpen={!!selectedCode}
+        onClose={() => setSelectedCode(null)}
+        title="Detalle del cupón"
+        className="max-w-2xl"
+      >
+        {selectedCode && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Código</p>
+              <p className="mt-1 font-mono text-sm font-bold text-slate-900">{selectedCode.code}</p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Descuento</p>
+              <p className="mt-1 text-sm font-bold text-slate-900">{selectedCode.discountPercent}%</p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Estado</p>
+              <p className="mt-1 text-sm font-bold text-slate-900">
+                {getCodeStatus(selectedCode) === "ARCHIVED"
+                  ? "Archivado"
+                  : getCodeStatus(selectedCode) === "SHARED"
+                    ? "Compartido"
+                    : getCodeStatus(selectedCode) === "EXPIRED"
+                      ? "Expirado"
+                      : "Activo"}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tipo</p>
+              <p className="mt-1 text-sm font-bold text-slate-900">{selectedCode.type}</p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Creado por</p>
+              <p className="mt-1 text-sm font-bold text-slate-900 break-all">{selectedCode.createdBy?.email || "—"}</p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Usado por</p>
+              <p className="mt-1 text-sm font-bold text-slate-900 break-all">{selectedCode.usedBy?.email || "—"}</p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fecha uso</p>
+              <p className="mt-1 text-sm font-bold text-slate-900">
+                {selectedCode.usedAt
+                  ? new Date(selectedCode.usedAt).toLocaleString("es-CL")
+                  : "—"}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Archivado</p>
+              <p className="mt-1 text-sm font-bold text-slate-900">
+                {selectedCode.archivedAt ? new Date(selectedCode.archivedAt).toLocaleString("es-CL") : "—"}
+              </p>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={!!statusCode}
+        onClose={() => setStatusCode(null)}
+        title="Cambiar estado"
+        className="max-w-md"
+      >
+        {statusCode && (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              {statusCode.code}
+            </p>
+            <div className="grid gap-3">
+              <button
+                type="button"
+                onClick={() => void handleSetCodeStatus(statusCode.id, "SHARED")}
+                disabled={updatingCodeId === statusCode.id}
+                className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-left text-sm font-bold text-sky-700 transition-colors hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Compartido
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSetCodeStatus(statusCode.id, "EXPIRED")}
+                disabled={updatingCodeId === statusCode.id}
+                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Expirado
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

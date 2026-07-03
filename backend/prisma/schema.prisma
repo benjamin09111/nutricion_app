@@ -651,6 +651,7 @@ model DiscountCode {
   code              String           @unique
   type              DiscountCodeType
   discountPercent   Int              @map("discount_percent")
+  status            DiscountCodeStatus @default(ACTIVE)
   isUsed            Boolean          @default(false) @map("is_used")
   usedByAccountId   String?          @map("used_by_account_id")
   usedAt            DateTime?        @map("used_at")
@@ -896,6 +897,12 @@ enum SubscriptionStatus {
 enum DiscountCodeType {
   NUTRI
   BETA
+}
+
+enum DiscountCodeStatus {
+  ACTIVE
+  SHARED
+  EXPIRED
 }
 
 model AppointmentCalendar {

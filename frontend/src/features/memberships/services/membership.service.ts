@@ -108,6 +108,7 @@ export interface DiscountCodeAdmin {
   id: string;
   code: string;
   type: string;
+  status?: "ACTIVE" | "SHARED" | "EXPIRED";
   discountPercent: number;
   isUsed: boolean;
   usedByAccountId: string | null;
@@ -186,6 +187,7 @@ export const membershipService = {
   async listDiscountCodes(params?: {
     type?: string;
     isUsed?: boolean;
+    status?: string;
     start?: number;
     limit?: number;
     includeArchived?: boolean;
@@ -193,6 +195,7 @@ export const membershipService = {
     const query = new URLSearchParams();
     if (params?.type) query.set("type", params.type);
     if (params?.isUsed !== undefined) query.set("isUsed", String(params.isUsed));
+    if (params?.status) query.set("status", params.status);
     if (params?.start !== undefined) query.set("start", String(params.start));
     if (params?.limit !== undefined) query.set("limit", String(params.limit));
     if (params?.includeArchived !== undefined) query.set("includeArchived", String(params.includeArchived));
@@ -203,5 +206,10 @@ export const membershipService = {
   async archiveUsedDiscountCodes(): Promise<{ archivedCount: number; archivedAt: string }> {
     const res = await api.post("/discount-codes/archive-used");
     return readJsonResponse<{ archivedCount: number; archivedAt: string }>(res);
+  },
+
+  async setDiscountCodeStatus(codeId: string, status: "SHARED" | "EXPIRED"): Promise<DiscountCodeAdmin> {
+    const res = await api.post(`/discount-codes/${codeId}/status`, { status });
+    return readJsonResponse<DiscountCodeAdmin>(res);
   },
 };

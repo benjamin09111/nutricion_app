@@ -107,6 +107,7 @@ export function MembershipPlanSection({
   const [hasAutoOpenedChangePlan, setHasAutoOpenedChangePlan] = useState(false);
 
   const currentPrice = Number(currentPlan?.price || 0);
+  const canChangePlan = currentPrice === 0;
   const nextPaymentLabel = useMemo(() => {
     if (currentPrice === 0) return "Sin cobro";
     return formatDate(billing?.nextPaymentAt || subscriptionEndsAt?.toISOString() || null);
@@ -261,18 +262,19 @@ export function MembershipPlanSection({
         </div>
 
         <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Acciones</p>
-              <h3 className="mt-1 text-lg font-bold text-slate-900">Gestión de suscripción</h3>
-            </div>
-            <button
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Acciones</p>
+                <h3 className="mt-1 text-lg font-bold text-slate-900">Gestión de suscripción</h3>
+              </div>
+              <button
               onClick={loadAvailablePlans}
-              className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-sm font-semibold transition-colors cursor-pointer"
-            >
-              Cambiar mi plan
-            </button>
-          </div>
+              disabled={!canChangePlan}
+              className="rounded-xl px-4 py-2 text-sm font-semibold transition-colors cursor-pointer disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+              {canChangePlan ? "Cambiar mi plan" : "Plan ya activo"}
+              </button>
+            </div>
 
           <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 p-4">
             <div className="flex items-center gap-2">

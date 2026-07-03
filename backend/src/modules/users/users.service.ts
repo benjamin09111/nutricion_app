@@ -11,6 +11,7 @@ import {
   PaymentStatus,
 } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
+import { DiscountCodesService } from '../discount-codes/discount-codes.service';
 import { ADMIN_ROLES } from '../permissions/permissions.constants';
 import { normalizeMembershipPlanKey } from '../memberships/plan-entitlements';
 import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
@@ -24,6 +25,7 @@ export class UsersService {
   constructor(
     private prisma: PrismaService,
     private readonly mailService: MailService,
+    private readonly discountCodesService: DiscountCodesService,
   ) {}
 
   /**
@@ -671,6 +673,10 @@ export class UsersService {
       let paymentId: string | null = pendingTransfer?.id || null;
 
       if (pendingTransfer) {
+        const discountCode =
+          (pendingTransfer.metadata as Record<string, any> | null)?.discountCode ||
+          (pendingTransfer.metadata as Record<string, any> | null)?.discount?.code;
+
         await tx.payment.update({
           where: { id: pendingTransfer.id },
           data: {
@@ -684,6 +690,11 @@ export class UsersService {
             },
           },
         });
+
+        if (discountCode) {
+          await this.discountCodesService.markAsUsed(discountCode, userId, tx);
+        }
+
         await upsertDailyMetric(Number(pendingTransfer.amount));
       } else if (shouldRecordPayment) {
         const createdPayment = await tx.payment.create({

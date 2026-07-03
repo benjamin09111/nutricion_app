@@ -627,9 +627,10 @@ export class PaymentsService {
 
     let discount = options?.discount;
     if (!discount && options?.discountCode) {
-      const discountCode = await this.discountCodesService.validateAndGetDiscount(
-        options.discountCode,
-      );
+      const discountCode =
+        await this.discountCodesService.validateAndGetDiscount(
+          options.discountCode,
+        );
       discount = {
         code: discountCode.code,
         percent: discountCode.discountPercent,
@@ -867,21 +868,12 @@ export class PaymentsService {
       throw new NotFoundException('Cuenta no encontrada');
     }
 
-    const freePlan = await this.prisma.membershipPlan.findFirst({
-      where: {
-        isActive: true,
-        OR: [{ price: 0 }, { slug: { contains: 'free', mode: 'insensitive' } }],
-      },
-    });
-
-    if (!freePlan) {
-      throw new NotFoundException('No se encontró un plan gratuito activo');
-    }
-
     const pricing = await this.calculateMembershipCharge(accountId, plan, {
       discountCode,
     });
-    const paymentAmount = discountCode ? pricing.finalPrice : amount ?? pricing.finalPrice;
+    const paymentAmount = discountCode
+      ? pricing.finalPrice
+      : (amount ?? pricing.finalPrice);
 
     const payment = await this.prisma.$transaction(async (tx) => {
       const createdPayment = await tx.payment.create({
@@ -916,26 +908,6 @@ export class PaymentsService {
           },
         },
       });
-
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + 1);
-
-      await this.upsertSubscription(
-        tx,
-        accountId,
-        freePlan,
-        startDate,
-        endDate,
-      );
-      await this.updateAccountPlan(tx, accountId, freePlan, endDate);
-      await this.createSubscriptionEvent(
-        tx,
-        accountId,
-        createdPayment.id,
-        'ACTIVATED',
-        freePlan.id,
-      );
 
       return createdPayment;
     });
@@ -1162,7 +1134,10 @@ export class PaymentsService {
   private async sendPaymentStatusEmail(
     paymentId: string,
     status: 'approved' | 'rejected',
-    accountOverride?: { email: string; nutritionist?: { fullName: string | null } | null },
+    accountOverride?: {
+      email: string;
+      nutritionist?: { fullName: string | null } | null;
+    },
   ) {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
