@@ -63,7 +63,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const notificationRef = useRef<HTMLDivElement>(null);
 
   const { isAdminView } = useAdmin();
-  const { planName, currentPlan } = useSubscription();
+  const { planName, currentPlan, hasPendingTransfer } = useSubscription();
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
     useNotifications();
   const { isDarkMode, toggleTheme } = useTheme();
@@ -167,19 +167,23 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
               <button
                 type="button"
                 onClick={() =>
-                  router.push(
-                    "/dashboard/configuraciones?tab=membership&openPlanModal=1",
-                  )
+                  hasPendingTransfer
+                    ? null
+                    : router.push(
+                        "/dashboard/configuraciones?tab=membership&openPlanModal=1",
+                      )
                 }
                 className={cn(
                   "inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all",
-                  isDarkMode
-                    ? "border border-amber-400/30 bg-gradient-to-r from-amber-500/20 to-amber-600/20 text-amber-300 hover:from-amber-500/30 hover:to-amber-600/30"
-                    : "border border-amber-200 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 hover:from-amber-100 hover:to-amber-200 shadow-sm",
+                  hasPendingTransfer
+                    ? "border border-slate-200 bg-slate-50 text-slate-600 cursor-default"
+                    : isDarkMode
+                      ? "border border-amber-400/30 bg-gradient-to-r from-amber-500/20 to-amber-600/20 text-amber-300 hover:from-amber-500/30 hover:to-amber-600/30"
+                      : "border border-amber-200 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 hover:from-amber-100 hover:to-amber-200 shadow-sm",
                 )}
               >
                 <Crown className="h-4 w-4" />
-                Ascender a Pro
+                {hasPendingTransfer ? "Plan pendiente de aprobación" : "Ascender a Pro"}
               </button>
             )}
 

@@ -112,6 +112,7 @@ export function OnboardingWizard({ nutritionistEmail, nutritionistName }: Onboar
     try {
       const result = await membershipService.selectFreePlan(plan.id);
       syncMembershipToStoredUser(result.membershipStatus, plan);
+      localStorage.setItem("nutri_welcome_pending", "true");
       toast.success(`Plan ${plan.name} activado correctamente`);
       await refreshSubscription();
       goToDashboard();
@@ -127,6 +128,7 @@ export function OnboardingWizard({ nutritionistEmail, nutritionistName }: Onboar
   };
 
   const handlePaymentSuccess = async () => {
+    localStorage.setItem("nutri_welcome_pending", "true");
     await refreshSubscription();
     router.push("/dashboard");
   };

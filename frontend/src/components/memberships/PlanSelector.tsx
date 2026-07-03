@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
   Check,
   Zap,
@@ -9,7 +8,6 @@ import {
   Crown,
   ArrowRight,
   ShieldCheck,
-  TestTube,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -20,18 +18,20 @@ import {
 } from "@/features/memberships/services/membership.service";
 import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
 import { useSubscription } from "@/context/SubscriptionContext";
-import { usePaymentMode } from "@/hooks/usePaymentMode";
 import { cn } from "@/lib/utils";
 import { goToDashboard } from "@/lib/membership-navigation";
 import { syncMembershipToStoredUser } from "@/lib/membership-session";
+import { TransferPaymentModal } from "@/components/pagos/TransferPaymentModal";
+import { getCurrentUser } from "@/lib/current-user";
+
+const WELCOME_KEY = "nutri_welcome_pending";
 
 export function PlanSelector() {
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [selectedPaidPlan, setSelectedPaidPlan] = useState<MembershipPlan | null>(null);
   const { refreshSubscription } = useSubscription();
-  const router = useRouter();
-  const { mode, toggle: toggleMode } = usePaymentMode();
 
   useEffect(() => {
     membershipService
@@ -41,14 +41,18 @@ export function PlanSelector() {
       .finally(() => setIsLoading(false));
   }, []);
 
+  const user = getCurrentUser();
+  const email = user?.email || "";
+  const fullName = user?.nutritionist?.fullName || "";
+
   const handleSelectFree = async (plan: MembershipPlan) => {
     setSubmittingId(plan.id);
     try {
       const result = await membershipService.selectFreePlan(plan.id);
       syncMembershipToStoredUser(result.membershipStatus, plan);
+      localStorage.setItem(WELCOME_KEY, "true");
       toast.success(`Plan ${plan.name} activado correctamente`);
       await refreshSubscription();
-      router.refresh();
       goToDashboard();
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Error al activar plan");
@@ -57,35 +61,14 @@ export function PlanSelector() {
     }
   };
 
-  const handleCheckout = async (plan: MembershipPlan) => {
-    setSubmittingId(plan.id);
-    try {
-      if (mode === "real") {
-        const result = await membershipService.createFlowCheckout(plan.id);
-        if (result.paymentUrl) {
-          window.location.href = result.paymentUrl;
-          return;
-        }
-        throw new Error("No se obtuvo link de pago");
-      }
+  const handleSelectPaidPlan = (plan: MembershipPlan) => {
+    setSelectedPaidPlan(plan);
+  };
 
-      // Mock payment
-      const result = await membershipService.checkout(plan.id);
-      if (result.proratedCredit && result.proratedCredit > 0) {
-        toast.success(
-          `Plan ${plan.name} activado. Crédito aplicado: $${result.proratedCredit.toLocaleString("es-CL")}`,
-          { duration: 5000 },
-        );
-      } else {
-        toast.success(`Plan ${plan.name} activado correctamente`);
-      }
-      await refreshSubscription();
-      goToDashboard();
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Error al procesar el pago");
-    } finally {
-      setSubmittingId(null);
-    }
+  const handlePaymentSuccess = async () => {
+    localStorage.setItem(WELCOME_KEY, "true");
+    await refreshSubscription();
+    goToDashboard();
   };
 
   if (isLoading) {
@@ -108,7 +91,6 @@ export function PlanSelector() {
   return (
     <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:py-20">
-        {/* Steps indicator */}
         <div className="mb-10 flex items-center justify-center gap-3">
           <div className="flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700">
             <Check className="h-3.5 w-3.5" />
@@ -126,7 +108,6 @@ export function PlanSelector() {
           </div>
         </div>
 
-        {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
             Elige cómo quieres comenzar
@@ -137,54 +118,6 @@ export function PlanSelector() {
           </p>
         </div>
 
-        {/* Payment Mode Toggle */}
-        <div className="flex justify-center mb-10">
-          <div className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-1.5 shadow-sm">
-            <button
-              onClick={() => mode !== "mock" && toggleMode()}
-              className={cn(
-                "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all",
-                mode === "mock"
-                  ? "bg-amber-100 text-amber-700 shadow-sm"
-                  : "text-slate-400 hover:text-slate-600",
-              )}
-            >
-              <TestTube className="h-3.5 w-3.5" />
-              Modo Prueba
-            </button>
-            <button
-              onClick={() => mode !== "real" && toggleMode()}
-              className={cn(
-                "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all",
-                mode === "real"
-                  ? "bg-emerald-100 text-emerald-700 shadow-sm"
-                  : "text-slate-400 hover:text-slate-600",
-              )}
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Pago Real
-            </button>
-          </div>
-        </div>
-
-        {mode === "mock" && (
-          <div className="flex justify-center mb-8">
-            <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 border border-amber-200 px-4 py-1.5 text-[11px] font-bold text-amber-700">
-              <TestTube className="h-3.5 w-3.5" />
-              Los pagos se aprueban automáticamente — solo para pruebas
-            </div>
-          </div>
-        )}
-
-        {/* Launch Offer Banner */}
-        <div className="flex justify-center mb-8">
-          <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 text-xs font-bold text-white shadow-lg">
-            <Sparkles className="h-3.5 w-3.5" />
-            OFERTA DE LANZAMIENTO: $19.990/mes para las primeras 20 personas (Precio regular $25.000)
-          </div>
-        </div>
-
-        {/* All Plans Grid */}
         {allPlans.length > 0 && (
           <div className={cn("grid gap-6 mb-10 mx-auto", allPlans.length === 2 ? "lg:grid-cols-2 max-w-4xl" : "lg:grid-cols-3 max-w-5xl")}>
             {allPlans.map((plan) => {
@@ -285,18 +218,11 @@ export function PlanSelector() {
                       >
                         {plan.name}
                       </h3>
-                      <div className="flex flex-col items-center justify-center gap-1">
-                        {plan.slug === "pro" && (
-                          <span className="text-sm font-semibold text-slate-400 line-through">
-                            $25.000 /mes
-                          </span>
-                        )}
-                        <div className="flex items-baseline justify-center gap-1">
-                          <span className="text-4xl font-black tracking-tight text-slate-900">
-                            ${Number(plan.price).toLocaleString("es-CL")}
-                          </span>
-                          <span className="text-slate-500 text-sm">/mes</span>
-                        </div>
+                      <div className="flex items-baseline justify-center gap-1">
+                        <span className="text-4xl font-black tracking-tight text-slate-900">
+                          ${Number(plan.price).toLocaleString("es-CL")}
+                        </span>
+                        <span className="text-slate-500 text-sm">/mes</span>
                       </div>
                       {plan.description && (
                         <p className="mt-2 text-sm text-slate-500">
@@ -341,23 +267,18 @@ export function PlanSelector() {
                     </ul>
 
                     <Button
-                      onClick={() => handleCheckout(plan)}
-                      disabled={submittingId === plan.id}
+                      onClick={() => handleSelectPaidPlan(plan)}
                       className={`w-full cursor-pointer text-base font-semibold py-3 rounded-2xl transition-all duration-300 ${
                         isPopular
                           ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl hover:scale-[1.02]"
                           : "bg-slate-900 hover:bg-slate-800 text-white"
                       }`}
                     >
-                      {submittingId === plan.id ? (
-                        <span className="flex items-center gap-2">
-                          <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          {mode === "real"
-                            ? "Redirigiendo..."
-                            : "Confirmando..."}
-                        </span>
-                      ) : mode === "real" ? (
-                        `Pagar ${plan.name}`
+                      {isPopular ? (
+                        <>
+                          <ShieldCheck className="h-4 w-4 mr-2" />
+                          Obtener {plan.name}
+                        </>
                       ) : (
                         `Obtener ${plan.name}`
                       )}
@@ -377,13 +298,23 @@ export function PlanSelector() {
           </div>
         )}
 
-        {/* Footer note */}
         <p className="text-center text-sm text-slate-400 mt-12">
-          {mode === "real"
-            ? "Pago seguro con Flow · Facturación en CLP · Cancela cuando quieras"
-            : "Modo prueba — los pagos se confirman automáticamente"}
+          Pago seguro con transferencia bancaria · Facturación en CLP · Cancela cuando quieras
         </p>
       </div>
+
+      {selectedPaidPlan && (
+        <TransferPaymentModal
+          isOpen={!!selectedPaidPlan}
+          onClose={() => setSelectedPaidPlan(null)}
+          planId={selectedPaidPlan.id}
+          planName={selectedPaidPlan.name}
+          planPrice={Number(selectedPaidPlan.price)}
+          nutritionistEmail={email}
+          nutritionistName={fullName}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 }

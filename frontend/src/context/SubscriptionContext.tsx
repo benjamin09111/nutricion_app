@@ -27,6 +27,7 @@ export interface MembershipState {
   cancelAtPeriodEnd: boolean;
   daysRemaining: number | null;
   requiresPlanSelection: boolean;
+  hasPendingTransfer: boolean;
   entitlements: Record<string, boolean | number>;
   currentPlan: {
     id: string;
@@ -77,6 +78,7 @@ export function SubscriptionProvider({
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
   const [requiresPlanSelection, setRequiresPlanSelection] = useState(false);
+  const [hasPendingTransfer, setHasPendingTransfer] = useState(false);
   const [entitlements, setEntitlements] = useState<Record<string, boolean | number>>({});
   const [currentPlan, setCurrentPlan] = useState<MembershipState["currentPlan"]>(null);
   const [usage, setUsage] = useState<MembershipState["usage"]>(undefined);
@@ -184,6 +186,7 @@ export function SubscriptionProvider({
       setCancelAtPeriodEnd(data.subscription?.cancelAtPeriodEnd || false);
       setDaysRemaining(data.subscription?.daysRemaining ?? null);
       setRequiresPlanSelection(data.requiresPlanSelection);
+      setHasPendingTransfer(data.hasPendingTransfer || false);
       setEntitlements(data.entitlements || {});
       setCurrentPlan(data.currentPlan);
       setUsage(data.usage);
@@ -337,6 +340,7 @@ export function SubscriptionProvider({
     cancelAtPeriodEnd,
     daysRemaining,
     requiresPlanSelection,
+    hasPendingTransfer,
     entitlements,
     currentPlan,
     usage,

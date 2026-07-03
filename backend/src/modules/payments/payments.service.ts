@@ -322,20 +322,32 @@ export class PaymentsService {
     const startOfMonth = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
     );
-    const [activePatients, monthlyConsultations, pdfUsage, aiUsage] =
-      await Promise.all([
-        this.prisma.patient.count({
-          where: { nutritionist: { accountId }, status: 'Active' },
-        }),
-        this.prisma.consultation.count({
-          where: {
-            nutritionist: { accountId },
-            date: { gte: startOfMonth },
-          },
-        }),
-        this.planUsageService.getUsage(accountId, 'pdf.monthly.limit'),
-        this.planUsageService.getUsage(accountId, 'ai.calls.limit'),
-      ]);
+    const [
+      activePatients,
+      monthlyConsultations,
+      pdfUsage,
+      aiUsage,
+      pendingTransferCount,
+    ] = await Promise.all([
+      this.prisma.patient.count({
+        where: { nutritionist: { accountId }, status: 'Active' },
+      }),
+      this.prisma.consultation.count({
+        where: {
+          nutritionist: { accountId },
+          date: { gte: startOfMonth },
+        },
+      }),
+      this.planUsageService.getUsage(accountId, 'pdf.monthly.limit'),
+      this.planUsageService.getUsage(accountId, 'ai.calls.limit'),
+      this.prisma.payment.count({
+        where: {
+          accountId,
+          status: PaymentStatus.PENDING,
+          method: PaymentMethod.BANK_TRANSFER,
+        },
+      }),
+    ]);
     const daysRemaining = subscription?.endDate
       ? Math.ceil(
           (new Date(subscription.endDate).getTime() - Date.now()) /
@@ -351,6 +363,7 @@ export class PaymentsService {
     return {
       requiresPlanSelection: snapshot.requiresPlanSelection,
       accountPlan: snapshot.accountPlan,
+      hasPendingTransfer: pendingTransferCount > 0,
       currentPlan: snapshot.currentPlan
         ? {
             id: snapshot.currentPlan.id,

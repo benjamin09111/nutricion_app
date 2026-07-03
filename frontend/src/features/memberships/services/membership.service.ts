@@ -12,6 +12,7 @@ async function readJsonResponse<T>(res: Response): Promise<T> {
 export interface MembershipStatus {
   requiresPlanSelection: boolean;
   accountPlan: string;
+  hasPendingTransfer?: boolean;
   entitlements: Record<string, boolean | number>;
   usage?: {
     patientsActive: number;

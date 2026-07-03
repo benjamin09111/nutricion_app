@@ -1,14 +1,20 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSubscription } from "@/context/SubscriptionContext";
-import { OnboardingWizard } from "@/components/pagos/OnboardingWizard";
-import { getCurrentUser } from "@/lib/current-user";
 
 export function MembershipGate({ children }: { children: React.ReactNode }) {
   const { requiresPlanSelection, isLoading } = useSubscription();
-  const user = getCurrentUser();
+  const router = useRouter();
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isLoading && requiresPlanSelection) {
+      router.replace("/plan");
+    }
+  }, [isLoading, requiresPlanSelection, router]);
+
+  if (isLoading || requiresPlanSelection) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-4">
@@ -18,15 +24,6 @@ export function MembershipGate({ children }: { children: React.ReactNode }) {
           </p>
         </div>
       </div>
-    );
-  }
-
-  if (requiresPlanSelection) {
-    return (
-      <OnboardingWizard
-        nutritionistEmail={user?.email || ""}
-        nutritionistName={user?.nutritionist?.fullName}
-      />
     );
   }
 

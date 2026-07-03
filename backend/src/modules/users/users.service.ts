@@ -206,11 +206,7 @@ export class UsersService {
             },
           },
         },
-        orderBy: [
-          { lastLoginAt: { sort: 'desc', nulls: 'last' } },
-          { createdAt: 'desc' },
-        ],
-        skip,
+        orderBy: { createdAt: 'desc' },
         take: normalizedLimit,
       });
 
@@ -252,10 +248,7 @@ export class UsersService {
           },
         },
       },
-      orderBy: [
-        { lastLoginAt: { sort: 'desc', nulls: 'last' } },
-        { createdAt: 'desc' },
-      ],
+      orderBy: { createdAt: 'desc' },
     });
 
     // Backend optimizes the data structure before sending to frontend
