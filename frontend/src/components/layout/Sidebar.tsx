@@ -100,7 +100,6 @@ const groups: SidebarGroup[] = [
   {
     title: "Ajustes",
     items: [
-      { name: "Información de Cálculos", href: "/dashboard/herramientas/porciones-intercambio", icon: BookOpen },
       { name: "Notificaciones", href: "/dashboard/ajustes/notificaciones", icon: Bell },
       { name: "Feedback & Soporte", href: "/dashboard/feedback", icon: MessageSquare },
     ],
@@ -108,6 +107,7 @@ const groups: SidebarGroup[] = [
   {
     title: "Ayuda",
     items: [
+      { name: "Información de Cálculos", href: "/dashboard/herramientas/porciones-intercambio", icon: BookOpen },
       { name: "Preguntas frecuentes", href: "/dashboard/preguntas-frecuentes", icon: HelpCircle },
     ],
   },

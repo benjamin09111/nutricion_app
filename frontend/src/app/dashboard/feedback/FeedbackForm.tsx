@@ -143,7 +143,7 @@ export function FeedbackForm() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Type Selection */}
             <div className="space-y-4">
-              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
+              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">
                 Tipo de Mensaje
               </label>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -172,7 +172,7 @@ export function FeedbackForm() {
                         "cursor-pointer relative overflow-hidden rounded-[1.5rem] border-2 p-4 transition-all duration-200 hover:shadow-sm active:scale-95 text-center flex flex-col items-center gap-2",
                         isSelected
                           ? `border-${color}-500 bg-${color}-50 text-${color}-700`
-                          : "border-slate-50 bg-slate-50/50 text-slate-400 hover:border-slate-200 hover:bg-slate-50",
+                          : "border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200 hover:bg-slate-100",
                       )}
                     >
                       <item.icon
@@ -207,7 +207,7 @@ export function FeedbackForm() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="subject" className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
+                <label htmlFor="subject" className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">
                   Asunto
                 </label>
                 <Input
@@ -217,10 +217,16 @@ export function FeedbackForm() {
                   {...register("subject")}
                   className="rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-indigo-500 transition-all font-medium"
                 />
+                {errors.subject && (
+                  <p className="flex items-center gap-1 text-rose-500 text-xs font-medium ml-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {errors.subject.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="message" className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
+                <label htmlFor="message" className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">
                   Detalle del mensaje
                 </label>
                 <Textarea
@@ -231,6 +237,12 @@ export function FeedbackForm() {
                   {...register("message")}
                   className="rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-indigo-500 transition-all font-medium resize-none"
                 />
+                {errors.message && (
+                  <p className="flex items-center gap-1 text-rose-500 text-xs font-medium ml-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {errors.message.message}
+                  </p>
+                )}
               </div>
             </div>
 
