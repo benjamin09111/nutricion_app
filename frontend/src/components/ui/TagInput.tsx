@@ -229,7 +229,7 @@ export function TagInput({
         {/* Suggestions Dropdown */}
         {showSuggestions && allSuggestions.length > 0 && (
           <div className={cn(
-            "fixed inset-x-4 sm:inset-x-auto sm:absolute z-50 mt-2 border rounded-2xl max-h-72 overflow-auto animate-in fade-in slide-in-from-top-2 duration-200 sm:w-full",
+            "fixed inset-x-4 sm:inset-x-auto sm:absolute z-[100] mt-2 border rounded-2xl max-h-72 overflow-auto animate-in fade-in slide-in-from-top-2 duration-200 sm:w-full",
             isDarkMode
               ? "bg-slate-950 border-emerald-400/12 shadow-black/40"
               : "bg-white border-slate-200/80 shadow-2xl shadow-slate-200/50",
@@ -325,13 +325,23 @@ export function TagInput({
           {value.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 shadow-sm animate-in fade-in zoom-in duration-200"
+              className={cn(
+                "inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-bold border shadow-sm animate-in fade-in zoom-in duration-200",
+                isDarkMode
+                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                  : "bg-emerald-50 text-emerald-700 border-emerald-100"
+              )}
             >
               {tag}
               <button
                 type="button"
                 onClick={() => removeTag(tag)}
-                className="ml-2 h-4 w-4 rounded-full inline-flex items-center justify-center hover:bg-emerald-100 hover:text-emerald-900 transition-colors cursor-pointer"
+                className={cn(
+                  "ml-2 h-4 w-4 rounded-full inline-flex items-center justify-center transition-colors cursor-pointer",
+                  isDarkMode
+                    ? "hover:bg-emerald-500/30 hover:text-emerald-200 text-emerald-400/70"
+                    : "hover:bg-emerald-100 hover:text-emerald-900 text-emerald-700"
+                )}
               >
                 <X className="h-3 w-3" />
               </button>

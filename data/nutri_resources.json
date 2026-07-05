@@ -1,46 +1,790 @@
-{
-    "resources": [
-        {
-            "title": "Protocolo de SOS: Control de Atracones Nocturnos",
-            "content": "<h2>Estrategia de Intervención Inmediata</h2><p>Este protocolo es para esos momentos de alta ansiedad por la noche que hemos comentado en sesión. Para proteger tu objetivo de <strong>{OBJETIVO_PRINCIPAL}</strong>, sigue este orden antes de abrir la despensa:</p><ul><li><strong>Hidratación Isotónica:</strong> Bebe 300ml de agua con un toque de limón y una pizca de sal (muchas veces la sed se disfraza de hambre).</li><li><strong>Distracción Cognitiva:</strong> Realiza una actividad manual por 10 minutos (leer, ordenar, respiración diafragmática).</li><li><strong>El Snack de Seguridad:</strong> Si el hambre persiste, consume 1 huevo cocido o 10 almendras. La proteína y grasa frenarán la señal de hambre de forma real, a diferencia de los carbohidratos simples.</li></ul>",
-            "category": "salud-mental",
-            "tags": [
-                "Ansiedad",
-                "Privado",
-                "Control"
-            ],
-            "sources": "Protocolo Interno de Consulta Nutricional",
-            "isPublic": false,
-            "format": "HTML",
-            "nutritionistId": "1b3d18be-7096-4ebc-8296-42c4a1382142"
-        },
-        {
-            "title": "Ajuste de Carga de Hidratos para Días de No Entreno",
-            "content": "<h2>Periodización Nutricional Personalizada</h2><p>Como parte de nuestro seguimiento, <strong>{NOMBRE_PACIENTE}</strong>, los días que no realices actividad física intensa aplicaremos este ajuste en tu plato:</p><ul><li><strong>Reducción de Almidones:</strong> Disminuiremos la porción de arroz/pasta/patata a la mitad de lo habitual.</li><li><strong>Aumento de Grasas Saludables:</strong> Añadiremos media porción extra de aguacate o AOVE para mantener la saciedad.</li><li><strong>Foco en Vegetales Crucíferos:</strong> Brócoli o coliflor para aumentar el volumen gástrico sin elevar la carga glucémica en reposo.</li></ul>",
-            "category": "deporte",
-            "tags": [
-                "Periodización",
-                "Metabolismo",
-                "Personalizado"
-            ],
-            "sources": "Guía Clínica de Composición Corporal",
-            "isPublic": false,
-            "format": "HTML",
-            "nutritionistId": "1b3d18be-7096-4ebc-8296-42c4a1382142"
-        },
-        {
-            "title": "Interpretación de tu Analítica Sanguínea",
-            "content": "<h2>Entendiendo tus marcadores actuales</h2><p>Este recurso te ayudará a entender por qué estamos priorizando ciertos alimentos en tu plan tras revisar tus resultados de laboratorio.</p><h3>Marcadores Clave</h3><ul><li><strong>Glucemia en ayunas:</strong> Buscamos estabilidad para evitar la fatiga que mencionaste en la consulta del <strong>{FECHA_CONSULTA}</strong>.</li><li><strong>Perfil Lipídico:</strong> La relación entre HDL y Triglicéridos es lo que más nos importa para tu salud cardiovascular.</li><li><strong>Ferritina:</strong> Si está baja, priorizaremos el protocolo de hierro + Vitamina C que diseñé para ti.</li></ul>",
-            "category": "otro",
-            "tags": [
-                "Analíticas",
-                "Salud",
-                "Exclusivo"
-            ],
-            "sources": "Criterios de Medicina Funcional",
-            "isPublic": false,
-            "format": "HTML",
-            "nutritionistId": "1b3d18be-7096-4ebc-8296-42c4a1382142"
-        }
-    ]
-}
+[
+    {
+        "id": "sys-portada-01",
+        "title": "Bienvenido/a a tu plan nutricional",
+        "content": "<p>Este plan fue diseñado especialmente para ti, considerando tus objetivos, tus gustos y tu estilo de vida. No es una dieta estricta ni temporal: es una herramienta para que aprendas a comer mejor de forma sostenible.</p><p>A lo largo de este plan encontrarás recursos con información confiable sobre distintos temas de nutrición y salud. Están pensados para resolver tus dudas del día a día, basados en evidencia científica y guías oficiales de salud.</p><p>Recuerda que cualquier duda específica sobre tu caso debe conversarse siempre con tu nutricionista tratante.</p>",
+        "category": "portada",
+        "tags": [
+            "Bienvenida",
+            "Introducción"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-portada-02",
+        "title": "Cómo sacarle el máximo provecho a tu plan",
+        "content": "<p>Un plan nutricional funciona mejor cuando se usa como guía flexible, no como una regla rígida. Algunas recomendaciones:</p><ul><li>Sigue las indicaciones generales, pero avisa a tu nutricionista si algo no te está resultando cómodo.</li><li>Los cambios sostenibles son graduales: no esperes resultados de la noche a la mañana.</li><li>Usa los recursos de este plan (mitos, hábitos, FAQ, etc.) cuando tengas dudas puntuales.</li><li>Agenda tus controles y sé honesto/a sobre tus avances y dificultades; eso permite ajustar el plan a tiempo.</li></ul><p>La constancia y la comunicación con tu profesional son más importantes que la perfección.</p>",
+        "category": "portada",
+        "tags": [
+            "Introducción",
+            "Seguimiento"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-mitos-01",
+        "title": "Mito: los carbohidratos engordan",
+        "content": "<p><strong>Mito:</strong> comer pan, arroz o papas hace subir de peso por sí solo.</p><p><strong>Realidad:</strong> lo que determina el aumento de peso es el balance total de calorías que consumes durante el día, no un grupo de alimentos en particular. Los carbohidratos son la principal fuente de energía del cuerpo y del cerebro.</p><p>El problema no son los carbohidratos en sí, sino las porciones excesivas, combinarlos siempre con alimentos muy calóricos (frituras, salsas, azúcar) o dejar de lado otros grupos de alimentos importantes como verduras y proteínas.</p><p>Prefiere versiones integrales (arroz integral, pan integral, avena) porque aportan más fibra y te ayudan a sentirte satisfecho por más tiempo.</p>",
+        "category": "mitos",
+        "tags": [
+            "Mitos",
+            "Carbohidratos",
+            "Peso"
+        ],
+        "sources": "Harvard T.H. Chan School of Public Health - The Nutrition Source",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-mitos-02",
+        "title": "Mito: necesitas 'detox' o jugos para limpiar tu cuerpo",
+        "content": "<p><strong>Mito:</strong> los jugos detox, tés depurativos o dietas de limpieza eliminan toxinas del cuerpo.</p><p><strong>Realidad:</strong> tu cuerpo ya cuenta con órganos especializados en eliminar sustancias de desecho: el hígado y los riñones. No existe evidencia científica de que estos productos aceleren ese proceso o 'limpien' el organismo.</p><p>Muchos de estos productos son bajos en calorías y nutrientes, lo que puede generar cansancio, mareos o pérdida de masa muscular si se usan por varios días.</p><p>Si quieres apoyar a tu cuerpo, la mejor forma es mantener una alimentación variada, tomar agua suficiente, dormir bien y evitar el exceso de alcohol, en vez de recurrir a productos 'milagrosos'.</p>",
+        "category": "mitos",
+        "tags": [
+            "Mitos",
+            "Detox",
+            "Alimentación saludable"
+        ],
+        "sources": "OMS; Harvard T.H. Chan School of Public Health",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-habitos-01",
+        "title": "El método del plato: una forma fácil de armar tus comidas",
+        "content": "<p>Una manera simple de asegurar comidas equilibradas, sin tener que pesar ni contar todo, es dividir mentalmente tu plato así:</p><ul><li><strong>1/2 plato:</strong> verduras (variadas y de colores distintos).</li><li><strong>1/4 plato:</strong> proteínas (carnes, pescado, pollo, huevo, legumbres, tofu).</li><li><strong>1/4 plato:</strong> carbohidratos, idealmente integrales (arroz, papa, quinoa, pan integral).</li></ul><p>Agrega una porción pequeña de grasas saludables (palta, aceite de oliva, frutos secos) y toma agua como bebida principal.</p><p>Este método ayuda a mantener un buen equilibrio de nutrientes sin necesidad de cálculos complicados en cada comida.</p>",
+        "category": "habitos",
+        "tags": [
+            "Hábitos",
+            "Plato saludable",
+            "Rutina"
+        ],
+        "sources": "Harvard T.H. Chan School of Public Health - Healthy Eating Plate",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-habitos-02",
+        "title": "¿Por qué es importante comer a horarios regulares?",
+        "content": "<p>Mantener horarios de comida relativamente estables ayuda a tu cuerpo a regular el hambre, la energía y hasta el ánimo durante el día.</p><p>Cuando pasamos muchas horas sin comer, es común llegar a la siguiente comida con mucha hambre y terminar comiendo más rápido y en mayor cantidad de lo que realmente necesitamos.</p><p>Algunas recomendaciones simples:</p><ul><li>Intenta no dejar pasar más de 4-5 horas entre comidas.</li><li>No te saltes el desayuno si sientes hambre al despertar.</li><li>Si tienes mucha ansiedad entre comidas, una colación pequeña (fruta, yogur, frutos secos) puede ayudar.</li></ul><p>No existe un horario 'perfecto' único para todos: lo importante es la regularidad según tu rutina diaria.</p>",
+        "category": "habitos",
+        "tags": [
+            "Hábitos",
+            "Horarios",
+            "Rutina"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-salud-mental-01",
+        "title": "La relación entre lo que comes y tu estado de ánimo",
+        "content": "<p>Cada vez hay más investigación sobre cómo la alimentación puede influir en el ánimo y la salud mental. A esta área se le llama 'psiquiatría nutricional'.</p><p>Algunos hallazgos importantes:</p><ul><li>Las dietas ricas en verduras, frutas, legumbres, pescado y grasas saludables (como la dieta mediterránea) se han asociado con menor riesgo de síntomas depresivos.</li><li>El exceso de alimentos ultraprocesados y azúcares se ha relacionado con peor ánimo y más fatiga en algunos estudios.</li><li>Comer de forma muy irregular o restrictiva también puede afectar negativamente el ánimo y la energía.</li></ul><p>La alimentación es solo una parte del bienestar mental: el sueño, la actividad física, las relaciones sociales y el apoyo profesional también son fundamentales. Si sientes que tu ánimo te afecta de forma importante, es clave buscar apoyo con un profesional de salud mental.</p>",
+        "category": "salud-mental",
+        "tags": [
+            "Salud mental",
+            "Ánimo",
+            "Psiquiatría nutricional"
+        ],
+        "sources": "International Society for Nutritional Psychiatry Research (ISNPR)",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-salud-mental-02",
+        "title": "¿Qué es el 'comer emocional' y cómo manejarlo?",
+        "content": "<p>El 'comer emocional' es cuando comemos en respuesta a emociones (estrés, aburrimiento, tristeza, ansiedad) y no porque tengamos hambre física.</p><p>No es algo 'malo' que ocurra ocasionalmente, es una respuesta humana normal. El problema aparece cuando se convierte en la principal forma de manejar las emociones.</p><p>Algunas estrategias que pueden ayudar:</p><ul><li>Antes de comer por impulso, pregúntate: '¿tengo hambre física o estoy buscando calmar algo más?'</li><li>Intenta identificar qué emoción sientes en ese momento (aburrimiento, estrés, soledad).</li><li>Busca otras formas de manejar esa emoción: salir a caminar, llamar a alguien, escribir, respirar profundo.</li><li>Evita restringirte de forma extrema, ya que puede aumentar los episodios de comer emocional después.</li></ul><p>Si sientes que esto ocurre muy seguido y te genera malestar, coméntaselo a tu nutricionista; en algunos casos es útil el apoyo conjunto con un psicólogo/a.</p>",
+        "category": "salud-mental",
+        "tags": [
+            "Salud mental",
+            "Comer emocional",
+            "Ansiedad"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-salud-intestinal-01",
+        "title": "La fibra: la mejor amiga de tu intestino",
+        "content": "<p>La fibra es un tipo de carbohidrato que no se digiere, pero cumple funciones clave: mejora el tránsito intestinal, ayuda a controlar el azúcar en la sangre y alimenta a las bacterias buenas de tu intestino (microbiota).</p><p>La encuentras en: verduras, frutas (idealmente con cáscara), legumbres, avena, quinoa y frutos secos.</p><p>Algunos consejos prácticos:</p><ul><li>Aumenta la fibra de forma progresiva, no de golpe, para evitar molestias como gases o hinchazón.</li><li>Toma suficiente agua junto con la fibra, ya que trabajan en conjunto para un buen tránsito intestinal.</li><li>Intenta incluir verduras y/o frutas en la mayoría de tus comidas.</li></ul>",
+        "category": "salud-intestinal",
+        "tags": [
+            "Salud intestinal",
+            "Fibra",
+            "Digestión"
+        ],
+        "sources": "MINSAL Chile - Guías Alimentarias Basadas en Alimentos; OMS",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-salud-intestinal-02",
+        "title": "Probióticos y prebióticos: ¿cuál es la diferencia?",
+        "content": "<p>Ambos son importantes para la salud de tu microbiota (las bacterias que viven en tu intestino), pero cumplen roles distintos:</p><ul><li><strong>Probióticos:</strong> son microorganismos vivos que, en cantidad suficiente, aportan beneficios a la salud intestinal. Se encuentran en alimentos fermentados como yogur con cultivos vivos, kéfir y chucrut.</li><li><strong>Prebióticos:</strong> son un tipo de fibra que sirve de 'alimento' para las bacterias buenas de tu intestino. Se encuentran en alimentos como cebolla, ajo, plátano (levemente verde), espárragos y avena.</li></ul><p>Incluir ambos tipos de alimentos de forma regular en tu alimentación favorece una microbiota más diversa y saludable, lo que se relaciona con mejor digestión y hasta con el sistema inmune.</p><p>No todos los suplementos de probióticos sirven para lo mismo: si te interesa tomar uno específico, coméntalo con tu nutricionista o médico.</p>",
+        "category": "salud-intestinal",
+        "tags": [
+            "Salud intestinal",
+            "Probióticos",
+            "Prebióticos",
+            "Microbiota"
+        ],
+        "sources": "International Scientific Association for Probiotics and Prebiotics (ISAPP)",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-deporte-01",
+        "title": "Cómo hidratarte correctamente si haces ejercicio",
+        "content": "<p>La hidratación es clave para el rendimiento físico y para evitar mareos, calambres o cansancio excesivo durante el ejercicio.</p><p>Recomendaciones generales:</p><ul><li>Toma agua durante todo el día, no solo cuando entrenas.</li><li>Antes de entrenar: toma un vaso de agua 1-2 horas antes.</li><li>Durante el ejercicio: si dura menos de 60 minutos, generalmente el agua es suficiente. Si es más largo o muy intenso (por ejemplo, con mucho calor), puede ser útil una bebida con electrolitos.</li><li>Después de entrenar: hidrátate según cuánto hayas transpirado; una señal simple es fijarte en el color de tu orina (debería ser amarillo pálido).</li></ul><p>Si sudas muchísimo o entrenas muy intenso, conversa con tu nutricionista sobre un plan de hidratación más personalizado.</p>",
+        "category": "deporte",
+        "tags": [
+            "Nutrición deportiva",
+            "Hidratación",
+            "Ejercicio"
+        ],
+        "sources": "Academy of Nutrition and Dietetics; Harvard T.H. Chan School of Public Health",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-deporte-02",
+        "title": "Proteína y recuperación muscular: lo esencial",
+        "content": "<p>La proteína es fundamental para reparar y construir tejido muscular, especialmente si entrenas fuerza o haces ejercicio de forma regular.</p><p>Ideas prácticas:</p><ul><li>Distribuye tu consumo de proteína a lo largo del día (en vez de comerla toda en una sola comida), incluyéndola en desayuno, almuerzo y cena.</li><li>Buenas fuentes: carnes, pescado, pollo, huevo, lácteos, legumbres, tofu y frutos secos.</li><li>Comer algo con proteína dentro de las 1-2 horas después de entrenar ayuda a la recuperación muscular (por ejemplo: yogur griego, huevo, pollo con arroz).</li></ul><p>No necesitas necesariamente suplementos como proteína en polvo para lograr esto: con una alimentación variada normalmente es suficiente, salvo indicación específica de tu nutricionista según tus objetivos.</p>",
+        "category": "deporte",
+        "tags": [
+            "Nutrición deportiva",
+            "Proteína",
+            "Recuperación muscular"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-maternidad-01",
+        "title": "Alimentación durante el embarazo: lo más importante",
+        "content": "<p>Durante el embarazo, las necesidades de energía y de algunos nutrientes aumentan, pero esto no significa 'comer por dos' en cantidad.</p><p>Puntos clave:</p><ul><li><strong>Ácido fólico:</strong> fundamental antes y durante el embarazo para el desarrollo del sistema nervioso del bebé (habitualmente se indica en suplemento).</li><li><strong>Hierro y calcio:</strong> las necesidades aumentan; buenas fuentes son carnes, legumbres, lácteos y verduras de hoja verde.</li><li><strong>Evitar:</strong> alcohol, pescados con alto contenido de mercurio en exceso, y alimentos crudos o mal cocidos (por riesgo de infecciones como listeria o toxoplasmosis).</li><li>Mantén buena hidratación y actividad física según lo indicado por tu médico.</li></ul><p>Cada embarazo es distinto: sigue siempre las indicaciones específicas de tu matrón/a, obstetra y nutricionista.</p>",
+        "category": "maternidad",
+        "tags": [
+            "Maternidad",
+            "Embarazo",
+            "Ácido fólico"
+        ],
+        "sources": "OMS; MINSAL Chile",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-maternidad-02",
+        "title": "Alimentación durante la lactancia",
+        "content": "<p>Durante la lactancia, tus necesidades de energía y líquidos aumentan, ya que tu cuerpo está produciendo leche para tu bebé.</p><p>Recomendaciones generales:</p><ul><li>Aumenta un poco tu ingesta de agua, ya que la producción de leche requiere buena hidratación.</li><li>Mantén una alimentación variada con proteínas, verduras, frutas y cereales integrales; no es necesario eliminar grupos de alimentos completos salvo indicación médica.</li><li>La cafeína y el alcohol deben limitarse durante esta etapa, según indicación de tu médico o matrón/a.</li><li>No es necesario 'comer por dos'; enfócate más en la calidad de lo que comes que en la cantidad extrema.</li></ul><p>Si notas que algún alimento le genera molestias a tu bebé (por ejemplo, cólicos), coméntalo con tu pediatra y nutricionista antes de eliminar alimentos por tu cuenta.</p>",
+        "category": "maternidad",
+        "tags": [
+            "Maternidad",
+            "Lactancia"
+        ],
+        "sources": "OMS; Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-rendimiento-01",
+        "title": "Alimentación y concentración: lo que come tu cerebro",
+        "content": "<p>Tu cerebro necesita un suministro constante de energía para funcionar bien, principalmente en forma de glucosa proveniente de los carbohidratos.</p><p>Algunas recomendaciones para mantener buena concentración durante el día:</p><ul><li>Evita pasar muchas horas sin comer, ya que la baja de azúcar en sangre puede generar dificultad para concentrarse, cansancio o irritabilidad.</li><li>Prefiere carbohidratos de digestión más lenta (integrales, legumbres) en vez de azúcares simples, ya que dan energía más estable y evitan los 'bajones' después.</li><li>Los ácidos grasos omega-3 (presentes en pescados grasos como el salmón o la sardina, y en nueces) se han asociado con buena función cognitiva.</li><li>La deshidratación, incluso leve, puede afectar la concentración: mantente hidratado durante el día.</li></ul>",
+        "category": "rendimiento",
+        "tags": [
+            "Rendimiento",
+            "Concentración",
+            "Cerebro"
+        ],
+        "sources": "Harvard T.H. Chan School of Public Health - The Nutrition Source",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-rendimiento-02",
+        "title": "¿Por qué el desayuno importa para tu rendimiento diario?",
+        "content": "<p>Después de varias horas de ayuno nocturno, el desayuno ayuda a reponer la energía que tu cuerpo y cerebro necesitan para empezar el día.</p><p>Un buen desayuno suele incluir:</p><ul><li>Una fuente de proteína (huevo, yogur, queso).</li><li>Un carbohidrato, idealmente integral (pan integral, avena).</li><li>Fruta o verdura.</li></ul><p>Estudios han asociado un desayuno equilibrado con mejor concentración y rendimiento durante la mañana, especialmente en niños y adolescentes.</p><p>Si no sientes hambre al despertar, no es obligatorio forzarlo de inmediato; puedes desayunar un poco más tarde, pero evita saltarte por completo la primera comida del día si notas que te afecta el ánimo o la energía.</p>",
+        "category": "rendimiento",
+        "tags": [
+            "Rendimiento",
+            "Desayuno",
+            "Energía"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-consejos-01",
+        "title": "Cómo leer una etiqueta nutricional en 3 pasos",
+        "content": "<p>Leer etiquetas puede parecer complicado, pero con estos pasos básicos ya tienes lo esencial:</p><ol><li><strong>Revisa la porción:</strong> toda la información de la etiqueta corresponde a una porción específica, no siempre al envase completo.</li><li><strong>Mira los sellos de advertencia (en Chile):</strong> 'ALTO EN' azúcares, sodio, grasas saturadas o calorías te indica que ese producto debería consumirse con moderación.</li><li><strong>Revisa la lista de ingredientes:</strong> están ordenados de mayor a menor cantidad. Si el azúcar o los aceites aparecen entre los primeros lugares, el producto tiene una alta proporción de ellos.</li></ol><p>No se trata de eliminar todo lo que tenga sellos, sino de tener conciencia de qué tan seguido los consumes.</p>",
+        "category": "consejos",
+        "tags": [
+            "Consejos",
+            "Etiquetado",
+            "Sellos de advertencia"
+        ],
+        "sources": "MINSAL Chile - Ley de Etiquetado de Alimentos",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-consejos-02",
+        "title": "Planifica tus comidas de la semana en 4 pasos",
+        "content": "<p>Organizar tus comidas con anticipación reduce el estrés diario y ayuda a que se cumpla mejor tu plan nutricional.</p><ol><li><strong>Revisa tu semana:</strong> identifica qué días tendrás más o menos tiempo para cocinar.</li><li><strong>Arma un menú simple:</strong> no necesita ser elaborado, puedes repetir bases (por ejemplo, la misma proteína cocinada de dos formas distintas).</li><li><strong>Haz una lista de compras</strong> según ese menú, para evitar compras impulsivas.</li><li><strong>Deja algo listo con anticipación:</strong> por ejemplo, cocinar legumbres o dejar verduras picadas, para ahorrar tiempo entre semana.</li></ol><p>No necesitas planificar el 100% de tus comidas; incluso organizar 3-4 días a la semana ya marca una diferencia notable.</p>",
+        "category": "consejos",
+        "tags": [
+            "Consejos",
+            "Planificación",
+            "Organización"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-faq-01",
+        "title": "¿Puedo comer fruta en la noche?",
+        "content": "<p><strong>Sí.</strong> No existe evidencia científica de que comer fruta en la noche haga engordar más que comerla en otro horario. Lo que importa es la cantidad total de alimentos que consumes en el día, no el horario específico en que comes la fruta.</p><p>La fruta aporta fibra, vitaminas y agua, y puede ser una excelente opción de postre o colación nocturna en vez de otras alternativas más altas en azúcar añadida o grasas.</p><p>Si tienes una condición específica (por ejemplo, diabetes), tu nutricionista puede darte indicaciones más personalizadas sobre cantidad y horarios.</p>",
+        "category": "faq",
+        "tags": [
+            "FAQ",
+            "Frutas",
+            "Mitos"
+        ],
+        "sources": "Harvard T.H. Chan School of Public Health",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-faq-02",
+        "title": "¿Cuánta agua debo tomar al día?",
+        "content": "<p>No existe una cifra única válida para todas las personas, ya que depende de tu peso, actividad física, clima y alimentación (algunos alimentos también aportan agua).</p><p>Una referencia general usada frecuentemente es de aproximadamente 30-35 ml de agua por kg de peso corporal al día, aunque esto puede variar según tu caso particular.</p><p>Señales de que estás bien hidratado/a:</p><ul><li>Orina de color amarillo pálido.</li><li>Ausencia de sed intensa o boca seca.</li></ul><p>Si haces ejercicio intenso, vives en un clima muy caluroso, o tienes alguna condición médica específica, tus necesidades pueden ser distintas; consulta con tu nutricionista para una recomendación personalizada.</p>",
+        "category": "faq",
+        "tags": [
+            "FAQ",
+            "Hidratación",
+            "Agua"
+        ],
+        "sources": "Academy of Nutrition and Dietetics; OMS",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-otro-01",
+        "title": "Suplementos alimenticios: ¿son necesarios?",
+        "content": "<p>Los suplementos (vitaminas, minerales, proteína en polvo, omega-3, etc.) pueden ser útiles en situaciones específicas, pero no son necesarios para todas las personas.</p><p>Algunos puntos importantes:</p><ul><li>Una alimentación variada y equilibrada suele cubrir las necesidades de nutrientes de la mayoría de las personas sanas.</li><li>Hay situaciones donde sí se recomiendan suplementos específicos: embarazo (ácido fólico, hierro), dietas vegetarianas/veganas estrictas (vitamina B12), o deficiencias diagnosticadas (por ejemplo, vitamina D).</li><li>'Natural' no siempre significa seguro: algunos suplementos pueden interactuar con medicamentos o tener efectos adversos si se usan en dosis altas.</li></ul><p>Antes de tomar cualquier suplemento, consulta con tu nutricionista o médico, ya que ellos pueden evaluar si realmente lo necesitas y en qué dosis.</p>",
+        "category": "otro",
+        "tags": [
+            "Suplementos",
+            "Vitaminas",
+            "Consejos"
+        ],
+        "sources": "Academy of Nutrition and Dietetics; OMS",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-otro-02",
+        "title": "Ayuno intermitente: lo que debes saber antes de probarlo",
+        "content": "<p>El ayuno intermitente consiste en alternar períodos de ayuno con períodos donde sí se come (por ejemplo, comer solo dentro de una ventana de 8 horas al día).</p><p>Algunos puntos clave:</p><ul><li>Puede ser una estrategia útil para algunas personas, pero no es superior a otros enfoques para bajar de peso; lo más importante sigue siendo la calidad y cantidad total de lo que comes.</li><li><strong>No se recomienda</strong> en embarazo, lactancia, antecedentes de trastornos de la conducta alimentaria, diabetes con medicación (por riesgo de hipoglicemia), ni en niños o adolescentes, salvo indicación médica específica.</li><li>Si te interesa probarlo, es importante hacerlo con supervisión de tu nutricionista, para asegurar que sigas cubriendo tus necesidades de nutrientes.</li></ul><p>No existe un método de alimentación 'perfecto' para todos: lo mejor es el que puedas sostener en el tiempo y que se ajuste a tu salud y estilo de vida.</p>",
+        "category": "otro",
+        "tags": [
+            "Ayuno intermitente",
+            "Consejos"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-portada-03",
+        "title": "¿Qué esperar en tus controles nutricionales?",
+        "content": "<p>Los controles con tu nutricionista son espacios para revisar tu progreso, resolver dudas y ajustar el plan según cómo te ha ido en tu día a día.</p><p>En general, en cada control se revisa:</p><ul><li>Cómo te has sentido con el plan (energía, hambre, digestión, ánimo).</li><li>Qué se te ha hecho fácil o difícil de cumplir.</li><li>Cambios en tu peso u otras medidas, si corresponde a tu objetivo.</li><li>Ajustes al plan según tus resultados y tu rutina actual.</li></ul><p>No necesitas llegar 'perfecto' a cada control. Ser honesto/a sobre lo que sí y no lograste ayuda a que el plan se ajuste mejor a tu realidad.</p>",
+        "category": "portada",
+        "tags": [
+            "Introducción",
+            "Controles",
+            "Seguimiento"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-portada-04",
+        "title": "El objetivo no es la perfección, es el progreso",
+        "content": "<p>Es normal tener días en que comes exactamente como planeaste, y otros en que no. Ninguna comida ni ningún día 'arruina' un proceso de cambio de hábitos.</p><p>Algunas ideas para tener en mente durante tu proceso:</p><ul><li>Un exceso puntual no borra los avances logrados; lo que más influye es lo que haces la mayoría del tiempo.</li><li>Compararte contigo mismo/a en el tiempo es más útil que compararte con otras personas.</li><li>Los hábitos sostenibles se construyen de a poco, con ajustes pequeños y realistas.</li></ul><p>Si sientes que un día 'te saliste del plan', simplemente retoma en la siguiente comida, sin culpa ni restricciones extra como castigo.</p>",
+        "category": "portada",
+        "tags": [
+            "Introducción",
+            "Motivación",
+            "Hábitos"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-mitos-03",
+        "title": "Mito: todas las grasas son malas para la salud",
+        "content": "<p><strong>Mito:</strong> hay que evitar las grasas en la alimentación porque engordan o son dañinas.</p><p><strong>Realidad:</strong> las grasas son un nutriente esencial: ayudan a absorber vitaminas, forman parte de las hormonas y protegen órganos. Lo importante es el tipo de grasa y la cantidad.</p><ul><li><strong>Grasas saludables</strong> (de preferir): aceite de oliva, palta, frutos secos, semillas, pescados grasos.</li><li><strong>Grasas a limitar:</strong> las grasas saturadas en exceso (frituras, embutidos, productos ultraprocesados) y las grasas trans (presentes en algunos productos industrializados).</li></ul><p>Eliminar por completo las grasas de la dieta no es recomendable ni necesario; la clave está en elegir mejor su origen y no excederse en las porciones.</p>",
+        "category": "mitos",
+        "tags": [
+            "Mitos",
+            "Grasas",
+            "Alimentación saludable"
+        ],
+        "sources": "OMS; Harvard T.H. Chan School of Public Health",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-mitos-04",
+        "title": "Mito: saltarse comidas ayuda a bajar de peso más rápido",
+        "content": "<p><strong>Mito:</strong> dejar de comer una o más comidas al día acelera la pérdida de peso.</p><p><strong>Realidad:</strong> saltarse comidas suele generar más hambre en la siguiente comida, lo que muchas veces lleva a comer en mayor cantidad o elegir opciones menos saludables por la urgencia.</p><p>Además, puede generar más cansancio, dificultad para concentrarse y, en algunos casos, alteraciones en el ánimo.</p><p>Lo que realmente influye en el peso a largo plazo es el balance total de energía y la calidad de la alimentación en el tiempo, no si se comen 2, 3 o 5 veces al día. Lo más importante es encontrar un patrón de comidas que puedas mantener de forma constante.</p>",
+        "category": "mitos",
+        "tags": [
+            "Mitos",
+            "Peso",
+            "Hábitos"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-habitos-03",
+        "title": "Comer sin pantallas: por qué ayuda a comer mejor",
+        "content": "<p>Comer mientras miras el celular, la televisión o el computador puede hacer que comas más rápido, sin darte cuenta de las señales de saciedad de tu cuerpo, y que termines comiendo más cantidad de la que realmente necesitas.</p><p>Algunas recomendaciones para practicar una alimentación más consciente ('mindful eating'):</p><ul><li>Intenta comer sentado/a, sin pantallas, al menos en una comida al día.</li><li>Mastica despacio y presta atención a los sabores y texturas.</li><li>Detente a la mitad de la comida y pregúntate qué tan satisfecho/a te sientes.</li></ul><p>No se trata de hacerlo siempre así, sino de ir incorporando estos momentos de mayor atención en tus comidas principales cuando sea posible.</p>",
+        "category": "habitos",
+        "tags": [
+            "Hábitos",
+            "Mindful eating",
+            "Rutina"
+        ],
+        "sources": "Harvard T.H. Chan School of Public Health",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-habitos-04",
+        "title": "Cómo elegir mejor cuando comes fuera de casa",
+        "content": "<p>Comer fuera de casa no significa que debas abandonar tus hábitos saludables. Algunas estrategias útiles:</p><ul><li>Revisa el menú antes de llegar, si es posible, para decidir con calma.</li><li>Prioriza preparaciones al horno, a la plancha o al vapor por sobre las fritas.</li><li>Pide que las salsas o aderezos vengan aparte, así controlas la cantidad.</li><li>Si el plato es muy abundante, puedes pedir la mitad o llevarte el resto.</li><li>Elige agua como bebida principal en vez de bebidas azucaradas.</li></ul><p>Disfrutar una salida a comer no debería generar culpa; puedes aplicar estas ideas la mayoría de las veces y disfrutar plenamente en ocasiones especiales.</p>",
+        "category": "habitos",
+        "tags": [
+            "Hábitos",
+            "Comer fuera",
+            "Rutina"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-salud-mental-03",
+        "title": "Sueño y alimentación: una relación en ambos sentidos",
+        "content": "<p>Dormir mal puede afectar tus decisiones alimentarias, y comer de cierta forma también puede afectar la calidad de tu sueño.</p><p>Algunos puntos clave:</p><ul><li>La falta de sueño se ha asociado con más hambre, más antojos por alimentos altos en azúcar y grasa, y mayor dificultad para regular las porciones.</li><li>Cenar muy tarde, en exceso, o con alimentos muy pesados puede dificultar conciliar el sueño.</li><li>La cafeína (café, té, bebidas energéticas) consumida en la tarde-noche puede afectar la calidad del sueño en muchas personas.</li></ul><p>Priorizar una buena rutina de sueño es tan importante como la alimentación para tu bienestar general y tu ánimo.</p>",
+        "category": "salud-mental",
+        "tags": [
+            "Salud mental",
+            "Sueño",
+            "Hábitos"
+        ],
+        "sources": "Harvard T.H. Chan School of Public Health",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-salud-mental-04",
+        "title": "Imagen corporal: cómo tener una relación más sana con tu cuerpo",
+        "content": "<p>La forma en que te relacionas con tu cuerpo influye directamente en tu bienestar emocional y en tu relación con la comida.</p><p>Algunas ideas que pueden ayudar:</p><ul><li>Los cuerpos son naturalmente diversos; no existe un único cuerpo 'correcto' o 'saludable'.</li><li>El valor de una persona no depende de su peso ni de su talla de ropa.</li><li>Enfocarte en cómo te sientes (energía, fuerza, ánimo) puede ser más útil que enfocarte solo en la báscula.</li><li>Si notas pensamientos muy negativos o constantes sobre tu cuerpo, o conductas alimentarias que te generan angustia, es importante buscar apoyo con un psicólogo/a especializado/a, además del acompañamiento nutricional.</li></ul><p>Cuidar tu salud y aceptar tu cuerpo no son ideas opuestas; pueden y deberían ir de la mano.</p>",
+        "category": "salud-mental",
+        "tags": [
+            "Salud mental",
+            "Imagen corporal",
+            "Autoestima"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-salud-intestinal-03",
+        "title": "Hinchazón abdominal: causas comunes y qué hacer",
+        "content": "<p>La hinchazón o distensión abdominal es una molestia frecuente y, en la mayoría de los casos, no es grave. Algunas causas comunes:</p><ul><li>Comer muy rápido o hablar mucho mientras comes (tragas más aire).</li><li>Aumento brusco del consumo de fibra sin aumentar el agua.</li><li>Consumo elevado de bebidas gaseosas.</li><li>Algunos alimentos como legumbres, coliflor, brócoli o cebolla pueden generar más gases en ciertas personas.</li></ul><p>Algunas medidas simples que pueden ayudar:</p><ul><li>Comer más despacio y masticar bien.</li><li>Aumentar la fibra de forma gradual.</li><li>Identificar si hay algún alimento puntual que te genera más molestias.</li></ul><p>Si la hinchazón es muy frecuente, intensa, o se acompaña de otros síntomas (dolor fuerte, cambios en las deposiciones, baja de peso no buscada), consulta con tu médico o nutricionista para descartar otras causas.</p>",
+        "category": "salud-intestinal",
+        "tags": [
+            "Salud intestinal",
+            "Hinchazón",
+            "Digestión"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-salud-intestinal-04",
+        "title": "¿Hay alimentos que puedan irritar el intestino?",
+        "content": "<p>La tolerancia digestiva es distinta en cada persona, pero hay algunos alimentos que con más frecuencia pueden generar molestias intestinales en personas sensibles:</p><ul><li>Alimentos muy grasosos o fritos.</li><li>Picantes en exceso.</li><li>Alcohol y bebidas con cafeína en grandes cantidades.</li><li>Algunos lácteos, en personas con intolerancia a la lactosa.</li><li>Alimentos ultraprocesados con muchos aditivos.</li></ul><p>Esto no significa que estos alimentos sean 'malos' para todas las personas; muchas los toleran bien. Si notas un patrón (por ejemplo, molestias repetidas después de consumir lácteos), coméntalo con tu nutricionista para evaluarlo en conjunto, en vez de eliminar alimentos por tu cuenta sin necesidad real.</p>",
+        "category": "salud-intestinal",
+        "tags": [
+            "Salud intestinal",
+            "Digestión",
+            "Sensibilidad alimentaria"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-deporte-03",
+        "title": "¿Qué comer antes de entrenar?",
+        "content": "<p>Lo que comes antes de entrenar puede influir en tu energía y en cómo te sientes durante el ejercicio. Como referencia general:</p><ul><li><strong>2-3 horas antes:</strong> una comida más completa, con carbohidratos, algo de proteína y baja en grasas (por ejemplo, arroz con pollo y verduras).</li><li><strong>30-60 minutos antes:</strong> algo más liviano y fácil de digerir, principalmente carbohidratos (una fruta, un pan con algo simple, una barrita de cereal).</li></ul><p>Evita comidas muy pesadas, muy grasosas o muy altas en fibra justo antes de entrenar, ya que pueden generar molestias digestivas durante el ejercicio.</p><p>Prueba distintas opciones en entrenamientos de baja exigencia para saber qué te acomoda mejor antes de aplicarlo en entrenamientos o competencias importantes.</p>",
+        "category": "deporte",
+        "tags": [
+            "Nutrición deportiva",
+            "Pre-entreno",
+            "Energía"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-deporte-04",
+        "title": "La 'ventana anabólica': ¿mito o realidad?",
+        "content": "<p>Se suele decir que existe una 'ventana' de 30 minutos después de entrenar en la que es obligatorio comer proteína o se 'pierden' los resultados del entrenamiento.</p><p><strong>Realidad:</strong> la evidencia actual muestra que este período es más flexible de lo que se pensaba. Lo más importante es el total de proteína que consumes a lo largo del día, distribuida en tus comidas.</p><p>Aun así, comer una comida con proteína y carbohidratos dentro de las 1-2 horas después de entrenar es una buena práctica general para apoyar la recuperación muscular, especialmente si entrenas fuerte o varias veces al día.</p><p>No es necesario estresarse por comer exactamente en los primeros minutos después de entrenar.</p>",
+        "category": "deporte",
+        "tags": [
+            "Nutrición deportiva",
+            "Recuperación muscular",
+            "Mitos"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-maternidad-03",
+        "title": "Alimentación complementaria: cómo empezar con sólidos",
+        "content": "<p>La alimentación complementaria (introducción de alimentos sólidos) se recomienda generalmente a partir de los 6 meses, manteniendo la lactancia materna o fórmula como parte importante de la alimentación del bebé.</p><p>Algunas recomendaciones generales:</p><ul><li>Introduce los alimentos de a uno, con algunos días de diferencia, para identificar posibles reacciones alérgicas.</li><li>Comienza con texturas suaves (purés) y avanza progresivamente según el desarrollo del bebé.</li><li>No agregues sal ni azúcar a las preparaciones del bebé durante el primer año.</li><li>Ofrece variedad de alimentos: verduras, frutas, carnes, legumbres y cereales.</li></ul><p>Cada bebé tiene su propio ritmo. Sigue siempre las indicaciones específicas de tu pediatra y nutricionista infantil para tu caso particular.</p>",
+        "category": "maternidad",
+        "tags": [
+            "Maternidad",
+            "Alimentación complementaria",
+            "Lactantes"
+        ],
+        "sources": "OMS; MINSAL Chile",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-maternidad-04",
+        "title": "Antojos en el embarazo: ¿hay que satisfacerlos siempre?",
+        "content": "<p>Los antojos durante el embarazo son muy comunes y se relacionan con cambios hormonales, aunque no está completamente clara su causa exacta.</p><p>Algunas recomendaciones:</p><ul><li>No es necesario reprimir por completo un antojo ocasional; comer una porción moderada de lo que se te antoja generalmente no es un problema.</li><li>Si el antojo es por algo poco nutritivo y muy frecuente, puedes buscar alternativas que lo satisfagan parcialmente (por ejemplo, fruta con algo dulce natural si el antojo es por azúcar).</li><li>Mantén como base de tu alimentación diaria comidas variadas y nutritivas, y deja los antojos como algo ocasional dentro de ese contexto.</li></ul><p>Si notas antojos por sustancias no alimentarias (tierra, hielo en exceso, etc.), coméntalo con tu médico, ya que puede relacionarse con deficiencias que requieren evaluación.</p>",
+        "category": "maternidad",
+        "tags": [
+            "Maternidad",
+            "Embarazo",
+            "Antojos"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-rendimiento-03",
+        "title": "Cafeína: beneficios y límites para tu rendimiento",
+        "content": "<p>La cafeína (presente en café, té, algunas bebidas y chocolate) puede mejorar temporalmente el estado de alerta, la concentración y hasta el rendimiento físico en dosis moderadas.</p><p>Algunas recomendaciones generales:</p><ul><li>Para la mayoría de los adultos sanos, un consumo de hasta aproximadamente 400 mg de cafeína al día (equivalente a unas 3-4 tazas de café) se considera seguro.</li><li>Evita consumirla en la tarde-noche, ya que puede afectar la calidad de tu sueño, lo que a su vez perjudica tu rendimiento al día siguiente.</li><li>En exceso, puede generar nerviosismo, palpitaciones, dolor de cabeza o problemas para dormir.</li></ul><p>Si estás embarazada, tienes alguna condición de salud específica o tomas ciertos medicamentos, consulta con tu médico o nutricionista sobre la cantidad adecuada para ti.</p>",
+        "category": "rendimiento",
+        "tags": [
+            "Rendimiento",
+            "Cafeína",
+            "Concentración"
+        ],
+        "sources": "FDA; Harvard T.H. Chan School of Public Health",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-rendimiento-04",
+        "title": "Por qué el azúcar te da energía rápida... que no dura",
+        "content": "<p>Comer algo muy azucarado (dulces, bebidas azucaradas, productos ultraprocesados) puede darte una sensación rápida de energía, pero esta suele bajar igual de rápido, dejándote más cansado/a o con más hambre poco después.</p><p>Esto ocurre porque el azúcar simple se absorbe muy rápido, generando un aumento y luego una caída rápida del azúcar en la sangre.</p><p>Para una energía más estable durante el día, prioriza:</p><ul><li>Carbohidratos integrales (avena, pan integral, legumbres).</li><li>Combinar carbohidratos con proteína o grasas saludables (por ejemplo, fruta con un puñado de nueces).</li></ul><p>Esto ayuda a mantener niveles de energía y concentración más constantes, en vez de los 'altibajos' asociados al azúcar simple.</p>",
+        "category": "rendimiento",
+        "tags": [
+            "Rendimiento",
+            "Azúcar",
+            "Energía"
+        ],
+        "sources": "Harvard T.H. Chan School of Public Health",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-consejos-03",
+        "title": "Cómo armar una colación saludable y práctica",
+        "content": "<p>Una buena colación ayuda a mantener tu energía estable entre comidas principales, sin necesidad de que sea algo elaborado.</p><p>Una fórmula simple: combina una fuente de carbohidrato con una de proteína y/o grasa saludable. Algunos ejemplos:</p><ul><li>Fruta + puñado de nueces o almendras.</li><li>Yogur natural + avena o fruta picada.</li><li>Pan integral + queso o palta.</li><li>Zanahoria o pepino + hummus.</li></ul><p>Evita que las colaciones sean tan grandes como una comida principal; su función es 'tapar' el hambre entre comidas, no reemplazarlas. Prepararlas con anticipación (por ejemplo, porcionar frutos secos o fruta) facilita mantener este hábito durante la semana.</p>",
+        "category": "consejos",
+        "tags": [
+            "Consejos",
+            "Colaciones",
+            "Planificación"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-consejos-04",
+        "title": "Trucos simples para reducir el consumo de sal",
+        "content": "<p>Un consumo elevado de sodio (sal) se relaciona con mayor riesgo de hipertensión y problemas cardiovasculares. Algunos trucos prácticos para reducirlo sin perder sabor:</p><ul><li>Reemplaza parte de la sal por hierbas y especias (orégano, comino, ajo, cilantro, limón) para dar sabor.</li><li>Reduce el consumo de alimentos altamente procesados (embutidos, sopas instantáneas, snacks salados), que suelen concentrar mucho sodio.</li><li>Escurre y enjuaga legumbres o vegetales en conserva para eliminar parte del sodio del líquido.</li><li>Prueba la comida antes de agregar sal extra por costumbre.</li></ul><p>Reducir la sal de forma gradual permite que tu paladar se ajuste con el tiempo, sin sentir que la comida 'pierde sabor' de golpe.</p>",
+        "category": "consejos",
+        "tags": [
+            "Consejos",
+            "Sodio",
+            "Hipertensión"
+        ],
+        "sources": "OMS; MINSAL Chile",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-faq-03",
+        "title": "¿Es malo comer huevo todos los días?",
+        "content": "<p><strong>No, para la mayoría de las personas sanas.</strong> Durante años se pensó que el huevo elevaba mucho el colesterol y debía limitarse, pero la evidencia actual muestra que, para la mayoría de las personas, consumir un huevo al día no representa un riesgo significativo para la salud cardiovascular.</p><p>El huevo es una fuente completa de proteína de buena calidad y aporta otros nutrientes como vitamina D y colina.</p><p>Si tienes alguna condición específica (por ejemplo, colesterol muy elevado o alguna enfermedad cardiovascular ya diagnosticada), tu médico o nutricionista puede darte una recomendación personalizada sobre la cantidad adecuada para ti.</p>",
+        "category": "faq",
+        "tags": [
+            "FAQ",
+            "Huevo",
+            "Colesterol"
+        ],
+        "sources": "Harvard T.H. Chan School of Public Health",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-faq-04",
+        "title": "¿Los productos 'light' o 'sin azúcar' son siempre más saludables?",
+        "content": "<p><strong>No necesariamente.</strong> 'Light' generalmente significa que el producto tiene menos calorías, grasa o azúcar que su versión original, pero eso no lo convierte automáticamente en una opción saludable.</p><p>Algunos puntos a considerar:</p><ul><li>Algunos productos 'sin azúcar' compensan el sabor con edulcorantes artificiales, y pueden seguir siendo altamente procesados.</li><li>Un producto puede ser 'light' en un nutriente, pero seguir siendo alto en otro (por ejemplo, bajo en grasa pero alto en azúcar).</li><li>Revisa siempre la etiqueta nutricional y los sellos de advertencia, en vez de guiarte solo por la palabra 'light' en el envase.</li></ul><p>Un alimento natural y mínimamente procesado suele ser mejor opción que su versión 'light' ultraprocesada, salvo indicaciones específicas de tu nutricionista para tu caso.</p>",
+        "category": "faq",
+        "tags": [
+            "FAQ",
+            "Etiquetado",
+            "Productos light"
+        ],
+        "sources": "MINSAL Chile - Ley de Etiquetado de Alimentos",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-otro-03",
+        "title": "Alimentación vegetariana y vegana: claves para que sea equilibrada",
+        "content": "<p>Una alimentación vegetariana o vegana bien planificada puede cubrir las necesidades nutricionales en la mayoría de las etapas de la vida, incluyendo embarazo e infancia, según indican organismos internacionales de nutrición.</p><p>Algunos nutrientes que requieren especial atención:</p><ul><li><strong>Proteína:</strong> combinar legumbres con cereales (por ejemplo, arroz con lentejas) ayuda a obtener todos los aminoácidos esenciales.</li><li><strong>Vitamina B12:</strong> no se encuentra de forma natural en alimentos de origen vegetal; en dietas veganas estrictas se recomienda suplementación.</li><li><strong>Hierro, zinc, calcio y omega-3:</strong> requieren planificación, priorizando legumbres, frutos secos, semillas y vegetales de hoja verde.</li></ul><p>Si sigues o quieres adoptar este tipo de alimentación, es muy recomendable contar con acompañamiento de un nutricionista para asegurar que esté bien equilibrada.</p>",
+        "category": "otro",
+        "tags": [
+            "Vegetarianismo",
+            "Veganismo",
+            "Planificación"
+        ],
+        "sources": "Academy of Nutrition and Dietetics",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    },
+    {
+        "id": "sys-otro-04",
+        "title": "Alcohol y nutrición: lo que debes saber",
+        "content": "<p>El alcohol aporta calorías (7 kcal por gramo, casi tanto como la grasa) pero no aporta nutrientes esenciales, por lo que se le suele llamar fuente de 'calorías vacías'.</p><p>Algunos efectos a considerar:</p><ul><li>Puede afectar la calidad del sueño y la recuperación, incluso en cantidades moderadas.</li><li>Suele acompañarse de alimentos altos en calorías, lo que puede sumar aún más energía de la que se percibe.</li><li>El consumo excesivo y frecuente se relaciona con mayor riesgo de diversas enfermedades, incluyendo hepáticas y cardiovasculares.</li></ul><p>Si consumes alcohol, hacerlo con moderación y con conocimiento de estos efectos es parte de una relación equilibrada con la alimentación. Si tienes dudas sobre cómo esto se ajusta a tu plan específico, conversa con tu nutricionista.</p>",
+        "category": "otro",
+        "tags": [
+            "Alcohol",
+            "Consejos"
+        ],
+        "sources": "OMS; Harvard T.H. Chan School of Public Health",
+        "nutritionistId": null,
+        "isMine": false,
+        "isPublic": true,
+        "format": "HTML",
+        "createdAt": "2024-05-07T00:00:00.000Z",
+        "updatedAt": "2024-05-07T00:00:00.000Z"
+    }
+]

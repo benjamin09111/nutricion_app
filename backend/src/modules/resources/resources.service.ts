@@ -40,14 +40,16 @@ export class ResourcesService {
 
   async findAll(nutritionistId: string, isAdmin: boolean) {
     void isAdmin;
+    const whereClause = {
+      OR: [
+        { nutritionistId: null },
+        { isPublic: true },
+        ...(nutritionistId ? [{ nutritionistId }] : []),
+      ] as any[],
+    };
+    
     const resources = await this.prisma.resource.findMany({
-      where: {
-        OR: [
-          { nutritionistId },
-          { nutritionistId: null }, // Public/Default resources
-          { isPublic: true },
-        ],
-      },
+      where: whereClause,
       orderBy: { updatedAt: 'desc' },
     });
 

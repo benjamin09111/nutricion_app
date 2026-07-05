@@ -24,6 +24,7 @@ import {
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Navbar_B } from "@/components/ui/Navbar_B";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
@@ -68,6 +69,15 @@ export default function DetailsClient() {
   const [onlyMineHealth, setOnlyMineHealth] = useState(false);
   const [onlyMineHash, setOnlyMineHash] = useState(false);
   const [onlyMineMetrics, setOnlyMineMetrics] = useState(false);
+
+  type DetailsTab = "restricciones" | "hashtags" | "metricas";
+  const [activeDetailsTab, setActiveDetailsTab] = useState<DetailsTab>("restricciones");
+
+  const DETAILS_TABS = [
+    { id: "restricciones" as const, label: "Restricciones", icon: Tag },
+    { id: "hashtags" as const, label: "Hashtags", icon: Hash },
+    { id: "metricas" as const, label: "Métricas", icon: Activity },
+  ];
 
   const fetchTags = async (retries = 3) => {
     setIsLoading(true);
@@ -436,172 +446,185 @@ export default function DetailsClient() {
       />
 
       <div className="space-y-6 mt-6">
-        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative mb-8">
-          <div className="p-8 pb-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
-                <Tag className="w-5 h-5 text-indigo-500" />
-                Restricciones Clínicas
-              </h3>
-              <p className="text-slate-500 text-sm font-medium">
-                Restricciones clínicas disponibles en Nutrinet. Si conoces y utilizas otra, no dudes en agregarla. Se utilizan en las dietas.
-              </p>
+        <Navbar_B
+          sections={DETAILS_TABS}
+          activeTab={activeDetailsTab}
+          onTabChange={(id) => setActiveDetailsTab(id as DetailsTab)}
+        />
+
+        {activeDetailsTab === "restricciones" && (
+          <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative mb-8">
+            <div className="p-8 pb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-indigo-500" />
+                  Restricciones Clínicas
+                </h3>
+                <p className="text-slate-500 text-sm font-medium">
+                  Restricciones clínicas disponibles en Nutrinet. Si conoces y utilizas otra, no dudes en agregarla. Se utilizan en las dietas.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
+                onClick={() => setIsAddModalOpen(true)}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Nueva Restricción
+              </Button>
             </div>
-            <Button
-              variant="outline"
-              className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
-              onClick={() => setIsAddModalOpen(true)}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Nueva Restricción
-            </Button>
+
+            <div className="px-8 mb-4">
+              <div className="relative w-full max-w-xs group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                <Input
+                  placeholder="Buscar restricciones..."
+                  className="h-10 pl-10 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all shadow-sm font-medium"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="p-8 flex items-center justify-center">
+                <div className="h-10 w-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
+              </div>
+            ) : (
+              <>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-8 pt-4">
+                {paginatedHealthTags.map((tag) => {
+                  const isSystem = DEFAULT_CONSTRAINTS.some((c) => c.id === tag);
+                  const backendTag = serverTags.find((t) => t.name === tag);
+                  const isOwner = backendTag && !isSystem;
+                  const isAdmin = currentUser?.role?.startsWith("ADMIN");
+
+                  return (
+                    <div
+                      key={tag}
+                      className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            "h-10 w-10 rounded-full flex items-center justify-center",
+                            isSystem ? "bg-rose-100/50" : "bg-slate-100/50",
+                          )}
+                        >
+                          {isSystem ? (
+                            <Globe className="w-4 h-4 text-rose-500" />
+                          ) : (
+                            <Activity className="w-4 h-4 text-slate-500" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-700">{tag}</p>
+                          <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+                            {isSystem
+                              ? "Sistema / Global"
+                              : isOwner
+                                ? "Creada por ti"
+                                : "Creada por nutri"}
+                          </p>
+                        </div>
+                      </div>
+                      {(isOwner || isAdmin) && !isSystem && (
+                        <button
+                          onClick={() => openDeleteConfirm(tag)}
+                          className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <Pagination page={healthPage} totalPages={healthTotalPages} onPageChange={setHealthPage} onlyMine={onlyMineHealth} onToggleMine={() => setOnlyMineHealth(!onlyMineHealth)} />
+              </>
+            )}
           </div>
+        )}
 
-          <div className="px-8 mb-4">
-            <div className="relative w-full max-w-xs group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
-              <Input
-                placeholder="Buscar restricciones..."
-                className="h-10 pl-10 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all shadow-sm font-medium"
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-              />
-            </div>
-          </div>
+        {activeDetailsTab === "hashtags" && (
+          <>
+            {/* Classification Tags Section */}
+            <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative mb-8">
+              <div className="p-8 pb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
+                    <Hash className="w-5 h-5 text-indigo-500" />
+                    Etiquetas de Clasificación
+                  </h3>
+                  <p className="text-slate-500 text-sm font-medium">
+                    Usa hashtags para organizar pacientes, alimentos o planes. Permite mejorar la búsqueda y clasificación de información.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="rounded-2xl font-semibold border-indigo-100 text-indigo-600 hover:bg-indigo-50"
+                  onClick={() => {
+                    setNewTag("#");
+                    setIsAddModalOpen(true);
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nuevo Tag
+                </Button>
+              </div>
 
-          {isLoading ? (
-            <div className="p-8 flex items-center justify-center">
-              <div className="h-10 w-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
-            </div>
-          ) : (
-            <>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-8 pt-4">
-              {paginatedHealthTags.map((tag) => {
-                const isSystem = DEFAULT_CONSTRAINTS.some((c) => c.id === tag);
-                const backendTag = serverTags.find((t) => t.name === tag);
-                const isOwner = backendTag && !isSystem;
-                const isAdmin = currentUser?.role?.startsWith("ADMIN");
+              {!isLoading && hashTags.length === 0 && searchQuery === "" ? (
+                <div className="p-12 flex flex-col items-center justify-center text-slate-300 bg-slate-50/30 m-8 rounded-2xl border border-dashed border-slate-200">
+                  <Hash className="w-12 h-12 mb-4 opacity-20" />
+                  <p className="text-sm font-semibold uppercase tracking-widest">No hay etiquetas creadas</p>
+                  <p className="text-xs font-medium mt-1">Crea etiquetas con # para organizar tus pacientes</p>
+                </div>
+              ) : (
+                <>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-8 pt-4">
+                  {paginatedHashTags.map((tag) => {
+                    const backendTag = serverTags.find((t) => t.name === tag);
+                    const isOwner = backendTag !== undefined;
+                    const isAdmin = currentUser?.role?.startsWith("ADMIN");
 
-                return (
-                  <div
-                    key={tag}
-                    className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors group"
-                  >
-                    <div className="flex items-center gap-3">
+                    return (
                       <div
-                        className={cn(
-                          "h-10 w-10 rounded-full flex items-center justify-center",
-                          isSystem ? "bg-rose-100/50" : "bg-slate-100/50",
+                        key={tag}
+                        className="flex items-center justify-between p-4 rounded-xl border border-emerald-50 bg-emerald-50/10 hover:bg-emerald-50/30 transition-colors group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-indigo-100/50 flex items-center justify-center">
+                            <Hash className="w-4 h-4 text-indigo-600" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-700">{tag}</p>
+                            <p className="text-[10px] uppercase tracking-wider font-semibold text-indigo-400">
+                              {isOwner ? "Tu etiqueta" : "Compartida"}
+                            </p>
+                          </div>
+                        </div>
+                        {(isOwner || isAdmin) && (
+                          <button
+                            onClick={() => openDeleteConfirm(tag)}
+                            className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         )}
-                      >
-                        {isSystem ? (
-                          <Globe className="w-4 h-4 text-rose-500" />
-                        ) : (
-                          <Activity className="w-4 h-4 text-slate-500" />
-                        )}
                       </div>
-                      <div>
-                        <p className="font-semibold text-slate-700">{tag}</p>
-                        <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
-                          {isSystem
-                            ? "Sistema / Global"
-                            : isOwner
-                              ? "Creada por ti"
-                              : "Creada por nutri"}
-                        </p>
-                      </div>
-                    </div>
-                    {(isOwner || isAdmin) && !isSystem && (
-                      <button
-                        onClick={() => openDeleteConfirm(tag)}
-                        className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+                <Pagination page={hashPage} totalPages={hashTotalPages} onPageChange={setHashPage} onlyMine={onlyMineHash} onToggleMine={() => setOnlyMineHash(!onlyMineHash)} />
+                </>
+              )}
             </div>
-            <Pagination page={healthPage} totalPages={healthTotalPages} onPageChange={setHealthPage} onlyMine={onlyMineHealth} onToggleMine={() => setOnlyMineHealth(!onlyMineHealth)} />
-            </>
-          )}
-        </div>
+          </>
+        )}
 
-        {/* Classification Tags Section */}
-        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative mb-8">
-          <div className="p-8 pb-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
-                <Hash className="w-5 h-5 text-indigo-500" />
-                Etiquetas de Clasificación
-              </h3>
-              <p className="text-slate-500 text-sm font-medium">
-                Usa hashtags para organizar pacientes, alimentos o planes. Permite mejorar la búsqueda y clasificación de información.
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              className="rounded-2xl font-semibold border-indigo-100 text-indigo-600 hover:bg-indigo-50"
-              onClick={() => {
-                setNewTag("#");
-                setIsAddModalOpen(true);
-              }}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Nuevo Tag
-            </Button>
-          </div>
-
-          {!isLoading && hashTags.length === 0 && searchQuery === "" ? (
-            <div className="p-12 flex flex-col items-center justify-center text-slate-300 bg-slate-50/30 m-8 rounded-2xl border border-dashed border-slate-200">
-              <Hash className="w-12 h-12 mb-4 opacity-20" />
-              <p className="text-sm font-semibold uppercase tracking-widest">No hay etiquetas creadas</p>
-              <p className="text-xs font-medium mt-1">Crea etiquetas con # para organizar tus pacientes</p>
-            </div>
-          ) : (
-            <>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-8 pt-4">
-              {paginatedHashTags.map((tag) => {
-                const backendTag = serverTags.find((t) => t.name === tag);
-                const isOwner = backendTag !== undefined;
-                const isAdmin = currentUser?.role?.startsWith("ADMIN");
-
-                return (
-                  <div
-                    key={tag}
-                    className="flex items-center justify-between p-4 rounded-xl border border-emerald-50 bg-emerald-50/10 hover:bg-emerald-50/30 transition-colors group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-indigo-100/50 flex items-center justify-center">
-                        <Hash className="w-4 h-4 text-indigo-600" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-700">{tag}</p>
-                        <p className="text-[10px] uppercase tracking-wider font-semibold text-indigo-400">
-                          {isOwner ? "Tu etiqueta" : "Compartida"}
-                        </p>
-                      </div>
-                    </div>
-                    {(isOwner || isAdmin) && (
-                      <button
-                        onClick={() => openDeleteConfirm(tag)}
-                        className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <Pagination page={hashPage} totalPages={hashTotalPages} onPageChange={setHashPage} onlyMine={onlyMineHash} onToggleMine={() => setOnlyMineHash(!onlyMineHash)} />
-            </>
-          )}
-        </div>
-
-        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative">
-          <div className="p-8 pb-4 flex items-center justify-between">
+        {activeDetailsTab === "metricas" && (
+          <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative">
+            <div className="p-8 pb-4 flex items-center justify-between">
             <div>
               <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
                 <Activity className="w-5 h-5 text-indigo-500" />
@@ -696,6 +719,7 @@ export default function DetailsClient() {
             </>
           )}
         </div>
+        )}
       </div>
 
       <Modal

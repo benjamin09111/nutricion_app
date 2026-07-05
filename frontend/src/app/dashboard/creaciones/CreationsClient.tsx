@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect } from "react";
 import {
-  Search,
   Download,
   Eye,
   Info,
@@ -12,7 +11,6 @@ import {
   ShoppingCart,
   ChefHat,
   Folder,
-  Filter,
   X,
   ChevronLeft,
   ChevronRight,
@@ -24,6 +22,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { Filtros_B } from "@/components/ui/Filtros_B";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
@@ -452,83 +451,63 @@ export default function CreationsClient({
         </div>
       )}
 
-      <div className="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-200 flex flex-col xl:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto flex-1">
-          <div className="relative flex-1">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <Search className="h-5 w-5 text-slate-400" aria-hidden="true" />
-            </div>
-            <Input
-              type="search"
-              placeholder="Buscar por nombre..."
-              className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all w-full font-semibold"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          {!isInsidePatientDetail && (
-            <div className="relative w-full md:w-52">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <Input
-                type="search"
-                placeholder="Filtrar por paciente..."
-                className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all w-full font-semibold"
-                value={patientFilter}
-                onChange={(e) => setPatientFilter(e.target.value)}
-              />
-              {patientFilter && (
-                <button
-                  onClick={() => setPatientFilter("")}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+      <div className="space-y-4">
+        <Filtros_B
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar por nombre..."
+          rightContent={
+            <>
+              {!isInsidePatientDetail && (
+                <div className="relative w-full sm:w-52">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <Input
+                    type="search"
+                    placeholder="Filtrar por paciente..."
+                    className="pl-10 h-10 rounded-xl bg-white border border-slate-200 focus:border-indigo-500 transition-all w-full font-medium text-sm"
+                    value={patientFilter}
+                    onChange={(e) => setPatientFilter(e.target.value)}
+                  />
+                  {patientFilter && (
+                    <button
+                      onClick={() => setPatientFilter("")}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               )}
-            </div>
-          )}
-
-          <div className="w-full md:w-48 relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <Filter className="h-4 w-4 text-slate-400" />
-            </div>
-            <select
-              className="w-full h-11 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-semibold text-slate-700 appearance-none cursor-pointer text-sm"
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value as any)}
-            >
-              <option value="Todos">Todos los Tipos</option>
-              <option value={CreationType.DIET}>Dietas</option>
-              <option value={CreationType.SHOPPING_LIST}>
-                Listas de Compra
-              </option>
-              <option value={CreationType.RECIPE}>Recetas</option>
-              <option value={CreationType.FAST_DELIVERABLE}>
-                Entregables Rápidos
-              </option>
-            </select>
-          </div>
-
-          <div className="w-full md:w-64 relative">
-            <SearchableSelect
-              options={[
-                { value: "Todos", label: "Todas las etiquetas y restricciones" },
-                ...allTags.map((tag) => ({ value: tag, label: tag })),
-              ]}
-              value={selectedTag}
-              onChange={setSelectedTag}
-              placeholder="Buscar tag o restricción..."
-              triggerClassName="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white pl-10 font-semibold"
-            />
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 z-10">
-              <Folder className="h-4 w-4 text-slate-400" />
-            </div>
-          </div>
-        </div>
+              <select
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value as any)}
+                className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none focus:border-indigo-500 transition-all cursor-pointer"
+              >
+                <option value="Todos">Todos los Tipos</option>
+                <option value={CreationType.DIET}>Dietas</option>
+                <option value={CreationType.SHOPPING_LIST}>Listas de Compra</option>
+                <option value={CreationType.RECIPE}>Recetas</option>
+                <option value={CreationType.FAST_DELIVERABLE}>Entregables Rápidos</option>
+              </select>
+              <div className="w-full md:w-56">
+                <SearchableSelect
+                  options={[
+                    { value: "Todos", label: "Todas las etiquetas" },
+                    ...allTags.map((tag) => ({ value: tag, label: tag })),
+                  ]}
+                  value={selectedTag}
+                  onChange={setSelectedTag}
+                  placeholder="Etiquetas..."
+                  triggerClassName="h-10 rounded-xl border border-slate-200 bg-white pl-4 pr-10 font-medium text-sm"
+                />
+              </div>
+            </>
+          }
+        />
       </div>
 
       <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 sm:rounded-[2rem] overflow-hidden">

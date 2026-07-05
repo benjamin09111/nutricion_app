@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import {
-  Search,
   Eye,
   CalendarDays,
   User,
@@ -10,7 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Input } from "@/components/ui/Input";
+import { Filtros_B } from "@/components/ui/Filtros_B";
 import {
   Consultation,
   ConsultationsResponse,
@@ -141,38 +140,29 @@ export default function ConsultationsClient() {
         variant="destructive"
       />
 
-      <div className="space-y-6 relative animate-in fade-in duration-700">
-        {/* Filters Bar */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="relative w-full md:w-96">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <Search className="h-5 w-5 text-slate-400" aria-hidden="true" />
-            </div>
-            <Input
-              type="search"
-              placeholder="Buscar por nombre del paciente..."
-              className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all"
-              value={searchTerm}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                setSearchTerm(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
-
-          <div className="flex gap-2 w-full md:w-auto">
-            <div className="hidden md:flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500">
-              Limite mensual: {Number.isFinite(consultationLimit) ? consultationLimit : "Ilimitado"}
-            </div>
-            <button
-              onClick={() => router.push("/dashboard/consultas/nueva")}
-              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"
-            >
-              <Plus className="w-5 h-5" />
-              Nueva Consulta
-            </button>
-          </div>
-        </div>
+<div className="space-y-6 relative animate-in fade-in duration-700">
+        <Filtros_B
+          searchValue={searchTerm}
+          onSearchChange={(val) => {
+            setSearchTerm(val);
+            setPage(1);
+          }}
+          searchPlaceholder="Buscar por nombre del paciente..."
+          rightContent={
+            <>
+              <div className="hidden md:flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500">
+                Limite mensual: {Number.isFinite(consultationLimit) ? consultationLimit : "Ilimitado"}
+              </div>
+              <button
+                onClick={() => router.push("/dashboard/consultas/nueva")}
+                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"
+              >
+                <Plus className="w-5 h-5" />
+                Nueva Consulta
+              </button>
+            </>
+          }
+        />
 
         {/* Consultations Table */}
         <div className="bg-white shadow-sm border border-slate-200 rounded-[2rem] overflow-hidden relative">
