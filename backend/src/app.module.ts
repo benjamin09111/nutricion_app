@@ -38,6 +38,7 @@ import { AnnouncementsModule } from './modules/announcements/announcements.modul
 import { MessageTemplatesModule } from './modules/message-templates/message-templates.module';
 import { DiscountCodesModule } from './modules/discount-codes/discount-codes.module';
 import { CalculationsModule } from './modules/calculations/calculations.module';
+import { CopilotModule } from './modules/copilot/copilot.module';
 
 @Module({
   imports: [
@@ -98,6 +99,7 @@ import { CalculationsModule } from './modules/calculations/calculations.module';
     MessageTemplatesModule,
     DiscountCodesModule,
     CalculationsModule,
+    CopilotModule,
   ],
   controllers: [AppController],
   providers: [AppService],

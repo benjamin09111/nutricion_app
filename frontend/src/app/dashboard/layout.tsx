@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { NutriaChatWidget } from "@/components/layout/NutriaChatWidget";
+import { CopilotPanel } from "@/features/copilot/CopilotPanel";
 import { WelcomeOverlay } from "@/components/welcome/WelcomeOverlay";
 import { AdminProvider, useAdmin } from "@/context/AdminContext";
 import {
@@ -100,6 +101,8 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       </div>
 
       <NutriaChatWidget />
+
+      <CopilotPanel />
 
       <WelcomeOverlay />
     </div>

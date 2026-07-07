@@ -9,9 +9,8 @@ import {
   Rocket,
   Users,
   Zap,
-  Lock,
+  MessageSquare,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 import {
   Card,
   CardContent,
@@ -42,9 +41,9 @@ export default function AgentsPage() {
         </div>
         <Badge
           variant="outline"
-          className="w-fit px-4 py-1.5 text-sm font-medium border-emerald-200 text-emerald-700 bg-emerald-50"
+          className="w-fit px-4 py-1.5 text-sm font-medium border-emerald-300 text-emerald-700 bg-emerald-50"
         >
-          <Sparkles className="w-3.5 h-3.5 mr-2 inline-block" /> Próximamente
+          <Sparkles className="w-3.5 h-3.5 mr-2 inline-block" /> Activo — Copiloto Clinico
         </Badge>
       </div>
 
@@ -182,18 +181,15 @@ export default function AgentsPage() {
 
             <div className="flex flex-col gap-4 min-w-[200px] w-full md:w-auto p-6 bg-white/10 backdrop-blur-sm rounded-xl border border-white/10">
               <div className="text-center">
-                <span className="text-3xl font-bold text-white">Pronto</span>
+                <span className="text-3xl font-bold text-white">Activo</span>
                 <p className="text-sm text-slate-300">
-                  Disponible en versión Beta
+                  Copiloto Clinico disponible
                 </p>
               </div>
-              <Button
-                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
-                disabled
-              >
-                <Lock className="w-4 h-4 mr-2" />
-                Unirse a la Espera
-              </Button>
+              <div className="text-center text-sm text-emerald-200 flex items-center justify-center gap-1.5">
+                <MessageSquare className="w-4 h-4" />
+                Usa el boton flotante abajo a la derecha
+              </div>
             </div>
           </div>
         </div>
