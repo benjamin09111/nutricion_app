@@ -18,8 +18,8 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           isDarkMode
             ? "border-emerald-400/12 bg-slate-950/65 text-emerald-50 ring-offset-slate-950"
             : "border-slate-300 bg-white text-slate-900 ring-offset-white",
-          error &&
-            "border-red-300 text-red-900 focus-visible:ring-red-500 bg-red-50 placeholder:text-red-300",
+           error &&
+             "border-red-500 focus-visible:ring-red-500",
           className,
         )}
         ref={ref}

@@ -16,7 +16,7 @@ export function WizardStepper({
   className,
 }: WizardStepperProps) {
   return (
-    <div className={cn("flex items-center gap-2 mb-6 overflow-x-auto pb-2", className)}>
+    <div className={cn("flex flex-wrap items-center gap-x-2 gap-y-3 mb-6 pb-2", className)}>
       {steps.map((step, index) => {
         const isCompleted = completedSteps.includes(index);
         const isActive = currentStep === index;

@@ -207,28 +207,6 @@ export function PatientClinicalRecordTab({
           />
           <div className="space-y-3">
             <Field
-              label="Frecuencia de consumo"
-              value={draft.nutritionalAnamnesis.foodFrequency}
-              onChange={(value) =>
-                updateSection(setDraft, "nutritionalAnamnesis", {
-                  ...draft.nutritionalAnamnesis,
-                  foodFrequency: value,
-                })
-              }
-              multiline
-            />
-            <Field
-              label="Recordatorio 24 horas"
-              value={draft.nutritionalAnamnesis.recall24h}
-              onChange={(value) =>
-                updateSection(setDraft, "nutritionalAnamnesis", {
-                  ...draft.nutritionalAnamnesis,
-                  recall24h: value,
-                })
-              }
-              multiline
-            />
-            <Field
               label="Preferencias alimentarias"
               value={draft.nutritionalAnamnesis.eatingPreferences}
               onChange={(value) =>

@@ -18,8 +18,11 @@ interface TagInputProps {
   className?: string;
   fetchSuggestionsUrl?: string;
   hideTags?: boolean;
-  disableDelete?: boolean; // If true, hides the delete button from suggestions dropdown
+  disableDelete?: boolean;
   includeSystemSuggestions?: boolean;
+  openDirection?: "up" | "down";
+  singleSelect?: boolean;
+  tagsAbsolute?: boolean;
 }
 
 export function TagInput({
@@ -32,6 +35,9 @@ export function TagInput({
   hideTags = false,
   disableDelete = false,
   includeSystemSuggestions = true,
+  openDirection = "down",
+  singleSelect = false,
+  tagsAbsolute = false,
 }: TagInputProps) {
   const { isDarkMode } = useTheme();
   const [inputValue, setInputValue] = useState("");
@@ -121,16 +127,18 @@ export function TagInput({
     const trimmed = tag.trim();
     if (!trimmed) return;
 
-    // Check for duplicates (case-insensitive)
     const isDuplicate = value.some(
       (t) => t.toLowerCase() === trimmed.toLowerCase(),
     );
 
     if (!isDuplicate) {
-      // Format: Capitalize first letter
       const formatted =
         trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
-      onChange([...value, formatted]);
+      if (singleSelect) {
+        onChange([formatted]);
+      } else {
+        onChange([...value, formatted]);
+      }
       setInputValue("");
       setShowSuggestions(false);
     } else {
@@ -196,7 +204,7 @@ export function TagInput({
   }, []);
 
   return (
-    <div className="space-y-3" ref={containerRef}>
+    <div className={cn(tagsAbsolute ? "relative" : "space-y-3")} ref={containerRef}>
       <div className="relative">
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -229,7 +237,8 @@ export function TagInput({
         {/* Suggestions Dropdown */}
         {showSuggestions && allSuggestions.length > 0 && (
           <div className={cn(
-            "fixed inset-x-4 sm:inset-x-auto sm:absolute z-[100] mt-2 border rounded-2xl max-h-72 overflow-auto animate-in fade-in slide-in-from-top-2 duration-200 sm:w-full",
+            "fixed inset-x-4 sm:inset-x-auto sm:absolute z-[100] border rounded-2xl max-h-72 overflow-auto animate-in fade-in duration-200 sm:w-full",
+            openDirection === "up" ? "bottom-full mb-2 slide-in-from-bottom-2" : "top-full mt-2 slide-in-from-top-2",
             isDarkMode
               ? "bg-slate-950 border-emerald-400/12 shadow-black/40"
               : "bg-white border-slate-200/80 shadow-2xl shadow-slate-200/50",
@@ -321,7 +330,10 @@ export function TagInput({
       </div>
 
       {!hideTags && value.length > 0 && (
-        <div className="flex flex-wrap gap-2 min-h-[20px] px-1">
+        <div className={cn(
+          "flex flex-wrap gap-2 min-h-[20px] px-1",
+          tagsAbsolute && "absolute top-full left-0 mt-1 z-10"
+        )}>
           {value.map((tag) => (
             <span
               key={tag}

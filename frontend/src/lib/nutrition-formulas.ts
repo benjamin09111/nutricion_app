@@ -96,12 +96,12 @@ export const ACTIVITY_FACTORS: Record<
 };
 
 export const BMI_CLASSIFICATIONS = [
-  { min: 0, max: 18.5, label: "Bajo peso", color: "#3b82f6" },
-  { min: 18.5, max: 25, label: "Normopeso", color: "#22c55e" },
-  { min: 25, max: 30, label: "Sobrepeso", color: "#eab308" },
-  { min: 30, max: 35, label: "Obesidad I", color: "#f97316" },
-  { min: 35, max: 40, label: "Obesidad II", color: "#ef4444" },
-  { min: 40, max: 999, label: "Obesidad III", color: "#b91c1c" },
+  { min: 0, max: 18.5, label: "Bajo peso", color: "#8f70d8" },
+  { min: 18.5, max: 25, label: "Normopeso", color: "#8da84f" },
+  { min: 25, max: 30, label: "Sobrepeso", color: "#d97706" },
+  { min: 30, max: 35, label: "Obesidad I", color: "#ea580c" },
+  { min: 35, max: 40, label: "Obesidad II", color: "#e11d48" },
+  { min: 40, max: 999, label: "Obesidad III", color: "#be123c" },
 ];
 
 export const MACRO_RANGES = {
@@ -239,19 +239,19 @@ function getPediatricBmiAssessment(params: {
   const percentile = percentileFromZ(z);
 
   let classification = "Normopeso";
-  let color = "#22c55e";
+  let color = "#8da84f";
   if (percentile < 10) {
     classification = "Bajo peso";
-    color = "#3b82f6";
+    color = "#8f70d8";
   } else if (percentile < 85) {
     classification = "Normopeso";
-    color = "#22c55e";
+    color = "#8da84f";
   } else if (percentile < 95) {
     classification = "Sobrepeso";
-    color = "#eab308";
+    color = "#d97706";
   } else {
     classification = "Obesidad";
-    color = "#f97316";
+    color = "#ea580c";
   }
 
   return {

@@ -15,6 +15,20 @@ import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-pla
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['ACTIVE', 'TRIALING']);
 
+function hasDbEntitlements(plan: any): boolean {
+  const db = (plan as any)?.entitlements;
+  if (!db || typeof db !== 'object') return false;
+  return Object.keys(db).length > 0;
+}
+
+function resolveEntitlements(plan: any, hardcoded: EntitlementMap): EntitlementMap {
+  const db = (plan as any)?.entitlements;
+  if (!db || typeof db !== 'object' || Object.keys(db).length === 0) {
+    return hardcoded;
+  }
+  return { ...hardcoded, ...db };
+}
+
 const isSubscriptionSelectable = (account: {
   role: string;
   subscription: { status: string; endDate: Date | null } | null;
@@ -93,10 +107,10 @@ export class PermissionsService {
             price: Number(account.subscription.plan.price),
             features: account.subscription.plan.features,
             entitlements: normalizeEntitlementMap(
-              (account.subscription.plan as any).entitlements ||
-              getMembershipPlanEntitlementsFromPlan(
-                  account.subscription.plan,
-                ),
+              resolveEntitlements(
+                account.subscription.plan,
+                getMembershipPlanEntitlementsFromPlan(account.subscription.plan),
+              ),
             ),
           }
         : account.plan === 'FREE' && freeMembershipPlan
@@ -108,8 +122,10 @@ export class PermissionsService {
               price: Number(freeMembershipPlan.price),
               features: freeMembershipPlan.features,
               entitlements: normalizeEntitlementMap(
-                (freeMembershipPlan as any).entitlements ||
+                resolveEntitlements(
+                  freeMembershipPlan,
                   getMembershipPlanEntitlementsFromPlan(freeMembershipPlan),
+                ),
               ),
             }
         : null;

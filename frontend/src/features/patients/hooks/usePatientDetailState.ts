@@ -28,15 +28,17 @@ import {
   formatDateOnlyForLocale,
   getTodayDateInputValue,
 } from "../utils/patient-helpers";
-import { Ruler, Weight, Activity, Dumbbell, Zap, Target } from "lucide-react";
+import { Ruler, Weight, Activity, Dumbbell, Zap, Target, Heart } from "lucide-react";
+import { systemMetrics } from "@/lib/constants";
+import { sanitizePhone } from "@/lib/utils";
 
 export type TabType =
-  | "General"
-  | "Consultas"
   | "Ficha clínica"
   | "Progreso"
-  | "Acompañamiento"
-  | "Creaciones";
+  | "Seguimiento"
+  | "Consultas"
+  | "Planes"
+  | "Exámenes";
 
 interface UsePatientDetailStateProps {
   id: string;
@@ -53,7 +55,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
   const [exportIncludeClinicalRecord, setExportIncludeClinicalRecord] = useState(false);
   const [exportIncludeProgress, setExportIncludeProgress] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>("General");
+  const [activeTab, setActiveTab] = useState<TabType>("Ficha clínica");
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Patient>>({});
   const [clinicalRecord, setClinicalRecord] = useState<ClinicalRecord | null>(null);
@@ -143,8 +145,8 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
   >("diario");
 
   useEffect(() => {
-    if (searchParams.get("tab")?.toLowerCase() === "acompanamiento") {
-      setActiveTab("Acompañamiento");
+    if (searchParams.get("tab")?.toLowerCase() === "seguimiento") {
+      setActiveTab("Seguimiento");
     }
   }, [searchParams]);
 
@@ -288,35 +290,17 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     return registeredMetricKeys;
   };
 
-  const getMetricInfo = (key: string) => {
-    const presets: Record<
-      string,
-      { label: string; unit: string; color: string; icon: any }
-    > = {
-      weight: { label: "Peso", unit: "kg", color: "#3b82f6", icon: Weight },
-      height: { label: "Altura", unit: "cm", color: "#6366f1", icon: Ruler },
-      body_fat: {
-        label: "Grasa Corporal",
-        unit: "%",
-        color: "#10b981",
-        icon: Activity,
-      },
-      muscle_mass: {
-        label: "Masa Muscular",
-        unit: "kg",
-        color: "#f59e0b",
-        icon: Dumbbell,
-      },
-      visceral_fat: {
-        label: "Grasa Visceral",
-        unit: "lvl",
-        color: "#ef4444",
-        icon: Zap,
-      },
-      waist: { label: "Cintura", unit: "cm", color: "#ec4899", icon: Target },
-    };
+  const metricPresets = useMemo(() => {
+    const presets: Record<string, { label: string; unit: string; color: string; icon: any }> = {};
+    const iconMap: Record<string, any> = { Weight, Ruler, Activity, Dumbbell, Zap, Target, Heart };
+    systemMetrics.forEach((m: any) => {
+      presets[m.key] = { label: m.label, unit: m.unit, color: m.color, icon: iconMap[m.icon] || Activity };
+    });
+    return presets;
+  }, []);
 
-    if (presets[key]) return presets[key];
+  const getMetricInfo = (key: string) => {
+    if (metricPresets[key]) return metricPresets[key];
 
     for (const c of consultations) {
       const m = (c.metrics as any[])?.find(
@@ -490,14 +474,16 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
   }, [clinicalRecordDraft, id, patient, token]);
 
   const smartMetrics = useMemo(
-    () => [
-      { key: "weight", label: "Peso", unit: "kg", icon: Weight, color: "#3b82f6" },
-      { key: "height", label: "Altura", unit: "cm", icon: Ruler, color: "#6366f1" },
-      { key: "body_fat", label: "Grasa Corporal", unit: "%", icon: Activity, color: "#10b981" },
-      { key: "muscle_mass", label: "Masa Muscular", unit: "kg", icon: Dumbbell, color: "#f59e0b" },
-      { key: "visceral_fat", label: "Grasa Visceral", unit: "lvl", icon: Zap, color: "#ef4444" },
-      { key: "waist", label: "Cintura", unit: "cm", icon: Target, color: "#ec4899" },
-    ],
+    () => {
+      const iconMap: Record<string, any> = { Weight, Ruler, Activity, Dumbbell, Zap, Target, Heart };
+      return systemMetrics.slice(0, 29).map((m: any) => ({
+        key: m.key,
+        label: m.label,
+        unit: m.unit,
+        icon: iconMap[m.icon] || Activity,
+        color: m.color,
+      }));
+    },
     [],
   );
 
@@ -1390,8 +1376,6 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
             ? `${clinicalRecordDraft.gynecoObstetric.pregestationalWeight} kg`
             : null,
         );
-        writeLine("Frecuencia alimentaria", clinicalRecordDraft.nutritionalAnamnesis.foodFrequency);
-        writeLine("Recordatorio 24h", clinicalRecordDraft.nutritionalAnamnesis.recall24h);
         writeLine("Preferencias", clinicalRecordDraft.nutritionalAnamnesis.eatingPreferences);
         writeLine("Observaciones", clinicalRecordDraft.nutritionalAnamnesis.clinicalObservations);
 
@@ -1749,12 +1733,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value;
-    if (!val.startsWith("+")) {
-      val = "+" + val.replace(/\+/g, "");
-    }
-    const cleanVal = "+" + val.substring(1).replace(/\D/g, "");
-    updateField("phone", cleanVal);
+    updateField("phone", sanitizePhone(e.target.value));
   };
 
   const normalizeActivityLevel = (value?: string | null): ActivityLevel => {

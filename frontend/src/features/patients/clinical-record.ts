@@ -9,17 +9,27 @@ export interface ClinicalRecordDraft {
     medications: string;
     supplementsOrDrugs: string;
     diagnosedPathologies: string;
+    familyHistory: string;
+    sleepQuality: string;
+    perceivedStress: string;
+    weeklyExercise: string;
+    motivoConsulta: string;
+    manualCaloriesAdjustment: string;
+    pesoObjetivoProf: string;
   };
   gynecoObstetric: {
     isPregnant: boolean;
     pregnancyWeeks: string;
     pregestationalWeight: string;
+    pregnancyType: string;
   };
   nutritionalAnamnesis: {
-    foodFrequency: string;
-    recall24h: string;
     eatingPreferences: string;
+    rejectedFoods: string;
     clinicalObservations: string;
+    gestationalSymptoms: string[];
+    gestationalSupplementation: string[];
+    diagnosticoNutricional: string;
   };
   anthropometry: {
     skinfolds: {
@@ -35,6 +45,7 @@ export interface ClinicalRecordDraft {
       waistCircumference: string;
       hipCircumference: string;
     };
+    pesoHabitual: string;
   };
   dataSources: Record<string, ClinicalRecordSource>;
 }
@@ -46,17 +57,27 @@ const EMPTY_DRAFT: ClinicalRecordDraft = {
     medications: "",
     supplementsOrDrugs: "",
     diagnosedPathologies: "",
+    familyHistory: "",
+    sleepQuality: "",
+    perceivedStress: "",
+    weeklyExercise: "",
+    motivoConsulta: "",
+    manualCaloriesAdjustment: "",
+    pesoObjetivoProf: "",
   },
   gynecoObstetric: {
     isPregnant: false,
     pregnancyWeeks: "",
     pregestationalWeight: "",
+    pregnancyType: "",
   },
   nutritionalAnamnesis: {
-    foodFrequency: "",
-    recall24h: "",
     eatingPreferences: "",
+    rejectedFoods: "",
     clinicalObservations: "",
+    gestationalSymptoms: [],
+    gestationalSupplementation: [],
+    diagnosticoNutricional: "",
   },
   anthropometry: {
     skinfolds: {
@@ -72,6 +93,7 @@ const EMPTY_DRAFT: ClinicalRecordDraft = {
       waistCircumference: "",
       hipCircumference: "",
     },
+    pesoHabitual: "",
   },
   dataSources: {},
 };
@@ -82,11 +104,31 @@ const CUSTOM_KEY_TO_SOURCE_FIELD: Record<string, string> = {
   medications: "vitalHistory.medications",
   drugsSupplements: "vitalHistory.supplementsOrDrugs",
   diagnosedPathologies: "vitalHistory.diagnosedPathologies",
+  familyHistory: "vitalHistory.familyHistory",
+  sleepQuality: "vitalHistory.sleepQuality",
+  perceivedStress: "vitalHistory.perceivedStress",
+  weeklyExercise: "vitalHistory.weeklyExercise",
+  motivoConsulta: "vitalHistory.motivoConsulta",
+  manualCaloriesAdjustment: "vitalHistory.manualCaloriesAdjustment",
+  pesoObjetivoProf: "vitalHistory.pesoObjetivoProf",
   pregnant: "gynecoObstetric.isPregnant",
   pregnancyWeeks: "gynecoObstetric.pregnancyWeeks",
   pregestationalWeight: "gynecoObstetric.pregestationalWeight",
+  pregnancyType: "gynecoObstetric.pregnancyType",
   foodFrequency: "nutritionalAnamnesis.foodFrequency",
   recall24h: "nutritionalAnamnesis.recall24h",
+  mealSchedules: "nutritionalAnamnesis.mealSchedules",
+  mealsPerDay: "nutritionalAnamnesis.mealsPerDay",
+  waterIntake: "nutritionalAnamnesis.waterIntake",
+  alcoholIntake: "nutritionalAnamnesis.alcoholIntake",
+  sugaryDrinksIntake: "nutritionalAnamnesis.sugaryDrinksIntake",
+  rejectedFoods: "nutritionalAnamnesis.rejectedFoods",
+  foodBudget: "nutritionalAnamnesis.foodBudget",
+  whoCooks: "nutritionalAnamnesis.whoCooks",
+  eatingLocation: "nutritionalAnamnesis.eatingLocation",
+  gestationalSymptoms: "nutritionalAnamnesis.gestationalSymptoms",
+  gestationalSupplementation: "nutritionalAnamnesis.gestationalSupplementation",
+  diagnosticoNutricional: "nutritionalAnamnesis.diagnosticoNutricional",
   pliegueTricipital: "anthropometry.skinfolds.tricipital",
   pliegueBicipital: "anthropometry.skinfolds.bicipital",
   pliegueSubescapular: "anthropometry.skinfolds.subescapular",
@@ -96,6 +138,7 @@ const CUSTOM_KEY_TO_SOURCE_FIELD: Record<string, string> = {
   circunferenciaBraquial: "anthropometry.circumferences.armCircumference",
   circunferenciaCintura: "anthropometry.circumferences.waistCircumference",
   circunferenciaCadera: "anthropometry.circumferences.hipCircumference",
+  pesoHabitual: "anthropometry.pesoHabitual",
 };
 
 function getCustomValue(patient: Patient | null | undefined, key: string) {
@@ -130,6 +173,7 @@ export function createEmptyClinicalRecordDraft(): ClinicalRecordDraft {
     anthropometry: {
       skinfolds: { ...EMPTY_DRAFT.anthropometry.skinfolds },
       circumferences: { ...EMPTY_DRAFT.anthropometry.circumferences },
+      pesoHabitual: EMPTY_DRAFT.anthropometry.pesoHabitual,
     },
     dataSources: {},
   };
@@ -145,6 +189,8 @@ export function buildClinicalRecordDraft(
     draft.vitalHistory = {
       ...draft.vitalHistory,
       ...clinicalRecord.vitalHistory,
+      manualCaloriesAdjustment: toNumberText(clinicalRecord.vitalHistory.manualCaloriesAdjustment),
+      pesoObjetivoProf: toNumberText(clinicalRecord.vitalHistory.pesoObjetivoProf),
     };
   }
 
@@ -154,6 +200,7 @@ export function buildClinicalRecordDraft(
       isPregnant: Boolean(clinicalRecord.gynecoObstetric.isPregnant),
       pregnancyWeeks: toNumberText(clinicalRecord.gynecoObstetric.pregnancyWeeks),
       pregestationalWeight: toNumberText(clinicalRecord.gynecoObstetric.pregestationalWeight),
+      pregnancyType: toText(clinicalRecord.gynecoObstetric.pregnancyType),
     };
   }
 
@@ -181,6 +228,7 @@ export function buildClinicalRecordDraft(
         waistCircumference: toNumberText(clinicalRecord.anthropometry.circumferences?.waistCircumference),
         hipCircumference: toNumberText(clinicalRecord.anthropometry.circumferences?.hipCircumference),
       },
+      pesoHabitual: toNumberText(clinicalRecord.anthropometry.pesoHabitual),
     };
   }
 
@@ -190,13 +238,34 @@ export function buildClinicalRecordDraft(
     medications: getCustomValue(patient, "medications"),
     supplementsOrDrugs: getCustomValue(patient, "drugsSupplements"),
     diagnosedPathologies: getCustomValue(patient, "diagnosedPathologies"),
+    familyHistory: getCustomValue(patient, "familyHistory"),
+    sleepQuality: getCustomValue(patient, "sleepQuality"),
+    perceivedStress: getCustomValue(patient, "perceivedStress"),
+    weeklyExercise: getCustomValue(patient, "weeklyExercise"),
+    motivoConsulta: getCustomValue(patient, "motivoConsulta"),
+    manualCaloriesAdjustment: getCustomValue(patient, "manualCaloriesAdjustment"),
+    pesoObjetivoProf: getCustomValue(patient, "pesoObjetivoProf"),
     isPregnant: getCustomValue(patient, "pregnant"),
     pregnancyWeeks: getCustomValue(patient, "pregnancyWeeks"),
     pregestationalWeight: getCustomValue(patient, "pregestationalWeight"),
+    pregnancyType: getCustomValue(patient, "pregnancyType"),
     foodFrequency: getCustomValue(patient, "foodFrequency"),
     recall24h: getCustomValue(patient, "recall24h"),
     eatingPreferences: patient?.likes,
     clinicalObservations: patient?.clinicalSummary,
+    mealSchedules: getCustomValue(patient, "mealSchedules"),
+    mealsPerDay: getCustomValue(patient, "mealsPerDay"),
+    waterIntake: getCustomValue(patient, "waterIntake"),
+    alcoholIntake: getCustomValue(patient, "alcoholIntake"),
+    sugaryDrinksIntake: getCustomValue(patient, "sugaryDrinksIntake"),
+    rejectedFoods: getCustomValue(patient, "rejectedFoods"),
+    foodBudget: getCustomValue(patient, "foodBudget"),
+    whoCooks: getCustomValue(patient, "whoCooks"),
+    eatingLocation: getCustomValue(patient, "eatingLocation"),
+    gestationalSymptoms: getCustomValue(patient, "gestationalSymptoms"),
+    gestationalSupplementation: getCustomValue(patient, "gestationalSupplementation"),
+    diagnosticoNutricional: getCustomValue(patient, "diagnosticoNutricional"),
+
     tricipital: getCustomValue(patient, "pliegueTricipital"),
     bicipital: getCustomValue(patient, "pliegueBicipital"),
     subescapular: getCustomValue(patient, "pliegueSubescapular"),
@@ -206,7 +275,10 @@ export function buildClinicalRecordDraft(
     armCircumference: getCustomValue(patient, "circunferenciaBraquial"),
     waistCircumference: getCustomValue(patient, "circunferenciaCintura"),
     hipCircumference: getCustomValue(patient, "circunferenciaCadera"),
+    pesoHabitual: getCustomValue(patient, "pesoHabitual"),
   };
+
+  const toList = (val: unknown): string[] => (Array.isArray(val) ? val : []);
 
   draft.vitalHistory = {
     occupation: draft.vitalHistory.occupation || toText(patientFallbacks.occupation),
@@ -216,6 +288,15 @@ export function buildClinicalRecordDraft(
       draft.vitalHistory.supplementsOrDrugs || toText(patientFallbacks.supplementsOrDrugs),
     diagnosedPathologies:
       draft.vitalHistory.diagnosedPathologies || toText(patientFallbacks.diagnosedPathologies),
+    familyHistory: draft.vitalHistory.familyHistory || toText(patientFallbacks.familyHistory),
+    sleepQuality: draft.vitalHistory.sleepQuality || toText(patientFallbacks.sleepQuality),
+    perceivedStress: draft.vitalHistory.perceivedStress || toText(patientFallbacks.perceivedStress),
+    weeklyExercise: draft.vitalHistory.weeklyExercise || toText(patientFallbacks.weeklyExercise),
+    motivoConsulta: draft.vitalHistory.motivoConsulta || toText(patientFallbacks.motivoConsulta),
+    manualCaloriesAdjustment:
+      draft.vitalHistory.manualCaloriesAdjustment || toNumberText(patientFallbacks.manualCaloriesAdjustment),
+    pesoObjetivoProf:
+      draft.vitalHistory.pesoObjetivoProf || toNumberText(patientFallbacks.pesoObjetivoProf),
   };
 
   draft.gynecoObstetric = {
@@ -223,15 +304,23 @@ export function buildClinicalRecordDraft(
     pregnancyWeeks: draft.gynecoObstetric.pregnancyWeeks || toNumberText(patientFallbacks.pregnancyWeeks),
     pregestationalWeight:
       draft.gynecoObstetric.pregestationalWeight || toNumberText(patientFallbacks.pregestationalWeight),
+    pregnancyType: draft.gynecoObstetric.pregnancyType || toText(patientFallbacks.pregnancyType),
   };
 
   draft.nutritionalAnamnesis = {
-    foodFrequency: draft.nutritionalAnamnesis.foodFrequency || toText(patientFallbacks.foodFrequency),
-    recall24h: draft.nutritionalAnamnesis.recall24h || toText(patientFallbacks.recall24h),
     eatingPreferences:
       draft.nutritionalAnamnesis.eatingPreferences || toText(patientFallbacks.eatingPreferences),
     clinicalObservations:
       draft.nutritionalAnamnesis.clinicalObservations || toText(patientFallbacks.clinicalObservations),
+    rejectedFoods: draft.nutritionalAnamnesis.rejectedFoods || toText(patientFallbacks.rejectedFoods),
+    gestationalSymptoms: toList(draft.nutritionalAnamnesis.gestationalSymptoms).length > 0
+      ? toList(draft.nutritionalAnamnesis.gestationalSymptoms)
+      : toList(patientFallbacks.gestationalSymptoms),
+    gestationalSupplementation: toList(draft.nutritionalAnamnesis.gestationalSupplementation).length > 0
+      ? toList(draft.nutritionalAnamnesis.gestationalSupplementation)
+      : toList(patientFallbacks.gestationalSupplementation),
+    diagnosticoNutricional:
+      draft.nutritionalAnamnesis.diagnosticoNutricional || toText(patientFallbacks.diagnosticoNutricional),
   };
 
   draft.anthropometry = {
@@ -254,6 +343,7 @@ export function buildClinicalRecordDraft(
       hipCircumference:
         draft.anthropometry.circumferences.hipCircumference || toNumberText(patientFallbacks.hipCircumference),
     },
+    pesoHabitual: draft.anthropometry.pesoHabitual || toNumberText(patientFallbacks.pesoHabitual),
   };
 
   draft.dataSources = {
@@ -282,17 +372,27 @@ export function serializeClinicalRecordDraft(draft: ClinicalRecordDraft) {
       medications: cleanText(draft.vitalHistory.medications),
       supplementsOrDrugs: cleanText(draft.vitalHistory.supplementsOrDrugs),
       diagnosedPathologies: cleanText(draft.vitalHistory.diagnosedPathologies),
+      familyHistory: cleanText(draft.vitalHistory.familyHistory),
+      sleepQuality: cleanText(draft.vitalHistory.sleepQuality),
+      perceivedStress: cleanText(draft.vitalHistory.perceivedStress),
+      weeklyExercise: cleanText(draft.vitalHistory.weeklyExercise),
+      motivoConsulta: cleanText(draft.vitalHistory.motivoConsulta),
+      manualCaloriesAdjustment: cleanNumber(draft.vitalHistory.manualCaloriesAdjustment),
+      pesoObjetivoProf: cleanNumber(draft.vitalHistory.pesoObjetivoProf),
     },
     gynecoObstetric: {
       isPregnant: draft.gynecoObstetric.isPregnant,
       pregnancyWeeks: cleanNumber(draft.gynecoObstetric.pregnancyWeeks),
       pregestationalWeight: cleanNumber(draft.gynecoObstetric.pregestationalWeight),
+      pregnancyType: cleanText(draft.gynecoObstetric.pregnancyType),
     },
     nutritionalAnamnesis: {
-      foodFrequency: cleanText(draft.nutritionalAnamnesis.foodFrequency),
-      recall24h: cleanText(draft.nutritionalAnamnesis.recall24h),
       eatingPreferences: cleanText(draft.nutritionalAnamnesis.eatingPreferences),
       clinicalObservations: cleanText(draft.nutritionalAnamnesis.clinicalObservations),
+      rejectedFoods: cleanText(draft.nutritionalAnamnesis.rejectedFoods),
+      gestationalSymptoms: draft.nutritionalAnamnesis.gestationalSymptoms,
+      gestationalSupplementation: draft.nutritionalAnamnesis.gestationalSupplementation,
+      diagnosticoNutricional: cleanText(draft.nutritionalAnamnesis.diagnosticoNutricional),
     },
     anthropometry: {
       skinfolds: {
@@ -308,6 +408,7 @@ export function serializeClinicalRecordDraft(draft: ClinicalRecordDraft) {
         waistCircumference: cleanNumber(draft.anthropometry.circumferences.waistCircumference),
         hipCircumference: cleanNumber(draft.anthropometry.circumferences.hipCircumference),
       },
+      pesoHabitual: cleanNumber(draft.anthropometry.pesoHabitual),
     },
   };
 }
@@ -321,6 +422,7 @@ export function buildClinicalRecordFromPatientDraft(patient: Partial<Patient>) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : undefined;
   };
+  const list = (value: unknown) => (Array.isArray(value) ? value : []);
 
   return {
     vitalHistory: {
@@ -329,17 +431,27 @@ export function buildClinicalRecordFromPatientDraft(patient: Partial<Patient>) {
       medications: text(getVar("medications")),
       supplementsOrDrugs: text(getVar("drugsSupplements")),
       diagnosedPathologies: text(getVar("diagnosedPathologies")),
+      familyHistory: text(getVar("familyHistory")),
+      sleepQuality: text(getVar("sleepQuality")),
+      perceivedStress: text(getVar("perceivedStress")),
+      weeklyExercise: text(getVar("weeklyExercise")),
+      motivoConsulta: text(getVar("motivoConsulta")),
+      manualCaloriesAdjustment: num(getVar("manualCaloriesAdjustment")),
+      pesoObjetivoProf: num(getVar("pesoObjetivoProf")),
     },
     gynecoObstetric: {
       isPregnant: Boolean(getVar("pregnant")),
       pregnancyWeeks: num(getVar("pregnancyWeeks")),
       pregestationalWeight: num(getVar("pregestationalWeight")),
+      pregnancyType: text(getVar("pregnancyType")),
     },
     nutritionalAnamnesis: {
-      foodFrequency: text(getVar("foodFrequency")),
-      recall24h: text(getVar("recall24h")),
       eatingPreferences: text(patient.likes),
       clinicalObservations: text(patient.clinicalSummary),
+      rejectedFoods: text(getVar("rejectedFoods")),
+      gestationalSymptoms: list(getVar("gestationalSymptoms")),
+      gestationalSupplementation: list(getVar("gestationalSupplementation")),
+      diagnosticoNutricional: text(getVar("diagnosticoNutricional")),
     },
     anthropometry: {
       skinfolds: {
@@ -355,6 +467,7 @@ export function buildClinicalRecordFromPatientDraft(patient: Partial<Patient>) {
         waistCircumference: num(getVar("circunferenciaCintura")),
         hipCircumference: num(getVar("circunferenciaCadera")),
       },
+      pesoHabitual: num(getVar("pesoHabitual")),
     },
     dataSources: {
       vitalHistory: "nutritionist",

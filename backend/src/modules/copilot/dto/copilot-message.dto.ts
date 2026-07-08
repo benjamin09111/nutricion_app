@@ -4,12 +4,12 @@ export class CopilotMessageDto {
   @IsString()
   message: string;
 
-  @IsOptional()
   @IsNumber()
+  @IsOptional()
   patientId?: number;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   conversationId?: string;
 }
 

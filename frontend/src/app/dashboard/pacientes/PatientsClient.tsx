@@ -17,6 +17,7 @@ import {
   X,
   Phone,
   Link2,
+  Lock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
@@ -54,8 +55,6 @@ export default function PatientsClient() {
   const [page, setPage] = useState(1);
   const router = useRouter();
 
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [patientToDelete, setPatientToDelete] = useState<string | null>(null);
   const [patientPreview, setPatientPreview] = useState<Patient | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const { limit } = useSubscription();
@@ -71,7 +70,7 @@ export default function PatientsClient() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const { patients, meta, isLoading, deletePatient, togglePatientStatus } =
+  const { patients, meta, isLoading, togglePatientStatus } =
     usePatients({
       page,
       searchTerm: debouncedSearchTerm,
@@ -79,19 +78,6 @@ export default function PatientsClient() {
       classificationTags,
       startDateFilter: "",
     });
-
-  const handleDeleteConfirmed = async () => {
-    if (!patientToDelete) return;
-    try {
-      await deletePatient(patientToDelete);
-      toast.success("Paciente eliminado");
-    } catch {
-      toast.error("Error al eliminar");
-    } finally {
-      setIsDeleteConfirmOpen(false);
-      setPatientToDelete(null);
-    }
-  };
 
   const handleTogglePatientStatus = async (patient: Patient) => {
     const newStatus = patient.status === "Active" ? "Inactive" : "Active";
@@ -151,24 +137,34 @@ export default function PatientsClient() {
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             <div className="w-full sm:w-[12rem] lg:w-[14rem]">
-              <TagInput
-                value={classificationTags}
-                onChange={(tags) => {
-                  setClassificationTags(tags);
-                  setPage(1);
-                }}
-                fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                placeholder="Etiquetas"
-                className="h-10 rounded-xl bg-white border border-slate-200 text-sm"
-              />
+              <div className="relative">
+                <TagInput
+                  value={classificationTags}
+                  onChange={(tags) => {
+                    setClassificationTags(tags);
+                    setPage(1);
+                  }}
+                  fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                  placeholder="Etiquetas"
+                  className="h-10 rounded-xl bg-white border border-slate-200 text-sm"
+                  singleSelect
+                  tagsAbsolute
+                />
+                {isLoading && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                    <div className="h-4 w-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
             </div>
 
             <Button
               variant="outline"
+              disabled
               onClick={() => setIsShareModalOpen(true)}
-              className="h-10 px-5 rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-medium transition-all gap-2"
+              className="h-10 px-5 rounded-xl border-indigo-200 text-indigo-400 bg-slate-50 font-medium transition-all gap-2 cursor-not-allowed"
             >
-              <Link2 className="h-4 w-4" />
+              <Lock className="h-4 w-4" />
               <span className="text-sm whitespace-nowrap">Compartir formulario</span>
             </Button>
 
@@ -197,13 +193,14 @@ export default function PatientsClient() {
         </div>
 
         <div className="flex items-center justify-between gap-4 px-1 py-2 sm:px-3">
-          <p className="text-xs font-medium text-slate-500 flex items-center gap-2 min-w-0">
-            <User className="h-4 w-4 shrink-0" />
-            <span className="whitespace-nowrap">Total:</span>
-            <span className="text-indigo-600 font-semibold whitespace-nowrap">
-              {meta.total}
+          <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5 min-w-0 flex-wrap">
+            <User className="h-4 w-4 shrink-0 text-slate-400" />
+            <span>
+              <strong className="text-indigo-600 font-semibold">{meta.activeCount}</strong> activos,{" "}
+              <strong className="text-indigo-600 font-semibold">{meta.inactiveCount}</strong> inactivos.{" "}
+              <span className="text-slate-400 font-normal">Total: </span>
+              <strong className="text-slate-900 font-bold">{meta.total}</strong>
             </span>
-            <span className="whitespace-nowrap">pacientes registrados</span>
           </p>
 
           <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-600 cursor-pointer select-none whitespace-nowrap">
@@ -429,16 +426,6 @@ export default function PatientsClient() {
                             >
                               <Download className="w-4.5 h-4.5" />
                             </button>
-                            <button
-                              onClick={() => {
-                                setPatientToDelete(patient.id);
-                                setIsDeleteConfirmOpen(true);
-                              }}
-                              className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                              title="Eliminar paciente"
-                            >
-                              <Trash2 className="w-4.5 h-4.5" />
-                            </button>
                           </div>
                         </td>
                       </tr>
@@ -594,16 +581,6 @@ export default function PatientsClient() {
                         <Download className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => {
-                          setPatientToDelete(patient.id);
-                          setIsDeleteConfirmOpen(true);
-                        }}
-                        className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-lg"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <button
                         onClick={() =>
                           router.push(`/dashboard/pacientes/${patient.id}`)
                         }
@@ -635,18 +612,7 @@ export default function PatientsClient() {
         )}
       </div>
 
-      <ConfirmationModal
-        isOpen={isDeleteConfirmOpen}
-        onClose={() => {
-          setIsDeleteConfirmOpen(false);
-          setPatientToDelete(null);
-        }}
-        onConfirm={handleDeleteConfirmed}
-        title="¿Eliminar paciente?"
-        description="¿Estás seguro de que deseas eliminar este paciente? Se eliminarán también todas sus consultas y no podrás recuperar esta información. Te recomendamos guardar la ficha clínica del paciente antes de eliminarlo."
-        confirmText="Eliminar permanentemente"
-        variant="destructive"
-      />
+
 
       {patientPreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">

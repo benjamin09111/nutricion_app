@@ -16,7 +16,7 @@ export interface Patient {
     key: string;
     label: string;
     unit?: string;
-    value?: string | number | boolean | Record<string, unknown>;
+    value?: string | number | boolean | Record<string, unknown> | string[];
   }[];
   exams?: PatientExam[];
   createdAt: string;
@@ -43,17 +43,27 @@ export interface ClinicalRecord {
     medications?: string;
     supplementsOrDrugs?: string;
     diagnosedPathologies?: string;
+    familyHistory?: string;
+    sleepQuality?: string;
+    perceivedStress?: string;
+    weeklyExercise?: string;
+    motivoConsulta?: string;
+    manualCaloriesAdjustment?: number;
+    pesoObjetivoProf?: number;
   };
   gynecoObstetric?: {
     isPregnant?: boolean;
     pregnancyWeeks?: number;
     pregestationalWeight?: number;
+    pregnancyType?: string;
   };
   nutritionalAnamnesis?: {
-    foodFrequency?: string;
-    recall24h?: string;
     eatingPreferences?: string;
+    rejectedFoods?: string;
     clinicalObservations?: string;
+    gestationalSymptoms?: string[];
+    gestationalSupplementation?: string[];
+    diagnosticoNutricional?: string;
   };
   anthropometry?: {
     skinfolds?: {
@@ -69,6 +79,7 @@ export interface ClinicalRecord {
       waistCircumference?: number;
       hipCircumference?: number;
     };
+    pesoHabitual?: number;
   };
   dataSources?: Record<string, "patient" | "nutritionist" | "calculated">;
   createdAt: string;

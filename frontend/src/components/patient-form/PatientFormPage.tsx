@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
-import { User, Mail, Phone, Calendar, Activity, AlertCircle, Ruler, Target, Activity as ActivityIcon, HeartPulse, Dumbbell, Calculator, FileText, ChevronRight } from "lucide-react";
+import { User, Mail, Phone, Calendar, Activity, AlertCircle, Ruler, Target, Activity as ActivityIcon, HeartPulse, Dumbbell, Calculator, FileText, ChevronRight, Lock } from "lucide-react";
 import { FormStepCard } from "@/components/patient-form/FormStepCard";
 import { FormNavigationFooter } from "@/components/patient-form/FormNavigationFooter";
 import { WizardStepper } from "@/components/patient-form/WizardStepper";
@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/Button";
 import { TagInput } from "@/components/ui/TagInput";
 import { usePatientDraft } from "@/features/patients/hooks/usePatientDraft";
 import { buildClinicalRecordFromPatientDraft } from "@/features/patients/clinical-record";
-import { cn } from "@/lib/utils";
+import { cn, sanitizePhone } from "@/lib/utils";
 import { calculateBMI, calculateGET, getIdealWeightRange, calculateAge } from "@/lib/nutrition-formulas";
 import { formatRut, validateRut } from "@/lib/rut-utils";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
@@ -28,6 +28,7 @@ const STEPS = [
   "Objetivos",
   "Anamnesis General",
   "Anamnesis Nutricional",
+  "Resumen final",
 ];
 
 const SECTIONS = [
@@ -36,6 +37,7 @@ const SECTIONS = [
   { id: "objetivos", label: "Objetivos" },
   { id: "anamnesis-general", label: "Anamnesis General" },
   { id: "anamnesis-nutricional", label: "Anamnesis Nutricional" },
+  { id: "resumen-final", label: "Resumen final" },
 ];
 
 const GENDER_OPTIONS = [
@@ -259,7 +261,41 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
     updateDraft({ phone: cleanVal });
   };
 
+  const [showQuick, setShowQuick] = useState(true);
+  const [quickName, setQuickName] = useState("");
+  const [quickEmail, setQuickEmail] = useState("");
+  const [quickPhone, setQuickPhone] = useState("+56");
+  const [quickBirth, setQuickBirth] = useState("");
+  const [quickGender, setQuickGender] = useState("");
+  const [quickMotivo, setQuickMotivo] = useState("");
+  const [quickPeso, setQuickPeso] = useState("");
+  const [quickAltura, setQuickAltura] = useState("");
+
+  const quickAge = useMemo(() => {
+    if (!quickBirth) return null;
+    const age = calculateAge(quickBirth);
+    return age !== undefined ? age : null;
+  }, [quickBirth]);
+
   if (!isLoaded) return null;
+
+  const handleQuickCreate = async () => {
+    if (!quickName || quickName.length < 2) { toast.error("Nombre requerido"); return; }
+    if (!quickEmail || !quickEmail.includes("@")) { toast.error("Email válido requerido"); return; }
+    if (!quickGender) { toast.error("Sexo biológico requerido"); return; }
+    setIsSaving(true);
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const vars: any[] = [{ key: "evaluationDate", label: "Fecha de evaluación", value: new Date().toISOString().split("T")[0] }];
+      if (quickMotivo) vars.push({ key: "motivoConsulta", label: "Motivo de consulta", value: quickMotivo });
+      const r = await fetchApi("/patients", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ fullName: quickName, email: quickEmail || undefined, phone: quickPhone || undefined, birthDate: quickBirth ? new Date(quickBirth).toISOString() : undefined, gender: quickGender, weight: quickPeso ? parseFloat(quickPeso) : undefined, height: quickAltura ? parseFloat(quickAltura) : undefined, activityLevel: "sedentario", recalculateNutrition: true, customVariables: vars }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || "Error"); }
+      const p = await r.json();
+      toast.success("Paciente creado");
+      router.push(`/dashboard/pacientes/${p.id}`);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setIsSaving(false); }
+  };
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -691,13 +727,135 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
           </FormStepCard>
         );
 
+      case 5:
+        return (
+          <FormStepCard
+            icon={<FileText className="w-4 h-4 text-indigo-600" />}
+            title="Resumen final"
+            description="Revisa los datos antes de guardar"
+          >
+            <div className="grid gap-4">
+              <div className="rounded-xl bg-slate-50 p-4 space-y-2">
+                <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider">Identificación</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <p className="text-slate-400">Nombre: <span className="font-semibold text-slate-700">{draft.fullName || "—"}</span></p>
+                  <p className="text-slate-400">Email: <span className="font-semibold text-slate-700">{draft.email || "—"}</span></p>
+                  <p className="text-slate-400">Teléfono: <span className="font-semibold text-slate-700">{draft.phone || "—"}</span></p>
+                  <p className="text-slate-400">Nacimiento: <span className="font-semibold text-slate-700">{draft.birthDate ? new Date(draft.birthDate).toLocaleDateString("es-ES") : "—"}</span></p>
+                  <p className="text-slate-400">Sexo: <span className="font-semibold text-slate-700">{draft.gender || "—"}</span></p>
+                  <p className="text-slate-400">RUT: <span className="font-semibold text-slate-700">{draft.documentId || "—"}</span></p>
+                </div>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4 space-y-2">
+                <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider">Antropometría</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <p className="text-slate-400">Peso: <span className="font-semibold text-slate-700">{draft.weight ? `${draft.weight} kg` : "—"}</span></p>
+                  <p className="text-slate-400">Altura: <span className="font-semibold text-slate-700">{draft.height ? `${draft.height} cm` : "—"}</span></p>
+                </div>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4 space-y-2">
+                <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider">Objetivos</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <p className="text-slate-400">Enfoque: <span className="font-semibold text-slate-700">{draft.nutritionalFocus || "—"}</span></p>
+                  <p className="text-slate-400">Meta: <span className="font-semibold text-slate-700">{draft.fitnessGoals || "—"}</span></p>
+                  <p className="text-slate-400">Actividad: <span className="font-semibold text-slate-700">{draft.activityLevel || "—"}</span></p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 text-center">Puedes volver a cualquier paso para editar. Los datos se guardarán al finalizar.</p>
+            </div>
+          </FormStepCard>
+        );
+
       default:
         return null;
     }
   };
 
   return (
-    <div className="flex gap-8 max-w-6xl mx-auto py-6">
+    <div className="max-w-6xl mx-auto py-6">
+      <div className="flex justify-center mb-6">
+        <div className="bg-slate-100 p-1 rounded-2xl flex gap-1 border border-slate-200/60 shadow-sm">
+          <button type="button" onClick={() => setShowQuick(true)} className={cn("px-5 py-2 text-xs font-black rounded-xl transition-all uppercase tracking-wider", showQuick ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-800")}>Creación rápida</button>
+          <button type="button" onClick={() => setShowQuick(false)} className={cn("px-5 py-2 text-xs font-black rounded-xl transition-all uppercase tracking-wider", !showQuick ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-800")}>Creación detallada</button>
+          <div className="relative group px-5 py-2 text-xs font-black rounded-xl uppercase tracking-wider text-slate-400 cursor-not-allowed flex items-center gap-1.5" title="">
+            <Lock className="w-3 h-3" />
+            Formulario creación
+            <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 rounded-xl bg-slate-800 text-white text-[11px] font-medium px-3 py-2 text-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50">
+              Próximamente: comparte un formulario para que tu paciente complete sus datos antes de la primera consulta.
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {showQuick ? (
+        <div className="max-w-2xl mx-auto">
+          <FormStepCard icon={<User className="w-4 h-4 text-indigo-600" />} title="Datos del Paciente" description="Información básica de identificación">
+            <div className="grid gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500">Nombre Completo *</label>
+                <Input placeholder="Valentina Morales Lagos" className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickName} onChange={e => setQuickName(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-500">Email *</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input type="email" placeholder="valen@email.com" className="h-10 pl-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickEmail} onChange={e => setQuickEmail(e.target.value)} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-500">Teléfono</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input placeholder="+56 9 1234 5678" className="h-10 pl-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickPhone} onChange={e => setQuickPhone(sanitizePhone(e.target.value))} />
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-500">Fecha de nacimiento</label>
+                  <Input type="date" className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickBirth} onChange={e => setQuickBirth(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-500">Edad</label>
+                  <div className="h-10 flex items-center text-sm font-semibold text-slate-500 bg-slate-100 rounded-xl px-3">{quickAge !== null ? `${quickAge} años` : "—"}</div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-500">Sexo biológico</label>
+                  <select value={quickGender} onChange={e => setQuickGender(e.target.value)} className="w-full h-10 rounded-xl bg-slate-50 border-transparent px-3 text-sm font-semibold text-slate-700 cursor-pointer appearance-none">
+                    <option value="">—</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Femenino">Femenino</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-500">Motivo de consulta</label>
+                  <Input placeholder="Ej: Baja de peso, control..." className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickMotivo} onChange={e => setQuickMotivo(e.target.value)} />
+                </div>
+                <div />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-500">Peso (kg)</label>
+                  <Input type="number" step="0.1" placeholder="65.0" className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickPeso} onChange={e => setQuickPeso(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-slate-500">Estatura (cm)</label>
+                  <Input type="number" step="0.1" placeholder="170" className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickAltura} onChange={e => setQuickAltura(e.target.value)} />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <Button type="button" onClick={handleQuickCreate} disabled={isSaving} className="rounded-xl px-6 bg-indigo-600 text-white font-bold">{isSaving ? "Guardando..." : "Crear Paciente"}</Button>
+              </div>
+            </div>
+          </FormStepCard>
+        </div>
+      ) : (
+    <div className="flex gap-8 max-w-6xl mx-auto">
       <SidebarQuickNav
         sections={SECTIONS}
         activeSection={SECTIONS[currentStep].id}
@@ -734,6 +892,8 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
           nextLabel={currentStep === STEPS.length - 1 ? (isSaving ? "Guardando..." : "Guardar") : "Continuar"}
         />
       </div>
+    </div>
+      )}
     </div>
   );
 }
