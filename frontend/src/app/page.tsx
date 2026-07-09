@@ -153,12 +153,6 @@ export default function LandingPage() {
             >
               Inicia Sesión
             </Link>
-            <Link
-              href="/nutricionistas"
-              className="relative text-sm font-semibold transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-emerald-500 after:transition-all after:duration-300 hover:after:w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 rounded text-emerald-600 hover:text-emerald-700"
-            >
-              Ver Nutricionistas
-            </Link>
             <Link href="/login">
               <Button className="rounded-full h-10 px-6 text-xs font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2">
                 Empieza Gratis
@@ -197,13 +191,6 @@ export default function LandingPage() {
                 className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-[#a88aed]/20 hover:bg-[#a88aed]/5 hover:text-[#8f70d8]"
               >
                 Inicia Sesión
-              </Link>
-              <Link
-                href="/nutricionistas"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-2xl border border-emerald-200 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
-              >
-                Ver Nutricionistas
               </Link>
               <Link
                 href="/login"

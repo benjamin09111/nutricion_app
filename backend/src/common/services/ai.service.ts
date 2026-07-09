@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { generateText } from 'ai';
+import { generateObject, generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
+import type { ZodTypeAny } from 'zod';
 
 type AiProvider = 'deepseek' | 'openai';
 
@@ -14,7 +15,7 @@ interface AiModelConfig {
 export class AiService {
   private readonly logger = new Logger(AiService.name);
 
-  private getModelConfig(provider: AiProvider): AiModelConfig | null {
+  resolveModelConfig(provider: AiProvider): AiModelConfig | null {
     if (provider === 'deepseek') {
       const apiKey = process.env.DEEPSEEK_API_KEY;
       if (!apiKey) return null;
@@ -32,6 +33,93 @@ export class AiService {
     return { provider, model: openai(modelId), modelId };
   }
 
+  resolvePreferredModelConfig(
+    providers: AiProvider[] = ['deepseek', 'openai'],
+  ): AiModelConfig | null {
+    for (const provider of providers) {
+      const config = this.resolveModelConfig(provider);
+      if (config) return config;
+    }
+
+    return null;
+  }
+
+  private async runWithFallback<T>(
+    taskName: string,
+    runner: (config: AiModelConfig) => Promise<T>,
+    providers: AiProvider[] = ['deepseek', 'openai'],
+  ): Promise<{ provider: AiProvider; modelId: string; result: T }> {
+    const errors: string[] = [];
+
+    for (const provider of providers) {
+      const config = this.resolveModelConfig(provider);
+      if (!config) {
+        errors.push(`${provider}: sin credenciales`);
+        continue;
+      }
+
+      try {
+        this.logger.log(
+          `[AI:${taskName}] Request provider=${config.provider} model=${config.modelId}`,
+        );
+        const result = await runner(config);
+        return {
+          provider: config.provider,
+          modelId: config.modelId,
+          result,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        errors.push(`${provider}: ${message}`);
+        this.logger.warn(`[AI:${taskName}] Fallback triggered: ${message}`);
+      }
+    }
+
+    const errorSummary = errors.join(' | ');
+    this.logger.error(`[AI:${taskName}] All providers failed: ${errorSummary}`);
+    throw new BadRequestException(
+      `No se pudo completar la solicitud de IA. Detalles: ${errorSummary}`,
+    );
+  }
+
+  async generateStructuredObject<TSchema extends ZodTypeAny>(
+    taskName: string,
+    systemInstruction: string,
+    userPrompt: string,
+    schema: TSchema,
+    options?: {
+      temperature?: number;
+      providers?: AiProvider[];
+    },
+  ): Promise<{
+    provider: AiProvider;
+    modelId: string;
+    object: TSchema['_output'];
+  }> {
+    const temperature = options?.temperature ?? 0.2;
+    const providers = options?.providers ?? ['deepseek', 'openai'];
+
+    return this.runWithFallback(
+      taskName,
+      async (config) => {
+        const { object } = await generateObject({
+          model: config.model,
+          schema,
+          system: systemInstruction,
+          prompt: userPrompt,
+          temperature,
+        });
+
+        return object;
+      },
+      providers,
+    ).then(({ provider, modelId, result }) => ({
+      provider,
+      modelId,
+      object: result,
+    }));
+  }
+
   async callJson(
     systemInstruction: string,
     userPrompt: string,
@@ -40,7 +128,7 @@ export class AiService {
     const errors: string[] = [];
 
     for (const provider of providers) {
-      const config = this.getModelConfig(provider);
+      const config = this.resolveModelConfig(provider);
       if (!config) {
         errors.push(`${provider}: sin credenciales`);
         continue;

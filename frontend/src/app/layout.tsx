@@ -1,19 +1,5 @@
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
-import { Inter } from "next/font/google";
 import "./globals.css";
-
-const poppins = Poppins({
-  variable: "--font-poppins",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
-});
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://nutrinet.cl"),
@@ -97,7 +83,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es-CL" suppressHydrationWarning>
-      <body className={`${poppins.variable} ${inter.variable} antialiased`}>
+      <body className="antialiased">
         <Providers>
           {children}
           <Toaster position="top-right" richColors />
