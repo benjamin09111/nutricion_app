@@ -19,6 +19,7 @@ export default function LoginPageClient({ autoStart = false }: Props) {
             alt="NutriNet"
             width={220}
             height={60}
+            style={{ height: "auto" }}
             className="h-auto w-[180px] object-contain"
             priority
           />
@@ -48,6 +49,7 @@ export default function LoginPageClient({ autoStart = false }: Props) {
               alt="NutriNet"
               width={300}
               height={64}
+              style={{ height: "auto" }}
               className="h-auto w-[210px] object-contain sm:w-[260px] lg:w-[300px]"
               priority
             />
@@ -56,11 +58,11 @@ export default function LoginPageClient({ autoStart = false }: Props) {
             Acceso profesional
           </div>
           <h1 className="mb-4 mt-4 text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
-            Gestión profesional con Google
+            Tu consulta, siempre a mano
           </h1>
           <p className="max-w-lg text-base leading-relaxed text-slate-200/90 sm:text-lg lg:text-xl">
-            Accede con tu cuenta de Google, conecta Calendar y mantén tu flujo
-            profesional en un solo lugar.
+            Ingresa con tu correo profesional y mantén pacientes, agenda y
+            planificación nutricional en un solo lugar.
           </p>
         </div>
       </section>
@@ -72,20 +74,20 @@ export default function LoginPageClient({ autoStart = false }: Props) {
               NutriNet
             </p>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
-              Inicia sesión con Google
+              Bienvenido a NutriNet
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Sin contraseña, sin fricción y con tu correo profesional verificado.
+              Inicia sesión o crea tu cuenta profesional en pocos pasos.
             </p>
           </div>
 
           <div className="animate-in fade-in slide-in-from-left-4 duration-300">
             <div className="hidden lg:block">
               <h2 className="text-3xl font-bold leading-tight tracking-tight text-slate-900">
-                Inicia sesión con Google
+                Bienvenido a NutriNet
               </h2>
               <p className="mt-3 text-base leading-6 text-slate-500">
-                Tu correo de Google será tu acceso único a NutriNet.
+                Ingresa con tu correo o crea una cuenta nueva.
               </p>
             </div>
 

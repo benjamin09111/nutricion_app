@@ -45,18 +45,15 @@ Your purpose: build, fix, and improve the NutriNet SaaS platform with surgical p
 ### Load Memory On Every Session Start
 Read `memory.md` to recall:
 - Past corrections from the user
-- User preferences and conventions
-- Mistakes to never repeat
-- Architectural decisions
+- Mistakes to never repeat (e.g., creating new components when reusable ones already exist)
 
 ### Write Memory Automatically
-After **every task**, write to `memory.md` automatically when:
+After **every task**, write to `memory.md` automatically ONLY when:
 - The user corrected something you did
-- You discovered a new preference or convention
-- You made a mistake the user pointed out
-- A significant architectural decision was made
+- You made a mistake the user pointed out (e.g., duplicate implementations of existing elements, styling violations, code regressions)
 
 ### DO NOT ask permission to write to memory.md — just do it.
+
 
 ### Suggest Other Updates
 After a task, if you discovered:

@@ -1,51 +1,122 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { ShieldCheck, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import GoogleButton from "@/components/auth/GoogleButton";
 import { resolveRequiredUrl } from "@/lib/runtime-url.util";
+import EmailLoginForm from "./EmailLoginForm";
+import RegisterForm from "./RegisterForm";
+import VerificationNotice from "./VerificationNotice";
+import { resolveSafePostAuthPath } from "@/lib/safe-redirect";
+
+type AuthTab = "login" | "register";
+type VerificationState = { email: string; emailSent: boolean };
 
 export default function LoginForm({ autoStart = false }: { autoStart?: boolean }) {
+  const [activeTab, setActiveTab] = useState<AuthTab>("login");
+  const [verification, setVerification] = useState<VerificationState | null>(null);
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const callbackUrl = resolveSafePostAuthPath(
+    searchParams.get("callbackUrl"),
+  );
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = useCallback(() => {
     if (isGoogleSigningIn) return;
-
     setIsGoogleSigningIn(true);
     const backendUrl = resolveRequiredUrl(
       process.env.NEXT_PUBLIC_BACKEND_URL,
       process.env.NEXT_PUBLIC_API_URL,
     );
-    const next = searchParams.get("callbackUrl") || "/dashboard";
-
-    window.location.href = `${backendUrl}/auth/google/start?next=${encodeURIComponent(next)}`;
-  };
+    window.location.href = `${backendUrl}/auth/google/start?next=${encodeURIComponent(
+      callbackUrl,
+    )}`;
+  }, [callbackUrl, isGoogleSigningIn]);
 
   useEffect(() => {
     if (!autoStart || isGoogleSigningIn) return;
     handleGoogleLogin();
-  }, [autoStart, isGoogleSigningIn]);
+  }, [autoStart, handleGoogleLogin, isGoogleSigningIn]);
 
-  if (autoStart) {
-    return null;
+  if (autoStart) return null;
+
+  if (verification) {
+    return (
+      <VerificationNotice
+        email={verification.email}
+        emailSent={verification.emailSent}
+        onBack={() => {
+          setVerification(null);
+          setActiveTab("login");
+        }}
+      />
+    );
   }
 
+  const handleLoginSuccess = (user: { role?: string }) => {
+    if (searchParams.get("callbackUrl")) {
+      router.push(callbackUrl);
+      return;
+    }
+    const isAdmin = ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(
+      user.role || "",
+    );
+    router.push(isAdmin ? "/dashboard/admin" : "/dashboard");
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="rounded-[2rem] border border-emerald-100 bg-emerald-50/70 p-6 shadow-sm">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">
-          <Sparkles className="h-3.5 w-3.5" />
-          Acceso con Google
+    <div>
+      <div
+        className="mb-6 grid grid-cols-2 rounded-2xl bg-slate-100 p-1"
+        role="tablist"
+        aria-label="Opciones de acceso"
+      >
+        {(["login", "register"] as const).map((tab) => {
+          const selected = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setActiveTab(tab)}
+              className={`rounded-xl px-3 py-2.5 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
+                selected
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              {tab === "login" ? "Iniciar sesión" : "Crear cuenta"}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === "login" ? (
+        <EmailLoginForm
+          onSuccess={handleLoginSuccess}
+          onVerificationRequired={(email) =>
+            setVerification({ email, emailSent: true })
+          }
+        />
+      ) : (
+        <RegisterForm
+          onRegistered={(email, emailSent) =>
+            setVerification({ email, emailSent })
+          }
+        />
+      )}
+
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+          <div className="w-full border-t border-slate-200" />
         </div>
-        <h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-          Inicia sesión con tu cuenta de Google
-        </h2>
-        <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">
-          Sin contraseñas. Tu correo verificado y Google Calendar quedan listos
-          desde el primer acceso.
-        </p>
+        <div className="relative flex justify-center">
+          <span className="bg-white px-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
+            o continúa con
+          </span>
+        </div>
       </div>
 
       <GoogleButton
@@ -53,24 +124,6 @@ export default function LoginForm({ autoStart = false }: { autoStart?: boolean }
         isLoading={isGoogleSigningIn}
         text="Continuar con Google"
       />
-
-      <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-        <p>
-          Usa tu correo profesional de Google para entrar y conectar tu agenda
-          altiro.
-        </p>
-      </div>
-
-      <div className="flex items-center justify-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-        <span className="h-px w-10 bg-slate-200" />
-        o simplemente presiona el botón
-        <span className="h-px w-10 bg-slate-200" />
-      </div>
-
-      <p className="text-center text-xs leading-5 text-slate-500">
-        Si necesitas ayuda, escríbenos desde la landing antes de iniciar.
-      </p>
     </div>
   );
 }

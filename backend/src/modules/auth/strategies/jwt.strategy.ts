@@ -4,11 +4,23 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
 import type { Request } from 'express';
+import {
+  AUTH_SESSION_COOKIE,
+  LEGACY_AUTH_SESSION_COOKIE,
+} from '../auth-cookie.constants';
 
 const extractTokenFromCookie = (request: Request) => {
   const cookieHeader = request.headers.cookie || '';
-  const match = cookieHeader.match(/(?:^|;\s*)auth_token_http=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
+  for (const cookieName of [
+    AUTH_SESSION_COOKIE,
+    LEGACY_AUTH_SESSION_COOKIE,
+  ]) {
+    const match = cookieHeader.match(
+      new RegExp(`(?:^|;\\s*)${cookieName}=([^;]+)`),
+    );
+    if (match) return decodeURIComponent(match[1]);
+  }
+  return null;
 };
 
 @Injectable()
@@ -29,6 +41,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ]),
       ignoreExpiration: false,
       secretOrKey: secret,
+      algorithms: ['HS256'],
+      issuer: configService.get<string>('JWT_ISSUER') || 'nutrinet-api',
+      audience:
+        configService.get<string>('JWT_AUDIENCE') || 'nutrinet-app',
     });
   }
 
@@ -50,8 +66,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     if (
       !account ||
-      account.status === 'SUSPENDED' ||
-      account.status === 'DELETED'
+      account.status !== 'ACTIVE'
     ) {
       throw new UnauthorizedException('Sesión inválida');
     }
