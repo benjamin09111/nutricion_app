@@ -4,7 +4,12 @@ import {
   ConflictException,
   UnauthorizedException,
   ServiceUnavailableException,
+  Inject,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -64,6 +69,26 @@ const buildPublicSlug = (fullName: string, id: string) => {
 };
 
 const buildVerificationToken = () => crypto.randomBytes(32).toString('hex');
+const hashVerificationToken = (token: string) =>
+  crypto.createHash('sha256').update(token).digest('hex');
+const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
+const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+const MAX_ACCOUNT_LOGIN_ATTEMPTS = 10;
+const DUMMY_PASSWORD_HASH =
+  '$2b$10$CSpSYKbC.a9JhfpAQP5FeOPYLoVF.utlg5SvEek8vHsYju/m0D5a6';
+
+const ensureGoogleLoginAllowed = (account: { status: AccountStatus }) => {
+  if (account.status === 'SUSPENDED') {
+    throw new UnauthorizedException(
+      'Tu cuenta ha sido suspendida. Contacta al administrador.',
+    );
+  }
+
+  if (account.status === 'DELETED') {
+    throw new UnauthorizedException('No fue posible iniciar sesión.');
+  }
+};
 
 const getFrontendUrl = () =>
   resolveRequiredUrl(
@@ -73,42 +98,63 @@ const getFrontendUrl = () =>
 
 @Injectable()
 export class AuthService {
-  private readonly oauthSessionTickets = new Map<
-    string,
-    { payload: { access_token: string; user: any }; expiresAt: number }
-  >();
-
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private mailService: MailService,
     private permissionsService: PermissionsService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  createOAuthSessionTicket(session: { access_token: string; user: any }) {
+  async createOAuthSessionTicket(session: {
+    access_token: string;
+    user: any;
+  }) {
     const ticket = crypto.randomBytes(24).toString('base64url');
-    this.oauthSessionTickets.set(ticket, {
-      payload: session,
-      expiresAt: Date.now() + 2 * 60 * 1000,
-    });
+    await this.cacheManager.set(`auth:oauth-ticket:${ticket}`, session, 120_000);
 
     return ticket;
   }
 
-  consumeOAuthSessionTicket(ticket: string) {
-    const entry = this.oauthSessionTickets.get(ticket);
+  async consumeOAuthSessionTicket(ticket: string) {
+    const key = `auth:oauth-ticket:${ticket}`;
+    const session = await this.cacheManager.get<{
+      access_token: string;
+      user: any;
+    }>(key);
+    if (!session) return null;
 
-    if (!entry) {
-      return null;
+    await this.cacheManager.del(key);
+    return session;
+  }
+
+  private failedLoginKey(email: string) {
+    const identifier = crypto
+      .createHash('sha256')
+      .update(email)
+      .digest('hex');
+    return `auth:failed-login:${identifier}`;
+  }
+
+  private async ensureAccountLoginAllowed(email: string) {
+    const attempts =
+      (await this.cacheManager.get<number>(this.failedLoginKey(email))) || 0;
+    if (attempts >= MAX_ACCOUNT_LOGIN_ATTEMPTS) {
+      throw new HttpException(
+        'Demasiados intentos de acceso. Espera unos minutos.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
+  }
 
-    this.oauthSessionTickets.delete(ticket);
+  private async recordFailedLogin(email: string) {
+    const key = this.failedLoginKey(email);
+    const attempts = (await this.cacheManager.get<number>(key)) || 0;
+    await this.cacheManager.set(key, attempts + 1, LOGIN_ATTEMPT_WINDOW_MS);
+  }
 
-    if (entry.expiresAt < Date.now()) {
-      return null;
-    }
-
-    return entry.payload;
+  private async clearFailedLogins(email: string) {
+    await this.cacheManager.del(this.failedLoginKey(email));
   }
 
   private async buildSessionPayload(account: {
@@ -354,11 +400,17 @@ export class AuthService {
     }
 
     const finalPassword = password || crypto.randomBytes(8).toString('hex');
+    if (Buffer.byteLength(finalPassword, 'utf8') > 72) {
+      throw new BadRequestException(
+        'La contraseña no puede superar 72 bytes.',
+      );
+    }
     const hashedPassword = await bcrypt.hash(finalPassword, 10);
     const verificationToken = buildVerificationToken();
+    const verificationTokenHash = hashVerificationToken(verificationToken);
 
     try {
-      await this.prisma.$transaction(async (tx) => {
+      const accountId = await this.prisma.$transaction(async (tx) => {
         const newAccount = await tx.account.create({
           data: {
             email: normalizedEmail,
@@ -367,7 +419,7 @@ export class AuthService {
             plan: 'FREE',
             membershipSelectedAt: null,
             status: 'PENDING',
-            emailVerificationToken: verificationToken,
+            emailVerificationToken: verificationTokenHash,
             emailVerificationSentAt: new Date(),
             emailVerifiedAt: null,
           },
@@ -388,9 +440,10 @@ export class AuthService {
         console.log(
           `✅ [AuthService] Usuario registrado con éxito: ${normalizedEmail}`,
         );
+        return newAccount.id;
       });
 
-      await Promise.allSettled([
+      const [verificationResult] = await Promise.allSettled([
         this.mailService.sendVerificationEmail(
           normalizedEmail,
           fullName,
@@ -399,10 +452,24 @@ export class AuthService {
         this.mailService.sendRegistrationAlert(fullName, normalizedEmail),
       ]);
 
+      const emailSent = verificationResult.status === 'fulfilled';
+      if (!emailSent) {
+        console.error(
+          `[AuthService] Verification email failed for account ${accountId}`,
+          verificationResult.reason,
+        );
+        await this.prisma.account.update({
+          where: { id: accountId },
+          data: { emailVerificationSentAt: null },
+        });
+      }
+
       return {
         success: true,
-        message:
-          'Registro completado. Revisa tu correo para confirmar tu cuenta.',
+        emailSent,
+        message: emailSent
+          ? 'Registro completado. Revisa tu correo para confirmar tu cuenta.'
+          : 'La cuenta fue creada, pero no pudimos enviar el correo. Usa la opción de reenvío.',
       };
     } catch (error: any) {
       console.error('Error en register:', error);
@@ -414,15 +481,32 @@ export class AuthService {
 
   async verifyEmail(token: string) {
     const normalizedToken = token.trim();
+    const tokenHash = hashVerificationToken(normalizedToken);
 
-    const account = await this.prisma.account.findUnique({
-      where: { emailVerificationToken: normalizedToken },
+    const account = await this.prisma.account.findFirst({
+      where: {
+        OR: [
+          { emailVerificationToken: tokenHash },
+          { emailVerificationToken: normalizedToken },
+        ],
+      },
       include: { nutritionist: true },
     });
 
     if (!account) {
       throw new BadRequestException(
         'Token de verificación inválido o expirado',
+      );
+    }
+
+    const verificationSentAt = account.emailVerificationSentAt?.getTime();
+    const tokenExpired =
+      !verificationSentAt ||
+      Date.now() - verificationSentAt > EMAIL_VERIFICATION_TTL_MS;
+
+    if (tokenExpired) {
+      throw new BadRequestException(
+        'El enlace de confirmación expiró. Solicita uno nuevo desde el login.',
       );
     }
 
@@ -456,45 +540,74 @@ export class AuthService {
       include: { nutritionist: true },
     });
 
-    if (!account) {
-      throw new BadRequestException('No encontramos una cuenta con ese correo');
-    }
-
-    if (account.status === 'ACTIVE') {
+    if (!account || account.status === 'ACTIVE') {
       return {
         success: true,
-        message: 'Tu correo ya fue confirmado.',
+        message:
+          'Si la cuenta requiere confirmación, enviaremos un nuevo enlace.',
       };
     }
 
-    const verificationToken =
-      account.emailVerificationToken || buildVerificationToken();
+    if (account.status !== 'PENDING') {
+      return {
+        success: true,
+        message:
+          'Si la cuenta requiere confirmación, enviaremos un nuevo enlace.',
+      };
+    }
+
+    const lastSentAt = account.emailVerificationSentAt?.getTime() || 0;
+    if (Date.now() - lastSentAt < VERIFICATION_RESEND_COOLDOWN_MS) {
+      return {
+        success: true,
+        message:
+          'Si la cuenta requiere confirmación, enviaremos un nuevo enlace.',
+      };
+    }
+
+    const verificationToken = buildVerificationToken();
+    const verificationTokenHash = hashVerificationToken(verificationToken);
     const frontendUrl = getFrontendUrl();
 
     await this.prisma.account.update({
       where: { id: account.id },
       data: {
-        emailVerificationToken: verificationToken,
+        emailVerificationToken: verificationTokenHash,
         emailVerificationSentAt: new Date(),
       },
     });
 
-    await this.mailService.sendVerificationEmail(
-      normalizedEmail,
-      account.nutritionist?.fullName || 'Usuario',
-      `${frontendUrl}/verify-email?token=${verificationToken}`,
-    );
+    try {
+      await this.mailService.sendVerificationEmail(
+        normalizedEmail,
+        account.nutritionist?.fullName || 'Usuario',
+        `${frontendUrl}/verify-email?token=${verificationToken}`,
+      );
+    } catch (error) {
+      await this.prisma.account.update({
+        where: { id: account.id },
+        data: { emailVerificationSentAt: null },
+      });
+      throw new ServiceUnavailableException(
+        'No pudimos enviar el correo en este momento. Intenta nuevamente.',
+      );
+    }
 
     return {
       success: true,
-      message: 'Te enviamos un nuevo correo de confirmación.',
+      message:
+        'Si la cuenta requiere confirmación, enviaremos un nuevo enlace.',
     };
   }
 
   async login(loginDto: LoginDto) {
     try {
       const { email, password } = loginDto;
+      if (Buffer.byteLength(password, 'utf8') > 72) {
+        throw new UnauthorizedException('Credenciales inválidas');
+      }
       const normalizedEmail = email.toLowerCase().trim();
+      await this.ensureAccountLoginAllowed(normalizedEmail);
       const account = await this.prisma.account.findUnique({
         where: { email: normalizedEmail },
         include: {
@@ -507,15 +620,17 @@ export class AuthService {
         },
       });
 
-      if (!account || !account.password) {
+      const isPasswordValid = await bcrypt.compare(
+        password,
+        account?.password || DUMMY_PASSWORD_HASH,
+      );
+
+      if (!account || !account.password || !isPasswordValid) {
+        await this.recordFailedLogin(normalizedEmail);
         throw new UnauthorizedException('Credenciales inválidas');
       }
 
-      const isPasswordValid = await bcrypt.compare(password, account.password);
-
-      if (!isPasswordValid) {
-        throw new UnauthorizedException('Credenciales inválidas');
-      }
+      await this.clearFailedLogins(normalizedEmail);
 
       if (account.status === 'PENDING') {
         throw new UnauthorizedException(
@@ -644,19 +759,24 @@ export class AuthService {
       });
 
       if (existingByGoogle) {
+        ensureGoogleLoginAllowed(existingByGoogle);
         return tx.account.update({
           where: { id: existingByGoogle.id },
           data: {
-            password: null,
-            role: existingByGoogle.role,
-            plan: resolvePlanForRole(existingByGoogle.role),
-            rut: existingByGoogle.rut,
             googleEmail: normalizedEmail,
             googleAvatarUrl:
               profile.picture || existingByGoogle.googleAvatarUrl,
             emailVerifiedAt: existingByGoogle.emailVerifiedAt || new Date(),
-            status: 'ACTIVE',
-            authProvider: 'google',
+            emailVerificationToken: null,
+            emailVerificationSentAt: null,
+            status:
+              existingByGoogle.status === 'PENDING'
+                ? AccountStatus.ACTIVE
+                : existingByGoogle.status,
+            lastLoginAt: new Date(),
+            authProvider: existingByGoogle.password
+              ? 'credentials_google'
+              : 'google',
           },
           include: {
             nutritionist: true,
@@ -674,6 +794,7 @@ export class AuthService {
       });
 
       if (existingByEmail) {
+        ensureGoogleLoginAllowed(existingByEmail);
         shouldSendWelcomeEmail =
           existingByEmail.authProvider !== 'google' ||
           !existingByEmail.googleSub;
@@ -683,16 +804,20 @@ export class AuthService {
         const updated = await tx.account.update({
           where: { id: existingByEmail.id },
           data: {
-            password: null,
-            role: existingByEmail.role,
-            plan: resolvePlanForRole(existingByEmail.role),
-            rut: existingByEmail.rut,
             googleSub: profile.sub,
             googleEmail: normalizedEmail,
             googleAvatarUrl: profile.picture || existingByEmail.googleAvatarUrl,
             emailVerifiedAt: existingByEmail.emailVerifiedAt || new Date(),
-            status: 'ACTIVE',
-            authProvider: 'google',
+            emailVerificationToken: null,
+            emailVerificationSentAt: null,
+            status:
+              existingByEmail.status === 'PENDING'
+                ? AccountStatus.ACTIVE
+                : existingByEmail.status,
+            lastLoginAt: new Date(),
+            authProvider: existingByEmail.password
+              ? 'credentials_google'
+              : 'google',
           },
           include: {
             nutritionist: true,
