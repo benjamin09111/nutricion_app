@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ToolLoopAgent, tool, isStepCount } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AiService } from '../../common/services/ai.service';
@@ -57,13 +56,13 @@ export class CopilotService {
   }
 
   private buildAgent() {
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    const modelId = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
-    const baseURL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
-    const deepseek = createOpenAI({ apiKey: apiKey!, baseURL });
+    const modelConfig = this.aiService.resolvePreferredModelConfig();
+    if (!modelConfig) {
+      throw new Error('No AI provider configured for CopilotService');
+    }
 
     return new ToolLoopAgent({
-      model: deepseek(modelId),
+      model: modelConfig.model,
       instructions: AGENT_INSTRUCTIONS,
       temperature: 0.2,
       stopWhen: [

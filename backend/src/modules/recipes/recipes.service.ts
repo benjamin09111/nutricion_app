@@ -17,8 +17,16 @@ import {
 import { CacheService } from '../../common/services/cache.service';
 import { AiService } from '../../common/services/ai.service';
 import { RECIPES_AI_PROMPTS } from './recipes-ai-prompts';
+import {
+  aiFillDayResponseSchema,
+  aiFillWeekResponseSchema,
+  quickAiFillResponseSchema,
+  quickAiDishSchema,
+} from './recipes-ai-schemas';
 import { isAdminRole } from '../permissions/permissions.constants';
 import { PlanUsageService } from '../permissions/plan-usage.service';
+import type { ZodTypeAny } from 'zod';
+import { z } from 'zod';
 
 type AiRecipeOutput = {
   slotId: string;
@@ -32,7 +40,7 @@ type AiRecipeOutput = {
   calories: number;
   carbs: number;
   fats: number;
-  ingredients: string[];
+  ingredients: Array<{ name: string; quantity?: string; amount?: number; unit?: string }>;
   mainIngredients: string[];
   extraIngredients?: string[];
 };
@@ -176,8 +184,48 @@ export class RecipesService {
 
       const text = await this.aiService.callJson(systemInstruction, userPrompt);
       this.logger.log(`[AI] Response ok chars=${text.length}`);
-      this.logger.log(`[AI] Raw response:\n${text}`);
       return text;
+    } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[AI] Request failed: ${message}`);
+      throw new BadRequestException(this.mapAiErrorMessage(message));
+    }
+  }
+
+  private async callAiObject(
+    accountId: string,
+    taskName: string,
+    systemInstruction: string,
+    userPrompt: string,
+    schema: ZodTypeAny,
+  ): Promise<{
+    provider: 'deepseek' | 'openai';
+    modelId: string;
+    object: any;
+  }> {
+    try {
+      await this.planUsageService.consumeMonthlyQuota(
+        accountId,
+        'ai.calls.limit',
+      );
+
+      const result = await this.aiService.generateStructuredObject(
+        taskName,
+        systemInstruction,
+        userPrompt,
+        schema,
+      );
+      this.logger.log(
+        `[AI] Response ok provider=${result.provider} model=${result.modelId}`,
+      );
+      return result as {
+        provider: 'deepseek' | 'openai';
+        modelId: string;
+        object: any;
+      };
     } catch (error) {
       if (error instanceof ForbiddenException) {
         throw error;
@@ -302,7 +350,11 @@ export class RecipesService {
       ...(recipe.ingredients || []),
       ...(recipe.mainIngredients || []),
     ]
-      .map((item) => this.normalizeFoodName(item))
+      .map((item) =>
+        this.normalizeFoodName(
+          typeof item === 'string' ? item : item?.name || '',
+        ),
+      )
       .filter(Boolean);
 
     const requiresStrictDietFoods = this.isStrictMealSection(
@@ -391,16 +443,18 @@ export class RecipesService {
       payload.allowedFoodsByDiet.map((food) => this.normalizeFoodName(food)),
     );
 
-    const content = await this.callAiJson(
+    const structured = await this.callAiObject(
       userId,
+      'recipes.fill',
       RECIPES_AI_PROMPTS.base,
       this.buildAiPrompt(payload),
+      payload.scope === 'day'
+        ? aiFillDayResponseSchema
+        : aiFillWeekResponseSchema,
     );
 
-    const parsed = this.parseAiResponse(content);
-
     if (payload.scope === 'day') {
-      const result = parsed as AiFillDayResponse;
+      const result = structured.object as AiFillDayResponse;
       this.validateReplacementGuide(result.meta);
 
       const slotMap = new Map(
@@ -422,7 +476,7 @@ export class RecipesService {
         if (extraIngredients.length > 0) {
           recipe.extraIngredients = extraIngredients;
           this.logger.warn(
-            `[Gemini] Extra ingredients accepted slot=${recipe.slotId} extras=${JSON.stringify(extraIngredients)}`,
+            `[AI:${structured.provider}] Extra ingredients accepted slot=${recipe.slotId} extras=${JSON.stringify(extraIngredients)}`,
           );
         }
       });
@@ -430,7 +484,7 @@ export class RecipesService {
       return result;
     }
 
-    const result = parsed as AiFillWeekResponse;
+    const result = structured.object as AiFillWeekResponse;
     this.validateReplacementGuide(result.meta);
 
     const slotMap = new Map(
@@ -456,7 +510,7 @@ export class RecipesService {
         if (extraIngredients.length > 0) {
           recipe.extraIngredients = extraIngredients;
           this.logger.warn(
-            `[Gemini] Extra ingredients accepted day=${dayBlock.day} slot=${recipe.slotId} extras=${JSON.stringify(extraIngredients)}`,
+            `[AI:${structured.provider}] Extra ingredients accepted day=${dayBlock.day} slot=${recipe.slotId} extras=${JSON.stringify(extraIngredients)}`,
           );
         }
       });
@@ -670,13 +724,15 @@ export class RecipesService {
     await this.getNutritionistId(userId);
 
     const payload = dto.payload || ({} as QuickAiFillPayload);
-    const content = await this.callAiJson(
+    const structured = await this.callAiObject(
       userId,
+      'recipes.quick-fill',
       'Eres un nutricionista clínico experto. Responde solo JSON válido.',
       this.buildQuickAiPrompt(payload),
+      quickAiFillResponseSchema,
     );
 
-    const parsed = this.parseQuickAiResponse(content);
+    const parsed = structured.object;
     const dishes = Array.isArray(parsed?.dishes) ? parsed.dishes : [];
     if (dishes.length === 0) {
       throw new BadRequestException(
@@ -1133,17 +1189,25 @@ export class RecipesService {
     ].join('\n');
 
     try {
-      const content = await this.callAiJson(
-        userId,
+      const structured = await this.aiService.generateStructuredObject(
+        'recipes.estimate-macros',
         'Eres un asistente nutricional. Responde solo JSON.',
         prompt,
+        z
+          .object({
+            calories: z.number().finite(),
+            proteins: z.number().finite(),
+            carbs: z.number().finite(),
+            lipids: z.number().finite(),
+          })
+          .strict(),
       );
 
-      const parsed = JSON.parse(content) as {
-        calories?: number;
-        proteins?: number;
-        carbs?: number;
-        lipids?: number;
+      const parsed = structured.object as {
+        calories: number;
+        proteins: number;
+        carbs: number;
+        lipids: number;
       };
       return {
         calories: Math.round(parsed.calories ?? 0),

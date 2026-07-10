@@ -8,6 +8,7 @@ import { AiService } from '../../common/services/ai.service';
 import { PAUTAS_AI_PROMPTS } from './pautas-ai-prompts';
 import { AiGeneratePautasDto } from './dto/ai-generate-pautas.dto';
 import { PlanUsageService } from '../permissions/plan-usage.service';
+import { pautaAiResponseSchema } from './pautas-ai-schemas';
 
 type PautaParagraph = {
   category: string;
@@ -67,12 +68,13 @@ export class PautasService {
         'ai.calls.limit',
       );
 
-      const rawResponse = await this.aiService.callJson(
+      const structured = await this.aiService.generateStructuredObject(
+        'pautas.generate',
         systemInstruction,
         userPrompt,
+        pautaAiResponseSchema,
       );
-      const parsed = this.parseAiResponse(rawResponse);
-      return parsed;
+      return structured.object;
     } catch (error) {
       if (error instanceof ForbiddenException) {
         throw error;
