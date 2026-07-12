@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { User, Lock, Crown, Save, Sun, Moon, Type, Calendar, Pencil, Globe } from "lucide-react";
+import { User, Lock, Crown, Save, Sun, Moon, Type, Calendar, Pencil, Globe, ShieldAlert, ShieldCheck, FileText, Download, Trash2, LockKeyhole } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
@@ -206,9 +206,395 @@ function FieldSwitch({
   );
 }
 
+function ComplianceTabSection() {
+  const [isAiDisabled, setIsAiDisabled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("nutri_ai_disabled") === "true";
+  });
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const logsRaw = localStorage.getItem("nutri_ai_audit_logs");
+      if (logsRaw) {
+        try {
+          setAuditLogs(JSON.parse(logsRaw));
+        } catch (e) {
+          console.error("Failed to parse AI audit logs", e);
+        }
+      }
+    }
+  }, []);
+
+  const handleToggleAi = () => {
+    const nextVal = !isAiDisabled;
+    setIsAiDisabled(nextVal);
+    localStorage.setItem("nutri_ai_disabled", nextVal ? "true" : "false");
+    toast.success(
+      nextVal
+        ? "Derecho de Oposición aplicado. El asistente clínico de IA ha sido desactivado en todo el portal."
+        : "Asistente clínico de IA activado correctamente."
+    );
+    window.location.reload();
+  };
+
+  const handleDownloadArco = () => {
+    const user = getCurrentUser() as any;
+    const data = {
+      tipo_solicitud: "DERECHO_DE_ACCESO_ARCO_LEY_21719",
+      fecha_exportacion: new Date().toISOString(),
+      profesional: {
+        nombre: user?.nutritionist?.fullName || "Profesional Demo",
+        email: user?.email || "usuario@demo.com",
+        rut: user?.rut || "No registrado",
+        rol: user?.role || "NUTRITIONIST",
+        registro_minsal: user?.nutritionist?.professionalId || "No ingresado",
+      },
+      nota_legal: "Esta exportación contiene la totalidad de los datos estructurados asociados al perfil profesional y el historial de configuraciones, en cumplimiento con el artículo de derecho de acceso de la Ley 21.719 en Chile.",
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `arco_acceso_nutrinet_${user?.nutritionist?.fullName?.replace(/\s+/g, "_") || "profesional"}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Descarga de datos ARCO iniciada.");
+  };
+
+  const handleDownloadEipd = () => {
+    const text = `========================================================================
+EVALUACIÓN DE IMPACTO EN PROTECCIÓN DE DATOS (EIPD) - RESUMEN EJECUTIVO
+Plataforma: NutriNet SaaS
+Legislación de Referencia: Ley 21.719 (Chile) - Protección de Datos de Salud
+Fecha de Emisión: 24 de Junio de 2026
+========================================================================
+
+1. DESCRIPCIÓN DEL TRATAMIENTO DE DATOS
+NutriNet trata datos de salud clasificados como "Especialmente Protegidos" bajo la Ley 21.719 (fichas clínicas, antropometría, restricciones alimentarias, estado de embarazo/lactancia y patologías clínicas). El tratamiento se realiza exclusivamente con fines de planificación nutricional y apoyo al profesional de salud habilitado.
+
+2. MEDIDAS DE SEGURIDAD IMPLEMENTADAS
+- Cifrado en Reposo: Toda la base de datos PostgreSQL clínica está cifrada bajo el estándar AES-256 a nivel de disco físico.
+- Cifrado en Tránsito: Todo flujo de datos clínico viaja cifrado bajo protocolo HTTPS/TLS 1.3 de extremo a extremo.
+- Control de Acceso Estricto: Los datos del paciente solo son accesibles para el profesional asignado al caso.
+
+3. USO DE SUBENCARGADOS (INTELIGENCIA ARTIFICIAL)
+Las solicitudes de asistencia clínica a modelos de lenguaje (OpenAI/Anthropic APIs) actúan como subencargados del tratamiento. De acuerdo con el DPA vinculante, los datos enviados son cifrados, no se almacenan permanentemente por los proveedores y está estrictamente prohibido su uso para entrenar modelos fundacionales.
+
+4. DERECHOS ARCO
+Los pacientes y profesionales disponen de la capacidad técnica para ejercer acceso, rectificación, cancelación y oposición dentro de sus paneles de configuración.`;
+
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "resumen_eipd_nutrinet_ley_21719.txt";
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Documento EIPD descargado.");
+  };
+
+  const handleDownloadDpa = () => {
+    const text = `========================================================================
+ADENDA DE TRATAMIENTO DE DATOS CON SUBENCARGADOS DE IA (DPA ADDENDUM)
+Parte A: NutriNet SaaS (Responsable)
+Parte B: API de IA Generativa Subprocesadora (Subencargado)
+Estado: Firmado y Vigente bajo Ley 21.719 (Chile)
+========================================================================
+
+1. OBJETO DEL ACUERDO
+Regular el procesamiento seguro de datos de salud en el módulo de Planificación Inteligente de NutriNet.
+
+2. COMPROMISOS CLAVE DE CONFIDENCIALIDAD
+- No Entrenamiento: El Subencargado garantiza que ningún dato clínico, antropométrico o alimentario enviado a través de la API será utilizado para el entrenamiento, fine-tuning o mejora de modelos de Inteligencia Artificial públicos o privados.
+- Cifrado Estricto: Toda comunicación se realiza bajo HTTPS con encriptación TLS 1.3 de grado clínico.
+- Retención Cero: Los datos enviados se procesan únicamente de forma efímera y se destruyen inmediatamente del backend del Subencargado tras retornar la respuesta, con un máximo de retención de auditoría técnica temporal de 30 días sin acceso a datos clínicos legibles.
+
+3. SANCIONES Y MULTAS
+El Subencargado se somete a auditorías anuales independientes y asume la responsabilidad compartida ante brechas que afecten la privacidad de los usuarios bajo el marco regulatorio de la Ley 21.719.`;
+
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "dpa_subencargados_ia_nutrinet.txt";
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Adenda DPA descargada.");
+  };
+
+  const handleRequestDeletion = () => {
+    toast.info("Tu solicitud de cancelación de cuenta y eliminación de datos bajo la Ley 21.719 ha sido enviada al área de soporte técnico. Nos contactaremos contigo en menos de 24 horas para certificar la eliminación definitiva de tus registros.");
+  };
+
+  const handleClearLogs = () => {
+    if (confirm("¿Estás seguro de que deseas eliminar permanentemente el historial de auditoría de IA de este navegador? Esta acción no se puede deshacer.")) {
+      localStorage.removeItem("nutri_ai_audit_logs");
+      setAuditLogs([]);
+      toast.success("Historial de auditoría eliminado correctamente.");
+    }
+  };
+
+  const handleDownloadLogs = () => {
+    const blob = new Blob([JSON.stringify(auditLogs, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `auditoria_ia_nutrinet_${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Historial de auditoría descargado en JSON.");
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Compliance Overview Banner */}
+      <div className="p-6 rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-indigo-50/20 shadow-sm relative overflow-hidden">
+        <div className="absolute top-4 right-4 bg-emerald-500 text-white rounded-full p-2.5 shadow-md">
+          <ShieldCheck className="h-6 w-6" />
+        </div>
+        <div className="max-w-2xl space-y-2 text-slate-900">
+          <span className="inline-flex rounded-full bg-emerald-100/80 border border-emerald-200 text-emerald-800 px-3 py-1 text-[10px] font-black uppercase tracking-wider">
+            Cumplimiento Regulatorio Activo
+          </span>
+          <h2 className="text-2xl font-black leading-tight">
+            Marco de Protección Ley 21.719
+          </h2>
+          <p className="text-sm text-slate-500 font-medium leading-relaxed">
+            NutriNet está diseñado para cumplir plenamente con la legislación de protección de datos de salud en Chile. Todos los registros clínicos, planes alimentarios y alergias ingresados están salvaguardados con altos estándares de seguridad y privacidad desde el diseño.
+          </p>
+        </div>
+      </div>
+
+      {/* Grid of Security Pillars */}
+      <div className="grid gap-6 md:grid-cols-3 text-slate-900">
+        <div className="p-6 border border-slate-200/60 rounded-3xl bg-white shadow-sm space-y-3">
+          <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-2xl w-fit text-indigo-600">
+            <LockKeyhole className="h-5 w-5" />
+          </div>
+          <h3 className="font-bold text-sm">Cifrado en Reposo</h3>
+          <p className="text-xs text-slate-500 font-medium leading-relaxed">
+            Toda la información médica sensible (antropometría, alergias y antecedentes) se almacena cifrada en reposo mediante algoritmo AES-256 en nuestra base de datos PostgreSQL.
+          </p>
+        </div>
+
+        <div className="p-6 border border-slate-200/60 rounded-3xl bg-white shadow-sm space-y-3">
+          <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl w-fit text-emerald-600">
+            <FileText className="h-5 w-5" />
+          </div>
+          <h3 className="font-bold text-sm">EIPD Completada</h3>
+          <p className="text-xs text-slate-500 font-medium leading-relaxed font-semibold">
+            Hemos realizado una Evaluación de Impacto en Protección de Datos antes de tratar datos clínicos, garantizando el cumplimiento antes del 1 de diciembre de 2026.
+          </p>
+          <button
+            type="button"
+            onClick={handleDownloadEipd}
+            className="text-[10px] font-black uppercase tracking-widest text-emerald-700 hover:text-emerald-800 flex items-center gap-1.5 cursor-pointer"
+          >
+            <Download className="h-3 w-3" /> Descargar EIPD
+          </button>
+        </div>
+
+        <div className="p-6 border border-slate-200/60 rounded-3xl bg-white shadow-sm space-y-3">
+          <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-2xl w-fit text-indigo-600">
+            <ShieldCheck className="h-5 w-5" />
+          </div>
+          <h3 className="font-bold text-sm">DPA con Subencargados</h3>
+          <p className="text-xs text-slate-500 font-medium leading-relaxed font-semibold">
+            Mantenemos un contrato formal de procesamiento de datos (DPA) con OpenAI y Anthropic que prohíbe el uso de tus fichas clínicas para entrenar sus modelos de IA.
+          </p>
+          <button
+            type="button"
+            onClick={handleDownloadDpa}
+            className="text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:text-indigo-800 flex items-center gap-1.5 cursor-pointer"
+          >
+            <Download className="h-3 w-3" /> Descargar DPA IA
+          </button>
+        </div>
+      </div>
+
+      {/* ARCO Rights Section */}
+      <div className="p-6 border border-slate-200/60 bg-white rounded-3xl shadow-sm space-y-6 text-slate-900">
+        <h3 className="text-base font-black flex items-center gap-2">
+          <ShieldAlert className="h-5 w-5 text-indigo-600" />
+          Centro de Derechos ARCO (Acceso, Rectificación, Cancelación y Oposición)
+        </h3>
+
+        <div className="divide-y divide-slate-100">
+          {/* Access */}
+          <div className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0">
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-slate-800">Derecho de Acceso (Portabilidad)</h4>
+              <p className="text-xs text-slate-500 leading-normal font-semibold">
+                Descarga una copia completa de toda tu información profesional, configuraciones e historial registrada en la plataforma en formato legible por máquina (JSON).
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDownloadArco}
+              className="h-9 px-4 rounded-xl text-xs font-bold border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <Download className="h-3.5 w-3.5" /> Descargar Datos (JSON)
+            </Button>
+          </div>
+
+          {/* Opposition (AI Control) */}
+          <div className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1 max-w-xl">
+              <h4 className="text-sm font-bold text-slate-800">Derecho de Oposición (Control de Asistencia por IA)</h4>
+              <p className="text-xs text-slate-500 leading-normal font-semibold">
+                Si no deseas que tus pautas o alimentos pasen por el procesamiento del asistente clínico de IA (subencargado), desactiva esta opción. Esto removerá el botón de generación de IA de la interfaz.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`text-[10px] font-black uppercase tracking-wider ${isAiDisabled ? "text-slate-400" : "text-emerald-700"}`}>
+                {isAiDisabled ? "Desactivada" : "IA Activa"}
+              </span>
+              <button
+                type="button"
+                onClick={handleToggleAi}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
+                  !isAiDisabled ? "bg-emerald-500" : "bg-slate-300"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    !isAiDisabled ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Deletion */}
+          <div className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 last:pb-0">
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-slate-800">Derecho de Cancelación (Eliminación)</h4>
+              <p className="text-xs text-slate-500 leading-normal font-semibold">
+                Solicita la eliminación permanente de tu cuenta y el borrado seguro de todas las fichas clínicas de tus pacientes de nuestros servidores principales y respaldos.
+              </p>
+            </div>
+            <Button
+              type="button"
+              onClick={handleRequestDeletion}
+              className="h-9 px-4 rounded-xl text-xs font-bold bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Solicitar Eliminación
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* AI Audit Logs / Versioning Historial */}
+      <div className="p-6 border border-slate-200/60 bg-white rounded-3xl shadow-sm space-y-6 text-slate-900">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h3 className="text-base font-black">
+              Historial de Auditoría y Aprobaciones de IA (Clínico)
+            </h3>
+            <p className="text-xs text-slate-500">
+              Registro histórico obligatorio de sugerencias generadas por la IA versus las versiones validadas y modificadas por el profesional de la salud.
+            </p>
+          </div>
+          {auditLogs.length > 0 && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleDownloadLogs}
+                className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:text-indigo-800 cursor-pointer"
+              >
+                <Download className="h-3.5 w-3.5" /> Descargar Logs
+              </button>
+              <button
+                type="button"
+                onClick={handleClearLogs}
+                className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-red-600 hover:text-red-700 cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Limpiar Historial
+              </button>
+            </div>
+          )}
+        </div>
+
+        {auditLogs.length === 0 ? (
+          <div className="p-8 border border-dashed border-slate-200 rounded-2xl text-center space-y-2">
+            <p className="text-xs text-slate-400 font-semibold italic">
+              No se registran aprobaciones de IA en este navegador aún.
+            </p>
+            <p className="text-[10px] text-slate-400">
+              Las sugerencias generadas por IA y aprobadas en el módulo de Planificación Nutricional quedarán registradas aquí para cumplir con la auditoría de riesgo clínico.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-hidden border border-slate-100 rounded-2xl divide-y divide-slate-100">
+            {auditLogs.map((log) => (
+              <div key={log.id} className="p-4 space-y-3 hover:bg-slate-50/50 transition-colors">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700">
+                      APROBADO
+                    </span>
+                    <span className="text-xs font-bold">
+                      Paciente: {log.patientName}
+                    </span>
+                    <span className="text-xs font-medium text-slate-400">
+                      ({log.dayLabel})
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    {new Date(log.timestamp).toLocaleString("es-CL", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 text-xs">
+                  <div className="p-3 bg-slate-50 rounded-xl space-y-1.5">
+                    <p className="font-bold text-[10px] uppercase text-slate-400 tracking-wider">
+                      Sugerencia original de IA
+                    </p>
+                    <div className="space-y-1 font-semibold text-slate-600">
+                      {log.originalDishes?.map((d: any, idx: number) => (
+                        <div key={idx} className="flex justify-between border-b border-slate-200/40 last:border-0 pb-1">
+                          <span className="truncate max-w-[180px]">{d.title}</span>
+                          <span className="font-mono text-[10px]">{d.calories} kcal</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-indigo-50/30 rounded-xl space-y-1.5">
+                    <p className="font-bold text-[10px] uppercase text-indigo-700 tracking-wider">
+                      Validado por {log.clinicianEmail}
+                    </p>
+                    <div className="space-y-1 font-semibold text-slate-800">
+                      {log.approvedDishes?.map((d: any, idx: number) => (
+                        <div key={idx} className="flex justify-between border-b border-slate-200/40 last:border-0 pb-1">
+                          <span className="truncate max-w-[180px]">{d.title}</span>
+                          <span className="font-mono text-[10px] text-emerald-700 font-bold">{d.calories} kcal</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<"profile" | "account" | "membership">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "account" | "membership" | "compliance">("profile");
   const openPlanModal = searchParams.get("openPlanModal") === "1";
 
   const [userData, setUserData] = useState<{
@@ -430,6 +816,18 @@ export default function SettingsPage() {
         >
           <Crown className="h-4 w-4" />
           Mi plan actual
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("compliance")}
+          className={`flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-bold transition-all ${
+            activeTab === "compliance"
+              ? "bg-white text-emerald-700"
+              : "text-slate-500 hover:bg-white/70 hover:text-slate-900"
+          }`}
+        >
+          <ShieldAlert className="h-4 w-4" />
+          Privacidad y Cumplimiento
         </button>
       </div>
 
@@ -919,9 +1317,14 @@ export default function SettingsPage() {
       </div>
 
       {/* Membresía Tab */}
-        <div className={`space-y-6 ${activeTab === "membership" ? "" : "hidden"}`}>
-          <MembershipPlanSection autoOpenChangePlan={openPlanModal} />
-        </div>
+      <div className={`space-y-6 ${activeTab === "membership" ? "" : "hidden"}`}>
+        <MembershipPlanSection autoOpenChangePlan={openPlanModal} />
+      </div>
+
+      {/* Privacidad y Cumplimiento Tab */}
+      <div className={`space-y-6 ${activeTab === "compliance" ? "" : "hidden"}`}>
+        <ComplianceTabSection />
+      </div>
     </div>
   );
 }

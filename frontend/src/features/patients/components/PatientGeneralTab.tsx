@@ -250,6 +250,29 @@ export function PatientGeneralTab({
                   </div>
                 )}
               </div>
+
+              {/* WhatsApp future option */}
+              <div className="space-y-1 sm:col-span-2 mt-4 pt-4 border-t border-slate-100">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5 text-emerald-600" />
+                  Notificaciones de Acompañamiento
+                </label>
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="checkbox"
+                    id="whatsapp-notifications-kapso"
+                    disabled
+                    checked={false}
+                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-not-allowed opacity-60"
+                  />
+                  <label htmlFor="whatsapp-notifications-kapso" className="text-xs font-semibold text-slate-400 flex flex-wrap items-center gap-2">
+                    <span>Habilitar recordatorios automáticos por WhatsApp</span>
+                    <span className="inline-flex rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider scale-90">
+                      Próximamente (Kapso)
+                    </span>
+                  </label>
+                </div>
+              </div>
             </div>
           </SectionCard>
 

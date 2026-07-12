@@ -22,17 +22,19 @@ const sections: LegalSection[] = [
     ],
   },
   {
-    title: "3. Responsabilidad profesional",
+    title: "3. Responsabilidad profesional y Ley 21.719",
     paragraphs: [
       "El usuario es el único responsable de la atención clínica que presta, de la información que ingresa en la plataforma y de la revisión y aprobación final de recetas, porciones, indicaciones, cálculos y entregables.",
-      "El usuario debe verificar alergias, restricciones, patologías, interacciones y cualquier antecedente clínico relevante antes de usar o entregar contenido generado con apoyo de la plataforma.",
+      "Dado que los datos tratados (antropometría, alergias, embarazo/lactancia, historial clínico) están protegidos de manera especial por la Ley 21.719 de Chile, el profesional se compromete a actuar bajo los máximos estándares de confidencialidad y juicio profesional.",
+      "El usuario debe verificar minuciosamente alergias, restricciones, patologías (especialmente pacientes renales, diabéticos o con alergias alimentarias severas), interacciones y cualquier antecedente clínico relevante antes de usar, aprobar o entregar contenido generado con apoyo de la plataforma.",
     ],
   },
   {
-    title: "4. Uso de inteligencia artificial",
+    title: "4. Uso de inteligencia artificial y subencargados",
     paragraphs: [
-      "NutriNet puede incorporar funciones de inteligencia artificial para generar, sugerir, resumir o reformular información. Las salidas de IA son orientativas y pueden contener errores, omisiones o sesgos.",
-      "Toda salida generada por IA debe ser revisada antes de su uso clínico. La IA no constituye diagnóstico, prescripción ni indicación clínica autónoma.",
+      "NutriNet incorpora funciones de inteligencia artificial para apoyar la planificación alimentaria. Dichas herramientas utilizan APIs externas (como OpenAI o Anthropic) en calidad de subencargados, regulados bajo un acuerdo de procesamiento de datos (DPA) que prohíbe el uso de datos de pacientes para el entrenamiento de modelos.",
+      "El software incluye una barrera de validación clínica obligatoria: toda sugerencia generada por la IA debe ser revisada, editada y aprobada explícitamente por el profesional mediante el panel de validación clínica antes de ser consolidada o compartida con el paciente.",
+      "La IA constituye un mero apoyo de productividad y en ningún caso reemplaza el criterio, diagnóstico, prescripción o indicación clínica del profesional de la salud.",
     ],
   },
   {

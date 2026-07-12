@@ -11,11 +11,19 @@ import {
   Users,
   Wallet,
   ChevronRight,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 const updates = [
+  {
+    title: "Recordatorios por WhatsApp (Kapso)",
+    description:
+      "Envío automático de pautas, recordatorios de citas y avisos personalizados directo al WhatsApp de tus pacientes.",
+    icon: MessageSquare,
+    tone: "emerald",
+  },
   {
     title: "Portal de nutricionistas",
     description:

@@ -10,6 +10,7 @@ import { fetchApi } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
 import { buildExchangeGuideForAi } from "@/lib/exchange-portions";
 import { downloadQuickRecipesPdf } from "@/features/pdf/quickRecipesPdfExport";
+import { getCurrentUser } from "@/lib/current-user";
 import {
   fetchProject,
   fetchCreation,
@@ -149,7 +150,17 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
     enabled: false,
     gramsPerDay: 25,
   });
-  const canUseAiAutofill = can("ai.autofill.access");
+  const [pendingAiDishes, setPendingAiDishes] = useState<any[]>([]);
+  const [isAiValidationModalOpen, setIsAiValidationModalOpen] = useState(false);
+  const [aiDisabledSetting, setAiDisabledSetting] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setAiDisabledSetting(localStorage.getItem("nutri_ai_disabled") === "true");
+    }
+  }, []);
+
+  const canUseAiAutofill = can("ai.autofill.access") && !aiDisabledSetting;
 
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showQuickMealModal, setShowQuickMealModal] = useState(false);
@@ -1127,44 +1138,8 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
         }),
       );
 
-      setWeekSlots((prev) => {
-        const next = { ...prev };
-        const daySlots = [...(next[currentDay] || [])];
-
-        dishes.forEach((dish) => {
-          const slotIndex = daySlots.findIndex(
-            (s) => s.mealSection?.toLowerCase() === dish.mealSection.toLowerCase() && !s.recipe,
-          );
-
-          if (slotIndex !== -1) {
-            daySlots[slotIndex] = {
-              ...daySlots[slotIndex],
-              recipe: {
-                id: dish.id,
-                title: dish.title,
-                description: dish.description,
-                preparation: dish.preparation,
-                recommendedPortion: dish.recommendedPortion,
-                portions: dish.portions,
-                calories: dish.calories,
-                protein: dish.protein,
-                carbs: dish.carbs,
-                fats: dish.fats,
-                ingredients: dish.ingredients.map((ing) => ing.name),
-                ingredientDetails: dish.ingredientDetails,
-                mainIngredients: dish.ingredients.map((ing) => ing.name),
-                complexity: "simple",
-                source: "app",
-              },
-            };
-          }
-        });
-
-        next[currentDay] = daySlots;
-        return next;
-      });
-
-      toast.success(`Nati rellenó ${dishes.length} espacios en ${currentDay}.`);
+      setPendingAiDishes(dishes);
+      setIsAiValidationModalOpen(true);
     } catch (error: any) {
       const message = String(error?.message || "");
       console.error("[RecipesClient] AI Generation Error:", error);
@@ -1172,6 +1147,85 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleConfirmAiValidation = (validatedDishes: any[]) => {
+    setWeekSlots((prev) => {
+      const next = { ...prev };
+      const daySlots = [...(next[currentDay] || [])];
+
+      validatedDishes.forEach((dish) => {
+        const slotIndex = daySlots.findIndex(
+          (s) => s.mealSection?.toLowerCase() === dish.mealSection.toLowerCase() && !s.recipe,
+        );
+
+        if (slotIndex !== -1) {
+          daySlots[slotIndex] = {
+            ...daySlots[slotIndex],
+            recipe: {
+              id: dish.id,
+              title: dish.title,
+              description: dish.description,
+              preparation: dish.preparation,
+              recommendedPortion: dish.recommendedPortion,
+              portions: dish.portions,
+              calories: dish.calories,
+              protein: dish.protein,
+              carbs: dish.carbs,
+              fats: dish.fats,
+              ingredients: dish.ingredients.map((ing: any) => typeof ing === "string" ? ing : ing.name),
+              ingredientDetails: dish.ingredientDetails,
+              mainIngredients: dish.ingredients.map((ing: any) => typeof ing === "string" ? ing : ing.name),
+              complexity: "simple",
+              source: "app",
+            },
+          };
+        }
+      });
+
+      next[currentDay] = daySlots;
+      return next;
+    });
+
+    // Write Audit Log to Local Storage for clinical traceability
+    try {
+      const existingLogsRaw = localStorage.getItem("nutri_ai_audit_logs");
+      const logs = existingLogsRaw ? JSON.parse(existingLogsRaw) : [];
+      
+      const newLog = {
+        id: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        clinicianEmail: getCurrentUser()?.email || "usuario@demo.com",
+        patientName: selectedPatient?.fullName || "General",
+        dayLabel: currentDay,
+        action: "AI_RECIPE_GENERATION_VALIDATED",
+        originalDishes: pendingAiDishes.map(d => ({
+          title: d.title,
+          calories: d.calories,
+          protein: d.protein,
+          carbs: d.carbs,
+          fats: d.fats,
+          mealSection: d.mealSection
+        })),
+        approvedDishes: validatedDishes.map(d => ({
+          title: d.title,
+          calories: d.calories,
+          protein: d.protein,
+          carbs: d.carbs,
+          fats: d.fats,
+          mealSection: d.mealSection
+        }))
+      };
+
+      logs.unshift(newLog);
+      localStorage.setItem("nutri_ai_audit_logs", JSON.stringify(logs));
+    } catch (e) {
+      console.error("Failed to save AI audit log", e);
+    }
+
+    toast.success(`Nati rellenó y validó clínicamente ${validatedDishes.length} espacios en ${currentDay}.`);
+    setIsAiValidationModalOpen(false);
+    setPendingAiDishes([]);
   };
 
   const handleMealCountChange = (count: number) => {
@@ -2426,5 +2480,12 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
     handleImportCreation,
     fetchPortalOverview,
     buildPatientMeta,
+
+    // AI Validation
+    isAiValidationModalOpen,
+    setIsAiValidationModalOpen,
+    pendingAiDishes,
+    setPendingAiDishes,
+    handleConfirmAiValidation,
   };
 }

@@ -32,6 +32,7 @@ import { RecipeConfigSection } from "@/features/recipes/components/RecipeConfigS
 import { RecipeLibrarySection } from "@/features/recipes/components/RecipeLibrarySection";
 import { RecipePlannerSection } from "@/features/recipes/components/RecipePlannerSection";
 import { RecipeModals } from "@/features/recipes/components/RecipeModals";
+import { AiValidationModal } from "@/features/recipes/components/AiValidationModal";
 
 const WIZARD_STEPS = [
   { label: "Base", description: "Contexto inicial y fuente principal." },
@@ -512,6 +513,15 @@ export default function RecipesClient() {
         selectedPatient={state.selectedPatient}
         buildPatientMeta={state.buildPatientMeta}
         persistRecipesCreation={state.persistRecipesCreation}
+      />
+
+      <AiValidationModal
+        isOpen={state.isAiValidationModalOpen}
+        onClose={() => state.setIsAiValidationModalOpen(false)}
+        onConfirm={state.handleConfirmAiValidation}
+        dishes={state.pendingAiDishes}
+        patient={state.selectedPatient}
+        dayLabel={state.currentDay}
       />
     </>
   );
