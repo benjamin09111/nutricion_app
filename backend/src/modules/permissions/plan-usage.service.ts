@@ -2,6 +2,8 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PermissionsService } from './permissions.service';
 
+const LIFETIME_PERIOD_KEY = 'lifetime';
+
 const toPeriodKey = (date = new Date()) => {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -18,7 +20,7 @@ export class PlanUsageService {
   async getUsage(
     accountId: string,
     featureKey: string,
-    periodKey = toPeriodKey(),
+    periodKey = LIFETIME_PERIOD_KEY,
   ) {
     try {
       const counter = await this.prisma.planUsageCounter.findUnique({
@@ -41,11 +43,11 @@ export class PlanUsageService {
     }
   }
 
-  async consumeMonthlyQuota(
+  async consumeQuota(
     accountId: string,
     featureKey: string,
     amount = 1,
-    periodKey = toPeriodKey(),
+    periodKey = LIFETIME_PERIOD_KEY,
   ) {
     const limit = await this.permissionsService.getFeatureLimit(
       accountId,
@@ -97,5 +99,14 @@ export class PlanUsageService {
 
       throw error;
     }
+  }
+
+  async consumeMonthlyQuota(
+    accountId: string,
+    featureKey: string,
+    amount = 1,
+    periodKey = toPeriodKey(),
+  ) {
+    return this.consumeQuota(accountId, featureKey, amount, periodKey);
   }
 }

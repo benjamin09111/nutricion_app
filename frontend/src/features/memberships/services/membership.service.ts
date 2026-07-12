@@ -16,9 +16,11 @@ export interface MembershipStatus {
   entitlements: Record<string, boolean | number>;
   usage?: {
     patientsActive: number;
-    consultationsMonthly: number;
-    pdfMonthly: number;
-    aiMonthly: number;
+    consultationsUsed: number;
+    followupsPrivateActive: number;
+    pdfUsed: number;
+    aiUsed: number;
+    calculatorUsed: number;
   };
   billing?: {
     nextPaymentAt: string | null;

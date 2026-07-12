@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Crown, ShieldCheck, Sparkles, Check, Loader2 } from "lucide-react";
@@ -22,14 +22,14 @@ type AttributeRow = {
 
 const formatEntitlementValue = (value: boolean | number) => {
   if (typeof value === "boolean") {
-    return value ? "Sí" : "—";
+    return value ? "Sí" : "â€”";
   }
 
   if (value < 0) {
     return "Ilimitado";
   }
 
-  return value > 0 ? "Sí" : "—";
+  return value > 0 ? "Sí" : "â€”";
 };
 
 const getPlanAttributeRows = (
@@ -121,18 +121,28 @@ export function MembershipPlanSection({
         limit: currentPlan?.entitlements?.["patients.active.limit"],
       },
       {
-        label: "Consultas mensuales",
-        usage: usage?.consultationsMonthly ?? 0,
+        label: "Consultas consumidas",
+        usage: usage?.consultationsUsed ?? 0,
         limit: currentPlan?.entitlements?.["consultations.monthly.limit"],
       },
       {
-        label: "PDFs mensuales",
-        usage: usage?.pdfMonthly ?? 0,
+        label: "PDFs consumidos",
+        usage: usage?.pdfUsed ?? 0,
         limit: currentPlan?.entitlements?.["pdf.monthly.limit"],
       },
       {
-        label: "IA mensual",
-        usage: usage?.aiMonthly ?? 0,
+        label: "Seguimientos privados activos",
+        usage: usage?.followupsPrivateActive ?? 0,
+        limit: currentPlan?.entitlements?.["followups.private.active.limit"],
+      },
+      {
+        label: "Calculadora clínica",
+        usage: usage?.calculatorUsed ?? 0,
+        limit: currentPlan?.entitlements?.["clinical_calculator.limit"],
+      },
+      {
+        label: "IA consumida",
+        usage: usage?.aiUsed ?? 0,
         limit: currentPlan?.entitlements?.["ai.calls.limit"],
       },
     ],
@@ -149,7 +159,13 @@ export function MembershipPlanSection({
     setIsLoadingPlans(true);
     try {
       const plans = await membershipService.getActivePlans();
-      setAvailablePlans(plans.filter((p) => p.id !== currentPlan?.id));
+      setAvailablePlans(
+        plans.filter((p) => {
+          if (p.id === currentPlan?.id) return false;
+          const planKey = String(p.slug || p.name || "").toLowerCase();
+          return planKey === "free" || planKey === "pro";
+        }),
+      );
     } catch {
       toast.error("No se pudieron cargar los planes");
     } finally {
@@ -180,7 +196,7 @@ export function MembershipPlanSection({
       ? billing?.nextPaymentAmount
         ? money(billing.nextPaymentAmount)
         : money(currentPrice)
-      : "Plan gratuito";
+      : "Prueba sin renovación";
 
   return (
     <div className="space-y-6">
@@ -207,7 +223,9 @@ export function MembershipPlanSection({
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-slate-500">
-                  {money(currentPrice)} / mes · Próximo cobro {nextPaymentLabel}
+                  {currentPrice > 0
+                    ? `${money(currentPrice)} / mes · Próximo cobro ${nextPaymentLabel}`
+                    : "Prueba gratuita · Esto no se renueva automáticamente"}
                 </p>
               </div>
             </div>
@@ -250,7 +268,7 @@ export function MembershipPlanSection({
                 <div key={row.label} className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-semibold text-slate-700">{row.label}</span>
-                    <span className="font-bold text-slate-900">{row.usage} / {isUnlimited ? "∞" : limit}</span>
+                    <span className="font-bold text-slate-900">{row.usage} / {isUnlimited ? "âˆž" : limit}</span>
                   </div>
                   <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                     <div className="h-full rounded-full bg-linear-to-r from-indigo-500 to-emerald-500" style={{ width: `${ratio}%` }} />
@@ -259,6 +277,11 @@ export function MembershipPlanSection({
               );
             })}
           </div>
+          {currentPrice === 0 && (
+            <p className="mt-4 text-xs text-amber-700">
+              Tu plan gratis es una prueba sin renovación automática. Cada uso queda registrado hasta agotar el límite.
+            </p>
+          )}
         </div>
 
         <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
@@ -324,7 +347,7 @@ export function MembershipPlanSection({
               .map((feature) => (
                 <div key={feature.key} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-2.5">
                   <span className="text-sm font-medium text-slate-500">{feature.label}</span>
-                  <span className="text-sm font-semibold text-slate-400">—</span>
+                  <span className="text-sm font-semibold text-slate-400">â€”</span>
                 </div>
               ))}
           </div>
@@ -524,3 +547,5 @@ export function MembershipPlanSection({
     </div>
   );
 }
+
+

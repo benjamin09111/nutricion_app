@@ -57,6 +57,9 @@ const resolveGreetingName = (account: {
   return account.email.split('@')[0] || 'Usuario';
 };
 
+const normalizeFullName = (fullName: string) =>
+  fullName.trim().replace(/\s+/g, " ") || "Usuario";
+
 const buildPublicSlug = (fullName: string, id: string) => {
   const namePart = fullName
     .toLowerCase()
@@ -220,6 +223,8 @@ export class AuthService {
         email: account.email,
         role: account.role,
         rut: account.rut || null,
+
+
         plan: effectivePlan,
         planName,
         createdAt: account.createdAt?.toISOString() ?? null,
@@ -257,6 +262,7 @@ export class AuthService {
     forceRoleChange = false,
   ) {
     const normalizedEmail = email.toLowerCase().trim();
+    const normalizedFullName = normalizeFullName(fullName);
     const existingAccount = await this.prisma.account.findUnique({
       where: { email: normalizedEmail },
       include: { nutritionist: true },
@@ -334,13 +340,13 @@ export class AuthService {
           const nutritionist = await tx.nutritionist.create({
             data: {
               accountId: savedAccount.id,
-              fullName: fullName,
+              fullName: normalizedFullName,
             },
           });
 
           await tx.nutritionist.update({
             where: { id: nutritionist.id },
-            data: { publicSlug: buildPublicSlug(fullName, nutritionist.id) },
+            data: { publicSlug: buildPublicSlug(normalizedFullName, nutritionist.id) },
           });
         }
 
@@ -361,7 +367,7 @@ export class AuthService {
       try {
         await this.mailService.sendWelcomeEmail(
           normalizedEmail,
-          fullName,
+          normalizedFullName,
           `${getFrontendUrl()}/login`,
           adminMessage,
         );
@@ -389,6 +395,7 @@ export class AuthService {
   async register(data: RegisterDto) {
     const { email, password, fullName } = data;
     const normalizedEmail = email.toLowerCase().trim();
+    const normalizedFullName = normalizeFullName(fullName);
     const frontendUrl = getFrontendUrl();
 
     const existingAccount = await this.prisma.account.findUnique({
@@ -428,13 +435,13 @@ export class AuthService {
         const nutritionist = await tx.nutritionist.create({
           data: {
             accountId: newAccount.id,
-            fullName: fullName,
+            fullName: normalizedFullName,
           },
         });
 
         await tx.nutritionist.update({
           where: { id: nutritionist.id },
-          data: { publicSlug: buildPublicSlug(fullName, nutritionist.id) },
+          data: { publicSlug: buildPublicSlug(normalizedFullName, nutritionist.id) },
         });
 
         console.log(
@@ -446,10 +453,10 @@ export class AuthService {
       const [verificationResult] = await Promise.allSettled([
         this.mailService.sendVerificationEmail(
           normalizedEmail,
-          fullName,
+          normalizedFullName,
           `${frontendUrl}/verify-email?token=${verificationToken}`,
         ),
-        this.mailService.sendRegistrationAlert(fullName, normalizedEmail),
+        this.mailService.sendRegistrationAlert(normalizedFullName, normalizedEmail),
       ]);
 
       const emailSent = verificationResult.status === 'fulfilled';
@@ -1081,3 +1088,5 @@ export class AuthService {
     }
   }
 }
+
+

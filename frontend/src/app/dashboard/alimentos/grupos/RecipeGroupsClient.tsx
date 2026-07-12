@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -356,7 +356,7 @@ export default function RecipeGroupsClient({ initialRecipes }: RecipeGroupsClien
   const selectedCount = confirmedRecipeIds.size + stagedRecipeIds.size;
 
   return (
-    <FeatureGate feature="food_groups.access" message="Los grupos de recetas están disponibles desde Iniciante.">
+    <FeatureGate feature="food_groups.access" message="Disponible solo en Pro.">
       <div className="space-y-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
@@ -708,3 +708,4 @@ export default function RecipeGroupsClient({ initialRecipes }: RecipeGroupsClien
     </FeatureGate>
   );
 }
+

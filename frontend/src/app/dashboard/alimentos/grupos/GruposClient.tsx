@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -494,7 +494,7 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
   return (
     <FeatureGate
       feature="food_groups.access"
-      message="Los grupos de alimentos están disponibles desde Iniciante."
+      message="Disponible solo en Pro."
     >
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -1084,3 +1084,4 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
     </FeatureGate>
   );
 }
+

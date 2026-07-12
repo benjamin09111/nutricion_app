@@ -43,7 +43,6 @@ import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner
 import { WizardTabs } from "@/components/shared/WizardTabs";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { useSubscription } from "@/context/SubscriptionContext";
-import { membershipService } from "@/features/memberships/services/membership.service";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { PremiumGuard } from "@/components/common/PremiumGuard";
 import { useAdmin } from "@/context/AdminContext";
@@ -1142,8 +1141,6 @@ export default function DeliverableClient() {
         id: "pdf-toast",
       });
 
-      await membershipService.consumeQuota("pdf.monthly.limit");
-
       const { pdf } = await import("@react-pdf/renderer");
       const { StandardTemplate } =
         await import("@/features/deliverable/components/StandardTemplate");
@@ -1206,8 +1203,6 @@ export default function DeliverableClient() {
       toast.loading("Generando paquetes PDF separados...", {
         id: "pdf-toast",
       });
-
-      await membershipService.consumeQuota("pdf.monthly.limit");
 
       const { pdf } = await import("@react-pdf/renderer");
       const { StandardTemplate } =

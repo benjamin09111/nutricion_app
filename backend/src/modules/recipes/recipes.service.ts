@@ -177,7 +177,7 @@ export class RecipesService {
     userPrompt: string,
   ): Promise<string> {
     try {
-      await this.planUsageService.consumeMonthlyQuota(
+      await this.planUsageService.consumeQuota(
         accountId,
         'ai.calls.limit',
       );
@@ -207,7 +207,7 @@ export class RecipesService {
     object: any;
   }> {
     try {
-      await this.planUsageService.consumeMonthlyQuota(
+      await this.planUsageService.consumeQuota(
         accountId,
         'ai.calls.limit',
       );
@@ -1189,6 +1189,8 @@ export class RecipesService {
     ].join('\n');
 
     try {
+      await this.planUsageService.consumeQuota(userId, 'ai.calls.limit');
+
       const structured = await this.aiService.generateStructuredObject(
         'recipes.estimate-macros',
         'Eres un asistente nutricional. Responde solo JSON.',

@@ -3,6 +3,7 @@ import { ToolLoopAgent, tool, isStepCount } from 'ai';
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AiService } from '../../common/services/ai.service';
+import { PlanUsageService } from '../permissions/plan-usage.service';
 
 const AGENT_INSTRUCTIONS = `# Copiloto Clinico de NutriNet
 
@@ -46,16 +47,14 @@ Usa las herramientas a tu disposicion. Si necesitas datos de la base de datos de
 export class CopilotService {
   private readonly logger = new Logger(CopilotService.name);
   private readonly memory = new Map<string, string>();
-  private agent: any;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
-  ) {
-    this.agent = this.buildAgent();
-  }
+    private readonly planUsageService: PlanUsageService,
+  ) {}
 
-  private buildAgent() {
+  private buildAgent(accountId?: string) {
     const modelConfig = this.aiService.resolvePreferredModelConfig();
     if (!modelConfig) {
       throw new Error('No AI provider configured for CopilotService');
@@ -239,6 +238,12 @@ export class CopilotService {
           execute: async ({ ingredientes }) => {
             const names = ingredientes.map((i) => `${i.nombre}${i.cantidad ? ` (${i.cantidad})` : ''}`);
             try {
+              if (accountId) {
+                await this.planUsageService.consumeQuota(
+                  accountId,
+                  'ai.calls.limit',
+                );
+              }
               const result = await this.aiService.callJson(
                 'Eres un nutricionista. Estima valores nutricionales por porcion. Responde solo JSON valido.',
                 `Estima los macros para:\n${names.join('\n')}\n\nResponde: {"calorias": numero, "proteinas": numero, "carbohidratos": numero, "grasas": numero}`,
@@ -268,6 +273,12 @@ export class CopilotService {
             const restriccionesStr = restricciones?.length ? `Restricciones: ${restricciones.join(', ')}. ` : '';
             const preferenciasStr = preferencias ? `Preferencias: ${preferencias}. ` : '';
             try {
+              if (accountId) {
+                await this.planUsageService.consumeQuota(
+                  accountId,
+                  'ai.calls.limit',
+                );
+              }
               const result = await this.aiService.callJson(
                 'Eres un nutricionista chileno experto en crear recetas. Responde solo JSON valido.',
                 `Genera una receta para ${tipoComida}. ${restriccionesStr}${preferenciasStr}Max ${maxIngredientes} ingredientes principales. Plato simple, casero, chileno.\n\nResponde: {"titulo":"string","descripcion":"string","preparacion":"string","porcionRecomendada":"string","calorias":0,"proteinas":0,"carbohidratos":0,"grasas":0,"ingredientes":[{"nombre":"string","cantidad":"string"}]}`,
@@ -306,11 +317,11 @@ export class CopilotService {
     });
   }
 
-  async chat(prompt: string) {
-    return this.agent.stream({ prompt });
+  async chat(prompt: string, accountId?: string) {
+    return this.buildAgent(accountId).stream({ prompt });
   }
 
-  getAgent() {
-    return this.agent;
+  getAgent(accountId?: string) {
+    return this.buildAgent(accountId);
   }
 }

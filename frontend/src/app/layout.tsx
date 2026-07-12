@@ -18,6 +18,9 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || "q0IxOy6dmULvxVnYzc342k3vZEozt62agOXGx9MrlVg",
+  },
   keywords: [
     "nutricionista",
     "nutricionistas en Chile",

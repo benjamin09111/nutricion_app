@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { Loader2 } from "lucide-react";
 import LoginForm from "@/components/auth/LoginForm";
 
@@ -10,6 +10,8 @@ type Props = {
 };
 
 export default function LoginPageClient({ autoStart = false }: Props) {
+  const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+
   if (autoStart) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-white px-4">
@@ -28,7 +30,7 @@ export default function LoginPageClient({ autoStart = false }: Props) {
             Redirigiendo a Google para iniciar sesión...
           </p>
           <Suspense fallback={null}>
-            <LoginForm autoStart />
+            <LoginForm autoStart activeTab="login" onTabChange={setActiveTab} />
           </Suspense>
         </div>
       </main>
@@ -67,35 +69,55 @@ export default function LoginPageClient({ autoStart = false }: Props) {
         </div>
       </section>
 
-      <section className="flex w-full flex-col justify-center px-4 py-8 sm:px-6 sm:py-10 lg:w-1/2 lg:px-8 lg:py-12 lg:bg-white">
-        <div className="mx-auto w-full max-w-xl rounded-[2rem] border border-slate-200 bg-white/95 p-5 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur-sm sm:p-8 lg:max-w-md lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
-          <div className="mb-6 lg:hidden">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-600">
-              NutriNet
-            </p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
-              Bienvenido a NutriNet
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-              Inicia sesión o crea tu cuenta profesional en pocos pasos.
-            </p>
-          </div>
-
-          <div className="animate-in fade-in slide-in-from-left-4 duration-300">
-            <div className="hidden lg:block">
-              <h2 className="text-3xl font-bold leading-tight tracking-tight text-slate-900">
-                Bienvenido a NutriNet
+      <section className="flex w-full flex-col justify-center px-6 py-12 lg:w-1/2 lg:px-16 lg:bg-white">
+        <div className="mx-auto w-full max-w-md">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+            {/* Header */}
+            <div className="mb-8">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">
+                NutriNet
+              </p>
+              <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">
+                {activeTab === "login" ? "Iniciar sesión" : "Crear cuenta"}
               </h2>
-              <p className="mt-3 text-base leading-6 text-slate-500">
-                Ingresa con tu correo o crea una cuenta nueva.
+              <p className="mt-2 text-sm text-slate-500">
+                {activeTab === "login"
+                  ? "Ingresa con tus credenciales profesionales."
+                  : "Regístrate como nutricionista e inicia tu prueba gratuita."}
               </p>
             </div>
 
-            <div className="mt-6 lg:mt-10">
-              <Suspense fallback={null}>
-                <LoginForm />
-              </Suspense>
+            {/* Tab Selector */}
+            <div
+              className="grid w-full grid-cols-2 rounded-2xl bg-slate-100 p-1 mb-8"
+              role="tablist"
+              aria-label="Opciones de acceso"
+            >
+              {(["login", "register"] as const).map((tab) => {
+                const selected = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => setActiveTab(tab)}
+                    className={`rounded-xl py-2.5 text-xs font-black uppercase tracking-wider transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
+                      selected
+                        ? "bg-white text-slate-900 shadow-xs"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    {tab === "login" ? "Iniciar sesión" : "Registrarse"}
+                  </button>
+                );
+              })}
             </div>
+
+            {/* Form */}
+            <Suspense fallback={null}>
+              <LoginForm activeTab={activeTab} onTabChange={setActiveTab} />
+            </Suspense>
           </div>
         </div>
       </section>

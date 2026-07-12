@@ -11,19 +11,21 @@ type AuthFieldProps = InputHTMLAttributes<HTMLInputElement> & {
 const AuthField = forwardRef<HTMLInputElement, AuthFieldProps>(
   ({ label, error, id, className = "", ...props }, ref) => (
     <div>
-      <label
-        htmlFor={id}
-        className="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-slate-500"
-      >
-        {label}
-      </label>
+      {label ? (
+        <label
+          htmlFor={id}
+          className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500"
+        >
+          {label}
+        </label>
+      ) : null}
       <Input
         ref={ref}
         id={id}
         error={error}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-error` : undefined}
-        className={`h-12 rounded-2xl border-slate-200 bg-white px-4 text-base shadow-sm ${className}`}
+        className={`h-10 rounded-xl border-slate-200 bg-white px-3 text-sm shadow-sm ${className}`}
         {...props}
       />
       {error ? (
