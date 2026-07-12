@@ -16,24 +16,32 @@ const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(
     const [visible, setVisible] = useState(false);
 
     return (
-      <div className="relative">
-        <AuthField
-          ref={ref}
-          id={id}
-          label={label}
-          type={visible ? "text" : "password"}
-          error={error}
-          className="pr-12"
-          {...props}
-        />
-        <button
-          type="button"
-          onClick={() => setVisible((current) => !current)}
-          className="absolute right-2 top-8 inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-          aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+      <div>
+        <label
+          htmlFor={id}
+          className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500"
         >
-          {visible ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
-        </button>
+          {label}
+        </label>
+        <div className="relative">
+          <AuthField
+            ref={ref}
+            id={id}
+            label="" // Clear label inside AuthField to prevent duplicate label rendering
+            type={visible ? "text" : "password"}
+            error={error}
+            className="pr-11 w-full"
+            {...props}
+          />
+          <button
+            type="button"
+            onClick={() => setVisible((current) => !current)}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+            aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+          >
+            {visible ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+          </button>
+        </div>
       </div>
     );
   },
@@ -42,3 +50,4 @@ const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(
 PasswordField.displayName = "PasswordField";
 
 export default PasswordField;
+

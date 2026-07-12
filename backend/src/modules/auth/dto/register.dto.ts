@@ -1,4 +1,4 @@
-import {
+﻿import {
   IsEmail,
   IsNotEmpty,
   IsString,
@@ -17,6 +17,9 @@ export class RegisterDto {
   @IsString({ message: 'El nombre debe ser texto' })
   @IsNotEmpty({ message: 'El nombre completo es requerido' })
   @MaxLength(120, { message: 'El nombre es demasiado largo' })
+  @Matches(/^\s*\S+(?:\s+\S+){2,}\s*$/, {
+    message: 'Ingresa nombre y dos apellidos',
+  })
   fullName: string;
 
   @IsString({ message: 'La contraseña debe ser texto' })
@@ -42,3 +45,4 @@ export class RegisterDto {
   })
   password: string;
 }
+

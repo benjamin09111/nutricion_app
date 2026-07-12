@@ -104,7 +104,7 @@ export default function EmailLoginForm({
 
       <Button
         type="submit"
-        className="h-12 w-full rounded-2xl bg-emerald-600 text-base font-bold text-white shadow-sm hover:bg-emerald-700"
+        className="h-11 w-full rounded-xl bg-emerald-600 text-sm font-bold text-white shadow-xs hover:bg-emerald-700 transition-colors"
         isLoading={isSubmitting}
       >
         {isSubmitting ? "Ingresando..." : "Iniciar sesión"}
@@ -113,3 +113,4 @@ export default function EmailLoginForm({
     </form>
   );
 }
+

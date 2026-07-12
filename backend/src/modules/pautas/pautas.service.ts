@@ -63,7 +63,7 @@ export class PautasService {
     );
 
     try {
-      await this.planUsageService.consumeMonthlyQuota(
+      await this.planUsageService.consumeQuota(
         accountId,
         'ai.calls.limit',
       );

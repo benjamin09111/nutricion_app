@@ -238,7 +238,7 @@ export class UsersController {
       );
     }
 
-    return this.usersService.hardDelete(id);
+    return this.usersService.softDelete(id);
   }
 
   @Delete(':id')

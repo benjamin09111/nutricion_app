@@ -89,14 +89,9 @@ export class ConsultationsService {
     nutritionistId: string,
     createConsultationDto: CreateConsultationDto,
   ) {
-    const now = new Date();
-    const startOfMonth = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-    );
-    const consultationsThisMonth = await this.prisma.consultation.count({
+    const consultationsTotal = await this.prisma.consultation.count({
       where: {
         nutritionistId,
-        date: { gte: startOfMonth },
         title: { not: INDEPENDENT_METRICS_TITLE },
       },
     });
@@ -104,7 +99,7 @@ export class ConsultationsService {
     await this.permissionsService.ensureWithinLimit(
       accountId,
       'consultations.monthly.limit',
-      consultationsThisMonth,
+      consultationsTotal,
     );
 
     await this.assertPatientOwnership(

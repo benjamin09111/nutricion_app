@@ -1,6 +1,7 @@
 "use client";
 
 import type { DietPdfData } from "./DietPdfDocument";
+import { membershipService } from "@/features/memberships/services/membership.service";
 
 /**
  * Generates and downloads a Diet PDF on the client side.
@@ -15,6 +16,7 @@ export async function downloadDietPdf(data: DietPdfData): Promise<void> {
 
     const doc = React.createElement(DietPdfDocument, { data }) as any;
     const blob = await pdf(doc).toBlob();
+    await membershipService.consumeQuota("pdf.monthly.limit");
 
     const safeName = data.dietName.replace(/\s+/g, "_").replace(/[^\w-]/g, "") || "dieta_base";
     const url = URL.createObjectURL(blob);

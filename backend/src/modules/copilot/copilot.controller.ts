@@ -28,7 +28,7 @@ export class CopilotController {
     const accountId = req.user?.id || req.user?.sub;
     if (accountId) {
       try {
-        await this.planUsageService.consumeMonthlyQuota(
+        await this.planUsageService.consumeQuota(
           accountId,
           PLAN_ENTITLEMENT_KEYS.AI_CALLS_LIMIT,
           1,
@@ -42,7 +42,7 @@ export class CopilotController {
     }
 
     try {
-      const result = await this.copilotService.chat(body.message);
+      const result = await this.copilotService.chat(body.message, accountId);
 
       for await (const chunk of result.textStream) {
         res.write(`data: ${JSON.stringify({ type: 'text', content: chunk })}\n\n`);

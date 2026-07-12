@@ -872,6 +872,28 @@ export class UsersService {
   }
 
   /**
+   * Delete account logically (soft delete).
+   * Sets the account status to DELETED.
+   */
+  async softDelete(id: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    await this.prisma.account.update({
+      where: { id },
+      data: { status: 'DELETED' as AccountStatus },
+    });
+
+    return { success: true, message: 'Usuario marcado como eliminado' };
+  }
+
+  /**
    * Count total number of nutritionists
    */
   async countNutritionists() {

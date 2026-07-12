@@ -47,8 +47,15 @@ export async function fetchApi(
       headers.delete("Authorization");
       const responseWithTenant = await fetch(`${origin}${path}`, requestInit);
 
+      const hasToken =
+        typeof document !== "undefined" &&
+        document.cookie
+          .split(";")
+          .some((item) => item.trim().startsWith("auth_token="));
+
       if (
         responseWithTenant.status === 401 &&
+        hasToken &&
         typeof window !== "undefined" &&
         window.location.pathname !== "/login"
       ) {

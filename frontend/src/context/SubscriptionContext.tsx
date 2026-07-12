@@ -40,9 +40,11 @@ export interface MembershipState {
   } | null;
   usage?: {
     patientsActive: number;
-    consultationsMonthly: number;
-    pdfMonthly: number;
-    aiMonthly: number;
+    consultationsUsed: number;
+    followupsPrivateActive: number;
+    pdfUsed: number;
+    aiUsed: number;
+    calculatorUsed: number;
   };
   billing?: {
     nextPaymentAt: string | null;
@@ -157,6 +159,12 @@ export function SubscriptionProvider({
   );
 
   const refreshSubscription = useCallback(async () => {
+    const token = getAuthToken();
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+
     let resolvedRole: string | null = null;
     const previousUser = getCurrentUser();
 
@@ -253,7 +261,10 @@ export function SubscriptionProvider({
       }
 
       if (featureKey === "clinical_calculator.access") {
-        return currentPlan?.key !== "free";
+        if (currentPlan?.key) {
+          return currentPlan.key === "free" || currentPlan.key === "pro";
+        }
+        return Boolean(entitlements[featureKey]);
       }
 
       if (featureKey === "food_groups.access") {
@@ -269,7 +280,10 @@ export function SubscriptionProvider({
       }
 
       if (featureKey === "ai.autofill.access") {
-        return currentPlan?.key === "pro";
+        if (currentPlan?.key) {
+          return currentPlan.key === "free" || currentPlan.key === "pro";
+        }
+        return Boolean(entitlements[featureKey]);
       }
 
       if (featureKey === "nutritionist_portal.access") {

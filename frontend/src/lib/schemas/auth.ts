@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 import { PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 
 export const securePasswordSchema = z
@@ -27,13 +27,19 @@ export const loginSchema = z.object({
 
 export type LoginFormData = z.infer<typeof loginSchema>;
 
+const fullNameSchema = z
+  .string()
+  .trim()
+  .min(1, { message: "Ingresa tu nombre completo" })
+  .max(120, { message: "El nombre es demasiado largo" })
+  .refine((value) => value.split(/\s+/).filter(Boolean).length >= 3, {
+    message: "Ingresa nombre y dos apellidos",
+  })
+  .transform((value) => value.replace(/\s+/g, " "));
+
 export const registerSchema = z
   .object({
-    fullName: z
-      .string()
-      .trim()
-      .min(2, { message: "Ingresa tu nombre completo" })
-      .max(120, { message: "El nombre es demasiado largo" }),
+    fullName: fullNameSchema,
     email: z
       .string()
       .trim()
@@ -48,3 +54,4 @@ export const registerSchema = z
   });
 
 export type RegisterFormData = z.infer<typeof registerSchema>;
+

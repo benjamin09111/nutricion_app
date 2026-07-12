@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import {
@@ -228,7 +228,7 @@ export default function CalculosClient() {
   return (
     <FeatureGate
       feature="clinical_calculator.access"
-      message="La calculadora clínica está disponible desde Iniciante."
+      message="Disponible solo en Pro."
     >
       <div className="max-w-6xl mx-auto pb-24 px-4 sm:px-6">
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -263,7 +263,7 @@ export default function CalculosClient() {
             className="flex items-center justify-between w-full text-sm font-bold text-slate-700 hover:text-slate-900 cursor-pointer"
           >
             <span className="flex items-center gap-2">
-              <span className="text-indigo-500">❖</span>
+              <span className="text-indigo-500">â–</span>
               ¿Qué formulas y criterios se aplican en esta herramienta?
             </span>
             <ChevronDown className={cn("w-4 h-4 transition-transform", showGlossary && "rotate-180")} />
@@ -338,7 +338,7 @@ export default function CalculosClient() {
                     className="w-full h-9 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 cursor-pointer outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   >
                     {ACTIVITY_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label} (×{o.factor})</option>
+                      <option key={o.value} value={o.value}>{o.label} (Ã—{o.factor})</option>
                     ))}
                   </select>
                 </div>
@@ -524,7 +524,7 @@ export default function CalculosClient() {
                       <div className="text-center sm:text-left bg-slate-50/50 rounded-xl p-3.5 border border-slate-100">
                         <p className="text-[10px] font-black uppercase text-slate-400">IMC Calculado</p>
                         <p className="text-3xl font-black text-slate-900 mt-1">
-                          {result.bmi.bmi} <span className="text-[10px] font-normal text-slate-400">kg/m²</span>
+                          {result.bmi.bmi} <span className="text-[10px] font-normal text-slate-400">kg/mÂ²</span>
                         </p>
                         <p className="text-[9px] text-slate-400 font-bold mt-1 tracking-wide">{result.bmi.reference}</p>
                       </div>
@@ -543,7 +543,7 @@ export default function CalculosClient() {
                         <div className="text-center sm:text-left bg-emerald-50/50 rounded-xl p-3.5 border border-emerald-100 col-span-1">
                           <p className="text-[10px] font-black uppercase text-emerald-600">Rango Normopeso</p>
                           <p className="text-2xl font-black text-emerald-800 mt-1">
-                            {result.idealWeight.min} – {result.idealWeight.max} <span className="text-xs font-normal">kg</span>
+                            {result.idealWeight.min} â€“ {result.idealWeight.max} <span className="text-xs font-normal">kg</span>
                           </p>
                           <p className="text-[9px] text-emerald-500 font-bold mt-1 tracking-wide">Ref: {result.idealWeight.reference}</p>
                         </div>
@@ -612,11 +612,11 @@ export default function CalculosClient() {
                       </div>
                       <div className="bg-slate-50 rounded-xl p-3 text-center">
                         <p className="text-[9px] font-bold text-slate-400 uppercase">AMB (Área Muscular)</p>
-                        <p className="text-lg font-black text-slate-900 mt-1">{result.armComposition.ambMm2} <span className="text-[10px] font-normal text-slate-400">mm²</span></p>
+                        <p className="text-lg font-black text-slate-900 mt-1">{result.armComposition.ambMm2} <span className="text-[10px] font-normal text-slate-400">mmÂ²</span></p>
                       </div>
                       <div className="bg-slate-50 rounded-xl p-3 text-center">
                         <p className="text-[9px] font-bold text-slate-400 uppercase">AGB (Área Grasa)</p>
-                        <p className="text-lg font-black text-slate-900 mt-1">{result.armComposition.agbMm2} <span className="text-[10px] font-normal text-slate-400">mm²</span></p>
+                        <p className="text-lg font-black text-slate-900 mt-1">{result.armComposition.agbMm2} <span className="text-[10px] font-normal text-slate-400">mmÂ²</span></p>
                       </div>
                       <div className="bg-rose-50 rounded-xl p-3 text-center border border-rose-100">
                         <p className="text-[9px] font-bold text-rose-600 uppercase">Grasa Brazo Estimada</p>
@@ -690,7 +690,7 @@ export default function CalculosClient() {
                       </div>
                       <div className="bg-slate-50 rounded-xl p-3 text-center">
                         <p className="text-[9px] font-black uppercase text-slate-400">Factor Actividad</p>
-                        <p className="text-xl font-bold text-slate-900 mt-1">×{result.energy.activityFactor}</p>
+                        <p className="text-xl font-bold text-slate-900 mt-1">Ã—{result.energy.activityFactor}</p>
                         <p className="text-[9px] text-slate-400 mt-0.5">{result.energy.formula}</p>
                       </div>
                     </div>
@@ -842,3 +842,4 @@ export default function CalculosClient() {
     </FeatureGate>
   );
 }
+

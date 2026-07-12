@@ -19,6 +19,7 @@ import { DiscountCodesService } from '../discount-codes/discount-codes.service';
 import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
 import { WhatsAppService } from '../notifications/whatsapp.service';
 import { MailService } from '../mail/mail.service';
+import { INDEPENDENT_METRICS_TITLE } from '../consultations/consultations.service';
 import * as XLSX from 'xlsx';
 
 @Injectable()
@@ -318,15 +319,13 @@ export class PaymentsService {
     if (!snapshot) throw new NotFoundException('Cuenta no encontrada');
 
     const subscription = snapshot.subscription;
-    const now = new Date();
-    const startOfMonth = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-    );
     const [
       activePatients,
-      monthlyConsultations,
+      totalConsultations,
+      activeFollowUps,
       pdfUsage,
       aiUsage,
+      calculatorUsage,
       pendingTransferCount,
     ] = await Promise.all([
       this.prisma.patient.count({
@@ -335,11 +334,21 @@ export class PaymentsService {
       this.prisma.consultation.count({
         where: {
           nutritionist: { accountId },
-          date: { gte: startOfMonth },
+          title: { not: INDEPENDENT_METRICS_TITLE },
+        },
+      }),
+      this.prisma.patientPortalInvitation.count({
+        where: {
+          nutritionist: { accountId },
+          status: 'ACTIVE',
+          revokedAt: null,
+          blockedAt: null,
+          expiresAt: { gte: new Date() },
         },
       }),
       this.planUsageService.getUsage(accountId, 'pdf.monthly.limit'),
       this.planUsageService.getUsage(accountId, 'ai.calls.limit'),
+      this.planUsageService.getUsage(accountId, 'clinical_calculator.limit'),
       this.prisma.payment.count({
         where: {
           accountId,
@@ -380,9 +389,11 @@ export class PaymentsService {
       entitlements: snapshot.entitlements,
       usage: {
         patientsActive: activePatients,
-        consultationsMonthly: monthlyConsultations,
-        pdfMonthly: pdfUsage,
-        aiMonthly: aiUsage,
+        consultationsUsed: totalConsultations,
+        followupsPrivateActive: activeFollowUps,
+        pdfUsed: pdfUsage,
+        aiUsed: aiUsage,
+        calculatorUsed: calculatorUsage,
       },
       billing: {
         nextPaymentAt,

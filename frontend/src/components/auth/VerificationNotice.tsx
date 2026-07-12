@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { CheckCircle2, MailCheck } from "lucide-react";
 import { useState } from "react";
@@ -48,7 +48,7 @@ export default function VerificationNotice({
         </h3>
         <p className="mt-3 text-sm leading-6 text-slate-600">
           {emailSent ? "Enviamos" : "Intentamos enviar"} un enlace a{" "}
-          <strong className="text-slate-900">{email}</strong>. Debes confirmarlo
+          <strong className="text-slate-900">{email}</strong>. Debes confirmarlo para activar la cuenta
           antes de poder iniciar sesión.
         </p>
         <p className="mt-1 text-xs text-slate-500">
@@ -91,3 +91,4 @@ export default function VerificationNotice({
     </div>
   );
 }
+

@@ -5,6 +5,8 @@ import {
   getMembershipPlanKey,
 } from '../memberships/plan-entitlements';
 
+const LIFETIME_PERIOD_KEY = 'lifetime';
+
 @Injectable()
 export class DashboardService {
   constructor(private prisma: PrismaService) {}
@@ -13,12 +15,6 @@ export class DashboardService {
     if (!nutritionistId || !accountId) {
       return this.emptyStats();
     }
-
-    const now = new Date();
-    const startOfMonth = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-    );
-    const periodKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
 
     const [
       totalPatients,
@@ -89,7 +85,7 @@ export class DashboardService {
     let planUsageCounters: { featureKey: string; usageCount: number }[] = [];
     try {
       planUsageCounters = await this.prisma.planUsageCounter.findMany({
-        where: { accountId, periodKey },
+        where: { accountId, periodKey: LIFETIME_PERIOD_KEY },
       });
     } catch {
       // Table may not exist yet — plan usage will show zeros
@@ -121,7 +117,7 @@ export class DashboardService {
           limit: patientLimit > 0 ? patientLimit : Infinity,
         },
         {
-          used: usageMap['consultations.monthly.limit'] || 0,
+          used: totalConsultations,
           limit: consultationLimit > 0 ? consultationLimit : Infinity,
         },
         {
@@ -163,7 +159,7 @@ export class DashboardService {
         },
         usage: {
           patients: activePatients,
-          consultations: usageMap['consultations.monthly.limit'] || 0,
+          consultations: totalConsultations,
           pdfs: usageMap['pdf.monthly.limit'] || 0,
         },
       },
