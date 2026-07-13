@@ -28,6 +28,9 @@
 - **UI text**: Professional, warm Spanish (español de Chile).
 - **Code, comments, variables**: English.
 
+## Core Development Triggers
+When the user says **"crear un plan"** or **"terminar sesión"**, follow the rules defined in `.agents/rules/core.md`. These are always active and must be respected.
+
 ## On-Demand Knowledge
 Detailed documentation and playbooks are loaded automatically on matching:
 - Playbooks: `.agents/skills/<skill-name>/SKILL.md` (e.g. `nestjs-module`, `prisma-migration`, `test-jest`).

@@ -22,6 +22,7 @@ import Cookies from "js-cookie";
 import { Pagination } from "@/components/ui/Pagination";
 import { fetchApi } from "@/lib/api-base";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { TableLoadingRows } from "@/components/ui/TableLoadingRows";
 
 export default function ConsultationsClient() {
   const router = useRouter();
@@ -165,13 +166,7 @@ export default function ConsultationsClient() {
         />
 
         {/* Consultations Table */}
-        <div className="bg-white shadow-sm border border-slate-200 rounded-[2rem] overflow-hidden relative">
-          {isLoading && (
-            <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center">
-              <div className="h-10 w-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
-            </div>
-          )}
-
+        <div className="bg-white shadow-sm border border-slate-200 rounded-[2rem] overflow-hidden">
           <div className="overflow-x-auto min-h-[400px]">
             <table className="min-w-full divide-y divide-slate-100">
               <thead className="bg-slate-50/50">
@@ -183,7 +178,10 @@ export default function ConsultationsClient() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {consultations.map((item) => (
+                {isLoading ? (
+                  <TableLoadingRows columns={4} rows={5} />
+                ) : (
+                  consultations.map((item) => (
                   <tr
                     key={item.id}
                     onClick={() => router.push(`/dashboard/consultas/${item.id}/view`)}
@@ -256,7 +254,8 @@ export default function ConsultationsClient() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                ))
+                )}
                 {!isLoading && consultations.length === 0 && (
                   <tr>
                     <td

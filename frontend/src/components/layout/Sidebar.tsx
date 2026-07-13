@@ -118,16 +118,38 @@ export function Sidebar() {
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    "Administración": true,
-  });
+  const SIDEBAR_GROUPS_STORAGE_KEY = "nutri_dashboard_sidebar_open_groups";
+
+  const getInitialOpenGroups = (): Record<string, boolean> => {
+    if (typeof window === "undefined") {
+      return { "Administración": true };
+    }
+    try {
+      const stored = localStorage.getItem(SIDEBAR_GROUPS_STORAGE_KEY);
+      if (stored === null) {
+        return { "Administración": true };
+      }
+      const parsed = JSON.parse(stored) as Record<string, boolean>;
+      if (typeof parsed !== "object" || parsed === null) {
+        return { "Administración": true };
+      }
+      return { "Administración": true, ...parsed };
+    } catch {
+      return { "Administración": true };
+    }
+  };
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(getInitialOpenGroups);
 
   const toggleGroup = (title: string) => {
     if (isSidebarCollapsed) return;
-    setOpenGroups((prev) => ({
-      ...prev,
-      [title]: !prev[title],
-    }));
+    setOpenGroups((prev) => {
+      const next = { ...prev, [title]: !prev[title] };
+      if (typeof window !== "undefined") {
+        localStorage.setItem(SIDEBAR_GROUPS_STORAGE_KEY, JSON.stringify(next));
+      }
+      return next;
+    });
   };
 
   const getGroupPriority = (group: SidebarGroup) => {

@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
-import { User, Mail, Phone, Calendar, Activity, AlertCircle, Ruler, Target, Activity as ActivityIcon, HeartPulse, Dumbbell, Calculator, FileText, ChevronRight, Lock } from "lucide-react";
+import { User, Mail, Phone, Calendar, Activity, AlertCircle, Ruler, Target, Activity as ActivityIcon, HeartPulse, Dumbbell, Calculator, FileText, ChevronRight, Lock, RotateCcw } from "lucide-react";
 import { FormStepCard } from "@/components/patient-form/FormStepCard";
 import { FormNavigationFooter } from "@/components/patient-form/FormNavigationFooter";
 import { WizardStepper } from "@/components/patient-form/WizardStepper";
@@ -18,6 +18,7 @@ import { TagInput } from "@/components/ui/TagInput";
 import { usePatientDraft } from "@/features/patients/hooks/usePatientDraft";
 import { buildClinicalRecordFromPatientDraft } from "@/features/patients/clinical-record";
 import { cn, sanitizePhone } from "@/lib/utils";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { calculateBMI, calculateGET, getIdealWeightRange, calculateAge } from "@/lib/nutrition-formulas";
 import { formatRut, validateRut } from "@/lib/rut-utils";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
@@ -81,6 +82,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const customVariableMap = useMemo(
     () => new Map((draft.customVariables || []).map((item) => [item.key, item])),
@@ -174,11 +176,13 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
 
     if (!draft.fullName?.trim() || !draft.email?.trim()) {
       toast.error("Por favor completa Nombre y Email.");
+      goToStep(0);
       return;
     }
 
     if (draft.documentId && !validateRut(draft.documentId)) {
       toast.error("El RUT ingresado no es válido.");
+      goToStep(0);
       return;
     }
 
@@ -259,6 +263,23 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
     if (!val.startsWith("+")) val = "+" + val.replace(/\+/g, "");
     const cleanVal = "+" + val.substring(1).replace(/\D/g, "");
     updateDraft({ phone: cleanVal });
+  };
+
+  const handleReset = () => {
+    clearDraft();
+    setQuickName("");
+    setQuickEmail("");
+    setQuickPhone("+56");
+    setQuickBirth("");
+    setQuickGender("");
+    setQuickMotivo("");
+    setQuickPeso("");
+    setQuickAltura("");
+    setCurrentStep(0);
+    setCompletedSteps([]);
+    setValidationErrors([]);
+    setShowResetConfirm(false);
+    toast.info("Formulario reiniciado.");
   };
 
   const [showQuick, setShowQuick] = useState(true);
@@ -688,24 +709,6 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
           >
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500">Frecuencia de consumo por grupos de alimentos</label>
-                <textarea
-                  placeholder="Ej: 1-2 porciones de lácteos al día, frutas 2-3 veces por semana..."
-                  className="min-h-24 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-700 resize-none"
-                  value={getCustomVariableValue("foodFrequency") ?? ""}
-                  onChange={(e) => setCustomVariableValue("foodFrequency", "Frecuencia alimentaria", e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500">Recordatorio de 24 horas</label>
-                <textarea
-                  placeholder="Ej: 07:30 café con pan, 13:00 almuerzo completo, 18:00 once..."
-                  className="min-h-28 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-700 resize-none"
-                  value={getCustomVariableValue("recall24h") ?? ""}
-                  onChange={(e) => setCustomVariableValue("recall24h", "Recordatorio 24 horas", e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-500">Gustos / Preferencias</label>
                 <textarea
                   placeholder="Ej: Prefiere comidas calientes, no tolera pescado..."
@@ -849,6 +852,10 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <Button type="button" onClick={() => setShowResetConfirm(true)} variant="ghost" className="rounded-xl px-4 text-rose-500 font-bold hover:bg-rose-50">
+                  <RotateCcw className="w-4 h-4 mr-1.5" />
+                  Reiniciar
+                </Button>
                 <Button type="button" onClick={handleQuickCreate} disabled={isSaving} className="rounded-xl px-6 bg-indigo-600 text-white font-bold">{isSaving ? "Guardando..." : "Crear Paciente"}</Button>
               </div>
             </div>
@@ -869,6 +876,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
           steps={STEPS}
           currentStep={currentStep}
           completedSteps={completedSteps}
+          onStepClick={goToStep}
         />
         {validationErrors.length > 0 && (
           <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
@@ -884,16 +892,33 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
           </div>
         )}
         {renderStepContent()}
-        <FormNavigationFooter
-          onBack={goBack}
-          onNext={goNext}
-          isFirstStep={currentStep === 0}
-          nextDisabled={isSaving}
-          nextLabel={currentStep === STEPS.length - 1 ? (isSaving ? "Guardando..." : "Guardar") : "Continuar"}
-        />
+        <div className="flex items-center justify-between max-w-2xl mt-4">
+          <FormNavigationFooter
+            onBack={goBack}
+            onNext={goNext}
+            isFirstStep={currentStep === 0}
+            nextDisabled={isSaving}
+            nextLabel={currentStep === STEPS.length - 1 ? (isSaving ? "Guardando..." : "Guardar") : "Continuar"}
+            className="mt-0 flex-1 max-w-none"
+          />
+          <Button type="button" onClick={() => setShowResetConfirm(true)} variant="ghost" className="rounded-xl px-4 text-rose-500 font-bold hover:bg-rose-50 ml-3">
+            <RotateCcw className="w-4 h-4 mr-1.5" />
+            Reiniciar
+          </Button>
+        </div>
       </div>
     </div>
       )}
+      <ConfirmationModal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={handleReset}
+        title="¿Reiniciar Formulario?"
+        description="Toda la información ingresada se eliminará permanentemente. ¿Deseas continuar?"
+        confirmText="Vaciar Todo"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
     </div>
   );
 }

@@ -7,6 +7,7 @@ interface WizardStepperProps {
   currentStep: number;
   completedSteps: number[];
   className?: string;
+  onStepClick?: (stepIndex: number) => void;
 }
 
 export function WizardStepper({
@@ -14,6 +15,7 @@ export function WizardStepper({
   currentStep,
   completedSteps,
   className,
+  onStepClick,
 }: WizardStepperProps) {
   return (
     <div className={cn("flex flex-wrap items-center gap-x-2 gap-y-3 mb-6 pb-2", className)}>
@@ -24,7 +26,14 @@ export function WizardStepper({
 
         return (
           <React.Fragment key={index}>
-            <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onStepClick?.(index)}
+              className={cn(
+                "flex items-center gap-2",
+                onStepClick && "cursor-pointer hover:opacity-80 transition-opacity"
+              )}
+            >
               <div
                 className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all",
@@ -52,7 +61,7 @@ export function WizardStepper({
               >
                 {step}
               </span>
-            </div>
+            </button>
             {index < steps.length - 1 && (
               <div
                 className={cn(

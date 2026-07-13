@@ -82,7 +82,7 @@ export function Select({
       {open && (
         <div
           className={cn(
-            "absolute z-50 bottom-full left-0 mb-1 w-full overflow-auto rounded-lg py-1 text-sm shadow-lg ring-1 animate-in fade-in zoom-in-95 duration-100",
+            "absolute z-50 top-full left-0 mt-1 w-full overflow-auto rounded-lg py-1 text-sm shadow-lg ring-1 animate-in fade-in zoom-in-95 duration-100",
             isDarkMode ? "bg-slate-950 ring-emerald-400/10" : "bg-white ring-black/5",
           )}
           style={{ maxHeight: "min(14rem, calc(100vh - 14rem))" }}

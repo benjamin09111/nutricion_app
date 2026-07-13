@@ -178,7 +178,6 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
   const prepareChartData = () => {
     const dataPoints: any[] = [];
     const hasHistoricalWeight = hasHistoricalMetricKey(consultations, "weight");
-    const hasHistoricalHeight = hasHistoricalMetricKey(consultations, "height");
 
     if (patient) {
       const baseline: any = {
@@ -196,11 +195,6 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
       let hasBaselineData = false;
       if (patient.weight && !hasHistoricalWeight) {
         baseline["weight"] = patient.weight;
-        hasBaselineData = true;
-      }
-
-      if (patient.height && !hasHistoricalHeight) {
-        baseline["height"] = patient.height;
         hasBaselineData = true;
       }
 
@@ -263,6 +257,12 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     });
   };
 
+  const NON_METRIC_CUSTOM_KEYS = new Set([
+    "evaluationDate",
+    "motivoConsulta",
+    "automaticNutritionCalculations",
+  ]);
+
   const registeredMetricKeys = useMemo(() => {
     const keys = new Set<string>();
     consultations.forEach((c) => {
@@ -275,9 +275,9 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     });
     if (patient) {
       if (patient.weight) keys.add("weight");
-      if (patient.height) keys.add("height");
       if (Array.isArray(patient.customVariables)) {
         patient.customVariables.forEach((cv: any) => {
+          if (NON_METRIC_CUSTOM_KEYS.has(cv.key)) return;
           const mk = normalizeMetricKey(cv.label, cv.key);
           if (mk) keys.add(mk);
         });
@@ -838,28 +838,32 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
       return;
     }
 
-    const existingSameDayConsultation = consultations.find(
-      (c) =>
-        isIndependentMetricsConsultation(c) &&
-        toDateOnly(c.date) === metricForm.date,
+    const sameDayConsultations = consultations.filter(
+      (c) => toDateOnly(c.date) === metricForm.date,
+    );
+
+    const allKeysRegistered = new Set(
+      sameDayConsultations.flatMap((c) =>
+        (c.metrics || []).map((m) => normalizeMetricKey(m.label, m.key)),
+      ),
+    );
+
+    const duplicateMetric = validMetrics.find((m) =>
+      allKeysRegistered.has(normalizeMetricKey(m.label, m.key)),
+    );
+
+    if (duplicateMetric) {
+      toast.error(
+        `La métrica "${duplicateMetric.label}" ya fue registrada para esta fecha.`,
+      );
+      return;
+    }
+
+    const existingSameDayConsultation = sameDayConsultations.find((c) =>
+      isIndependentMetricsConsultation(c),
     );
 
     if (existingSameDayConsultation) {
-      const existingMetricKeys = new Set(
-        (existingSameDayConsultation.metrics || []).map((metric) =>
-          normalizeMetricKey(metric.label, metric.key),
-        ),
-      );
-      const hasOverlappingMetric = validMetrics.some((metric) =>
-        existingMetricKeys.has(normalizeMetricKey(metric.label, metric.key)),
-      );
-
-      if (hasOverlappingMetric) {
-        setConflictingConsultationId(existingSameDayConsultation.id);
-        setIsOverwriteConfirmOpen(true);
-        return;
-      }
-
       executeSaveMetrics(existingSameDayConsultation.id);
     } else {
       executeSaveMetrics();
@@ -1023,7 +1027,6 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
 
     const history: any[] = [];
     const hasHistoricalWeight = hasHistoricalMetricKey(consultations, "weight");
-    const hasHistoricalHeight = hasHistoricalMetricKey(consultations, "height");
 
     if (
       editingMetricKey === "weight" &&
@@ -1036,21 +1039,6 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
         value: patient.weight.toString(),
         unit: "kg",
         label: "Peso Inicial (Perfil)",
-        isBaseline: true,
-      });
-    }
-
-    if (
-      editingMetricKey === "height" &&
-      patient?.height &&
-      !hasHistoricalHeight
-    ) {
-      history.push({
-        id: "baseline-height",
-        date: patient.createdAt || new Date().toISOString(),
-        value: patient.height.toString(),
-        unit: "cm",
-        label: "Altura Inicial (Perfil)",
         isBaseline: true,
       });
     }
@@ -1504,6 +1492,201 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     } catch (error) {
       console.error("PDF Error:", error);
       toast.error("Error al generar el PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportClinicalRecordExcel = async () => {
+    setIsExporting(true);
+    try {
+      if (!hasLoadedClinicalRecord && patient) {
+        await fetchClinicalRecord();
+      }
+
+      const p = patient;
+      const cr = clinicalRecordDraft;
+      const weight = p?.weight;
+      const height = p?.height;
+      const bmi = weight && height ? weight / ((height / 100) * (height / 100)) : null;
+      const bmiClass = bmi
+        ? bmi < 18.5 ? "Bajo peso" : bmi < 25 ? "Normopeso" : bmi < 30 ? "Sobrepeso" : "Obesidad"
+        : undefined;
+      const activityLabels: Record<string, string> = {
+        sedentario: "Sedentario",
+        ligero: "Ligero",
+        moderado: "Moderado",
+        activo: "Activo",
+        muy_activo: "Muy activo",
+      };
+
+      const pdfData = {
+        patientName: p?.fullName || "Sin Nombre",
+        patientEmail: p?.email,
+        patientPhone: p?.phone,
+        patientRut: p?.documentId,
+        patientGender: p?.gender,
+        patientAge: p?.age,
+        patientBirthDate: p?.birthDate
+          ? new Date(p.birthDate).toLocaleDateString("es-ES", { year: "numeric", month: "short", day: "numeric" })
+          : undefined,
+        weight,
+        height,
+        bmi: bmi ? Math.round(bmi * 10) / 10 : undefined,
+        bmiClassification: bmiClass,
+        get: undefined,
+        weightHabitual: cr?.anthropometry?.pesoHabitual,
+        weightTarget: cr?.vitalHistory?.pesoObjetivoProf,
+        manualCaloriesAdjustment: cr?.vitalHistory?.manualCaloriesAdjustment,
+        activityLevel: activityLabels[p?.activityLevel || ""] || p?.activityLevel,
+        tricipital: cr?.anthropometry?.skinfolds?.tricipital,
+        bicipital: cr?.anthropometry?.skinfolds?.bicipital,
+        subescapular: cr?.anthropometry?.skinfolds?.subescapular,
+        suprailiac: cr?.anthropometry?.skinfolds?.suprailiac,
+        kneeHeight: cr?.anthropometry?.circumferences?.kneeHeight,
+        calfCircumference: cr?.anthropometry?.circumferences?.calfCircumference,
+        armCircumference: cr?.anthropometry?.circumferences?.armCircumference,
+        waistCircumference: cr?.anthropometry?.circumferences?.waistCircumference,
+        hipCircumference: cr?.anthropometry?.circumferences?.hipCircumference,
+        occupation: cr?.vitalHistory?.occupation,
+        workSchedule: cr?.vitalHistory?.workSchedule,
+        medications: cr?.vitalHistory?.medications,
+        supplementsOrDrugs: cr?.vitalHistory?.supplementsOrDrugs,
+        diagnosedPathologies: cr?.vitalHistory?.diagnosedPathologies,
+        familyHistory: cr?.vitalHistory?.familyHistory,
+        sleepQuality: cr?.vitalHistory?.sleepQuality,
+        perceivedStress: cr?.vitalHistory?.perceivedStress,
+        weeklyExercise: cr?.vitalHistory?.weeklyExercise,
+        motivoConsulta: cr?.vitalHistory?.motivoConsulta,
+        dietRestrictions: p?.dietRestrictions,
+        eatingPreferences: cr?.nutritionalAnamnesis?.eatingPreferences || p?.likes,
+        rejectedFoods: cr?.nutritionalAnamnesis?.rejectedFoods,
+        clinicalObservations: cr?.nutritionalAnamnesis?.clinicalObservations || p?.clinicalSummary,
+        diagnosticoNutricional: cr?.nutritionalAnamnesis?.diagnosticoNutricional,
+        isPregnant: cr?.gynecoObstetric?.isPregnant,
+        pregnancyWeeks: cr?.gynecoObstetric?.pregnancyWeeks,
+        pregestationalWeight: cr?.gynecoObstetric?.pregestationalWeight,
+        pregnancyType: cr?.gynecoObstetric?.pregnancyType,
+        nutritionalFocus: p?.nutritionalFocus,
+        fitnessGoals: p?.fitnessGoals,
+        generatedAt: new Date().toISOString(),
+      };
+
+      const { downloadClinicalRecordExcel } = await import("@/features/pdf/clinicalRecordExcelExport");
+      await downloadClinicalRecordExcel(pdfData);
+      toast.success("Ficha clínica descargada");
+    } catch (error) {
+      console.error("Clinical Record Excel Error:", error);
+      toast.error("Error al generar el Excel");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportProgressExcel = async () => {
+    setIsExporting(true);
+    try {
+      const chartData = prepareChartData();
+      const metricKeys = getAllMetricKeys();
+      const { downloadProgressExcel } = await import("@/features/pdf/progressExcelExport");
+      await downloadProgressExcel(
+        patient?.fullName || "Paciente",
+        chartData,
+        metricKeys,
+        getMetricInfo,
+      );
+      toast.success("Progreso exportado");
+    } catch (error) {
+      console.error("Progress Excel Error:", error);
+      toast.error("Error al exportar el progreso");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportClinicalRecordPDF = async () => {
+    setIsExporting(true);
+    try {
+      // Ensure clinical record is loaded
+      if (!hasLoadedClinicalRecord && patient) {
+        await fetchClinicalRecord();
+      }
+
+      const p = patient;
+      const cr = clinicalRecordDraft;
+
+      const weight = p?.weight;
+      const height = p?.height;
+      const bmi = weight && height ? weight / ((height / 100) * (height / 100)) : null;
+      const bmiClass = bmi
+        ? bmi < 18.5 ? "Bajo peso" : bmi < 25 ? "Normopeso" : bmi < 30 ? "Sobrepeso" : "Obesidad"
+        : undefined;
+      const activityLabels: Record<string, string> = {
+        sedentario: "Sedentario",
+        ligero: "Ligero",
+        moderado: "Moderado",
+        activo: "Activo",
+        muy_activo: "Muy activo",
+      };
+
+      const pdfData = {
+        patientName: p?.fullName || "Sin Nombre",
+        patientEmail: p?.email,
+        patientPhone: p?.phone,
+        patientRut: p?.documentId,
+        patientGender: p?.gender,
+        patientAge: p?.age,
+        patientBirthDate: p?.birthDate
+          ? new Date(p.birthDate).toLocaleDateString("es-ES", { year: "numeric", month: "short", day: "numeric" })
+          : undefined,
+        weight,
+        height,
+        bmi: bmi ? Math.round(bmi * 10) / 10 : undefined,
+        bmiClassification: bmiClass,
+        get: undefined,
+        weightHabitual: cr?.anthropometry?.pesoHabitual,
+        weightTarget: cr?.vitalHistory?.pesoObjetivoProf,
+        manualCaloriesAdjustment: cr?.vitalHistory?.manualCaloriesAdjustment,
+        activityLevel: activityLabels[p?.activityLevel || ""] || p?.activityLevel,
+        tricipital: cr?.anthropometry?.skinfolds?.tricipital,
+        bicipital: cr?.anthropometry?.skinfolds?.bicipital,
+        subescapular: cr?.anthropometry?.skinfolds?.subescapular,
+        suprailiac: cr?.anthropometry?.skinfolds?.suprailiac,
+        kneeHeight: cr?.anthropometry?.circumferences?.kneeHeight,
+        calfCircumference: cr?.anthropometry?.circumferences?.calfCircumference,
+        armCircumference: cr?.anthropometry?.circumferences?.armCircumference,
+        waistCircumference: cr?.anthropometry?.circumferences?.waistCircumference,
+        hipCircumference: cr?.anthropometry?.circumferences?.hipCircumference,
+        occupation: cr?.vitalHistory?.occupation,
+        workSchedule: cr?.vitalHistory?.workSchedule,
+        medications: cr?.vitalHistory?.medications,
+        supplementsOrDrugs: cr?.vitalHistory?.supplementsOrDrugs,
+        diagnosedPathologies: cr?.vitalHistory?.diagnosedPathologies,
+        familyHistory: cr?.vitalHistory?.familyHistory,
+        sleepQuality: cr?.vitalHistory?.sleepQuality,
+        perceivedStress: cr?.vitalHistory?.perceivedStress,
+        weeklyExercise: cr?.vitalHistory?.weeklyExercise,
+        motivoConsulta: cr?.vitalHistory?.motivoConsulta,
+        dietRestrictions: p?.dietRestrictions,
+        eatingPreferences: cr?.nutritionalAnamnesis?.eatingPreferences || p?.likes,
+        rejectedFoods: cr?.nutritionalAnamnesis?.rejectedFoods,
+        clinicalObservations: cr?.nutritionalAnamnesis?.clinicalObservations || p?.clinicalSummary,
+        diagnosticoNutricional: cr?.nutritionalAnamnesis?.diagnosticoNutricional,
+        isPregnant: cr?.gynecoObstetric?.isPregnant,
+        pregnancyWeeks: cr?.gynecoObstetric?.pregnancyWeeks,
+        pregestationalWeight: cr?.gynecoObstetric?.pregestationalWeight,
+        pregnancyType: cr?.gynecoObstetric?.pregnancyType,
+        nutritionalFocus: p?.nutritionalFocus,
+        fitnessGoals: p?.fitnessGoals,
+        generatedAt: new Date().toISOString(),
+      };
+
+      const { downloadClinicalRecordPdf } = await import("@/features/pdf/clinicalRecordPdfExport");
+      await downloadClinicalRecordPdf(pdfData);
+      toast.success("Ficha clínica descargada");
+    } catch (error) {
+      console.error("Clinical Record PDF Error:", error);
+      toast.error("Error al generar la ficha clínica");
     } finally {
       setIsExporting(false);
     }
@@ -2005,6 +2188,9 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     addSmartMetricToForm,
     updateMetricInForm,
     handleExportPDF,
+    handleExportClinicalRecordPDF,
+    handleExportClinicalRecordExcel,
+    handleExportProgressExcel,
     removeMetricFromForm,
     handleDeleteEntireMetric,
     hasNutritionInputsChanged,

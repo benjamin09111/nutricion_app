@@ -18,6 +18,7 @@ import {
   Phone,
   Link2,
   Lock,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
@@ -30,8 +31,11 @@ import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { TableLoadingRows } from "@/components/ui/TableLoadingRows";
+import { MobileCardLoadingList } from "@/components/ui/MobileCardLoadingList";
 import { getApiUrl } from "@/lib/api-base";
 import { usePatients } from "@/features/patients/hooks/usePatients";
+import { exportPatientsToExcel } from "@/features/pdf/patientsExcelExport";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { ShareFormModal } from "@/features/patients-intake/components/ShareFormModal";
 
@@ -57,6 +61,7 @@ export default function PatientsClient() {
 
   const [patientPreview, setPatientPreview] = useState<Patient | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const { limit } = useSubscription();
 
   useEffect(() => {
@@ -91,6 +96,22 @@ export default function PatientsClient() {
     }
   };
 
+  const handleExportPatientsExcel = async () => {
+    if (patients.length === 0) {
+      toast.error("No hay pacientes para exportar");
+      return;
+    }
+    setIsExporting(true);
+    try {
+      exportPatientsToExcel(patients);
+      toast.success("Excel de pacientes descargado");
+    } catch {
+      toast.error("Error al exportar pacientes");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const filteredPatients = patients;
   const activePatientLimit = limit("patients.active.limit");
   const isPatientLimitReached =
@@ -106,14 +127,29 @@ export default function PatientsClient() {
       title="Mis Pacientes"
       description="Gestiona a tus pacientes: puedes crear, ver su progreso a través del tiempo, crear un espacio de comunicación privado y mucho más."
       rightContent={
-        <Button
-          variant="outline"
-          onClick={() => router.push("/dashboard/pacientes/seguimientos")}
-          className="h-10 px-5 rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50 font-medium transition-all flex items-center gap-2"
-        >
-          <MessageSquareWarning className="h-4 w-4" />
-          <span className="text-sm whitespace-nowrap">Seguimiento</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            disabled={isExporting || isLoading}
+            onClick={handleExportPatientsExcel}
+            className="h-10 px-5 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-medium transition-all flex items-center gap-2"
+          >
+            {isExporting ? (
+              <div className="h-4 w-4 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+            ) : (
+              <FileSpreadsheet className="h-4 w-4" />
+            )}
+            <span className="text-sm whitespace-nowrap">Exportar Excel</span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push("/dashboard/pacientes/seguimientos")}
+            className="h-10 px-5 rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50 font-medium transition-all flex items-center gap-2"
+          >
+            <MessageSquareWarning className="h-4 w-4" />
+            <span className="text-sm whitespace-nowrap">Seguimiento</span>
+          </Button>
+        </div>
       }
       className="pb-8"
     >
@@ -259,34 +295,7 @@ export default function PatientsClient() {
               </thead>
               <tbody className="divide-y divide-slate-50 bg-white">
                 {isLoading ? (
-                  [1, 2, 3, 4, 5].map((i) => (
-                    <tr
-                      key={i}
-                      className="animate-pulse border-b border-slate-50 last:border-0"
-                    >
-                      <td className="px-6 py-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-slate-100 rounded-full" />
-                          <div className="space-y-2">
-                            <div className="h-4 w-32 bg-slate-100 rounded" />
-                            <div className="h-3 w-48 bg-slate-50 rounded" />
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-6">
-                        <div className="h-4 w-24 bg-slate-100 rounded" />
-                      </td>
-                      <td className="px-6 py-6">
-                        <div className="h-10 w-44 bg-slate-100 rounded-2xl" />
-                      </td>
-                      <td className="px-6 py-6">
-                        <div className="h-6 w-20 bg-slate-100 rounded-full mx-auto" />
-                      </td>
-                      <td className="px-6 py-6">
-                        <div className="h-8 w-8 bg-slate-100 rounded-lg ml-auto" />
-                      </td>
-                    </tr>
-                  ))
+                  <TableLoadingRows columns={5} rows={5} />
                 ) : filteredPatients.length > 0 ? (
                   filteredPatients.map((patient) => {
                     const restrictions = formatRestrictions(
@@ -453,20 +462,7 @@ export default function PatientsClient() {
         {/* Mobile Card View */}
         <div className="lg:hidden space-y-4">
           {isLoading ? (
-            [1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="bg-white p-5 rounded-2xl border border-slate-200 animate-pulse space-y-4"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 bg-slate-100 rounded-xl" />
-                  <div className="space-y-2 flex-1">
-                    <div className="h-4 w-3/4 bg-slate-100 rounded" />
-                    <div className="h-3 w-1/2 bg-slate-50 rounded" />
-                  </div>
-                </div>
-              </div>
-            ))
+            <MobileCardLoadingList rows={3} />
           ) : filteredPatients.length > 0 ? (
             filteredPatients.map((patient) => {
               const restrictions = formatRestrictions(patient.dietRestrictions);
