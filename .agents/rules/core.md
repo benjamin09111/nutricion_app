@@ -13,6 +13,15 @@ Cuando el usuario diga **"crear un plan"**, el agente debe aplicar las siguiente
 -   Construir solo lo necesario para cumplir los objetivos y la tarea específica.
 -   Si algo es ambiguo, **preguntar** antes de implementar.
 
+## "Ejecuta el plan" / Tareas
+
+Cuando el usuario diga **"Ejecuta el plan"**, **"ejecuta paso a paso"** o frases similares indicando que se debe ejecutar una tarea, el agente debe aplicar automáticamente estas directrices:
+
+-   **Buenas prácticas**: modularidad, funciones pequeñas y con un solo propósito, sin código spaghetti ni super funciones.
+-   **UTF-8 y español**: preservar siempre tildes, eñes y caracteres especiales del español (á, é, í, ó, ú, ü, ñ, ¿, ¡). Nunca generar "Ã¡" ni caracteres rotos por mala codificación.
+-   **Alineación visual simétrica**: en layouts con columnas, grids o paneles, mantener alturas, anchos y márgenes equilibrados para una experiencia visual armónica y profesional.
+-   **Reutilizar componentes**: preferir siempre componentes existentes del proyecto sobre crear nuevos, equilibrando mantenibilidad y simplicidad. No añadir complejidad innecesaria.
+
 ## "Terminar sesión"
 
 Cuando el usuario diga **"terminar sesión"**, el agente debe:
