@@ -338,7 +338,7 @@ export default function CalculosClient() {
                     className="w-full h-9 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 cursor-pointer outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   >
                     {ACTIVITY_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label} (Ã—{o.factor})</option>
+                      <option key={o.value} value={o.value}>{o.label} (×{o.factor})</option>
                     ))}
                   </select>
                 </div>
@@ -690,7 +690,7 @@ export default function CalculosClient() {
                       </div>
                       <div className="bg-slate-50 rounded-xl p-3 text-center">
                         <p className="text-[9px] font-black uppercase text-slate-400">Factor Actividad</p>
-                        <p className="text-xl font-bold text-slate-900 mt-1">Ã—{result.energy.activityFactor}</p>
+                        <p className="text-xl font-bold text-slate-900 mt-1">×{result.energy.activityFactor}</p>
                         <p className="text-[9px] text-slate-400 mt-0.5">{result.energy.formula}</p>
                       </div>
                     </div>
