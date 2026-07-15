@@ -8,10 +8,8 @@ import {
   Heart,
   Plus,
   ArrowRight,
-  MessageSquareWarning,
   Eye,
   Trash2,
-  Download,
   Ban,
   CheckCircle2,
   X,
@@ -37,6 +35,7 @@ import { getApiUrl } from "@/lib/api-base";
 import { usePatients } from "@/features/patients/hooks/usePatients";
 import { exportPatientsToExcel } from "@/features/pdf/patientsExcelExport";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { ShareFormModal } from "@/features/patients-intake/components/ShareFormModal";
 
 function cn(...inputs: ClassValue[]) {
@@ -62,7 +61,11 @@ export default function PatientsClient() {
   const [patientPreview, setPatientPreview] = useState<Patient | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const { limit } = useSubscription();
+
+  useScrollLock(isDeleteModalOpen);
 
   useEffect(() => {
     const timer = setTimeout(
@@ -75,7 +78,7 @@ export default function PatientsClient() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const { patients, meta, isLoading, togglePatientStatus } =
+  const { patients, meta, isLoading, togglePatientStatus, deletePatient, isDeleting } =
     usePatients({
       page,
       searchTerm: debouncedSearchTerm,
@@ -93,6 +96,18 @@ export default function PatientsClient() {
       );
     } catch {
       toast.error("Error al actualizar estado");
+    }
+  };
+
+  const handleDeletePatient = async () => {
+    if (!patientToDelete) return;
+    try {
+      await deletePatient(patientToDelete.id);
+      toast.success("Paciente eliminado correctamente");
+      setIsDeleteModalOpen(false);
+      setPatientToDelete(null);
+    } catch {
+      toast.error("Error al eliminar el paciente");
     }
   };
 
@@ -140,14 +155,6 @@ export default function PatientsClient() {
               <FileSpreadsheet className="h-4 w-4" />
             )}
             <span className="text-sm whitespace-nowrap">Exportar Excel</span>
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => router.push("/dashboard/pacientes/seguimientos")}
-            className="h-10 px-5 rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50 font-medium transition-all flex items-center gap-2"
-          >
-            <MessageSquareWarning className="h-4 w-4" />
-            <span className="text-sm whitespace-nowrap">Seguimiento</span>
           </Button>
         </div>
       }
@@ -428,12 +435,14 @@ export default function PatientsClient() {
                               )}
                             </button>
                             <button
-                              type="button"
-                              disabled
-                              className="group relative p-2.5 text-slate-300 bg-slate-50 rounded-xl transition-all cursor-not-allowed"
-                              title="Descargar ficha"
+                              onClick={() => {
+                                setPatientToDelete(patient);
+                                setIsDeleteModalOpen(true);
+                              }}
+                              className="group relative p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                              title="Eliminar paciente"
                             >
-                              <Download className="w-4.5 h-4.5" />
+                              <Trash2 className="w-4.5 h-4.5" />
                             </button>
                           </div>
                         </td>
@@ -569,12 +578,14 @@ export default function PatientsClient() {
                         )}
                       </button>
                       <button
-                        type="button"
-                        disabled
-                        className="p-2 text-slate-300 bg-slate-50 rounded-lg cursor-not-allowed"
-                        title="Descargar ficha"
+                        onClick={() => {
+                          setPatientToDelete(patient);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-lg"
+                        title="Eliminar paciente"
                       >
-                        <Download className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() =>
@@ -783,6 +794,20 @@ export default function PatientsClient() {
           onClose={() => setIsShareModalOpen(false)}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setPatientToDelete(null);
+        }}
+        onConfirm={handleDeletePatient}
+        title="¿Eliminar paciente?"
+        description={`¿Estás seguro de que deseas eliminar a ${patientToDelete?.fullName || "este paciente"}? Se eliminarán también todas sus consultas y no podrás recuperar esta información.`}
+        confirmText={isDeleting ? "Eliminando..." : "Eliminar"}
+        cancelText="Cancelar"
+        variant="destructive"
+      />
     </ModuleLayout>
   );
 }

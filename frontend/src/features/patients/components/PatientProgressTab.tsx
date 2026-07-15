@@ -216,7 +216,7 @@ export function PatientProgressTab({
       </div>
 
       {/* Progression Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {getAllMetricKeys().map((key) => {
           const info = getMetricInfo(key);
           const filteredData = chartData.filter((d) => d[key] !== undefined);
@@ -251,88 +251,38 @@ export function PatientProgressTab({
           return (
             <div
               key={key}
-              id={`export-chart-${key}`}
-              className="bg-white rounded-2xl p-6 lg:p-8 border border-slate-100 shadow-sm group"
+              className="bg-white rounded-2xl border border-slate-100 shadow-sm group"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
-                <div className="space-y-1">
-                  <h3 className="text-base lg:text-lg font-semibold text-slate-900 flex items-center gap-3">
-                    <info.icon
-                      className={cn(
-                        "w-6 h-6",
-                        info.color === "#3b82f6"
-                          ? "text-indigo-500"
-                          : info.color === "#10b981"
-                            ? "text-emerald-500"
-                            : "text-slate-400",
-                      )}
-                    />
-                    {info.label}
-                  </h3>
-                  <p className="text-xs font-semibold text-slate-400 opacity-80">
-                    Tendencia histórica ({info.unit})
-                  </p>
-                  <div className="grid grid-cols-3 gap-2 mt-3">
-                    <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight min-h-[18px]">
-                        Primer valor
-                      </p>
-                      <div className="flex items-baseline gap-1 flex-wrap mt-2">
-                        <span className="text-sm font-black text-slate-700 leading-none">
-                          {formatMetricValue(firstValueRaw)}
-                        </span>
-                        <span className="text-[10px] text-slate-400 leading-none">
-                          {info.unit}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight min-h-[18px]">
-                        Último valor
-                      </p>
-                      <div className="flex items-baseline gap-1 flex-wrap mt-2">
-                        <span className="text-sm font-black text-slate-700 leading-none">
-                          {formatMetricValue(latestValueRaw)}
-                        </span>
-                        <span className="text-[10px] text-slate-400 leading-none">
-                          {info.unit}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight min-h-[18px]">
-                        Diferencia
-                      </p>
-                      <div className={cn("flex items-baseline gap-1 flex-wrap mt-2")}>
-                        <span
-                          className={cn(
-                            "text-sm font-black leading-none",
-                            diffRaw === null || !Number.isFinite(diffRaw)
-                              ? "text-slate-500"
-                              : diffRaw > 0
-                                ? "text-emerald-600"
-                                : diffRaw < 0
-                                  ? "text-indigo-600"
-                                  : "text-slate-700",
-                          )}
-                        >
-                          {diffDisplay}
-                        </span>
-                        <span className={cn("text-[10px] text-slate-400 leading-none")}>
-                          {info.unit}
-                        </span>
-                      </div>
-                    </div>
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 pt-5 pb-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <info.icon
+                    className={cn(
+                      "w-5 h-5 shrink-0",
+                      info.color === "#3b82f6"
+                        ? "text-indigo-500"
+                        : info.color === "#10b981"
+                          ? "text-emerald-500"
+                          : "text-slate-400",
+                    )}
+                  />
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-slate-900 truncate">
+                      {info.label}
+                    </h3>
+                    <p className="text-[10px] font-semibold text-slate-400">
+                      {info.unit}
+                    </p>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1 shrink-0 ml-2">
                   <button
                     onClick={() => openMetricLogger(key)}
                     data-no-export="true"
-                    className="p-3 bg-emerald-50 text-emerald-600 hover:text-white hover:bg-emerald-600 rounded-xl transition-all active:scale-95 cursor-pointer border border-emerald-100"
-                    title={`Registrar ${info.label} rápidamente`}
+                    className="p-1.5 bg-emerald-50 text-emerald-600 hover:text-white hover:bg-emerald-600 rounded-lg transition-all active:scale-95 cursor-pointer border border-emerald-100"
+                    title={`Registrar ${info.label}`}
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => {
@@ -340,10 +290,10 @@ export function PatientProgressTab({
                       setIsEditMetricHistoryModalOpen(true);
                     }}
                     data-no-export="true"
-                    className="p-3 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all active:scale-95 cursor-pointer border border-transparent hover:border-emerald-100"
+                    className="p-1.5 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all active:scale-95 cursor-pointer border border-transparent hover:border-emerald-100"
                     title={`Editar historial de ${info.label}`}
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => {
@@ -351,108 +301,71 @@ export function PatientProgressTab({
                       setIsDeleteEntireMetricConfirmOpen(true);
                     }}
                     data-no-export="true"
-                    className="p-3 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all active:scale-95 cursor-pointer border border-transparent hover:border-indigo-100"
-                    title={`Eliminar toda la métrica ${info.label}`}
+                    className="p-1.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-95 cursor-pointer border border-transparent hover:border-indigo-100"
+                    title={`Eliminar métrica ${info.label}`}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
-              <div className="h-[300px] w-full [&_*:focus]:outline-none [&_svg]:outline-none [&_.recharts-surface]:outline-none">
+              {/* Chart — only this zone is captured for PDF */}
+              <div
+                id={`export-chart-${key}`}
+                className="h-[260px] w-full bg-white [&_*:focus]:outline-none [&_svg]:outline-none [&_.recharts-surface]:outline-none"
+              >
                 {(() => {
                   if (filteredData.length >= 2) {
                     return (
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart
                           data={chartData}
-                          margin={{
-                            top: 10,
-                            right: 10,
-                            left: 0,
-                            bottom: 30,
-                          }}
+                          margin={{ top: 10, right: 15, left: 0, bottom: 5 }}
                         >
                           <defs>
                             <linearGradient
-                              id={`color-${key}`}
-                              x1="0"
-                              y1="0"
-                              x2="0"
-                              y2="1"
+                              id={`grad-${key}`}
+                              x1="0" y1="0" x2="0" y2="1"
                             >
-                              <stop
-                                offset="5%"
-                                stopColor="#10b981"
-                                stopOpacity={0.3}
-                              />
-                              <stop
-                                offset="95%"
-                                stopColor="#10b981"
-                                stopOpacity={0}
-                              />
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid
-                            strokeDasharray="3 3"
-                            vertical={false}
-                            stroke="#f1f5f9"
-                          />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis
                             dataKey="date"
                             axisLine={false}
                             tickLine={false}
-                            tick={{
-                              fontSize: 11,
-                              fontWeight: 600,
-                              fill: "#94a3b8",
-                            }}
-                            dy={15}
+                            tick={{ fontSize: 10, fontWeight: 600, fill: "#94a3b8" }}
+                            dy={8}
                           />
                           <YAxis
                             axisLine={false}
                             tickLine={false}
-                            tick={{
-                              fontSize: 11,
-                              fontWeight: 600,
-                              fill: "#94a3b8",
-                            }}
+                            tick={{ fontSize: 10, fontWeight: 600, fill: "#94a3b8" }}
                             domain={["auto", "auto"]}
+                            width={40}
                           />
                           <Tooltip
                             contentStyle={{
-                              borderRadius: "16px",
+                              borderRadius: "12px",
                               border: "none",
                               boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                              padding: "12px",
-                            }}
-                            itemStyle={{
-                              fontWeight: 600,
-                              fontSize: "12px",
-                            }}
-                            labelStyle={{
-                              fontWeight: 700,
-                              color: "#1e293b",
-                              marginBottom: "4px",
+                              padding: "10px",
                             }}
                           />
                           <Area
                             type="monotone"
                             dataKey={key}
                             stroke="#10b981"
-                            strokeWidth={3}
+                            strokeWidth={2.5}
                             fillOpacity={1}
-                            fill={`url(#color-${key})`}
+                            fill={`url(#grad-${key})`}
                             animationDuration={1500}
                             connectNulls
                           />
                           {chartData.filter((d) => d[key] !== undefined).length > 6 && (
-                            <Brush
-                              dataKey="date"
-                              height={24}
-                              stroke="#cbd5e1"
-                              fill="#f8fafc"
-                            />
+                            <Brush dataKey="date" height={20} stroke="#cbd5e1" fill="#f8fafc" />
                           )}
                         </AreaChart>
                       </ResponsiveContainer>
@@ -460,36 +373,69 @@ export function PatientProgressTab({
                   }
 
                   return (
-                    <div className="h-full flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100 gap-4 group-hover:bg-slate-50 transition-colors">
-                      <div className="w-20 h-20 bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center animate-in zoom-in-50 duration-500">
-                        {latestPoint ? (
-                          <>
-                            <span className="text-2xl font-black text-slate-900 leading-none">
-                              {latestPoint[key]}
-                            </span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">
-                              {info.unit}
-                            </span>
-                          </>
-                        ) : (
-                          <info.icon className="w-8 h-8 opacity-20 text-slate-400" />
-                        )}
-                      </div>
-                      <div className="text-center space-y-1 px-6">
-                        <p className="text-xs font-bold text-slate-600">
-                          {latestPoint
-                            ? "Primer registro detectado"
-                            : "Sin registros detectados"}
-                        </p>
-                        <p className="text-[10px] font-semibold text-slate-400 leading-tight">
-                          {latestPoint
-                            ? "Se necesitan al menos 2 registros en fechas distintas para generar la curva de tendencia."
-                            : `No hay datos históricos para ${info.label.toLowerCase()}.`}
-                        </p>
-                      </div>
+                    <div className="h-full flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100 gap-2 mx-5">
+                      {latestPoint ? (
+                        <>
+                          <span className="text-2xl font-black text-slate-900">
+                            {latestPoint[key]}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">
+                            {info.unit}
+                          </span>
+                          <p className="text-[10px] font-semibold text-slate-400">
+                            Se necesitan 2 registros para la curva.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <info.icon className="w-7 h-7 opacity-20 text-slate-400" />
+                          <p className="text-[10px] font-semibold text-slate-400 text-center px-4">
+                            Sin datos para {info.label.toLowerCase()}.
+                          </p>
+                        </>
+                      )}
                     </div>
                   );
                 })()}
+              </div>
+
+              {/* Stats below chart — not captured for export */}
+              <div className="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100">
+                <div className="px-4 py-3 text-center">
+                  <p className="text-xl font-black text-slate-800 leading-tight">
+                    {formatMetricValue(firstValueRaw)}
+                  </p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-0.5">
+                    INICIAL
+                  </p>
+                </div>
+                <div className="px-4 py-3 text-center">
+                  <p className="text-xl font-black text-slate-800 leading-tight">
+                    {formatMetricValue(latestValueRaw)}
+                  </p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-0.5">
+                    ACTUAL
+                  </p>
+                </div>
+                <div className="px-4 py-3 text-center">
+                  <p
+                    className={cn(
+                      "text-xl font-black leading-tight",
+                      diffRaw === null || !Number.isFinite(diffRaw)
+                        ? "text-slate-500"
+                        : diffRaw > 0
+                          ? "text-emerald-600"
+                          : diffRaw < 0
+                            ? "text-indigo-600"
+                            : "text-slate-700",
+                    )}
+                  >
+                    {diffDisplay}
+                  </p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-0.5">
+                    CAMBIO
+                  </p>
+                </div>
               </div>
             </div>
           );

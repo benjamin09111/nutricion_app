@@ -21,6 +21,8 @@ Cuando el usuario diga **"Ejecuta el plan"**, **"ejecuta paso a paso"** o frases
 -   **UTF-8 y español**: preservar siempre tildes, eñes y caracteres especiales del español (á, é, í, ó, ú, ü, ñ, ¿, ¡). **NUNCA** introducir caracteres corruptos como "Ã¡", "Ã©", "Ã³", "â€"", "âˆž" o cualquier secuencia con "Ã". Todo el código debe guardarse en UTF-8 sin BOM. Verificar siempre después de editar que los caracteres españoles y especiales se renderizan correctamente.
 -   **Alineación visual simétrica**: en layouts con columnas, grids o paneles, mantener alturas, anchos y márgenes equilibrados para una experiencia visual armónica y profesional.
 -   **Reutilizar componentes**: preferir siempre componentes existentes del proyecto sobre crear nuevos, equilibrando mantenibilidad y simplicidad. No añadir complejidad innecesaria.
+-   **Variables de entorno para URLs**: nunca hardcodear `localhost` ni dominios en código fuente. Usar siempre variables de entorno (`process.env.*`) para URLs y endpoints. Las URLs deben ser configurables por ambiente. Las variables disponibles son `FRONTEND_URL`, `PORTAL_BASE_URL`, `APP_URL`, `NEXT_PUBLIC_API_URL`, etc.
+-   **Modales cierran con backdrop click**: todo `Modal` debe cerrarse al hacer clic fuera. El componente `Modal` ya tiene `closeOnBackdropClick={true}` por defecto. Solo desactivarlo explícitamente con `closeOnBackdropClick={false}` si hay una razón UX válida (ej. confirmación de eliminación).
 
 ## "Terminar sesión"
 

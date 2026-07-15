@@ -88,7 +88,13 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const [hasClearedPatientSelection, setHasClearedPatientSelection] = useState(false);
     const [activityLevel, setActivityLevel] = useState<string>("sedentario");
 
-    const [patients, setPatients] = useState<{ id: string; fullName: string }[]>([]);
+    const [patients, setPatients] = useState<{ id: string; fullName: string; status?: string }[]>([]);
+
+    const activePatients = useMemo(() => {
+        return patients
+            .filter((p) => !p.status || p.status === "Active")
+            .map((p) => ({ id: p.id, fullName: p.fullName }));
+    }, [patients]);
     const [patientData, setPatientData] = useState<Patient | null>(null);
 
     // Form State - Consultation
@@ -235,12 +241,20 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const fetchPatients = async () => {
         setIsPatientsLoading(true);
         try {
-            const response = await fetchApi(`/patients?limit=100`, {
+            const response = await fetchApi(`/patients?limit=100&status=Activos`, {
                 headers: getAuthHeaders(),
             });
             if (response.ok) {
                 const result = await response.json();
-                setPatients((result.data as Array<{ id: string; fullName: string }>).map((p) => ({ id: p.id, fullName: p.fullName })));
+                const seen = new Set<string>();
+                const uniquePatients = ((result.data || []) as Array<{ id: string; fullName: string; status?: string }>)
+                    .filter((p) => {
+                        if (seen.has(p.id)) return false;
+                        seen.add(p.id);
+                        return true;
+                    })
+                    .map((p) => ({ id: p.id, fullName: p.fullName, status: p.status }));
+                setPatients(uniquePatients);
             }
         } catch (error) {
             console.error("Error fetching patients", error);
@@ -504,65 +518,81 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 lg:hidden w-full sm:w-auto">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={handleReset}
-                            className="flex-1 sm:flex-none h-11 px-5 rounded-2xl text-slate-400 font-semibold hover:bg-slate-100 transition-all uppercase text-[10px] tracking-widest border border-slate-100"
-                        >
-                            Reiniciar
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={isSaving}
-                            className="flex-[2] sm:flex-none h-11 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-semibold text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-200 transition-all active:scale-95 group flex items-center justify-center gap-3"
-                        >
-                            {isSaving ? (
-                                <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                            ) : (
-                                <>
-                                    <Save className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
-                                    <span>Guardar</span>
-                                </>
-                            )}
-                        </Button>
-                    </div>
-                </div>
-
-                <div className="fixed right-6 top-1/2 z-50 hidden -translate-y-1/2 xl:flex flex-col gap-4">
-                    <div className="bg-white/80 backdrop-blur-xl p-3 rounded-3xl border border-slate-200 shadow-2xl flex flex-col gap-3">
+                    <div className="hidden lg:flex items-center gap-4 shrink-0">
+                        {hasSelectedPatient && !id && (
+                            <div className={cn(
+                                "flex items-center gap-1.5 text-[11px] font-semibold transition-all duration-500",
+                                isDraftSaving ? "text-indigo-600" : lastDraftSaved ? "text-slate-400" : "text-slate-300",
+                            )}>
+                                <div className={cn(
+                                    "h-1.5 w-1.5 rounded-full transition-colors",
+                                    isDraftSaving ? "bg-indigo-500 animate-pulse" : lastDraftSaved ? "bg-indigo-400" : "bg-slate-300",
+                                )} />
+                                {isDraftSaving ? "Guardando..." : lastDraftSaved ? `Borrador ${lastDraftSaved}` : "Borrador pendiente"}
+                            </div>
+                        )}
                         <button
                             type="button"
                             onClick={handleReset}
-                            className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-600 transition-all flex items-center justify-center group relative"
-                            title="Reiniciar formulario"
+                            className="h-10 px-5 rounded-xl text-slate-400 font-semibold hover:bg-slate-100 transition-all uppercase text-[10px] tracking-widest border border-slate-100 cursor-pointer"
                         >
-                            <RotateCcw className="w-6 h-6 group-hover:rotate-[-45deg] transition-transform duration-300" />
-                            <span className="absolute right-full mr-4 bg-slate-900 text-white text-[10px] font-semibold uppercase px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap tracking-wider">
-                                Reiniciar
-                            </span>
+                            <RotateCcw className="w-4 h-4 inline mr-2" />
+                            Reiniciar
                         </button>
-
-                        <div className="h-px bg-slate-100 mx-2" />
-
                         <button
                             type="submit"
                             disabled={isSaving}
                             className={cn(
-                                "w-14 h-14 rounded-2xl transition-all flex items-center justify-center group relative shadow-lg shadow-emerald-200/50",
-                                isSaving ? "bg-slate-100" : "bg-emerald-600 hover:bg-emerald-700 text-white",
+                                "h-10 px-5 rounded-xl font-semibold text-[10px] uppercase tracking-widest transition-all active:scale-95 cursor-pointer flex items-center gap-2",
+                                isSaving ? "bg-slate-100 text-slate-400" : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200",
                             )}
-                            title={id ? "Actualizar consulta" : "Guardar consulta"}
                         >
                             {isSaving ? (
-                                <span className="w-6 h-6 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
+                                <span className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
                             ) : (
-                                <Save className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                                <Save className="w-4 h-4" />
                             )}
-                            <span className="absolute right-full mr-4 bg-slate-900 text-white text-[10px] font-semibold uppercase px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap tracking-wider">
-                                Guardar
-                            </span>
+                            Guardar
+                        </button>
+                    </div>
+
+                    <div className="lg:hidden flex items-center gap-2 w-full sm:w-auto mt-3">
+                        {hasSelectedPatient && !id && (
+                            <div className={cn(
+                                "flex items-center gap-1.5 text-[11px] font-semibold transition-all duration-500",
+                                isDraftSaving ? "text-indigo-600" : lastDraftSaved ? "text-slate-400" : "text-slate-300",
+                            )}>
+                                <div className={cn(
+                                    "h-1.5 w-1.5 rounded-full transition-colors",
+                                    isDraftSaving ? "bg-indigo-500 animate-pulse" : lastDraftSaved ? "bg-indigo-400" : "bg-slate-300",
+                                )} />
+                                {isDraftSaving ? "Guardando..." : lastDraftSaved ? `Borrador ${lastDraftSaved}` : ""}
+                            </div>
+                        )}
+                        <button
+                            type="button"
+                            onClick={handleReset}
+                            className="flex-1 sm:flex-none h-10 px-4 rounded-xl text-slate-400 font-semibold hover:bg-slate-100 transition-all uppercase text-[10px] tracking-widest border border-slate-100 cursor-pointer"
+                        >
+                            <RotateCcw className="w-4 h-4 inline mr-1" />
+                            Reiniciar
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isSaving}
+                            className={cn(
+                                "flex-[2] sm:flex-none h-10 px-5 rounded-xl font-semibold text-[10px] uppercase tracking-widest transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2",
+                                isSaving ? "bg-slate-100 text-slate-400" : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200",
+                            )}
+                        >
+                            {isSaving ? (
+                                <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <>
+                                    <Save className="w-4 h-4" />
+                                    Guardar
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>
@@ -584,7 +614,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                         Paciente
                                     </label>
                                     <SearchableSelect
-                                        options={patients.map((p) => ({ value: p.id, label: p.fullName }))}
+                                        options={activePatients.map((p) => ({ value: p.id, label: p.fullName }))}
                                         value={formData.patientId}
                                         onChange={(val) => setFormData({ ...formData, patientId: val })}
                                         placeholder="Seleccionar paciente..."

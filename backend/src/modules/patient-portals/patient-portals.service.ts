@@ -328,7 +328,7 @@ export class PatientPortalsService {
     const shareUrl = this.buildPortalUrl(token);
     const recipientEmail = dto.email?.trim() || patient.email || '';
 
-    if (recipientEmail) {
+    if (dto.sendEmail && recipientEmail) {
       this.mailService
         .sendPatientPortalInvitationEmail({
           email: recipientEmail,
@@ -347,6 +347,64 @@ export class PatientPortalsService {
       expiresAt,
       accessCode,
     };
+  }
+
+  async sendInvitationEmail(
+    nutritionistId: string,
+    patientId: string,
+    email?: string,
+  ) {
+    const invitation = await this.prisma.patientPortalInvitation.findFirst({
+      where: { patientId, nutritionistId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        patient: {
+          select: { fullName: true, email: true },
+        },
+        nutritionist: {
+          select: { fullName: true },
+        },
+      },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('No se encontró invitación para este paciente');
+    }
+
+    const accessCode = this.formatAccessCodeForDisplay(
+      this.getPortalAccessCode(patientId, nutritionistId),
+    );
+
+    const recipientEmail = email?.trim() || invitation.email || invitation.patient.email;
+    if (!recipientEmail) {
+      throw new BadRequestException('No hay un correo disponible para enviar la invitación');
+    }
+
+    const { randomBytes } = await import('crypto');
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(rawToken);
+    const shareUrl = this.buildPortalUrl(rawToken);
+
+    try {
+      await this.mailService.sendPatientPortalInvitationEmail({
+        email: recipientEmail,
+        patientName: invitation.patient.fullName,
+        nutritionistName: invitation.nutritionist.fullName,
+        shareUrl,
+        expiresAt: invitation.expiresAt,
+        accessCode,
+      });
+
+      await this.prisma.patientPortalInvitation.update({
+        where: { id: invitation.id },
+        data: { tokenHash, lastSentAt: new Date() },
+      });
+
+      return { success: true, sentTo: recipientEmail };
+    } catch (err) {
+      console.error('Error sending invitation email:', err);
+      throw new BadRequestException('No se pudo enviar el correo de invitación');
+    }
   }
 
   async previewInvitation(token: string) {
@@ -391,8 +449,7 @@ export class PatientPortalsService {
     if (
       invitation.status !== 'ACTIVE' ||
       invitation.revokedAt ||
-      invitation.blockedAt ||
-      invitation.expiresAt.getTime() < Date.now()
+      invitation.blockedAt
     ) {
       throw new ForbiddenException('La invitación expiró o ya no está activa');
     }
@@ -425,7 +482,7 @@ export class PatientPortalsService {
           this.configService.get<string>('PORTAL_JWT_SECRET') ||
           this.configService.get<string>('JWT_SECRET') ||
           'secret',
-        expiresIn: '30d',
+        expiresIn: '100y',
       },
     );
 
@@ -458,7 +515,6 @@ export class PatientPortalsService {
         status: { in: ['ACTIVE', 'PENDING'] },
         revokedAt: null,
         blockedAt: null,
-        expiresAt: { gt: new Date() },
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -505,7 +561,7 @@ export class PatientPortalsService {
           this.configService.get<string>('PORTAL_JWT_SECRET') ||
           this.configService.get<string>('JWT_SECRET') ||
           'secret',
-        expiresIn: '30d',
+        expiresIn: '100y',
       },
     );
 

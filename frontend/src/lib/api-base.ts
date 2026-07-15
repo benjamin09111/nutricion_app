@@ -44,7 +44,6 @@ export async function fetchApi(
         headers,
         credentials: "include" as RequestCredentials,
       };
-      headers.delete("Authorization");
       const responseWithTenant = await fetch(`${origin}${path}`, requestInit);
 
       const hasToken =
@@ -85,8 +84,11 @@ export async function fetchApi(
           import("sonner").then(({ toast }) => {
             toast.error(errorMessage, { id: "session-expired", duration: 3000 });
           });
+          const isPortalRoute =
+            typeof window !== "undefined" &&
+            window.location.pathname.startsWith("/portal");
           setTimeout(() => {
-            window.location.href = "/login";
+            window.location.href = isPortalRoute ? "/portal/login" : "/login";
           }, 2000);
         }
         // Return a promise that never resolves so the component just waits while we redirect

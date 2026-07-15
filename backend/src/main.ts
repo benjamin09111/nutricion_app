@@ -11,6 +11,10 @@ import {
   AUTH_SESSION_COOKIE,
   LEGACY_AUTH_SESSION_COOKIE,
 } from './modules/auth/auth-cookie.constants';
+import {
+  LEGACY_PATIENT_PORTAL_SESSION_COOKIE,
+  PATIENT_PORTAL_SESSION_COOKIE,
+} from './modules/patient-portals/patient-portal-cookie.constants';
 
 // Force IPv4 preference for DNS resolution to avoid ENETUNREACH on IPv6-only cloud networks
 dns.setDefaultResultOrder('ipv4first');
@@ -39,7 +43,9 @@ async function bootstrap() {
     const cookieHeader = req.headers.cookie || '';
     const usesSessionCookie =
       cookieHeader.includes(`${AUTH_SESSION_COOKIE}=`) ||
-      cookieHeader.includes(`${LEGACY_AUTH_SESSION_COOKIE}=`);
+      cookieHeader.includes(`${LEGACY_AUTH_SESSION_COOKIE}=`) ||
+      cookieHeader.includes(`${PATIENT_PORTAL_SESSION_COOKIE}=`) ||
+      cookieHeader.includes(`${LEGACY_PATIENT_PORTAL_SESSION_COOKIE}=`);
 
     if (!unsafeMethod || !usesSessionCookie) {
       return next();

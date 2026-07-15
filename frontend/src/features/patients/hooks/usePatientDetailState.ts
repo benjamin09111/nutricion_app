@@ -145,7 +145,8 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
   >("diario");
 
   useEffect(() => {
-    if (searchParams.get("tab")?.toLowerCase() === "seguimiento") {
+    const tabParam = searchParams.get("tab")?.toLowerCase();
+    if (tabParam === "seguimiento" || tabParam === "acompanamiento") {
       setActiveTab("Seguimiento");
     }
   }, [searchParams]);
@@ -550,11 +551,6 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
   const handleCreatePortalInvite = async () => {
     if (!patient) return;
 
-    if (!patient.email?.trim()) {
-      toast.error("Este paciente no tiene un correo registrado.");
-      return;
-    }
-
     const expiresInDays = Number(portalInviteDays);
     setIsCreatingPortalInvite(true);
     try {
@@ -571,6 +567,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
               Number.isFinite(expiresInDays) && expiresInDays > 0
                 ? Math.min(expiresInDays, 7)
                 : 7,
+            sendEmail: false,
           }),
         },
       );
@@ -606,6 +603,36 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
       toast.error("No se pudo copiar automáticamente.");
     } finally {
       setIsCopyingPortalLink(false);
+    }
+  };
+
+  const handleSendInvitationEmail = async (email?: string) => {
+    if (!patient) return;
+
+    setIsCreatingPortalInvite(true);
+    try {
+      const response = await fetchApi(
+        `/patient-portals/patients/${patient.id}/invitations/send-email`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ email: email?.trim() || undefined }),
+        },
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'No se pudo enviar el correo.');
+      }
+
+      toast.success('Correo enviado con el link de acceso.');
+    } catch (error: any) {
+      toast.error(error?.message || 'No se pudo enviar el correo.');
+    } finally {
+      setIsCreatingPortalInvite(false);
     }
   };
 
@@ -2093,6 +2120,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     handleEdit,
     handleCreatePortalInvite,
     handleCopyPortalLink,
+    handleSendInvitationEmail,
     handleCreatePortalNotification,
     handleCreatePortalMessage,
     handleTogglePortalAccess,

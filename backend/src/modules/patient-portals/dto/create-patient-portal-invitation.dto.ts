@@ -1,6 +1,7 @@
 import {
   ArrayUnique,
   IsArray,
+  IsBoolean,
   IsEmail,
   IsInt,
   IsOptional,
@@ -29,4 +30,8 @@ export class CreatePatientPortalInvitationDto {
   @IsString({ each: true })
   @ArrayUnique()
   deliverableCreationIds?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  sendEmail?: boolean;
 }

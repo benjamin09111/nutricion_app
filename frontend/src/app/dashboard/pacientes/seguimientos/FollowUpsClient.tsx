@@ -230,7 +230,7 @@ export default function FollowUpsClient() {
                     <Button
                       onClick={() =>
                         router.push(
-                          `/dashboard/pacientes/${item.patient.id}?tab=acompanamiento`,
+                          `/dashboard/pacientes/${item.patient.id}?tab=seguimiento`,
                         )
                       }
                       className={cn(

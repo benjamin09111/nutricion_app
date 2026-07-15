@@ -71,28 +71,28 @@ export default function PortalLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fafaf9] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#fafaf9] flex items-center justify-center p-4 sm:p-6">
       {/* Background Decor */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-[10%] -right-[10%] w-[40%] h-[40%] rounded-full bg-emerald-50/50 blur-[120px]" />
         <div className="absolute -bottom-[10%] -left-[10%] w-[40%] h-[40%] rounded-full bg-indigo-50/50 blur-[120px]" />
       </div>
 
-      <div className="w-full max-w-md relative">
+      <div className="w-full max-w-md sm:max-w-lg relative">
         {/* Logo/Header */}
-        <div className="text-center mb-8 space-y-4">
-          <div className="w-20 h-20 rounded-[2rem] bg-white shadow-2xl shadow-indigo-100 flex items-center justify-center mx-auto mb-6 transform hover:scale-105 transition-transform duration-500">
-            <div className="w-14 h-14 rounded-[1.2rem] bg-gradient-to-br from-indigo-600 to-indigo-700 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
+        <div className="text-center mb-6 sm:mb-8 space-y-4">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.5rem] sm:rounded-[2rem] bg-white shadow-2xl shadow-indigo-100 flex items-center justify-center mx-auto mb-4 sm:mb-6 transform hover:scale-105 transition-transform duration-500">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-[1rem] sm:rounded-[1.2rem] bg-gradient-to-br from-indigo-600 to-indigo-700 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
               <ShieldCheck className="h-8 w-8" />
             </div>
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Portal del Paciente</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Portal del Paciente</h1>
           <p className="text-slate-500 font-medium text-sm">Ingresa tus datos para continuar tu seguimiento</p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white rounded-[3rem] p-8 md:p-10 shadow-2xl shadow-indigo-100/50 border border-white relative overflow-hidden group">
-          <form onSubmit={handleLogin} className="space-y-6">
+        <div className="bg-white rounded-[2.25rem] sm:rounded-[3rem] p-6 sm:p-8 md:p-10 shadow-2xl shadow-indigo-100/50 border border-white relative overflow-hidden group">
+          <form onSubmit={handleLogin} className="space-y-5 sm:space-y-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
                 Correo Electrónico
@@ -126,7 +126,7 @@ export default function PortalLoginPage() {
                   value={accessCode}
                   onChange={(e) => setAccessCode(e.target.value.replace(/\D/g, ""))}
                   placeholder="6 dígitos"
-                  className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 font-black tracking-[0.3em] text-xl transition-all"
+                  className="h-14 pl-12 rounded-2xl border-slate-100 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 font-black tracking-[0.2em] sm:tracking-[0.3em] text-lg sm:text-xl transition-all"
                 />
               </div>
             </div>
@@ -134,7 +134,7 @@ export default function PortalLoginPage() {
             <Button
               type="submit"
               isLoading={isLoading}
-              className="w-full h-16 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-slate-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group"
+              className="w-full h-14 sm:h-16 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-xs shadow-xl shadow-slate-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group"
             >
               Iniciar Sesión
               <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />

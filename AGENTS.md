@@ -23,6 +23,7 @@
 6. **UTF-8**: Always preserve Spanish special characters (ñ, á, é, í, ó, ú) in UI copy.
 7. **Scope lock**: Only touch files and logic requested. Avoid code sprawl.
 8. **UI/UX Excellence**: Premium aesthetics, HSL color palettes, no raw placeholders, precise alignment.
+9. **No hardcoded URLs**: Never hardcode `localhost` or any domain-specific URLs in source code. Always use environment variables (`process.env.*`). URLs must be configurable per environment (dev, staging, production).
 
 ## Linguistic Conventions
 - **UI text**: Professional, warm Spanish (español de Chile).

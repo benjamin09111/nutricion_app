@@ -9,7 +9,6 @@ import {
   User,
   Download,
   MessageSquare,
-  Bell,
   Clock,
   Lock,
   Utensils,
@@ -17,6 +16,7 @@ import {
   FileText,
   Send,
   Sparkles,
+  LogOut,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { fetchApi } from "@/lib/api-base";
@@ -26,7 +26,6 @@ import { Textarea } from "@/components/ui/Textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { type PortalVerificationResponse } from "@/features/patient-portal/types";
-import { PortalGuideWidget } from "@/components/patient-portal/PortalGuideWidget";
 
 interface PortalPreview {
   patientName: string;
@@ -89,16 +88,28 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
     setIsMounted(true);
   }, []);
 
-  const loadPortal = useCallback(async (tokenStr: string) => {
+  const loadPortal = useCallback(async (tokenStr?: string) => {
     try {
-      const response = await fetchApi("/patient-portals/me", {
-        headers: { Authorization: `Bearer ${tokenStr}` },
-      });
+      const response = await fetchApi(
+        "/patient-portals/me",
+        tokenStr
+          ? {
+              headers: { Authorization: `Bearer ${tokenStr}` },
+            }
+          : undefined,
+      );
 
       if (response.ok) {
         const data = await response.json();
         setPortalData(data);
       } else {
+        if (token === "me") {
+          safeLocalStorage.removeItem(getPortalStorageKey(token));
+          setAccessToken(null);
+          router.push("/portal/login");
+          return;
+        }
+
         safeLocalStorage.removeItem(getPortalStorageKey(token));
         setAccessToken(null);
       }
@@ -107,7 +118,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, router]);
 
   useEffect(() => {
     if (!isMounted) return;
@@ -117,7 +128,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
     } else if (token === "me") {
       router.push("/portal/login");
     }
-  }, [token, isMounted, router]);
+  }, [token, isMounted, loadPortal]);
 
   useEffect(() => {
     if (token === "me") return;
@@ -195,14 +206,13 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<"diary" | "questions" | "plans" | "notifications" | "messages" | "appointments">("diary");
+  const [activeTab, setActiveTab] = useState<"diary" | "questions" | "plans" | "messages" | "appointments" | "guide">("diary");
   const [entryText, setEntryText] = useState("");
   const [isSubmittingEntry, setIsSubmittingEntry] = useState(false);
   const [visibleEntriesCount, setVisibleEntriesCount] = useState(3);
 
   const [questionText, setQuestionText] = useState("");
   const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
-  const [hasNewNotifications, setHasNewNotifications] = useState(false);
   const [isDownloadingDeliverableId, setIsDownloadingDeliverableId] = useState<string | null>(null);
 
   const buildDietData = (raw: any) => {
@@ -327,24 +337,6 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
     }
   };
 
-  // Check for new notifications
-  useEffect(() => {
-    if (isMounted && portalData?.notifications) {
-      const lastReadCount = safeLocalStorage.getItem(`portal_last_notif_${portalData.patient.id}`);
-      if (portalData.notifications.length > Number(lastReadCount || 0)) {
-        setHasNewNotifications(true);
-      }
-    }
-  }, [portalData, isMounted]);
-
-  // Mark as read when entering the notifications tab
-  useEffect(() => {
-    if (isMounted && activeTab === "notifications" && portalData) {
-      setHasNewNotifications(false);
-      safeLocalStorage.setItem(`portal_last_notif_${portalData.patient.id}`, portalData.notifications.length.toString());
-    }
-  }, [activeTab, portalData, isMounted]);
-
   const handleSubmitEntry = async () => {
     if (!entryText.trim() || !accessToken) return;
 
@@ -450,7 +442,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
 
           <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-200/50 p-8 md:p-10 space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
             <div className="space-y-2 text-center">
-              <h1 className="text-3xl font-black tracking-tight text-slate-900">
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
                 Bienvenido <span className="text-emerald-600">de vuelta</span>
               </h1>
               <p className="text-slate-500 font-medium text-sm px-4">
@@ -497,7 +489,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     placeholder="· · ·   · · ·"
-                    className="h-20 rounded-2xl border-slate-200 bg-slate-50 text-center text-3xl font-black tracking-[0.3em] transition-all focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500"
+                    className="h-16 sm:h-20 rounded-2xl border-slate-200 bg-slate-50 text-center text-2xl sm:text-3xl font-black tracking-[0.2em] sm:tracking-[0.3em] transition-all focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500"
                   />
                 </div>
               </div>
@@ -515,7 +507,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
             <div className="pt-4 border-t border-slate-100 flex flex-col items-center gap-2">
               <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
                 <Calendar className="h-3 w-3" />
-                Vence el: {preview?.expiresAt ? new Date(preview.expiresAt).toLocaleDateString("es-CL", { day: '2-digit', month: 'long' }) : "—"}
+                Acceso permanente — tu código no vence
               </div>
               <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest">
                 Powered by NutriNet
@@ -530,135 +522,92 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
   const { patient } = portalData;
 
   return (
-    <div className="min-h-screen bg-[#fafaf9] text-slate-900 font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       {/* Navbar Superior */}
-      <header className="sticky top-0 z-40 w-full border-b border-slate-100 bg-white/80 px-4 py-3 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-100">
-              <ShieldCheck className="h-5 w-5" />
+      <header className="sticky top-0 z-40 w-full bg-white px-4 py-3 sm:px-6 sm:py-4 shadow-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
+              <ShieldCheck className="h-4 w-4" />
             </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-indigo-600 leading-none mb-0.5">Mi Portal</p>
-              <h2 className="text-sm font-semibold text-slate-800 leading-none">{patient.fullName}</h2>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-600 leading-none mb-0.5">Mi Portal</p>
+              <h2 className="truncate text-sm font-semibold text-slate-800 leading-none">{patient.fullName}</h2>
             </div>
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={() => {
               safeLocalStorage.removeItem(getPortalStorageKey(token));
               window.location.reload();
             }}
-            className="h-9 rounded-xl px-4 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-50 sm:ml-auto"
+            className="h-9 w-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+            aria-label="Cerrar sesión"
           >
-            Cerrar Sesión
-          </Button>
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 pb-28 sm:p-6 sm:pb-8 lg:flex-row lg:gap-8 lg:p-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 pb-24 sm:p-6 sm:pb-8 lg:flex-row lg:gap-8 lg:p-8">
         {/* Sidebar */}
-        <aside className="w-full lg:w-64 shrink-0 space-y-3 lg:space-y-2">
-          <div className="hidden lg:block px-2 mb-4">
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">Navegaci&#243;n</h3>
-          </div>
-          <nav className="flex lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
+        <aside className="hidden lg:block w-full lg:w-56 shrink-0">
+          <nav className="flex lg:flex-col gap-1 overflow-x-auto pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
             <button
               onClick={() => setActiveTab("diary")}
               className={cn(
-                "shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
-                activeTab === "diary" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                "shrink-0 cursor-pointer lg:w-full flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all font-semibold text-[11px] sm:text-xs whitespace-nowrap",
+                activeTab === "diary" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               )}
             >
-              <div className={cn(
-                "w-1.5 h-1.5 rounded-full absolute left-3 transition-all",
-                activeTab === "diary" ? "bg-white scale-100" : "bg-transparent scale-0"
-              )} />
-              <User className="h-5 w-5" />
+              <User className="h-4 w-4" />
               Diario
             </button>
 
             <button
               onClick={() => setActiveTab("messages")}
               className={cn(
-                "shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
-                activeTab === "messages" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                "shrink-0 cursor-pointer lg:w-full flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all font-semibold text-[11px] sm:text-xs whitespace-nowrap",
+                activeTab === "messages" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               )}
             >
-              <div className={cn(
-                "w-1.5 h-1.5 rounded-full absolute left-3 transition-all",
-                activeTab === "messages" ? "bg-white scale-100" : "bg-transparent scale-0"
-              )} />
-              <Send className="h-5 w-5" />
-              Mensajes de tu Nutri
+              <Send className="h-4 w-4" />
+              Mensajes
             </button>
 
             <button
               onClick={() => setActiveTab("questions")}
               className={cn(
-                "shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
-                activeTab === "questions" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                "shrink-0 cursor-pointer lg:w-full flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all font-semibold text-[11px] sm:text-xs whitespace-nowrap",
+                activeTab === "questions" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               )}
             >
-              <div className={cn(
-                "w-1.5 h-1.5 rounded-full absolute left-3 transition-all",
-                activeTab === "questions" ? "bg-white scale-100" : "bg-transparent scale-0"
-              )} />
-              <MessageSquare className="h-5 w-5" />
-              Consultas y Dudas
+              <MessageSquare className="h-4 w-4" />
+              Consultas
             </button>
 
             <button
               onClick={() => setActiveTab("plans")}
               className={cn(
-                "shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
-                activeTab === "plans" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                "shrink-0 cursor-pointer lg:w-full flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all font-semibold text-[11px] sm:text-xs whitespace-nowrap",
+                activeTab === "plans" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               )}
             >
-              <div className={cn(
-                "w-1.5 h-1.5 rounded-full absolute left-3 transition-all",
-                activeTab === "plans" ? "bg-white scale-100" : "bg-transparent scale-0"
-              )} />
-              <Sparkles className="h-5 w-5" />
-              Planes Entregados
-            </button>
-
-            <button
-              onClick={() => setActiveTab("notifications")}
-              className={cn(
-                "shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
-                activeTab === "notifications" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-              )}
-            >
-              <div className={cn(
-                "w-1.5 h-1.5 rounded-full absolute left-3 transition-all",
-                activeTab === "notifications" ? "bg-white scale-100" : "bg-transparent scale-0"
-              )} />
-              <Bell className="h-5 w-5" />
-              <span>Notificaciones Correo</span>
-              {hasNewNotifications && (
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-emerald-500 rounded-full ring-4 ring-white animate-pulse" />
-              )}
+              <Sparkles className="h-4 w-4" />
+              Planes
             </button>
 
             <button
               onClick={() => setActiveTab("appointments")}
+              disabled
               className={cn(
-                "shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-semibold text-xs lg:text-sm group relative whitespace-nowrap",
-                activeTab === "appointments" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-100" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                "shrink-0 cursor-not-allowed lg:w-full flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all font-semibold text-[11px] sm:text-xs whitespace-nowrap relative opacity-50",
+                activeTab === "appointments" ? "bg-slate-100 text-slate-400" : "text-slate-300 hover:bg-slate-50"
               )}
             >
-              <div className={cn(
-                "w-1.5 h-1.5 rounded-full absolute left-3 transition-all",
-                activeTab === "appointments" ? "bg-white scale-100" : "bg-transparent scale-0"
-              )} />
-              <Calendar className="h-5 w-5" />
+              <Lock className="h-4 w-4" />
               Mis Citas
-              {portalData.appointments && portalData.appointments.length > 0 && (
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-emerald-500 rounded-full ring-4 ring-white" />
-              )}
+              <span className="ml-auto shrink-0"><Lock className="h-3 w-3" /></span>
             </button>
 
             {nutritionistSettings?.isScheduleActive && (
@@ -669,28 +618,22 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                     window.open(url, "_blank");
                   }
                 }}
-                className="shrink-0 cursor-pointer lg:w-full flex items-center gap-2 lg:gap-3 px-4 py-2 lg:px-6 lg:py-4 rounded-2xl lg:rounded-3xl transition-all font-bold text-xs lg:text-sm bg-emerald-600 text-white shadow-xl shadow-emerald-100 hover:bg-emerald-700 active:scale-[0.98] mt-0 lg:mt-4 whitespace-nowrap"
+                className="shrink-0 cursor-pointer lg:w-full flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all font-bold text-[11px] sm:text-xs bg-emerald-600 text-white hover:bg-emerald-700 mt-2 whitespace-nowrap"
               >
-                <Calendar className="h-5 w-5" />
+                <Calendar className="h-4 w-4" />
                 Agendar Cita
               </button>
             )}
           </nav>
-
-          <div className="hidden lg:block bg-slate-50/80 rounded-[2.5rem] p-6 border border-slate-100">
-            <div className="space-y-1">
-              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-[0.25em]">Powered by NutriNet</p>
-            </div>
-          </div>
         </aside>
 
         {/* Contenido Principal con Renderizado Condicional */}
-        <main className="min-w-0 flex-1 space-y-8">
+        <main className="min-w-0 flex-1 space-y-6">
           {/* TAB: DIARIO */}
           {activeTab === "diary" && (
             <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {/* Input de Libreta (Estilo Facebook/Tweet) */}
-              <div className="bg-white rounded-[2.5rem] p-6 md:p-8 border border-slate-100 shadow-sm space-y-4">
+              <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-6 md:p-8 border border-slate-100 shadow-sm space-y-4">
                 <div className="flex items-center gap-3 px-1">
                   <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
                     <User className="h-4 w-4" />
@@ -708,7 +651,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                     onClick={handleSubmitEntry}
                     disabled={!entryText.trim() || isSubmittingEntry}
                     isLoading={isSubmittingEntry}
-                    className="rounded-2xl bg-indigo-600 text-white px-8 h-11 font-semibold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
+                    className="w-full sm:w-auto rounded-2xl bg-indigo-600 text-white px-5 sm:px-8 h-11 font-semibold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all"
                   >
                     Publicar para mi nutricionista
                   </Button>
@@ -725,7 +668,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                 {portalData.tracking && portalData.tracking.length > 0 ? (
                   <div className="space-y-4">
                     {portalData.tracking.slice(0, visibleEntriesCount).map((entry: any) => (
-                      <div key={entry.id} className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm space-y-3 hover:border-indigo-100 transition-all group">
+                       <div key={entry.id} className="bg-white rounded-[1.75rem] sm:rounded-[2rem] p-5 sm:p-6 border border-slate-100 shadow-sm space-y-3 hover:border-indigo-100 transition-all group">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-tight">Registro de Paciente</span>
@@ -749,8 +692,8 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                         <Button
                           variant="outline"
                           onClick={() => setVisibleEntriesCount(prev => prev + 10)}
-                          className="rounded-full px-8 border-slate-200 text-slate-500 font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50 hover:text-indigo-600 transition-all group"
-                        >
+                            className="w-full sm:w-auto rounded-full px-4 sm:px-8 border-slate-200 text-slate-500 font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50 hover:text-indigo-600 transition-all group"
+                          >
                           Ver más registros
                           <ChevronRight className="h-3 w-3 ml-2 group-hover:translate-x-1 transition-transform" />
                         </Button>
@@ -758,7 +701,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                     )}
                   </div>
                 ) : (
-                  <div className="bg-white rounded-[2.5rem] border border-slate-100 border-dashed p-12 text-center space-y-3">
+                  <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] border border-slate-100 border-dashed p-8 sm:p-12 text-center space-y-3">
                     <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto text-slate-300">
                       <Calendar className="h-6 w-6" />
                     </div>
@@ -774,7 +717,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
           {activeTab === "questions" && (
             <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {/* Input de Consulta */}
-              <div className="bg-white rounded-[2.5rem] p-6 md:p-8 border border-slate-100 shadow-sm space-y-4">
+              <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-6 md:p-8 border border-slate-100 shadow-sm space-y-4">
                 <div className="flex items-center gap-3 px-1">
                   <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
                     <MessageSquare className="h-4 w-4" />
@@ -792,7 +735,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                     onClick={handleSubmitQuestion}
                     disabled={!questionText.trim() || isSubmittingQuestion}
                     isLoading={isSubmittingQuestion}
-                    className="rounded-2xl bg-emerald-600 text-white px-8 h-11 font-semibold shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all"
+                    className="w-full sm:w-auto rounded-2xl bg-emerald-600 text-white px-5 sm:px-8 h-11 font-semibold shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all"
                   >
                     Enviar consulta
                   </Button>
@@ -811,7 +754,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                     {portalData.questions.map((question: any) => (
                       <div key={question.id} className="space-y-3">
                         {/* Pregunta del Paciente */}
-                        <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm space-y-3">
+                        <div className="bg-white rounded-[1.75rem] sm:rounded-[2rem] p-5 sm:p-6 border border-slate-100 shadow-sm space-y-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-tight">Tu Consulta</span>
@@ -831,9 +774,9 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
 
                         {/* Respuestas del Nutri (Estilo Comentarios) */}
                         {question.replies && question.replies.length > 0 && (
-                          <div className="ml-8 space-y-3 border-l-2 border-slate-100 pl-6 py-1">
+                          <div className="ml-4 sm:ml-8 space-y-3 border-l-2 border-slate-100 pl-4 sm:pl-6 py-1">
                             {question.replies.map((reply: any) => (
-                              <div key={reply.id} className="bg-slate-50/50 rounded-[1.5rem] p-5 space-y-2 border border-slate-100/50">
+                              <div key={reply.id} className="bg-slate-50/50 rounded-[1.25rem] sm:rounded-[1.5rem] p-4 sm:p-5 space-y-2 border border-slate-100/50">
                                 <div className="flex items-center gap-3">
                                   {portalData.patient.nutritionist?.avatarUrl ? (
                                     <img
@@ -867,7 +810,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                     ))}
                   </div>
                 ) : (
-                  <div className="bg-white rounded-[2.5rem] border border-slate-100 border-dashed p-12 text-center space-y-3">
+                  <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] border border-slate-100 border-dashed p-8 sm:p-12 text-center space-y-3">
                     <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto text-slate-300">
                       <MessageSquare className="h-6 w-6" />
                     </div>
@@ -882,7 +825,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
           {/* TAB: PLANES ENTREGADOS */}
           {activeTab === "plans" && (
             <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-slate-100 shadow-sm space-y-2">
+              <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-8 md:p-10 border border-slate-100 shadow-sm space-y-2">
                 <div className="flex items-center gap-3">
                   <div className="w-1.5 h-8 bg-indigo-500 rounded-full" />
                   <div>
@@ -892,7 +835,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                 </div>
               </div>
 
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {portalData.sharedDeliverables.length > 0 ? (
                   portalData.sharedDeliverables.map((del: any) => {
                     const isDiet = del.type === 'DIET';
@@ -900,7 +843,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                     const isFast = del.type === 'FAST_DELIVERABLE';
 
                     return (
-                      <div key={del.id} className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all group flex flex-col justify-between">
+                      <div key={del.id} className="bg-white rounded-[1.75rem] sm:rounded-[2rem] p-5 sm:p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all group flex flex-col justify-between">
                         <div className="space-y-4">
                           <div className="flex items-start justify-between">
                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${isDiet ? 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white' :
@@ -947,8 +890,8 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                     );
                   })
                 ) : (
-                  <div className="sm:col-span-2 lg:col-span-3 border-2 border-slate-100 border-dashed rounded-[3rem] p-20 text-center space-y-4">
-                    <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto text-slate-200">
+                  <div className="sm:col-span-2 lg:col-span-3 border-2 border-slate-100 border-dashed rounded-[2rem] sm:rounded-[3rem] p-8 sm:p-12 lg:p-20 text-center space-y-4">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-center mx-auto text-slate-200">
                       <Download className="h-10 w-10" />
                     </div>
                     <div className="space-y-1">
@@ -972,7 +915,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
               {portalData.messages && portalData.messages.length > 0 ? (
                 <div className="space-y-6">
                   {portalData.messages.map((msg: any) => (
-                    <div key={msg.id} className="flex gap-4 max-w-2xl">
+                    <div key={msg.id} className="flex gap-3 sm:gap-4 max-w-2xl">
                       <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-100">
                         {patient.nutritionist?.avatarUrl ? (
                           <img src={patient.nutritionist.avatarUrl} alt="Nutri" className="w-full h-full object-cover rounded-2xl" />
@@ -980,7 +923,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                           <User className="h-5 w-5 text-white" />
                         )}
                       </div>
-                      <div className="bg-white rounded-[2rem] rounded-tl-none p-6 border border-slate-100 shadow-sm space-y-2 relative">
+                      <div className="bg-white rounded-[1.75rem] sm:rounded-[2rem] rounded-tl-none p-4 sm:p-6 border border-slate-100 shadow-sm space-y-2 relative">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{patient.nutritionist?.fullName}</span>
                           <span className="text-[10px] font-bold text-slate-300">•</span>
@@ -996,8 +939,8 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                   ))}
                 </div>
               ) : (
-                <div className="bg-white rounded-[3rem] border border-slate-100 border-dashed p-20 text-center space-y-4">
-                  <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto text-slate-200">
+                <div className="bg-white rounded-[2rem] sm:rounded-[3rem] border border-slate-100 border-dashed p-8 sm:p-12 lg:p-20 text-center space-y-4">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-center mx-auto text-slate-200">
                     <Send className="h-10 w-10" />
                   </div>
                   <div className="space-y-1">
@@ -1009,90 +952,10 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
             </section>
           )}
 
-          {/* TAB: NOTIFICACIONES POR CORREO */}
-          {activeTab === "notifications" && (
-            <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-slate-100 shadow-sm space-y-8">
-                <div className="flex flex-col md:flex-row items-center gap-8">
-                  {patient.nutritionist?.avatarUrl ? (
-                    <img
-                      src={patient.nutritionist.avatarUrl}
-                      alt={patient.nutritionist.fullName}
-                      className="w-24 h-24 rounded-[2rem] object-cover border border-indigo-100 shadow-sm"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 rounded-[2rem] bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100 shadow-sm">
-                      <User className="h-10 w-10" />
-                    </div>
-                  )}
-                  <div className="text-center md:text-left space-y-1">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Tu Profesional</p>
-                    <h2 className="text-2xl font-semibold text-slate-900">{patient.nutritionist?.fullName}</h2>
-                    <p className="text-slate-500 font-medium">Nutricionista Clínico a cargo de tu proceso</p>
-                  </div>
-                </div>
-
-                <div className="space-y-6 pt-8 border-t border-slate-100">
-                  <div className="flex items-center gap-2 px-2">
-                    <div className="w-1 h-4 bg-emerald-500 rounded-full" />
-                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Historial de Notificaciones Correo</h3>
-                  </div>
-
-                  {portalData.notifications && portalData.notifications.length > 0 ? (
-                    <div className="space-y-4">
-                      {portalData.notifications.map((notif: any) => {
-                        const isAlert = notif.payload?.notificationType === 'ALERT';
-                        return (
-                          <div key={notif.id} className="bg-slate-50/50 rounded-[2rem] p-8 border border-slate-100 space-y-4 relative overflow-hidden group">
-                            {isAlert && <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />}
-                            <div className="flex items-center justify-between relative z-10">
-                              <div className="flex items-center gap-3">
-                                <span className={cn(
-                                  "px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest ring-1",
-                                  isAlert ? "bg-orange-50 text-orange-700 ring-orange-100" : "bg-emerald-50 text-emerald-700 ring-emerald-100"
-                                )}>
-                                  {notif.payload?.notificationType || "INFO"}
-                                </span>
-                                <span className="text-[10px] text-slate-300">•</span>
-                                <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {new Date(notif.createdAt).toLocaleDateString("es-CL", { day: '2-digit', month: 'long' })}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="space-y-2 relative z-10">
-                              <h4 className="text-lg font-bold text-slate-900 leading-tight">
-                                {notif.payload?.notificationTitle || "Aviso de tu nutricionista"}
-                              </h4>
-                              <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                                {notif.body}
-                              </p>
-                            </div>
-                            <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
-                              <Bell className="w-24 h-24" />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="bg-slate-50/50 rounded-[2.5rem] border border-slate-100 border-dashed p-12 text-center space-y-3">
-                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mx-auto text-slate-200">
-                        <Bell className="h-6 w-6" />
-                      </div>
-                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Sin notificaciones</h3>
-                      <p className="text-[10px] text-slate-400 max-w-xs mx-auto">No has recibido avisos por correo todavía.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
-          )}
-
           {/* TAB: MIS CITAS */}
           {activeTab === "appointments" && (
             <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-slate-100 shadow-sm space-y-2">
+              <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-8 md:p-10 border border-slate-100 shadow-sm space-y-2">
                 <div className="flex items-center gap-3">
                   <div className="w-1.5 h-8 bg-indigo-500 rounded-full" />
                   <div>
@@ -1105,7 +968,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
               {portalData.appointments && portalData.appointments.length > 0 ? (
                 <div className="space-y-6">
                   {portalData.appointments.map((apt: any) => (
-                    <div key={apt.id} className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all group">
+                    <div key={apt.id} className="bg-white rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all group">
                       {(() => {
                         const status = String(apt.status || "").toUpperCase();
                         const statusLabel =
@@ -1160,8 +1023,8 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                   ))}
                 </div>
               ) : (
-                <div className="bg-white rounded-[3rem] border border-slate-100 border-dashed p-20 text-center space-y-4">
-                  <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto text-slate-200">
+                <div className="bg-white rounded-[2rem] sm:rounded-[3rem] border border-slate-100 border-dashed p-8 sm:p-12 lg:p-20 text-center space-y-4">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-[1.5rem] sm:rounded-[2rem] flex items-center justify-center mx-auto text-slate-200">
                     <Calendar className="h-10 w-10" />
                   </div>
                   <div className="space-y-1">
@@ -1172,10 +1035,142 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
               )}
             </section>
           )}
+
+          {/* TAB: GUÍA */}
+          {activeTab === "guide" && (
+            <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-8 md:p-10 border border-slate-100 shadow-sm space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-1.5 h-8 bg-indigo-500 rounded-full" />
+                  <div>
+                    <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Guía del portal</h1>
+                    <p className="text-slate-400 font-medium text-sm">Aprende a usar tu espacio de seguimiento.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[1.75rem] sm:rounded-[2rem] border border-emerald-100 bg-emerald-50/70 p-5 sm:p-6">
+                <div className="flex items-center gap-2 text-emerald-700 mb-3">
+                  <Sparkles className="h-4 w-4" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.22em]">Qué es este portal</span>
+                </div>
+                <p className="text-sm leading-relaxed text-slate-700">
+                  Este es tu espacio de seguimiento con tu nutricionista. Aquí puedes registrar tu progreso,
+                  ver tus materiales y mantenerte al día con lo que necesitas hacer.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {[
+                  {
+                    icon: BookOpen,
+                    title: "Comparte cómo vas",
+                    description: "En Diario puedes escribir qué comiste, cómo te sentiste y cualquier cambio importante de tu día.",
+                  },
+                  {
+                    icon: Send,
+                    title: "Revisa tus mensajes",
+                    description: "En Mensajes verás avisos, recomendaciones y saludos que tu nutricionista te envíe.",
+                  },
+                  {
+                    icon: MessageSquare,
+                    title: "Haz tus preguntas",
+                    description: "En Consultas puedes dejar dudas sobre tu plan, tus comidas o lo que necesites revisar con tu nutricionista.",
+                  },
+                  {
+                    icon: Download,
+                    title: "Revisa tus entregables",
+                    description: "En Planes verás tus dietas, recetas y documentos para descargarlos cuando los necesites.",
+                  },
+                ].map((step) => (
+                  <div key={step.title} className="rounded-[1.4rem] border border-slate-100 bg-white p-4 sm:p-5 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+                        <step.icon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-slate-900">{step.title}</p>
+                        <p className="mt-1 text-sm leading-relaxed text-slate-600">{step.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4 sm:p-5 text-sm leading-relaxed text-slate-600">
+                <p className="font-black text-slate-900">Recomendación rápida</p>
+                <p className="mt-2">
+                  Empieza por <span className="font-semibold text-indigo-700">Diario</span>, revisa los mensajes de
+                  tu nutricionista y vuelve aquí cuando necesites recordar qué hacer.
+                </p>
+              </div>
+            </section>
+          )}
         </main>
       </div>
 
-      <PortalGuideWidget />
+      {/* Mobile Bottom Navbar */}
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur border-t border-slate-200 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <div className="flex items-stretch">
+          <button
+            onClick={() => setActiveTab("diary")}
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-bold transition-colors cursor-pointer",
+              activeTab === "diary" ? "text-indigo-600" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <User className="h-5 w-5" />
+            <span>Diario</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("messages")}
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-bold transition-colors cursor-pointer",
+              activeTab === "messages" ? "text-indigo-600" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <Send className="h-5 w-5" />
+            <span>Mensajes</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("questions")}
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-bold transition-colors cursor-pointer",
+              activeTab === "questions" ? "text-indigo-600" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <MessageSquare className="h-5 w-5" />
+            <span>Consultas</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("plans")}
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-bold transition-colors cursor-pointer",
+              activeTab === "plans" ? "text-indigo-600" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <Sparkles className="h-5 w-5" />
+            <span>Planes</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("guide")}
+            className={cn(
+              "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-bold transition-colors cursor-pointer",
+              activeTab === "guide" ? "text-indigo-600" : "text-slate-400 hover:text-slate-600"
+            )}
+          >
+            <BookOpen className="h-5 w-5" />
+            <span>Guía</span>
+          </button>
+          <button
+            disabled
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-bold opacity-40 cursor-not-allowed text-slate-300"
+          >
+            <Lock className="h-5 w-5" />
+            <span>Mis Citas</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

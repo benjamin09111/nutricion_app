@@ -562,7 +562,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       {/* ── TABS NAVBAR ────────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
-        <div className="flex gap-0 border-b border-slate-100 overflow-x-auto overflow-y-hidden no-scrollbar">
+        <div className="flex gap-0 overflow-x-auto overflow-y-hidden no-scrollbar">
           {tabs.map((tab) => (
             <button
               key={tab.label}
@@ -576,12 +576,12 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               }}
               disabled={tab.disabled}
               className={cn(
-                "px-4 py-2.5 text-[11px] font-black uppercase tracking-wider transition-all duration-200 whitespace-nowrap border-b-2 -mb-px shrink-0",
+                "px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap shrink-0 border-b-2 -mb-px",
                 tab.disabled || (isEditing && tab.label !== "Ficha clínica")
                   ? "text-slate-300 border-transparent cursor-not-allowed"
                   : state.activeTab === tab.label
-                  ? "text-emerald-700 border-emerald-600 cursor-pointer"
-                  : "text-slate-500 border-transparent hover:text-slate-800 hover:border-slate-200 cursor-pointer",
+                  ? "text-emerald-700 border-emerald-500 cursor-pointer"
+                  : "text-slate-400 border-transparent hover:text-slate-600 cursor-pointer",
               )}
             >
               <span className="inline-flex items-center gap-1.5 relative">
@@ -703,6 +703,12 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             isCreatingPortalMessage={state.isCreatingPortalMessage}
             handleCreatePortalMessage={state.handleCreatePortalMessage}
             setActiveTab={state.setActiveTab}
+            portalAccessCode={state.portalAccessCode}
+            generatedPortalLink={state.generatedPortalLink}
+            handleCopyPortalLink={state.handleCopyPortalLink}
+            handleSendInvitationEmail={state.handleSendInvitationEmail}
+            isCreatingPortalInvite={state.isCreatingPortalInvite}
+            setIsPortalInviteModalOpen={state.setIsPortalInviteModalOpen}
             isPortalNotificationModalOpen={state.isPortalNotificationModalOpen}
             setIsPortalNotificationModalOpen={state.setIsPortalNotificationModalOpen}
             portalNotificationTitle={state.portalNotificationTitle}
@@ -722,6 +728,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         isOpen={state.isPortalInviteModalOpen}
         onClose={() => state.setIsPortalInviteModalOpen(false)}
         title="Invitar al portal del paciente"
+        closeOnBackdropClick
       >
         <div className="space-y-5 py-2">
           <div className="rounded-3xl border border-emerald-100 bg-emerald-50/70 p-4">
@@ -735,15 +742,15 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 para la comunicación, registro diario y seguimiento.
               </p>
               <p className="font-bold italic">
-                Deberás compartir el enlace manualmente. El link expira en 7 días.
+                El link expira en 7 días. Una vez que el paciente ingresa su código, el portal queda activo de forma permanente.
               </p>
             </div>
           </div>
 
-          {state.generatedPortalLink && (
+          {state.generatedPortalLink ? (
             <div className="space-y-3 rounded-3xl border border-slate-100 bg-slate-50 p-4">
               <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-                Último enlace generado
+                Link de acceso
               </p>
               <p className="break-all text-sm font-semibold text-slate-800">
                 {state.generatedPortalLink}
@@ -751,7 +758,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               {state.portalAccessCode && (
                 <div className="rounded-2xl border border-emerald-100 bg-white px-4 py-3">
                   <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">
-                    Código fijo
+                    Código de acceso del paciente
                   </p>
                   <p className="mt-1 text-lg font-black tracking-[0.28em] text-slate-900">
                     {state.portalAccessCode}
@@ -761,25 +768,52 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <div className="flex gap-2">
                 <Button type="button" variant="outline" className="flex-1 rounded-2xl" onClick={() => state.handleCopyPortalLink()}>
                   <Copy className="mr-2 h-4 w-4" />
-                  Copiar
+                  Copiar link
                 </Button>
                 <Button type="button" className="flex-1 rounded-2xl" onClick={() => window.open(state.generatedPortalLink, "_blank", "noopener,noreferrer")}>
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Abrir
                 </Button>
               </div>
+
+              <div className="border-t border-slate-100 pt-3 space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+                  Enviar por correo
+                </p>
+                <Input
+                  type="email"
+                  placeholder="Correo del paciente (opcional)"
+                  defaultValue={patient.email || ""}
+                  className="h-10 rounded-xl border-slate-200 text-sm"
+                  id="portal-invite-email"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full rounded-2xl"
+                  onClick={() => {
+                    const emailInput = document.getElementById("portal-invite-email") as HTMLInputElement;
+                    const email = emailInput?.value?.trim();
+                    void state.handleSendInvitationEmail(email || undefined);
+                  }}
+                  isLoading={state.isCreatingPortalInvite}
+                >
+                  <Mail className="mr-2 h-4 w-4" />
+                  Enviar link por correo
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="ghost" onClick={() => state.setIsPortalInviteModalOpen(false)} className="rounded-2xl px-5 cursor-pointer">
+                Cancelar
+              </Button>
+              <Button onClick={state.handleCreatePortalInvite} isLoading={state.isCreatingPortalInvite} className="rounded-2xl bg-emerald-600 px-5 text-white hover:bg-emerald-700 cursor-pointer">
+                <Link2 className="mr-2 h-4 w-4" />
+                Generar link
+              </Button>
             </div>
           )}
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={() => state.setIsPortalInviteModalOpen(false)} className="rounded-2xl px-5 cursor-pointer">
-              Cancelar
-            </Button>
-            <Button onClick={state.handleCreatePortalInvite} isLoading={state.isCreatingPortalInvite} className="rounded-2xl bg-emerald-600 px-5 text-white hover:bg-emerald-700 cursor-pointer">
-              <Send className="mr-2 h-4 w-4" />
-              Generar link
-            </Button>
-          </div>
         </div>
       </Modal>
 

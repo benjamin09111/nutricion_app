@@ -7,6 +7,15 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../../prisma/prisma.service';
+import {
+  LEGACY_PATIENT_PORTAL_SESSION_COOKIE,
+  PATIENT_PORTAL_SESSION_COOKIE,
+} from '../patient-portal-cookie.constants';
+
+const readCookie = (cookieHeader: string, name: string) => {
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  return match ? decodeURIComponent(match[1]) : null;
+};
 
 @Injectable()
 export class PatientPortalAuthGuard implements CanActivate {
@@ -19,7 +28,11 @@ export class PatientPortalAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers?.authorization || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const cookieHeader = request.headers?.cookie || '';
+    const token = authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : readCookie(cookieHeader, PATIENT_PORTAL_SESSION_COOKIE) ||
+        readCookie(cookieHeader, LEGACY_PATIENT_PORTAL_SESSION_COOKIE);
 
     if (!token) {
       throw new UnauthorizedException('No hay sesión de portal activa');
@@ -60,8 +73,7 @@ export class PatientPortalAuthGuard implements CanActivate {
         invitation.nutritionistId !== payload.nutritionistId ||
         invitation.status !== 'ACTIVE' ||
         invitation.revokedAt ||
-        invitation.blockedAt ||
-        invitation.expiresAt.getTime() < Date.now()
+        invitation.blockedAt
       ) {
         throw new UnauthorizedException(
           'El acceso del portal está bloqueado o expiró',
