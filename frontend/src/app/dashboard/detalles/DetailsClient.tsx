@@ -32,10 +32,12 @@ import Cookies from "js-cookie";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
 import { getCurrentUser } from "@/lib/current-user";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 import { DEFAULT_CONSTRAINTS, DEFAULT_METRICS } from "@/lib/constants";
 
 export default function DetailsClient() {
+  const { currentPlan } = useSubscription();
   const [tags, setTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -467,7 +469,20 @@ export default function DetailsClient() {
               <Button
                 variant="outline"
                 className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
-                onClick={() => setIsAddModalOpen(true)}
+                onClick={() => {
+                  if (currentPlan?.key === "free") {
+                    window.dispatchEvent(
+                      new CustomEvent("show-freemium-upgrade", {
+                        detail: {
+                          description:
+                            "Crear nuevos Detalles personalizados (restricciones, hashtags y métricas) es una característica exclusiva de los planes de pago. En el plan Freemium puedes usar todos los Detalles disponibles en la plataforma.",
+                        },
+                      })
+                    );
+                  } else {
+                    setIsAddModalOpen(true);
+                  }
+                }}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Nueva Restricción
@@ -564,8 +579,19 @@ export default function DetailsClient() {
                   variant="outline"
                   className="rounded-2xl font-semibold border-indigo-100 text-indigo-600 hover:bg-indigo-50"
                   onClick={() => {
-                    setNewTag("#");
-                    setIsAddModalOpen(true);
+                    if (currentPlan?.key === "free") {
+                      window.dispatchEvent(
+                        new CustomEvent("show-freemium-upgrade", {
+                          detail: {
+                            description:
+                              "Crear nuevos Detalles personalizados (restricciones, hashtags y métricas) es una característica exclusiva de los planes de pago. En el plan Freemium puedes usar todos los Detalles disponibles en la plataforma.",
+                          },
+                        })
+                      );
+                    } else {
+                      setNewTag("#");
+                      setIsAddModalOpen(true);
+                    }
                   }}
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -638,7 +664,20 @@ export default function DetailsClient() {
             <Button
               variant="outline"
               className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
-              onClick={() => setIsAddMetricModalOpen(true)}
+              onClick={() => {
+                if (currentPlan?.key === "free") {
+                  window.dispatchEvent(
+                    new CustomEvent("show-freemium-upgrade", {
+                      detail: {
+                        description:
+                          "Crear nuevos Detalles personalizados (restricciones, hashtags y métricas) es una característica exclusiva de los planes de pago. En el plan Freemium puedes usar todos los Detalles disponibles en la plataforma.",
+                      },
+                    })
+                  );
+                } else {
+                  setIsAddMetricModalOpen(true);
+                }
+              }}
             >
               <Plus className="w-4 h-4 mr-2" />
               Nueva Métrica

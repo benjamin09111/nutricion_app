@@ -26,6 +26,7 @@ import { Filtros_B } from "@/components/ui/Filtros_B";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { Creation, CreationType } from "@/features/creations";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
@@ -55,6 +56,7 @@ export default function CreationsClient({
   onUpdate
 }: CreationsClientProps) {
   const router = useRouter();
+  const { currentPlan } = useSubscription();
   const [selectedType, setSelectedType] = useState<CreationType | "Todos">("Todos");
   const [selectedTag, setSelectedTag] = useState<string>("Todos");
   const [searchTerm, setSearchTerm] = useState("");
@@ -384,6 +386,17 @@ export default function CreationsClient({
   };
 
   const handleEdit = (item: Creation) => {
+    if (currentPlan?.key === "free") {
+      window.dispatchEvent(
+        new CustomEvent("show-freemium-upgrade", {
+          detail: {
+            description:
+              "Editar creaciones guardadas es una característica exclusiva de los planes de pago. Mejora tu plan para modificar tus creaciones.",
+          },
+        })
+      );
+      return;
+    }
     switch (item.type) {
       case CreationType.DIET:
         localStorage.setItem("currentDietEditId", item.id);

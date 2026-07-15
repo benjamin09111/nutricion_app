@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Crown, ShieldCheck, Sparkles, Check, Loader2 } from "lucide-react";
+import { Crown, ShieldCheck, Sparkles, Check, Loader2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
@@ -310,6 +310,32 @@ export function MembershipPlanSection({
               <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-slate-300" />Cambio de plan con lectura clara de upgrade/downgrade.</li>
             </ul>
           </div>
+          {currentPlan?.key === "free" && (
+            <div className="mt-4 rounded-2xl border border-rose-100 bg-rose-50/50 p-4">
+              <div className="flex items-center gap-2">
+                <XCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                <p className="text-sm font-bold text-rose-900">Restricciones Plan FREEMIUM</p>
+              </div>
+              <ul className="mt-3 space-y-2 text-xs font-semibold text-rose-700 leading-relaxed">
+                <li className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-rose-400" />
+                  No se permite editar la información de pacientes.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-rose-400" />
+                  Límite máximo de 3 creaciones guardadas en total (deberás eliminar una para guardar otra).
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-rose-400" />
+                  No se permite editar creaciones ya guardadas.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-rose-400" />
+                  Solo puedes usar Detalles globales (no crear nuevos).
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 

@@ -27,6 +27,7 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronRight,
+  Megaphone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,12 @@ const groups: SidebarGroup[] = [
       { name: "Consultas", href: "/dashboard/consultas", icon: CalendarDays, tutorialPath: "/dashboard/consultas" },
       { name: "Fichas clínicas", href: "/dashboard/fichas-clinicas", icon: FileText, hidden: true },
       { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, locked: true },
+    ],
+  },
+  {
+    title: "Crecimiento",
+    items: [
+      { name: "Marketing", href: "/dashboard/marketing", icon: Megaphone, locked: true },
     ],
   },
   {
@@ -122,20 +129,20 @@ export function Sidebar() {
 
   const getInitialOpenGroups = (): Record<string, boolean> => {
     if (typeof window === "undefined") {
-      return { "Administración": true };
+      return { "Administración": true, "Crecimiento": true };
     }
     try {
       const stored = localStorage.getItem(SIDEBAR_GROUPS_STORAGE_KEY);
       if (stored === null) {
-        return { "Administración": true };
+        return { "Administración": true, "Crecimiento": true };
       }
       const parsed = JSON.parse(stored) as Record<string, boolean>;
       if (typeof parsed !== "object" || parsed === null) {
-        return { "Administración": true };
+        return { "Administración": true, "Crecimiento": true };
       }
-      return { "Administración": true, ...parsed };
+      return { "Administración": true, "Crecimiento": true, ...parsed };
     } catch {
-      return { "Administración": true };
+      return { "Administración": true, "Crecimiento": true };
     }
   };
 
@@ -154,11 +161,12 @@ export function Sidebar() {
 
   const getGroupPriority = (group: SidebarGroup) => {
     if (group.title === "Administración") return 0;
-    if (group.title === "Nutrición y Dietética") return 1;
-    if (group.title === "Ejercicio y Deporte") return 2;
-    if (group.title === "Herramientas") return 3;
-    if (group.title === "Agentes & IA") return 4;
-    if (group.title === "Ayuda") return 5;
+    if (group.title === "Crecimiento") return 1;
+    if (group.title === "Nutrición y Dietética") return 2;
+    if (group.title === "Ejercicio y Deporte") return 3;
+    if (group.title === "Herramientas") return 4;
+    if (group.title === "Agentes & IA") return 5;
+    if (group.title === "Ayuda") return 6;
     return 10;
   };
 
@@ -270,8 +278,11 @@ export function Sidebar() {
                             onClick={(event) => {
                               if (isLocked) {
                                 event.preventDefault();
+                                const desc = item.name === "Marketing"
+                                  ? "Próximamente: conecta con potenciales pacientes que buscan un nutricionista. Perfil público, directorio especializado y canal de captación."
+                                  : `El módulo "${item.name}" estará disponible en futuras actualizaciones.`;
                                 toast.info("Próximamente", {
-                                  description: `El módulo "${item.name}" estará disponible en futuras actualizaciones.`,
+                                  description: desc,
                                 });
                               }
                             }}

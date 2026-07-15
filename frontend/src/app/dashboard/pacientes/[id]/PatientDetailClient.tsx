@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSubscription } from "@/context/SubscriptionContext";
+import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeModal";
 import {
   Save,
   ShieldCheck,
@@ -141,6 +143,8 @@ function getValidationAlerts(
 export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const router = useRouter();
   const state = usePatientDetailState({ id });
+  const { currentPlan } = useSubscription();
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
 
@@ -189,10 +193,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     patient, bmi, get, motivoConsulta, diagnosticoNutricional, state.clinicalRecordDraft,
   );
 
-  const tabs: Array<{ label: TabType; disabled: boolean }> = [
+  const tabs: Array<{ label: TabType; disabled: boolean; hidden?: boolean }> = [
     { label: "Ficha clínica", disabled: false },
     { label: "Progreso", disabled: false },
-    { label: "Seguimiento", disabled: false },
+    { label: "Seguimiento", disabled: false, hidden: true },
     { label: "Consultas", disabled: false },
     { label: "Planes", disabled: false },
     { label: "Exámenes", disabled: true },
@@ -261,7 +265,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                   </button>
 
                   <button
-                    onClick={state.handleEdit}
+                    onClick={() => {
+                      if (currentPlan?.key === "free") {
+                        setIsUpgradeModalOpen(true);
+                      } else {
+                        state.handleEdit();
+                      }
+                    }}
                     className="h-8 w-8 rounded-xl border border-slate-200 text-slate-500 bg-white hover:bg-slate-50 hover:text-indigo-600 transition-all cursor-pointer flex items-center justify-center"
                     title="Editar paciente"
                   >
@@ -563,7 +573,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       {/* ── TABS NAVBAR ────────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
         <div className="flex gap-0 overflow-x-auto overflow-y-hidden no-scrollbar">
-          {tabs.map((tab) => (
+          {tabs.filter((t) => !t.hidden).map((tab) => (
             <button
               key={tab.label}
               onClick={() => {
@@ -887,6 +897,12 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         description="¿Estás seguro de que deseas eliminar esta consulta? Se eliminarán también las métricas asociadas."
         confirmText="Sí, eliminar"
         variant="destructive"
+      />
+
+      <FreemiumUpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        description="Editar la información de un paciente es una característica exclusiva de los planes de pago. Mejora tu plan para actualizar los datos de tus pacientes."
       />
     </div>
   );

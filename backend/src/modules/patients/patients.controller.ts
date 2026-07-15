@@ -17,6 +17,7 @@ import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateExamDto } from './dto/create-exam.dto';
 import { UpdateClinicalRecordDto } from './dto/update-clinical-record.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { PatientDataAccessGuard } from './guards/patient-data-access.guard';
 import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
 import { CacheTTL } from '@nestjs/cache-manager';
 import { PermissionsGuard } from '../permissions/permissions.guard';
@@ -24,7 +25,7 @@ import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 
 @Controller('patients')
-@UseGuards(AuthGuard, PermissionsGuard)
+@UseGuards(AuthGuard, PatientDataAccessGuard, PermissionsGuard)
 @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 @UseInterceptors(HttpCacheInterceptor)
 @CacheTTL(300000) // 5 minutes

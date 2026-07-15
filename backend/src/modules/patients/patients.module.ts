@@ -6,6 +6,7 @@ import { TagsModule } from '../tags/tags.module';
 import { MetricsModule } from '../metrics/metrics.module';
 import { PermissionsModule } from '../permissions/permissions.module';
 import { CalculationsModule } from '../calculations/calculations.module';
+import { PatientDataAccessGuard } from './guards/patient-data-access.guard';
 
 @Module({
   imports: [
@@ -15,8 +16,9 @@ import { CalculationsModule } from '../calculations/calculations.module';
     PermissionsModule,
     CalculationsModule,
   ],
-  providers: [PatientsService],
+  providers: [PatientsService, PatientDataAccessGuard],
   controllers: [PatientsController],
   exports: [PatientsService],
 })
 export class PatientsModule {}
+

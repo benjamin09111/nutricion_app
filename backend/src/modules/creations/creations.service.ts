@@ -111,6 +111,54 @@ export class CreationsService {
       );
     }
 
+    // Validar plan y límite de creaciones
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      include: { subscription: { include: { plan: true } } },
+    });
+
+    const planKey = account?.subscription?.plan?.slug || 'free';
+    if (planKey === 'free') {
+      const creationsCount = await this.prisma.creation.count({
+        where: { nutritionistId: resolvedNutritionistId },
+      });
+
+      if (creationsCount >= 3) {
+        const creationFingerprint = buildCreationFingerprint({
+          type,
+          content,
+          metadata,
+        });
+
+        const existingCreations = await this.prisma.creation.findMany({
+          where: {
+            nutritionistId: resolvedNutritionistId,
+            type,
+          },
+          select: {
+            type: true,
+            content: true,
+            metadata: true,
+          },
+        });
+
+        const duplicateCreation = existingCreations.find(
+          (creation) =>
+            buildCreationFingerprint({
+              type: creation.type,
+              content: creation.content,
+              metadata: creation.metadata || {},
+            }) === creationFingerprint,
+        );
+
+        if (!duplicateCreation) {
+          throw new BadRequestException(
+            'Has alcanzado el límite de 3 creaciones guardadas en tu plan Freemium. Elimina una existente o mejora tu plan para continuar.',
+          );
+        }
+      }
+    }
+
     // Validar que el nombre no esté vacío
     if (!name || name.trim() === '') {
       throw new BadRequestException('El nombre de la creación es obligatorio');

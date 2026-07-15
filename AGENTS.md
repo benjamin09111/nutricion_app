@@ -32,8 +32,19 @@
 ## Core Development Triggers
 When the user says **"crear un plan"** or **"terminar sesión"**, follow the rules defined in `.agents/rules/core.md`. These are always active and must be respected.
 
+## Business & Architectural Guidelines (Teacher Feedback)
+Guidelines aligned with the feedback received on the project presentation (`feedback_teachers.md`):
+- **User (Patient) Platform**: Future implementation of a dedicated patient portal for food logging, nutrition values, and psychological reward systems (points/stars for pauta adherence).
+- **Invisible AI**: Any patient-facing AI feature (like chat) must be completely transparent; the patient must believe they are communicating directly with their nutritionist, never disclosing the AI's presence.
+- **Freemium Limits (Conversion-Oriented)**: Restrict features for free plans (e.g., creation of patients allowed but no editing, no editing of plans, and strict AI usage limits). The UI must clearly indicate these "cut-off" limitations to prompt upgrade/payment.
+- **Data Protection & Encryption**:
+  - **End-to-End Privacy**: Patient data must be encrypted/coded internally so that *only* the assigned nutritionist can access it (admins must not have visibility).
+  - **Compliance Icons**: Include a prominent "privacy & information" icon in the patients section detailing compliance with data laws, and keep Terms & Conditions updated.
+- **Client Acquisition Integration**: Plan for public profiles to list nutritionists' specialties and funnel patients from gyms and other physical points.
+
 ## On-Demand Knowledge
 Detailed documentation and playbooks are loaded automatically on matching:
 - Playbooks: `.agents/skills/<skill-name>/SKILL.md` (e.g. `nestjs-module`, `prisma-migration`, `test-jest`).
 - Error registry: `.agents/memory/errores.md`.
 - Deep context: `.agents/docs/` (`arquitectura-nutrinet.md`, `convenciones-api.md`).
+

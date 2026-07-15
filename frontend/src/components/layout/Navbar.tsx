@@ -28,7 +28,7 @@ import { useFont } from "@/context/FontContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import { FollowUpNotificationsMenu } from "@/components/layout/FollowUpNotificationsMenu";
+// import { FollowUpNotificationsMenu } from "@/components/layout/FollowUpNotificationsMenu";
 import { getCurrentUser } from "@/lib/current-user";
 
 export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
@@ -161,7 +161,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
               </Link>
             )}
 
-            <FollowUpNotificationsMenu title="Seguimiento de pacientes" />
+            {/* <FollowUpNotificationsMenu title="Seguimiento de pacientes" /> */}
 
             {!isAdminView && currentPlan?.key === "free" && (
               <button

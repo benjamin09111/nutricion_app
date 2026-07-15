@@ -17,6 +17,7 @@ import {
   Link2,
   Lock,
   FileSpreadsheet,
+  ShieldCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
@@ -37,6 +38,7 @@ import { exportPatientsToExcel } from "@/features/pdf/patientsExcelExport";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { ShareFormModal } from "@/features/patients-intake/components/ShareFormModal";
+import { PrivacyInfoModal } from "@/features/patients/components/PrivacyInfoModal";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -63,6 +65,7 @@ export default function PatientsClient() {
   const [isExporting, setIsExporting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const { limit } = useSubscription();
 
   useScrollLock(isDeleteModalOpen);
@@ -140,7 +143,23 @@ export default function PatientsClient() {
   return (
     <ModuleLayout
       title="Mis Pacientes"
-      description="Gestiona a tus pacientes: puedes crear, ver su progreso a través del tiempo, crear un espacio de comunicación privado y mucho más."
+      description={
+        <span className="flex items-center gap-2">
+          Gestiona a tus pacientes: puedes crear, ver su progreso a través del tiempo, crear un espacio de comunicación privado y mucho más.
+          <button
+            type="button"
+            onClick={() => setIsPrivacyModalOpen(true)}
+            title="Protección y privacidad"
+            className="group inline-flex items-center gap-1 text-indigo-500 hover:text-indigo-700 transition-colors"
+            aria-label="Ver información de protección y privacidad"
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            <span className="text-xs font-semibold hidden sm:inline group-hover:underline underline-offset-2">
+              Protección y privacidad
+            </span>
+          </button>
+        </span>
+      }
       rightContent={
         <div className="flex items-center gap-2">
           <Button
@@ -808,7 +827,13 @@ export default function PatientsClient() {
         cancelText="Cancelar"
         variant="destructive"
       />
+
+      <PrivacyInfoModal
+        isOpen={isPrivacyModalOpen}
+        onClose={() => setIsPrivacyModalOpen(false)}
+      />
     </ModuleLayout>
+
   );
 }
 
