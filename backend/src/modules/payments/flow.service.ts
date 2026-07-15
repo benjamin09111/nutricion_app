@@ -77,10 +77,7 @@ export class FlowService {
       currency: pendingPayment.currency,
       email: payerEmail || 'pagos@nutrinet.cl',
       urlConfirmation: this.getConfirmationUrl(),
-      urlReturn: this.getReturnUrl(
-        returnPath ||
-          '/dashboard',
-      ),
+      urlReturn: this.getReturnUrl(returnPath || '/dashboard'),
       optional: JSON.stringify({
         paymentId: pendingPayment.id,
         accountId,

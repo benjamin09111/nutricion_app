@@ -40,7 +40,8 @@ export class PatientsService {
     nutritionistId: string,
     createPatientDto: CreatePatientDto,
   ) {
-    const { recalculateNutrition, clinicalRecord, ...patientData } = createPatientDto as any;
+    const { recalculateNutrition, clinicalRecord, ...patientData } =
+      createPatientDto as any;
     const clinicalRecordData = clinicalRecord;
     const patientForCalculations = {
       ...patientData,
@@ -281,7 +282,8 @@ export class PatientsService {
       where: { id },
       include: { clinicalRecord: true },
     });
-    const { recalculateNutrition, clinicalRecord, ...patientData } = updatePatientDto as any;
+    const { recalculateNutrition, clinicalRecord, ...patientData } =
+      updatePatientDto as any;
     const mergedForCalculation = { ...(current || {}), ...patientData };
     const customVariables = this.withAutomaticNutritionCalculations(
       patientData.customVariables ?? current?.customVariables,
@@ -322,7 +324,8 @@ export class PatientsService {
       where: { id },
       include: { clinicalRecord: true },
     });
-    if (!currentWithClinicalRecord) throw new NotFoundException('Paciente no encontrado');
+    if (!currentWithClinicalRecord)
+      throw new NotFoundException('Paciente no encontrado');
 
     const patient = await this.prisma.patient.update({
       where: { id },
@@ -452,7 +455,8 @@ export class PatientsService {
 
     const variables = Array.isArray(customVariables)
       ? customVariables.filter(
-          (item: any) => item?.key !== AUTOMATIC_NUTRITION_KEY,
+          (item: any) =>
+            item?.key?.toLowerCase() !== AUTOMATIC_NUTRITION_KEY.toLowerCase(),
         )
       : [];
 
@@ -487,7 +491,8 @@ export class PatientsService {
 
     const resolveValue = (key: string, path: string[]) => {
       const custom = findVar(key);
-      if (custom !== null && custom !== undefined && custom !== '') return custom;
+      if (custom !== null && custom !== undefined && custom !== '')
+        return custom;
 
       let current: any = anthropometry;
       for (const segment of path) {
@@ -496,15 +501,45 @@ export class PatientsService {
       return current ?? null;
     };
 
-    const kneeHeight = this.toPositiveNumber(resolveValue('alturaRodilla', ['circumferences', 'kneeHeight']));
-    const calfCircumference = this.toPositiveNumber(resolveValue('circunferenciaPantorrilla', ['circumferences', 'calfCircumference']));
-    const armCircumference = this.toPositiveNumber(resolveValue('circunferenciaBraquial', ['circumferences', 'armCircumference']));
-    const waistCircumference = this.toPositiveNumber(resolveValue('circunferenciaCintura', ['circumferences', 'waistCircumference']));
-    const hipCircumference = this.toPositiveNumber(resolveValue('circunferenciaCadera', ['circumferences', 'hipCircumference']));
-    const tricipitalFold = this.toPositiveNumber(resolveValue('pliegueTricipital', ['skinfolds', 'tricipital']));
-    const bicipitalFold = this.toPositiveNumber(resolveValue('pliegueBicipital', ['skinfolds', 'bicipital']));
-    const subescapularFold = this.toPositiveNumber(resolveValue('pliegueSubescapular', ['skinfolds', 'subescapular']));
-    const suprailiacoFold = this.toPositiveNumber(resolveValue('pliegueSuprailiaco', ['skinfolds', 'suprailiac']));
+    const kneeHeight = this.toPositiveNumber(
+      resolveValue('alturaRodilla', ['circumferences', 'kneeHeight']),
+    );
+    const calfCircumference = this.toPositiveNumber(
+      resolveValue('circunferenciaPantorrilla', [
+        'circumferences',
+        'calfCircumference',
+      ]),
+    );
+    const armCircumference = this.toPositiveNumber(
+      resolveValue('circunferenciaBraquial', [
+        'circumferences',
+        'armCircumference',
+      ]),
+    );
+    const waistCircumference = this.toPositiveNumber(
+      resolveValue('circunferenciaCintura', [
+        'circumferences',
+        'waistCircumference',
+      ]),
+    );
+    const hipCircumference = this.toPositiveNumber(
+      resolveValue('circunferenciaCadera', [
+        'circumferences',
+        'hipCircumference',
+      ]),
+    );
+    const tricipitalFold = this.toPositiveNumber(
+      resolveValue('pliegueTricipital', ['skinfolds', 'tricipital']),
+    );
+    const bicipitalFold = this.toPositiveNumber(
+      resolveValue('pliegueBicipital', ['skinfolds', 'bicipital']),
+    );
+    const subescapularFold = this.toPositiveNumber(
+      resolveValue('pliegueSubescapular', ['skinfolds', 'subescapular']),
+    );
+    const suprailiacoFold = this.toPositiveNumber(
+      resolveValue('pliegueSuprailiaco', ['skinfolds', 'suprailiac']),
+    );
 
     const resolvedAge = this.calculateAge(patient.birthDate);
     const gender = this.normalizeGender(patient.gender);

@@ -70,10 +70,18 @@ export class CopilotService {
       ],
       tools: {
         buscarAlimentos: tool({
-          description: 'Buscar alimentos en el catalogo del nutricionista. Filtra por nombre, categoria o keywords.',
+          description:
+            'Buscar alimentos en el catalogo del nutricionista. Filtra por nombre, categoria o keywords.',
           inputSchema: z.object({
-            query: z.string().describe('Texto de busqueda (nombre parcial, categoria, tipo de alimento)'),
-            limite: z.number().optional().describe('Maximo de resultados (default 10)'),
+            query: z
+              .string()
+              .describe(
+                'Texto de busqueda (nombre parcial, categoria, tipo de alimento)',
+              ),
+            limite: z
+              .number()
+              .optional()
+              .describe('Maximo de resultados (default 10)'),
           }),
           execute: async ({ query, limite }) => {
             const ingredients = await this.prisma.ingredient.findMany({
@@ -112,7 +120,8 @@ export class CopilotService {
         }),
 
         obtenerPaciente: tool({
-          description: 'Obtener perfil clinico de un paciente incluyendo restricciones, objetivos y datos antropometricos.',
+          description:
+            'Obtener perfil clinico de un paciente incluyendo restricciones, objetivos y datos antropometricos.',
           inputSchema: z.object({
             pacienteId: z.string().describe('ID del paciente (UUID)'),
           }),
@@ -166,36 +175,94 @@ export class CopilotService {
         }),
 
         verificarRestricciones: tool({
-          description: 'Verificar si alimentos entran en conflicto con las restricciones clinicas de un paciente.',
+          description:
+            'Verificar si alimentos entran en conflicto con las restricciones clinicas de un paciente.',
           inputSchema: z.object({
-            alimentos: z.array(z.string()).describe('Nombres de alimentos a verificar'),
-            restricciones: z.array(z.string()).describe('Restricciones clinicas del paciente'),
+            alimentos: z
+              .array(z.string())
+              .describe('Nombres de alimentos a verificar'),
+            restricciones: z
+              .array(z.string())
+              .describe('Restricciones clinicas del paciente'),
           }),
           execute: async ({ alimentos, restricciones }) => {
-            const conflicts: Array<{ alimento: string; restriccion: string; razon: string; severidad: string }> = [];
+            const conflicts: Array<{
+              alimento: string;
+              restriccion: string;
+              razon: string;
+              severidad: string;
+            }> = [];
 
-            const rules: Record<string, { forbids: RegExp[]; reason: string }> = {
-              diabetes: {
-                forbids: [/az[uú]car/i, /dulce/i, /miel/i, /jarabe/i, /gaseosa/i, /bebida/i, /chocolate/i, /pastel/i, /queque/i, /gallet[ií]a/i],
-                reason: 'Alto indice glicemico, incompatible con diabetes',
-              },
-              hipertension: {
-                forbids: [/embutido/i, /salchicha/i, /jamon/i, /cecina/i, /sopaipilla/i, /papas fritas/i, /snack/i, /salsa de soya/i],
-                reason: 'Alto contenido de sodio, incompatible con hipertension',
-              },
-              celiaquia: {
-                forbids: [/trigo/i, /cebada/i, /centeno/i, /pan(?!\s+sin\s+gluten)/i, /pasta(?!\s+sin\s+gluten)/i, /gallet[ií]a(?!\s+sin\s+gluten)/i, /fideos(?!\s+de\s+arroz)/i],
-                reason: 'Contiene gluten, incompatible con celiaquia',
-              },
-              'intolerancia a la lactosa': {
-                forbids: [/leche(?!\s+deslactosada|\s+vegetal)/i, /queso\s+fresco/i, /yogurt(?!\s+sin\s+lactosa)/i, /manjar/i, /crema/i],
-                reason: 'Contiene lactosa, incompatible con intolerancia a la lactosa',
-              },
-              vegetariano: {
-                forbids: [/pollo/i, /vacuno/i, /cerdo/i, /pescado/i, /marisco/i, /jamon/i, /salmon/i, /reineta/i, /carne/i],
-                reason: 'Producto de origen animal, incompatible con dieta vegetariana',
-              },
-            };
+            const rules: Record<string, { forbids: RegExp[]; reason: string }> =
+              {
+                diabetes: {
+                  forbids: [
+                    /az[uú]car/i,
+                    /dulce/i,
+                    /miel/i,
+                    /jarabe/i,
+                    /gaseosa/i,
+                    /bebida/i,
+                    /chocolate/i,
+                    /pastel/i,
+                    /queque/i,
+                    /gallet[ií]a/i,
+                  ],
+                  reason: 'Alto indice glicemico, incompatible con diabetes',
+                },
+                hipertension: {
+                  forbids: [
+                    /embutido/i,
+                    /salchicha/i,
+                    /jamon/i,
+                    /cecina/i,
+                    /sopaipilla/i,
+                    /papas fritas/i,
+                    /snack/i,
+                    /salsa de soya/i,
+                  ],
+                  reason:
+                    'Alto contenido de sodio, incompatible con hipertension',
+                },
+                celiaquia: {
+                  forbids: [
+                    /trigo/i,
+                    /cebada/i,
+                    /centeno/i,
+                    /pan(?!\s+sin\s+gluten)/i,
+                    /pasta(?!\s+sin\s+gluten)/i,
+                    /gallet[ií]a(?!\s+sin\s+gluten)/i,
+                    /fideos(?!\s+de\s+arroz)/i,
+                  ],
+                  reason: 'Contiene gluten, incompatible con celiaquia',
+                },
+                'intolerancia a la lactosa': {
+                  forbids: [
+                    /leche(?!\s+deslactosada|\s+vegetal)/i,
+                    /queso\s+fresco/i,
+                    /yogurt(?!\s+sin\s+lactosa)/i,
+                    /manjar/i,
+                    /crema/i,
+                  ],
+                  reason:
+                    'Contiene lactosa, incompatible con intolerancia a la lactosa',
+                },
+                vegetariano: {
+                  forbids: [
+                    /pollo/i,
+                    /vacuno/i,
+                    /cerdo/i,
+                    /pescado/i,
+                    /marisco/i,
+                    /jamon/i,
+                    /salmon/i,
+                    /reineta/i,
+                    /carne/i,
+                  ],
+                  reason:
+                    'Producto de origen animal, incompatible con dieta vegetariana',
+                },
+              };
 
             for (const restriction of restricciones) {
               const key = Object.keys(rules).find((k) =>
@@ -228,15 +295,22 @@ export class CopilotService {
         }),
 
         calcularMacros: tool({
-          description: 'Estimar aporte nutricional (calorias, proteinas, carbohidratos, grasas) de una lista de ingredientes.',
+          description:
+            'Estimar aporte nutricional (calorias, proteinas, carbohidratos, grasas) de una lista de ingredientes.',
           inputSchema: z.object({
-            ingredientes: z.array(z.object({
-              nombre: z.string(),
-              cantidad: z.string().optional(),
-            })).describe('Lista de ingredientes con sus cantidades'),
+            ingredientes: z
+              .array(
+                z.object({
+                  nombre: z.string(),
+                  cantidad: z.string().optional(),
+                }),
+              )
+              .describe('Lista de ingredientes con sus cantidades'),
           }),
           execute: async ({ ingredientes }) => {
-            const names = ingredientes.map((i) => `${i.nombre}${i.cantidad ? ` (${i.cantidad})` : ''}`);
+            const names = ingredientes.map(
+              (i) => `${i.nombre}${i.cantidad ? ` (${i.cantidad})` : ''}`,
+            );
             try {
               if (accountId) {
                 await this.planUsageService.consumeQuota(
@@ -252,26 +326,52 @@ export class CopilotService {
               return {
                 calorias: Math.round(parsed.calorias || parsed.calories || 0),
                 proteinas: Math.round(parsed.proteinas || parsed.proteins || 0),
-                carbohidratos: Math.round(parsed.carbohidratos || parsed.carbs || 0),
-                grasas: Math.round(parsed.grasas || parsed.fats || parsed.lipids || 0),
+                carbohidratos: Math.round(
+                  parsed.carbohidratos || parsed.carbs || 0,
+                ),
+                grasas: Math.round(
+                  parsed.grasas || parsed.fats || parsed.lipids || 0,
+                ),
               };
             } catch {
-              return { calorias: 0, proteinas: 0, carbohidratos: 0, grasas: 0, error: 'No se pudo estimar' };
+              return {
+                calorias: 0,
+                proteinas: 0,
+                carbohidratos: 0,
+                grasas: 0,
+                error: 'No se pudo estimar',
+              };
             }
           },
         }),
 
         generarReceta: tool({
-          description: 'Generar una receta personalizada para un tipo de comida, considerando restricciones y preferencias.',
+          description:
+            'Generar una receta personalizada para un tipo de comida, considerando restricciones y preferencias.',
           inputSchema: z.object({
-            tipoComida: z.enum(['desayuno', 'almuerzo', 'once', 'cena', 'merienda']),
+            tipoComida: z.enum([
+              'desayuno',
+              'almuerzo',
+              'once',
+              'cena',
+              'merienda',
+            ]),
             restricciones: z.array(z.string()).optional(),
             preferencias: z.string().optional(),
             maxIngredientes: z.number().optional().default(6),
           }),
-          execute: async ({ tipoComida, restricciones, preferencias, maxIngredientes }) => {
-            const restriccionesStr = restricciones?.length ? `Restricciones: ${restricciones.join(', ')}. ` : '';
-            const preferenciasStr = preferencias ? `Preferencias: ${preferencias}. ` : '';
+          execute: async ({
+            tipoComida,
+            restricciones,
+            preferencias,
+            maxIngredientes,
+          }) => {
+            const restriccionesStr = restricciones?.length
+              ? `Restricciones: ${restricciones.join(', ')}. `
+              : '';
+            const preferenciasStr = preferencias
+              ? `Preferencias: ${preferencias}. `
+              : '';
             try {
               if (accountId) {
                 await this.planUsageService.consumeQuota(
@@ -291,9 +391,12 @@ export class CopilotService {
         }),
 
         recordar: tool({
-          description: 'Guardar informacion importante en la memoria del agente para sesiones futuras.',
+          description:
+            'Guardar informacion importante en la memoria del agente para sesiones futuras.',
           inputSchema: z.object({
-            clave: z.string().describe('Clave unica para recuperar esta informacion'),
+            clave: z
+              .string()
+              .describe('Clave unica para recuperar esta informacion'),
             valor: z.string().describe('Valor a guardar'),
           }),
           execute: ({ clave, valor }) => {
@@ -304,13 +407,16 @@ export class CopilotService {
         }),
 
         evocar: tool({
-          description: 'Recuperar informacion guardada previamente en la memoria del agente.',
+          description:
+            'Recuperar informacion guardada previamente en la memoria del agente.',
           inputSchema: z.object({
             clave: z.string().describe('Clave de la informacion a recuperar'),
           }),
           execute: ({ clave }) => {
             const value = this.memory.get(clave);
-            return value ? { encontrado: true, clave, valor: value } : { encontrado: false, clave };
+            return value
+              ? { encontrado: true, clave, valor: value }
+              : { encontrado: false, clave };
           },
         }),
       },

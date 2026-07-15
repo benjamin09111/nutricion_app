@@ -38,6 +38,7 @@ model Account {
   createdDiscountCodes      DiscountCode[]             @relation("DiscountCodeCreator")
   usedDiscountCodes         DiscountCode[]             @relation("DiscountCodeUser")
   archivedDiscountCodes     DiscountCode[]             @relation("DiscountCodeArchiver")
+  deletionRequests          AccountDeletionRequest[]
 
   @@index([role, createdAt])
   @@map("accounts")
@@ -551,6 +552,22 @@ model RegistrationRequest {
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
   @@map("registration_requests")
+}
+
+model AccountDeletionRequest {
+  id              String        @id @default(uuid())
+  accountId       String        @map("account_id")
+  status          RequestStatus @default(PENDING)
+  requestedAt     DateTime      @default(now()) @map("requested_at")
+  resolvedAt      DateTime?     @map("resolved_at")
+  resolvedByAdmin String?       @map("resolved_by_admin")
+  adminNotes      String?       @map("admin_notes")
+
+  account         Account       @relation(fields: [accountId], references: [id])
+
+  @@index([accountId])
+  @@index([status])
+  @@map("account_deletion_requests")
 }
 
 model MembershipPlan {

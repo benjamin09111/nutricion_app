@@ -135,7 +135,10 @@ export class DietService {
     accountId: string,
     foods: Array<{ id: string; name: string }>,
     restrictions: string[],
-  ): Promise<{ conflicts: RestrictionConflict[]; provider: 'deepseek' | 'openai' } | null> {
+  ): Promise<{
+    conflicts: RestrictionConflict[];
+    provider: 'deepseek' | 'openai';
+  } | null> {
     const prompt = [
       'Eres un validador nutricional estricto.',
       'Revisa si los alimentos entran en conflicto con las restricciones.',
@@ -146,10 +149,7 @@ export class DietService {
     ].join('\n');
 
     try {
-      await this.planUsageService.consumeQuota(
-        accountId,
-        'ai.calls.limit',
-      );
+      await this.planUsageService.consumeQuota(accountId, 'ai.calls.limit');
 
       const result = await this.aiService.generateStructuredObject(
         'diet.verify-foods',

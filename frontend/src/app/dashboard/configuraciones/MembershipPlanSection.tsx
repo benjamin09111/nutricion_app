@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Crown, ShieldCheck, Sparkles, Check, Loader2 } from "lucide-react";
@@ -22,14 +22,14 @@ type AttributeRow = {
 
 const formatEntitlementValue = (value: boolean | number) => {
   if (typeof value === "boolean") {
-    return value ? "Sí" : "â€”";
+    return value ? "Sí" : "—";
   }
 
   if (value < 0) {
     return "Ilimitado";
   }
 
-  return value > 0 ? "Sí" : "â€”";
+  return value > 0 ? "Sí" : "—";
 };
 
 const getPlanAttributeRows = (
@@ -268,7 +268,7 @@ export function MembershipPlanSection({
                 <div key={row.label} className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-semibold text-slate-700">{row.label}</span>
-                    <span className="font-bold text-slate-900">{row.usage} / {isUnlimited ? "âˆž" : limit}</span>
+                    <span className="font-bold text-slate-900">{row.usage} / {isUnlimited ? "∞" : limit}</span>
                   </div>
                   <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                     <div className="h-full rounded-full bg-linear-to-r from-indigo-500 to-emerald-500" style={{ width: `${ratio}%` }} />
@@ -347,7 +347,7 @@ export function MembershipPlanSection({
               .map((feature) => (
                 <div key={feature.key} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-2.5">
                   <span className="text-sm font-medium text-slate-500">{feature.label}</span>
-                  <span className="text-sm font-semibold text-slate-400">â€”</span>
+                  <span className="text-sm font-semibold text-slate-400">—</span>
                 </div>
               ))}
           </div>

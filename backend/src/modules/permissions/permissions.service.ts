@@ -16,13 +16,16 @@ import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-pla
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['ACTIVE', 'TRIALING']);
 
 function hasDbEntitlements(plan: any): boolean {
-  const db = (plan as any)?.entitlements;
+  const db = plan?.entitlements;
   if (!db || typeof db !== 'object') return false;
   return Object.keys(db).length > 0;
 }
 
-function resolveEntitlements(plan: any, hardcoded: EntitlementMap): EntitlementMap {
-  const db = (plan as any)?.entitlements;
+function resolveEntitlements(
+  plan: any,
+  hardcoded: EntitlementMap,
+): EntitlementMap {
+  const db = plan?.entitlements;
   if (!db || typeof db !== 'object' || Object.keys(db).length === 0) {
     return hardcoded;
   }
@@ -90,10 +93,7 @@ export class PermissionsService {
     const freeMembershipPlan = await this.prisma.membershipPlan.findFirst({
       where: {
         isActive: true,
-        OR: [
-          { price: 0 },
-          { slug: { contains: 'free', mode: 'insensitive' } },
-        ],
+        OR: [{ price: 0 }, { slug: { contains: 'free', mode: 'insensitive' } }],
       },
     });
 
@@ -109,7 +109,9 @@ export class PermissionsService {
             entitlements: normalizeEntitlementMap(
               resolveEntitlements(
                 account.subscription.plan,
-                getMembershipPlanEntitlementsFromPlan(account.subscription.plan),
+                getMembershipPlanEntitlementsFromPlan(
+                  account.subscription.plan,
+                ),
               ),
             ),
           }
@@ -128,7 +130,7 @@ export class PermissionsService {
                 ),
               ),
             }
-        : null;
+          : null;
 
     const requiresPlanSelection = !hasPlanSelectionHistory;
 
@@ -145,9 +147,9 @@ export class PermissionsService {
             )
           : account.plan === 'FREE'
             ? 'FREE'
-          : isStaffRole(account.role)
-            ? account.plan
-            : 'FREE',
+            : isStaffRole(account.role)
+              ? account.plan
+              : 'FREE',
     };
   }
 

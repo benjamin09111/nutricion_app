@@ -58,7 +58,7 @@ const resolveGreetingName = (account: {
 };
 
 const normalizeFullName = (fullName: string) =>
-  fullName.trim().replace(/\s+/g, " ") || "Usuario";
+  fullName.trim().replace(/\s+/g, ' ') || 'Usuario';
 
 const buildPublicSlug = (fullName: string, id: string) => {
   const namePart = fullName
@@ -109,12 +109,13 @@ export class AuthService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  async createOAuthSessionTicket(session: {
-    access_token: string;
-    user: any;
-  }) {
+  async createOAuthSessionTicket(session: { access_token: string; user: any }) {
     const ticket = crypto.randomBytes(24).toString('base64url');
-    await this.cacheManager.set(`auth:oauth-ticket:${ticket}`, session, 120_000);
+    await this.cacheManager.set(
+      `auth:oauth-ticket:${ticket}`,
+      session,
+      120_000,
+    );
 
     return ticket;
   }
@@ -132,10 +133,7 @@ export class AuthService {
   }
 
   private failedLoginKey(email: string) {
-    const identifier = crypto
-      .createHash('sha256')
-      .update(email)
-      .digest('hex');
+    const identifier = crypto.createHash('sha256').update(email).digest('hex');
     return `auth:failed-login:${identifier}`;
   }
 
@@ -223,7 +221,6 @@ export class AuthService {
         email: account.email,
         role: account.role,
         rut: account.rut || null,
-
 
         plan: effectivePlan,
         planName,
@@ -346,7 +343,9 @@ export class AuthService {
 
           await tx.nutritionist.update({
             where: { id: nutritionist.id },
-            data: { publicSlug: buildPublicSlug(normalizedFullName, nutritionist.id) },
+            data: {
+              publicSlug: buildPublicSlug(normalizedFullName, nutritionist.id),
+            },
           });
         }
 
@@ -408,9 +407,7 @@ export class AuthService {
 
     const finalPassword = password || crypto.randomBytes(8).toString('hex');
     if (Buffer.byteLength(finalPassword, 'utf8') > 72) {
-      throw new BadRequestException(
-        'La contraseña no puede superar 72 bytes.',
-      );
+      throw new BadRequestException('La contraseña no puede superar 72 bytes.');
     }
     const hashedPassword = await bcrypt.hash(finalPassword, 10);
     const verificationToken = buildVerificationToken();
@@ -441,7 +438,9 @@ export class AuthService {
 
         await tx.nutritionist.update({
           where: { id: nutritionist.id },
-          data: { publicSlug: buildPublicSlug(normalizedFullName, nutritionist.id) },
+          data: {
+            publicSlug: buildPublicSlug(normalizedFullName, nutritionist.id),
+          },
         });
 
         console.log(
@@ -456,7 +455,10 @@ export class AuthService {
           normalizedFullName,
           `${frontendUrl}/verify-email?token=${verificationToken}`,
         ),
-        this.mailService.sendRegistrationAlert(normalizedFullName, normalizedEmail),
+        this.mailService.sendRegistrationAlert(
+          normalizedFullName,
+          normalizedEmail,
+        ),
       ]);
 
       const emailSent = verificationResult.status === 'fulfilled';
@@ -1088,5 +1090,3 @@ export class AuthService {
     }
   }
 }
-
-

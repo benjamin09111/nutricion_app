@@ -649,13 +649,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             setIsDeleteEntireMetricConfirmOpen={state.setIsDeleteEntireMetricConfirmOpen}
             isOverwriteConfirmOpen={state.isOverwriteConfirmOpen}
             setIsOverwriteConfirmOpen={state.setIsOverwriteConfirmOpen}
-            isExportModalOpen={state.isExportModalOpen}
-            setIsExportModalOpen={state.setIsExportModalOpen}
-            exportIncludeClinicalRecord={state.exportIncludeClinicalRecord}
-            setExportIncludeClinicalRecord={state.setExportIncludeClinicalRecord}
-            exportIncludeProgress={state.exportIncludeProgress}
-            setExportIncludeProgress={state.setExportIncludeProgress}
             isExporting={state.isExporting}
+            isSavingMetrics={state.isSavingMetrics}
             metricForm={state.metricForm}
             setMetricForm={state.setMetricForm}
             newMetric={state.newMetric}
@@ -677,7 +672,6 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             removeMetricFromForm={state.removeMetricFromForm}
             handleDeleteEntireMetric={state.handleDeleteEntireMetric}
             handleExportPDF={state.handleExportPDF}
-            openProgressExportModal={state.openProgressExportModal}
             handleExportProgressExcel={state.handleExportProgressExcel}
           />
         )}

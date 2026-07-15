@@ -872,6 +872,223 @@ export class UsersService {
   }
 
   /**
+   * Create a deletion request for the current user's account.
+   */
+  async createDeletionRequest(accountId: string) {
+    const existing = await this.prisma.accountDeletionRequest.findFirst({
+      where: {
+        accountId,
+        status: 'PENDING',
+      },
+    });
+
+    if (existing) {
+      return { exists: true, request: existing };
+    }
+
+    const request = await this.prisma.accountDeletionRequest.create({
+      data: {
+        accountId,
+        status: 'PENDING',
+      },
+    });
+
+    return { exists: false, request };
+  }
+
+  /**
+   * Get pending deletion requests with account/nutritionist info.
+   */
+  async getPendingDeletionRequests() {
+    const requests = await this.prisma.accountDeletionRequest.findMany({
+      where: { status: 'PENDING' },
+      include: {
+        account: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            createdAt: true,
+            nutritionist: {
+              select: {
+                fullName: true,
+                _count: {
+                  select: { patients: true },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { requestedAt: 'asc' },
+    });
+
+    return requests.map((r) => ({
+      id: r.id,
+      accountId: r.accountId,
+      email: r.account.email,
+      role: r.account.role,
+      fullName:
+        r.account.nutritionist?.fullName || r.account.email.split('@')[0],
+      patientCount: r.account.nutritionist?._count?.patients || 0,
+      requestedAt: r.requestedAt,
+    }));
+  }
+
+  /**
+   * Count pending deletion requests.
+   */
+  async countPendingDeletionRequests() {
+    return this.prisma.accountDeletionRequest.count({
+      where: { status: 'PENDING' },
+    });
+  }
+
+  /**
+   * Accept a deletion request and permanently delete the account and all related data.
+   */
+  async acceptDeletionRequest(
+    requestId: string,
+    adminId: string,
+    notes?: string,
+  ) {
+    const request = await this.prisma.accountDeletionRequest.findUnique({
+      where: { id: requestId },
+      include: { account: { select: { id: true, role: true } } },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Solicitud no encontrada');
+    }
+
+    if (request.status !== 'PENDING') {
+      return { success: false, message: 'La solicitud ya fue procesada' };
+    }
+
+    const { accountId } = request;
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.accountDeletionRequest.update({
+        where: { id: requestId },
+        data: {
+          status: 'ACCEPTED',
+          resolvedAt: new Date(),
+          resolvedByAdmin: adminId,
+          adminNotes: notes || null,
+        },
+      });
+
+      const account = await tx.account.findUnique({
+        where: { id: accountId },
+        include: {
+          nutritionist: {
+            include: {
+              patients: { select: { id: true } },
+            },
+          },
+          payments: { select: { id: true } },
+          subscription: { select: { id: true } },
+          notifications: { select: { id: true } },
+          googleCalendarConnections: { select: { id: true } },
+          planUsageCounters: { select: { id: true } },
+        },
+      });
+
+      if (!account) {
+        return { success: false, message: 'Cuenta no encontrada' };
+      }
+
+      const nutritionistId = account.nutritionist?.id;
+      const patientIds = account.nutritionist?.patients.map((p) => p.id) || [];
+      const paymentIds = account.payments.map((p) => p.id);
+      const subscriptionId = account.subscription?.id;
+      const notificationIds = account.notifications.map((n) => n.id);
+      const calendarConnectionIds = account.googleCalendarConnections.map(
+        (c) => c.id,
+      );
+      const planUsageCounterIds = account.planUsageCounters.map((p) => p.id);
+
+      if (notificationIds.length > 0) {
+        await tx.notification.deleteMany({
+          where: { id: { in: notificationIds } },
+        });
+      }
+
+      if (planUsageCounterIds.length > 0) {
+        await tx.planUsageCounter.deleteMany({
+          where: { id: { in: planUsageCounterIds } },
+        });
+      }
+
+      if (calendarConnectionIds.length > 0) {
+        await tx.googleCalendarConnection.deleteMany({
+          where: { id: { in: calendarConnectionIds } },
+        });
+      }
+
+      if (paymentIds.length > 0) {
+        await tx.subscriptionEvent.deleteMany({
+          where: { paymentId: { in: paymentIds } },
+        });
+        await tx.payment.deleteMany({ where: { id: { in: paymentIds } } });
+      }
+
+      if (subscriptionId) {
+        await tx.subscriptionEvent.deleteMany({ where: { subscriptionId } });
+        await tx.subscription.deleteMany({ where: { id: subscriptionId } });
+      }
+
+      if (nutritionistId) {
+        await tx.patientPortalCheckIn.deleteMany({ where: { nutritionistId } });
+        await tx.patientPortalEntry.deleteMany({ where: { nutritionistId } });
+        await tx.patientIntakeSubmission.deleteMany({
+          where: { nutritionistId },
+        });
+        await tx.patientIntakeLink.deleteMany({ where: { nutritionistId } });
+        await tx.appointmentTimeSlot.deleteMany({
+          where: { calendar: { nutritionistId } },
+        });
+        await tx.appointment.deleteMany({
+          where: { calendar: { nutritionistId } },
+        });
+        await tx.bookingLink.deleteMany({
+          where: { calendar: { nutritionistId } },
+        });
+        await tx.availabilityRule.deleteMany({
+          where: { calendar: { nutritionistId } },
+        });
+        await tx.appointmentCalendar.deleteMany({ where: { nutritionistId } });
+
+        await tx.recipeLibrary.deleteMany({ where: { nutritionistId } });
+        await tx.ingredientPreference.deleteMany({ where: { nutritionistId } });
+
+        for (const patientId of patientIds) {
+          await tx.clinicalRecord.deleteMany({ where: { patientId } });
+          await tx.patientExam.deleteMany({ where: { patientId } });
+          await tx.consultation.deleteMany({ where: { patientId } });
+        }
+        await tx.patient.deleteMany({ where: { nutritionistId } });
+
+        await tx.project.deleteMany({ where: { nutritionistId } });
+        await tx.creation.deleteMany({ where: { nutritionistId } });
+        await tx.ingredientGroup.deleteMany({ where: { nutritionistId } });
+        await tx.substitute.deleteMany({ where: { nutritionistId } });
+        await tx.resource.deleteMany({ where: { nutritionistId } });
+        await tx.resourceSection.deleteMany({ where: { nutritionistId } });
+        await tx.tag.deleteMany({ where: { nutritionistId } });
+        await tx.metricDefinition.deleteMany({ where: { nutritionistId } });
+        await tx.recipe.deleteMany({ where: { nutritionistId } });
+
+        await tx.nutritionist.delete({ where: { id: nutritionistId } });
+      }
+
+      await tx.account.delete({ where: { id: accountId } });
+
+      return { success: true, message: 'Cuenta eliminada permanentemente' };
+    });
+  }
+
+  /**
    * Delete account logically (soft delete).
    * Sets the account status to DELETED.
    */

@@ -151,7 +151,10 @@ export class SubmitIntakeFormDto {
   kneeHeight?: number;
 
   @IsOptional()
-  @IsNumber({}, { message: 'La circunferencia de pantorrilla debe ser un número' })
+  @IsNumber(
+    {},
+    { message: 'La circunferencia de pantorrilla debe ser un número' },
+  )
   calfCircumference?: number;
 
   @IsOptional()

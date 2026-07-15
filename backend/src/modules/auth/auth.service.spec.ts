@@ -150,7 +150,7 @@ describe('AuthService', () => {
     expect(updateInput.data).not.toHaveProperty('rut');
   });
 
-  it.each(['SUSPENDED', 'DELETED']) (
+  it.each(['SUSPENDED', 'DELETED'])(
     'does not reactivate a %s account through Google',
     async (status) => {
       const update = jest.fn();

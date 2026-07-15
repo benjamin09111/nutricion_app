@@ -63,10 +63,7 @@ export class PautasService {
     );
 
     try {
-      await this.planUsageService.consumeQuota(
-        accountId,
-        'ai.calls.limit',
-      );
+      await this.planUsageService.consumeQuota(accountId, 'ai.calls.limit');
 
       const structured = await this.aiService.generateStructuredObject(
         'pautas.generate',

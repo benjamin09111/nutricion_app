@@ -28,7 +28,7 @@ interface SidebarItem {
   icon: React.ElementType;
   disabled?: boolean;
   locked?: boolean;
-  badge?: "inboxPending";
+  badge?: "inboxPending" | "deletionRequests";
 }
 
 interface SidebarGroup {
@@ -54,6 +54,7 @@ const groups: SidebarGroup[] = [
         name: "Clientes",
         href: "/dashboard/admin/nutricionistas",
         icon: Users,
+        badge: "deletionRequests",
       },
       {
         name: "Portal",
@@ -115,6 +116,7 @@ export function AdminSidebar() {
   const { isSidebarCollapsed } = useDashboardShell();
   const { isDarkMode } = useTheme();
   const [inboxPendingCount, setInboxPendingCount] = useState(0);
+  const [deletionRequestsCount, setDeletionRequestsCount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -146,29 +148,60 @@ export function AdminSidebar() {
       }
     };
 
+    const fetchDeletionRequestsCount = async () => {
+      try {
+        const token = localStorage.getItem("auth_token");
+        if (!token) return;
+
+        const response = await fetchApi("/users/deletion-requests/count", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (isMounted) {
+          setDeletionRequestsCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching deletion requests count:", error);
+      }
+    };
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         fetchInboxPendingCount();
+        fetchDeletionRequestsCount();
       }
     };
 
     fetchInboxPendingCount();
+    fetchDeletionRequestsCount();
     window.addEventListener("admin-inbox-updated", fetchInboxPendingCount);
+    window.addEventListener("admin-deletion-request-accepted", fetchDeletionRequestsCount);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    const interval = window.setInterval(fetchInboxPendingCount, 60000);
+    const interval = window.setInterval(() => {
+      fetchInboxPendingCount();
+      fetchDeletionRequestsCount();
+    }, 60000);
 
     return () => {
       isMounted = false;
       window.removeEventListener("admin-inbox-updated", fetchInboxPendingCount);
+      window.removeEventListener("admin-deletion-request-accepted", fetchDeletionRequestsCount);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(interval);
     };
   }, []);
 
   const getItemBadge = (item: SidebarItem) => {
-    if (item.badge !== "inboxPending" || inboxPendingCount <= 0) return null;
-
-    return inboxPendingCount > 99 ? "99+" : String(inboxPendingCount);
+    if (item.badge === "inboxPending" && inboxPendingCount > 0) {
+      return inboxPendingCount > 99 ? "99+" : String(inboxPendingCount);
+    }
+    if (item.badge === "deletionRequests" && deletionRequestsCount > 0) {
+      return deletionRequestsCount > 99 ? "99+" : String(deletionRequestsCount);
+    }
+    return null;
   };
   const { role } = useAdmin();
   const isWorker = role === "WORKER";

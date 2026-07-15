@@ -346,7 +346,8 @@ export class PatientIntakeService {
       nutritionalAnamnesis: {
         foodFrequency: payload.foodFrequency || undefined,
         recall24h: payload.recall24h || undefined,
-        eatingPreferences: payload.eatingPreferences || payload.likes || undefined,
+        eatingPreferences:
+          payload.eatingPreferences || payload.likes || undefined,
         clinicalObservations: payload.clinicalObservations || undefined,
       },
       anthropometry: {

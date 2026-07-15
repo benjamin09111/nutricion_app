@@ -45,8 +45,7 @@ import { RolesGuard } from './guards/roles.guard';
           expiresIn: '7d',
           algorithm: 'HS256',
           issuer: configService.get<string>('JWT_ISSUER') || 'nutrinet-api',
-          audience:
-            configService.get<string>('JWT_AUDIENCE') || 'nutrinet-app',
+          audience: configService.get<string>('JWT_AUDIENCE') || 'nutrinet-app',
         },
       }),
     }),

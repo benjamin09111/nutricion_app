@@ -28,6 +28,8 @@ type PatientCustomVariable = {
 /** Título especial que identifica consultas de métricas independientes */
 export const INDEPENDENT_METRICS_TITLE = 'Registro de Métricas Independiente';
 
+const INTERNAL_VARIABLE_KEYS = new Set(['automaticnutritioncalculations']);
+
 const normalizeMetricKey = (label: string = '', key?: string) => {
   const rawKey = (key || '').trim().toLowerCase();
   if (rawKey) {
@@ -246,12 +248,9 @@ export class ConsultationsService {
     id: string,
     updateConsultationDto: UpdateConsultationDto,
   ) {
-    // findOne ya valida que la consulta pertenece a este nutricionista
-    await this.findOne(nutritionistId, id);
-    // patientId no puede cambiarse; siempre se usa el original
+    const existing = await this.findOne(nutritionistId, id);
 
     const data: any = { ...updateConsultationDto };
-    // Excluir patientId del update para evitar reasignación de paciente
     delete data.patientId;
     if (updateConsultationDto.date) {
       data.date = new Date(updateConsultationDto.date);
@@ -266,21 +265,23 @@ export class ConsultationsService {
             description: data.description,
           }),
           ...(data.date !== undefined && { date: data.date }),
-          // metrics es Json en Prisma; el tipado fuerte viene del DTO
           ...(data.metrics !== undefined && { metrics: data.metrics }),
         },
         select: consultationSelect,
       });
 
-      if (
-        updateConsultationDto.metrics &&
-        updateConsultationDto.metrics.length > 0
-      ) {
-        // Patient sync happens after the transaction to keep the reconciliation logic centralized.
-      }
-
       return updated;
     });
+
+    if (
+      updateConsultationDto.metrics &&
+      updateConsultationDto.metrics.length > 0
+    ) {
+      await this.reconcilePatientProfileFromConsultations(
+        nutritionistId,
+        existing.patientId,
+      );
+    }
 
     await this.cacheService.invalidateNutritionistPrefix(
       nutritionistId,
@@ -321,6 +322,7 @@ export class ConsultationsService {
 
     for (const variable of currentVariables) {
       const normalizedKey = normalizeMetricKey(variable.label, variable.key);
+      if (INTERNAL_VARIABLE_KEYS.has(normalizedKey)) continue;
       latestVariables.set(normalizedKey, {
         ...variable,
         key: normalizedKey,

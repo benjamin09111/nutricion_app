@@ -47,7 +47,7 @@ export class ResourcesService {
         ...(nutritionistId ? [{ nutritionistId }] : []),
       ] as any[],
     };
-    
+
     const resources = await this.prisma.resource.findMany({
       where: whereClause,
       orderBy: { updatedAt: 'desc' },

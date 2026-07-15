@@ -20,7 +20,8 @@ export class AiService {
       const apiKey = process.env.DEEPSEEK_API_KEY;
       if (!apiKey) return null;
       const modelId = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
-      const baseURL = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
+      const baseURL =
+        process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
       const deepseek = createOpenAI({ apiKey, baseURL });
       return { provider, model: deepseek(modelId), modelId };
     }
@@ -157,7 +158,9 @@ export class AiService {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         errors.push(`${provider}: ${message}`);
-        this.logger.warn(`[AI:${config.provider}] Fallback triggered: ${message}`);
+        this.logger.warn(
+          `[AI:${config.provider}] Fallback triggered: ${message}`,
+        );
       }
     }
 

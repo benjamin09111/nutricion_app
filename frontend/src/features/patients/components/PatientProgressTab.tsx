@@ -21,6 +21,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  Brush,
 } from "recharts";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -54,13 +55,8 @@ interface PatientProgressTabProps {
   setIsDeleteEntireMetricConfirmOpen: (open: boolean) => void;
   isOverwriteConfirmOpen: boolean;
   setIsOverwriteConfirmOpen: (open: boolean) => void;
-  isExportModalOpen: boolean;
-  setIsExportModalOpen: (open: boolean) => void;
-  exportIncludeClinicalRecord: boolean;
-  setExportIncludeClinicalRecord: (open: boolean) => void;
-  exportIncludeProgress: boolean;
-  setExportIncludeProgress: (open: boolean) => void;
   isExporting: boolean;
+  isSavingMetrics: boolean;
 
   // Form states and actions
   metricForm: { date: string; metrics: Metric[] };
@@ -86,7 +82,6 @@ interface PatientProgressTabProps {
   removeMetricFromForm: (index: number) => void;
   handleDeleteEntireMetric: () => Promise<void>;
   handleExportPDF: () => Promise<void>;
-  openProgressExportModal: () => void;
   handleExportProgressExcel: () => Promise<void>;
 }
 
@@ -109,13 +104,8 @@ export function PatientProgressTab({
   setIsDeleteEntireMetricConfirmOpen,
   isOverwriteConfirmOpen,
   setIsOverwriteConfirmOpen,
-  isExportModalOpen,
-  setIsExportModalOpen,
-  exportIncludeClinicalRecord,
-  setExportIncludeClinicalRecord,
-  exportIncludeProgress,
-  setExportIncludeProgress,
   isExporting,
+  isSavingMetrics,
 
   // States
   metricForm,
@@ -140,7 +130,6 @@ export function PatientProgressTab({
   removeMetricFromForm,
   handleDeleteEntireMetric,
   handleExportPDF,
-  openProgressExportModal,
   handleExportProgressExcel,
   registeredMetricKeys,
 }: PatientProgressTabProps) {
@@ -158,7 +147,7 @@ export function PatientProgressTab({
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <button
-            onClick={openProgressExportModal}
+            onClick={handleExportPDF}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white text-emerald-600 font-black rounded-xl border border-emerald-100 hover:bg-emerald-50 transition-all cursor-pointer group/pdf shadow-sm hover:shadow-md"
           >
             <FileText className="w-4 h-4 text-emerald-500" />
@@ -263,7 +252,7 @@ export function PatientProgressTab({
             <div
               key={key}
               id={`export-chart-${key}`}
-              className="bg-white rounded-2xl p-6 lg:p-8 border border-slate-200 shadow-sm group"
+              className="bg-white rounded-2xl p-6 lg:p-8 border border-slate-100 shadow-sm group"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
                 <div className="space-y-1">
@@ -370,7 +359,7 @@ export function PatientProgressTab({
                 </div>
               </div>
 
-              <div className="h-[300px] w-full">
+              <div className="h-[300px] w-full [&_*:focus]:outline-none [&_svg]:outline-none [&_.recharts-surface]:outline-none">
                 {(() => {
                   if (filteredData.length >= 2) {
                     return (
@@ -380,8 +369,8 @@ export function PatientProgressTab({
                           margin={{
                             top: 10,
                             right: 10,
-                            left: -20,
-                            bottom: 0,
+                            left: 0,
+                            bottom: 30,
                           }}
                         >
                           <defs>
@@ -457,6 +446,14 @@ export function PatientProgressTab({
                             animationDuration={1500}
                             connectNulls
                           />
+                          {chartData.filter((d) => d[key] !== undefined).length > 6 && (
+                            <Brush
+                              dataKey="date"
+                              height={24}
+                              stroke="#cbd5e1"
+                              fill="#f8fafc"
+                            />
+                          )}
                         </AreaChart>
                       </ResponsiveContainer>
                     );
@@ -705,14 +702,19 @@ export function PatientProgressTab({
             <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
               <button
                 onClick={closeMetricLogger}
-                className="px-5 py-2.5 bg-white text-slate-500 font-semibold text-sm rounded-xl border border-slate-200 hover:bg-slate-50 transition-all cursor-pointer"
+                disabled={isSavingMetrics}
+                className="px-5 py-2.5 bg-white text-slate-500 font-semibold text-sm rounded-xl border border-slate-200 hover:bg-slate-50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 CANCELAR
               </button>
               <button
                 onClick={handleSaveMetricsClick}
-                className="px-8 py-2.5 bg-slate-900 text-white font-semibold text-sm rounded-xl hover:bg-slate-800 transition-all shadow-lg active:scale-95 cursor-pointer"
+                disabled={isSavingMetrics}
+                className="px-8 py-2.5 bg-slate-900 text-white font-semibold text-sm rounded-xl hover:bg-slate-800 transition-all shadow-lg active:scale-95 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
               >
+                {isSavingMetrics && (
+                  <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                )}
                 GUARDAR CAMBIOS
               </button>
             </div>
@@ -872,95 +874,6 @@ export function PatientProgressTab({
         confirmText="Sí, sobreescribir"
         cancelText="Cancelar"
       />
-
-      {/* Modal de Exportación PDF con aviso de IA */}
-      <Modal
-        isOpen={isExportModalOpen}
-        onClose={() => !isExporting && setIsExportModalOpen(false)}
-        title="Exportar expediente"
-      >
-        <div className="space-y-6 pt-2">
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-            <p className="text-sm font-bold text-slate-900">Selecciona qué incluir</p>
-            <label className="flex items-center gap-3 text-sm font-medium text-slate-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={exportIncludeClinicalRecord}
-                onChange={(e) => setExportIncludeClinicalRecord(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-              />
-              Ficha clínica
-            </label>
-            <label className="flex items-center gap-3 text-sm font-medium text-slate-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={exportIncludeProgress}
-                onChange={(e) => setExportIncludeProgress(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-              />
-              Progreso del paciente
-            </label>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-xl">
-              <FileText className="w-5 h-5 text-slate-400" />
-              <div className="flex-1">
-                <p className="text-[10px] font-black uppercase text-slate-400">
-                  Nombre del Archivo
-                </p>
-                <p className="text-xs font-bold text-slate-700">
-                  Evolucion_
-                  {(patient?.fullName || "Paciente").replace(/\s+/g, "_")}.pdf
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-xl">
-              <Calendar className="w-5 h-5 text-slate-400" />
-              <div className="flex-1">
-                <p className="text-[10px] font-black uppercase text-slate-400">
-                  Contenido
-                </p>
-                <p className="text-xs font-bold text-slate-700">
-                  {exportIncludeClinicalRecord && exportIncludeProgress
-                    ? "Ficha clínica + evolución"
-                    : exportIncludeClinicalRecord
-                      ? "Ficha clínica"
-                      : "Resumen textual + gráficos de tendencia"}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button
-              variant="ghost"
-              className="flex-1 h-12 rounded-xl font-bold text-slate-400"
-              onClick={() => setIsExportModalOpen(false)}
-              disabled={isExporting}
-            >
-              CANCELAR
-            </Button>
-            <Button
-              className="flex-2 h-12 bg-slate-900 text-white rounded-xl font-black text-[10px] tracking-widest shadow-xl shadow-slate-200 active:scale-95 transition-all flex items-center justify-center gap-2"
-              onClick={handleExportPDF}
-              disabled={isExporting}
-            >
-              {isExporting ? (
-                <>
-                  <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                  GENERANDO...
-                </>
-              ) : (
-                <>
-                  <FileText className="w-4 h-4" />
-                  GENERAR INFORME PDF
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </Modal>
 
       {/* Modal Confirmación Borrar Métrica Completa */}
       <ConfirmationModal

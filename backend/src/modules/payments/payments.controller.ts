@@ -77,7 +77,9 @@ export class PaymentsController {
   @Delete(':id')
   async deletePayment(@Param('id') id: string, @Request() req: any) {
     if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException('Solo administradores pueden eliminar pagos');
+      throw new UnauthorizedException(
+        'Solo administradores pueden eliminar pagos',
+      );
     }
 
     return this.paymentsService.deletePayment(id);
@@ -86,7 +88,9 @@ export class PaymentsController {
   @Post(':id/approve')
   async approvePayment(@Param('id') id: string, @Request() req: any) {
     if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException('Solo administradores pueden aprobar pagos');
+      throw new UnauthorizedException(
+        'Solo administradores pueden aprobar pagos',
+      );
     }
 
     return this.paymentsService.approvePayment(id);
@@ -95,7 +99,9 @@ export class PaymentsController {
   @Post(':id/reject')
   async rejectPayment(@Param('id') id: string, @Request() req: any) {
     if (!isAdminRole(req.user.role)) {
-      throw new UnauthorizedException('Solo administradores pueden rechazar pagos');
+      throw new UnauthorizedException(
+        'Solo administradores pueden rechazar pagos',
+      );
     }
 
     return this.paymentsService.rejectPayment(id);

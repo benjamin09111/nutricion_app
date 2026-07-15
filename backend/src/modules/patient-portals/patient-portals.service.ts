@@ -232,9 +232,7 @@ export class PatientPortalsService {
         revokedAt: null,
         blockedAt: null,
         expiresAt: { gte: new Date() },
-        ...(excludedPatientId
-          ? { patientId: { not: excludedPatientId } }
-          : {}),
+        ...(excludedPatientId ? { patientId: { not: excludedPatientId } } : {}),
         ...(excludedInvitationId ? { id: { not: excludedInvitationId } } : {}),
       },
     });
@@ -718,9 +716,8 @@ export class PatientPortalsService {
     }
 
     if (status === 'ACTIVE' && invitation.status !== 'ACTIVE') {
-      const nutritionistAccountId = await this.getNutritionistAccountId(
-        nutritionistId,
-      );
+      const nutritionistAccountId =
+        await this.getNutritionistAccountId(nutritionistId);
       await this.assertFollowUpLimit({
         nutritionistId,
         accountId: nutritionistAccountId,

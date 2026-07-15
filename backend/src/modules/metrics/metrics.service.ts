@@ -1,4 +1,9 @@
-import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../../common/services/cache.service';
 import {
@@ -109,7 +114,9 @@ export class MetricsService {
       metric.nutritionistId &&
       metric.nutritionistId !== nutritionistId
     ) {
-      throw new ForbiddenException('No tienes permisos para eliminar esta métrica');
+      throw new ForbiddenException(
+        'No tienes permisos para eliminar esta métrica',
+      );
     }
 
     const deleted = await this.prisma.metricDefinition.delete({

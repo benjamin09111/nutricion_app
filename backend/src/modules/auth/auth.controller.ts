@@ -41,9 +41,7 @@ const GOOGLE_OAUTH_COOKIE_PATH = '/auth/google';
 
 const readCookie = (request: ExpressRequest, name: string) => {
   const cookieHeader = request.headers.cookie || '';
-  const match = cookieHeader.match(
-    new RegExp(`(?:^|;\\s*)${name}=([^;]+)`),
-  );
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
   return match ? decodeURIComponent(match[1]) : null;
 };
 
@@ -67,17 +65,13 @@ export class AuthController {
       codeChallenge,
     });
 
-    res.cookie(
-      GOOGLE_OAUTH_COOKIE,
-      `${browserBinding}.${codeVerifier}`,
-      {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: GOOGLE_OAUTH_COOKIE_PATH,
-        maxAge: 10 * 60 * 1000,
-      },
-    );
+    res.cookie(GOOGLE_OAUTH_COOKIE, `${browserBinding}.${codeVerifier}`, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: GOOGLE_OAUTH_COOKIE_PATH,
+      maxAge: 10 * 60 * 1000,
+    });
     return res.redirect(authUrl);
   }
 
@@ -96,15 +90,18 @@ export class AuthController {
     res.clearCookie(GOOGLE_OAUTH_COOKIE, { path: GOOGLE_OAUTH_COOKIE_PATH });
     const [browserBinding, codeVerifier] = (transaction || '').split('.');
     if (!browserBinding || !codeVerifier) {
-      throw new BadRequestException('La sesión de Google expiró. Intenta nuevamente.');
+      throw new BadRequestException(
+        'La sesión de Google expiró. Intenta nuevamente.',
+      );
     }
 
-    const callback = await this.googleIntegrationService.handleGoogleLoginCallback(
-      code,
-      state,
-      browserBinding,
-      codeVerifier,
-    );
+    const callback =
+      await this.googleIntegrationService.handleGoogleLoginCallback(
+        code,
+        state,
+        browserBinding,
+        codeVerifier,
+      );
     const result = await this.authService.loginWithGoogle(callback.profile);
     const ticket = await this.authService.createOAuthSessionTicket(result);
     const frontendUrl = resolveRequiredUrl(
@@ -125,7 +122,9 @@ export class AuthController {
       throw new BadRequestException('Ticket de autenticación requerido');
     }
 
-    const session = await this.authService.consumeOAuthSessionTicket(body.ticket);
+    const session = await this.authService.consumeOAuthSessionTicket(
+      body.ticket,
+    );
 
     if (!session) {
       throw new UnauthorizedException('Ticket inválido o expirado');
@@ -182,9 +181,7 @@ export class AuthController {
       AUTH_SESSION_COOKIE,
       result.access_token,
       authSessionCookieOptions(
-        loginDto.rememberMe
-        ? 30 * 24 * 60 * 60 * 1000
-        : 24 * 60 * 60 * 1000,
+        loginDto.rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000,
       ),
     );
 

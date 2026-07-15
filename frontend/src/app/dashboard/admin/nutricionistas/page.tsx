@@ -18,6 +18,7 @@ import {
   Mail,
   X,
   Trash2,
+  UserX,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -44,7 +45,8 @@ type ClientTab =
   | "Nutricionistas"
   | "Organizaciones"
   | "Suplementos fitness"
-  | "Supermercados";
+  | "Supermercados"
+  | "Solicitudes de eliminación";
 
 export default function AdminClientsPage() {
   const [activeTab, setActiveTab] = useState<ClientTab>("Nutricionistas");
@@ -64,6 +66,7 @@ export default function AdminClientsPage() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
+  const [showAcceptDeletionModal, setShowAcceptDeletionModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [durationDays, setDurationDays] = useState<number>(30);
@@ -71,6 +74,10 @@ export default function AdminClientsPage() {
   const [selectedPlan, setSelectedPlan] = useState<string>("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
+  const [deletionRequests, setDeletionRequests] = useState<any[]>([]);
+  const [isLoadingDeletionRequests, setIsLoadingDeletionRequests] = useState(false);
+  const [selectedDeletionRequest, setSelectedDeletionRequest] = useState<any>(null);
+  const [deletionRequestsCount, setDeletionRequestsCount] = useState(0);
   const actionButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -167,7 +174,12 @@ export default function AdminClientsPage() {
 
   useEffect(() => {
     fetchMembershipPlans();
-    fetchClients(1);
+    fetchDeletionRequestsCount();
+    if (activeTab === "Solicitudes de eliminación") {
+      fetchDeletionRequests();
+    } else {
+      fetchClients(1);
+    }
   }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -291,6 +303,80 @@ export default function AdminClientsPage() {
       setTotalPages(1);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchDeletionRequests = async () => {
+    setIsLoadingDeletionRequests(true);
+    try {
+      const token =
+        Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(`/users/deletion-requests`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error("Error al cargar solicitudes");
+      const data = await response.json();
+      setDeletionRequests(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      toast.error("No se pudieron cargar las solicitudes de eliminación");
+      setDeletionRequests([]);
+    } finally {
+      setIsLoadingDeletionRequests(false);
+    }
+  };
+
+  const fetchDeletionRequestsCount = async () => {
+    try {
+      const token =
+        Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(`/users/deletion-requests/count`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDeletionRequestsCount(data.count || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching deletion requests count:", error);
+    }
+  };
+
+  const handleAcceptDeletionRequest = async () => {
+    if (!selectedDeletionRequest) return;
+    setIsUpdating(true);
+    try {
+      const token =
+        Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(
+        `/users/deletion-requests/${selectedDeletionRequest.id}/accept`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({}),
+        },
+      );
+
+      if (!response.ok) throw new Error("Error al procesar la solicitud");
+
+      toast.success(
+        `La cuenta de ${selectedDeletionRequest.fullName || selectedDeletionRequest.email} ha sido eliminada permanentemente.`,
+      );
+      setShowAcceptDeletionModal(false);
+      setSelectedDeletionRequest(null);
+      void fetchDeletionRequests();
+      void fetchDeletionRequestsCount();
+      dispatchEvent(new CustomEvent("admin-deletion-request-accepted"));
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al procesar la solicitud de eliminación");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -434,6 +520,7 @@ export default function AdminClientsPage() {
     { label: "Organizaciones", icon: Building2 },
     { label: "Suplementos fitness", icon: Pill },
     { label: "Supermercados", icon: ShoppingCart },
+    { label: "Solicitudes de eliminación", icon: UserX },
   ];
 
   const getPaymentStatus = (client: any) => {
@@ -602,6 +689,11 @@ export default function AdminClientsPage() {
                   )}
                 />
                 {tab.label}
+                {tab.label === "Solicitudes de eliminación" && deletionRequestsCount > 0 && (
+                  <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black leading-none text-white">
+                    {deletionRequestsCount > 99 ? "99+" : deletionRequestsCount}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -670,44 +762,110 @@ export default function AdminClientsPage() {
       </p>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50/80 border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  {activeTab === "Nutricionistas"
-                    ? "Profesional"
-                    : activeTab === "Organizaciones"
-                      ? "Organización"
-                      : activeTab === "Suplementos fitness"
-                        ? "Tienda"
-                        : "Supermercado"}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Plan
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Pago
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  {activeTab === "Nutricionistas"
-                    ? "Pacientes"
-                    : activeTab === "Organizaciones"
-                      ? "Miembros"
-                      : activeTab === "Suplementos fitness"
-                        ? "Productos"
-                        : "Sucursales"}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Estado
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Último Acceso
-                </th>
-                <th className="px-6 py-3 w-[50px]"></th>
-              </tr>
-            </thead>
+      {activeTab === "Solicitudes de eliminación" ? (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50/80 border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Profesional</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">Pacientes</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Fecha de Solicitud</th>
+                  <th className="px-6 py-3 w-[120px]"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {isLoadingDeletionRequests ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-slate-500">Cargando...</td>
+                  </tr>
+                ) : deletionRequests.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-slate-500">
+                      No hay solicitudes de eliminación pendientes.
+                    </td>
+                  </tr>
+                ) : (
+                  deletionRequests.map((request) => (
+                    <tr key={request.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-medium uppercase">
+                            {request.fullName?.charAt(0) || request.email.charAt(0)}
+                          </div>
+                          <div className="font-medium text-slate-900">{request.fullName || "Sin Nombre"}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 text-sm">{request.email}</td>
+                      <td className="px-6 py-4 text-center text-slate-600 font-mono">{request.patientCount || 0}</td>
+                      <td className="px-6 py-4 text-slate-500 text-xs">
+                        {new Date(request.requestedAt).toLocaleDateString("es-CL", {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                      <td className="px-6 py-4">
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDeletionRequest(request);
+                            setShowAcceptDeletionModal(true);
+                          }}
+                          className="h-8 px-3 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+                        >
+                          Aceptar Solicitud
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50/80 border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    {activeTab === "Nutricionistas"
+                      ? "Profesional"
+                      : activeTab === "Organizaciones"
+                        ? "Organización"
+                        : activeTab === "Suplementos fitness"
+                          ? "Tienda"
+                          : "Supermercado"}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Plan
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Pago
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    {activeTab === "Nutricionistas"
+                      ? "Pacientes"
+                      : activeTab === "Organizaciones"
+                        ? "Miembros"
+                        : activeTab === "Suplementos fitness"
+                          ? "Productos"
+                          : "Sucursales"}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Estado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Último Acceso
+                  </th>
+                  <th className="px-6 py-3 w-[50px]"></th>
+                </tr>
+              </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
@@ -917,6 +1075,7 @@ export default function AdminClientsPage() {
           />
         </div>
       </div>
+      )}
 
       {/* Manual Config Modal */}
       {showConfigModal && (
@@ -1163,6 +1322,21 @@ export default function AdminClientsPage() {
         confirmText="Confirmar y guardar"
         cancelText="Cancelar"
         variant="info"
+        isLoading={isUpdating}
+      />
+
+      <ConfirmModal
+        isOpen={showAcceptDeletionModal}
+        onClose={() => {
+          setShowAcceptDeletionModal(false);
+          setSelectedDeletionRequest(null);
+        }}
+        onConfirm={() => void handleAcceptDeletionRequest()}
+        title="Aceptar solicitud de eliminación"
+        message={`¿Estás seguro de que deseas eliminar permanentemente la cuenta de ${selectedDeletionRequest?.fullName || selectedDeletionRequest?.email}? Esta acción eliminará toda la información del nutricionista, sus pacientes, fichas clínicas, dietas, recursos y agenda. Esta acción es irreversible.`}
+        confirmText="Sí, eliminar cuenta"
+        cancelText="Cancelar"
+        variant="danger"
         isLoading={isUpdating}
       />
     </div>

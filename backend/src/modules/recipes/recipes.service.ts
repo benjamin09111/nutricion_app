@@ -40,7 +40,12 @@ type AiRecipeOutput = {
   calories: number;
   carbs: number;
   fats: number;
-  ingredients: Array<{ name: string; quantity?: string; amount?: number; unit?: string }>;
+  ingredients: Array<{
+    name: string;
+    quantity?: string;
+    amount?: number;
+    unit?: string;
+  }>;
   mainIngredients: string[];
   extraIngredients?: string[];
 };
@@ -177,10 +182,7 @@ export class RecipesService {
     userPrompt: string,
   ): Promise<string> {
     try {
-      await this.planUsageService.consumeQuota(
-        accountId,
-        'ai.calls.limit',
-      );
+      await this.planUsageService.consumeQuota(accountId, 'ai.calls.limit');
 
       const text = await this.aiService.callJson(systemInstruction, userPrompt);
       this.logger.log(`[AI] Response ok chars=${text.length}`);
@@ -207,10 +209,7 @@ export class RecipesService {
     object: any;
   }> {
     try {
-      await this.planUsageService.consumeQuota(
-        accountId,
-        'ai.calls.limit',
-      );
+      await this.planUsageService.consumeQuota(accountId, 'ai.calls.limit');
 
       const result = await this.aiService.generateStructuredObject(
         taskName,

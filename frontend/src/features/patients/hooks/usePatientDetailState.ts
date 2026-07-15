@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
-import jsPDF from "jspdf";
 import { domToPng } from "modern-screenshot";
 import { fetchApi } from "@/lib/api-base";
 import { validateRut } from "@/lib/rut-utils";
@@ -55,6 +54,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
   const [exportIncludeClinicalRecord, setExportIncludeClinicalRecord] = useState(false);
   const [exportIncludeProgress, setExportIncludeProgress] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [isSavingMetrics, setIsSavingMetrics] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("Ficha clínica");
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Patient>>({});
@@ -261,6 +261,9 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     "evaluationDate",
     "motivoConsulta",
     "automaticNutritionCalculations",
+    "automaticnutritioncalculations",
+    "diagnosticoNutricional",
+    "diagnosticonutricional",
   ]);
 
   const registeredMetricKeys = useMemo(() => {
@@ -279,6 +282,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
         patient.customVariables.forEach((cv: any) => {
           if (NON_METRIC_CUSTOM_KEYS.has(cv.key)) return;
           const mk = normalizeMetricKey(cv.label, cv.key);
+          if (NON_METRIC_CUSTOM_KEYS.has(mk)) return;
           if (mk) keys.add(mk);
         });
       }
@@ -392,7 +396,9 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
         setGlobalMetrics(data);
       }
     } catch (error) {
-      console.error("Error fetching global metrics", error);
+      toast.error("Error de conexión");
+    } finally {
+      setIsSavingMetrics(false);
     }
   };
 
@@ -878,6 +884,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
   const executeSaveMetrics = async (
     updateConsultationId: string | null = null,
   ) => {
+    setIsSavingMetrics(true);
     try {
       if (updateConsultationId) {
         const existingConsultation = consultations.find(
@@ -969,6 +976,8 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
       }
     } catch (error) {
       toast.error("Error de conexión");
+    } finally {
+      setIsSavingMetrics(false);
     }
   };
 
@@ -1303,192 +1312,106 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
   const handleExportPDF = async () => {
     setIsExporting(true);
     try {
-      const doc = new jsPDF("p", "mm", "a4");
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 20;
-      let currentY = 20;
-      const includeClinical = exportIncludeClinicalRecord;
-      const includeProgress = exportIncludeProgress;
-      if (!includeClinical && !includeProgress) {
-        toast.error("Selecciona al menos una sección para exportar");
-        return;
-      }
-      const reportTitle =
-        includeClinical && includeProgress
-          ? "INFORME CLÍNICO Y EVOLUCIÓN"
-          : includeClinical
-            ? "FICHA CLÍNICA"
-            : "INFORME DE EVOLUCIÓN";
+      const chartData = prepareChartData();
+      const metricKeys = getAllMetricKeys();
+      const metrics: Array<{
+        key: string;
+        label: string;
+        unit: string;
+        firstValue: string;
+        lastValue: string;
+        diff: string;
+        diffColor: string;
+      }> = [];
 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(22);
-      doc.setTextColor(16, 185, 129);
-      doc.text(reportTitle, margin, currentY);
-      currentY += 10;
-
-      doc.setFontSize(14);
-      doc.setTextColor(51, 65, 85);
-      doc.text(`Paciente: ${patient?.fullName || "Sin Nombre"}`, margin, currentY);
-      currentY += 7;
-
-      if (includeClinical) {
-        const writeLine = (label: string, value?: string | number | boolean | null) => {
-          if (value === undefined || value === null || value === "" || value === false) return;
-          const text = `${label}: ${value}`;
-          const lines = doc.splitTextToSize(text, pageWidth - margin * 2);
-          if (currentY + lines.length * 5 > 270) {
-            doc.addPage();
-            currentY = 20;
-          }
-          doc.setFontSize(10);
-          doc.setTextColor(71, 85, 105);
-          doc.text(lines, margin, currentY);
-          currentY += lines.length * 5;
-        };
-
-        doc.setFontSize(12);
-        doc.setTextColor(30, 41, 59);
-        doc.text("FICHA CLÍNICA", margin, currentY);
-        currentY += 8;
-
-        writeLine("Ocupación", clinicalRecordDraft.vitalHistory.occupation);
-        writeLine("Horario laboral", clinicalRecordDraft.vitalHistory.workSchedule);
-        writeLine("Medicamentos", clinicalRecordDraft.vitalHistory.medications);
-        writeLine("Suplementos / drogas", clinicalRecordDraft.vitalHistory.supplementsOrDrugs);
-        writeLine("Patologías", clinicalRecordDraft.vitalHistory.diagnosedPathologies);
-        writeLine("Embarazo", clinicalRecordDraft.gynecoObstetric.isPregnant ? "Sí" : null);
-        writeLine("Semanas de gestación", clinicalRecordDraft.gynecoObstetric.pregnancyWeeks);
-        writeLine(
-          "Peso pre-gestacional",
-          clinicalRecordDraft.gynecoObstetric.pregestationalWeight
-            ? `${clinicalRecordDraft.gynecoObstetric.pregestationalWeight} kg`
-            : null,
-        );
-        writeLine("Preferencias", clinicalRecordDraft.nutritionalAnamnesis.eatingPreferences);
-        writeLine("Observaciones", clinicalRecordDraft.nutritionalAnamnesis.clinicalObservations);
-
-        writeLine("Pliegue tricipital", clinicalRecordDraft.anthropometry.skinfolds.tricipital);
-        writeLine("Pliegue bicipital", clinicalRecordDraft.anthropometry.skinfolds.bicipital);
-        writeLine("Pliegue subescapular", clinicalRecordDraft.anthropometry.skinfolds.subescapular);
-        writeLine("Pliegue suprailiaco", clinicalRecordDraft.anthropometry.skinfolds.suprailiac);
-        writeLine("Altura de rodilla", clinicalRecordDraft.anthropometry.circumferences.kneeHeight);
-        writeLine("Pantorrilla", clinicalRecordDraft.anthropometry.circumferences.calfCircumference);
-        writeLine("Braquial", clinicalRecordDraft.anthropometry.circumferences.armCircumference);
-        writeLine("Cintura", clinicalRecordDraft.anthropometry.circumferences.waistCircumference);
-        writeLine("Cadera", clinicalRecordDraft.anthropometry.circumferences.hipCircumference);
-
-        currentY += 6;
-      }
-
-      if (includeProgress) {
-        const chartData = prepareChartData();
-        if (chartData.length > 0) {
-          const first = chartData[0].fullDate;
-          const last = chartData[chartData.length - 1].fullDate;
-          doc.setFontSize(10);
-          doc.setTextColor(148, 163, 184);
-          doc.text(`Periodo: ${first} - ${last}`, margin, currentY);
-          currentY += 15;
-        }
-
-        doc.setFontSize(12);
-        doc.setTextColor(30, 41, 59);
-        doc.text("RESUMEN DE CAMBIOS", margin, currentY);
-        currentY += 8;
-        doc.setDrawColor(241, 245, 249);
-        doc.line(margin, currentY, pageWidth - margin, currentY);
-        currentY += 10;
-
-        const metricKeys = getAllMetricKeys();
-        for (const key of metricKeys) {
-          const info = getMetricInfo(key);
-          const filtered = chartData.filter((d) => d[key] !== undefined);
-          if (filtered.length >= 2) {
-            const first = filtered[0][key];
-            const last = filtered[filtered.length - 1][key];
-            const diff = (Number(last) - Number(first)).toFixed(1);
-            const color = Number(diff) < 0 ? [225, 29, 72] : [16, 185, 129];
-
-            doc.setFontSize(10);
-            doc.setTextColor(71, 85, 105);
-            doc.text(`${info.label}:`, margin, currentY);
-
-            doc.setFont("helvetica", "normal");
-            doc.text(
-              `Inicio: ${first}${info.unit} -> Final: ${last}${info.unit}`,
-              margin + 60,
-              currentY,
-            );
-
-            doc.setFont("helvetica", "bold");
-            // @ts-ignore
-            doc.setTextColor(...color);
-            doc.text(
-              `${Number(diff) > 0 ? "+" : ""}${diff}${info.unit}`,
-              pageWidth - margin - 20,
-              currentY,
-              { align: "right" },
-            );
-
-            currentY += 8;
-            if (currentY > 270) {
-              doc.addPage();
-              currentY = 20;
-            }
-          }
-        }
-
-        currentY += 15;
-
-        for (const key of metricKeys) {
-          const container = document.getElementById(`export-chart-${key}`);
-          if (container) {
-            if (currentY > 180) {
-              doc.addPage();
-              currentY = 20;
-            }
-
-            const imgData = await domToPng(container, {
-              scale: 2,
-              backgroundColor: "#ffffff",
-              filter: (node) => {
-                if (node instanceof HTMLElement && node.dataset.noExport) {
-                  return false;
-                }
-                return true;
-              },
-            });
-
-            const info = getMetricInfo(key);
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(12);
-            doc.setTextColor(30, 41, 59);
-            doc.text(`Gráfico: ${info.label} (${info.unit})`, margin, currentY);
-            currentY += 5;
-
-            const imgWidth = pageWidth - margin * 2;
-            const { width, height } = container.getBoundingClientRect();
-            const imgHeight = (height * imgWidth) / width;
-
-            doc.addImage(imgData, "PNG", margin, currentY, imgWidth, imgHeight);
-            currentY += imgHeight + 15;
-          }
+      for (const key of metricKeys) {
+        const info = getMetricInfo(key);
+        const filtered = chartData.filter((d) => d[key] !== undefined);
+        if (filtered.length >= 2) {
+          const first = filtered[0][key];
+          const last = filtered[filtered.length - 1][key];
+          const diffRaw = Number(last) - Number(first);
+          const formatVal = (v: any) => {
+            const n = Number(v);
+            if (!Number.isFinite(n)) return "—";
+            if (Number.isInteger(n)) return n.toString();
+            return n.toFixed(2).replace(/\.?0+$/, "");
+          };
+          metrics.push({
+            key,
+            label: info.label,
+            unit: info.unit,
+            firstValue: formatVal(first),
+            lastValue: formatVal(last),
+            diff: `${diffRaw > 0 ? "+" : ""}${formatVal(diffRaw)}`,
+            diffColor:
+              diffRaw > 0
+                ? "#10b981"
+                : diffRaw < 0
+                  ? "#f43f5e"
+                  : "#334155",
+          });
+        } else if (filtered.length === 1) {
+          const val = filtered[0][key];
+          const formatVal = (v: any) => {
+            const n = Number(v);
+            if (!Number.isFinite(n)) return "—";
+            if (Number.isInteger(n)) return n.toString();
+            return n.toFixed(2).replace(/\.?0+$/, "");
+          };
+          metrics.push({
+            key,
+            label: info.label,
+            unit: info.unit,
+            firstValue: formatVal(val),
+            lastValue: formatVal(val),
+            diff: "0",
+            diffColor: "#334155",
+          });
         }
       }
 
-      doc.setFontSize(8);
-      doc.setTextColor(148, 163, 184);
-      doc.text(
-        `Generado automáticamente por NutriNet - ${new Date().toLocaleDateString("es-ES")}`,
-        margin,
-        285,
+      const chartImages: Record<string, string> = {};
+      for (const key of metricKeys) {
+        const container = document.getElementById(`export-chart-${key}`);
+        if (container) {
+          const imgData = await domToPng(container, {
+            scale: 2,
+            backgroundColor: "#ffffff",
+            filter: (node) => {
+              if (node instanceof HTMLElement && node.dataset.noExport) {
+                return false;
+              }
+              return true;
+            },
+          });
+          chartImages[key] = imgData;
+        }
+      }
+
+      let dateFrom = "";
+      let dateTo = "";
+      if (chartData.length > 0) {
+        dateFrom = chartData[0].fullDate || chartData[0].date || "";
+        dateTo =
+          chartData[chartData.length - 1].fullDate ||
+          chartData[chartData.length - 1].date ||
+          "";
+      }
+
+      const { downloadProgressPdf } = await import(
+        "@/features/pdf/progressPdfExport"
       );
+      await downloadProgressPdf({
+        patientName: patient?.fullName || "Sin Nombre",
+        dateFrom,
+        dateTo,
+        metrics,
+        chartImages,
+        generatedAt: new Date().toISOString(),
+      });
 
-      doc.save(
-        `${(includeClinical ? "Ficha_" : "Evolucion_")}${(patient?.fullName || "Paciente").replace(/\s+/g, "_")}.pdf`,
-      );
       toast.success("PDF generado correctamente");
-      setIsExportModalOpen(false);
     } catch (error) {
       console.error("PDF Error:", error);
       toast.error("Error al generar el PDF");
@@ -1749,16 +1672,15 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
         });
       });
 
-      const patientUpdates: any = {};
+      await Promise.all(updatePromises);
+
       let needsPatientUpdate = false;
 
       if (key === "weight" && patient?.weight) {
-        patientUpdates.weight = null;
         needsPatientUpdate = true;
       }
 
       if (key === "height" && patient?.height) {
-        patientUpdates.height = null;
         needsPatientUpdate = true;
       }
 
@@ -1767,36 +1689,39 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
           (cv) => normalizeMetricKey(cv.label, cv.key) === key,
         );
         if (hasMetric) {
-          patientUpdates.customVariables = (
-            patient.customVariables as any[]
-          ).filter((cv) => normalizeMetricKey(cv.label, cv.key) !== key);
           needsPatientUpdate = true;
         }
       }
 
       if (needsPatientUpdate) {
-        updatePromises.push(
-          fetchApi(`/patients/${id}`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(patientUpdates),
-          }),
-        );
+        const patientUpdates: any = {};
+
+        if (key === "weight" && patient?.weight) {
+          patientUpdates.weight = null;
+        }
+
+        if (key === "height" && patient?.height) {
+          patientUpdates.height = null;
+        }
+
+        if (patient && Array.isArray(patient.customVariables)) {
+          patientUpdates.customVariables = (
+            patient.customVariables as any[]
+          ).filter((cv) => normalizeMetricKey(cv.label, cv.key) !== key);
+        }
+
+        await fetchApi(`/patients/${id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(patientUpdates),
+        });
       }
 
-      const results = await Promise.all(updatePromises);
-      const allOk = results.every((r) => r.ok);
-
-      if (allOk) {
-        toast.success(`Historial de ${getMetricInfo(key).label} eliminado`);
-        await Promise.all([fetchConsultations(), fetchPatient()]);
-      } else {
-        toast.error("Algunos registros no pudieron actualizarse correctamente");
-        fetchConsultations();
-      }
+      toast.success(`Historial de ${getMetricInfo(key).label} eliminado`);
+      await Promise.all([fetchConsultations(), fetchPatient()]);
     } catch (error) {
       toast.error("Error al eliminar el historial completo");
     } finally {
@@ -2071,6 +1996,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     setExportIncludeProgress,
     isExporting,
     setIsExporting,
+    isSavingMetrics,
     activeTab,
     setActiveTab,
     isEditing,
@@ -2171,7 +2097,6 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     handleCreatePortalMessage,
     handleTogglePortalAccess,
     handleReplyPortalQuestion,
-    openProgressExportModal,
     openClinicalRecordExportModal,
     resetMetricForm,
     createMetricDraft,

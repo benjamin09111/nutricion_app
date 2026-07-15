@@ -11,10 +11,7 @@ import {
 
 const extractTokenFromCookie = (request: Request) => {
   const cookieHeader = request.headers.cookie || '';
-  for (const cookieName of [
-    AUTH_SESSION_COOKIE,
-    LEGACY_AUTH_SESSION_COOKIE,
-  ]) {
+  for (const cookieName of [AUTH_SESSION_COOKIE, LEGACY_AUTH_SESSION_COOKIE]) {
     const match = cookieHeader.match(
       new RegExp(`(?:^|;\\s*)${cookieName}=([^;]+)`),
     );
@@ -43,8 +40,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       secretOrKey: secret,
       algorithms: ['HS256'],
       issuer: configService.get<string>('JWT_ISSUER') || 'nutrinet-api',
-      audience:
-        configService.get<string>('JWT_AUDIENCE') || 'nutrinet-app',
+      audience: configService.get<string>('JWT_AUDIENCE') || 'nutrinet-app',
     });
   }
 
@@ -64,10 +60,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       },
     });
 
-    if (
-      !account ||
-      account.status !== 'ACTIVE'
-    ) {
+    if (!account || account.status !== 'ACTIVE') {
       throw new UnauthorizedException('Sesión inválida');
     }
 

@@ -13,8 +13,14 @@ import { fetchApi } from "@/lib/api-base";
 import { useTheme } from "@/context/ThemeContext";
 import { useFont } from "@/context/FontContext";
 import { formatRut } from "@/lib/rut-utils";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import { MembershipPlanSection } from "./MembershipPlanSection";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 function RoleBadge({ role }: { role?: string | null }) {
   const config: Record<string, { label: string; className: string }> = {
@@ -212,6 +218,8 @@ function ComplianceTabSection() {
     return localStorage.getItem("nutri_ai_disabled") === "true";
   });
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [hasPendingDeletionRequest, setHasPendingDeletionRequest] = useState(false);
+  const [isSubmittingDeletion, setIsSubmittingDeletion] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -224,6 +232,23 @@ function ComplianceTabSection() {
         }
       }
     }
+  }, []);
+
+  useEffect(() => {
+    const checkDeletionRequest = async () => {
+      try {
+        const response = await fetchApi(`/users/me/deletion-request`);
+
+        if (response.ok) {
+          const data = await response.json();
+          setHasPendingDeletionRequest(data.hasPendingRequest || false);
+        }
+      } catch (error) {
+        console.error("Error checking deletion request status:", error);
+      }
+    };
+
+    checkDeletionRequest();
   }, []);
 
   const handleToggleAi = () => {
@@ -324,8 +349,33 @@ El Subencargado se somete a auditorías anuales independientes y asume la respon
     toast.success("Adenda DPA descargada.");
   };
 
-  const handleRequestDeletion = () => {
-    toast.info("Tu solicitud de cancelación de cuenta y eliminación de datos bajo la Ley 21.719 ha sido enviada al área de soporte técnico. Nos contactaremos contigo en menos de 24 horas para certificar la eliminación definitiva de tus registros.");
+  const handleRequestDeletion = async () => {
+    if (hasPendingDeletionRequest) {
+      toast.info("Ya tienes una solicitud de eliminación pendiente. El equipo técnico se pondrá en contacto contigo.");
+      return;
+    }
+
+    setIsSubmittingDeletion(true);
+    try {
+      const response = await fetchApi(`/users/me/deletion-request`, {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || "No se pudo procesar tu solicitud. Intenta nuevamente.");
+        return;
+      }
+
+      setHasPendingDeletionRequest(true);
+      toast.success("Tu solicitud de eliminación ha sido enviada correctamente. El equipo técnico la procesará a la brevedad.");
+    } catch (error) {
+      console.error("Error requesting deletion:", error);
+      toast.error("Ocurrió un error al enviar la solicitud. Por favor, intenta nuevamente.");
+    } finally {
+      setIsSubmittingDeletion(false);
+    }
   };
 
   const handleClearLogs = () => {
@@ -479,9 +529,16 @@ El Subencargado se somete a auditorías anuales independientes y asume la respon
             <Button
               type="button"
               onClick={handleRequestDeletion}
-              className="h-9 px-4 rounded-xl text-xs font-bold bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 flex items-center gap-1.5 cursor-pointer shrink-0"
+              disabled={hasPendingDeletionRequest || isSubmittingDeletion}
+              className={cn(
+                "h-9 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0",
+                hasPendingDeletionRequest
+                  ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
+                  : "bg-red-50 hover:bg-red-100 border border-red-200 text-red-700"
+              )}
             >
-              <Trash2 className="h-3.5 w-3.5" /> Solicitar Eliminación
+              <Trash2 className="h-3.5 w-3.5" />
+              {hasPendingDeletionRequest ? "Solicitud enviada" : isSubmittingDeletion ? "Enviando..." : "Solicitar Eliminación"}
             </Button>
           </div>
         </div>
