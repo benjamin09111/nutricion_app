@@ -33,6 +33,7 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { TableLoadingRows } from "@/components/ui/TableLoadingRows";
 import { MobileCardLoadingList } from "@/components/ui/MobileCardLoadingList";
 import { getApiUrl } from "@/lib/api-base";
+import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 import { usePatients } from "@/features/patients/hooks/usePatients";
 import { exportPatientsToExcel } from "@/features/pdf/patientsExcelExport";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -720,9 +721,11 @@ export default function PatientsClient() {
                     </p>
                     <p className="mt-1 font-semibold">
                       {patientPreview.birthDate
-                        ? new Date(patientPreview.birthDate).toLocaleDateString(
-                            "es-CL",
-                          )
+                        ? formatDateOnlyForLocale(patientPreview.birthDate, {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })
                         : "No registrado"}
                     </p>
                   </div>

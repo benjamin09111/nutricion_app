@@ -113,6 +113,9 @@ export class ConsultationsService {
     nutritionistId: string,
     createConsultationDto: CreateConsultationDto,
   ) {
+    const shouldSyncPatientProfile =
+      createConsultationDto.title === INDEPENDENT_METRICS_TITLE;
+
     const consultationsTotal = await this.prisma.consultation.count({
       where: {
         nutritionistId,
@@ -159,10 +162,12 @@ export class ConsultationsService {
       return created;
     });
 
-    await this.reconcilePatientProfileFromConsultations(
-      nutritionistId,
-      createConsultationDto.patientId,
-    );
+    if (shouldSyncPatientProfile) {
+      await this.reconcilePatientProfileFromConsultations(
+        nutritionistId,
+        createConsultationDto.patientId,
+      );
+    }
 
     await this.cacheService.invalidateNutritionistPrefix(
       nutritionistId,
@@ -286,6 +291,9 @@ export class ConsultationsService {
     updateConsultationDto: UpdateConsultationDto,
   ) {
     const existing = await this.findOne(nutritionistId, id);
+    const shouldSyncPatientProfile =
+      existing.title === INDEPENDENT_METRICS_TITLE ||
+      updateConsultationDto.title === INDEPENDENT_METRICS_TITLE;
 
     this.assertMetricsDoNotContainClinicalFields(updateConsultationDto.metrics);
 
@@ -316,6 +324,7 @@ export class ConsultationsService {
     });
 
     if (
+      shouldSyncPatientProfile &&
       updateConsultationDto.metrics &&
       updateConsultationDto.metrics.length > 0
     ) {
@@ -389,6 +398,8 @@ export class ConsultationsService {
         const parsedValue = Number(rawValue);
 
         if (
+          // Only weight and height update the patient profile directly.
+          // All other metrics remain historical consultation data.
           (normalizedKey === 'weight' || normalizedKey === 'height') &&
           metric.value !== undefined &&
           metric.value !== null &&
@@ -431,16 +442,18 @@ export class ConsultationsService {
   }
 
   async remove(nutritionistId: string, id: string) {
-    await this.findOne(nutritionistId, id);
+    const existing = await this.findOne(nutritionistId, id);
 
     const deleted = await this.prisma.consultation.delete({
       where: { id },
     });
 
-    await this.reconcilePatientProfileFromConsultations(
-      nutritionistId,
-      deleted.patientId,
-    );
+    if (existing.title === INDEPENDENT_METRICS_TITLE) {
+      await this.reconcilePatientProfileFromConsultations(
+        nutritionistId,
+        deleted.patientId,
+      );
+    }
 
     await this.cacheService.invalidateNutritionistPrefix(
       nutritionistId,

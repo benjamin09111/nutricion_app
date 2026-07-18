@@ -21,8 +21,8 @@ import {
 } from "@/features/patient-portal";
 import {
   isIndependentMetricsConsultation,
+  buildMetricSeriesForKey,
   normalizeMetricKey,
-  hasHistoricalMetricKey,
   toDateOnly,
   formatDateOnlyForLocale,
   getTodayDateInputValue,
@@ -178,23 +178,24 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
 
   const prepareChartData = () => {
     const dataPoints: any[] = [];
-    const hasHistoricalWeight = hasHistoricalMetricKey(consultations, "weight");
 
     if (patient) {
       const baseline: any = {
-        date: new Date(patient.createdAt || Date.now()).toLocaleDateString(
-          "es-ES",
-          { day: "2-digit", month: "short" },
-        ),
-        fullDate: new Date(patient.createdAt || Date.now()).toLocaleDateString(
-          "es-ES",
-          { day: "2-digit", month: "2-digit", year: "numeric" },
-        ),
+        date: formatDateOnlyForLocale(patient.createdAt || new Date(), {
+          day: "2-digit",
+          month: "short",
+        }),
+        fullDate: formatDateOnlyForLocale(patient.createdAt || new Date(), {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }),
         isBaseline: true,
       };
 
+      // Baseline is the current profile snapshot, not a consultation entry.
       let hasBaselineData = false;
-      if (patient.weight && !hasHistoricalWeight) {
+      if (patient.weight) {
         baseline["weight"] = patient.weight;
         hasBaselineData = true;
       }
@@ -1056,13 +1057,12 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     if (!editingMetricKey) return [];
 
     const history: any[] = [];
-    const hasHistoricalWeight = hasHistoricalMetricKey(consultations, "weight");
 
     if (
       editingMetricKey === "weight" &&
-      patient?.weight &&
-      !hasHistoricalWeight
+      patient?.weight
     ) {
+      // Keep the profile weight as the initial reference point in the history modal.
       history.push({
         id: "baseline-weight",
         date: patient.createdAt || new Date().toISOString(),
@@ -1174,6 +1174,19 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     newDate: string,
   ) => {
     try {
+      const hasMetricConflictOnDate = (
+        targetKey: string,
+        targetDate: string,
+        ignoreConsultationId?: string,
+      ) =>
+        consultations.some((c) => {
+          if (ignoreConsultationId && c.id === ignoreConsultationId) return false;
+          if (toDateOnly(c.date) !== targetDate) return false;
+          return Array.isArray(c.metrics)
+            ? c.metrics.some((m) => normalizeMetricKey(m.label, m.key) === targetKey)
+            : false;
+        });
+
       if (record.isBaseline) {
         const parsedValue = parseFloat(newValue.replace(",", "."));
         if (Number.isNaN(parsedValue)) {
@@ -1186,9 +1199,19 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
           return;
         }
 
-        const baselineDate = new Date(record.date).toISOString().split("T")[0];
-        const editedDate = new Date(newDate).toISOString().split("T")[0];
+        const baselineDate = toDateOnly(record.date);
+        const editedDate = toDateOnly(newDate);
         const changedDate = baselineDate !== editedDate;
+        const targetKey = editingMetricKey || normalizeMetricKey(record.label, record.key);
+
+        if (
+          changedDate &&
+          targetKey &&
+          hasMetricConflictOnDate(targetKey, editedDate)
+        ) {
+          toast.error("Ya existe un registro de esta métrica para la fecha seleccionada.");
+          return;
+        }
 
         const metricInfo = getMetricInfo(editingMetricKey);
 
@@ -1248,6 +1271,20 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
       } else {
         const consultation = consultations.find((c) => c.id === record.id);
         if (!consultation) return;
+
+        const targetDate = toDateOnly(newDate);
+        const currentDate = toDateOnly(record.date);
+        const changedDate = targetDate !== currentDate;
+        const targetKey = normalizeMetricKey(record.label, record.key);
+
+        if (
+          changedDate &&
+          targetKey &&
+          hasMetricConflictOnDate(targetKey, targetDate, record.id)
+        ) {
+          toast.error("Ya existe un registro de esta métrica para la fecha seleccionada.");
+          return;
+        }
 
         const newMetrics = [...(consultation.metrics || [])];
         newMetrics[record.metricIndex] = {
@@ -1347,10 +1384,10 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
 
       for (const key of metricKeys) {
         const info = getMetricInfo(key);
-        const filtered = chartData.filter((d) => d[key] !== undefined);
-        if (filtered.length >= 2) {
-          const first = filtered[0][key];
-          const last = filtered[filtered.length - 1][key];
+        const series = buildMetricSeriesForKey(consultations, key);
+        if (series.length >= 2) {
+          const first = series[0][key];
+          const last = series[series.length - 1][key];
           const diffRaw = Number(last) - Number(first);
           const formatVal = (v: any) => {
             const n = Number(v);
@@ -1372,8 +1409,8 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
                   ? "#f43f5e"
                   : "#334155",
           });
-        } else if (filtered.length === 1) {
-          const val = filtered[0][key];
+        } else if (series.length === 1) {
+          const val = series[0][key];
           const formatVal = (v: any) => {
             const n = Number(v);
             if (!Number.isFinite(n)) return "—";
@@ -1539,6 +1576,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
         chartData,
         metricKeys,
         getMetricInfo,
+        consultations,
       );
       toast.success("Progreso exportado");
     } catch (error) {

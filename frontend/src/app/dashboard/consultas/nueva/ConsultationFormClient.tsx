@@ -24,6 +24,7 @@ import {
     Heart,
     RotateCcw,
     ChevronDown,
+    Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -144,6 +145,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const [isDraftSaving, setIsDraftSaving] = useState(false);
     const [lastDraftSaved, setLastDraftSaved] = useState<string | null>(null);
     const isInitialLoad = useRef(true);
+    const [clinicalNotesTab, setClinicalNotesTab] = useState<"notes" | "apuntes">("notes");
 
     // Load draft on patient selection
     useEffect(() => {
@@ -172,6 +174,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                     description: formData.description,
                     metrics: formData.metrics,
                     date: formData.date,
+                    plansDelivered: formData.plansDelivered,
                 };
                 localStorage.setItem(draftKey, JSON.stringify(draft));
                 setIsDraftSaving(true);
@@ -183,7 +186,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
         return () => {
             if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
         };
-    }, [formData.title, formData.description, formData.date, JSON.stringify(formData.metrics), draftKey]);
+    }, [formData.title, formData.description, formData.date, formData.plansDelivered, JSON.stringify(formData.metrics), draftKey]);
 
     const clearDraft = useCallback(() => {
         if (draftKey) {
@@ -223,6 +226,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
             setPatientData(null);
             setIsPatientInfoEditing(false);
             setIsPatientAccordionOpen(false);
+            setClinicalNotesTab("notes");
             setPatientForm({
                 fullName: "",
                 email: "",
@@ -458,6 +462,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
         setActivityLevel("sedentario");
         setIsPatientInfoEditing(false);
         setIsPatientAccordionOpen(false);
+        setClinicalNotesTab("notes");
         setPatientForm({
             fullName: "",
             email: "",
@@ -536,6 +541,19 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                 {isDraftSaving ? "Guardando..." : lastDraftSaved ? `Borrador ${lastDraftSaved}` : "Borrador pendiente"}
                             </div>
                         )}
+                        <div className="group relative">
+                            <button
+                                type="button"
+                                disabled
+                                className="h-10 px-5 rounded-xl text-slate-300 font-semibold bg-slate-50 border border-slate-200 cursor-not-allowed uppercase text-[10px] tracking-widest flex items-center gap-2"
+                            >
+                                <Lock className="w-4 h-4" />
+                                Consulta online
+                            </button>
+                            <div className="pointer-events-none absolute right-0 top-full mt-2 w-72 rounded-xl bg-slate-900 px-3 py-2 text-[11px] font-medium text-white shadow-2xl opacity-0 transition-opacity group-hover:opacity-100">
+                                Funcionalidad futura: podrás crear una reunión online y transcribir automáticamente todo el contenido de la consulta.
+                            </div>
+                        </div>
                         <button
                             type="button"
                             onClick={handleReset}
@@ -574,6 +592,19 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                 {isDraftSaving ? "Guardando..." : lastDraftSaved ? `Borrador ${lastDraftSaved}` : ""}
                             </div>
                         )}
+                        <div className="group relative flex-1 sm:flex-none">
+                            <button
+                                type="button"
+                                disabled
+                                className="flex-1 sm:flex-none h-10 px-4 rounded-xl text-slate-300 font-semibold bg-slate-50 border border-slate-200 cursor-not-allowed uppercase text-[10px] tracking-widest flex items-center justify-center gap-2"
+                            >
+                                <Lock className="w-4 h-4" />
+                                Consulta online
+                            </button>
+                            <div className="pointer-events-none absolute left-0 top-full mt-2 w-72 max-w-[85vw] rounded-xl bg-slate-900 px-3 py-2 text-[11px] font-medium text-white shadow-2xl opacity-0 transition-opacity group-hover:opacity-100">
+                                Funcionalidad futura: podrás crear una reunión online y transcribir automáticamente todo el contenido de la consulta.
+                            </div>
+                        </div>
                         <button
                             type="button"
                             onClick={handleReset}
@@ -662,14 +693,51 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                     required
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
-                                    Observaciones / Notas Clínicas <span className="text-rose-500">*</span>
-                                </label>
+                            <div className="space-y-3">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1 block">
+                                        Observaciones / Notas Clínicas <span className="text-rose-500">*</span>
+                                    </label>
+                                    <div className="inline-flex rounded-xl bg-slate-100 p-1 self-start">
+                                        <button
+                                            type="button"
+                                            onClick={() => setClinicalNotesTab("notes")}
+                                            disabled={!hasSelectedPatient}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
+                                                clinicalNotesTab === "notes"
+                                                    ? "bg-white text-slate-900 shadow-sm"
+                                                    : "text-slate-400 hover:text-slate-700",
+                                                !hasSelectedPatient && "cursor-not-allowed opacity-50",
+                                            )}
+                                        >
+                                            Notas clínicas
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setClinicalNotesTab("apuntes")}
+                                            disabled={!hasSelectedPatient}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
+                                                clinicalNotesTab === "apuntes"
+                                                    ? "bg-white text-indigo-700 shadow-sm"
+                                                    : "text-slate-400 hover:text-slate-700",
+                                                !hasSelectedPatient && "cursor-not-allowed opacity-50",
+                                            )}
+                                        >
+                                            Escribir apuntes
+                                        </button>
+                                    </div>
+                                </div>
                                 <textarea
                                     disabled={!hasSelectedPatient}
-                                    className="w-full h-32 rounded-3xl bg-white border border-slate-200 p-4 font-medium text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all resize-none shadow-sm disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                    placeholder="Describe la evolución, cambios en el estilo de vida, adherencia al plan..."
+                                    className={cn(
+                                        "w-full rounded-3xl bg-white border border-slate-200 p-4 font-medium text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-sm disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400",
+                                        clinicalNotesTab === "apuntes" ? "min-h-[24rem] resize-y" : "h-32 resize-none",
+                                    )}
+                                    placeholder={clinicalNotesTab === "apuntes"
+                                        ? "Escribe apuntes extensos de la sesión, detalles clínicos, observaciones, acuerdos y contexto. Este espacio está pensado para texto largo."
+                                        : "Describe la evolución, cambios en el estilo de vida, adherencia al plan..."}
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                     required

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 import {
   buildProjectAwarePath,
   createProject,
@@ -383,7 +384,7 @@ export default function DashboardHomeClient() {
                       <div className="min-w-0">
                         <h4 className="truncate text-sm font-semibold text-slate-900">{project.name}</h4>
                         <p className="truncate text-xs font-medium text-slate-500">
-                          {(project.patient as any)?.fullName || "Proyecto General"} · {new Date(project.updatedAt).toLocaleDateString()}
+                          {(project.patient as any)?.fullName || "Proyecto General"} · {formatDateOnlyForLocale(project.updatedAt, { day: "2-digit", month: "short", year: "numeric" })}
                         </p>
                       </div>
                     </div>
@@ -439,7 +440,7 @@ export default function DashboardHomeClient() {
                     </div>
                     <div className="min-w-0">
                       <h4 className="truncate text-sm font-semibold text-slate-900">{patient.fullName}</h4>
-                      <p className="text-xs text-slate-400">{new Date(patient.updatedAt).toLocaleDateString()}</p>
+                      <p className="text-xs text-slate-400">{formatDateOnlyForLocale(patient.updatedAt, { day: "2-digit", month: "short", year: "numeric" })}</p>
                     </div>
                   </div>
                 ))}
@@ -486,7 +487,7 @@ export default function DashboardHomeClient() {
                     <div className="min-w-0">
                       <h4 className="truncate text-sm font-semibold text-slate-900">{consultation.title}</h4>
                       <p className="truncate text-xs text-slate-400">
-                        {consultation.patient?.fullName || "Sin paciente"} · {new Date(consultation.date).toLocaleDateString()}
+                        {consultation.patient?.fullName || "Sin paciente"} · {formatDateOnlyForLocale(consultation.date, { day: "2-digit", month: "short", year: "numeric" })}
                       </p>
                     </div>
                   </div>

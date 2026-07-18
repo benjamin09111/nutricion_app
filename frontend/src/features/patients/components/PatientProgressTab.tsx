@@ -31,7 +31,7 @@ import { MetricTagInput } from "@/components/ui/metric-tag-input";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Patient } from "@/features/patients";
 import { Consultation, Metric } from "@/features/consultations";
-import { cn, normalizeMetricKey } from "../utils/patient-helpers";
+import { buildMetricSeriesForKey, cn, normalizeMetricKey } from "../utils/patient-helpers";
 
 interface PatientProgressTabProps {
   patient: Patient;
@@ -86,11 +86,9 @@ interface PatientProgressTabProps {
 }
 
 export function PatientProgressTab({
-  patient,
-  chartData,
+  consultations,
   getAllMetricKeys,
   getMetricInfo,
-  prepareChartData,
   availableMetricSuggestions,
   metricHistory,
 
@@ -104,7 +102,6 @@ export function PatientProgressTab({
   setIsDeleteEntireMetricConfirmOpen,
   isOverwriteConfirmOpen,
   setIsOverwriteConfirmOpen,
-  isExporting,
   isSavingMetrics,
 
   // States
@@ -178,9 +175,11 @@ export function PatientProgressTab({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 lg:gap-6 px-2">
         {getAllMetricKeys().map((key) => {
           const info = getMetricInfo(key);
-          const filtered = chartData.filter((d) => d[key] !== undefined);
+          const metricSeries = buildMetricSeriesForKey(consultations, key);
           const lastPoint =
-            filtered.length > 0 ? filtered[filtered.length - 1] : null;
+            metricSeries.length > 0
+              ? metricSeries[metricSeries.length - 1]
+              : null;
 
           return (
             <div
@@ -219,12 +218,12 @@ export function PatientProgressTab({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {getAllMetricKeys().map((key) => {
           const info = getMetricInfo(key);
-          const filteredData = chartData.filter((d) => d[key] !== undefined);
-          const firstPoint = filteredData.length > 0 ? filteredData[0] : null;
+          const seriesData = buildMetricSeriesForKey(consultations, key);
+          const consultationPoints = seriesData;
+          const hasEnoughPointsForChart = consultationPoints.length >= 2;
+          const firstPoint = seriesData.length > 0 ? seriesData[0] : null;
           const latestPoint =
-            filteredData.length > 0
-              ? filteredData[filteredData.length - 1]
-              : null;
+            seriesData.length > 0 ? seriesData[seriesData.length - 1] : null;
 
           const firstValueRaw = firstPoint ? Number(firstPoint[key]) : null;
           const latestValueRaw = latestPoint ? Number(latestPoint[key]) : null;
@@ -315,13 +314,13 @@ export function PatientProgressTab({
                 className="h-[260px] w-full bg-white [&_*:focus]:outline-none [&_svg]:outline-none [&_.recharts-surface]:outline-none"
               >
                 {(() => {
-                  if (filteredData.length >= 2) {
+                  if (hasEnoughPointsForChart) {
                     return (
                       <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart
-                          data={chartData}
-                          margin={{ top: 10, right: 15, left: 0, bottom: 5 }}
-                        >
+                          <AreaChart
+                            data={seriesData}
+                            margin={{ top: 10, right: 15, left: 0, bottom: 5 }}
+                          >
                           <defs>
                             <linearGradient
                               id={`grad-${key}`}
@@ -364,7 +363,7 @@ export function PatientProgressTab({
                             animationDuration={1500}
                             connectNulls
                           />
-                          {chartData.filter((d) => d[key] !== undefined).length > 6 && (
+                          {seriesData.length > 6 && (
                             <Brush dataKey="date" height={20} stroke="#cbd5e1" fill="#f8fafc" />
                           )}
                         </AreaChart>
@@ -909,14 +908,7 @@ function MetricRecordRow({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   const normalizeDate = (d: string) => {
-    try {
-      const dateObj = new Date(d);
-      return isNaN(dateObj.getTime())
-        ? ""
-        : dateObj.toISOString().split("T")[0];
-    } catch {
-      return "";
-    }
+    return toDateOnly(d);
   };
 
   const [date, setDate] = useState(normalizeDate(record.date));

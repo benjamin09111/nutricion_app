@@ -32,6 +32,7 @@ import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { fetchApi } from "@/lib/api-base";
+import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -288,15 +289,15 @@ export default function CreationsClient({
             const allFilterTags = Array.from(
               new Set([...(item.tags || []), ...contentConstraints]),
             );
-            return {
-              id: item.id,
-              name: item.name,
-              type: mapBackendTypeToFrontend(item.type),
-              createdAt: new Date(item.createdAt).toLocaleDateString("es-ES", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              }),
+              return {
+                id: item.id,
+                name: item.name,
+                type: mapBackendTypeToFrontend(item.type),
+                createdAt: formatDateOnlyForLocale(item.createdAt, {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                }),
               size: "N/A",
               format: item.format === "NATIVE" ? "JSON" : "PDF",
               tags: item.tags || [],

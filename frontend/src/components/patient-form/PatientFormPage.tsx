@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/Button";
 import { TagInput } from "@/components/ui/TagInput";
 import { usePatientDraft } from "@/features/patients/hooks/usePatientDraft";
 import { buildClinicalRecordFromPatientDraft } from "@/features/patients/clinical-record";
+import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 import { cn, sanitizePhone } from "@/lib/utils";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { calculateBMI, calculateGET, getIdealWeightRange, calculateAge } from "@/lib/nutrition-formulas";
@@ -775,7 +776,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                   <p className="text-slate-400">Nombre: <span className="font-semibold text-slate-700">{draft.fullName || "—"}</span></p>
                   <p className="text-slate-400">Email: <span className="font-semibold text-slate-700">{draft.email || "—"}</span></p>
                   <p className="text-slate-400">Teléfono: <span className="font-semibold text-slate-700">{draft.phone || "—"}</span></p>
-                  <p className="text-slate-400">Nacimiento: <span className="font-semibold text-slate-700">{draft.birthDate ? new Date(draft.birthDate).toLocaleDateString("es-ES") : "—"}</span></p>
+                  <p className="text-slate-400">Nacimiento: <span className="font-semibold text-slate-700">{draft.birthDate ? formatDateOnlyForLocale(draft.birthDate, { day: "2-digit", month: "short", year: "numeric" }) : "—"}</span></p>
                   <p className="text-slate-400">Sexo: <span className="font-semibold text-slate-700">{draft.gender || "—"}</span></p>
                   <p className="text-slate-400">RUT: <span className="font-semibold text-slate-700">{draft.documentId || "—"}</span></p>
                 </div>

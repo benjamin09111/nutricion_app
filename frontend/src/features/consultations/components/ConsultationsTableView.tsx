@@ -2,6 +2,7 @@ import React from "react";
 import { Eye, CalendarDays, User, Trash2, Edit2 } from "lucide-react";
 import { RecordsTable, type Column } from "@/components/shared/RecordsTable";
 import { Consultation } from "@/features/consultations";
+import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 
 interface ConsultationsTableViewProps {
   consultations: Consultation[];
@@ -62,7 +63,7 @@ export function ConsultationsTableView({
       render: (item: Consultation) => (
         <div className="flex items-center gap-2 text-slate-500 font-semibold text-xs">
           <CalendarDays className="w-4 h-4 text-indigo-400" />
-          {new Date(item.date).toLocaleDateString("es-ES", {
+          {formatDateOnlyForLocale(item.date, {
             day: "numeric",
             month: "short",
             year: "numeric",

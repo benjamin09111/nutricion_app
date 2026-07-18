@@ -47,6 +47,55 @@ export const hasHistoricalMetricKey = (
       : false,
   );
 
+export const buildMetricSeriesForKey = (
+  consultations: Consultation[],
+  targetKey: string,
+) => {
+  const seriesByDate = new Map<string, Record<string, unknown>>();
+
+  const sortedConsultations = [...consultations].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
+
+  sortedConsultations.forEach((consultation) => {
+    const dateOnly = toDateOnly(consultation.date);
+    if (!dateOnly || !Array.isArray(consultation.metrics)) return;
+
+    consultation.metrics.forEach((metric) => {
+      const metricKey = normalizeMetricKey(metric.label, metric.key);
+      if (metricKey !== targetKey) return;
+
+      const rawValue =
+        typeof metric.value === "string"
+          ? metric.value.replace(",", ".")
+          : metric.value;
+      const value = Number(rawValue);
+      if (Number.isNaN(value)) return;
+
+      // This series is consultation-only. Baseline profile values are handled separately.
+      seriesByDate.set(dateOnly, {
+        date: formatDateOnlyForLocale(dateOnly, {
+          day: "2-digit",
+          month: "short",
+        }),
+        fullDate: formatDateOnlyForLocale(dateOnly, {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }),
+        sortDate: dateOnly,
+        [targetKey]: value,
+      });
+    });
+  });
+
+  return Array.from(seriesByDate.values()).sort((a, b) => {
+    const left = String(a.sortDate || "");
+    const right = String(b.sortDate || "");
+    return left.localeCompare(right);
+  });
+};
+
 export const INDEPENDENT_METRICS_REGISTRY_TITLE = "registro de metricas independiente";
 
 export const normalizeText = (value: string = "") =>

@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { type PortalVerificationResponse } from "@/features/patient-portal/types";
+import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 
 interface PortalPreview {
   patientName: string;
@@ -854,7 +855,11 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                             </div>
                             <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              {new Date(del.createdAt).toLocaleDateString("es-CL")}
+                              {formatDateOnlyForLocale(del.createdAt, {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })}
                             </span>
                           </div>
 

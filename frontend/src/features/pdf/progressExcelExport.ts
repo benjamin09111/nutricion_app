@@ -1,5 +1,8 @@
 "use client";
 
+import type { Consultation } from "@/features/consultations";
+import { buildMetricSeriesForKey } from "@/features/patients/utils/patient-helpers";
+
 interface ProgressRow {
   date: string;
   fullDate: string;
@@ -113,6 +116,7 @@ export async function downloadProgressExcel(
   chartData: ProgressRow[],
   metricKeys: string[],
   getMetricInfo: (key: string) => { label: string; unit: string; color: string },
+  consultations: Consultation[],
 ): Promise<void> {
   const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
@@ -162,10 +166,10 @@ export async function downloadProgressExcel(
 
   for (const key of metricKeys) {
     const info = getMetricInfo(key);
-    const filtered = chartData.filter((d) => d[key] !== undefined);
-    if (filtered.length >= 1) {
-      const first = Number(filtered[0][key]);
-      const last = Number(filtered[filtered.length - 1][key]);
+    const series = buildMetricSeriesForKey(consultations, key);
+    if (series.length >= 1) {
+      const first = Number(series[0][key]);
+      const last = Number(series[series.length - 1][key]);
       const diff = last - first;
       summaryRows.push([
         labelCell(info.label),

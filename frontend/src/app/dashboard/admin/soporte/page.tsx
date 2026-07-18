@@ -11,6 +11,7 @@ import {
 import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
+import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 
 interface SupportRequest {
   id: string;
@@ -148,7 +149,11 @@ export default function AdminSupportPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-slate-500">
-                      {new Date(req.createdAt).toLocaleDateString()}
+                      {formatDateOnlyForLocale(req.createdAt, {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
                     </td>
                     <td className="px-6 py-4 text-right">
                       {req.status !== "RESOLVED" && (

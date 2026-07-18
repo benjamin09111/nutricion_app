@@ -53,7 +53,7 @@ import { PatientConsultationsTab } from "@/features/patients/components/PatientC
 import { PatientProgressTab } from "@/features/patients/components/PatientProgressTab";
 import { PatientAcompanamientoTab } from "@/features/patients/components/PatientAcompanamientoTab";
 import { PatientCreationsTab } from "@/features/patients/components/PatientCreationsTab";
-import { cn } from "@/features/patients/utils/patient-helpers";
+import { cn, formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 import { formatPhone } from "@/lib/utils";
 
 interface PatientDetailClientProps {
@@ -366,7 +366,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               )}
               {latestConsultation && (
                 <span className="flex items-center gap-1 text-slate-400">
-                  Última evaluación: {new Date(latestConsultation.date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
+                  Última evaluación: {formatDateOnlyForLocale(latestConsultation.date, { day: "numeric", month: "short", year: "numeric" })}
                 </span>
               )}
               {patient.email && (
