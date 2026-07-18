@@ -143,6 +143,7 @@ function buildVitalHistorySheet(data: ClinicalRecordPdfData) {
     [sectionTitleCell("ANTECEDENTES CLÍNICOS", 2)],
     [labelCell("Medicamentos"), valueCell(esc(data.medications))],
     [labelCell("Suplementos / drogas"), valueCell(esc(data.supplementsOrDrugs))],
+    [labelCell("Condición clínica principal"), valueCell(esc(data.primaryCondition))],
     [labelCell("Patologías diagnosticadas"), valueCell(esc(data.diagnosedPathologies))],
     [labelCell("Antecedentes familiares"), valueCell(esc(data.familyHistory))],
   ];

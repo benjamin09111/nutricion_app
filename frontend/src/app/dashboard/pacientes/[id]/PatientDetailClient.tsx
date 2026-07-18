@@ -300,6 +300,15 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
                         Ficha clínica Excel
                       </button>
+                      {process.env.NODE_ENV !== "production" && (
+                        <button
+                          onClick={state.handlePrintAiContext}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-violet-600 hover:bg-violet-50 cursor-pointer transition-colors"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-violet-500" />
+                          Test contexto IA
+                        </button>
+                      )}
                       <div className="border-t border-slate-100 my-1" />
                       <button
                         onClick={() => setShowStatusConfirm(true)}

@@ -4,6 +4,15 @@ import { validateRut } from "@/lib/rut-utils";
 const DECIMAL_REGEX = /^\d*\.?\d*$/;
 const KILOS_REGEX = /^\d+(\.\d{1,2})?$/;
 
+export const WEEKLY_EXERCISE_OPTIONS = [
+  { value: "", label: "Seleccionar..." },
+  { value: "No realiza", label: "No realiza" },
+  { value: "1-2 veces/semana", label: "1-2 veces/semana" },
+  { value: "3-4 veces/semana", label: "3-4 veces/semana" },
+  { value: "5+ veces/semana", label: "5+ veces/semana" },
+  { value: "Actividad diaria", label: "Actividad diaria" },
+];
+
 export const patientFormSchema = z
   .object({
     fullName: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -55,6 +64,7 @@ export const patientFormSchema = z
     medications: z.string().optional(),
     drugsSupplements: z.string().optional(),
     diagnosedPathologies: z.string().optional(),
+    primaryCondition: z.string().optional(),
 
     likes: z.string().optional(),
     rejectedFoods: z.string().optional(),
@@ -301,6 +311,7 @@ export const quickPatientSchema = z
       message: "El sexo biológico es requerido",
     }),
     phone: z.string().optional(),
+    documentId: z.string().optional(),
     birthDate: z.string().optional(),
     motivoConsulta: z.string().optional(),
     weight: z.string().optional(),
@@ -316,6 +327,14 @@ export const quickPatientSchema = z
           path: ["phone"],
         });
       }
+    }
+
+    if (data.documentId && data.documentId.trim().length > 0 && !validateRut(data.documentId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El RUT no es válido",
+        path: ["documentId"],
+      });
     }
   });
 

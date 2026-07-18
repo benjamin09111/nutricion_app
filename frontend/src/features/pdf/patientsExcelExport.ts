@@ -54,6 +54,7 @@ export function exportPatientsToExcel(patients: Patient[]) {
     hdrCell("Peso (kg)", 12),
     hdrCell("Estado", 10),
     hdrCell("Restricciones dietéticas", 30),
+    hdrCell("Condición clínica", 20),
     hdrCell("Fecha de registro", 16),
   ];
 
@@ -78,6 +79,7 @@ export function exportPatientsToExcel(patients: Patient[]) {
       dataCell(esc(p.weight), isAlt),
       dataCell(status, isAlt),
       dataCell(restrictions, isAlt),
+      dataCell(esc(p.primaryCondition), isAlt),
       dataCell(createdAt, isAlt),
     ];
   });

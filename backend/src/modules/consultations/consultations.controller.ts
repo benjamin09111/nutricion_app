@@ -49,6 +49,8 @@ export class ConsultationsController {
     @Query('search') search?: string,
     @Query('patientId') patientId?: string,
     @Query('type') type?: 'CLINICAL' | 'METRIC' | 'ALL',
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ) {
     return this.consultationsService.findAll(
       req.user.nutritionistId,
@@ -57,6 +59,8 @@ export class ConsultationsController {
       search,
       patientId,
       type,
+      dateFrom,
+      dateTo,
     );
   }
 

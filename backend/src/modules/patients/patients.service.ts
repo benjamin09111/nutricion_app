@@ -8,6 +8,10 @@ import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateExamDto } from './dto/create-exam.dto';
 import { UpdateClinicalRecordDto } from './dto/update-clinical-record.dto';
+import {
+  buildPatientAiContext,
+  type PatientAiContext,
+} from './patient-ai-context.builder';
 
 import { CacheService } from '../../common/services/cache.service';
 import { PermissionsService } from '../permissions/permissions.service';
@@ -399,6 +403,46 @@ export class PatientsService {
       update: {},
       create: { patientId },
     });
+  }
+
+  async getAiContext(nutritionistId: string, patientId: string): Promise<PatientAiContext> {
+    await this.assertOwnership(nutritionistId, patientId);
+
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+      select: {
+        age: true,
+        birthDate: true,
+        gender: true,
+        height: true,
+        weight: true,
+        activityLevel: true,
+        nutritionalFocus: true,
+        fitnessGoals: true,
+        primaryCondition: true,
+        clinicalSummary: true,
+        dietRestrictions: true,
+        likes: true,
+        customVariables: true,
+        clinicalRecord: true,
+        consultations: {
+          orderBy: { date: 'desc' },
+          take: 3,
+          select: {
+            date: true,
+            title: true,
+            description: true,
+            plansDelivered: true,
+          },
+        },
+      },
+    });
+
+    if (!patient) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
+
+    return buildPatientAiContext(patient);
   }
 
   async updateClinicalRecord(

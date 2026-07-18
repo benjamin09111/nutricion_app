@@ -24,6 +24,7 @@
 7. **Scope lock**: Only touch files and logic requested. Avoid code sprawl.
 8. **UI/UX Excellence**: Premium aesthetics, HSL color palettes, no raw placeholders, precise alignment.
 9. **No hardcoded URLs**: Never hardcode `localhost` or any domain-specific URLs in source code. Always use environment variables (`process.env.*`). URLs must be configurable per environment (dev, staging, production).
+10. **Border-radius consistency**: Use Tailwind standard radii matching the existing design system. Card containers use `rounded-2xl`, buttons/inputs use `rounded-xl`, and modals use `rounded-3xl`. Never use arbitrary `rounded-[2rem]` or other custom border-radius values that deviate from the project convention.
 
 ## Linguistic Conventions
 - **UI text**: Professional, warm Spanish (español de Chile).

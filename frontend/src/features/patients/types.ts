@@ -26,6 +26,7 @@ export interface Patient {
   fitnessGoals?: string;
   likes?: string;
   activityLevel?: ActivityLevel;
+  primaryCondition?: string;
   clinicalRecord?: ClinicalRecord | null;
 
   // UI specific/Legacy fields

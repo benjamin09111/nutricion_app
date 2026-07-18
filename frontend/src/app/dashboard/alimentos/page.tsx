@@ -32,22 +32,6 @@ export default async function FoodsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="md:flex md:items-center md:justify-between px-2">
-        <div>
-          <h2
-            id="foods-page-title"
-            className="text-3xl font-semibold tracking-tight text-slate-900"
-          >
-            Catálogo de Ingredientes
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Gestiona los ingredientes base para tus pautas y recetas.
-          </p>
-        </div>
-        {/* Action button moved to Client Component */}
-      </div>
-
-      {/* Main Content: Filters + Table consolidated in Client Component */}
       <Suspense fallback={<div className="p-8 text-center text-slate-500">Cargando ingredientes...</div>}>
         <FoodsClient initialData={ingredients} />
       </Suspense>

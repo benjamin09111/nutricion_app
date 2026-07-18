@@ -897,6 +897,7 @@ export default function QuickRecipesClient() {
                   bmiClassification: patientBmi?.classification,
                 }
                 : null,
+              patientId: selectedPatient?.id || undefined,
             },
           }),
         });

@@ -71,6 +71,12 @@ export class PatientsController {
     return this.patientsService.findOne(req.user.nutritionistId, id);
   }
 
+  @Get(':id/ai-context')
+  @CacheTTL(0)
+  getAiContext(@Request() req: any, @Param('id') id: string) {
+    return this.patientsService.getAiContext(req.user.nutritionistId, id);
+  }
+
   @Patch(':id')
   update(
     @Request() req: any,

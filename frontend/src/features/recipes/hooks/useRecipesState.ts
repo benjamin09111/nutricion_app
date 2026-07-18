@@ -1049,6 +1049,7 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
 
     try {
       const patient = selectedPatient;
+      const patientId = patient?.importedPatientId || patient?.id || null;
       const payload = {
         payload: {
           notes: `Rellena automáticamente los espacios vacíos del día ${currentDay} respetando el tipo de comida de cada bloque.`,
@@ -1066,6 +1067,7 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
             fitnessGoals: patient?.fitnessGoals ?? "",
             clinicalSummary: patient?.nutritionalFocus ?? "",
           },
+          patientId: patientId || undefined,
           existingDishes: currentSlots
             .filter((s) => s.recipe)
             .map((s) => ({

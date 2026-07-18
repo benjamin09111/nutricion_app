@@ -186,7 +186,7 @@ export default function CreateIngredientModal({
     >
       <div className="flex flex-col max-h-[80vh]">
         <p className="text-sm text-slate-500 mb-6">
-          Se creará dentro de tus alimentos. Si quieres, luego puedes compartirlo con la comunidad desde &quot;Mis creaciones&quot;.
+          Se creará dentro de tus alimentos. Si quieres, luego puedes compartirlo con la comunidad desde la misma sección.
         </p>
 
         <div className="overflow-y-auto flex-1 pr-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
@@ -255,7 +255,7 @@ export default function CreateIngredientModal({
             </div>
 
             {/* Portions */}
-            <div className="p-6 bg-slate-50/50 rounded-[1.5rem] border border-slate-100 space-y-4">
+            <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4">
               <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
                 Porción Base
               </h4>

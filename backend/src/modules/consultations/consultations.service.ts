@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateConsultationDto } from './dto/create-consultation.dto';
@@ -30,6 +31,21 @@ export const INDEPENDENT_METRICS_TITLE = 'Registro de Métricas Independiente';
 
 const INTERNAL_VARIABLE_KEYS = new Set(['automaticnutritioncalculations']);
 
+const RESERVED_CLINICAL_METRIC_KEYS = new Set([
+  'rejectedfoods',
+  'alimentos_rechazados',
+  'motivoconsulta',
+  'motivo_de_consulta',
+  'diagnosticonutricional',
+  'diagnostico_nutricional',
+  'pesohabitual',
+  'peso_habitual',
+  'evaluationdate',
+  'fecha_evaluacion',
+  'automaticnutritioncalculations',
+  'calculos_nutricionales_automaticos',
+]);
+
 const normalizeMetricKey = (label: string = '', key?: string) => {
   const rawKey = (key || '').trim().toLowerCase();
   if (rawKey) {
@@ -47,6 +63,11 @@ const normalizeMetricKey = (label: string = '', key?: string) => {
     .replace(/\s+/g, '_');
 };
 
+const isReservedClinicalMetric = (metric: { label: string; key?: string }) =>
+  RESERVED_CLINICAL_METRIC_KEYS.has(
+    normalizeMetricKey(metric.label, metric.key),
+  );
+
 const consultationSelect = {
   id: true,
   patientId: true,
@@ -55,6 +76,7 @@ const consultationSelect = {
   title: true,
   description: true,
   metrics: true,
+  plansDelivered: true,
   updatedAt: true,
   patient: {
     select: {
@@ -109,6 +131,8 @@ export class ConsultationsService {
       createConsultationDto.patientId,
     );
 
+    this.assertMetricsDoNotContainClinicalFields(createConsultationDto.metrics);
+
     // Crear consulta y sincronizar métricas del paciente de forma atómica
     const consultation = await this.prisma.$transaction(async (tx) => {
       const created = await tx.consultation.create({
@@ -118,6 +142,7 @@ export class ConsultationsService {
           description: createConsultationDto.description,
           date: new Date(createConsultationDto.date),
           nutritionistId,
+          plansDelivered: createConsultationDto.plansDelivered ?? false,
           // metrics es Json en Prisma; el tipado fuerte viene del DTO
           metrics: (createConsultationDto.metrics ?? []) as any,
         },
@@ -157,6 +182,8 @@ export class ConsultationsService {
     search?: string,
     patientId?: string,
     type?: 'CLINICAL' | 'METRIC' | 'ALL',
+    dateFrom?: string,
+    dateTo?: string,
   ) {
     const safePage = Number.isFinite(page) ? Math.max(1, page) : 1;
     const safeLimit = Number.isFinite(limit)
@@ -188,6 +215,16 @@ export class ConsultationsService {
 
     if (patientId) {
       where.patientId = patientId;
+    }
+
+    if (dateFrom || dateTo) {
+      where.date = {};
+      if (dateFrom) {
+        where.date.gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        where.date.lte = new Date(dateTo + 'T23:59:59.999Z');
+      }
     }
 
     if (search) {
@@ -250,6 +287,8 @@ export class ConsultationsService {
   ) {
     const existing = await this.findOne(nutritionistId, id);
 
+    this.assertMetricsDoNotContainClinicalFields(updateConsultationDto.metrics);
+
     const data: any = { ...updateConsultationDto };
     delete data.patientId;
     if (updateConsultationDto.date) {
@@ -266,6 +305,9 @@ export class ConsultationsService {
           }),
           ...(data.date !== undefined && { date: data.date }),
           ...(data.metrics !== undefined && { metrics: data.metrics }),
+          ...(data.plansDelivered !== undefined && {
+            plansDelivered: data.plansDelivered,
+          }),
         },
         select: consultationSelect,
       });
@@ -335,6 +377,10 @@ export class ConsultationsService {
         : [];
 
       for (const metric of metrics) {
+        if (isReservedClinicalMetric(metric)) {
+          continue;
+        }
+
         const normalizedKey = normalizeMetricKey(metric.label, metric.key);
         const rawValue =
           typeof metric.value === 'string'
@@ -405,5 +451,28 @@ export class ConsultationsService {
       'patients',
     );
     return deleted;
+  }
+
+  private assertMetricsDoNotContainClinicalFields(
+    metrics?: CreateConsultationDto['metrics'],
+  ) {
+    if (!Array.isArray(metrics) || metrics.length === 0) return;
+
+    const forbidden = metrics.filter((metric) =>
+      isReservedClinicalMetric(metric),
+    );
+    if (forbidden.length === 0) return;
+
+    const names = Array.from(
+      new Set(
+        forbidden.map(
+          (metric) => metric.label || metric.key || 'campo clínico',
+        ),
+      ),
+    );
+
+    throw new BadRequestException(
+      `No se pueden registrar como métricas campos clínicos/anamnesis: ${names.join(', ')}.`,
+    );
   }
 }

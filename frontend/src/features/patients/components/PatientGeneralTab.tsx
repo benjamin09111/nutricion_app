@@ -14,7 +14,6 @@ import {
   Leaf,
   BookOpen,
   Star,
-  Ban,
   Pill,
   Stethoscope,
 } from "lucide-react";
@@ -135,7 +134,6 @@ export function PatientGeneralTab({
   const clinicalSummary = isEditing ? (editForm.clinicalSummary ?? patient.clinicalSummary) : patient.clinicalSummary;
   const likes = isEditing ? (editForm.likes ?? patient.likes) : patient.likes;
   const rejectedFoods = getCV("rejectedFoods");
-  const dietRestrictions: string[] = (isEditing ? editForm.dietRestrictions : patient.dietRestrictions) ?? [];
   const gestationalSupplementation: string[] = (() => {
     const val = getCV("gestationalSupplementation");
     if (Array.isArray(val)) return val;
@@ -317,22 +315,6 @@ export function PatientGeneralTab({
           {/* Preferencias alimentarias */}
           <SectionCard icon={<Leaf className="w-4 h-4 text-emerald-600" />} title="Preferencias alimentarias">
             <div className="space-y-3">
-              {/* Restricciones */}
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">Restricciones dietéticas</p>
-                {dietRestrictions.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {dietRestrictions.map((r) => (
-                      <span key={r} className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-100 px-2.5 py-0.5 rounded-full">
-                        <Ban className="w-2.5 h-2.5" />{r}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-300 font-semibold">Sin restricciones</p>
-                )}
-              </div>
-
               <FieldRow label="Gustos">
                 {isEditing ? (
                   <textarea

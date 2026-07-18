@@ -3,6 +3,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsArray,
+  IsBoolean,
   IsDateString,
   IsUUID,
   ValidateNested,
@@ -48,4 +49,8 @@ export class CreateConsultationDto {
   @Type(() => ConsultationMetricDto)
   @IsOptional()
   metrics?: ConsultationMetricDto[];
+
+  @IsBoolean()
+  @IsOptional()
+  plansDelivered?: boolean;
 }

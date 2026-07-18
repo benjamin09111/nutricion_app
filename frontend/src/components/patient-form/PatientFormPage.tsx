@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { calculateBMI, calculateGET, getIdealWeightRange, calculateAge } from "@/lib/nutrition-formulas";
 import { formatRut, validateRut } from "@/lib/rut-utils";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
+import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 
 const STEPS = [
   "Identificación",
@@ -83,6 +84,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [conditionTags, setConditionTags] = useState<string[]>([]);
 
   const customVariableMap = useMemo(
     () => new Map((draft.customVariables || []).map((item) => [item.key, item])),
@@ -109,6 +111,27 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
 
     updateDraft({ customVariables: next });
   };
+
+  useEffect(() => {
+    const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+    if (!token) return;
+    fetchApi("/tags?limit=50", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data: any[]) => {
+        const names = Array.isArray(data)
+          ? data.map((t: any) => (typeof t === "string" ? t : t.name))
+          : [];
+        setConditionTags(names);
+      })
+      .catch(() => setConditionTags([]));
+  }, []);
+
+  const conditionOptions = useMemo(() => {
+    const defaults = DEFAULT_CONSTRAINTS.map((c) => c.id);
+    return [...new Set([...defaults, ...conditionTags])];
+  }, [conditionTags]);
 
   const calculatedAge = calculateAge(draft.birthDate || null);
 
@@ -200,6 +223,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
         height: draft.height ? Number(String(draft.height).replace(",", ".")) : undefined,
         weight: draft.weight ? Number(String(draft.weight).replace(",", ".")) : undefined,
         dietRestrictions: draft.dietRestrictions || [],
+        primaryCondition: draft.primaryCondition || undefined,
         clinicalSummary: draft.clinicalSummary || undefined,
         nutritionalFocus: draft.nutritionalFocus || undefined,
         fitnessGoals: draft.fitnessGoals || undefined,
@@ -270,6 +294,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
     setQuickName("");
     setQuickEmail("");
     setQuickPhone("+56");
+    setQuickRut("");
     setQuickBirth("");
     setQuickGender("");
     setQuickMotivo("");
@@ -286,6 +311,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
   const [quickName, setQuickName] = useState("");
   const [quickEmail, setQuickEmail] = useState("");
   const [quickPhone, setQuickPhone] = useState("+56");
+  const [quickRut, setQuickRut] = useState("");
   const [quickBirth, setQuickBirth] = useState("");
   const [quickGender, setQuickGender] = useState("");
   const [quickMotivo, setQuickMotivo] = useState("");
@@ -303,13 +329,14 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
   const handleQuickCreate = async () => {
     if (!quickName || quickName.length < 2) { toast.error("Nombre requerido"); return; }
     if (!quickEmail || !quickEmail.includes("@")) { toast.error("Email válido requerido"); return; }
+    if (quickRut && !validateRut(quickRut)) { toast.error("El RUT ingresado no es válido."); return; }
     if (!quickGender) { toast.error("Sexo biológico requerido"); return; }
     setIsSaving(true);
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const vars: any[] = [{ key: "evaluationDate", label: "Fecha de evaluación", value: new Date().toISOString().split("T")[0] }];
       if (quickMotivo) vars.push({ key: "motivoConsulta", label: "Motivo de consulta", value: quickMotivo });
-      const r = await fetchApi("/patients", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ fullName: quickName, email: quickEmail || undefined, phone: quickPhone || undefined, birthDate: quickBirth ? new Date(quickBirth).toISOString() : undefined, gender: quickGender, weight: quickPeso ? parseFloat(quickPeso) : undefined, height: quickAltura ? parseFloat(quickAltura) : undefined, activityLevel: "sedentario", recalculateNutrition: true, customVariables: vars }) });
+      const r = await fetchApi("/patients", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ fullName: quickName, email: quickEmail || undefined, phone: quickPhone || undefined, documentId: quickRut || undefined, birthDate: quickBirth ? new Date(quickBirth).toISOString() : undefined, gender: quickGender, weight: quickPeso ? parseFloat(quickPeso) : undefined, height: quickAltura ? parseFloat(quickAltura) : undefined, activityLevel: "sedentario", recalculateNutrition: true, customVariables: vars }) });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || "Error"); }
       const p = await r.json();
       toast.success("Paciente creado");
@@ -688,13 +715,17 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500">Patologías diagnosticadas</label>
-                <textarea
-                  placeholder="Ej: Hipotiroidismo, resistencia a la insulina"
-                  className="min-h-20 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-700 resize-none"
-                  value={getCustomVariableValue("diagnosedPathologies") ?? ""}
-                  onChange={(e) => setCustomVariableValue("diagnosedPathologies", "Patologías diagnosticadas", e.target.value)}
-                />
+                <label className="text-xs font-medium text-slate-500">Condición clínica principal</label>
+                <select
+                  value={draft.primaryCondition || ""}
+                  onChange={(e) => updateDraft({ primaryCondition: e.target.value || undefined })}
+                  className="w-full h-10 rounded-xl bg-slate-50 border-transparent px-3 text-sm font-semibold text-slate-700 cursor-pointer appearance-none"
+                >
+                  <option value="">Seleccionar...</option>
+                  {conditionOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
               </div>
             </div>
           </FormStepCard>
@@ -814,6 +845,10 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                     <Input placeholder="+56 9 1234 5678" className="h-10 pl-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickPhone} onChange={e => setQuickPhone(sanitizePhone(e.target.value))} />
                   </div>
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500">RUT <span className="text-slate-400">(opcional)</span></label>
+                <Input placeholder="12.345.678-9" className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickRut} onChange={e => setQuickRut(formatRut(e.target.value))} />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1.5">

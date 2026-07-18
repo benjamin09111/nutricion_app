@@ -941,6 +941,7 @@ export default function QuickDeliverableClient() {
               fitnessGoals: selectedPatient.fitnessGoals || "",
               clinicalSummary: selectedPatient.nutritionalFocus || "",
             },
+            patientId: selectedPatient.id || undefined,
             existingDishes: meals
               .flatMap((meal) => {
                 if (!meal.section.trim()) return [];

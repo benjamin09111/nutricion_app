@@ -202,6 +202,14 @@ class AiFillPayloadDto {
   @IsOptional()
   patientProfile?: AiPatientProfileDto;
 
+  @IsString()
+  @IsOptional()
+  patientId?: string;
+
+  @IsObject()
+  @IsOptional()
+  patientContext?: Record<string, unknown>;
+
   @ValidateNested()
   @Type(() => AiPatientGoalsDto)
   @IsOptional()

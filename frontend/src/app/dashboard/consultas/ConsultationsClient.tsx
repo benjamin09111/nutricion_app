@@ -2,19 +2,16 @@
 
 import { useState, useEffect } from "react";
 import {
-  Eye,
   CalendarDays,
-  User,
   Plus,
-  Trash2,
   Search,
-  ArrowRight,
   FileText,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Consultation,
   ConsultationsResponse,
+  ConsultationsTableView,
 } from "@/features/consultations";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { toast } from "sonner";
@@ -24,10 +21,7 @@ import Cookies from "js-cookie";
 import { Pagination } from "@/components/ui/Pagination";
 import { fetchApi } from "@/lib/api-base";
 import { useSubscription } from "@/context/SubscriptionContext";
-import { TableLoadingRows } from "@/components/ui/TableLoadingRows";
-import { MobileCardLoadingList } from "@/components/ui/MobileCardLoadingList";
 import { Input } from "@/components/ui/Input";
-import { cn } from "@/lib/utils";
 
 export default function ConsultationsClient() {
   const router = useRouter();
@@ -36,6 +30,8 @@ export default function ConsultationsClient() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -77,6 +73,8 @@ export default function ConsultationsClient() {
         type: "CLINICAL",
         ...(debouncedSearchTerm && { search: debouncedSearchTerm }),
         ...(patientIdFromQuery && { patientId: patientIdFromQuery }),
+        ...(dateFrom && { dateFrom }),
+        ...(dateTo && { dateTo }),
       });
 
       const response = await fetchApi(`/consultations?${queryParams}`, {
@@ -103,7 +101,7 @@ export default function ConsultationsClient() {
 
   useEffect(() => {
     fetchConsultations();
-  }, [page, debouncedSearchTerm, patientIdFromQuery]);
+  }, [page, debouncedSearchTerm, patientIdFromQuery, dateFrom, dateTo]);
 
   const handleDelete = async () => {
     if (!consultationToDelete) return;
@@ -163,6 +161,28 @@ export default function ConsultationsClient() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Desde</span>
+              <div className="relative">
+                <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                  className="h-10 w-[9rem] pl-9 pr-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer transition-all"
+                />
+              </div>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Hasta</span>
+              <div className="relative">
+                <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                  className="h-10 w-[9rem] pl-9 pr-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer transition-all"
+                />
+              </div>
+            </div>
             <div className="hidden md:flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500">
               Límite mensual: {Number.isFinite(consultationLimit) ? consultationLimit : "Ilimitado"}
             </div>
@@ -186,243 +206,25 @@ export default function ConsultationsClient() {
         </div>
       </div>
 
-      <div className="space-y-4">
-        {/* Desktop Table View */}
-        <div className="hidden lg:block bg-white shadow-xl shadow-slate-200/50 border border-slate-200 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto max-h-[calc(100vh-380px)] custom-scrollbar">
-            <table className="min-w-full divide-y divide-slate-100">
-              <thead className="bg-slate-50/50">
-                <tr>
-                  <th
-                    scope="col"
-                    className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
-                  >
-                    Paciente
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
-                  >
-                    Fecha
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
-                  >
-                    Sesión
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider"
-                  >
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 bg-white">
-                {isLoading ? (
-                  <TableLoadingRows columns={4} rows={5} />
-                ) : consultations.length > 0 ? (
-                  consultations.map((item) => (
-                    <tr
-                      key={item.id}
-                      onClick={() => router.push(`/dashboard/consultas/${item.id}/view`)}
-                      className="hover:bg-slate-50 transition-colors group cursor-pointer"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center">
-                          <div className="h-10 w-10 shrink-0">
-                            <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-semibold border border-indigo-100 shadow-sm">
-                              {item.patientName?.charAt(0) || "P"}
-                            </div>
-                          </div>
-                          <div className="ml-4 min-w-0">
-                            <div className="text-sm font-semibold text-slate-900 leading-none mb-1 truncate">
-                              {item.patientName}
-                            </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                router.push(`/dashboard/pacientes/${item.patientId}`);
-                              }}
-                              className="text-xs text-slate-500 font-medium hover:text-indigo-600 transition-colors text-left cursor-pointer"
-                            >
-                              Ver ficha del paciente
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-slate-500 font-semibold text-xs">
-                          <CalendarDays className="w-4 h-4 text-indigo-400" />
-                          {new Date(item.date).toLocaleDateString("es-ES", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm font-semibold text-slate-800 tracking-tight block max-w-xs truncate">
-                          {item.title}
-                        </span>
-                      </td>
-                      <td
-                        className="px-6 py-4 text-right"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => router.push(`/dashboard/pacientes/${item.patientId}`)}
-                            className="group relative p-2.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-all"
-                            title="Ver Paciente"
-                          >
-                            <User className="w-4.5 h-4.5" />
-                          </button>
-                          <button
-                            onClick={() => router.push(`/dashboard/consultas/${item.id}/view`)}
-                            className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                            title="Ver Consulta"
-                          >
-                            <Eye className="w-4.5 h-4.5" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setConsultationToDelete(item.id);
-                              setIsDeleteModalOpen(true);
-                            }}
-                            className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
-                            title="Eliminar"
-                          >
-                            <Trash2 className="w-4.5 h-4.5 text-rose-500" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="text-center py-20">
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100">
-                          <FileText className="h-8 w-8 text-slate-300" />
-                        </div>
-                        <p className="text-slate-500 font-medium">
-                          Sin consultas registradas
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Mobile Card View */}
-        <div className="lg:hidden space-y-4">
-          {isLoading ? (
-            <MobileCardLoadingList rows={3} />
-          ) : consultations.length > 0 ? (
-            consultations.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => router.push(`/dashboard/consultas/${item.id}/view`)}
-                className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm active:scale-[0.98] transition-all"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100">
-                      {item.patientName?.charAt(0) || "P"}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-bold text-slate-900 line-clamp-1">
-                        {item.patientName}
-                      </h3>
-                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 min-w-0">
-                        <CalendarDays className="w-3 h-3 shrink-0" />
-                        <span>
-                          {new Date(item.date).toLocaleDateString("es-ES", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    Sesión
-                  </p>
-                  <p className="text-sm font-semibold text-slate-800 line-clamp-2">
-                    {item.title}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      router.push(`/dashboard/pacientes/${item.patientId}`);
-                    }}
-                    className="text-xs font-semibold text-slate-400 hover:text-indigo-600 transition-colors"
-                  >
-                    Ver paciente
-                  </button>
-                  <div
-                    className="flex items-center gap-2"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      onClick={() => router.push(`/dashboard/consultas/${item.id}/view`)}
-                      className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-lg"
-                      title="Ver consulta"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setConsultationToDelete(item.id);
-                        setIsDeleteModalOpen(true);
-                      }}
-                      className="p-2 bg-slate-50 rounded-lg"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="w-4 h-4 text-rose-500" />
-                    </button>
-                    <button
-                      onClick={() =>
-                        router.push(`/dashboard/consultas/${item.id}/view`)
-                      }
-                      className="p-2 text-indigo-600 bg-indigo-50 rounded-lg ml-1 font-bold text-[10px] px-3 flex items-center gap-1 shadow-sm border border-indigo-100"
-                    >
-                      VER <ArrowRight className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-12 text-center">
-              <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-500 font-medium">
-                Sin consultas registradas
-              </p>
-            </div>
-          )}
-        </div>
-
-        {meta.lastPage > 1 && (
-          <Pagination
-            currentPage={page}
-            totalPages={meta.lastPage}
-            onPageChange={setPage}
-          />
-        )}
-      </div>
+      <ConsultationsTableView
+        consultations={consultations}
+        isLoading={isLoading}
+        onViewConsultation={(id) => router.push(`/dashboard/consultas/${id}/view`)}
+        onViewPatient={(patientId) => router.push(`/dashboard/pacientes/${patientId}`)}
+        onDelete={(id) => {
+          setConsultationToDelete(id);
+          setIsDeleteModalOpen(true);
+        }}
+        footer={
+          meta.lastPage > 1 ? (
+            <Pagination
+              currentPage={page}
+              totalPages={meta.lastPage}
+              onPageChange={setPage}
+            />
+          ) : undefined
+        }
+      />
     </ModuleLayout>
   );
 }

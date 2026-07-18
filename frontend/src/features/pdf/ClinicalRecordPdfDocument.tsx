@@ -37,6 +37,7 @@ export interface ClinicalRecordPdfData {
   medications?: string;
   supplementsOrDrugs?: string;
   diagnosedPathologies?: string;
+  primaryCondition?: string;
   familyHistory?: string;
   sleepQuality?: string;
   perceivedStress?: string;
@@ -409,6 +410,7 @@ export function ClinicalRecordPdfDocument({ data }: { data: ClinicalRecordPdfDat
           </View>
           <DataRow label="Medicamentos" value={data.medications} />
           <DataRow label="Suplementos / drogas" value={data.supplementsOrDrugs} />
+          <DataRow label="Condición clínica principal" value={data.primaryCondition} />
           <DataRow label="Patologías diagnosticadas" value={data.diagnosedPathologies} />
           <DataRow label="Antecedentes familiares" value={data.familyHistory} />
         </View>

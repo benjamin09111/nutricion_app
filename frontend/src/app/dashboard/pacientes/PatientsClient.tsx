@@ -44,12 +44,16 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-function formatRestrictions(restrictions?: string[]) {
+function formatRestrictions(restrictions?: string[], primaryCondition?: string) {
   if (!Array.isArray(restrictions) || restrictions.length === 0) {
     return [];
   }
 
-  return restrictions.map((restriction) => restriction.trim()).filter(Boolean);
+  const trimmed = restrictions.map((restriction) => restriction.trim()).filter(Boolean);
+  if (primaryCondition) {
+    return trimmed.filter((r) => r.toLowerCase() !== primaryCondition.toLowerCase());
+  }
+  return trimmed;
 }
 
 export default function PatientsClient() {
@@ -143,25 +147,21 @@ export default function PatientsClient() {
   return (
     <ModuleLayout
       title="Mis Pacientes"
-      description={
-        <span className="flex items-center gap-2">
-          Gestiona a tus pacientes: puedes crear, ver su progreso a través del tiempo, crear un espacio de comunicación privado y mucho más.
+      description="Gestiona a tus pacientes: puedes crear, ver su progreso a través del tiempo, crear un espacio de comunicación privado y mucho más."
+      rightContent={
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setIsPrivacyModalOpen(true)}
             title="Protección y privacidad"
-            className="group inline-flex items-center gap-1 text-indigo-500 hover:text-indigo-700 transition-colors"
+            className="h-10 px-4 rounded-xl border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition-all flex items-center gap-2"
             aria-label="Ver información de protección y privacidad"
           >
             <ShieldCheck className="h-4 w-4 shrink-0" />
-            <span className="text-xs font-semibold hidden sm:inline group-hover:underline underline-offset-2">
+            <span className="text-sm whitespace-nowrap">
               Protección y privacidad
             </span>
           </button>
-        </span>
-      }
-      rightContent={
-        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             disabled={isExporting || isLoading}
@@ -326,6 +326,7 @@ export default function PatientsClient() {
                   filteredPatients.map((patient) => {
                     const restrictions = formatRestrictions(
                       patient.dietRestrictions,
+                      patient.primaryCondition,
                     );
                     const visibleRestrictions = restrictions.slice(0, 2);
                     const remainingRestrictions =
@@ -493,7 +494,7 @@ export default function PatientsClient() {
             <MobileCardLoadingList rows={3} />
           ) : filteredPatients.length > 0 ? (
             filteredPatients.map((patient) => {
-              const restrictions = formatRestrictions(patient.dietRestrictions);
+              const restrictions = formatRestrictions(patient.dietRestrictions, patient.primaryCondition);
               const visibleRestrictions = restrictions.slice(0, 2);
               const remainingRestrictions =
                 restrictions.length - visibleRestrictions.length;
@@ -763,10 +764,11 @@ export default function PatientsClient() {
                   Restricciones
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {formatRestrictions(patientPreview.dietRestrictions).length >
-                  0 ? (
-                    formatRestrictions(patientPreview.dietRestrictions).map(
-                      (restriction) => (
+                  {(() => {
+                    const restrictions = formatRestrictions(patientPreview.dietRestrictions, patientPreview.primaryCondition);
+                    return restrictions.length > 0 ? (
+                      restrictions.map(
+                        (restriction) => (
                         <span
                           key={restriction}
                           className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
@@ -780,7 +782,8 @@ export default function PatientsClient() {
                     <p className="text-sm text-slate-400">
                       Sin restricciones registradas.
                     </p>
-                  )}
+                  )
+                })()}
                 </div>
               </div>
             </div>

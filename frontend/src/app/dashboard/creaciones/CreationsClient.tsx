@@ -12,8 +12,6 @@ import {
   ChefHat,
   Folder,
   X,
-  ChevronLeft,
-  ChevronRight,
   Loader2,
   NotebookText,
   Share2,
@@ -29,6 +27,7 @@ import Cookies from "js-cookie";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { Creation, CreationType } from "@/features/creations";
 import { Pagination } from "@/components/ui/Pagination";
+import { RecordsTable, type Column } from "@/components/shared/RecordsTable";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -451,6 +450,146 @@ export default function CreationsClient({
     }
   };
 
+  const creationColumns: Column<Creation>[] = [
+    {
+      header: "Nombre",
+      render: (item) => (
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "p-2 rounded-lg bg-slate-50 border border-slate-100",
+            item.type === CreationType.DIET && "group-hover:bg-blue-50 group-hover:border-blue-100",
+            item.type === CreationType.SHOPPING_LIST && "group-hover:bg-emerald-50 group-hover:border-emerald-100",
+            item.type === CreationType.RECIPE && "group-hover:bg-amber-50 group-hover:border-amber-100",
+          )}>
+            {getTypeIcon(item.type)}
+          </div>
+          <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">
+            {item.name}
+          </span>
+        </div>
+      ),
+    },
+    {
+      header: "Paciente",
+      render: (item) => (
+        (item as any).patientName ? (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            {(item as any).patientName}
+          </span>
+        ) : (
+          <span className="text-xs text-slate-400 italic">Sin paciente</span>
+        )
+      ),
+    },
+    {
+      header: "Etiquetas",
+      render: (item) => (
+        <div className="flex flex-wrap gap-1">
+          {item.tags && item.tags.length > 0 ? (
+            item.tags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200"
+              >
+                #{tag}
+              </span>
+            ))
+          ) : (
+            <span className="text-xs text-slate-400 italic">
+              Sin etiquetas
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: "Tipo",
+      render: (item) => (
+        <span
+          className={cn(
+            "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset",
+            getTypeStyles(item.type),
+          )}
+        >
+          {item.type}
+        </span>
+      ),
+    },
+    {
+      header: "Fecha",
+      render: (item) => (
+        <span className="text-sm text-slate-500 font-medium whitespace-nowrap">
+          {item.createdAt}
+        </span>
+      ),
+    },
+    {
+      header: "Acciones",
+      className: "text-right",
+      render: (item) => (
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => handleInfoClick(item)}
+            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+            title="Más info"
+          >
+            <Info className="h-4 w-4" />
+          </button>
+          {item.type !== CreationType.FAST_DELIVERABLE && (
+            <button
+              onClick={() => handleViewClick(item)}
+              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+              title="Previsualizar"
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+          )}
+          <button
+            onClick={() => handleEdit(item)}
+            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all cursor-pointer"
+            title="Editar"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => handleDownloadClick(item)}
+            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
+            title="Descargar / Exportar"
+          >
+            <Download className="h-4 w-4" />
+          </button>
+          {isInsidePatientDetail && (
+            <button
+              onClick={() => handleShareClick(item)}
+              disabled={isSharing === item.id}
+              className={cn(
+                "p-2 rounded-xl transition-all cursor-pointer",
+                sharedCreationIdSet.has(item.id)
+                  ? "text-emerald-600 bg-emerald-50 animate-pulse hover:bg-emerald-100"
+                  : "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50",
+                isSharing === item.id && "cursor-not-allowed"
+              )}
+              title="Compartir con el paciente"
+            >
+              <Share2 className="h-4 w-4" />
+            </button>
+          )}
+          <div className="w-px h-4 bg-slate-200 mx-1" />
+          <button
+            onClick={() => handleDelete(item.id)}
+            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+            title="Eliminar"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {!isInsidePatientDetail && (
@@ -523,209 +662,49 @@ export default function CreationsClient({
         />
       </div>
 
-      <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 sm:rounded-[2rem] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-100">
-            <thead className="bg-slate-50/50 text-shadow-sm">
-              <tr>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                  Nombre
-                </th>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                  Paciente
-                </th>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                  Etiquetas
-                </th>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                  Tipo
-                </th>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                  Fecha
-                </th>
-                <th scope="col" className="px-6 py-4 text-right text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50 bg-white">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-24">
-                    <div className="flex flex-col items-center justify-center space-y-3">
-                      <Loader2 className="h-10 w-10 text-indigo-500 animate-spin" />
-                      <p className="text-sm font-semibold text-slate-500">
-                        Cargando tus creaciones...
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              ) : paginatedData.length > 0 ? (
-                paginatedData.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-emerald-50/20 transition-colors group"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "p-2 rounded-lg bg-slate-50 border border-slate-100",
-                          item.type === CreationType.DIET && "group-hover:bg-blue-50 group-hover:border-blue-100",
-                          item.type === CreationType.SHOPPING_LIST && "group-hover:bg-emerald-50 group-hover:border-emerald-100",
-                          item.type === CreationType.RECIPE && "group-hover:bg-amber-50 group-hover:border-amber-100",
-                        )}>
-                          {getTypeIcon(item.type)}
-                        </div>
-                        <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">
-                          {item.name}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {(item as any).patientName ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                          {(item as any).patientName}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400 italic">Sin paciente</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {item.tags && item.tags.length > 0 ? (
-                          item.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200"
-                            >
-                              #{tag}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-xs text-slate-400 italic">
-                            Sin etiquetas
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={cn(
-                          "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset",
-                          getTypeStyles(item.type),
-                        )}
-                      >
-                        {item.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-slate-500 font-medium whitespace-nowrap">
-                        {item.createdAt}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleInfoClick(item)}
-                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
-                          title="Más info"
-                        >
-                          <Info className="h-4 w-4" />
-                        </button>
-                        {item.type !== CreationType.FAST_DELIVERABLE && (
-                          <button
-                            onClick={() => handleViewClick(item)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
-                            title="Previsualizar"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleEdit(item)}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all cursor-pointer"
-                          title="Editar"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDownloadClick(item)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
-                          title="Descargar / Exportar"
-                        >
-                          <Download className="h-4 w-4" />
-                        </button>
-                        {isInsidePatientDetail && (
-                          <button
-                            onClick={() => handleShareClick(item)}
-                            disabled={isSharing === item.id}
-                            className={cn(
-                              "p-2 rounded-xl transition-all cursor-pointer",
-                              sharedCreationIdSet.has(item.id)
-                                ? "text-emerald-600 bg-emerald-50 animate-pulse hover:bg-emerald-100"
-                                : "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50",
-                              isSharing === item.id && "cursor-not-allowed"
-                            )}
-                            title="Compartir con el paciente"
-                          >
-                            <Share2 className="h-4 w-4" />
-                          </button>
-                        )}
-                        <div className="w-px h-4 bg-slate-200 mx-1" />
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="text-center py-24">
-                    <div className="flex flex-col items-center justify-center space-y-3">
-                      <div className="p-4 bg-slate-50 rounded-full">
-                        <Folder className="h-8 w-8 text-slate-300" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-base font-bold text-slate-600">
-                          No se encontraron creaciones
-                        </p>
-                        <p className="text-sm text-slate-400">
-                          Intenta ajustar los filtros de búsqueda.
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="bg-slate-50/50 p-4 border-t border-slate-100 flex items-center justify-between">
-          <p className="text-xs font-bold text-slate-500">
-            Mostrando{" "}
-            <span className="text-slate-900">{paginatedData.length}</span> de{" "}
-            <span className="text-slate-900">{filteredData.length}</span>{" "}
-            resultados
-          </p>
-          <div className="flex items-center gap-2">
-            {totalPages > 1 && (
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
-            )}
+      <RecordsTable
+        columns={creationColumns}
+        data={paginatedData}
+        keyExtractor={(item) => item.id}
+        isLoading={isLoading}
+        loadingRows={5}
+        loadingColumns={6}
+        emptyState={
+          <div className="flex flex-col items-center justify-center space-y-3">
+            <div className="p-4 bg-slate-50 rounded-full">
+              <Folder className="h-8 w-8 text-slate-300" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-base font-bold text-slate-600">
+                No se encontraron creaciones
+              </p>
+              <p className="text-sm text-slate-400">
+                Intenta ajustar los filtros de búsqueda.
+              </p>
+            </div>
           </div>
-        </div>
-      </div>
+        }
+        rowClassName="hover:bg-emerald-50/20 transition-colors group"
+        footer={
+          <>
+            <p className="text-xs font-bold text-slate-500">
+              Mostrando{" "}
+              <span className="text-slate-900">{paginatedData.length}</span> de{" "}
+              <span className="text-slate-900">{filteredData.length}</span>{" "}
+              resultados
+            </p>
+            <div className="flex items-center gap-2">
+              {totalPages > 1 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
+              )}
+            </div>
+          </>
+        }
+      />
 
       <Modal
         isOpen={infoModalOpen}

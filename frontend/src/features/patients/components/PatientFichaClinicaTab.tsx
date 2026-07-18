@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   User,
   Mail,
@@ -28,6 +28,9 @@ import { formatRut } from "@/lib/rut-utils";
 import { calculateBMI, calculateGET, calculateAge, getIdealWeightRange } from "@/lib/nutrition-formulas";
 import { calculateGestationalData } from "@/lib/gestational-calculations";
 import { cn, toDateOnly, formatDateOnlyForLocale } from "../utils/patient-helpers";
+import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
+import { WEEKLY_EXERCISE_OPTIONS } from "@/lib/validations/patient-form";
+import { fetchApi } from "@/lib/api-base";
 
 const ACTIVITY_LEVELS: { key: ActivityLevel; label: string; icon: any }[] = [
   { key: "sedentario", label: "Sed.", icon: ActivityIcon },
@@ -205,6 +208,9 @@ export function PatientFichaClinicaTab({
       : null;
 
   const dietRestrictions: string[] = (isEditing ? editForm.dietRestrictions : patient.dietRestrictions) ?? [];
+  const displayedDietRestrictions = dietRestrictions.filter(
+    (r) => r.toLowerCase() !== (primaryCondition || "").toLowerCase()
+  );
   const likes = isEditing ? (editForm.likes ?? patient.likes) : patient.likes;
   const clinicalSummary = isEditing ? (editForm.clinicalSummary ?? patient.clinicalSummary) : patient.clinicalSummary;
   const nutritionalFocus = isEditing ? (editForm.nutritionalFocus ?? patient.nutritionalFocus) : patient.nutritionalFocus;
@@ -231,6 +237,28 @@ export function PatientFichaClinicaTab({
   };
 
   const [selectedSection, setSelectedSection] = useState<string | null>("identificacion");
+  const [conditionTags, setConditionTags] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchApi("/tags?limit=50")
+      .then((res) => res.json())
+      .then((data: any[]) => {
+        const names = Array.isArray(data)
+          ? data.map((t: any) => (typeof t === "string" ? t : t.name))
+          : [];
+        setConditionTags(names);
+      })
+      .catch(() => setConditionTags([]));
+  }, []);
+
+  const conditionOptions = React.useMemo(() => {
+    const defaults = DEFAULT_CONSTRAINTS.map((c) => c.id);
+    return [...new Set([...defaults, ...conditionTags])];
+  }, [conditionTags]);
+
+  const primaryCondition = isEditing
+    ? (editForm.primaryCondition ?? patient.primaryCondition)
+    : patient.primaryCondition;
 
   const isFemale = g === "Femenino";
 
@@ -637,11 +665,21 @@ export function PatientFichaClinicaTab({
               placeholder="Suplementos, drogas recreativas..." />
           </div>
           <div className="space-y-1.5">
-            <FieldLabel>Patologías diagnosticadas</FieldLabel>
-            <textarea value={rec.vitalHistory.diagnosedPathologies}
-              onChange={(e) => updateClinical("vitalHistory", "diagnosedPathologies", e.target.value)}
-              rows={2} className="w-full rounded-xl bg-slate-50 border-transparent text-sm font-semibold px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              placeholder="Diabetes, HTA, hipotiroidismo..." />
+            <FieldLabel>Condición clínica principal</FieldLabel>
+            {isEditing ? (
+              <select
+                value={primaryCondition || ""}
+                onChange={(e) => updateField("primaryCondition", e.target.value || undefined)}
+                className="w-full h-10 rounded-xl bg-slate-50 border-transparent px-3 text-sm font-semibold text-slate-700 cursor-pointer appearance-none"
+              >
+                <option value="">Seleccionar...</option>
+                {conditionOptions.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            ) : (
+              <ReadOnlyField value={primaryCondition} placeholder="No registrado" />
+            )}
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1.5">
@@ -658,9 +696,19 @@ export function PatientFichaClinicaTab({
             </div>
             <div className="space-y-1.5">
               <FieldLabel>Ejercicio semanal</FieldLabel>
-              <Input value={rec.vitalHistory.weeklyExercise}
-                onChange={(e) => updateClinical("vitalHistory", "weeklyExercise", e.target.value)}
-                className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" placeholder="3x semana..." />
+              {isEditing ? (
+                <select
+                  value={rec.vitalHistory.weeklyExercise || ""}
+                  onChange={(e) => updateClinical("vitalHistory", "weeklyExercise", e.target.value)}
+                  className="w-full h-10 rounded-xl bg-slate-50 border-transparent px-3 text-sm font-semibold text-slate-700 cursor-pointer appearance-none"
+                >
+                  {WEEKLY_EXERCISE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              ) : (
+                <ReadOnlyField value={rec.vitalHistory.weeklyExercise} placeholder="No registrado" />
+              )}
             </div>
           </div>
           <div className="space-y-1.5">
@@ -686,7 +734,9 @@ export function PatientFichaClinicaTab({
             <FieldLabel>Restricciones dietéticas</FieldLabel>
             {isEditing ? (
               <div className="flex flex-wrap gap-1.5">
-                {DIET_RESTRICTION_OPTIONS.map((r) => {
+                {DIET_RESTRICTION_OPTIONS.filter(
+                  (r) => r.toLowerCase() !== (primaryCondition || "").toLowerCase()
+                ).map((r) => {
                   const active = dietRestrictions.includes(r);
                   return (
                     <button key={r} type="button" onClick={() => toggleRestriction(r)}
@@ -702,9 +752,9 @@ export function PatientFichaClinicaTab({
                 })}
               </div>
             ) : (
-              dietRestrictions.length > 0 ? (
+              displayedDietRestrictions.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
-                  {dietRestrictions.map((r) => (
+                  {displayedDietRestrictions.map((r) => (
                     <span key={r} className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-100">{r}</span>
                   ))}
                 </div>

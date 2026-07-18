@@ -84,6 +84,10 @@ export class CreatePatientDto {
   activityLevel?: string;
 
   @IsOptional()
+  @IsString()
+  primaryCondition?: string;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   tags?: string[];

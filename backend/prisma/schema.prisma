@@ -180,6 +180,7 @@ model Patient {
   nutritionalFocus  String?                   @map("nutritional_focus")
   status            String?                   @default("Active")
   activityLevel     String?                   @map("activity_level")
+  primaryCondition  String?                   @map("primary_condition")
   tags              String[]                  @default([])
   likes             String?
   consultations     Consultation[]
@@ -277,6 +278,7 @@ model Consultation {
   title          String
   description    String?
   metrics        Json?        @default("[]")
+  plansDelivered Boolean?     @default(false) @map("plans_delivered")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
   nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)

@@ -39,6 +39,10 @@ export class HttpCacheInterceptor extends CacheInterceptor {
       return undefined;
     }
 
+    if (requestUrl.includes('/ai-context')) {
+      return undefined;
+    }
+
     const userId = request.user?.id;
     const nutritionistId = request.user?.nutritionistId;
     const userIdentifier = nutritionistId || userId;

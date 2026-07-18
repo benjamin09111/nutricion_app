@@ -258,15 +258,6 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     });
   };
 
-  const NON_METRIC_CUSTOM_KEYS = new Set([
-    "evaluationDate",
-    "motivoConsulta",
-    "automaticNutritionCalculations",
-    "automaticnutritioncalculations",
-    "diagnosticoNutricional",
-    "diagnosticonutricional",
-  ]);
-
   const registeredMetricKeys = useMemo(() => {
     const keys = new Set<string>();
     consultations.forEach((c) => {
@@ -279,14 +270,6 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     });
     if (patient) {
       if (patient.weight) keys.add("weight");
-      if (Array.isArray(patient.customVariables)) {
-        patient.customVariables.forEach((cv: any) => {
-          if (NON_METRIC_CUSTOM_KEYS.has(cv.key)) return;
-          const mk = normalizeMetricKey(cv.label, cv.key);
-          if (NON_METRIC_CUSTOM_KEYS.has(mk)) return;
-          if (mk) keys.add(mk);
-        });
-      }
     }
     return Array.from(keys);
   }, [consultations, patient]);
@@ -318,20 +301,6 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
           color: "#64748b",
           icon: Activity,
         };
-    }
-
-    if (patient && Array.isArray(patient.customVariables)) {
-      const cv = (patient.customVariables as any[])?.find(
-        (v) => normalizeMetricKey(v.label, v.key) === key,
-      );
-      if (cv) {
-        return {
-          label: cv.label,
-          unit: cv.unit || "",
-          color: "#64748b",
-          icon: Activity,
-        };
-      }
     }
 
     return { label: key, unit: "", color: "#64748b", icon: Activity };
@@ -479,6 +448,31 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
       setIsClinicalRecordSaving(false);
     }
   }, [clinicalRecordDraft, id, patient, token]);
+
+  const handlePrintAiContext = useCallback(async () => {
+    if (!patient) return;
+
+    try {
+      const response = await fetchApi(`/patients/${id}/ai-context`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null);
+        throw new Error(
+          (errorBody as any)?.message || 'No se pudo obtener el contexto IA',
+        );
+      }
+
+      const data = await response.json();
+      console.log('Patient AI context', JSON.stringify(data, null, 2));
+      toast.success('Contexto IA impreso en consola');
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'No se pudo obtener el contexto IA',
+      );
+    }
+  }, [id, patient, token]);
 
   const smartMetrics = useMemo(
     () => {
@@ -1503,6 +1497,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
         medications: cr?.vitalHistory?.medications,
         supplementsOrDrugs: cr?.vitalHistory?.supplementsOrDrugs,
         diagnosedPathologies: cr?.vitalHistory?.diagnosedPathologies,
+        primaryCondition: p?.primaryCondition,
         familyHistory: cr?.vitalHistory?.familyHistory,
         sleepQuality: cr?.vitalHistory?.sleepQuality,
         perceivedStress: cr?.vitalHistory?.perceivedStress,
@@ -1612,6 +1607,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
         medications: cr?.vitalHistory?.medications,
         supplementsOrDrugs: cr?.vitalHistory?.supplementsOrDrugs,
         diagnosedPathologies: cr?.vitalHistory?.diagnosedPathologies,
+        primaryCondition: p?.primaryCondition,
         familyHistory: cr?.vitalHistory?.familyHistory,
         sleepQuality: cr?.vitalHistory?.sleepQuality,
         perceivedStress: cr?.vitalHistory?.perceivedStress,
@@ -1711,15 +1707,6 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
         needsPatientUpdate = true;
       }
 
-      if (patient && Array.isArray(patient.customVariables)) {
-        const hasMetric = (patient.customVariables as any[]).some(
-          (cv) => normalizeMetricKey(cv.label, cv.key) === key,
-        );
-        if (hasMetric) {
-          needsPatientUpdate = true;
-        }
-      }
-
       if (needsPatientUpdate) {
         const patientUpdates: any = {};
 
@@ -1729,12 +1716,6 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
 
         if (key === "height" && patient?.height) {
           patientUpdates.height = null;
-        }
-
-        if (patient && Array.isArray(patient.customVariables)) {
-          patientUpdates.customVariables = (
-            patient.customVariables as any[]
-          ).filter((cv) => normalizeMetricKey(cv.label, cv.key) !== key);
         }
 
         await fetchApi(`/patients/${id}`, {
@@ -1800,6 +1781,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
         weight: editForm.weight !== undefined && editForm.weight !== null ? Number(editForm.weight) : undefined,
         height: editForm.height !== undefined && editForm.height !== null ? Number(editForm.height) : undefined,
         dietRestrictions: editForm.dietRestrictions || [],
+        primaryCondition: editForm.primaryCondition || undefined,
         clinicalSummary: editForm.clinicalSummary || undefined,
         nutritionalFocus: editForm.nutritionalFocus || undefined,
         fitnessGoals: editForm.fitnessGoals || undefined,
@@ -2109,6 +2091,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     fetchPortalOverview,
     fetchClinicalRecord,
     saveClinicalRecord,
+    handlePrintAiContext,
     prepareChartData,
     registeredMetricKeys,
     getAllMetricKeys,

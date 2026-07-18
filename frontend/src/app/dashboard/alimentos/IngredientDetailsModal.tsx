@@ -57,7 +57,7 @@ export default function IngredientDetailsModal({
             {/* Column 1: General Info & Tags */}
             <div className="space-y-8">
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-indigo-50/50 p-6 rounded-[2rem] border border-indigo-100/50 group hover:shadow-lg hover:shadow-indigo-500/5 transition-all">
+                  <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100/50 group hover:shadow-lg hover:shadow-indigo-500/5 transition-all">
                   <div className="text-[10px] font-semibold text-indigo-600 uppercase tracking-widest mb-1 items-center flex gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                     Precio Ref
@@ -70,7 +70,7 @@ export default function IngredientDetailsModal({
                     {ingredient.unit}
                   </p>
                 </div>
-                <div className="bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100/50 group hover:shadow-lg hover:shadow-slate-500/5 transition-all">
+                  <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100/50 group hover:shadow-lg hover:shadow-slate-500/5 transition-all">
                   <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1 items-center flex gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
                     Porción Base
@@ -132,7 +132,7 @@ export default function IngredientDetailsModal({
             </div>
 
             {/* Column 2: Nutritional Facts */}
-            <div className="bg-slate-50/40 p-8 rounded-[2rem] border border-slate-100 h-fit">
+              <div className="bg-slate-50/40 p-8 rounded-2xl border border-slate-100 h-fit">
               <h4 className="text-[10px] font-semibold text-slate-900 uppercase tracking-widest mb-6 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <BarChart2 className="h-4 w-4 text-indigo-500" />
