@@ -9,6 +9,7 @@ import {
   Layers,
   Plus,
   Search,
+  Lock,
   UtensilsCrossed,
   Trash2,
   X,
@@ -22,7 +23,7 @@ import { fetchApi } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/hooks/useScrollLock";
-import { FeatureGate } from "@/components/memberships/FeatureGate";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { toast } from "sonner";
 import { Ingredient } from "@/features/foods";
 
@@ -83,6 +84,9 @@ interface FilterDraft {
 
 interface GruposClientProps {
   initialIngredients: Ingredient[];
+  headerRight?: React.ReactNode;
+  freemiumGroupCount?: number;
+  onGroupCountChange?: (count: number) => void;
 }
 
 const nutrientOptions: Array<{ value: NutrientKey; label: string; unit: string }> = [
@@ -122,7 +126,12 @@ const getNutrientValue = (ingredient: IngredientWithMetrics, nutrient: NutrientK
   return 0;
 };
 
-export default function GruposClient({ initialIngredients }: GruposClientProps) {
+export default function GruposClient({
+  initialIngredients,
+  headerRight,
+  freemiumGroupCount,
+  onGroupCountChange,
+}: GruposClientProps) {
   const [activeTab, setActiveTab] = useState<GroupTab>("Mis grupos");
   const [ingredients, setIngredients] = useState<IngredientWithMetrics[]>(initialIngredients as IngredientWithMetrics[]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -154,10 +163,15 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
   const [selectedCurrentPage, setSelectedCurrentPage] = useState(1);
   const [isCreateSubmitting, setIsCreateSubmitting] = useState(false);
 
+  const { currentPlan } = useSubscription();
+
   const isAnyModalOpen = isDeleteConfirmOpen;
   useScrollLock(isAnyModalOpen);
 
   const getToken = () => getAuthToken();
+  const isFreemium = String(currentPlan?.key || currentPlan?.slug || "").toLowerCase() === "free";
+  const freemiumGroupLimit = 2;
+  const freemiumLimitReached = isFreemium && (freemiumGroupCount ?? groups.length) >= freemiumGroupLimit;
 
   useEffect(() => {
     setIngredients(initialIngredients as IngredientWithMetrics[]);
@@ -175,13 +189,14 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
       if (res.ok) {
         const data = await res.json();
         setGroups(Array.isArray(data) ? data : []);
+        onGroupCountChange?.(Array.isArray(data) ? data.length : 0);
       }
     } catch (error) {
       console.error("Error fetching groups:", error);
     } finally {
       setIsLoadingGroups(false);
     }
-  }, []);
+  }, [onGroupCountChange]);
 
   useEffect(() => {
     fetchGroups();
@@ -281,6 +296,11 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
     createViewTab === "alimentos" ? createTotalPages : selectedTotalPages;
 
   const handleGroupClick = async (groupId: string) => {
+    if (isFreemium) {
+      toast.info("La edición de grupos estará disponible en próximas actualizaciones.");
+      return;
+    }
+
     const token = getToken();
     if (!token) return;
 
@@ -359,7 +379,13 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
     setAppliedSearch("");
     setAppliedCategory("ALL");
     setAppliedFilters([]);
+    setCreateCurrentPage(1);
+    setSelectedCurrentPage(1);
     setIsFiltersOpen(false);
+  };
+
+  const handleClearFilters = () => {
+    clearCreateFilters();
   };
 
   const handleResetCreate = () => {
@@ -419,7 +445,7 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
 
   const removeFilterDraft = (draftId: string) => {
     setCreateFilterDrafts((prev) => {
-      if (prev.length === 1) return prev;
+      if (prev.length === 1) return [createFilterDraft()];
       return prev.filter((draft) => draft.id !== draftId);
     });
   };
@@ -428,6 +454,10 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
     const name = groupName.trim();
     if (!name) {
       toast.error("Escribe un nombre para el grupo");
+      return;
+    }
+    if (freemiumLimitReached && !editingGroupId) {
+      toast.error("En FREEMIUM solo puedes crear 2 grupos. Elimina uno para crear otro.");
       return;
     }
     const allIngredientIds = new Set([...Array.from(confirmedIngredientIds), ...Array.from(stagedIngredientIds)]);
@@ -492,38 +522,43 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
   ];
 
   return (
-    <FeatureGate
-      feature="food_groups.access"
-      message="Disponible solo en Pro."
-    >
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="space-y-3">
-          <div className="inline-flex rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1">
-            {groupTabs.map(({ label, icon }) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => {
-                  if (label === "Mis grupos") {
-                    setSelectedGroup(null);
-                    setActiveTab(label);
-                  } else {
-                    handleResetCreate();
-                    setActiveTab(label);
-                  }
-                }}
-                className={cn(
-                  "flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all",
-                  activeTab === label
-                    ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
-                    : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
-                )}
-              >
-                {icon}
-                {label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1">
+              {groupTabs.map(({ label, icon }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => {
+                    if (label === "Mis grupos") {
+                      setSelectedGroup(null);
+                      setActiveTab(label);
+                    } else {
+                      handleResetCreate();
+                      setActiveTab(label);
+                    }
+                  }}
+                  className={cn(
+                    "flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all",
+                    activeTab === label
+                      ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
+                      : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
+                  )}
+                >
+                  {icon}
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {isFreemium && (
+              <div className="inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-800">
+                <Lock size={14} />
+                FREEMIUM: máximo 2 grupos
+              </div>
+            )}
           </div>
           <p className="max-w-3xl text-sm text-slate-500">
             {activeTab === "Mis grupos"
@@ -532,7 +567,14 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
           </p>
         </div>
 
+        <div className="shrink-0">{headerRight}</div>
       </div>
+
+      {activeTab === "Crear grupo" && freemiumLimitReached && !editingGroupId && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+          Ya alcanzaste el límite de 2 grupos en FREEMIUM. Elimina uno para crear otro.
+        </div>
+      )}
 
       {activeTab === "Mis grupos" ? (
         <div className="space-y-4">
@@ -569,13 +611,22 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
               {visibleGroups.map((group) => (
                 <div
                   key={group.id}
-                  onClick={() => handleGroupClick(group.id)}
-                  className="group cursor-pointer rounded-[1.5rem] border border-slate-200 bg-white p-6 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md"
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleGroupClick(group.id);
-                  }}
+                  onClick={isFreemium ? undefined : () => handleGroupClick(group.id)}
+                  className={cn(
+                    "group rounded-[1.5rem] border border-slate-200 bg-white p-6 text-left shadow-sm transition-all",
+                    isFreemium
+                      ? "cursor-default"
+                      : "cursor-pointer hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md",
+                  )}
+                  role={isFreemium ? undefined : "button"}
+                  tabIndex={isFreemium ? undefined : 0}
+                  onKeyDown={
+                    isFreemium
+                      ? undefined
+                      : (e) => {
+                          if (e.key === "Enter") handleGroupClick(group.id);
+                        }
+                  }
                 >
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -587,6 +638,12 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
                         <p className="text-xs font-medium text-slate-500">
                           {(group._count?.entries ?? group._count?.ingredients ?? 0)} ingredientes
                         </p>
+                        {isFreemium && (
+                          <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                            <Lock size={12} />
+                            Solo eliminar
+                          </span>
+                        )}
                       </div>
                     </div>
                     <button
@@ -620,7 +677,7 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
           )}
         </div>
       ) : (
-        <div className="relative grid grid-cols-1 gap-6 xl:grid-cols-[1fr_320px]">
+        <div className="relative grid grid-cols-1 gap-6 xl:grid-cols-[1fr_380px]">
           <div className="space-y-4">
             <div className="relative z-20 overflow-visible rounded-3xl border border-slate-200 bg-white shadow-sm">
               <button
@@ -751,114 +808,7 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
                   </button>
                 </div>
 
-                {createViewTab === "alimentos" && (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={createSearchDraft}
-                      onChange={(e) => setCreateSearchDraft(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleApplyFilters()}
-                      placeholder="Buscar en el catálogo..."
-                      className="h-9 w-48 rounded-xl border-slate-200 text-xs focus:ring-emerald-500 lg:w-64"
-                    />
-                    <select
-                      value={createCategoryDraft}
-                      onChange={(e) => setCreateCategoryDraft(e.target.value)}
-                      className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-600 focus:border-emerald-500 focus:outline-none"
-                    >
-                      <option value="ALL">Todas las categorías</option>
-                      {categories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsFiltersOpen((prev) => !prev)}
-                      className="h-9 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
-                    >
-                      <Filter size={14} className="mr-2" />
-                      Filtros{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ""}
-                    </Button>
-                  </div>
-                )}
               </div>
-
-              {createViewTab === "alimentos" && isFiltersOpen && (
-                <div className="border-b border-slate-100 px-5 py-4">
-                  <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                    {createFilterDrafts.map((draft) => {
-                      const nutrient = nutrientOptions.find((option) => option.value === draft.nutrient);
-
-                      return (
-                        <div key={draft.id} className="grid gap-2 md:grid-cols-[1.2fr_120px_120px_auto] md:items-center">
-                          <select
-                            value={draft.nutrient}
-                            onChange={(e) => updateFilterDraft(draft.id, { nutrient: e.target.value as NutrientKey })}
-                            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                          >
-                            {nutrientOptions.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-
-                          <select
-                            value={draft.comparator}
-                            onChange={(e) => updateFilterDraft(draft.id, { comparator: e.target.value as Comparator })}
-                            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                          >
-                            <option value="gte">Mayor o igual</option>
-                            <option value="lte">Menor o igual</option>
-                          </select>
-
-                          <Input
-                            type="number"
-                            inputMode="decimal"
-                            value={draft.value}
-                            onChange={(e) => updateFilterDraft(draft.id, { value: e.target.value })}
-                            placeholder={nutrient ? nutrient.unit : "Valor"}
-                            className="h-10 rounded-xl border-slate-200 text-sm focus:border-emerald-500 focus:ring-emerald-500/20"
-                          />
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => removeFilterDraft(draft.id)}
-                            disabled={createFilterDrafts.length === 1}
-                            className="h-10 rounded-xl px-3 text-slate-500 hover:bg-white hover:text-slate-700"
-                          >
-                            <X size={14} />
-                          </Button>
-                        </div>
-                      );
-                    })}
-
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={addFilterDraft}
-                        className="rounded-xl border-slate-200 text-slate-600 hover:bg-white"
-                      >
-                        <Plus size={14} className="mr-2" />
-                        Agregar filtro
-                      </Button>
-
-                      <Button
-                        type="button"
-                        onClick={handleApplyFilters}
-                        className="rounded-xl bg-emerald-600 px-4 text-white hover:bg-emerald-700"
-                      >
-                        Aplicar filtros
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
@@ -1003,6 +953,156 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
           </div>
 
           <aside className="space-y-4 xl:sticky xl:top-[25vh] xl:self-start">
+            {createViewTab === "alimentos" && (
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400">Filtros</p>
+                    <p className="mt-1 text-sm text-slate-500">Busca y afina el catálogo desde aquí.</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsFiltersOpen((prev) => !prev)}
+                    className="rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                  >
+                    <Filter size={14} className="mr-2" />
+                    {isFiltersOpen ? "Ocultar" : `Mostrar${activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ""}`}
+                  </Button>
+                </div>
+
+                {isFiltersOpen && (
+                  <div className="mt-4 border-t border-slate-100 pt-4">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Buscar</label>
+                        <Input
+                          value={createSearchDraft}
+                          onChange={(e) => setCreateSearchDraft(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleApplyFilters()}
+                          placeholder="Buscar en el catálogo..."
+                          className="h-10 rounded-xl border-slate-200 text-sm focus:ring-emerald-500"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Categoría</label>
+                        <select
+                          value={createCategoryDraft}
+                          onChange={(e) => setCreateCategoryDraft(e.target.value)}
+                          className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-600 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                        >
+                          <option value="ALL">Todas las categorías</option>
+                          {categories.map((category) => (
+                            <option key={category} value={category}>
+                              {category}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Reglas</p>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-600 shadow-sm">
+                            {createFilterDrafts.length}
+                          </span>
+                        </div>
+
+                        <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
+                          {createFilterDrafts.map((draft, index) => {
+                            const nutrient = nutrientOptions.find((option) => option.value === draft.nutrient);
+
+                            return (
+                              <div key={draft.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                <div className="mb-3 flex items-center justify-between gap-2">
+                                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                                    Regla {index + 1}
+                                  </p>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={() => removeFilterDraft(draft.id)}
+                                    className="h-8 rounded-xl px-2 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
+                                  >
+                                    <X size={14} />
+                                  </Button>
+                                </div>
+
+                                <div className="grid gap-2">
+                                  <select
+                                    value={draft.nutrient}
+                                    onChange={(e) => updateFilterDraft(draft.id, { nutrient: e.target.value as NutrientKey })}
+                                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                                  >
+                                    {nutrientOptions.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <select
+                                      value={draft.comparator}
+                                      onChange={(e) => updateFilterDraft(draft.id, { comparator: e.target.value as Comparator })}
+                                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                                    >
+                                      <option value="gte">Mayor o igual</option>
+                                      <option value="lte">Menor o igual</option>
+                                    </select>
+
+                                    <Input
+                                      type="number"
+                                      inputMode="decimal"
+                                      value={draft.value}
+                                      onChange={(e) => updateFilterDraft(draft.id, { value: e.target.value })}
+                                      placeholder={nutrient ? nutrient.unit : "Valor"}
+                                      className="h-10 rounded-xl border-slate-200 text-sm focus:border-emerald-500 focus:ring-emerald-500/20"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={addFilterDraft}
+                            className="w-full rounded-xl border-slate-200 text-slate-600 hover:bg-white"
+                          >
+                            <Plus size={14} className="mr-2" />
+                            Agregar regla
+                          </Button>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={handleClearFilters}
+                            className="w-full rounded-xl text-slate-500 hover:bg-white hover:text-slate-700"
+                          >
+                            Limpiar
+                          </Button>
+
+                          <Button
+                            type="button"
+                            onClick={handleApplyFilters}
+                            className="w-full rounded-xl bg-emerald-600 px-4 text-white hover:bg-emerald-700 sm:col-span-2"
+                          >
+                            Aplicar filtros
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -1043,7 +1143,7 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
                 <Button
                   type="button"
                   onClick={handleCreateGroup}
-                  disabled={totalSelectedCount === 0 || !groupName.trim() || isCreateSubmitting}
+                  disabled={totalSelectedCount === 0 || !groupName.trim() || isCreateSubmitting || freemiumLimitReached}
                   className="w-full h-[52px] cursor-pointer bg-indigo-600 px-4 text-white hover:bg-indigo-700 shadow-sm rounded-[1.25rem] transition-all"
                 >
                   <div className="flex items-center justify-center gap-2">
@@ -1081,7 +1181,6 @@ export default function GruposClient({ initialIngredients }: GruposClientProps) 
         variant="destructive"
       />
     </div>
-    </FeatureGate>
   );
 }
 

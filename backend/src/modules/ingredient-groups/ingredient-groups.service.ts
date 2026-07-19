@@ -33,6 +33,7 @@ export class IngredientGroupsService {
     const group = await this.prisma.ingredientGroup.create({
       data: {
         ...data,
+        updatedAt: new Date(),
         type: type || 'INGREDIENT',
         nutritionist: { connect: { id: nutritionistId } },
         tags: {
