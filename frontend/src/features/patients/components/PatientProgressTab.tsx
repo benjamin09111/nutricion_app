@@ -31,7 +31,7 @@ import { MetricTagInput } from "@/components/ui/metric-tag-input";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Patient } from "@/features/patients";
 import { Consultation, Metric } from "@/features/consultations";
-import { buildMetricSeriesForKey, cn, normalizeMetricKey } from "../utils/patient-helpers";
+import { buildMetricSeriesForKey, cn, normalizeMetricKey, toDateOnly } from "../utils/patient-helpers";
 
 interface PatientProgressTabProps {
   patient: Patient;

@@ -204,7 +204,7 @@ export function Sidebar() {
             width={isSidebarCollapsed ? 72 : 180}
             height={isSidebarCollapsed ? 23 : 57}
             className={cn("h-auto w-auto object-contain", isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
-            priority
+            style={{ width: "auto", height: "auto" }}
           />
         </Link>
 

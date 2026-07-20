@@ -24,6 +24,7 @@ Cuando el usuario diga **"Ejecuta el plan"**, **"ejecuta paso a paso"** o frases
 -   **Variables de entorno para URLs**: nunca hardcodear `localhost` ni dominios en código fuente. Usar siempre variables de entorno (`process.env.*`) para URLs y endpoints. Las URLs deben ser configurables por ambiente. Las variables disponibles son `FRONTEND_URL`, `PORTAL_BASE_URL`, `APP_URL`, `NEXT_PUBLIC_API_URL`, etc.
 -   **Modales cierran con backdrop click**: todo `Modal` debe cerrarse al hacer clic fuera. El componente `Modal` ya tiene `closeOnBackdropClick={true}` por defecto. Solo desactivarlo explícitamente con `closeOnBackdropClick={false}` si hay una razón UX válida (ej. confirmación de eliminación).
 -   **No mezclar anamnesis con métricas**: campos clínicos guardados en `customVariables` como `rejectedFoods`, `motivoConsulta` o `diagnosticoNutricional` nunca deben registrarse, graficarse ni eliminarse como métricas de progreso. Solo `consultations.metrics` y los valores base autorizados pueden alimentar ese flujo.
+-   **Loaders de tabs estables**: cuando un selector de fuente/tab carga datos remotos, el callback de carga debe ser estable (`useCallback` con dependencias reales) y el efecto asociado no debe re-dispararse por funciones recreadas en cada render. Vaciar la vista antes de cargar la nueva fuente y evitar estados/flags que queden atrapados en ciclos de fetch o `304` repetidos.
 
 ## "Terminar sesión"
 

@@ -112,6 +112,7 @@ export default function CreateIngredientModal({
   availableTags = [],
 }: CreateIngredientModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [shareWithCommunity, setShareWithCommunity] = useState(true);
 
   const {
     register,
@@ -150,7 +151,7 @@ export default function CreateIngredientModal({
         body: JSON.stringify({
           ...data,
           price: 0,
-          isPublic: false,
+          isPublic: shareWithCommunity,
         }),
       });
 
@@ -163,6 +164,7 @@ export default function CreateIngredientModal({
 
       toast.success("Alimento creado correctamente");
       reset();
+      setShareWithCommunity(true);
       onSuccess(newIngredient);
       onClose();
     } catch (error) {
@@ -397,6 +399,25 @@ export default function CreateIngredientModal({
                   />
                 </div>
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={shareWithCommunity}
+                  onChange={(e) => setShareWithCommunity(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-emerald-900">
+                    Compartir con la comunidad Nutri
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-emerald-800/80">
+                    Activo por defecto. Desactívalo si este alimento es solo para tu consulta.
+                  </p>
+                </div>
+              </label>
             </div>
 
             {/* Tags */}

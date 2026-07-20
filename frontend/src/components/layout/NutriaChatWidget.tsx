@@ -100,7 +100,7 @@ export function NutriaChatWidget() {
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="relative h-12 w-12 overflow-hidden rounded-full border border-white/25 bg-white/10 shadow-inner">
-                  <Image src="/circle_logo.webp" alt="Nutria asistente" fill className="object-cover" />
+                  <Image src="/circle_logo.webp" alt="Nutria asistente" fill sizes="48px" className="object-cover" />
                 </div>
                 <div>
                   <p className="text-sm font-black tracking-wide">Nutria</p>
@@ -151,7 +151,7 @@ export function NutriaChatWidget() {
 
             <div className="flex items-start gap-3">
               <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-violet-200/70 bg-white shadow-sm">
-                <Image src="/nutria.webp" alt="Nutria" fill className="object-cover" />
+                 <Image src="/nutria.webp" alt="Nutria" fill sizes="40px" className="object-cover" />
               </div>
               <div className="max-w-[calc(100%-3.25rem)] rounded-[1.6rem] rounded-tl-md bg-white px-4 py-3 text-sm leading-6 text-slate-600 shadow-sm ring-1 ring-violet-100">
                 {welcomeMessage.split("\n\n").map((paragraph, index) => (
@@ -212,7 +212,7 @@ export function NutriaChatWidget() {
         aria-label={isOpen ? "Cerrar chat de Nutria" : "Abrir chat de Nutria"}
       >
         <div className="absolute inset-[3px] overflow-hidden rounded-full border border-white/25">
-          <Image src="/circle_logo.webp" alt="Nutria" fill className="object-cover" />
+          <Image src="/circle_logo.webp" alt="Nutria" fill sizes="40px" className="object-cover" />
         </div>
         <div className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-emerald-400 px-1 text-[10px] font-black text-slate-900">
           <MessageCircle className="h-3 w-3" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -34,12 +34,15 @@ interface FoodsClientProps {
   initialData: Ingredient[];
 }
 
+type FoodSourceTab = "catalog" | "mine" | "community";
+
 export default function FoodsClient({ initialData }: FoodsClientProps) {
   const router = useRouter();
 
   const [data, setData] = useState<Ingredient[]>(initialData);
   const [catalogPool, setCatalogPool] = useState<Ingredient[]>(initialData);
   const [isLoadingIngredients, setIsLoadingIngredients] = useState(false);
+  const [activeSourceTab, setActiveSourceTab] = useState<FoodSourceTab>("catalog");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [selectedTag, setSelectedTag] = useState("Todos");
@@ -53,6 +56,14 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
   const [selectedIngredientForTags, setSelectedIngredientForTags] = useState<Ingredient | null>(null);
 
+  const sourceCacheRef = useRef<Record<FoodSourceTab, Ingredient[]>>({
+    catalog: initialData,
+    mine: [],
+    community: [],
+  });
+  const skipNextSearchFetchRef = useRef(false);
+  const clearSourceSwitchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const isAnyModalOpen = isCreateModalOpen || isDetailsModalOpen || isTagsModalOpen;
   useScrollLock(isAnyModalOpen);
 
@@ -61,24 +72,114 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     setCatalogPool(initialData);
   }, [initialData]);
 
-  const getToken = () => getAuthToken();
+  const getToken = useCallback(() => getAuthToken(), []);
   const canEditIngredient = (ingredient: Ingredient | null | undefined) => Boolean(ingredient?.isMine);
 
-  const fetchIngredients = useCallback(async () => {
+  const sourceTabToApiTab = useCallback((sourceTab: FoodSourceTab) => {
+    switch (sourceTab) {
+      case "mine":
+        return "mine";
+      case "community":
+        return "community";
+      default:
+        return "app";
+    }
+  }, []);
+
+  const setSourceTabData = (sourceTab: FoodSourceTab, items: Ingredient[]) => {
+    sourceCacheRef.current = {
+      ...sourceCacheRef.current,
+      [sourceTab]: items,
+    };
+    setData(items);
+    setCatalogPool(items);
+  };
+
+  const loadSourceTab = useCallback(
+    async (sourceTab: FoodSourceTab) => {
+      if (clearSourceSwitchTimerRef.current) {
+        clearTimeout(clearSourceSwitchTimerRef.current);
+        clearSourceSwitchTimerRef.current = null;
+      }
+
+      skipNextSearchFetchRef.current = true;
+      setActiveSourceTab(sourceTab);
+      setEditingId(null);
+      setEditValues({});
+      setSearchTerm("");
+      setSelectedCategory("Todos");
+      setSelectedTag("Todos");
+      setCurrentPage(1);
+
+      const cachedItems = sourceCacheRef.current[sourceTab];
+      if (cachedItems?.length > 0) {
+        setData(cachedItems);
+        setCatalogPool(cachedItems);
+        clearSourceSwitchTimerRef.current = setTimeout(() => {
+          skipNextSearchFetchRef.current = false;
+        }, 0);
+        return;
+      }
+
+      setData([]);
+      setCatalogPool([]);
+
+      const token = getToken();
+      if (!token) {
+        clearSourceSwitchTimerRef.current = setTimeout(() => {
+          skipNextSearchFetchRef.current = false;
+        }, 0);
+        return;
+      }
+
+      setIsLoadingIngredients(true);
+      try {
+        const queryParams = new URLSearchParams({
+          tab: sourceTabToApiTab(sourceTab),
+          limit: "100",
+        });
+
+        const response = await fetchApi(`/foods?${queryParams.toString()}`, {
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+          throw new Error("Error al cargar ingredientes");
+        }
+
+        const result = await response.json();
+        const nextItems = Array.isArray(result) ? result : [];
+        setSourceTabData(sourceTab, nextItems);
+      } catch (error) {
+        console.error("Error fetching ingredients:", error);
+        toast.error("No se pudo cargar el catálogo de ingredientes");
+      } finally {
+        setIsLoadingIngredients(false);
+        clearSourceSwitchTimerRef.current = setTimeout(() => {
+          skipNextSearchFetchRef.current = false;
+        }, 0);
+      }
+    },
+    [getToken, sourceTabToApiTab, setSourceTabData, toast],
+  );
+
+  const fetchIngredients = useCallback(async (sourceTab: FoodSourceTab = activeSourceTab) => {
     const token = getToken();
     if (!token) return;
 
     setIsLoadingIngredients(true);
     try {
       const queryParams = new URLSearchParams({
-        tab: "app",
-        limit: "5000",
+        tab: sourceTabToApiTab(sourceTab),
+        limit: "100",
         ...(searchTerm.trim() && { search: searchTerm.trim() }),
         ...(selectedCategory !== "Todos" && { category: selectedCategory }),
         ...(selectedTag !== "Todos" && { tag: selectedTag }),
       });
 
       const response = await fetchApi(`/foods?${queryParams.toString()}`, {
+        cache: "no-store",
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -94,39 +195,32 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     } finally {
       setIsLoadingIngredients(false);
     }
-  }, [searchTerm, selectedCategory, selectedTag]);
+  }, [activeSourceTab, searchTerm, selectedCategory, selectedTag, getToken, sourceTabToApiTab]);
 
-  const fetchCatalogPool = useCallback(async () => {
-    const token = getToken();
-    if (!token) return;
-
-    try {
-      const response = await fetchApi("/foods?tab=app&limit=5000", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        throw new Error("Error al cargar catálogo base");
-      }
-
-      const result = await response.json();
-      setCatalogPool(Array.isArray(result) ? result : []);
-    } catch (error) {
-      console.error("Error fetching ingredient pool:", error);
+  useEffect(() => {
+    if (skipNextSearchFetchRef.current) {
+      return;
     }
-  }, []);
 
-  useEffect(() => {
-    fetchCatalogPool();
-  }, [fetchCatalogPool]);
-
-  useEffect(() => {
     const timer = setTimeout(() => {
-      fetchIngredients();
+      fetchIngredients(activeSourceTab);
     }, searchTerm.trim() ? 250 : 0);
 
     return () => clearTimeout(timer);
-  }, [fetchIngredients, searchTerm]);
+  }, [fetchIngredients, activeSourceTab, searchTerm, selectedCategory, selectedTag]);
+
+  useEffect(
+    () => () => {
+      if (clearSourceSwitchTimerRef.current) {
+        clearTimeout(clearSourceSwitchTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeSourceTab]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -175,13 +269,17 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         { ...newIngredient, isMine: true, preferences: newIngredient.preferences || [] },
         ...prev.filter((item) => item.id !== newIngredient.id),
       ]);
+      sourceCacheRef.current.mine = [
+        { ...newIngredient, isMine: true, preferences: newIngredient.preferences || [] },
+        ...sourceCacheRef.current.mine.filter((item) => item.id !== newIngredient.id),
+      ];
     }
 
     setSearchTerm("");
     setSelectedCategory("Todos");
     setSelectedTag("Todos");
     setCurrentPage(1);
-    await Promise.all([fetchIngredients(), fetchCatalogPool()]);
+    await loadSourceTab("mine");
   };
 
   const handleDetailsClick = (ingredient: Ingredient) => {
@@ -238,7 +336,15 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
       else if (updates.isNotRecommended) toast.success("Marcado como No Recomendado 🚫");
       else if (updates.isFavorite === false && updates.isNotRecommended === false) toast.success("Preferencia eliminada");
 
-      await Promise.all([fetchIngredients(), fetchCatalogPool()]);
+      const patched = (current: Ingredient[]) =>
+        current.map((item) =>
+          item.id === ingredientId
+            ? { ...item, preferences: [{ ...(item.preferences?.[0] || {}), ...updates }] }
+            : item,
+        );
+      setCatalogPool(patched);
+      sourceCacheRef.current[activeSourceTab] = patched(sourceCacheRef.current[activeSourceTab]);
+      await fetchIngredients(activeSourceTab);
     } catch (error: any) {
       console.error("Toggle preference error:", error);
       setData(previousData);
@@ -310,7 +416,11 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
       toast.success(ingredientToEdit?.isDraft ? "Borrador completado correctamente" : "Ingrediente actualizado");
       setEditingId(null);
       setEditValues({});
-      await Promise.all([fetchIngredients(), fetchCatalogPool()]);
+      const patched = (current: Ingredient[]) =>
+        current.map((item) => (item.id === id ? { ...item, ...updatedFood } : item));
+      setCatalogPool(patched);
+      sourceCacheRef.current[activeSourceTab] = patched(sourceCacheRef.current[activeSourceTab]);
+      await fetchIngredients(activeSourceTab);
     } catch (error) {
       console.error("Update error:", error);
       toast.error("No se pudo actualizar el ingrediente");
@@ -338,7 +448,13 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
       );
 
       toast.success(ingredient.isPublic ? "Ingrediente dejado de compartir" : "Ingrediente compartido con la comunidad 🌍");
-      await Promise.all([fetchIngredients(), fetchCatalogPool()]);
+      const patched = (current: Ingredient[]) =>
+        current.map((item) =>
+          item.id === ingredient.id ? { ...item, isPublic: !ingredient.isPublic } : item,
+        );
+      setCatalogPool(patched);
+      sourceCacheRef.current[activeSourceTab] = patched(sourceCacheRef.current[activeSourceTab]);
+      await fetchIngredients(activeSourceTab);
     } catch (error) {
       console.error("Share error:", error);
       toast.error("No se pudo actualizar el estado de compartido");
@@ -355,6 +471,27 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
           <p className="mt-1 text-sm text-slate-500">
             Gestiona los ingredientes base para tus pautas y recetas.
           </p>
+          <div className="mt-4 inline-flex rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1">
+            {[
+              { key: "catalog", label: "Catálogo NutriNet" },
+              { key: "mine", label: "Mis alimentos" },
+              { key: "community", label: "Comunidad" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => loadSourceTab(tab.key as FoodSourceTab)}
+                className={cn(
+                  "rounded-xl px-4 py-2 text-sm font-semibold transition-all",
+                  activeSourceTab === tab.key
+                    ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
+                    : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex w-full flex-row flex-nowrap gap-2 lg:w-auto lg:justify-end">
@@ -431,6 +568,13 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
           </div>
         )}
       </div>
+
+      {isLoadingIngredients && (
+        <div className="mx-2 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-700 shadow-sm">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+          Cargando {activeSourceTab === "catalog" ? "catálogo" : activeSourceTab === "mine" ? "mis alimentos" : "comunidad"}...
+        </div>
+      )}
 
       <div className="space-y-4">
         <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
@@ -625,10 +769,17 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         onClose={() => setIsTagsModalOpen(false)}
         ingredient={selectedIngredientForTags}
         availableTags={allTags.filter((tag) => tag !== "Todos")}
-        onSuccess={async () => {
-          toast.success("Tags actualizados");
-          await Promise.all([fetchIngredients(), fetchCatalogPool()]);
-        }}
+          onSuccess={async () => {
+            toast.success("Tags actualizados");
+            await fetchIngredients(activeSourceTab);
+          }}
+        />
+
+      <CreateIngredientModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={handleCreateIngredientSuccess}
+        availableTags={allTags.filter((tag) => tag !== "Todos")}
       />
     </div>
   );

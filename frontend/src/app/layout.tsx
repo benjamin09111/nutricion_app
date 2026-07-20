@@ -99,7 +99,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es-CL" suppressHydrationWarning className={`${poppins.variable} ${inter.variable}`}>
+    <html
+      lang="es-CL"
+      suppressHydrationWarning
+      data-scroll-behavior="smooth"
+      className={`${poppins.variable} ${inter.variable}`}
+    >
       <body className="antialiased">
         <Providers>
           {children}

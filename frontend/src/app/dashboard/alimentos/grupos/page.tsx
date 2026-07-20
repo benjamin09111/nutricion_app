@@ -15,7 +15,7 @@ async function getIngredients(): Promise<Ingredient[]> {
   const token = cookieStore.get("auth_token")?.value;
 
   try {
-    const res = await fetchApi("/foods?tab=app&limit=5000", {
+    const res = await fetchApi("/foods?tab=app&limit=100", {
       cache: "no-store",
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

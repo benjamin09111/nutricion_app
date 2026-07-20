@@ -27,6 +27,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { fetchApi } from "@/lib/api-base";
+import { normalizeMembershipPlansResponse } from "@/features/memberships/services/membership.service";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -235,9 +236,10 @@ export default function AdminClientsPage() {
       });
       if (!response.ok) throw new Error("Error al cargar planes");
       const data = await response.json();
-      setMembershipPlans(data);
+      const plans = normalizeMembershipPlansResponse(data) as MembershipPlan[];
+      setMembershipPlans(plans);
 
-      const freePlanValue = getFreePlanValue(data);
+      const freePlanValue = getFreePlanValue(plans);
       setSelectedPlan((current) => current || freePlanValue);
     } catch (error) {
       console.error("Error fetching membership plans:", error);

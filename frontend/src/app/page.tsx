@@ -23,6 +23,17 @@ import { getMembershipFeatureDisplay } from "@/features/memberships/utils/featur
 import { type MembershipPlan } from "@/features/memberships/services/membership.service";
 import LandingContactForm from "@/components/landing/LandingContactForm";
 
+const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
+  if (Array.isArray(value)) return value as MembershipPlan[];
+  if (value && typeof value === "object") {
+    const payload = value as { data?: unknown; plans?: unknown; items?: unknown };
+    if (Array.isArray(payload.data)) return payload.data as MembershipPlan[];
+    if (Array.isArray(payload.plans)) return payload.plans as MembershipPlan[];
+    if (Array.isArray(payload.items)) return payload.items as MembershipPlan[];
+  }
+  return [];
+};
+
 export default function LandingPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
@@ -30,7 +41,7 @@ export default function LandingPage() {
   useEffect(() => {
     fetchApi(`/memberships/active`)
       .then((res) => res.json())
-      .then((data) => setPlans(data))
+      .then((data) => setPlans(toMembershipPlanArray(data)))
       .catch(() => {});
   }, []);
 
@@ -133,6 +144,7 @@ export default function LandingPage() {
               width={160}
               height={50}
               className="h-auto w-[118px] object-contain transition-transform duration-300 hover:scale-105 sm:w-[148px]"
+              style={{ width: "auto", height: "auto" }}
               priority
             />
           </div>

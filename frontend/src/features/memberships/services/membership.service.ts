@@ -9,6 +9,17 @@ async function readJsonResponse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export const normalizeMembershipPlansResponse = (value: unknown): MembershipPlan[] => {
+  if (Array.isArray(value)) return value as MembershipPlan[];
+  if (value && typeof value === "object") {
+    const payload = value as { data?: unknown; plans?: unknown; items?: unknown };
+    if (Array.isArray(payload.data)) return payload.data as MembershipPlan[];
+    if (Array.isArray(payload.plans)) return payload.plans as MembershipPlan[];
+    if (Array.isArray(payload.items)) return payload.items as MembershipPlan[];
+  }
+  return [];
+};
+
 export interface MembershipStatus {
   requiresPlanSelection: boolean;
   accountPlan: string;
@@ -132,7 +143,8 @@ export const membershipService = {
 
   async getActivePlans(): Promise<MembershipPlan[]> {
     const res = await api.get("/memberships/active");
-    return res.json();
+    const data = await res.json();
+    return normalizeMembershipPlansResponse(data);
   },
 
   async selectFreePlan(planId: string): Promise<FreePlanSelectionResult> {

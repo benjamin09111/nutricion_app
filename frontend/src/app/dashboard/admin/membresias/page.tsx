@@ -9,6 +9,7 @@ import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 import { cn } from "@/lib/utils";
 import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
+import { normalizeMembershipPlansResponse } from "@/features/memberships/services/membership.service";
 
 interface MembershipPlan {
   id: string;
@@ -111,7 +112,7 @@ export default function MembershipsPage() {
       });
       if (!response.ok) throw new Error("Error al cargar planes");
       const data = await response.json();
-      setPlans(data);
+      setPlans(normalizeMembershipPlansResponse(data) as MembershipPlan[]);
     } catch (error) {
       console.error(error);
       toast.error("No se pudieron cargar los planes");

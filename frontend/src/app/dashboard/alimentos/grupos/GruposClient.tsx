@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   Check,
@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { Modal } from "@/components/ui/Modal";
 import { TagInput } from "@/components/ui/TagInput";
 import { fetchApi } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
@@ -89,6 +90,13 @@ interface GruposClientProps {
   onGroupCountChange?: (count: number) => void;
 }
 
+type IngredientSourceTab = "catalog" | "mine" | "community";
+type SourceLoadingMeta = {
+  loaded: boolean;
+  loading: boolean;
+  count: number;
+};
+
 const nutrientOptions: Array<{ value: NutrientKey; label: string; unit: string }> = [
   { value: "calories", label: "Calorías", unit: "kcal" },
   { value: "proteins", label: "Proteínas", unit: "g" },
@@ -119,6 +127,13 @@ const normalizeText = (value: string) =>
     .toLowerCase()
     .trim();
 
+const sameStringSet = (left: string[], right: string[]) => {
+  if (left.length !== right.length) return false;
+  const normalizedLeft = [...left].sort().join("|");
+  const normalizedRight = [...right].sort().join("|");
+  return normalizedLeft === normalizedRight;
+};
+
 const getNutrientValue = (ingredient: IngredientWithMetrics, nutrient: NutrientKey) => {
   const raw = ingredient[nutrient as keyof IngredientWithMetrics];
   if (typeof raw === "number") return raw;
@@ -138,6 +153,8 @@ export default function GruposClient({
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [isLoadingSelectedGroup, setIsLoadingSelectedGroup] = useState(false);
+  const [pendingGroupId, setPendingGroupId] = useState<string | null>(null);
 
   const createItemsPerPage = 6;
 
@@ -145,6 +162,17 @@ export default function GruposClient({
   const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(true);
   const [createViewTab, setCreateViewTab] = useState<CreateViewTab>("alimentos");
+  const [isIngredientSourceLoading, setIsIngredientSourceLoading] = useState(false);
+  const [ingredientSourceMeta, setIngredientSourceMeta] = useState<Record<IngredientSourceTab, SourceLoadingMeta>>({
+    catalog: { loaded: true, loading: false, count: initialIngredients.length },
+    mine: { loaded: false, loading: false, count: 0 },
+    community: { loaded: false, loading: false, count: 0 },
+  });
+  const [selectedSourceGroup, setSelectedSourceGroup] = useState<IngredientSourceTab | null>(null);
+  const [selectedSourceIngredients, setSelectedSourceIngredients] = useState<IngredientWithMetrics[]>([]);
+  const [isSelectedSourceLoading, setIsSelectedSourceLoading] = useState(false);
+  const [ingredientToAdd, setIngredientToAdd] = useState<IngredientWithMetrics | null>(null);
+  const [isAddToGroupOpen, setIsAddToGroupOpen] = useState(false);
 
   const [groupName, setGroupName] = useState("");
   const [groupDescription, setGroupDescription] = useState("");
@@ -162,20 +190,208 @@ export default function GruposClient({
   const [createCurrentPage, setCreateCurrentPage] = useState(1);
   const [selectedCurrentPage, setSelectedCurrentPage] = useState(1);
   const [isCreateSubmitting, setIsCreateSubmitting] = useState(false);
+  const [activeIngredientSource, setActiveIngredientSource] = useState<IngredientSourceTab>("catalog");
+  const [allIngredients, setAllIngredients] = useState<IngredientWithMetrics[]>(initialIngredients as IngredientWithMetrics[]);
 
   const { currentPlan } = useSubscription();
+  const didInitialIngredientFetchRef = useRef(false);
+  const sourceCacheRef = useRef<Record<IngredientSourceTab, IngredientWithMetrics[]>>({
+    catalog: initialIngredients as IngredientWithMetrics[],
+    mine: [],
+    community: [],
+  });
+  const ingredientSourceMetaRef = useRef(ingredientSourceMeta);
+  const skipNextSourceFetchRef = useRef(false);
+
+  useEffect(() => {
+    ingredientSourceMetaRef.current = ingredientSourceMeta;
+  }, [ingredientSourceMeta]);
 
   const isAnyModalOpen = isDeleteConfirmOpen;
   useScrollLock(isAnyModalOpen);
 
-  const getToken = () => getAuthToken();
+  const getToken = useCallback(() => getAuthToken(), []);
   const isFreemium = String(currentPlan?.key || currentPlan?.slug || "").toLowerCase() === "free";
   const freemiumGroupLimit = 2;
   const freemiumLimitReached = isFreemium && (freemiumGroupCount ?? groups.length) >= freemiumGroupLimit;
 
+  const sourceTabToApiTab = useCallback((sourceTab: IngredientSourceTab) => {
+    switch (sourceTab) {
+      case "mine":
+        return "mine";
+      case "community":
+        return "community";
+      default:
+        return "app";
+    }
+  }, []);
+
   useEffect(() => {
-    setIngredients(initialIngredients as IngredientWithMetrics[]);
+    const nextIngredients = initialIngredients as IngredientWithMetrics[];
+    setIngredients(nextIngredients);
+    setAllIngredients(nextIngredients);
+    sourceCacheRef.current.catalog = nextIngredients;
+    setIngredientSourceMeta((prev) => ({
+      ...prev,
+      catalog: { loaded: true, loading: false, count: nextIngredients.length },
+    }));
   }, [initialIngredients]);
+
+  const mergeIngredients = useCallback((items: IngredientWithMetrics[]) => {
+    setAllIngredients((prev) => {
+      const map = new Map(prev.map((item) => [item.id, item] as const));
+      items.forEach((item) => map.set(item.id, item));
+      return Array.from(map.values());
+    });
+  }, []);
+
+  const loadIngredientSourceTab = useCallback(
+    async (sourceTab: IngredientSourceTab) => {
+      skipNextSourceFetchRef.current = true;
+      setActiveIngredientSource(sourceTab);
+      setStagedIngredientIds(new Set());
+      setCreateCurrentPage(1);
+      setSelectedCurrentPage(1);
+
+      const meta = ingredientSourceMetaRef.current[sourceTab];
+      const cached = sourceCacheRef.current[sourceTab] || [];
+      const hasCreateFilters =
+        appliedSearch.trim().length > 0 || appliedCategory !== "ALL" || appliedFilters.length > 0;
+      const shouldUpdateCount = !hasCreateFilters;
+
+      if (meta.loaded && !hasCreateFilters) {
+        setIngredients(cached);
+        mergeIngredients(cached);
+        return;
+      }
+
+      if (meta.loading) return;
+
+      setIngredients([]);
+      const token = getToken();
+      if (!token) {
+        skipNextSourceFetchRef.current = false;
+        return;
+      }
+
+      setIsIngredientSourceLoading(true);
+      setIngredientSourceMeta((prev) => ({
+        ...prev,
+        [sourceTab]: { ...prev[sourceTab], loading: true },
+      }));
+
+      try {
+        const queryParams = new URLSearchParams({
+          tab: sourceTabToApiTab(sourceTab),
+          limit: "100",
+          ...(appliedSearch.trim() && { search: appliedSearch.trim() }),
+          ...(appliedCategory !== "ALL" && { category: appliedCategory }),
+        });
+
+        const res = await fetchApi(`/foods?${queryParams.toString()}`, {
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const nextIngredients = Array.isArray(data) ? (data as IngredientWithMetrics[]) : [];
+        sourceCacheRef.current[sourceTab] = nextIngredients;
+        setIngredients(nextIngredients);
+        mergeIngredients(nextIngredients);
+        setIngredientSourceMeta((prev) => ({
+          ...prev,
+          [sourceTab]: {
+            loaded: true,
+            loading: false,
+            count: shouldUpdateCount ? nextIngredients.length : prev[sourceTab].count,
+          },
+        }));
+      } catch (error) {
+        console.error("Error loading ingredient source:", error);
+      } finally {
+        setIsIngredientSourceLoading(false);
+        setIngredientSourceMeta((prev) => ({
+          ...prev,
+          [sourceTab]: {
+            ...prev[sourceTab],
+            loading: false,
+            count: shouldUpdateCount
+              ? sourceCacheRef.current[sourceTab]?.length ?? prev[sourceTab].count
+              : prev[sourceTab].count,
+          },
+        }));
+      }
+    },
+    [appliedCategory, appliedFilters.length, appliedSearch, getToken, mergeIngredients, sourceTabToApiTab],
+  );
+
+  const openPreviewSourceTab = useCallback(
+    async (sourceTab: IngredientSourceTab) => {
+      setSelectedSourceGroup(sourceTab);
+      setSelectedSourceIngredients([]);
+
+      const meta = ingredientSourceMetaRef.current[sourceTab];
+      const cached = sourceCacheRef.current[sourceTab] || [];
+
+      if (meta.loaded) {
+        setSelectedSourceIngredients(cached);
+        return;
+      }
+
+      if (meta.loading) return;
+
+      const token = getToken();
+      if (!token) return;
+
+      setIsSelectedSourceLoading(true);
+      setIngredientSourceMeta((prev) => ({
+        ...prev,
+        [sourceTab]: { ...prev[sourceTab], loading: true },
+      }));
+
+      try {
+        const res = await fetchApi(
+          `/foods?tab=${sourceTabToApiTab(sourceTab)}&limit=100`,
+          {
+            cache: "no-store",
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const nextIngredients = Array.isArray(data) ? (data as IngredientWithMetrics[]) : [];
+        sourceCacheRef.current[sourceTab] = nextIngredients;
+        setSelectedSourceIngredients(nextIngredients);
+        setIngredientSourceMeta((prev) => ({
+          ...prev,
+          [sourceTab]: { loaded: true, loading: false, count: nextIngredients.length },
+        }));
+      } catch (error) {
+        console.error("Error loading preview source:", error);
+      } finally {
+        setIsSelectedSourceLoading(false);
+        setIngredientSourceMeta((prev) => ({
+          ...prev,
+          [sourceTab]: {
+            ...prev[sourceTab],
+            loading: false,
+            loaded: prev[sourceTab].loaded,
+          },
+        }));
+      }
+    },
+    [getToken, sourceTabToApiTab],
+  );
+
+  useEffect(() => {
+    setStagedIngredientIds(new Set());
+    setCreateCurrentPage(1);
+    setSelectedCurrentPage(1);
+  }, [activeIngredientSource]);
 
   const fetchGroups = useCallback(async () => {
     const token = getToken();
@@ -196,7 +412,88 @@ export default function GruposClient({
     } finally {
       setIsLoadingGroups(false);
     }
-  }, [onGroupCountChange]);
+  }, [getToken, onGroupCountChange]);
+
+  const fetchIngredients = useCallback(
+    async (sourceTab: IngredientSourceTab = activeIngredientSource) => {
+      const meta = ingredientSourceMetaRef.current[sourceTab];
+      const cached = sourceCacheRef.current[sourceTab] || [];
+      const hasCreateFilters =
+        appliedSearch.trim().length > 0 || appliedCategory !== "ALL" || appliedFilters.length > 0;
+
+      if (meta.loaded && !hasCreateFilters) {
+        setIngredients(cached);
+        mergeIngredients(cached);
+        return;
+      }
+
+      if (meta.loading) return;
+
+      const token = getToken();
+      if (!token) return;
+
+      setIsIngredientSourceLoading(true);
+      setIngredientSourceMeta((prev) => ({
+        ...prev,
+        [sourceTab]: { ...prev[sourceTab], loading: true },
+      }));
+
+      try {
+        const queryParams = new URLSearchParams({
+          tab: sourceTabToApiTab(sourceTab),
+          limit: "100",
+          ...(appliedSearch.trim() && { search: appliedSearch.trim() }),
+          ...(appliedCategory !== "ALL" && { category: appliedCategory }),
+        });
+
+        const res = await fetchApi(`/foods?${queryParams.toString()}`, {
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const nextIngredients = Array.isArray(data) ? (data as IngredientWithMetrics[]) : [];
+        sourceCacheRef.current[sourceTab] = nextIngredients;
+        setIngredients(nextIngredients);
+        mergeIngredients(nextIngredients);
+        setIngredientSourceMeta((prev) => ({
+          ...prev,
+          [sourceTab]: { loaded: true, loading: false, count: nextIngredients.length },
+        }));
+      } catch (error) {
+        console.error("Error fetching source ingredients:", error);
+      }
+      finally {
+        setIsIngredientSourceLoading(false);
+        setIngredientSourceMeta((prev) => ({
+          ...prev,
+          [sourceTab]: {
+            ...prev[sourceTab],
+            loading: false,
+            loaded: true,
+            count: sourceCacheRef.current[sourceTab]?.length ?? prev[sourceTab].count,
+          },
+        }));
+      }
+    },
+    [activeIngredientSource, appliedCategory, appliedFilters.length, appliedSearch, getToken, mergeIngredients, sourceTabToApiTab],
+  );
+
+  useEffect(() => {
+    if (!didInitialIngredientFetchRef.current) {
+      didInitialIngredientFetchRef.current = true;
+      return;
+    }
+
+    if (skipNextSourceFetchRef.current) {
+      skipNextSourceFetchRef.current = false;
+      return;
+    }
+
+    fetchIngredients(activeIngredientSource);
+  }, [activeIngredientSource, fetchIngredients]);
 
   useEffect(() => {
     fetchGroups();
@@ -231,10 +528,10 @@ export default function GruposClient({
 
   const selectedIngredients = useMemo(
     () =>
-      ingredients
+      allIngredients
         .filter((ingredient) => confirmedIngredientIds.has(ingredient.id))
         .sort((a, b) => a.name.localeCompare(b.name, "es")),
-    [ingredients, confirmedIngredientIds],
+    [allIngredients, confirmedIngredientIds],
   );
 
   const filteredIngredients = useMemo(() => {
@@ -294,6 +591,43 @@ export default function GruposClient({
     createViewTab === "alimentos" ? paginatedCreateIngredients : paginatedSelectedIngredients;
   const activeCreateTotalPages =
     createViewTab === "alimentos" ? createTotalPages : selectedTotalPages;
+  const selectedGroupIngredientIds = useMemo(
+    () =>
+      (selectedGroup?.ingredients || [])
+        .map((entry) => entry.ingredient?.id)
+        .filter(Boolean) as string[],
+    [selectedGroup],
+  );
+  const hasGroupChanges = useMemo(() => {
+    if (!editingGroupId || !selectedGroup) return true;
+
+    const currentConfirmedIngredientIds = Array.from(
+      new Set([...Array.from(confirmedIngredientIds), ...Array.from(stagedIngredientIds)]),
+    );
+
+    const currentName = groupName.trim();
+    const currentDescription = groupDescription.trim();
+    const originalName = (selectedGroup.name || "").trim();
+    const originalDescription = (selectedGroup.description || "").trim();
+    const currentTags = groupTags.map((tag) => tag.trim()).filter(Boolean);
+    const originalTags = (selectedGroup.tags || []).map((tag) => tag.name.trim()).filter(Boolean);
+
+    return (
+      currentName !== originalName ||
+      currentDescription !== originalDescription ||
+      !sameStringSet(currentTags, originalTags) ||
+      !sameStringSet(currentConfirmedIngredientIds, selectedGroupIngredientIds)
+    );
+  }, [
+    confirmedIngredientIds,
+    editingGroupId,
+    groupDescription,
+    groupName,
+    groupTags,
+    selectedGroup,
+    selectedGroupIngredientIds,
+    stagedIngredientIds,
+  ]);
 
   const handleGroupClick = async (groupId: string) => {
     if (isFreemium) {
@@ -304,6 +638,8 @@ export default function GruposClient({
     const token = getToken();
     if (!token) return;
 
+    setPendingGroupId(groupId);
+    setIsLoadingSelectedGroup(true);
     try {
       const res = await fetchApi(`/ingredient-groups/${groupId}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -335,6 +671,9 @@ export default function GruposClient({
     } catch (error) {
       console.error("Error fetching group details:", error);
       toast.error("Error al cargar detalles del grupo");
+    } finally {
+      setIsLoadingSelectedGroup(false);
+      setPendingGroupId(null);
     }
   };
 
@@ -396,6 +735,9 @@ export default function GruposClient({
     setStagedIngredientIds(new Set());
     setSelectedGroup(null);
     setEditingGroupId(null);
+    setIsLoadingSelectedGroup(false);
+    setPendingGroupId(null);
+    void loadIngredientSourceTab("catalog");
     setIsGroupInfoOpen(true);
     setCreateViewTab("alimentos");
     clearCreateFilters();
@@ -465,6 +807,10 @@ export default function GruposClient({
       toast.error("Selecciona al menos un ingrediente");
       return;
     }
+    if (editingGroupId && !hasGroupChanges) {
+      toast.info("No hay cambios para guardar");
+      return;
+    }
 
     const token = getToken();
     if (!token) {
@@ -513,6 +859,46 @@ export default function GruposClient({
       toast.error(editingGroupId ? "No se pudo actualizar el grupo" : "No se pudo crear el grupo");
     } finally {
       setIsCreateSubmitting(false);
+    }
+  };
+
+  const openAddToGroupModal = (ingredient: IngredientWithMetrics) => {
+    setIngredientToAdd(ingredient);
+    setIsAddToGroupOpen(true);
+  };
+
+  const handleAddIngredientToGroup = async (groupId: string) => {
+    if (!ingredientToAdd) return;
+
+    const token = getToken();
+    if (!token) {
+      toast.error("Sesión no válida");
+      return;
+    }
+
+    try {
+      const res = await fetchApi(`/ingredient-groups/${groupId}/ingredients`, {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ingredientIds: [ingredientToAdd.id] }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.message || "No se pudo agregar el alimento");
+      }
+
+      toast.success(`"${ingredientToAdd.name}" se agregó al grupo`);
+      setIsAddToGroupOpen(false);
+      setIngredientToAdd(null);
+      await fetchGroups();
+    } catch (error) {
+      console.error("Error adding ingredient to group:", error);
+      toast.error(error instanceof Error ? error.message : "No se pudo agregar el alimento");
     }
   };
 
@@ -578,13 +964,141 @@ export default function GruposClient({
 
       {activeTab === "Mis grupos" ? (
         <div className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            {[
+              {
+                key: "mine",
+                label: "Alimentos creados",
+                description: "Todos los alimentos que has creado, públicos o privados.",
+                icon: <Layers size={18} />,
+              },
+              {
+                key: "community",
+                label: "De la comunidad",
+                description: "Alimentos públicos compartidos por otros nutricionistas.",
+                icon: <UtensilsCrossed size={18} />,
+              },
+            ].map((source) => {
+              const sourceKey = source.key as IngredientSourceTab;
+              const meta = ingredientSourceMeta[sourceKey];
+              const isSelected = selectedSourceGroup === sourceKey;
+
+              return (
+                <button
+                  key={source.key}
+                  type="button"
+                  onClick={() => void openPreviewSourceTab(sourceKey)}
+                  className={cn(
+                    "group rounded-3xl border bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md",
+                    isSelected
+                      ? "border-indigo-200 bg-indigo-50/40"
+                      : "border-slate-200 hover:border-indigo-200",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{source.label}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">{source.description}</p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                      {source.icon}
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                      {meta.loading ? "Cargando..." : `${meta.count} alimentos`}
+                    </span>
+                    {isSelected && (
+                      <span className="rounded-full bg-indigo-600 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+                        Abierto
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedSourceGroup && (
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    {selectedSourceGroup === "mine" ? "Alimentos creados" : "De la comunidad"}
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Toca un alimento para agregarlo a uno de tus grupos.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                  {isSelectedSourceLoading ? (
+                    <>
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+                      Cargando alimentos...
+                    </>
+                  ) : (
+                    <>{selectedSourceIngredients.length} alimentos</>
+                  )}
+                </div>
+              </div>
+
+              {isSelectedSourceLoading ? (
+                <div className="grid grid-cols-1 gap-3 py-4 md:grid-cols-2">
+                  {[1, 2, 3, 4].map((item) => (
+                    <div key={item} className="h-20 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />
+                  ))}
+                </div>
+              ) : selectedSourceIngredients.length === 0 ? (
+                <div className="py-10 text-center">
+                  <p className="text-sm font-semibold text-slate-700">
+                    No hay alimentos en esta sección todavía.
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Cuando crees alimentos aquí aparecerán automáticamente.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-3 py-4 md:grid-cols-2 xl:grid-cols-3">
+                  {selectedSourceIngredients.map((ingredient) => (
+                    <button
+                      key={ingredient.id}
+                      type="button"
+                      onClick={() => openAddToGroupModal(ingredient)}
+                      className="group rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900">{ingredient.name}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {ingredient.category?.name || "General"}
+                            {ingredient.brand?.name ? ` · ${ingredient.brand.name}` : ""}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
+                          Agregar a grupo
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {(ingredient.tags || []).slice(0, 3).map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600"
+                          >
+                            #{tag.name}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {isLoadingGroups ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {[1, 2, 3].map((index) => (
-                <div
-                  key={index}
-                  className="h-44 animate-pulse rounded-[2rem] border border-slate-200 bg-slate-100"
-                />
+                <div key={index} className="h-44 animate-pulse rounded-[2rem] border border-slate-200 bg-slate-100" />
               ))}
             </div>
           ) : visibleGroups.length === 0 ? (
@@ -613,10 +1127,11 @@ export default function GruposClient({
                   key={group.id}
                   onClick={isFreemium ? undefined : () => handleGroupClick(group.id)}
                   className={cn(
-                    "group rounded-[1.5rem] border border-slate-200 bg-white p-6 text-left shadow-sm transition-all",
+                    "group rounded-[1.5rem] border border-slate-200 bg-white p-5 text-left shadow-sm transition-all",
                     isFreemium
                       ? "cursor-default"
                       : "cursor-pointer hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md",
+                    isLoadingSelectedGroup && pendingGroupId === group.id && "ring-2 ring-indigo-200 bg-indigo-50/40",
                   )}
                   role={isFreemium ? undefined : "button"}
                   tabIndex={isFreemium ? undefined : 0}
@@ -629,37 +1144,26 @@ export default function GruposClient({
                   }
                 >
                   <div className="mb-3 flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 transition-colors group-hover:bg-indigo-100">
-                        <Layers size={20} />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-slate-900">{group.name}</h3>
-                        <p className="text-xs font-medium text-slate-500">
-                          {(group._count?.entries ?? group._count?.ingredients ?? 0)} ingredientes
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">{group.name}</h3>
+                      <p className="mt-1 text-xs font-medium text-slate-500">
+                        {(group._count?.entries ?? group._count?.ingredients ?? 0)} alimentos
+                      </p>
+                      {isLoadingSelectedGroup && pendingGroupId === group.id && (
+                        <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-indigo-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
+                          <span className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+                          Cargando
                         </p>
-                        {isFreemium && (
-                          <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                            <Lock size={12} />
-                            Solo eliminar
-                          </span>
-                        )}
-                      </div>
+                      )}
                     </div>
                     <button
                       type="button"
                       onClick={(e) => handleDeleteGroup(group.id, e)}
-                      className="rounded-xl p-2 text-slate-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                      className="rounded-xl p-2 text-slate-400 opacity-100 transition-all hover:bg-red-50 hover:text-red-600 md:opacity-0 md:group-hover:opacity-100"
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>
-
-                  {group.description && (
-                    <p className="mb-3 line-clamp-2 text-sm leading-6 text-slate-500">
-                      {group.description}
-                    </p>
-                  )}
 
                   <div className="flex flex-wrap gap-1.5">
                     {group.tags?.map((tag) => (
@@ -679,6 +1183,15 @@ export default function GruposClient({
       ) : (
         <div className="relative grid grid-cols-1 gap-6 xl:grid-cols-[1fr_380px]">
           <div className="space-y-4">
+            {isLoadingSelectedGroup && (
+              <div className="rounded-3xl border border-indigo-100 bg-indigo-50 px-5 py-4 text-sm font-medium text-indigo-700 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+                  Cargando grupo{selectedGroup?.name ? `: ${selectedGroup.name}` : "..."}
+                </div>
+              </div>
+            )}
+
             <div className="relative z-20 overflow-visible rounded-3xl border border-slate-200 bg-white shadow-sm">
               <button
                 type="button"
@@ -702,7 +1215,7 @@ export default function GruposClient({
                       editingGroupId ? "bg-amber-50 text-amber-700" : "bg-indigo-50 text-indigo-700",
                     )}
                   >
-                    {editingGroupId ? "Editando" : "Nuevo"}
+                    {isLoadingSelectedGroup ? "Cargando" : editingGroupId ? "Editando" : "Nuevo"}
                   </span>
                   <ChevronDown
                     size={16}
@@ -775,11 +1288,11 @@ export default function GruposClient({
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-5 flex items-center justify-between border-b border-slate-100 pb-4">
-                <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
-                  <button
-                    type="button"
-                    onClick={() => setCreateViewTab("alimentos")}
+                <div className="mb-5 space-y-4 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setCreateViewTab("alimentos")}
                     className={cn(
                       "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
                       createViewTab === "alimentos"
@@ -799,16 +1312,45 @@ export default function GruposClient({
                         ? "bg-white text-indigo-700 shadow-sm"
                         : "text-slate-500 hover:text-slate-700",
                     )}
-                  >
-                    <UtensilsCrossed size={14} />
-                    <span>Ya seleccionados</span>
-                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-indigo-700 shadow-sm">
-                      {totalSelectedCount}
-                    </span>
-                  </button>
+                    >
+                      <UtensilsCrossed size={14} />
+                      <span>Ya seleccionados</span>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-indigo-700 shadow-sm">
+                        {totalSelectedCount}
+                      </span>
+                    </button>
+                  </div>
+                  {createViewTab === "alimentos" && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[
+                        { key: "catalog", label: "Catálogo NutriNet" },
+                        { key: "mine", label: "Mis alimentos" },
+                        { key: "community", label: "Comunidad" },
+                      ].map((tab) => (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          onClick={() => void loadIngredientSourceTab(tab.key as IngredientSourceTab)}
+                          className={cn(
+                            "rounded-xl px-3 py-1.5 text-xs font-semibold transition-all",
+                            activeIngredientSource === tab.key
+                              ? "bg-indigo-600 text-white shadow-sm"
+                              : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700",
+                          )}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-              </div>
+              {isIngredientSourceLoading && (
+                <div className="mb-4 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-700 shadow-sm">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+                  Cargando alimentos de esta fuente...
+                </div>
+              )}
 
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
@@ -1143,7 +1685,13 @@ export default function GruposClient({
                 <Button
                   type="button"
                   onClick={handleCreateGroup}
-                  disabled={totalSelectedCount === 0 || !groupName.trim() || isCreateSubmitting || freemiumLimitReached}
+                  disabled={
+                    totalSelectedCount === 0 ||
+                    !groupName.trim() ||
+                    isCreateSubmitting ||
+                    freemiumLimitReached ||
+                    (editingGroupId ? !hasGroupChanges : false)
+                  }
                   className="w-full h-[52px] cursor-pointer bg-indigo-600 px-4 text-white hover:bg-indigo-700 shadow-sm rounded-[1.25rem] transition-all"
                 >
                   <div className="flex items-center justify-center gap-2">
@@ -1168,6 +1716,60 @@ export default function GruposClient({
           </aside>
         </div>
       )}
+      <Modal
+        isOpen={isAddToGroupOpen}
+        onClose={() => {
+          setIsAddToGroupOpen(false);
+          setIngredientToAdd(null);
+        }}
+        title={ingredientToAdd ? `Agregar ${ingredientToAdd.name}` : "Agregar a grupo"}
+        className="max-w-2xl"
+      >
+        <div className="space-y-4">
+          <p className="text-sm leading-6 text-slate-500">
+            Elige uno de tus grupos para guardar este alimento y reutilizarlo más tarde.
+          </p>
+
+          {groups.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+              <p className="text-sm font-semibold text-slate-700">Todavía no tienes grupos propios.</p>
+              <p className="mt-1 text-sm text-slate-500">Crea uno primero para guardar alimentos reutilizables.</p>
+              <Button
+                type="button"
+                onClick={() => {
+                  setIsAddToGroupOpen(false);
+                  setIngredientToAdd(null);
+                  setActiveTab("Crear grupo");
+                }}
+                className="mt-4 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+              >
+                Crear grupo
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              {groups.map((group) => (
+                <button
+                  key={group.id}
+                  type="button"
+                  onClick={() => void handleAddIngredientToGroup(group.id)}
+                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition-all hover:border-indigo-200 hover:bg-indigo-50/40"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{group.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {(group._count?.entries ?? group._count?.ingredients ?? 0)} alimentos
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-indigo-600 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+                    Agregar
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
       <ConfirmationModal
         isOpen={isDeleteConfirmOpen}
         onClose={() => {

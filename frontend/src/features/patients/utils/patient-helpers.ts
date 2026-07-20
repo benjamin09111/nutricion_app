@@ -2,6 +2,13 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { Consultation } from "@/features/consultations";
 
+export type MetricSeriesPoint = {
+  date: string;
+  fullDate: string;
+  sortDate: string;
+  [key: string]: string | number;
+};
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -51,7 +58,7 @@ export const buildMetricSeriesForKey = (
   consultations: Consultation[],
   targetKey: string,
 ) => {
-  const seriesByDate = new Map<string, Record<string, unknown>>();
+  const seriesByDate = new Map<string, MetricSeriesPoint>();
 
   const sortedConsultations = [...consultations].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
@@ -90,8 +97,8 @@ export const buildMetricSeriesForKey = (
   });
 
   return Array.from(seriesByDate.values()).sort((a, b) => {
-    const left = String(a.sortDate || "");
-    const right = String(b.sortDate || "");
+    const left = a.sortDate || "";
+    const right = b.sortDate || "";
     return left.localeCompare(right);
   });
 };

@@ -43,7 +43,7 @@ export function PortalGuideWidget() {
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="relative h-12 w-12 overflow-hidden rounded-full border border-white/20 bg-white/10">
-                  <Image src="/nutria.webp" alt="Nutria guía" fill className="object-cover" />
+                  <Image src="/nutria.webp" alt="Nutria guía" fill sizes="48px" className="object-cover" />
                 </div>
                 <div>
                   <p className="text-sm font-black tracking-wide">Nutria guía</p>
@@ -117,7 +117,7 @@ export function PortalGuideWidget() {
           aria-label="Abrir guía"
         >
           <div className="relative h-10 w-10 overflow-hidden rounded-full border border-white/20 bg-white/10">
-            <Image src="/nutria.webp" alt="Nutria guía" fill className="object-cover" />
+             <Image src="/nutria.webp" alt="Nutria guía" fill sizes="40px" className="object-cover" />
           </div>
           <span className="sr-only">Guía para pacientes</span>
         </button>

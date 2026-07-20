@@ -21,7 +21,7 @@ export default function LoginPageClient({ autoStart = false }: Props) {
             alt="NutriNet"
             width={220}
             height={60}
-            style={{ height: "auto" }}
+            style={{ width: "auto", height: "auto" }}
             className="h-auto w-[180px] object-contain"
             priority
           />
@@ -51,7 +51,7 @@ export default function LoginPageClient({ autoStart = false }: Props) {
               alt="NutriNet"
               width={300}
               height={64}
-              style={{ height: "auto" }}
+              style={{ width: "auto", height: "auto" }}
               className="h-auto w-[210px] object-contain sm:w-[260px] lg:w-[300px]"
               priority
             />
