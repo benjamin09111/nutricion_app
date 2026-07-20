@@ -434,15 +434,9 @@ export class FoodsService {
         break;
       case 'community':
         andClauses.push({
-          verified: false,
           isPublic: true,
           nutritionistId: { not: null },
         });
-        if (nutritionistId) {
-          andClauses.push({
-            nutritionistId: { not: nutritionistId },
-          });
-        }
         break;
       default:
         andClauses.push(
