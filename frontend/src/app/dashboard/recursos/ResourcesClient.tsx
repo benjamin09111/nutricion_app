@@ -6,7 +6,6 @@ import {
   BookOpen,
   ExternalLink,
   FileText,
-  Filter,
   Hash,
   Image as ImageIcon,
   Loader2,
@@ -104,7 +103,6 @@ export function ResourcesClient() {
   const [mineSearch, setMineSearch] = useState("");
   const [mineTags, setMineTags] = useState<string[]>([]);
   const [mineSection, setMineSection] = useState("all");
-  const [mineVisibility, setMineVisibility] = useState("all");
   const [mineFormat, setMineFormat] = useState("all");
   const [mineOnlyFavorites, setMineOnlyFavorites] = useState(false);
   const [resourceToPreview, setResourceToPreview] = useState<Resource | null>(null);
@@ -134,9 +132,9 @@ export function ResourcesClient() {
     const q = norm(mineSearch);
     return myResources.filter((r) => {
       const txt = norm(`${r.title} ${plain(r.content)} ${r.tags.join(" ")} ${r.sources || ""}`);
-      return (!q || txt.includes(q)) && (mineSection === "all" || r.category === mineSection) && (mineVisibility === "all" || (mineVisibility === "public" ? r.isPublic : !r.isPublic)) && (mineFormat === "all" || (r.format || "HTML") === mineFormat) && (!mineOnlyFavorites || favorites.includes(r.id)) && (mineTags.length === 0 || mineTags.every((tag) => r.tags.some((x) => norm(x) === norm(tag))));
+      return (!q || txt.includes(q)) && (mineSection === "all" || r.category === mineSection) && (mineFormat === "all" || (r.format || "HTML") === mineFormat) && (!mineOnlyFavorites || favorites.includes(r.id)) && (mineTags.length === 0 || mineTags.every((tag) => r.tags.some((x) => norm(x) === norm(tag))));
     });
-  }, [favorites, mineFormat, mineOnlyFavorites, mineSearch, mineSection, mineTags, mineVisibility, myResources]);
+  }, [favorites, mineFormat, mineOnlyFavorites, mineSearch, mineSection, mineTags, myResources]);
 
   const coverResources = useMemo(() => resources.filter((r) => r.category === "portada" && introType(r) === "cover"), [resources]);
   const introResources = useMemo(() => resources.filter((r) => r.category === "portada" && introType(r) !== "cover"), [resources]);
@@ -449,15 +447,6 @@ export function ResourcesClient() {
                         {c.label}
                       </option>
                     ))}
-                  </select>
-                  <select
-                    value={mineVisibility}
-                    onChange={(e) => setMineVisibility(e.target.value)}
-                    className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none focus:border-indigo-500 transition-all cursor-pointer"
-                  >
-                    <option value="all">Todos</option>
-                    <option value="public">Públicos</option>
-                    <option value="private">Privados</option>
                   </select>
                   <button
                     type="button"

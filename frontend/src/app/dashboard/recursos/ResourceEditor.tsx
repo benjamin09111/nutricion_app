@@ -40,7 +40,6 @@ const VARIABLE_SUGGESTIONS = [
   "NOMBRE_PACIENTE",
   "EDAD_PACIENTE",
   "OBJETIVO_PRINCIPAL",
-  "FECHA_CONSULTA",
   "NOMBRE_NUTRICIONISTA",
 ];
 
@@ -52,8 +51,6 @@ interface ResourceEditorProps {
     content?: string;
     category?: string;
     tags?: string[];
-    sources?: string;
-    isPublic?: boolean;
     fileUrl?: string;
     format?: ResourceFormat;
   };
@@ -75,8 +72,6 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
     content: initialData?.content || "",
     category: initialData?.category || "consejos",
     tags: initialData?.tags || [],
-    sources: initialData?.sources || "",
-    isPublic: initialData?.isPublic || false,
     fileUrl: initialData?.fileUrl || "",
   });
 
@@ -195,7 +190,7 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
       description={
         editingId
           ? "Actualiza el contenido de tu recurso educativo."
-          : "Crea una nueva pieza de contenido para tus pacientes. Recuerda que los recursos se comparten en la comunidad nutricionista excepto que lo marques como privado antes de guardar tu recurso."
+          : "Crea una nueva pieza de contenido para tus pacientes. Todos los recursos son privados y solo tú podrás verlos."
       }
       rightContent={
         <div className="inline-flex items-center rounded-xl bg-slate-100 p-1">
@@ -241,8 +236,7 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
                 />
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
+              <div className="space-y-2">
                   <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
                     Sección / Categoría <span className="text-rose-500">*</span>
                   </label>
@@ -260,20 +254,6 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
                     ))}
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
-                    Fuentes de referencia
-                  </label>
-                  <Input
-                    placeholder="URL o nombre del autor/estudio..."
-                    value={formData.sources}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, sources: e.target.value }))
-                    }
-                    className="h-11 rounded-xl border-slate-200 focus:border-indigo-500"
-                  />
-                </div>
-              </div>
 
               <div className="space-y-2">
                 <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
@@ -350,36 +330,7 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFormData((p) => ({ ...p, isPublic: !p.isPublic }))
-                  }
-                  className={cn(
-                    "relative inline-flex h-7 w-12 rounded-full transition-colors",
-                    formData.isPublic ? "bg-emerald-500" : "bg-slate-300"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "absolute top-1 h-5 w-5 rounded-full bg-white transition-transform",
-                      formData.isPublic ? "left-6" : "left-1"
-                    )}
-                  />
-                </button>
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">
-                    {formData.isPublic ? "Recurso Público" : "Recurso Privado"}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {formData.isPublic
-                      ? "Visible para otros nutricionistas."
-                      : "Solo tú podrás verlo."}
-                  </p>
-                </div>
-              </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
 
               <div className="flex items-center gap-3">
                 <Button
