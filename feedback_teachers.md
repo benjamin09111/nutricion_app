@@ -6,6 +6,7 @@ Dar a los nutris una opción de tener un chatbot para responder preguntas simple
 
 La idea es que todo lo que tenga que ver con IA, el paciente no esté enterado de nada para no desconfiar, para él solo existe el nutricionista.
 
+
 ## Conseguirles clientes a los nutricionistas
 
 Tener una plataforma que los muestre, sus especialidades, etc. Para que los usuarios puedan encontrarlos.

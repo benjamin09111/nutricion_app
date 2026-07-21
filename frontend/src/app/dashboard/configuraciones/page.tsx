@@ -3,14 +3,13 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { User, Lock, Crown, Save, Sun, Moon, Type, Calendar, Pencil, Globe, ShieldAlert, ShieldCheck, FileText, Download, Trash2, LockKeyhole } from "lucide-react";
+import { User, Lock, Crown, Save, Type, Calendar, Pencil, Globe, ShieldAlert, ShieldCheck, FileText, Download, Trash2, LockKeyhole } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
-import { useTheme } from "@/context/ThemeContext";
 import { useFont } from "@/context/FontContext";
 import { formatRut } from "@/lib/rut-utils";
 import { clsx, type ClassValue } from "clsx";
@@ -689,7 +688,6 @@ export default function SettingsPage() {
   });
   const [isProfileEditing, setIsProfileEditing] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const { theme, setTheme } = useTheme();
   const { fontPreference, setFontPreference } = useFont();
 
   useEffect(() => {
@@ -1289,49 +1287,6 @@ export default function SettingsPage() {
         </div>
         <div className="space-y-6 p-6">
           <div className="space-y-3">
-            <label className="block text-sm font-semibold text-slate-700">
-              Modo visual
-            </label>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setTheme("light")}
-                className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all cursor-pointer ${
-                  theme === "light"
-                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                <Sun className="h-4 w-4" />
-                <span>
-                  <span className="block text-sm font-semibold">Claro</span>
-                  <span className="block text-xs text-slate-500">
-                    Más luminoso y limpio
-                  </span>
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTheme("dark")}
-                className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all cursor-pointer ${
-                  theme === "dark"
-                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                <Moon className="h-4 w-4" />
-                <span>
-                  <span className="block text-sm font-semibold">Oscuro</span>
-                  <span className="block text-xs text-slate-500">
-                    Ideal para baja luz
-                  </span>
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-3 border-t border-slate-100 pt-6">
             <label className="block text-sm font-semibold text-slate-700">
               Tipografía
             </label>

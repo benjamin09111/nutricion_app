@@ -79,6 +79,7 @@ export class ResourcesService {
     return this.enrichWithVariables(resource);
   }
 
+  // Explicitly sets updatedAt to satisfy non-null DB constraint on create
   async create(
     nutritionistId: string | null,
     data: {
@@ -97,6 +98,7 @@ export class ResourcesService {
       data: {
         ...data,
         nutritionistId,
+        updatedAt: new Date(),
       },
     });
     return this.enrichWithVariables(created);
@@ -128,7 +130,10 @@ export class ResourcesService {
 
     const updated = await this.prisma.resource.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        updatedAt: new Date(),
+      },
     });
     return this.enrichWithVariables(updated);
   }

@@ -18,8 +18,11 @@ interface NutriDocsEditorProps {
 }
 
 export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
-  const [isEmpty, setIsEmpty] = useState(!value || value === '<p></p>');
   const paragraphBtnRef = useRef<HTMLButtonElement>(null);
+
+  const initialContent = (!value || value.trim() === '' || value.trim() === '<p></p>')
+    ? '<h3></h3><p></p>'
+    : value;
 
   const editor = useEditor({
     extensions: [
@@ -32,18 +35,24 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
       TaskList,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({
-        placeholder: 'El contenido de tu recurso aparecerá aquí...',
+        placeholder: ({ node }) => {
+          if (node.type.name === 'heading') {
+            return 'Escribe un subtítulo aquí...';
+          }
+          return 'Escribe el contenido del párrafo aquí...';
+        },
+        emptyNodeClass: 'is-empty',
+        showOnlyCurrent: false,
       }),
     ],
     immediatelyRender: false,
-    content: value,
+    content: initialContent,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
-      setIsEmpty(editor.isEmpty);
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-slate max-w-none focus:outline-none min-h-[400px] p-12 text-slate-900 selection:bg-emerald-100',
+        class: 'prose prose-slate max-w-none focus:outline-none min-h-[400px] p-8 md:p-10 text-slate-900 selection:bg-indigo-100',
       },
     },
   });
@@ -56,7 +65,7 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
   };
 
   const addParagraph = () => {
-    editor.chain().focus().insertContent('<h3></h3><p></p>').run();
+    editor.chain().focus('end').insertContent('<h3></h3><p></p>').run();
   };
 
   const ToolBtn = ({ active, onClick, title, children }: { active: boolean; onClick: () => void; title: string; children: React.ReactNode }) => (
@@ -86,14 +95,11 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
             ref={paragraphBtnRef}
             type="button"
             onClick={addParagraph}
-            className={cn(
-              "px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all flex items-center gap-1.5",
-              isEmpty && "animate-pulse ring-2 ring-indigo-400 ring-offset-2"
-            )}
-            title="Añadir párrafo"
+            className="px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all flex items-center gap-1.5 font-semibold text-xs cursor-pointer"
+            title="Añadir bloque (subtítulo y párrafo)"
           >
             <Plus className="w-4 h-4" />
-            <span className="text-xs font-semibold">Nuevo párrafo</span>
+            <span>Nuevo párrafo</span>
           </button>
         </div>
       </div>
@@ -104,17 +110,65 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
           outline: none !important;
           font-family: 'Inter', system-ui, sans-serif;
         }
-        .tiptap p { margin: 1em 0; line-height: 1.8; color: #1e293b; white-space: pre-wrap; }
-        .tiptap p:last-child { margin-bottom: 0; }
         
         .tiptap h3 { 
-          font-size: 1.1rem; font-weight: 700; color: #0f172a; 
-          margin: 1.5em 0 0.25em; line-height: 1.4;
-          padding-bottom: 0.25em;
-          border-bottom: 2px solid #e2e8f0;
+          font-size: 1.05rem; 
+          font-weight: 700; 
+          color: #1e1b4b;
+          background: linear-gradient(to right, #eff6ff, #f8fafc);
+          border-left: 4px solid #3b82f6;
+          border-radius: 0.5rem;
+          padding: 0.6rem 0.85rem;
+          margin: 1.25rem 0 0.5rem 0;
+          line-height: 1.4;
+          position: relative;
         }
         .tiptap h3:first-child { margin-top: 0; }
         
+        .tiptap h3.is-empty::before {
+          content: attr(data-placeholder);
+          color: #93c5fd;
+          font-weight: 500;
+          pointer-events: none;
+          float: left;
+          height: 0;
+        }
+
+        .tiptap p { 
+          background-color: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 0.75rem;
+          padding: 0.75rem 1rem;
+          margin: 0.5rem 0 1rem 0;
+          line-height: 1.7; 
+          color: #1e293b; 
+          white-space: pre-wrap; 
+          transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .tiptap p:last-child { margin-bottom: 0; }
+        
+        .tiptap p:focus-within, .tiptap p:has(:focus), .tiptap p.has-focus {
+          background-color: #ffffff;
+          border-color: #6366f1;
+          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
+        }
+
+        .tiptap p.is-empty::before {
+          content: attr(data-placeholder);
+          color: #94a3b8;
+          pointer-events: none;
+          float: left;
+          height: 0;
+        }
+
+        .tiptap li p {
+          background-color: transparent;
+          border: none;
+          padding: 0;
+          margin: 0;
+          box-shadow: none;
+        }
+
         .tiptap ul, .tiptap ol { padding-left: 1.5rem; margin: 1rem 0; }
         .tiptap ul { list-style-type: disc; }
         .tiptap ol { list-style-type: decimal; }
@@ -139,14 +193,6 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
         }
 
         .tiptap br { display: block; content: ""; margin-top: 0; }
-
-        .tiptap p.is-editor-empty:first-child::before {
-          content: attr(data-placeholder);
-          color: #94a3b8;
-          pointer-events: none;
-          float: left;
-          height: 0;
-        }
       `}} />
 
       <EditorContent editor={editor} className="relative z-0 min-h-[400px] cursor-text" />
@@ -157,7 +203,7 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
           Editor visual
         </p>
         <p className="text-[10px] font-medium text-slate-400">
-          Subtítulo opcional en cada bloque
+          Subtítulo y párrafo diferenciados con fondo visible
         </p>
       </div>
     </div>

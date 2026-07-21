@@ -9,8 +9,6 @@ import {
   Settings,
   Bell,
   Menu,
-  Moon,
-  Sun,
   Crown,
   Sparkles,
 } from "lucide-react";
@@ -524,26 +522,6 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                     </Link>
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={toggleTheme}
-                  className={cn(
-                    "flex w-full items-center gap-2 px-4 py-2 text-left text-sm leading-6 transition-colors cursor-pointer",
-                    isDarkMode
-                      ? "text-emerald-100/85 hover:bg-emerald-500/8"
-                      : "text-slate-700 hover:bg-slate-50",
-                  )}
-                  role="menuitem"
-                  tabIndex={-1}
-                >
-                  {isDarkMode ? (
-                    <Sun className="h-4 w-4" />
-                  ) : (
-                    <Moon className="h-4 w-4" />
-                  )}
-                  {isDarkMode ? "Modo claro" : "Modo oscuro"}
-                </button>
 
                 <div
                   className={cn(

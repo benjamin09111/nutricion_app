@@ -48,6 +48,9 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
+    if (process.env.NODE_ENV === "development") {
+      return [];
+    }
     return [
       {
         source: "/:path*",
