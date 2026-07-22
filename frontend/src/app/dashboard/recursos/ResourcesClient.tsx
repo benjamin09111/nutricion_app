@@ -12,7 +12,6 @@ import {
   Lock,
   Pencil,
   Plus,
-  Star,
   Trash2,
   User as UserIcon,
 } from "lucide-react";
@@ -59,7 +58,6 @@ interface Resource {
   fileUrl?: string;
 }
 
-const FAVORITES_KEY = "resource-favorites-v1";
 const CATEGORIES = [
   { id: "all", label: "Todas las secciones" },
   { id: "portada", label: "Portada e introducción" },
@@ -78,8 +76,16 @@ const LIBRARY_CATEGORIES = CATEGORIES.filter((c) => c.id !== "portada");
 
 const DEFAULT_SYSTEM_RESOURCES: Resource[] = systemResources as Resource[];
 
+const unescapeHtml = (str: string) =>
+  str
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'");
+
 const norm = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-const plain = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+const plain = (html: string) => unescapeHtml(html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 const short = (text: string, max = 150) => (text.length <= max ? text : `${text.slice(0, max)}...`);
 const fmtDate = (v?: string) => v ? new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(v)) : "-";
 type CoverConfig = { label: string; imageUrl: string; gradientFrom: string; gradientTo: string };
@@ -93,7 +99,6 @@ export function ResourcesClient() {
   const router = useRouter();
   const [resources, setResources] = useState<Resource[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
-  const [favorites, setFavorites] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mainTab, setMainTab] = useState<MainTab>("library");
   const [librarySource, setLibrarySource] = useState<LibrarySource>("system");
@@ -104,12 +109,12 @@ export function ResourcesClient() {
   const [mineTags, setMineTags] = useState<string[]>([]);
   const [mineSection, setMineSection] = useState("all");
   const [mineFormat, setMineFormat] = useState("all");
-  const [mineOnlyFavorites, setMineOnlyFavorites] = useState(false);
+  const [onlyMineCovers, setOnlyMineCovers] = useState(false);
+  const [onlyMineIntros, setOnlyMineIntros] = useState(false);
   const [resourceToPreview, setResourceToPreview] = useState<Resource | null>(null);
   const [resourceToDelete, setResourceToDelete] = useState<Resource | null>(null);
 
   useEffect(() => {
-    try { setFavorites(JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]")); } catch { }
     fetchResources();
     fetchTags();
   }, []);
@@ -132,12 +137,12 @@ export function ResourcesClient() {
     const q = norm(mineSearch);
     return myResources.filter((r) => {
       const txt = norm(`${r.title} ${plain(r.content)} ${r.tags.join(" ")} ${r.sources || ""}`);
-      return (!q || txt.includes(q)) && (mineSection === "all" || r.category === mineSection) && (mineFormat === "all" || (r.format || "HTML") === mineFormat) && (!mineOnlyFavorites || favorites.includes(r.id)) && (mineTags.length === 0 || mineTags.every((tag) => r.tags.some((x) => norm(x) === norm(tag))));
+      return (!q || txt.includes(q)) && (mineSection === "all" || r.category === mineSection) && (mineFormat === "all" || (r.format || "HTML") === mineFormat) && (mineTags.length === 0 || mineTags.every((tag) => r.tags.some((x) => norm(x) === norm(tag))));
     });
-  }, [favorites, mineFormat, mineOnlyFavorites, mineSearch, mineSection, mineTags, myResources]);
+  }, [mineFormat, mineSearch, mineSection, mineTags, myResources]);
 
-  const coverResources = useMemo(() => resources.filter((r) => r.category === "portada" && introType(r) === "cover"), [resources]);
-  const introResources = useMemo(() => resources.filter((r) => r.category === "portada" && introType(r) !== "cover"), [resources]);
+  const coverResources = useMemo(() => resources.filter((r) => r.category === "portada" && introType(r) === "cover" && (!onlyMineCovers || r.isMine)), [resources, onlyMineCovers]);
+  const introResources = useMemo(() => resources.filter((r) => r.category === "portada" && introType(r) !== "cover" && (!onlyMineIntros || r.isMine)), [resources, onlyMineIntros]);
 
   async function fetchResources() {
     setIsLoading(true);
@@ -179,12 +184,6 @@ export function ResourcesClient() {
         ) as string[],
       );
     } catch { }
-  }
-
-  function toggleFavorite(id: string) {
-    const next = favorites.includes(id) ? favorites.filter((x) => x !== id) : [...favorites, id];
-    setFavorites(next);
-    localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
   }
 
   function openCreate(kind: "general" | "cover" | "intro" = "general") {
@@ -230,12 +229,14 @@ export function ResourcesClient() {
                 <span
                   className={cn(
                     "rounded-full px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
-                    resource.nutritionistId === null
+                    resource.isMine
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                      : resource.nutritionistId === null
                       ? "bg-slate-900 text-white"
                       : "bg-indigo-50 text-indigo-700 border border-indigo-100",
                   )}
                 >
-                  {resource.nutritionistId === null ? "Sistema" : "Comunidad"}
+                  {resource.isMine ? "Mi recurso" : resource.nutritionistId === null ? "Sistema" : "Comunidad"}
                 </span>
               </div>
               <h3 className="line-clamp-1 text-base font-semibold text-slate-900">
@@ -254,11 +255,14 @@ export function ResourcesClient() {
           </p>
 
           <div className="flex flex-wrap gap-1.5 pt-2">
-            {resource.tags.slice(0, 2).map((tag) => (
-              <span key={tag} className="inline-flex items-center text-[10px] font-medium text-indigo-500">
-                #{tag}
-              </span>
-            ))}
+            {resource.tags.slice(0, 2).map((tag) => {
+              const cleanTag = tag.replace(/^#+/, "");
+              return (
+                <span key={tag} className="inline-flex items-center text-[10px] font-medium text-indigo-500">
+                  #{cleanTag}
+                </span>
+              );
+            })}
           </div>
 
           <div className="flex items-center justify-between gap-3 pt-4 mt-auto border-t border-slate-50">
@@ -273,7 +277,27 @@ export function ResourcesClient() {
   };
 
   return (
-    <ModuleLayout title="Biblioteca" description="Gestiona los contenidos educativos para tus pacientes. Por defecto, el Entregable usa recursos de la plataforma, pero aquí puedes explorar la comunidad, crear los tuyos y marcar favoritos para tu selección automática." className="max-w-7xl">
+    <ModuleLayout
+      title="Biblioteca"
+      description="Gestiona los contenidos educativos para tus pacientes. Por defecto, el Entregable usa recursos de la plataforma, pero aquí puedes explorar la comunidad y crear los tuyos para tu selección automática."
+      className="max-w-7xl"
+      rightContent={
+        <div className="relative group shrink-0">
+          <button
+            type="button"
+            disabled
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#00C4CC] to-[#7D2AE8] shadow-sm cursor-not-allowed transition-all opacity-95"
+          >
+            <span className="font-extrabold text-sm tracking-tighter leading-none italic font-serif">C</span>
+            <span>Conectar con Canva</span>
+            <Lock className="w-3.5 h-3.5 ml-0.5 text-white/80" />
+          </button>
+          <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-xl animate-in fade-in zoom-in-95">
+            Vendrá en futuras actualizaciones
+          </div>
+        </div>
+      }
+    >
       <div className="space-y-6 pb-20">
         <Navbar_B
           sections={RESOURCE_TABS}
@@ -376,41 +400,82 @@ export function ResourcesClient() {
           </>
         )}
         {mainTab === "coverIntro" && (
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-semibold text-slate-900">Portadas e introducciones</h2>
-                <p className="mt-1 text-sm font-medium text-slate-500">
-                  Crea y gestiona tus portadas e introducciones reutilizables.
-                </p>
-              </div>
-            </div>
-
+          <div className="space-y-8">
             {[{ title: "Portadas", list: coverResources, kind: "cover" as const }, { title: "Introducciones", list: introResources, kind: "intro" as const }].map((block) => (
               <div key={block.title}>
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-                  <h3 className="text-lg font-semibold text-slate-800">{block.title}</h3>
-                  <Button className="rounded-xl px-4 h-10 font-semibold" onClick={() => openCreate(block.kind)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    {block.kind === "cover" ? "Crear portada" : "Crear introducción"}
-                  </Button>
+                  <div className="flex items-center gap-4">
+                    <h3 className="text-xl font-bold text-slate-900">{block.title}</h3>
+                    <label className="inline-flex items-center gap-2 cursor-pointer select-none rounded-xl bg-white border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:border-indigo-300 transition-all">
+                      <input
+                        type="checkbox"
+                        checked={block.kind === "cover" ? onlyMineCovers : onlyMineIntros}
+                        onChange={(e) =>
+                          block.kind === "cover"
+                            ? setOnlyMineCovers(e.target.checked)
+                            : setOnlyMineIntros(e.target.checked)
+                        }
+                        className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
+                      />
+                      <span>Ver solo creados por mí</span>
+                    </label>
+                  </div>
+                  {block.kind === "cover" ? (
+                    <div className="relative group">
+                      <Button
+                        disabled
+                        className="rounded-xl px-4 h-10 font-semibold cursor-not-allowed opacity-75"
+                      >
+                        <Lock className="mr-2 h-4 w-4" />
+                        Crear portada
+                      </Button>
+                      <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-xl animate-in fade-in zoom-in-95">
+                        Vendrá en futuras actualizaciones
+                      </div>
+                    </div>
+                  ) : (
+                    <Button className="rounded-xl px-4 h-10 font-semibold" onClick={() => openCreate(block.kind)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Crear introducción
+                    </Button>
+                  )}
                 </div>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {block.list.length ? block.list.map((resource) => (
-                    <article key={resource.id} className="flex h-full flex-col rounded-[2rem] border border-slate-100 bg-white p-6 hover:shadow-md transition-all">
+                    <article
+                      key={resource.id}
+                      className={cn(
+                        "flex h-full flex-col rounded-[2rem] bg-white p-6 transition-all hover:shadow-md",
+                        resource.isMine
+                          ? "border-2 border-indigo-500 shadow-sm"
+                          : "border border-slate-100"
+                      )}
+                    >
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-                            {resource.nutritionistId === null ? "Base plataforma" : "Personalizado"}
-                          </p>
-                          <h4 className="mt-2 text-base font-semibold text-slate-900">{resource.title}</h4>
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span
+                              className={cn(
+                                "rounded-full px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
+                                resource.isMine
+                                  ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                  : "bg-slate-100 text-slate-500 border border-slate-200"
+                              )}
+                            >
+                              {resource.isMine ? "Creado por mí" : "Base plataforma"}
+                            </span>
+                          </div>
+                          <h4 className="text-base font-semibold text-slate-900">{resource.title}</h4>
                         </div>
-                        <button type="button" onClick={() => toggleFavorite(resource.id)} className={cn("inline-flex h-9 w-9 items-center justify-center rounded-full border transition-colors", favorites.includes(resource.id) ? "border-amber-200 bg-amber-50 text-amber-600" : "border-slate-100 bg-white text-slate-400 hover:text-indigo-600")}><Star className={cn("h-4 w-4", favorites.includes(resource.id) && "fill-current")} /></button>
                       </div>
                       <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-500 font-medium">{short(plain(resource.content || ""), 150)}</p>
                       <div className="mt-auto flex items-center justify-between pt-6 border-t border-slate-100/50">
                         <Button variant="ghost" className="rounded-full px-0 text-xs font-semibold text-indigo-600 hover:bg-transparent" onClick={() => setResourceToPreview(resource)}>Ver recurso</Button>
-                        {resource.isMine && <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-400 hover:text-indigo-600" onClick={() => openEdit(resource)}><Pencil className="h-3.5 w-3.5" /></Button>}
+                        {resource.isMine && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-400 hover:text-emerald-700 hover:bg-emerald-100/50" onClick={() => openEdit(resource)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </article>
                   )) : <div className="col-span-full rounded-[2rem] border border-dashed border-slate-200 bg-white p-10 text-center text-sm font-medium text-slate-400">No hay recursos cargados todavía.</div>}
@@ -448,19 +513,6 @@ export function ResourcesClient() {
                       </option>
                     ))}
                   </select>
-                  <button
-                    type="button"
-                    onClick={() => setMineOnlyFavorites((p) => !p)}
-                    className={cn(
-                      "inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition-all",
-                      mineOnlyFavorites
-                        ? "border-amber-200 bg-amber-50 text-amber-700 shadow-sm"
-                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
-                    )}
-                  >
-                    <Star className={cn("h-4 w-4", mineOnlyFavorites && "fill-current")} />
-                    Favoritos
-                  </button>
                   <Button className="rounded-xl px-4 h-10 font-semibold" onClick={() => openCreate("general")}>
                     <Plus className="mr-2 h-4 w-4" />
                     Nuevo

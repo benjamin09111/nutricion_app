@@ -34,6 +34,12 @@ export interface CalculationInputs {
   carbPct?: number | null;
   proteinPct?: number | null;
   fatPct?: number | null;
+  targetBmi?: number | null;
+  usualWeight?: number | null;
+  weightLossPeriodWeeks?: number | null;
+  proteinProfile?: string | null;
+  edemaPercent?: number | null;
+  useUsualWeightForRequirements?: boolean | null;
 }
 
 export interface BmiResult {
@@ -447,6 +453,7 @@ export class CalculationsService {
     heightCm: number,
     gender: Gender,
     ageYears: number | null,
+    customTargetBmi?: number | null,
   ): IdealWeightResult {
     const heightM = heightCm / 100;
 
@@ -513,16 +520,17 @@ export class CalculationsService {
       };
     }
 
-    // Adult criteria
-    // Hombres IMC 22.5, Mujeres IMC 21.5
+    // Adult criteria — Configurable target BMI (default 22.0, standard OMS midpoint 21.7 - 22.0)
     const targetBmi =
-      gender === 'Masculino' ? 22.5 : gender === 'Femenino' ? 21.5 : 22.0;
+      customTargetBmi && customTargetBmi >= 15 && customTargetBmi <= 40
+        ? customTargetBmi
+        : 22.0;
     const idealWeight = targetBmi * heightM * heightM;
 
     return {
       min: this.round(18.5 * heightM * heightM, 1),
       max: this.round(24.9 * heightM * heightM, 1),
-      reference: `Objetivo IMC ${targetBmi} (${gender === 'Masculino' ? 'Hombres' : 'Mujeres'})`,
+      reference: `Objetivo IMC ${targetBmi} (configurable)`,
       note: `Peso óptimo central estimado: ${this.round(idealWeight, 1)} kg.`,
       supported: true,
     };
@@ -606,6 +614,138 @@ export class CalculationsService {
       iccRisk,
       waistRiskNcep,
       waistRiskIdf,
+    };
+  }
+
+  /**
+   * Blackburn criteria for involuntary weight loss
+   */
+  calculateWeightLoss(
+    usualWeight?: number | null,
+    currentWeight?: number | null,
+    periodWeeks?: number | null,
+  ) {
+    const wUsual = this.validateInput(usualWeight, 1, 300);
+    const wCurrent = this.validateInput(currentWeight, 1, 300);
+    const weeks = this.validateInput(periodWeeks, 0.1, 104) ?? 4; // default 4 weeks (1 month)
+
+    if (wUsual === null || wCurrent === null) return null;
+
+    const lossKg = wUsual - wCurrent;
+    const percentLoss = this.round(((wUsual - wCurrent) / wUsual) * 100, 1);
+
+    let thresholdSignificant = 5;
+    let thresholdSevere = 5.001;
+    let periodLabel = '1 mes';
+
+    if (weeks <= 1.5) {
+      thresholdSignificant = 1;
+      thresholdSevere = 2.001;
+      periodLabel = '1 semana';
+    } else if (weeks <= 6) {
+      thresholdSignificant = 5;
+      thresholdSevere = 5.001;
+      periodLabel = '1 mes';
+    } else if (weeks <= 14) {
+      thresholdSignificant = 7.5;
+      thresholdSevere = 7.501;
+      periodLabel = '3 meses';
+    } else {
+      thresholdSignificant = 10;
+      thresholdSevere = 10.001;
+      periodLabel = '6 meses+';
+    }
+
+    let severity: 'normal' | 'significativa' | 'grave' = 'normal';
+    if (percentLoss >= thresholdSevere) {
+      severity = 'grave';
+    } else if (percentLoss >= thresholdSignificant) {
+      severity = 'significativa';
+    }
+
+    return {
+      usualWeight: wUsual,
+      currentWeight: wCurrent,
+      periodWeeks: weeks,
+      periodLabel,
+      lossKg: this.round(lossKg, 1),
+      percentLoss,
+      severity,
+      isAlert: severity === 'grave',
+    };
+  }
+
+  /**
+   * Protein requirement based on clinical profile
+   */
+  calculateProteinRequirement(
+    weightKg: number,
+    profileKey: string = 'adulto_sano',
+    getKcal: number = 0,
+  ) {
+    const profiles: Record<string, { label: string; min: number; max: number }> = {
+      adulto_sano: { label: 'Adulto sano, mantención', min: 0.8, max: 1.0 },
+      adulto_mayor: { label: 'Adulto mayor (prevención sarcopenia)', min: 1.2, max: 1.5 },
+      deportista: { label: 'Deportista / hipertrofia', min: 1.6, max: 2.2 },
+      renal_sin_dialisis: { label: 'Enfermedad renal crónica sin diálisis', min: 0.6, max: 0.8 },
+      renal_dialisis: { label: 'Enfermedad renal en diálisis', min: 1.0, max: 1.2 },
+      oncologico: { label: 'Paciente oncológico / desnutrido', min: 1.2, max: 1.5 },
+    };
+
+    const sel = profiles[profileKey] || profiles['adulto_sano'];
+    const minGrams = this.round(weightKg * sel.min, 1);
+    const maxGrams = this.round(weightKg * sel.max, 1);
+    const minKcal = this.round(minGrams * 4, 0);
+    const maxKcal = this.round(maxGrams * 4, 0);
+    const minPercentGet = getKcal > 0 ? this.round((minKcal / getKcal) * 100, 1) : 0;
+    const maxPercentGet = getKcal > 0 ? this.round((maxKcal / getKcal) * 100, 1) : 0;
+
+    return {
+      profileKey,
+      profileLabel: sel.label,
+      minPerKg: sel.min,
+      maxPerKg: sel.max,
+      minGrams,
+      maxGrams,
+      minPercentGet,
+      maxPercentGet,
+    };
+  }
+
+  /**
+   * Fluid requirement calculation (Holliday-Segar or Adult 30-35 ml/kg)
+   */
+  calculateHydration(weightKg: number, ageYears: number | null) {
+    if (!weightKg || weightKg <= 0) return null;
+
+    if (ageYears !== null && ageYears < 18) {
+      let ml = 0;
+      if (weightKg <= 10) {
+        ml = weightKg * 100;
+      } else if (weightKg <= 20) {
+        ml = 1000 + (weightKg - 10) * 50;
+      } else {
+        ml = 1500 + (weightKg - 20) * 20;
+      }
+      return {
+        method: 'Holliday-Segar (Pediatría)',
+        minMl: this.round(ml, 0),
+        maxMl: this.round(ml, 0),
+        minL: this.round(ml / 1000, 2),
+        maxL: this.round(ml / 1000, 2),
+        note: 'Norma Holliday-Segar para requerimiento hídrico basal pediátrico.',
+      };
+    }
+
+    const minMl = this.round(weightKg * 30, 0);
+    const maxMl = this.round(weightKg * 35, 0);
+    return {
+      method: 'Adulto (30-35 ml/kg/día)',
+      minMl,
+      maxMl,
+      minL: this.round(minMl / 1000, 2),
+      maxL: this.round(maxMl / 1000, 2),
+      note: 'Ajustar a la baja en patología renal o cardíaca; al alza con fiebre o pérdidas digestivas.',
     };
   }
 
@@ -764,8 +904,15 @@ export class CalculationsService {
     }
 
     // Weight & height final parameters
+    const rawWeight = inputs.weight || estimatedWeight || null;
     const height = inputs.height || estimatedHeight || null;
-    const weight = inputs.weight || estimatedWeight || null;
+
+    // Edema / Dry weight calculation
+    const edemaPercent = this.validateInput(inputs.edemaPercent, 0, 50) || 0;
+    const dryWeight = rawWeight && edemaPercent > 0
+      ? this.round(rawWeight * (1 - edemaPercent / 100), 1)
+      : null;
+    const weight = dryWeight || rawWeight;
 
     // BMI/IMC
     let bmi: BmiResult | null = null;
@@ -774,28 +921,29 @@ export class CalculationsService {
 
     if (weight && height) {
       bmi = this.calculateBMI(weight, height, gender, resolvedAge);
-      idealWeight = this.getIdealWeightRange(height, gender, resolvedAge);
+      idealWeight = this.getIdealWeightRange(height, gender, resolvedAge, inputs.targetBmi);
 
       if (idealWeight.supported) {
-        // Calculate adjusted weight clinical metabólico
-        // Use midpoint of ideal range or optimum
-        const targetBmi =
+        const targetBmi = inputs.targetBmi || (
           resolvedAge !== null && resolvedAge >= 65
             ? 25.5
-            : gender === 'Masculino'
-              ? 22.5
-              : gender === 'Femenino'
-                ? 21.5
-                : 22.0;
+            : 22.0
+        );
         const targetIdealWeight = targetBmi * Math.pow(height / 100, 2);
 
-        // Adjust if actual weight deviates drastically (e.g. Obese or BMI > target + 5)
         adjustedWeight = this.round(
           targetIdealWeight + 0.25 * (weight - targetIdealWeight),
           1,
         );
       }
     }
+
+    // Weight loss (Blackburn)
+    const weightLoss = this.calculateWeightLoss(
+      inputs.usualWeight,
+      rawWeight,
+      inputs.weightLossPeriodWeeks,
+    );
 
     // Composición Brazo (Frisancho)
     let armComposition = null;
@@ -817,15 +965,24 @@ export class CalculationsService {
       );
     }
 
-    // TMB & GET & Macros
+    // If Blackburn is grave AND useUsualWeightForRequirements is not explicitly set to false, auto-override to true!
+    const shouldForceUsual = weightLoss && weightLoss.severity === 'grave' && inputs.useUsualWeightForRequirements !== false;
+    const isUsingUsual = inputs.useUsualWeightForRequirements === true || shouldForceUsual;
+
+    // TMB & GET & Macros calculated over current weight OR habitual weight (to avoid underfeeding on acute loss)
+    const rawUsualWeight = this.validateInput(inputs.usualWeight, 1, 300);
+    const reqWeight = isUsingUsual && rawUsualWeight
+      ? rawUsualWeight
+      : weight;
+
     let energy: GetResult | null = null;
     let exchangePortions: any[] = [];
-    if (weight && height && resolvedAge !== null) {
+    if (reqWeight && height && resolvedAge !== null) {
       const activityLevel = inputs.activityLevel || 'sedentario';
       const formula = (inputs.tmbFormula as TmbFormula) || 'mifflin-st-jeor';
       const tmb = this.calculateTMB(
         gender,
-        weight,
+        reqWeight,
         height,
         resolvedAge,
         formula,
@@ -855,10 +1012,10 @@ export class CalculationsService {
           tmb: Math.round(tmb),
           formula:
             formula === 'mifflin-st-jeor'
-              ? 'Mifflin-St Jeor'
+              ? 'Mifflin-St Jeor (1990)'
               : formula === 'harris-benedict'
-                ? 'Harris-Benedict'
-                : 'OMS/FAO',
+                ? 'Harris-Benedict (rev. Roza-Shizgal, 1984)'
+                : 'OMS/FAO (2004)',
           get: getVal,
           activityFactor: factor,
           macros: {
@@ -881,20 +1038,39 @@ export class CalculationsService {
       }
     }
 
+    // Protein Requirement using reqWeight
+    const proteinRequirement = reqWeight
+      ? this.calculateProteinRequirement(
+          reqWeight,
+          inputs.proteinProfile || 'adulto_sano',
+          energy?.get || 0,
+        )
+      : null;
+
+    // Hydration Requirement using reqWeight
+    const hydration = reqWeight ? this.calculateHydration(reqWeight, resolvedAge) : null;
+
     return {
-      version: '2026-07-01-v2',
+      version: '2026-07-21-v3',
       calculatedAt: new Date().toISOString(),
       inputs: {
         gender,
         age: resolvedAge,
-        weight,
+        weight: rawWeight,
+        dryWeight,
+        edemaPercent,
         height,
+        targetBmi: inputs.targetBmi || 22.0,
         activityLevel: inputs.activityLevel || 'sedentario',
         kneeHeight: inputs.kneeHeight || null,
         calfCircumference: inputs.calfCircumference || null,
         armCircumference: inputs.armCircumference || null,
         waistCircumference: inputs.waistCircumference || null,
         hipCircumference: inputs.hipCircumference || null,
+        usualWeight: inputs.usualWeight || null,
+        weightLossPeriodWeeks: inputs.weightLossPeriodWeeks || null,
+        proteinProfile: inputs.proteinProfile || 'adulto_sano',
+        useUsualWeightForRequirements: isUsingUsual,
         folds: {
           tricipital,
           subescapular,
@@ -904,12 +1080,17 @@ export class CalculationsService {
       },
       estimatedHeight,
       estimatedWeight,
+      dryWeight,
+      edemaPercent,
       bmi,
       idealWeight,
       adjustedWeight,
+      weightLoss,
       armComposition,
       cardiovascularRisk,
       energy,
+      proteinRequirement,
+      hydration,
       exchangePortions,
     };
   }

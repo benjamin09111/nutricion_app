@@ -17,6 +17,7 @@ import {
   User,
   RefreshCw,
   Trash2,
+  Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
@@ -33,7 +34,8 @@ interface Feedback {
     | "FEEDBACK"
     | "TESTIMONIO"
     | "COMPLAINT"
-    | "IDEA";
+    | "IDEA"
+    | "REUNION";
   status: "PENDING" | "IN_PROGRESS" | "RESOLVED";
   createdAt: string;
   updatedAt: string;
@@ -182,6 +184,8 @@ export default function AdminFeedbackPage() {
         return <Lightbulb className="w-4 h-4 text-amber-600" />;
       case "TESTIMONIO":
         return <CheckCircle2 className="w-4 h-4 text-sky-600" />;
+      case "REUNION":
+        return <Calendar className="w-4 h-4 text-purple-600" />;
       case "PASSWORD_RESET":
         return <User className="w-4 h-4 text-indigo-600" />;
       case "CONTACT":
@@ -201,6 +205,8 @@ export default function AdminFeedbackPage() {
         return "Idea";
       case "TESTIMONIO":
         return "Testimonio";
+      case "REUNION":
+        return "Reunión";
       case "PASSWORD_RESET":
         return "Reset Pass";
       case "CONTACT":
@@ -220,6 +226,8 @@ export default function AdminFeedbackPage() {
         return "bg-amber-50 text-amber-700 border-amber-200";
       case "TESTIMONIO":
         return "bg-sky-50 text-sky-700 border-sky-200";
+      case "REUNION":
+        return "bg-purple-50 text-purple-700 border-purple-200";
       case "PASSWORD_RESET":
         return "bg-indigo-50 text-indigo-700 border-indigo-200";
       case "CONTACT":
@@ -303,6 +311,7 @@ export default function AdminFeedbackPage() {
             <option value="FEEDBACK">Feedback</option>
             <option value="IDEA">Ideas</option>
             <option value="TESTIMONIO">Testimonios</option>
+            <option value="REUNION">Reuniones</option>
             <option value="COMPLAINT">Problemas</option>
             <option value="CONTACT">Contacto</option>
             <option value="PASSWORD_RESET">Reset Password</option>

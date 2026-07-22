@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEffect } from 'react';
+import { useEditor, EditorContent, Extension } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
@@ -17,12 +17,37 @@ interface NutriDocsEditorProps {
   onChange: (html: string) => void;
 }
 
-export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
-  const paragraphBtnRef = useRef<HTMLButtonElement>(null);
+const unescapeHtml = (str: string) =>
+  (str || "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'");
 
-  const initialContent = (!value || value.trim() === '' || value.trim() === '<p></p>')
+const CustomKeyboardShortcuts = Extension.create({
+  name: 'customKeyboardShortcuts',
+  addKeyboardShortcuts() {
+    return {
+      Enter: ({ editor }) => {
+        if (
+          editor.isActive('bulletList') ||
+          editor.isActive('orderedList') ||
+          editor.isActive('taskList')
+        ) {
+          return false;
+        }
+        return editor.commands.setHardBreak();
+      },
+    };
+  },
+});
+
+export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
+  const cleanInitial = unescapeHtml(value);
+  const initialContent = (!cleanInitial || cleanInitial.trim() === '' || cleanInitial.trim() === '<p></p>')
     ? '<h3></h3><p></p>'
-    : value;
+    : cleanInitial;
 
   const editor = useEditor({
     extensions: [
@@ -30,7 +55,6 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
         bulletList: { keepMarks: true },
         orderedList: { keepMarks: true },
         codeBlock: false,
-        hardBreak: false,
       }),
       TaskList,
       TaskItem.configure({ nested: true }),
@@ -44,6 +68,7 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
         emptyNodeClass: 'is-empty',
         showOnlyCurrent: false,
       }),
+      CustomKeyboardShortcuts,
     ],
     immediatelyRender: false,
     content: initialContent,
@@ -57,15 +82,27 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
     },
   });
 
+  useEffect(() => {
+    if (!editor || value === undefined) return;
+    const cleanValue = unescapeHtml(value);
+    if (editor.getHTML() !== cleanValue && cleanValue !== '') {
+      editor.commands.setContent(cleanValue);
+    }
+  }, [value, editor]);
+
   if (!editor) return <div className="min-h-[400px] bg-slate-50 animate-pulse rounded-xl border border-slate-100" />;
 
   const insertIcon = (type: 'ticket' | 'cross') => {
-    const emoji = type === 'ticket' ? '✔️' : '❌';
-    editor.chain().focus().insertContent(emoji).run();
+    const symbol = type === 'ticket' ? '✔️ ' : '❌ ';
+    editor.chain().focus().insertContent(symbol).run();
+  };
+
+  const addSubtitle = () => {
+    editor.chain().focus('end').insertContent({ type: 'heading', attrs: { level: 3 } }).run();
   };
 
   const addParagraph = () => {
-    editor.chain().focus('end').insertContent('<h3></h3><p></p>').run();
+    editor.chain().focus('end').insertContent({ type: 'paragraph' }).run();
   };
 
   const ToolBtn = ({ active, onClick, title, children }: { active: boolean; onClick: () => void; title: string; children: React.ReactNode }) => (
@@ -83,23 +120,31 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
 
         <ToolBtn active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()} title="Lista"><List className="w-4 h-4" /></ToolBtn>
         <ToolBtn active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()} title="Enumeración"><ListOrdered className="w-4 h-4" /></ToolBtn>
-        <ToolBtn active={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()} title="Tareas"><CheckSquare className="w-4 h-4" /></ToolBtn>
+        <ToolBtn active={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()} title="Tareas interactivas"><CheckSquare className="w-4 h-4" /></ToolBtn>
 
         <div className="w-px h-6 bg-slate-200 mx-1" />
 
         <button type="button" onClick={() => insertIcon('ticket')} className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Visto bueno"><CheckCircle2 className="w-4 h-4" /></button>
         <button type="button" onClick={() => insertIcon('cross')} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors" title="Equis"><XCircle className="w-4 h-4" /></button>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <button
-            ref={paragraphBtnRef}
+            type="button"
+            onClick={addSubtitle}
+            className="px-3 py-1.5 text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 border border-indigo-200/60 rounded-lg transition-all flex items-center gap-1.5 font-semibold text-xs cursor-pointer"
+            title="Añadir un subtítulo"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Subtítulo</span>
+          </button>
+          <button
             type="button"
             onClick={addParagraph}
-            className="px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all flex items-center gap-1.5 font-semibold text-xs cursor-pointer"
-            title="Añadir bloque (subtítulo y párrafo)"
+            className="px-3 py-1.5 text-indigo-600 bg-indigo-50/60 hover:bg-indigo-100 border border-indigo-200/60 rounded-lg transition-all flex items-center gap-1.5 font-semibold text-xs cursor-pointer"
+            title="Añadir un párrafo"
           >
-            <Plus className="w-4 h-4" />
-            <span>Nuevo párrafo</span>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Párrafo</span>
           </button>
         </div>
       </div>
@@ -134,7 +179,7 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
           height: 0;
         }
 
-        .tiptap p { 
+        .tiptap p, .tiptap ul[data-type="taskList"] { 
           background-color: #f8fafc;
           border: 1px solid #e2e8f0;
           border-radius: 0.75rem;
@@ -142,12 +187,13 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
           margin: 0.5rem 0 1rem 0;
           line-height: 1.7; 
           color: #1e293b; 
-          white-space: pre-wrap; 
           transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
         }
-        .tiptap p:last-child { margin-bottom: 0; }
+        .tiptap p { white-space: pre-wrap; }
+        .tiptap p:last-child, .tiptap ul[data-type="taskList"]:last-child { margin-bottom: 0; }
         
-        .tiptap p:focus-within, .tiptap p:has(:focus), .tiptap p.has-focus {
+        .tiptap p:focus-within, .tiptap p:has(:focus), .tiptap p.has-focus,
+        .tiptap ul[data-type="taskList"]:focus-within {
           background-color: #ffffff;
           border-color: #6366f1;
           box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
@@ -174,22 +220,28 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
         .tiptap ol { list-style-type: decimal; }
         .tiptap li { margin-bottom: 0.25rem; white-space: pre-wrap; }
 
-        .tiptap ul[data-type="taskList"] { list-style: none; padding: 0; }
-        .tiptap ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem; }
-        .tiptap ul[data-type="taskList"] li > label { flex-shrink: 0; padding-top: 0.1rem; display: flex; align-items: center; }
+        .tiptap ul[data-type="taskList"] { list-style: none; }
+        .tiptap ul[data-type="taskList"] li { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.4rem; }
+        .tiptap ul[data-type="taskList"] li:last-child { margin-bottom: 0; }
+        .tiptap ul[data-type="taskList"] li > label { flex-shrink: 0; display: flex; align-items: center; cursor: pointer; }
         .tiptap ul[data-type="taskList"] li > div { min-width: 0; flex: 1; line-height: 1.6; }
         .tiptap ul[data-type="taskList"] input[type="checkbox"] { 
-          width: 1rem; height: 1rem; cursor: pointer; border-radius: 4px; 
-          border: 2px solid #cbd5e1; appearance: none; position: relative;
+          width: 1.15rem; height: 1.15rem; cursor: pointer; border-radius: 6px; 
+          border: 2px solid #94a3b8; appearance: none; position: relative;
           background-color: #fff; transition: all 0.2s;
           margin: 0; flex-shrink: 0;
         }
+        .tiptap ul[data-type="taskList"] input[type="checkbox"]:hover { border-color: #6366f1; }
         .tiptap ul[data-type="taskList"] input[type="checkbox"]:checked { 
-          background-color: #10b981; border-color: #10b981; 
+          background-color: #4f46e5; border-color: #4f46e5; 
         }
         .tiptap ul[data-type="taskList"] input[type="checkbox"]:checked::after {
-          content: '✓'; position: absolute; color: white; font-size: 0.8rem;
+          content: '✓'; position: absolute; color: white; font-size: 0.85rem; font-weight: bold;
           top: 50%; left: 50%; transform: translate(-50%, -50%);
+        }
+        .tiptap ul[data-type="taskList"] li[data-checked="true"] > div {
+          color: #64748b;
+          text-decoration: line-through;
         }
 
         .tiptap br { display: block; content: ""; margin-top: 0; }
@@ -203,7 +255,7 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
           Editor visual
         </p>
         <p className="text-[10px] font-medium text-slate-400">
-          Subtítulo y párrafo diferenciados con fondo visible
+          ENTER salta de línea. Usa los botones superiores para añadir un subtítulo o párrafo.
         </p>
       </div>
     </div>

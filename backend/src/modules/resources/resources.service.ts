@@ -94,11 +94,34 @@ export class ResourcesService {
       fileUrl?: string;
     },
   ) {
+    const {
+      title,
+      content,
+      category,
+      tags,
+      images,
+      isPublic,
+      sources,
+      format,
+      fileUrl,
+    } = data as any;
+
+    const now = new Date();
+
     const created = await this.prisma.resource.create({
       data: {
-        ...data,
+        title,
+        content,
+        category,
+        tags: tags || [],
+        images: images ?? [],
+        isPublic: isPublic ?? false,
+        sources: sources ?? null,
+        format: format || 'HTML',
+        fileUrl: fileUrl ?? null,
         nutritionistId,
-        updatedAt: new Date(),
+        createdAt: now,
+        updatedAt: now,
       },
     });
     return this.enrichWithVariables(created);
@@ -128,10 +151,30 @@ export class ResourcesService {
       throw new Error('Unauthorized');
     }
 
+    const {
+      title,
+      content,
+      category,
+      tags,
+      images,
+      isPublic,
+      sources,
+      format,
+      fileUrl,
+    } = data as any;
+
     const updated = await this.prisma.resource.update({
       where: { id },
       data: {
-        ...data,
+        ...(title !== undefined && { title }),
+        ...(content !== undefined && { content }),
+        ...(category !== undefined && { category }),
+        ...(tags !== undefined && { tags }),
+        ...(images !== undefined && { images }),
+        ...(isPublic !== undefined && { isPublic }),
+        ...(sources !== undefined && { sources }),
+        ...(format !== undefined && { format }),
+        ...(fileUrl !== undefined && { fileUrl }),
         updatedAt: new Date(),
       },
     });

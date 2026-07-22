@@ -321,6 +321,26 @@ export class MailService {
     });
   }
 
+  async sendMeetingRequestEmail(data: {
+    userEmail: string;
+    subject: string;
+    message: string;
+  }): Promise<void> {
+    const html = this.wrapHtml(
+      'Solicitud de Reunión con NutriNet',
+      `<p>El usuario <strong>${this.escapeHtml(data.userEmail)}</strong> desea agendar una reunión con el equipo de NutriNet.</p><ul style="line-height:1.9;padding-left:18px"><li><strong>Correo del solicitante:</strong> ${this.escapeHtml(data.userEmail)}</li><li><strong>Motivo de la reunión:</strong> ${this.escapeHtml(data.subject)}</li></ul><div style="margin-top:16px;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px"><strong style="color:#4f46e5 font-size:12px uppercase">Detalle del motivo:</strong><br>${this.escapeHtml(data.message).replace(/\n/g, '<br>')}</div>`,
+    );
+
+    await this.sendEmail({
+      to: 'contacto@nutrinet.cl',
+      subject: `[SOLICITUD DE REUNIÓN] ${data.subject} (${data.userEmail})`,
+      html,
+      text: `Solicitud de reunión de: ${data.userEmail}\nMotivo: ${data.subject}\nDetalle: ${data.message}`,
+      replyTo: data.userEmail,
+      channel: 'support',
+    });
+  }
+
   async sendFeedbackConfirmation(email: string): Promise<void> {
     const html = this.wrapHtml(
       'Feedback recibido',

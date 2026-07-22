@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Copy,
   FileText,
@@ -23,15 +23,15 @@ import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
 
 const CATEGORIES = [
-  { id: "portada", label: "Portada e introduccion" },
+  { id: "portada", label: "Portada e introducción" },
   { id: "mitos", label: "Mitos vs realidad" },
-  { id: "habitos", label: "Habitos y rutinas" },
+  { id: "habitos", label: "Hábitos y rutinas" },
   { id: "salud-mental", label: "Salud mental" },
   { id: "salud-intestinal", label: "Salud intestinal" },
-  { id: "deporte", label: "Nutricion deportiva" },
+  { id: "deporte", label: "Nutrición deportiva" },
   { id: "maternidad", label: "Maternidad y lactancia" },
   { id: "rendimiento", label: "Rendimiento y foco" },
-  { id: "consejos", label: "Consejos practicos" },
+  { id: "consejos", label: "Consejos prácticos" },
   { id: "faq", label: "Preguntas frecuentes" },
   { id: "otro", label: "Otro" },
 ];
@@ -59,7 +59,10 @@ interface ResourceEditorProps {
 
 export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isIntro = !editingId && searchParams.get("type") === "intro";
 
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -70,8 +73,8 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
   const [formData, setFormData] = useState({
     title: initialData?.title || "",
     content: initialData?.content || "",
-    category: initialData?.category || "consejos",
-    tags: initialData?.tags || [],
+    category: initialData?.category || (isIntro ? "portada" : "consejos"),
+    tags: initialData?.tags?.length ? initialData.tags : (isIntro ? ["Introducción"] : []),
     fileUrl: initialData?.fileUrl || "",
   });
 
@@ -186,10 +189,12 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
 
   return (
     <ModuleLayout
-      title={editingId ? "Editar Recurso" : "Nuevo Recurso"}
+      title={editingId ? "Editar Recurso" : isIntro ? "Nueva Introducción" : "Nuevo Recurso"}
       description={
         editingId
           ? "Actualiza el contenido de tu recurso educativo."
+          : isIntro
+          ? "Crea un texto de introducción reutilizable para tus entregables nutricionales."
           : "Crea una nueva pieza de contenido para tus pacientes. Todos los recursos son privados y solo tú podrás verlos."
       }
       rightContent={
@@ -221,13 +226,19 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
         <div className="grid gap-6 xl:grid-cols-[1fr_280px]">
           <div className="space-y-6">
 
-              <div className="space-y-4">
+            {isIntro && (
+              <div className="inline-flex items-center gap-2 rounded-xl bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-700 border border-indigo-100">
+                <span>Creando una introducción reutilizable. Se preseleccionó la categoría "Portada e introducción".</span>
+              </div>
+            )}
+
+            <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
                   Título <span className="text-rose-500">*</span>
                 </label>
                 <Input
-                  placeholder="Ej. Guía de Hidratación"
+                  placeholder={isIntro ? "Ej. Introducción a tu plan personalizado" : "Ej. Guía de Hidratación"}
                   value={formData.title}
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, title: e.target.value }))
@@ -237,23 +248,23 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
               </div>
 
               <div className="space-y-2">
-                  <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
-                    Sección / Categoría <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, category: e.target.value }))
-                    }
-                    className="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-indigo-500 transition-all cursor-pointer"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
+                  Sección / Categoría <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={formData.category}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, category: e.target.value }))
+                  }
+                  className="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <div className="space-y-2">
                 <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">

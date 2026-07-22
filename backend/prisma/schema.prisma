@@ -813,8 +813,8 @@ model Resource {
   category       String
   tags           String[]      @default([])
   isPublic       Boolean       @default(false) @map("is_public")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  createdAt      DateTime      @default(now()) @map("createdAt")
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updatedAt")
   images         Json?         @default("[]")
   format         String        @default("HTML")
   fileUrl        String?       @map("file_url")
@@ -874,6 +874,7 @@ enum SupportRequestType {
   TESTIMONIO
   COMPLAINT
   IDEA
+  REUNION
 }
 
 enum SupportRequestStatus {
