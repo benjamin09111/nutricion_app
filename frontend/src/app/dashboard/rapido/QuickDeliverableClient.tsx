@@ -11,6 +11,9 @@ import {
   CheckCircle2,
   X,
   Loader2,
+  ChevronDown,
+  User,
+  RotateCcw,
 } from "lucide-react";
 import Cookies from "js-cookie";
 import { useSearchParams } from "next/navigation";
@@ -23,11 +26,13 @@ import { Textarea } from "@/components/ui/Textarea";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
-import { PlanPatientSelector, NatyLoadingOverlay, NatyButton, PlanWizardShell } from "@/components/plans";
-import type { PlanPatient } from "@/components/plans";
-import { FormStepCard } from "@/components/patient-form/FormStepCard";
-import { fetchApi } from "@/lib/api-base";
+import { PlanWizardShell, NatyLoadingOverlay, NatyButton } from "@/components/plans";
+import { ActionDockItem } from "@/components/ui/ActionDock";
+import { CalculatedMetricsPanel } from "@/components/patient-form/CalculatedMetricsPanel";
+import { fetchApi, getApiUrl } from "@/lib/api-base";
+import { TagInput } from "@/components/ui/TagInput";
 import { buildExchangeGuideForPatient } from "@/lib/exchange-portions";
+import { calculateAge, calculateBMI, calculateGET, getIdealWeightRange, type ActivityLevel, type Gender } from "@/lib/nutrition-formulas";
 import { cn } from "@/lib/utils";
 import { fetchCreation, fetchProject, saveCreation } from "@/lib/workflow";
 import { downloadFastDeliverablePdf } from "@/features/pdf/fastDeliverablePdfExport";
@@ -94,12 +99,18 @@ type QuickPatient = {
   id?: string;
   fullName: string;
   email?: string | null;
+  phone?: string | null;
   ageYears?: number | null;
+  birthDate?: string | null;
   gender?: string | null;
+  weight?: number | null;
+  height?: number | null;
   nutritionalFocus?: string | null;
   fitnessGoals?: string | null;
   restrictions?: string[];
   likes?: string | null;
+  clinicalSummary?: string | null;
+  activityLevel?: ActivityLevel | null;
   source?: "manual" | "imported";
 };
 
@@ -199,14 +210,78 @@ const createPortionGuideRow = (
 const createEmptyQuickPatient = (): QuickPatient => ({
   fullName: "",
   email: null,
+  phone: null,
   ageYears: null,
+  birthDate: null,
   gender: "",
+  weight: null,
+  height: null,
   nutritionalFocus: "",
   fitnessGoals: "",
   restrictions: [],
   likes: "",
+  clinicalSummary: "",
+  activityLevel: null,
   source: "manual",
 });
+
+const resolveQuickGender = (gender?: string | null): Gender | null => {
+  if (gender === "Masculino" || gender === "Femenino") return gender;
+  return null;
+};
+
+const resolveQuickAgeYears = (patient: QuickPatient): number | undefined => {
+  const fromBirthDate = patient.birthDate ? calculateAge(patient.birthDate) : undefined;
+  if (typeof fromBirthDate === "number") return fromBirthDate;
+  if (typeof patient.ageYears === "number") return patient.ageYears;
+  return undefined;
+};
+
+const resolveQuickPatientMetrics = (patient: QuickPatient) => {
+  const weight = Number(patient.weight) || 0;
+  const height = Number(patient.height) || 0;
+  const gender = resolveQuickGender(patient.gender);
+  const ageYears = resolveQuickAgeYears(patient);
+  const activityLevel: ActivityLevel = patient.activityLevel || "moderado";
+
+  const bmi = weight > 0 && height > 0
+    ? calculateBMI(weight, height, {
+      gender,
+      ageYears,
+      birthDate: patient.birthDate || null,
+    })
+    : null;
+
+  const idealWeight = height > 0
+    ? getIdealWeightRange(height, {
+      gender,
+      ageYears,
+      birthDate: patient.birthDate || null,
+    })
+    : null;
+
+  const get = weight > 0 && height > 0 && gender && typeof ageYears === "number"
+    ? calculateGET(
+      gender,
+      weight,
+      height,
+      ageYears,
+      activityLevel,
+      ageYears < 18 ? "oms-fao" : "mifflin-st-jeor",
+    )
+    : null;
+
+  return {
+    bmi: bmi ? { value: bmi.bmi, classification: bmi.classification, color: bmi.color } : undefined,
+    get: get ? { value: get.get } : undefined,
+    idealWeight: idealWeight ? { min: idealWeight.min, max: idealWeight.max, reference: idealWeight.reference } : undefined,
+    ageYears,
+    gender,
+    weight: weight > 0 ? weight : null,
+    height: height > 0 ? height : null,
+    activityLevel,
+  };
+};
 
 const normalizeQuickText = (value: string) =>
   value
@@ -254,6 +329,9 @@ export default function QuickDeliverableClient() {
   const projectId = searchParams.get("project");
 
   const [title, setTitle] = useState(DEFAULT_TITLE);
+  const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
+  const [quickHashtags, setQuickHashtags] = useState("");
+  const [quickDescription, setQuickDescription] = useState("");
   const [planMode, setPlanMode] = useState<QuickPlanMode>("single");
   const [meals, setMeals] = useState<QuickMeal[]>([
     createMeal("Desayuno"),
@@ -332,6 +410,9 @@ export default function QuickDeliverableClient() {
     try {
       const parsed = JSON.parse(draft);
       setTitle(parsed.title || DEFAULT_TITLE);
+      setDeliveryDate(parsed.deliveryDate || new Date().toISOString().slice(0, 10));
+      setQuickHashtags(parsed.quickHashtags || "");
+      setQuickDescription(parsed.quickDescription || "");
       setPlanMode(parsed.planMode === "weekly" ? "weekly" : "single");
       setMeals(Array.isArray(parsed.meals) && parsed.meals.length > 0 ? parsed.meals : [createMeal("Desayuno")]);
       setAvoidFoods(
@@ -373,6 +454,9 @@ export default function QuickDeliverableClient() {
       "nutri_quick_deliverable_draft",
       JSON.stringify({
         title,
+        deliveryDate,
+        quickHashtags,
+        quickDescription,
         planMode,
         meals,
         avoidFoods,
@@ -389,6 +473,9 @@ export default function QuickDeliverableClient() {
     );
   }, [
     title,
+    deliveryDate,
+    quickHashtags,
+    quickDescription,
     planMode,
     meals,
     avoidFoods,
@@ -411,6 +498,9 @@ export default function QuickDeliverableClient() {
         const creation = await fetchCreation(creationId);
         const content = creation.content || {};
         setTitle(content.title || creation.name || DEFAULT_TITLE);
+        setDeliveryDate(content.deliveryDate || new Date().toISOString().slice(0, 10));
+        setQuickHashtags(content.quickHashtags || "");
+        setQuickDescription(content.quickDescription || "");
         setPlanMode(content.planMode === "weekly" ? "weekly" : "single");
         setMeals(Array.isArray(content.meals) && content.meals.length > 0 ? content.meals : [createMeal("Desayuno")]);
         setAvoidFoods(
@@ -626,6 +716,11 @@ export default function QuickDeliverableClient() {
     }));
   }, [meals, planMode]);
 
+  const quickPatientMetrics = useMemo(
+    () => resolveQuickPatientMetrics(selectedPatient),
+    [selectedPatient],
+  );
+
   const filteredCreatedRecipes = useMemo(() => {
     const search = createdRecipesSearch.trim().toLowerCase();
     return createdRecipes.filter((recipe) => {
@@ -698,6 +793,13 @@ export default function QuickDeliverableClient() {
         ? content.title
         : creation.name || DEFAULT_TITLE,
     );
+    setDeliveryDate(
+      typeof content.deliveryDate === "string" && content.deliveryDate.trim()
+        ? content.deliveryDate
+        : new Date().toISOString().slice(0, 10),
+    );
+    setQuickHashtags(typeof content.quickHashtags === "string" ? content.quickHashtags : "");
+    setQuickDescription(typeof content.quickDescription === "string" ? content.quickDescription : "");
     setPlanMode(content.planMode === "weekly" ? "weekly" : "single");
     setMeals(importedMeals.length > 0 ? importedMeals : [createMeal("Desayuno")]);
     setAvoidFoods(
@@ -1016,23 +1118,6 @@ export default function QuickDeliverableClient() {
     }
   };
 
-  const openPatientModal = async () => {
-    try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi(`/patients`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setPatients(data.data || []);
-      }
-    } catch (error) {
-      console.error("Error fetching patients", error);
-    }
-    setPatientSearch("");
-    setIsPatientModalOpen(true);
-  };
-
   const startManualPatientEntry = () => {
     setIsManualPatientExpanded(true);
     identitySectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1044,7 +1129,7 @@ export default function QuickDeliverableClient() {
     toast.info("Paciente quitado del entregable.");
   };
 
-  const fetchPatients = async (): Promise<PlanPatient[]> => {
+  const fetchPatients = async (): Promise<QuickPatient[]> => {
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi("/patients", { headers: { Authorization: `Bearer ${token}` } });
@@ -1053,9 +1138,10 @@ export default function QuickDeliverableClient() {
     } catch { return []; }
   };
 
-  const handleSelectPatient = (patient: PlanPatient) => {
-    setSelectedPatient(patient);
-    setIsManualPatientExpanded(false);
+  const openPatientImportModal = async () => {
+    const loaded = await fetchPatients();
+    setPatients(loaded);
+    setIsPatientModalOpen(true);
   };
 
   useEffect(() => {
@@ -1211,6 +1297,9 @@ export default function QuickDeliverableClient() {
 
   const buildPdfPayload = () => ({
     name: title.trim() || DEFAULT_TITLE,
+    deliveryDate,
+    hashtags: quickHashtags.split(",").map((t) => t.trim()).filter(Boolean),
+    description: quickDescription.trim() || null,
     patientName: selectedPatient?.fullName || null,
     planMode,
     meals: includeMeals
@@ -1294,6 +1383,9 @@ export default function QuickDeliverableClient() {
         type: "FAST_DELIVERABLE",
         content: {
           title,
+          deliveryDate,
+          quickHashtags,
+          quickDescription,
           planMode,
           meals,
           avoidFoods: validAvoidFoods,
@@ -1341,6 +1433,9 @@ export default function QuickDeliverableClient() {
 
   const resetQuickDeliverable = () => {
     setTitle(DEFAULT_TITLE);
+    setDeliveryDate(new Date().toISOString().slice(0, 10));
+    setQuickHashtags("");
+    setQuickDescription("");
     setPlanMode("single");
     setMeals([createMeal("Desayuno"), createMeal("Almuerzo"), createMeal("Cena")]);
     setAvoidFoods([createAvoidFoodRow()]);
@@ -1357,6 +1452,55 @@ export default function QuickDeliverableClient() {
     toast.success("Entregable rápido reiniciado.");
   };
 
+  const actionItems: ActionDockItem[] = useMemo(
+    () => [
+      {
+        id: "patient",
+        icon: User,
+        label: selectedPatient.fullName?.trim() ? selectedPatient.fullName : "Importar paciente",
+        variant: selectedPatient.fullName?.trim() ? "emerald" : "slate",
+        onClick: async () => {
+          if (selectedPatient.fullName?.trim()) {
+            clearSelectedPatient();
+            return;
+          }
+          const loaded = await fetchPatients();
+          setPatients(loaded);
+          setIsPatientModalOpen(true);
+        },
+      },
+      {
+        id: "import",
+        icon: Filter,
+        label: "Importar creación",
+        variant: "indigo",
+        onClick: () => setIsImportCreationModalOpen(true),
+      },
+      {
+        id: "ai-nutri",
+        icon: Sparkles,
+        label: "IA Nutri",
+        variant: "emerald",
+        onClick: () => setIsCreatedRecipesModalOpen(true),
+      },
+      {
+        id: "save",
+        icon: CheckCircle2,
+        label: "Guardar",
+        variant: "slate",
+        onClick: () => setIsSaveCreationModalOpen(true),
+      },
+      {
+        id: "reset",
+        icon: RotateCcw,
+        label: "Reiniciar",
+        variant: "rose",
+        onClick: resetQuickDeliverable,
+      },
+    ],
+    [selectedPatient.fullName],
+  );
+
   return (
     <>
       {isGeneratingQuickAi && (
@@ -1366,191 +1510,203 @@ export default function QuickDeliverableClient() {
         title="Entregable Rápido"
         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
         className="max-w-[68rem]"
+        rightNavItems={actionItems}
       >
         <WorkflowContextBanner
           projectName={currentProjectName}
-          patientName={selectedPatient?.fullName || null}
           mode={currentProjectMode}
           moduleLabel="Rápido"
         />
 
-        <div className="mt-6 xl:px-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 max-w-2xl">
-            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-              <div className="flex-1 space-y-2">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Título</p>
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="h-12 rounded-2xl border-slate-200 bg-slate-50 text-base font-semibold"
-                  placeholder={DEFAULT_TITLE}
-                />
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <PlanPatientSelector
-                  patient={selectedPatient.fullName?.trim() ? {
-                    id: selectedPatient.id,
-                    fullName: selectedPatient.fullName,
-                    ageYears: selectedPatient.ageYears,
-                    weight: undefined,
-                    height: undefined,
-                    gender: selectedPatient.gender ?? undefined,
-                    nutritionalFocus: selectedPatient.nutritionalFocus ?? undefined,
-                    fitnessGoals: selectedPatient.fitnessGoals ?? undefined,
-                    restrictions: selectedPatient.restrictions,
-                    likes: selectedPatient.likes ?? undefined,
-                  } : null}
-                  onSelect={handleSelectPatient}
-                  onClear={clearSelectedPatient}
-                  fetchPatients={fetchPatients}
-                />
-                {!isManualPatientExpanded && (
-                  <button
-                    type="button"
-                    onClick={startManualPatientEntry}
-                    className="text-left text-xs font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800"
-                  >
-                    O completa manualmente
-                  </button>
-                )}
+        <div className="mt-6 xl:px-4 space-y-6">
+          <details className="group rounded-2xl border border-slate-200 bg-white [&[open]]:pb-6" open>
+            <summary className="flex cursor-pointer items-center gap-3 px-6 py-4 select-none">
+              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Información general</p>
+              <ChevronDown className="ml-auto h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="px-6 space-y-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-end">
+                <div className="flex-1 space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Título <span className="text-rose-500">*</span></p>
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm font-semibold"
+                    placeholder={DEFAULT_TITLE}
+                  />
+                </div>
+                <div className="w-36 space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Fecha</p>
+                  <Input
+                    type="date"
+                    value={deliveryDate}
+                    onChange={(e) => setDeliveryDate(e.target.value)}
+                    className="h-11 appearance-none rounded-xl border-slate-200 bg-slate-50 text-sm [&::-webkit-calendar-picker-indicator]:hidden"
+                  />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Hashtags</p>
+                  <TagInput
+                    value={quickHashtags.split(",").map((t) => t.trim()).filter(Boolean)}
+                    onChange={(tags) => setQuickHashtags(tags.join(", "))}
+                    fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                    placeholder="Ej: keto, hipertrofia"
+                  />
+                </div>
               </div>
             </div>
-            {isManualPatientExpanded && (
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Nombre
-                    </p>
-                    <Input
-                      value={selectedPatient.fullName}
-                      onChange={(e) =>
-                        setSelectedPatient((current) => ({
-                          ...current,
-                          fullName: e.target.value,
-                          source: current.source || "manual",
-                        }))
-                      }
-                      placeholder="Nombre y apellido"
-                    />
+            <div className="px-6 pt-3 space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Descripción</p>
+              <Textarea
+                value={quickDescription}
+                onChange={(e) => setQuickDescription(e.target.value)}
+                className="min-h-[60px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+                placeholder="Notas internas sobre este entregable..."
+              />
+            </div>
+          </details>
+
+          {/* Paciente */}
+          <details className="group rounded-2xl border border-slate-200 bg-white [&[open]]:pb-6" open={selectedPatient.source === "imported" || isManualPatientExpanded}>
+            <summary className="flex cursor-pointer flex-wrap items-center gap-3 px-6 py-4 select-none">
+              <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">PACIENTE</p>
+              <div className="h-px min-w-10 flex-1 bg-slate-200" />
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); void openPatientImportModal(); }}
+                className="cursor-pointer text-xs font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 transition-colors hover:text-emerald-800 hover:decoration-emerald-500"
+              >
+                IMPORTAR
+              </button>
+              <span className="text-xs font-semibold text-slate-400">o</span>
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); startManualPatientEntry(); }}
+                className="cursor-pointer text-xs font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 transition-colors hover:text-emerald-800 hover:decoration-emerald-500"
+              >
+                Rellenar manualmente
+              </button>
+            </summary>
+
+            <div className="px-6 space-y-4">
+              {selectedPatient.fullName?.trim() && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Nombre</p>
+                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.fullName}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Edad</p>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {quickPatientMetrics.ageYears ? `${quickPatientMetrics.ageYears} años` : "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Sexo</p>
+                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.gender || "—"}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Peso</p>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {quickPatientMetrics.weight ? `${quickPatientMetrics.weight} kg` : "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Altura</p>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {quickPatientMetrics.height ? `${quickPatientMetrics.height} cm` : "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Actividad</p>
+                      <p className="text-sm font-semibold text-slate-800">{quickPatientMetrics.activityLevel}</p>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Edad
-                    </p>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={selectedPatient.ageYears ?? ""}
-                      onChange={(e) =>
-                        setSelectedPatient((current) => ({
-                          ...current,
-                          ageYears:
-                            e.target.value === ""
-                              ? null
-                              : Math.max(0, Math.round(Number(e.target.value) || 0)),
-                          source: current.source || "manual",
-                        }))
-                      }
-                      placeholder="Ej: 42"
-                    />
+
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Restricciones dietéticas o de salud</p>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {(selectedPatient.restrictions || []).length > 0
+                          ? selectedPatient.restrictions?.join(", ")
+                          : "Sin registro"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Gustos</p>
+                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.likes || "Sin registro"}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2 md:col-span-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Objetivo</p>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {selectedPatient.nutritionalFocus || selectedPatient.fitnessGoals || "Sin registro"}
+                      </p>
+                    </div>
+                    {selectedPatient.clinicalSummary && (
+                      <div className="rounded-lg border border-slate-100 bg-white px-3 py-2 md:col-span-2">
+                        <p className="text-[10px] font-black uppercase text-slate-400">Resumen clínico</p>
+                        <p className="text-sm font-semibold text-slate-800">{selectedPatient.clinicalSummary}</p>
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Sexo
-                    </p>
-                    <select
-                      value={selectedPatient.gender || ""}
-                      onChange={(e) =>
-                        setSelectedPatient((current) => ({
-                          ...current,
-                          gender: e.target.value,
-                          source: current.source || "manual",
-                        }))
-                      }
-                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900"
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="Femenino">Femenino</option>
-                      <option value="Masculino">Masculino</option>
-                      <option value="Otro">Otro</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Objetivo / enfoque
-                    </p>
-                    <Input
-                      value={selectedPatient.nutritionalFocus || ""}
-                      onChange={(e) =>
-                        setSelectedPatient((current) => ({
-                          ...current,
-                          nutritionalFocus: e.target.value,
-                          source: current.source || "manual",
-                        }))
-                      }
-                      placeholder="Ej: mejorar energía, ordenar horarios..."
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Metas
-                    </p>
-                    <Input
-                      value={selectedPatient.fitnessGoals || ""}
-                      onChange={(e) =>
-                        setSelectedPatient((current) => ({
-                          ...current,
-                          fitnessGoals: e.target.value,
-                          source: current.source || "manual",
-                        }))
-                      }
-                      placeholder="Ej: bajar grasa, ganar masa muscular..."
-                    />
-                  </div>
-                </div>
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Restricciones
-                    </p>
-                    <Input
-                      value={(selectedPatient.restrictions || []).join(", ")}
-                      onChange={(e) =>
-                        setSelectedPatient((current) => ({
-                          ...current,
-                          restrictions: e.target.value
-                            .split(",")
-                            .map((item) => item.trim())
-                            .filter(Boolean),
-                          source: current.source || "manual",
-                        }))
-                      }
-                      placeholder="Ej: sin gluten, evitar lactosa"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Gustos
-                    </p>
-                    <Input
-                      value={selectedPatient.likes || ""}
-                      onChange={(e) =>
-                        setSelectedPatient((current) => ({
-                          ...current,
-                          likes: e.target.value,
-                          source: current.source || "manual",
-                        }))
-                      }
-                      placeholder="Ej: preparaciones saladas, frutas, yogurt..."
+
+                  <div className="mt-4">
+                    <CalculatedMetricsPanel
+                      imc={quickPatientMetrics.bmi}
+                      get={quickPatientMetrics.get}
+                      idealWeight={quickPatientMetrics.idealWeight}
                     />
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+
+              {isManualPatientExpanded && (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nombre</p>
+                      <Input value={selectedPatient.fullName} onChange={(e) => setSelectedPatient((current) => ({ ...current, fullName: e.target.value, source: current.source || "manual" }))} placeholder="Nombre y apellido" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Edad</p>
+                      <Input type="number" min={0} value={selectedPatient.ageYears ?? ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, ageYears: e.target.value === "" ? null : Math.max(0, Math.round(Number(e.target.value) || 0)), source: current.source || "manual" }))} placeholder="Ej: 42" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sexo</p>
+                      <select value={selectedPatient.gender || ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, gender: e.target.value, source: current.source || "manual" }))} className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900">
+                        <option value="">Seleccionar</option>
+                        <option value="Femenino">Femenino</option>
+                        <option value="Masculino">Masculino</option>
+                        <option value="Otro">Otro</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Objetivo / enfoque</p>
+                      <Input value={selectedPatient.nutritionalFocus || ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, nutritionalFocus: e.target.value, source: current.source || "manual" }))} placeholder="Ej: mejorar energía, ordenar horarios..." />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Metas</p>
+                      <Input value={selectedPatient.fitnessGoals || ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, fitnessGoals: e.target.value, source: current.source || "manual" }))} placeholder="Ej: bajar grasa, ganar masa muscular..." />
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Restricciones</p>
+                      <Input value={(selectedPatient.restrictions || []).join(", ")} onChange={(e) => setSelectedPatient((current) => ({ ...current, restrictions: e.target.value.split(",").map((item) => item.trim()).filter(Boolean), source: current.source || "manual" }))} placeholder="Ej: sin gluten, evitar lactosa" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Gustos</p>
+                      <Input value={selectedPatient.likes || ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, likes: e.target.value, source: current.source || "manual" }))} placeholder="Ej: preparaciones saladas, frutas, yogurt..." />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </details>
+
         </div>
 
         <div className="mt-10 space-y-8 xl:px-4">
@@ -2286,41 +2442,83 @@ export default function QuickDeliverableClient() {
               )}
 
               {currentStep === 4 && (
-              <section ref={summarySectionRef} className="rounded-3xl border border-slate-200 bg-slate-900 p-10 text-white shadow-sm">
-                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">
-                  Resumen express
-                </p>
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl bg-white/8 p-4">
-                    <p className="text-2xl font-black">{meals.length}</p>
-                    <p className="text-xs uppercase tracking-widest text-slate-300">
-                      Bloques de comida
+              <section ref={summarySectionRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm space-y-5">
+                <div>
+                  <h2 className="text-lg font-black text-slate-900">Resumen del entregable</h2>
+                  <p className="mt-1 text-sm text-slate-500">Revisa que todo esté listo antes de exportar.</p>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Paciente</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {selectedPatient.fullName?.trim() || "Sin paciente asignado"}
+                    </p>
+                    {selectedPatient.fullName?.trim() && (
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {[
+                          selectedPatient.ageYears && `${selectedPatient.ageYears} a`,
+                          selectedPatient.gender,
+                        ].filter(Boolean).join(" · ") || "Sin datos adicionales"}
+                      </p>
+                    )}
+                  </div>
+                  <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600">Comidas</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {includeMeals ? `${meals.length} bloques` : "Sección oculta"}
+                    </p>
+                    {includeMeals && meals.some((m) => m.mealText.trim()) && (
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {meals.filter((m) => m.mealText.trim()).length} bloques completos
+                      </p>
+                    )}
+                  </div>
+                  <div className="rounded-xl border border-rose-100 bg-rose-50/60 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-rose-600">Alimentos a evitar</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {includeAvoidFoods ? `${validAvoidFoods.length} registrados` : "Sección oculta"}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white/8 p-4">
-                    <p className="text-2xl font-black">
-                      {validAvoidFoods.length}
-                    </p>
-                    <p className="text-xs uppercase tracking-widest text-slate-300">
-                      Alimentos a evitar
+                  <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-amber-600">Recursos</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {includeResources ? `${selectedResolvedResources.length} seleccionados` : "Sección oculta"}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white/8 p-4">
-                    <p className="text-2xl font-black">
-                      {resolvedResourcePages.length}
-                    </p>
-                    <p className="text-xs uppercase tracking-widest text-slate-300">
-                      Recursos
+                  <div className="rounded-xl border border-purple-100 bg-purple-50/60 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-purple-600">Porciones</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {includePortionGuide ? `${portionGuideCount} visibles` : "Sección oculta"}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white/8 p-4">
-                    <p className="text-2xl font-black">
-                      {includePortionGuide ? portionGuideCount : 0}
-                    </p>
-                    <p className="text-xs uppercase tracking-widest text-slate-300">
-                      Porciones visibles
-                    </p>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Fecha</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">{deliveryDate}</p>
                   </div>
+                </div>
+
+                {missingRequirements.length > 0 && (
+                  <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                    <div>
+                      <p className="text-xs font-black text-rose-700 uppercase">Pendiente</p>
+                      <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs text-rose-600">
+                        {missingRequirements.map((m) => (
+                          <li key={m.id}>{m.label}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button onClick={handleExportPdf} disabled={isExportingPdf} className="h-11 rounded-2xl bg-emerald-600 px-6 text-white font-bold">
+                    {isExportingPdf ? "Generando..." : "Descargar PDF"}
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsSaveCreationModalOpen(true)} className="h-11 rounded-2xl border-slate-200 font-bold">
+                    Guardar
+                  </Button>
                 </div>
               </section>
               )}
@@ -2348,7 +2546,7 @@ export default function QuickDeliverableClient() {
                   key={patient.id}
                   type="button"
                   onClick={() => {
-                    setSelectedPatient(patient);
+                    setSelectedPatient({ ...patient, source: "imported" });
                     setIsManualPatientExpanded(false);
                     setIsPatientModalOpen(false);
                     toast.success(`Paciente ${patient.fullName} asignado.`);
