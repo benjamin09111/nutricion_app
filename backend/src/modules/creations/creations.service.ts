@@ -211,25 +211,31 @@ export class CreationsService {
       };
     }
 
-    const creation = await this.prisma.creation.create({
-      data: {
-        name: trimmedName,
-        type,
-        content,
-        metadata: nextMetadata,
-        tags: tags || [],
-        nutritionist: { connect: { id: resolvedNutritionistId } },
-      },
-    });
+    try {
+      const creation = await this.prisma.creation.create({
+        data: {
+          name: trimmedName,
+          type,
+          content,
+          metadata: nextMetadata,
+          tags: tags || [],
+          nutritionist: { connect: { id: resolvedNutritionistId } },
+          updatedAt: new Date(),
+        },
+      });
 
-    await this.cacheService.invalidateNutritionistPrefix(
-      resolvedNutritionistId,
-      'creations',
-    );
-    return {
-      ...creation,
-      wasCreated: true,
-    };
+      await this.cacheService.invalidateNutritionistPrefix(
+        resolvedNutritionistId,
+        'creations',
+      );
+      return {
+        ...creation,
+        wasCreated: true,
+      };
+    } catch (error: any) {
+      console.error('Error al guardar la creación:', error);
+      throw new BadRequestException('Error al guardar creación. Contactar al soporte.');
+    }
   }
 
   async findAll(nutritionistId: string, type?: string) {

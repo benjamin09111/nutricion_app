@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { fetchCreation, fetchProject, saveCreation } from "@/lib/workflow";
 import { downloadFastDeliverablePdf } from "@/features/pdf/fastDeliverablePdfExport";
 import { useDashboardShell } from "@/context/DashboardShellContext";
+import { getCurrentUser } from "@/lib/current-user";
 
 type QuickSection =
   | "Desayuno"
@@ -329,7 +330,7 @@ export default function QuickDeliverableClient() {
   const creationId = searchParams.get("creationId");
   const projectId = searchParams.get("project");
 
-  const [title, setTitle] = useState(DEFAULT_TITLE);
+  const [title, setTitle] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
   const [quickHashtags, setQuickHashtags] = useState("");
   const [quickDescription, setQuickDescription] = useState("");
@@ -363,6 +364,8 @@ export default function QuickDeliverableClient() {
   const [currentProjectName, setCurrentProjectName] = useState<string | null>(null);
   const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(null);
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
+  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+  const [isLoadingResources, setIsLoadingResources] = useState(false);
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
   const [isCreatedRecipesModalOpen, setIsCreatedRecipesModalOpen] = useState(false);
   const [isLoadingCreatedRecipes, setIsLoadingCreatedRecipes] = useState(false);
@@ -376,6 +379,7 @@ export default function QuickDeliverableClient() {
   const [aiRestrictedFoods, setAiRestrictedFoods] = useState("");
   const [aiNotes, setAiNotes] = useState("");
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
+  const [lastSavedState, setLastSavedState] = useState<string | null>(null);
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -410,7 +414,7 @@ export default function QuickDeliverableClient() {
     if (!draft) return;
     try {
       const parsed = JSON.parse(draft);
-      setTitle(parsed.title || DEFAULT_TITLE);
+      setTitle(parsed.title ?? "");
       setDeliveryDate(parsed.deliveryDate || new Date().toISOString().slice(0, 10));
       setQuickHashtags(parsed.quickHashtags || "");
       setQuickDescription(parsed.quickDescription || "");
@@ -498,7 +502,7 @@ export default function QuickDeliverableClient() {
         setSelectedPatient(createEmptyQuickPatient());
         const creation = await fetchCreation(creationId);
         const content = creation.content || {};
-        setTitle(content.title || creation.name || DEFAULT_TITLE);
+        setTitle(content.title ?? creation.name ?? "");
         setDeliveryDate(content.deliveryDate || new Date().toISOString().slice(0, 10));
         setQuickHashtags(content.quickHashtags || "");
         setQuickDescription(content.quickDescription || "");
@@ -531,13 +535,59 @@ export default function QuickDeliverableClient() {
             ? content.portionGuideRows
             : QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)),
         );
+        const patientData: QuickPatient = creation.metadata?.patientName
+          ? {
+              ...createEmptyQuickPatient(),
+              id: creation.metadata?.patientId || "",
+              fullName: creation.metadata.patientName || "",
+              source: (creation.metadata?.patientId ? "imported" : "manual") as "imported" | "manual",
+            }
+          : createEmptyQuickPatient();
         if (creation.metadata?.patientName) {
-          setSelectedPatient({
-            id: creation.metadata?.patientId,
-            fullName: creation.metadata.patientName,
-            source: creation.metadata?.patientId ? "imported" : "manual",
-          });
+          setSelectedPatient(patientData);
         }
+
+        const serialized = JSON.stringify({
+          title: content.title ?? creation.name ?? "",
+          deliveryDate: content.deliveryDate || new Date().toISOString().slice(0, 10),
+          quickHashtags: content.quickHashtags || "",
+          quickDescription: content.quickDescription || "",
+          planMode: content.planMode === "weekly" ? "weekly" : "single",
+          meals: (Array.isArray(content.meals) && content.meals.length > 0 ? content.meals : [createMeal("Desayuno")]).map((m: any) => ({
+            id: m.id,
+            section: m.section,
+            mealText: m.mealText,
+            weeklyMealTexts: m.weeklyMealTexts
+          })),
+          avoidFoods: (Array.isArray(content.avoidFoods) && content.avoidFoods.length > 0
+            ? content.avoidFoods.map((item: string | QuickAvoidFoodRow) =>
+                typeof item === "string" ? createAvoidFoodRow(item) : item,
+              )
+            : [createAvoidFoodRow()]).map((af: any) => ({
+            id: af.id,
+            value: af.value
+          })),
+          patientId: patientData.id || "",
+          patientName: patientData.fullName || "",
+          resolvedResourcePages: (Array.isArray(content.resources) ? content.resources : []).map((r: any) => ({
+            resourceId: r.resourceId,
+            title: r.title,
+            content: stripHtml(r.content || ""),
+            variables: r.variables || {}
+          })),
+          includeMeals: content.includeMeals !== false,
+          includeAvoidFoods: content.includeAvoidFoods !== false,
+          includeResources: content.includeResources !== false,
+          includePortionGuide: content.includePortionGuide !== false,
+          portionGuideRows: (Array.isArray(content.portionGuideRows) && content.portionGuideRows.length > 0
+            ? content.portionGuideRows
+            : QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row))).map((p: any) => ({
+            id: p.id,
+            category: p.category,
+            portion: p.portion
+          }))
+        });
+        setLastSavedState(serialized);
         setIsManualPatientExpanded(false);
       } catch (error) {
         console.error(error);
@@ -622,6 +672,58 @@ export default function QuickDeliverableClient() {
     [resolvedResourcePages, selectedResourceKeys],
   );
 
+  const getCurrentStateString = useCallback(() => {
+    return JSON.stringify({
+      title,
+      deliveryDate,
+      quickHashtags,
+      quickDescription,
+      planMode,
+      meals: meals.map(m => ({
+        id: m.id,
+        section: m.section,
+        mealText: m.mealText,
+        weeklyMealTexts: m.weeklyMealTexts
+      })),
+      avoidFoods: avoidFoods.map(af => ({
+        id: af.id,
+        value: af.value
+      })),
+      patientId: selectedPatient.id || "",
+      patientName: selectedPatient.fullName || "",
+      resolvedResourcePages: resolvedResourcePages.map(r => ({
+        resourceId: r.resourceId,
+        title: r.title,
+        content: r.content,
+        variables: r.variables
+      })),
+      includeMeals,
+      includeAvoidFoods,
+      includeResources,
+      includePortionGuide,
+      portionGuideRows: portionGuideRows.map(p => ({
+        id: p.id,
+        category: p.category,
+        portion: p.portion
+      }))
+    });
+  }, [
+    title,
+    deliveryDate,
+    quickHashtags,
+    quickDescription,
+    planMode,
+    meals,
+    avoidFoods,
+    selectedPatient,
+    resolvedResourcePages,
+    includeMeals,
+    includeAvoidFoods,
+    includeResources,
+    includePortionGuide,
+    portionGuideRows
+  ]);
+
   const missingRequirements = useMemo(() => {
     const missing: Array<{ id: string; label: string; ref: React.RefObject<HTMLElement | null> }> = [];
     if (!includeMeals && !includeAvoidFoods) {
@@ -649,6 +751,18 @@ export default function QuickDeliverableClient() {
     }
     return missing;
   }, [includeMeals, meals, planMode, includeAvoidFoods, validAvoidFoods.length]);
+
+  const hasChanges = lastSavedState === null || lastSavedState !== getCurrentStateString();
+
+  const getSaveTooltipMessage = () => {
+    if (missingRequirements.length > 0) {
+      return "Completa los pendientes para guardar";
+    }
+    if (!hasChanges) {
+      return "No hay cambios pendientes por guardar";
+    }
+    return undefined;
+  };
 
   const scrollToRequirement = (requirementId?: string) => {
     const target =
@@ -792,7 +906,7 @@ export default function QuickDeliverableClient() {
     setTitle(
       typeof content.title === "string" && content.title.trim()
         ? content.title
-        : creation.name || DEFAULT_TITLE,
+        : creation.name || "",
     );
     setDeliveryDate(
       typeof content.deliveryDate === "string" && content.deliveryDate.trim()
@@ -1133,16 +1247,24 @@ export default function QuickDeliverableClient() {
   const fetchPatients = async (): Promise<QuickPatient[]> => {
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi("/patients", { headers: { Authorization: `Bearer ${token}` } });
+      const response = await fetchApi("/patients?status=Activos", { headers: { Authorization: `Bearer ${token}` } });
       if (response.ok) { const data = await response.json(); return data.data || []; }
       return [];
     } catch { return []; }
   };
 
   const openPatientImportModal = async () => {
-    const loaded = await fetchPatients();
-    setPatients(loaded);
-    setIsPatientModalOpen(true);
+    setIsLoadingPatients(true);
+    try {
+      const loaded = await fetchPatients();
+      setPatients(loaded);
+      setIsPatientModalOpen(true);
+    } catch (error) {
+      console.error(error);
+      toast.error("No se pudieron cargar los pacientes.");
+    } finally {
+      setIsLoadingPatients(false);
+    }
   };
 
   useEffect(() => {
@@ -1166,11 +1288,19 @@ export default function QuickDeliverableClient() {
   };
 
   const openResourceModal = async () => {
-    await fetchResources();
-    setSelectedResourceIds([]);
-    setResourceSearch("");
-    setResourceCategoryFilter("Todas");
-    setIsResourceModalOpen(true);
+    setIsLoadingResources(true);
+    try {
+      await fetchResources();
+      setSelectedResourceIds([]);
+      setResourceSearch("");
+      setResourceCategoryFilter("Todas");
+      setIsResourceModalOpen(true);
+    } catch (error) {
+      console.error(error);
+      toast.error("No se pudieron cargar los recursos.");
+    } finally {
+      setIsLoadingResources(false);
+    }
   };
 
   const addResolvedResourcePage = async () => {
@@ -1296,62 +1426,66 @@ export default function QuickDeliverableClient() {
     }
   };
 
-  const buildPdfPayload = () => ({
-    name: title.trim() || DEFAULT_TITLE,
-    deliveryDate,
-    hashtags: quickHashtags.split(",").map((t) => t.trim()).filter(Boolean),
-    description: quickDescription.trim() || null,
-    patientName: selectedPatient?.fullName || null,
-    planMode,
-    meals: includeMeals
-      ? planMode === "single"
-        ? meals
-        : meals.flatMap((meal) =>
-            QUICK_WEEK_DAYS.map((day) => ({
-              ...meal,
-              section: `${day} - ${meal.section || "Sin categoria"}`,
-              mealText: meal.weeklyMealTexts?.[day] || "",
-            })),
-          )
-      : [],
-    avoidFoods: includeAvoidFoods ? validAvoidFoods : [],
-    resources: includeResources
-      ? selectedResolvedResources.map((resource) => ({
-          ...resource,
-          content: stripHtml(resource.content || ""),
-        }))
-      : [],
-    portionGuide: includePortionGuide
-      ? portionGuideRows
-          .map((row) => ({
-            category: row.category.trim(),
-            portion: row.portion.trim(),
+  const buildPdfPayload = () => {
+    const user = getCurrentUser();
+    const nutritionistName = user?.nutritionist?.fullName || user?.name || null;
+    const nutritionistEmail = user?.email || null;
+    const resolvedAge =
+      selectedPatient.ageYears ??
+      (selectedPatient.birthDate ? calculateAge(selectedPatient.birthDate) : null);
+
+    return {
+      name: title.trim() || DEFAULT_TITLE,
+      deliveryDate,
+      hashtags: quickHashtags.split(",").map((t) => t.trim()).filter(Boolean),
+      description: quickDescription.trim() || null,
+      patientName: selectedPatient?.fullName || null,
+      nutritionistName,
+      nutritionistEmail,
+      planMode,
+      meals: includeMeals
+        ? planMode === "single"
+          ? meals
+          : meals.flatMap((meal) =>
+              QUICK_WEEK_DAYS.map((day) => ({
+                ...meal,
+                section: `${day} - ${meal.section || "Sin categoria"}`,
+                mealText: meal.weeklyMealTexts?.[day] || "",
+              })),
+            )
+        : [],
+      avoidFoods: includeAvoidFoods ? validAvoidFoods : [],
+      resources: includeResources
+        ? selectedResolvedResources.map((resource) => ({
+            ...resource,
+            content: stripHtml(resource.content || ""),
           }))
-          .filter((row) => row.category || row.portion)
-      : [],
-    supplementNote: getProteinSupplementNote(),
-    generatedAt: new Date().toLocaleDateString("es-CL"),
-    ...(selectedPatient.fullName.trim() ||
-    selectedPatient.ageYears !== null ||
-    Boolean(selectedPatient.gender) ||
-    Boolean(selectedPatient.nutritionalFocus) ||
-    Boolean(selectedPatient.fitnessGoals) ||
-    (selectedPatient.restrictions || []).length > 0 ||
-    Boolean(selectedPatient.likes)
-      ? {
-          patient: {
-            name: selectedPatient.fullName || null,
-            ageYears: selectedPatient.ageYears ?? null,
-            gender: selectedPatient.gender || null,
-            nutritionalFocus: selectedPatient.nutritionalFocus || null,
-            fitnessGoals: selectedPatient.fitnessGoals || null,
-            restrictions: selectedPatient.restrictions || [],
-            likes: selectedPatient.likes || null,
-            source: selectedPatient.source || "manual",
-          },
-        }
-      : {}),
-  });
+        : [],
+      portionGuide: includePortionGuide
+        ? portionGuideRows
+            .map((row) => ({
+              category: row.category.trim(),
+              portion: row.portion.trim(),
+            }))
+            .filter((row) => row.category || row.portion)
+        : [],
+      supplementNote: getProteinSupplementNote(),
+      generatedAt: new Date().toLocaleDateString("es-CL"),
+      ...(selectedPatient.fullName.trim() ||
+      resolvedAge !== null ||
+      selectedPatient.weight !== null ||
+      selectedPatient.height !== null
+        ? {
+            patient: {
+              name: selectedPatient.fullName || null,
+              ageYears: resolvedAge,
+              weight: selectedPatient.weight ?? null,
+              height: selectedPatient.height ?? null,
+            },
+          }
+        : {}),
+    };
+  };
 
   const handleExportPdf = async () => {
     if (!validateRequiredSections()) {
@@ -1420,6 +1554,7 @@ export default function QuickDeliverableClient() {
       toast.success("Entregable rápido guardado en creaciones.");
       setIsSaveCreationModalOpen(false);
       setCreationDescription("");
+      setLastSavedState(getCurrentStateString());
     } catch (error: unknown) {
       console.error(error);
       toast.error(
@@ -1433,13 +1568,14 @@ export default function QuickDeliverableClient() {
   };
 
   const resetQuickDeliverable = () => {
-    setTitle(DEFAULT_TITLE);
+    setTitle("");
     setDeliveryDate(new Date().toISOString().slice(0, 10));
     setQuickHashtags("");
     setQuickDescription("");
     setPlanMode("single");
     setMeals([createMeal("Desayuno"), createMeal("Almuerzo"), createMeal("Cena")]);
     setAvoidFoods([createAvoidFoodRow()]);
+    setLastSavedState(null);
     setSelectedPatient(createEmptyQuickPatient());
     setIsManualPatientExpanded(false);
     setResolvedResourcePages([]);
@@ -1457,17 +1593,20 @@ export default function QuickDeliverableClient() {
     () => [
       {
         id: "patient",
-        icon: User,
-        label: selectedPatient.fullName?.trim() ? selectedPatient.fullName : "Importar paciente",
+        icon: isLoadingPatients ? Loader2 : User,
+        label: isLoadingPatients
+          ? "Cargando..."
+          : selectedPatient.fullName?.trim()
+            ? selectedPatient.fullName
+            : "Importar paciente",
         variant: selectedPatient.fullName?.trim() ? "emerald" : "slate",
+        disabled: isLoadingPatients,
         onClick: async () => {
           if (selectedPatient.fullName?.trim()) {
             clearSelectedPatient();
             return;
           }
-          const loaded = await fetchPatients();
-          setPatients(loaded);
-          setIsPatientModalOpen(true);
+          await openPatientImportModal();
         },
       },
       {
@@ -1488,8 +1627,13 @@ export default function QuickDeliverableClient() {
         id: "save",
         icon: CheckCircle2,
         label: "Guardar",
+        description: getSaveTooltipMessage() || "Guardar",
         variant: "slate",
-        onClick: () => setIsSaveCreationModalOpen(true),
+        disabled: missingRequirements.length > 0 || !hasChanges,
+        onClick: () => {
+          if (missingRequirements.length > 0 || !hasChanges) return;
+          setIsSaveCreationModalOpen(true);
+        },
       },
       {
         id: "reset",
@@ -1499,7 +1643,7 @@ export default function QuickDeliverableClient() {
         onClick: resetQuickDeliverable,
       },
     ],
-    [selectedPatient.fullName],
+    [selectedPatient.fullName, isLoadingPatients, missingRequirements, hasChanges],
   );
 
   return (
@@ -1526,7 +1670,7 @@ export default function QuickDeliverableClient() {
               <ChevronDown className="ml-auto h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
             </summary>
             <div className="px-6 space-y-3">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start">
                 <div className="flex-1 space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Título <span className="text-rose-500">*</span></p>
                   <Input
@@ -1568,53 +1712,86 @@ export default function QuickDeliverableClient() {
           </details>
 
           {/* Paciente */}
-          <div className="rounded-2xl border border-slate-200 bg-white px-6 py-4">
+          <details
+            className={cn(
+              "group rounded-2xl border border-slate-200 bg-white [&[open]]:pb-6"
+            )}
+            open={!selectedPatient.fullName?.trim() ? true : undefined}
+          >
             {!selectedPatient.fullName?.trim() ? (
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">PACIENTE</p>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void openPatientImportModal()}
-                    className="h-9 rounded-xl border-emerald-200 bg-white px-4 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    Importar paciente
-                  </Button>
-                  <span className="text-xs font-semibold text-slate-400">o</span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={startManualPatientEntry}
-                    className="h-9 rounded-xl border-slate-200 bg-white px-4 text-sm text-slate-700 font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all"
-                  >
-                    <FileText className="mr-2 h-4 w-4" />
-                    Rellenar manualmente
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">PACIENTE</p>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5">
-                    <User className="h-4 w-4 text-emerald-600" />
-                    <span className="text-sm font-semibold text-emerald-900">{selectedPatient.fullName}</span>
+              <summary
+                className="flex items-center justify-between gap-3 px-6 py-4 select-none pointer-events-none"
+                onClick={(e) => {
+                  e.preventDefault();
+                }}
+              >
+                <div
+                  className="flex flex-wrap items-center justify-between gap-3 w-full pointer-events-auto"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                >
+                  <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">PACIENTE</p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void openPatientImportModal()}
+                      disabled={isLoadingPatients}
+                      className="h-9 rounded-xl border-emerald-200 bg-white px-4 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                    >
+                      {isLoadingPatients ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-600" />
+                      ) : (
+                        <User className="mr-2 h-4 w-4" />
+                      )}
+                      {isLoadingPatients ? "Cargando..." : "Importar paciente"}
+                    </Button>
+                    <span className="text-xs font-semibold text-slate-400">o</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={startManualPatientEntry}
+                      disabled={isLoadingPatients}
+                      className="h-9 rounded-xl border-slate-200 bg-white px-4 text-sm text-slate-700 font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all"
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Rellenar manualmente
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void openPatientImportModal()}
-                    className="h-9 rounded-xl border-emerald-200 bg-white px-3 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
-                  >
-                    Cambiar
-                  </Button>
                 </div>
-              </div>
+              </summary>
+            ) : (
+              <summary className="flex cursor-pointer items-center justify-between gap-3 px-6 py-4 select-none">
+                <div className="flex flex-wrap items-center justify-between gap-3 w-full mr-2">
+                  <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">PACIENTE</p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5">
+                      <User className="h-4 w-4 text-emerald-600" />
+                      <span className="text-sm font-semibold text-emerald-900">{selectedPatient.fullName}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void openPatientImportModal();
+                      }}
+                      disabled={isLoadingPatients}
+                      className="h-9 rounded-xl border-emerald-200 bg-white px-3 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                    >
+                      {isLoadingPatients ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-600" />
+                      ) : null}
+                      {isLoadingPatients ? "Cargando..." : "Cambiar"}
+                    </Button>
+                  </div>
+                </div>
+                <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180 shrink-0" />
+              </summary>
             )}
 
-            <div className="mt-4 space-y-4">
+            <div className="px-6 mt-4 space-y-4">
               {selectedPatient.fullName?.trim() && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -1731,7 +1908,7 @@ export default function QuickDeliverableClient() {
                 </div>
               )}
             </div>
-          </div>
+          </details>
 
         </div>
 
@@ -1789,59 +1966,59 @@ export default function QuickDeliverableClient() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-11 rounded-2xl border-slate-200 px-4 text-slate-700 md:self-start"
+                    className="h-11 rounded-2xl border-purple-200 bg-purple-50 px-4 text-purple-700 hover:bg-purple-100 hover:border-purple-300 hover:text-purple-800 transition-all font-semibold shadow-sm md:self-start"
                     onClick={() => setIsCreatedRecipesModalOpen(true)}
                     title="Rellenar con platos creados"
                   >
-                                        {isGeneratingQuickAi ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-600" />
+                    {isGeneratingQuickAi ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-purple-600" />
                     ) : (
-                      <Sparkles className="mr-2 h-4 w-4 text-emerald-600" />
+                      <Sparkles className="mr-2 h-4 w-4 text-purple-600 fill-purple-600/10" />
                     )}
 
                     Rellenar con IA / platos creados
                   </Button>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="hidden flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setIncludeMeals((current) => !current)}
-                        className={cn(
-                          "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest transition-colors",
-                          includeMeals
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-slate-200 bg-white text-slate-500",
-                        )}
-                      >
-                        <span className={cn(
-                          "h-2.5 w-2.5 rounded-full",
-                          includeMeals ? "bg-emerald-500" : "bg-slate-300",
-                        )} />
-                        {includeMeals ? "Seccion visible" : "Seccion oculta"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPlanMode((current) => (current === "single" ? "weekly" : "single"))}
-                        className={cn(
-                          "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest transition-colors",
-                          planMode === "weekly"
-                            ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                            : "border-slate-200 bg-white text-slate-600",
-                        )}
-                      >
-                        {planMode === "weekly" ? "Vista semanal activa" : "Cambiar a semanal"}
-                      </button>
+                {planMode === "weekly" && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="hidden flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIncludeMeals((current) => !current)}
+                          className={cn(
+                            "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest transition-colors",
+                            includeMeals
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-slate-200 bg-white text-slate-500",
+                          )}
+                        >
+                          <span className={cn(
+                            "h-2.5 w-2.5 rounded-full",
+                            includeMeals ? "bg-emerald-500" : "bg-slate-300",
+                          )} />
+                          {includeMeals ? "Seccion visible" : "Seccion oculta"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPlanMode((current) => (current === "single" ? "weekly" : "single"))}
+                          className={cn(
+                            "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest transition-colors",
+                            planMode === "weekly"
+                              ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                              : "border-slate-200 bg-white text-slate-600",
+                          )}
+                        >
+                          {planMode === "weekly" ? "Vista semanal activa" : "Cambiar a semanal"}
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Categoria, hora y porcion se editan una vez; alimentos cambian por dia.
+                      </p>
                     </div>
-                    <p className="text-xs text-slate-500">
-                      {planMode === "weekly"
-                        ? "Categoria, hora y porcion se editan una vez; alimentos cambian por dia."
-                        : "Agrega filas vacias y completa categoria, alimentos, hora y porciones."}
-                    </p>
                   </div>
-                </div>
+                )}
 
                 <div className={cn(
                   "overflow-x-auto rounded-3xl border border-slate-200",
@@ -1854,23 +2031,7 @@ export default function QuickDeliverableClient() {
                           Categoría
                         </th>
                         <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                          <div className="flex items-center gap-2">
-                            <span>Alimentos</span>
-                            <button
-                              type="button"
-                              onClick={() => setIsCreatedRecipesModalOpen(true)}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:bg-emerald-100"
-                              title="Rellenar con IA / platos creados"
-                              aria-label="Rellenar con IA / platos creados"
-                            >
-                                                            {isGeneratingQuickAi ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Sparkles className="h-3.5 w-3.5" />
-                              )}
-
-                            </button>
-                          </div>
+                          Alimentos
                         </th>
                         <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-36">
                           Hora
@@ -2211,10 +2372,14 @@ export default function QuickDeliverableClient() {
                       variant="outline"
                       className="h-10 rounded-2xl border-slate-200"
                       onClick={openResourceModal}
-                      disabled={!includeResources}
+                      disabled={!includeResources || isLoadingResources}
                     >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Agregar
+                      {isLoadingResources ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin text-slate-600" />
+                      ) : (
+                        <Plus className="mr-2 h-4 w-4" />
+                      )}
+                      {isLoadingResources ? "Cargando..." : "Agregar"}
                     </Button>
                   </div>
                 </div>
@@ -2539,10 +2704,21 @@ export default function QuickDeliverableClient() {
                 )}
 
                 <div className="flex flex-wrap gap-2 pt-2">
-                  <Button onClick={handleExportPdf} disabled={isExportingPdf} className="h-11 rounded-2xl bg-emerald-600 px-6 text-white font-bold">
+                  <Button
+                    onClick={handleExportPdf}
+                    disabled={isExportingPdf || missingRequirements.length > 0}
+                    title={missingRequirements.length > 0 ? "Completa los pendientes para descargar el PDF" : undefined}
+                    className="h-11 rounded-2xl bg-emerald-600 px-6 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     {isExportingPdf ? "Generando..." : "Descargar PDF"}
                   </Button>
-                  <Button variant="outline" onClick={() => setIsSaveCreationModalOpen(true)} className="h-11 rounded-2xl border-slate-200 font-bold">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsSaveCreationModalOpen(true)}
+                    disabled={missingRequirements.length > 0 || !hasChanges}
+                    title={getSaveTooltipMessage()}
+                    className="h-11 rounded-2xl border-slate-200 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     Guardar
                   </Button>
                 </div>
