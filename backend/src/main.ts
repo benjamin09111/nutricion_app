@@ -28,6 +28,24 @@ async function bootstrap() {
   // Security
   app.use(helmet());
 
+  const expandOriginVariants = (value: string) => {
+    const normalized = normalizeUrl(value.trim());
+    try {
+      const url = new URL(normalized);
+      const isRootDomain = url.hostname.split('.').length === 2;
+      const isWwwDomain = url.hostname.startsWith('www.');
+      if (!isRootDomain && !isWwwDomain) return [url.origin];
+
+      const alternateHost = isWwwDomain
+        ? url.hostname.slice(4)
+        : `www.${url.hostname}`;
+      const port = url.port ? `:${url.port}` : '';
+      return [url.origin, `${url.protocol}//${alternateHost}${port}`];
+    } catch {
+      return [normalized];
+    }
+  };
+
   const frontendOrigins = new Set(
     [
       process.env.FRONTEND_URL,
@@ -35,8 +53,14 @@ async function bootstrap() {
       process.env.CORS_ORIGIN,
     ]
       .filter(Boolean)
-      .map((origin) => normalizeUrl(origin!)),
+      .flatMap((origin) => origin!.split(','))
+      .filter((origin) => origin.trim())
+      .flatMap(expandOriginVariants),
   );
+
+  if (frontendOrigins.size === 0) {
+    console.warn('No CORS origins configured. Set FRONTEND_URL or CORS_ORIGIN.');
+  }
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     const unsafeMethod = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
